@@ -1,2 +1,2 @@
-# ac-app
-Frontend for Active Christianity Africa
+# ActiveChristianity Africa app
+App for Active Christianity Africa.
