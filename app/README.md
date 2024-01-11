@@ -2,15 +2,17 @@
 
 This is the frontend of the ActiveChristianity app. It's a Vue app that runs both in the browser and as a "native" app on mobile phones using Capacitor.
 
-## Project Setup
+## Local setup
 
-### IDE setup
+### Editor
 
--   [VSCode](https://code.visualstudio.com/)
+The recommended editor is [Visual Studio Code](https://code.visualstudio.com/), with the following extensions (which VS Code should automatically prompt you to install when first opening the repository):
+
 -   [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)
 -   [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin)
 -   [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
 -   [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+-   [TailwindCSS Intellisense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss)
 
 Configure Prettier as the default formatter, and configure VS Code to automatically format on save. One way to do this is by adding this to your local `settings.json`:
 
@@ -19,31 +21,37 @@ Configure Prettier as the default formatter, and configure VS Code to automatica
     "editor.formatOnSave": true,
 ```
 
-### Install dependencies
+### Running the project
+
+First install dependencies:
 
 ```sh
-npm install
+npm ci
 ```
 
-### Compile and Hot-Reload for Development
+Then start a live-reloading server with:
 
 ```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+### Building for production
 
 ```sh
 npm run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+### Tests
+
+#### Unit tests
 
 ```sh
 npm run test:unit
 ```
 
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
+#### End-to-end tests
+
+The end-to-end tests are run with [Playwright](https://playwright.dev).
 
 ```sh
 # Install browsers for the first run
@@ -62,8 +70,20 @@ npm run test:e2e -- tests/example.spec.ts
 npm run test:e2e -- --debug
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Linting
+
+The code is linted for code quality and style issues with [ESLint](https://eslint.org/). You should configure your editor to automatically lint files on save, but you can also manually run this command to check for errors:
 
 ```sh
 npm run lint
 ```
+
+Automatically fix issues by running
+
+```sh
+npm run lint:fix
+```
+
+#### Prettier
+
+We use [Prettier](https://prettier.io) to format our code in a common way. Configure your editor to automatically format files on save with Prettier. Any issues from Prettier will be treated as errors in CI to ensure that the code is always styled in the correct way.
