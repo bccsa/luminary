@@ -18,7 +18,7 @@ jobs:
   test:
     uses: ./.github/workflows/cms-unit-tests.yml
 
-  release:
+  deploy:
     runs-on: ubuntu-latest
     needs: test
 
