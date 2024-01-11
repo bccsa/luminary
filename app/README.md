@@ -19,6 +19,8 @@ Configure Prettier as the default formatter, and configure VS Code to automatica
     "editor.formatOnSave": true,
 ```
 
+### Install dependencies
+
 ```sh
 npm install
 ```
