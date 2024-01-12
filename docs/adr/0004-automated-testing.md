@@ -18,4 +18,4 @@ We will also introduce end-to-end tests for some important scenarios, such as lo
 
 ## Consequences
 
-Unit tests become a part of the code review process: PR's will be rejected by the reviewer if there is no unit test coverage for newly added code, unless a specific reason is provided why this was not added (as in rare cases it can be hard to unit test a piece of code - in that case an e2e test could be considered). Code can't be merged to `main` when the tests are not succeeding.
+Unit tests become a part of the code review process: PRs will be rejected by the reviewer if there is no unit test coverage for newly added code, unless a specific reason is provided why this was not added (as in rare cases it can be hard to unit test a piece of code - in that case an e2e test could be considered). Code can't be merged to `main` when the tests are not succeeding.

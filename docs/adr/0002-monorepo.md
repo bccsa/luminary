@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-This project will consist of several parts that will be developed together, like a frontend, API, database and CMS. These could be placed in their own repositories, which would mean multiple PR's are needed to update a feature that touches multiple parts of the codebase.
+This project will consist of several parts that will be developed together, like a frontend, API, database and CMS. These could be placed in their own repositories, which would mean multiple PRs are needed to update a feature that touches multiple parts of the codebase.
 
 ## Decision
 
