@@ -15,4 +15,7 @@ export default defineConfig({
         port: 4174,
         strictPort: true,
     },
+    build: {
+        target: "es2015",
+    },
 });
