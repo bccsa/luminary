@@ -10,12 +10,14 @@ $ npm install
 
 ## Running the app
 
+By default the app will run at http://localhost:3000.
+
 ```sh
 # development
 $ npm run start
 
 # watch mode
-$ npm run start:dev
+$ npm run start:dev # or just 'dev'
 
 # production mode
 $ npm run start:prod
@@ -25,7 +27,7 @@ $ npm run start:prod
 
 ```sh
 # unit tests
-$ npm run test
+$ npm run test:unit
 
 # e2e tests
 $ npm run test:e2e
