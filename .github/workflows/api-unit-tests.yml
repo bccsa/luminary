@@ -1,0 +1,65 @@
+name: Run API Unit Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - api/**
+      - .github/workflows/api-unit-tests.yml
+  workflow_call:
+
+env:
+  CI: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: api/.node-version
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: api
+
+      - name: Run Unit Tests
+        run: npm run test:unit
+        working-directory: api
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: api/.node-version
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: api
+
+      - name: Lint
+        run: npm run lint
+        working-directory: api
+
+      - name: Type Check
+        run: tsc
+        working-directory: api
