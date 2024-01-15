@@ -21,13 +21,19 @@ Configure Prettier as the default formatter, and configure VS Code to automatica
 
 ### Running the project
 
-First install dependencies:
+1. Copy the environment variable file and fill in required fields, such as the client id for authentication:
+
+```sh
+cp .env.example .env
+```
+
+2. Install dependencies:
 
 ```sh
 npm ci
 ```
 
-Then start a live-reloading server with:
+3. Then start a live-reloading server with:
 
 ```sh
 npm run dev
