@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import Navbar from "./Navbar.vue";
+import TopBar from "./TopBar.vue";
 import * as auth0 from "@auth0/auth0-vue";
 
 vi.mock("@auth0/auth0-vue");
 
-describe("Navbar", () => {
+describe("TopBar", () => {
     afterEach(() => {
         vi.clearAllMocks();
     });
@@ -17,7 +17,7 @@ describe("Navbar", () => {
             },
         });
 
-        const wrapper = mount(Navbar);
+        const wrapper = mount(TopBar);
 
         expect(wrapper.html()).toContain("Test Person");
     });
@@ -28,7 +28,7 @@ describe("Navbar", () => {
             logout,
         });
 
-        const wrapper = mount(Navbar);
+        const wrapper = mount(TopBar);
         await wrapper.find("button").trigger("click");
         await wrapper.find("a").trigger("click");
 

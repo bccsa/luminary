@@ -48,7 +48,7 @@ const router = createRouter({
     ],
 });
 
-router.afterEach((to, from) => {
+router.afterEach((to) => {
     const { appName } = useGlobalConfigStore();
 
     nextTick(() => {

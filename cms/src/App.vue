@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
-import Sidebar from "@/components/navigation/Sidebar.vue";
-import Navbar from "@/components/navigation/Navbar.vue";
+import SideBar from "@/components/navigation/SideBar.vue";
+import TopBar from "@/components/navigation/TopBar.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ref } from "vue";
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
@@ -64,7 +64,7 @@ const sidebarOpen = ref(false);
                                 </div>
                             </TransitionChild>
 
-                            <Sidebar />
+                            <SideBar />
                         </DialogPanel>
                     </TransitionChild>
                 </div>
@@ -73,7 +73,7 @@ const sidebarOpen = ref(false);
 
         <!-- Static sidebar for desktop -->
         <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-            <Sidebar />
+            <SideBar />
         </div>
 
         <!-- Top bar -->
@@ -93,7 +93,7 @@ const sidebarOpen = ref(false);
                 <!-- Separator -->
                 <div class="h-6 w-px bg-gray-900/10 lg:hidden" aria-hidden="true" />
 
-                <Navbar />
+                <TopBar />
             </div>
 
             <main class="py-10">
