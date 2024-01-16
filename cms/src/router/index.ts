@@ -52,7 +52,7 @@ router.afterEach((to) => {
     const { appName } = useGlobalConfigStore();
 
     nextTick(() => {
-        document.title = `${to.meta.title} - ${appName} CMS` || appName;
+        document.title = `${to.meta.title} - ${appName} CMS` || `${appName} CMS`;
     });
 });
 
