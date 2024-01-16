@@ -6,12 +6,15 @@ import {
     HomeIcon,
     UsersIcon,
 } from "@heroicons/vue/24/outline";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
+
+const { appName } = useGlobalConfigStore();
 
 const navigation = [
     { name: "Dashboard", to: "/", icon: HomeIcon },
     {
-        name: "Articles",
-        to: "/articles",
+        name: "Posts",
+        to: "/posts",
         icon: DocumentDuplicateIcon,
     },
     { name: "Videos", to: "/videos", icon: VideoCameraIcon },
@@ -22,7 +25,7 @@ const navigation = [
 <template>
     <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 pb-4">
         <div class="flex h-16 shrink-0 items-center">
-            <img class="w-52" src="@/assets/logo_white.svg" alt="ActiveChristianity" />
+            <img class="w-52" src="@/assets/logo_white.svg" :alt="appName" />
         </div>
         <nav class="flex flex-1 flex-col">
             <ul role="list" class="flex flex-1 flex-col gap-y-7">
