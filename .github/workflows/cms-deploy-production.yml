@@ -29,6 +29,7 @@ jobs:
 
       - name: Build Docker container
         run: docker build . -t ${{ vars.DOCKER_IMAGE }}
+        working-directory: cms
 
       - name: Stop and remove old Docker container
         run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
