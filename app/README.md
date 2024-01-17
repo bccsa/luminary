@@ -31,3 +31,14 @@ To make sure the latest code is run, use these commands:
 npm run build
 npx cap sync
 ```
+
+## Build for production
+
+The web version of the app can be deployed as a Docker container by building the `Dockerfile`:
+
+```sh
+docker build -t ac-app .
+docker run --rm -it -p 8080:80 ac-app
+```
+
+This will run the app on port 8080 on the host machine.
