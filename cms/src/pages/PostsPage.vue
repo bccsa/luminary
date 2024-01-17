@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Page from "@/components/Page.vue";
+import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
 
 const createPost = () => {
@@ -8,12 +8,12 @@ const createPost = () => {
 </script>
 
 <template>
-    <Page title="Posts">
+    <BasePage title="Posts">
         <EmptyState
             title="No posts yet"
             description="Get started by creating a new post."
             buttonText="Create Post"
             :buttonAction="createPost"
         />
-    </Page>
+    </BasePage>
 </template>

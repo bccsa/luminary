@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import DashboardView from "@/pages/Dashboard.vue";
+import Dashboard from "@/pages/DashboardPage.vue";
 import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -14,7 +14,7 @@ const router = createRouter({
                 {
                     path: "/",
                     name: "dashboard",
-                    component: DashboardView,
+                    component: Dashboard,
                     meta: {
                         title: "Dashboard",
                     },
@@ -22,7 +22,7 @@ const router = createRouter({
                 {
                     path: "/posts",
                     name: "posts",
-                    component: () => import("../pages/Posts.vue"),
+                    component: () => import("../pages/PostsPage.vue"),
                     meta: {
                         title: "Posts",
                     },
@@ -30,7 +30,7 @@ const router = createRouter({
                 {
                     path: "/videos",
                     name: "videos",
-                    component: () => import("../pages/Videos.vue"),
+                    component: () => import("../pages/VideosPage.vue"),
                     meta: {
                         title: "Videos",
                     },
@@ -38,7 +38,7 @@ const router = createRouter({
                 {
                     path: "/users",
                     name: "users",
-                    component: () => import("../pages/Users.vue"),
+                    component: () => import("../pages/UsersPage.vue"),
                     meta: {
                         title: "Users",
                     },
