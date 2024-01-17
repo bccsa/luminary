@@ -10,9 +10,10 @@ const router = createRouter({
         {
             path: "/",
             beforeEnter: authGuard,
+            redirect: { name: "dashboard" },
             children: [
                 {
-                    path: "/",
+                    path: "dashboard",
                     name: "dashboard",
                     component: Dashboard,
                     meta: {
@@ -20,28 +21,57 @@ const router = createRouter({
                     },
                 },
                 {
-                    path: "/posts",
+                    path: "posts",
                     name: "posts",
-                    component: () => import("../pages/PostsPage.vue"),
-                    meta: {
-                        title: "Posts",
-                    },
+                    redirect: { name: "posts.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "posts.index",
+                            component: () => import("../pages/posts/PostOverview.vue"),
+                            meta: {
+                                title: "Posts",
+                            },
+                        },
+                        {
+                            path: "create",
+                            name: "posts.create",
+                            component: () => import("../pages/posts/CreatePost.vue"),
+                            meta: {
+                                title: "Create Post",
+                            },
+                        },
+                    ],
                 },
                 {
-                    path: "/videos",
+                    path: "videos",
                     name: "videos",
-                    component: () => import("../pages/VideosPage.vue"),
-                    meta: {
-                        title: "Videos",
-                    },
+                    redirect: { name: "videos.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "videos.index",
+                            component: () => import("../pages/VideosPage.vue"),
+                            meta: {
+                                title: "Videos",
+                            },
+                        },
+                    ],
                 },
                 {
-                    path: "/users",
+                    path: "users",
                     name: "users",
-                    component: () => import("../pages/UsersPage.vue"),
-                    meta: {
-                        title: "Users",
-                    },
+                    redirect: { name: "users.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "users.index",
+                            component: () => import("../pages/UsersPage.vue"),
+                            meta: {
+                                title: "Users",
+                            },
+                        },
+                    ],
                 },
             ],
         },
