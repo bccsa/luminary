@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import BasePage from "./BasePage.vue";
 
