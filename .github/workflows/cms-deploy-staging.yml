@@ -2,7 +2,7 @@ name: "Build & Deploy CMS to Staging"
 
 on:
   push:
-    branches: [main]
+    branches: [ci/add-docker-deploy-to-staging]
     paths:
       - cms/**
       - .github/workflows/cms-deploy-staging.yml
@@ -19,7 +19,7 @@ jobs:
     uses: ./.github/workflows/cms-unit-tests.yml
 
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ac]
     environment: cms-staging
     steps:
       - name: Checkout repository
