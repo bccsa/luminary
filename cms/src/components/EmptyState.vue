@@ -31,6 +31,7 @@ defineProps<{
                 :is="buttonLink ? RouterLink : 'button'"
                 :to="buttonLink"
                 :icon="PlusIcon"
+                size="lg"
             >
                 {{ buttonText }}
             </AcButton>

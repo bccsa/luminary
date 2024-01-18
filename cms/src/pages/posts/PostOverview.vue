@@ -9,7 +9,7 @@ import { PlusIcon } from "@heroicons/vue/20/solid";
 <template>
     <BasePage title="Posts">
         <template #actions>
-            <AcButton size="md" :icon="PlusIcon" :is="RouterLink" :to="{ name: 'posts.create' }">
+            <AcButton :icon="PlusIcon" :is="RouterLink" :to="{ name: 'posts.create' }">
                 Create Post
             </AcButton>
         </template>

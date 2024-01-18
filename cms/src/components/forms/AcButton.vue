@@ -13,14 +13,20 @@ type Props = {
 withDefaults(defineProps<Props>(), {
     is: "button",
     variant: "primary",
-    size: "lg",
+    size: "md",
     iconRight: false,
     disabled: false,
 });
 
 const variants = {
-    primary: "bg-yellow-600 text-white hover:bg-yellow-500",
+    primary:
+        "text-yellow-950 bg-yellow-300 border border-yellow-400/80 active:bg-yellow-300/80 hover:bg-yellow-300/80",
     secondary: "bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50",
+};
+
+const iconVariants = {
+    primary: "text-yellow-700/80 group-hover:text-yellow-800 group-active:text-yellow-800",
+    secondary: "text-gray-600/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
 };
 
 const sizes = {
@@ -36,14 +42,14 @@ const sizes = {
     <component
         :is="is"
         :disabled="disabled"
-        class="inline-flex items-center gap-x-1.5 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-600"
+        class="group inline-flex items-center gap-x-1.5 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
         :class="[variants[variant], sizes[size]]"
     >
         <component
             v-if="icon"
             :is="icon"
             class="order-2 h-5 w-5"
-            :class="{ '-mr-0.5': iconRight, '-ml-0.5': !iconRight }"
+            :class="[iconVariants[variant], { '-mr-0.5': iconRight, '-ml-0.5': !iconRight }]"
         />
         <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']"><slot /></span>
     </component>
