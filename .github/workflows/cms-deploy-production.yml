@@ -20,6 +20,7 @@ jobs:
     uses: ./.github/workflows/cms-unit-tests.yml
 
   deploy:
+    needs: test
     runs-on: [self-hosted, ac]
     environment: cms-production
 

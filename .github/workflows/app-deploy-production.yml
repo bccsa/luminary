@@ -20,6 +20,7 @@ jobs:
     uses: ./.github/workflows/app-unit-tests.yml
 
   deploy:
+    needs: test
     runs-on: [self-hosted, ac]
     environment: app-production
 
