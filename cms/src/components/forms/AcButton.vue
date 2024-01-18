@@ -5,7 +5,7 @@ type Props = {
     is?: "button" | "a" | string | Component;
     variant?: keyof typeof variants;
     size?: keyof typeof sizes;
-    icon?: string | Component | Function;
+    icon?: Component | Function;
     iconRight?: boolean;
     disabled?: boolean;
 };
@@ -13,14 +13,14 @@ type Props = {
 withDefaults(defineProps<Props>(), {
     is: "button",
     variant: "primary",
-    size: "md",
+    size: "base",
     iconRight: false,
     disabled: false,
 });
 
 const variants = {
     primary:
-        "text-yellow-950 bg-yellow-300 border border-yellow-400/80 active:bg-yellow-300/80 hover:bg-yellow-300/80",
+        "text-yellow-950 bg-yellow-300 ring-1 ring-inset ring-yellow-400/80 active:bg-yellow-300/80 hover:bg-yellow-300/80",
     secondary: "bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50",
 };
 
@@ -30,11 +30,9 @@ const iconVariants = {
 };
 
 const sizes = {
-    xs: "px-2 py-1 text-xs",
-    sm: "px-2 py-1",
-    md: "px-2.5 py-1.5",
-    lg: "px-3 py-2",
-    xl: "px-3.5 py-2.5",
+    sm: "px-2 py-1.5",
+    base: "px-3 py-2",
+    lg: "px-3.5 py-2.5",
 };
 </script>
 
