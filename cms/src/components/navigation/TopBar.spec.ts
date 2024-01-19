@@ -1,11 +1,16 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import TopBar from "./TopBar.vue";
 import * as auth0 from "@auth0/auth0-vue";
+import { setActivePinia, createPinia } from "pinia";
 
 vi.mock("@auth0/auth0-vue");
 
 describe("TopBar", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia());
+    });
+
     afterEach(() => {
         vi.clearAllMocks();
     });

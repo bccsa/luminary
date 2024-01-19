@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import HomeView from "@/views/HomeView.vue";
+import Dashboard from "@/pages/DashboardPage.vue";
 import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -10,38 +10,73 @@ const router = createRouter({
         {
             path: "/",
             beforeEnter: authGuard,
+            redirect: { name: "dashboard" },
             children: [
                 {
-                    path: "/",
+                    path: "sandbox",
+                    name: "sandbox",
+                    component: () => import("../pages/internal/ComponentSandbox.vue"),
+                },
+                {
+                    path: "dashboard",
                     name: "dashboard",
-                    component: HomeView,
+                    component: Dashboard,
                     meta: {
                         title: "Dashboard",
                     },
                 },
                 {
-                    path: "/posts",
+                    path: "posts",
                     name: "posts",
-                    component: () => import("../views/AboutView.vue"),
-                    meta: {
-                        title: "Posts",
-                    },
+                    redirect: { name: "posts.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "posts.index",
+                            component: () => import("../pages/posts/PostOverview.vue"),
+                            meta: {
+                                title: "Posts",
+                            },
+                        },
+                        {
+                            path: "create",
+                            name: "posts.create",
+                            component: () => import("../pages/posts/CreatePost.vue"),
+                            meta: {
+                                title: "Create Post",
+                            },
+                        },
+                    ],
                 },
                 {
-                    path: "/videos",
+                    path: "videos",
                     name: "videos",
-                    component: () => import("../views/AboutView.vue"),
-                    meta: {
-                        title: "Videos",
-                    },
+                    redirect: { name: "videos.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "videos.index",
+                            component: () => import("../pages/VideosPage.vue"),
+                            meta: {
+                                title: "Videos",
+                            },
+                        },
+                    ],
                 },
                 {
-                    path: "/users",
+                    path: "users",
                     name: "users",
-                    component: () => import("../views/AboutView.vue"),
-                    meta: {
-                        title: "Users",
-                    },
+                    redirect: { name: "users.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "users.index",
+                            component: () => import("../pages/UsersPage.vue"),
+                            meta: {
+                                title: "Users",
+                            },
+                        },
+                    ],
                 },
             ],
         },

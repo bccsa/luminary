@@ -2,10 +2,22 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 const { user, logout } = useAuth0();
+const { isDevMode } = useGlobalConfigStore();
 
-const userNavigation = [{ name: "Sign out", to: "#", action: logout }];
+const userNavigation: [
+    {
+        name: string;
+        to: string;
+        action?: Function;
+    },
+] = [{ name: "Sign out", to: "#", action: logout }];
+
+if (isDevMode) {
+    userNavigation.push({ name: "Sandbox", to: "sandbox" });
+}
 </script>
 
 <template>

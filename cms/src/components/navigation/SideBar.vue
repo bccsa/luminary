@@ -11,14 +11,14 @@ import { useGlobalConfigStore } from "@/stores/globalConfig";
 const { appName } = useGlobalConfigStore();
 
 const navigation = [
-    { name: "Dashboard", to: "/", icon: HomeIcon },
+    { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon },
     {
         name: "Posts",
-        to: "/posts",
+        to: { name: "posts" },
         icon: DocumentDuplicateIcon,
     },
-    { name: "Videos", to: "/videos", icon: VideoCameraIcon },
-    { name: "Users", to: "/users", icon: UsersIcon },
+    { name: "Videos", to: { name: "videos" }, icon: VideoCameraIcon },
+    { name: "Users", to: { name: "users" }, icon: UsersIcon },
 ];
 </script>
 
@@ -34,7 +34,7 @@ const navigation = [
                         <li v-for="item in navigation" :key="item.name">
                             <RouterLink
                                 :to="item.to"
-                                exact-active-class="bg-gray-800 text-white"
+                                active-class="bg-gray-800 text-white"
                                 class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                             >
                                 <component
