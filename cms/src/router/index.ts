@@ -13,6 +13,11 @@ const router = createRouter({
             redirect: { name: "dashboard" },
             children: [
                 {
+                    path: "sandbox",
+                    name: "sandbox",
+                    component: () => import("../pages/internal/ComponentSandbox.vue"),
+                },
+                {
                     path: "dashboard",
                     name: "dashboard",
                     component: Dashboard,
