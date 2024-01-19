@@ -71,6 +71,8 @@ const input = ref("Test value");
         <div class="mt-8 space-x-4">
             <AcButton variant="secondary">Save as draft</AcButton>
             <AcButton>Publish</AcButton>
+            <AcButton disabled variant="secondary">Save as draft</AcButton>
+            <AcButton disabled>Publish</AcButton>
         </div>
     </BasePage>
 </template>

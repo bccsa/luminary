@@ -20,8 +20,9 @@ withDefaults(defineProps<Props>(), {
 
 const variants = {
     primary:
-        "text-yellow-950 bg-yellow-300 ring-1 ring-inset ring-yellow-400/80 active:bg-yellow-300/80 hover:bg-yellow-300/80",
-    secondary: "bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50",
+        "text-yellow-950 bg-yellow-300 ring-1 ring-inset ring-yellow-400/80 active:bg-yellow-300/80 hover:bg-yellow-300/80 disabled:bg-yellow-100 disabled:ring-yellow-200/80 disabled:text-yellow-700",
+    secondary:
+        "bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-500",
 };
 
 const iconVariants = {
@@ -40,7 +41,7 @@ const sizes = {
     <component
         :is="is"
         :disabled="disabled"
-        class="group inline-flex items-center gap-x-1.5 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        class="group inline-flex items-center gap-x-1.5 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
         :class="[variants[variant], sizes[size]]"
     >
         <component
