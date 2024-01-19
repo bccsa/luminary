@@ -4,6 +4,7 @@ import BasePage from "@/components/BasePage.vue";
 import AcButton from "@/components/forms/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
 import { EnvelopeIcon } from "@heroicons/vue/20/solid";
+import AcCard from "@/components/forms/AcCard.vue";
 
 const input = ref("Test value");
 </script>
@@ -67,6 +68,8 @@ const input = ref("Test value");
             >
                 This input is invalid
             </AcInput>
+            <AcCard title="hello">Card with title</AcCard>
+            <AcCard>Card without title</AcCard>
         </div>
         <div class="mt-8 space-x-4">
             <AcButton variant="secondary">Save as draft</AcButton>

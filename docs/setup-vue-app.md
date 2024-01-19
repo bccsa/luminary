@@ -15,8 +15,10 @@ The recommended editor is [Visual Studio Code](https://code.visualstudio.com/), 
 Configure Prettier as the default formatter, and configure VS Code to automatically format on save. One way to do this is by adding this to your local `settings.json`:
 
 ```json
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true,
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true
+}
 ```
 
 ### Running the project
