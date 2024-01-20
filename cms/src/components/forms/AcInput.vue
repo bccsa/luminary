@@ -82,7 +82,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <input
-                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6"
+                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6"
                 :class="[
                     sizes[size],
                     states[state],

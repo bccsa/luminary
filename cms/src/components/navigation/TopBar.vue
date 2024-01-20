@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAuth0 } from "@auth0/auth0-vue";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { ChevronDownIcon } from "@heroicons/vue/20/solid";
+import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 const { user, logout } = useAuth0();
@@ -34,6 +34,12 @@ if (isDevMode) {
                         v-if="user?.picture"
                         alt=""
                     />
+                    <div
+                        class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300"
+                        v-else
+                    >
+                        <UserIcon class="h-6 w-6 text-gray-600" />
+                    </div>
                     <span class="hidden lg:flex lg:items-center">
                         <span
                             class="ml-4 text-sm font-semibold leading-6 text-gray-900"
