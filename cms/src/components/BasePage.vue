@@ -7,7 +7,7 @@ defineProps<{ title: string }>();
         <div class="flex flex-col gap-4 sm:flex-row sm:justify-between">
             <h1 class="text-lg font-semibold leading-7">{{ title }}</h1>
 
-            <div>
+            <div v-if="$slots.actions">
                 <slot name="actions" />
             </div>
         </div>
