@@ -1,64 +1,71 @@
 <script setup lang="ts">
-import AcButton from "@/components/forms/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
-
-defineProps<{
-    type: "post" | "tag";
-}>();
-
-const tabs = [
-    { name: "English", href: "#", current: true },
-    { name: "French", href: "#", current: false },
-    { name: "Swahili", href: "#", current: false },
-    { name: "Chichewa", href: "#", current: false },
-];
+import AcTextarea from "@/components/forms/AcTextarea.vue";
+import AcCard from "@/components/AcCard.vue";
+import AcTabs from "@/components/AcTabs.vue";
+import {
+    Cog6ToothIcon,
+    DocumentTextIcon,
+    VideoCameraIcon,
+    MusicalNoteIcon,
+} from "@heroicons/vue/20/solid";
 </script>
 
 <template>
-    <div class="grid grid-cols-3 gap-8">
-        <div class="order-2 col-span-3 sm:col-span-2">
-            <div class="rounded bg-white p-4 shadow">
-                <h2 class="mb-3">Translations</h2>
-
-                <div>
-                    <div class="sm:hidden">
-                        <label for="tabs" class="sr-only">Select a tab</label>
-                        <!-- Use an "onChange" listener to redirect the user to the selected tab URL. -->
-                        <select
-                            id="tabs"
-                            name="tabs"
-                            class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-yellow-500 focus:outline-none focus:ring-yellow-500 sm:text-sm"
-                        >
-                            <option v-for="tab in tabs" :key="tab.name" :selected="tab.current">
-                                {{ tab.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div class="hidden sm:block">
-                        <div class="border-b border-gray-200">
-                            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                                <a
-                                    v-for="tab in tabs"
-                                    :key="tab.name"
-                                    :href="tab.href"
-                                    :class="[
-                                        tab.current
-                                            ? 'border-yellow-500 text-yellow-600'
-                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-                                        'whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium',
-                                    ]"
-                                    :aria-current="tab.current ? 'page' : undefined"
-                                    >{{ tab.name }}</a
-                                >
-                            </nav>
-                        </div>
-                    </div>
-                </div>
+    <div class="relative grid grid-cols-3 gap-8">
+        <div class="order-2 col-span-3 md:col-span-2">
+            <div class="sticky top-[10rem] z-10 bg-white">
+                <AcTabs />
             </div>
+
+            <AcCard class="mt-6">
+                <AcInput
+                    label="Image"
+                    placeholder="cdn.bcc.africa/img/image.png"
+                    leftAddOn="https://"
+                    class="mt-4 sm:w-1/2"
+                >
+                    This overrides the default image in Post Settings
+                </AcInput>
+
+                <AcInput label="Title" class="mt-6" required />
+
+                <AcTextarea label="Summary" class="mt-4" />
+
+                <div class="mt-4 flex gap-4">
+                    <AcInput label="Publish date" class="w-1/2" type="date">
+                        This is the date that will be shown on the post
+                    </AcInput>
+                    <AcInput label="Expiry date" class="w-1/2" type="date">
+                        When set, this translation will automatically be hidden on this date. Not
+                        visible in the app
+                    </AcInput>
+                </div>
+            </AcCard>
+
+            <AcCard title="Text content" :icon="DocumentTextIcon" class="mt-6">
+                <AcTextarea rows="8" />
+            </AcCard>
+
+            <AcCard title="Video" :icon="VideoCameraIcon" class="mt-6">
+                <AcInput
+                    placeholder="videoTitle"
+                    leftAddOn="https://cdn.bcc.africa/vod/"
+                    rightAddOn="/playlist.m3u8"
+                />
+            </AcCard>
+
+            <AcCard title="Audio" :icon="MusicalNoteIcon" class="mt-6">
+                <AcInput
+                    placeholder="audioTitle"
+                    leftAddOn="https://cdn.bcc.africa/vod/"
+                    rightAddOn="/playlist.m3u8"
+                />
+            </AcCard>
         </div>
-        <div class="order-1 col-span-3 sm:order-3 sm:col-span-1">
-            <div class="rounded bg-white p-4 shadow">
-                <h2 class="mb-3 text-lg">Post settings</h2>
+
+        <div class="order-1 col-span-3 md:order-3 md:col-span-1">
+            <AcCard title="Post Settings" :icon="Cog6ToothIcon" class="sticky top-[10.5rem]">
                 <p>Status: not saved</p>
 
                 <div class="mt-4 text-sm">
@@ -72,7 +79,9 @@ const tabs = [
                     placeholder="cdn.bcc.africa/img/image.png"
                     leftAddOn="https://"
                     class="mt-4"
-                />
+                >
+                    This image can be overridden in a translation
+                </AcInput>
 
                 <AcInput
                     label="Categories"
@@ -85,7 +94,7 @@ const tabs = [
                     placeholder="Begin typing to select one..."
                     class="mt-4"
                 />
-            </div>
+            </AcCard>
         </div>
     </div>
 </template>
