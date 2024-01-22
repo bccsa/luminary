@@ -2,7 +2,7 @@
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import type { Component } from "vue";
-import AcButton from "@/components/forms/AcButton.vue";
+import AcButton from "@/components/button/AcButton.vue";
 import { RouterLink } from "vue-router";
 
 defineProps<{
@@ -16,7 +16,7 @@ defineProps<{
 </script>
 
 <template>
-    <div class="rounded border-2 border-dashed py-12 text-center">
+    <div class="rounded border-2 border-dashed border-gray-200 py-12 text-center">
         <component
             :is="icon ?? DocumentPlusIcon"
             class="mx-auto h-10 w-10 text-gray-400"

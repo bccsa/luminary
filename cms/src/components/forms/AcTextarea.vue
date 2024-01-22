@@ -81,7 +81,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             >
                 {{ leftAddOn }}
             </span>
-            <input
+            <textarea
                 class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6"
                 :class="[
                     sizes[size],
@@ -101,7 +101,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 @input="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
-            />
+            ></textarea>
             <span
                 v-if="rightAddOn"
                 class="inline-flex items-center rounded-r-md border border-l-0 px-3 sm:text-sm"

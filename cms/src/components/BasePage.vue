@@ -1,18 +1,23 @@
 <script setup lang="ts">
-defineProps<{ title: string }>();
+defineProps<{
+    title?: string;
+}>();
 </script>
 
 <template>
     <div>
-        <div class="flex justify-between">
+        <header
+            v-if="title || $slots.actions"
+            class="flex flex-col gap-4 bg-gray-50 pb-6 sm:flex-row sm:justify-between"
+        >
             <h1 class="text-lg font-semibold leading-7">{{ title }}</h1>
 
-            <div>
+            <div v-if="$slots.actions">
                 <slot name="actions" />
             </div>
-        </div>
+        </header>
 
-        <div class="mt-6">
+        <div>
             <slot />
         </div>
     </div>

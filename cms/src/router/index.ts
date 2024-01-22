@@ -1,11 +1,19 @@
 import { createRouter, createWebHistory } from "vue-router";
-import Dashboard from "@/pages/DashboardPage.vue";
 import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
+import Dashboard from "@/pages/DashboardPage.vue";
+import NotFoundPage from "@/pages/NotFoundPage.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
+    scrollBehavior(to, from, savedPosition) {
+        if (savedPosition) {
+            return savedPosition;
+        } else {
+            return { top: 0 };
+        }
+    },
     routes: [
         {
             path: "/",
@@ -78,6 +86,7 @@ const router = createRouter({
                         },
                     ],
                 },
+                { path: "/:pathMatch(.*)*", name: "404", component: NotFoundPage },
             ],
         },
     ],

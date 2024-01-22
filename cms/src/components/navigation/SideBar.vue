@@ -5,7 +5,7 @@ import {
     VideoCameraIcon,
     HomeIcon,
     UsersIcon,
-} from "@heroicons/vue/24/outline";
+} from "@heroicons/vue/20/solid";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 const { appName } = useGlobalConfigStore();
@@ -23,9 +23,11 @@ const navigation = [
 </script>
 
 <template>
-    <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 pb-4">
+    <div
+        class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-gray-100 px-6 pb-4"
+    >
         <div class="flex h-16 shrink-0 items-center">
-            <img class="w-52" src="@/assets/logo_white.svg" :alt="appName" />
+            <img class="w-52" src="@/assets/logo.svg" :alt="appName" />
         </div>
         <nav class="flex flex-1 flex-col">
             <ul role="list" class="flex flex-1 flex-col gap-y-7">
@@ -34,11 +36,13 @@ const navigation = [
                         <li v-for="item in navigation" :key="item.name">
                             <RouterLink
                                 :to="item.to"
-                                active-class="bg-gray-800 text-white"
-                                class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
+                                active-class="bg-gray-200 text-gray-950"
+                                class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 hover:bg-gray-200"
+                                v-slot="{ isActive }"
                             >
                                 <component
                                     :is="item.icon"
+                                    :class="[isActive ? 'text-gray-800' : 'text-gray-600']"
                                     class="h-6 w-6 shrink-0"
                                     aria-hidden="true"
                                 />
