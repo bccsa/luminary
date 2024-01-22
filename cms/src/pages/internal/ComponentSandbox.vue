@@ -4,7 +4,8 @@ import BasePage from "@/components/BasePage.vue";
 import AcButton from "@/components/button/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
 import { EnvelopeIcon } from "@heroicons/vue/20/solid";
-import AcCard from "@/components/AcCard.vue";
+import AcCard from "@/components/common/AcCard.vue";
+import AcBadge from "@/components/common/AcBadge.vue";
 
 const input = ref("Test value");
 </script>
@@ -74,6 +75,16 @@ const input = ref("Test value");
             </AcCard>
 
             <AcCard>Card without title</AcCard>
+
+            <AcCard title="Badges">
+                <div class="flex gap-2">
+                    <AcBadge>Default</AcBadge>
+                    <AcBadge variant="success">Success</AcBadge>
+                    <AcBadge variant="warning">Warning</AcBadge>
+                    <AcBadge variant="error">Error</AcBadge>
+                    <AcBadge variant="info">Info</AcBadge>
+                </div>
+            </AcCard>
 
             <AcCard title="Buttons">
                 <div class="space-x-4">

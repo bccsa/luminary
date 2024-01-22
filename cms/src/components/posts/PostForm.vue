@@ -2,7 +2,8 @@
 import AcInput from "@/components/forms/AcInput.vue";
 import AcTextarea from "@/components/forms/AcTextarea.vue";
 import AcButton from "@/components/button/AcButton.vue";
-import AcCard from "@/components/AcCard.vue";
+import AcBadge from "@/components/common/AcBadge.vue";
+import AcCard from "@/components/common/AcCard.vue";
 import AcTabs from "@/components/AcTabs.vue";
 import {
     Cog6ToothIcon,
@@ -21,11 +22,11 @@ import BleedHorizontal from "@/components/BleedHorizontal.vue";
             </BleedHorizontal>
 
             <AcCard class="my-6">
-                <div class="flex gap-4">
+                <AcBadge variant="warning">Not saved</AcBadge>
+                <div class="mt-4 flex gap-4">
                     <AcButton>Save as draft</AcButton>
-                    <AcButton variant="primary">Publish</AcButton>
+                    <AcButton variant="primary">Save & Publish</AcButton>
                 </div>
-                <p class="mt-4">Status: not saved</p>
             </AcCard>
 
             <AcCard>
