@@ -16,5 +16,8 @@ defineProps<{
         <div class="px-4 py-5 sm:px-6">
             <slot />
         </div>
+        <div v-if="$slots.footer" class="bg-gray-50 px-4 py-5 sm:px-6">
+            <slot name="footer" />
+        </div>
     </div>
 </template>

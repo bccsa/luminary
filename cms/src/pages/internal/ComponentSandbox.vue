@@ -110,7 +110,11 @@ const selectedLanguage = ref("sw");
                 </div>
             </AcCard>
 
-            <AcCard>Card without title</AcCard>
+            <AcCard class="text-sm">
+                Card without title
+
+                <template #footer>With footer</template>
+            </AcCard>
 
             <AcCard title="Badges">
                 <div class="flex gap-2">

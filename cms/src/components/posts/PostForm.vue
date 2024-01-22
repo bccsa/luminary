@@ -22,11 +22,17 @@ import BleedHorizontal from "@/components/BleedHorizontal.vue";
             </BleedHorizontal>
 
             <AcCard class="my-6">
-                <AcBadge variant="warning">Not saved</AcBadge>
-                <div class="mt-4 flex gap-4">
+                <div class="flex gap-4">
                     <AcButton>Save as draft</AcButton>
                     <AcButton variant="primary">Save & Publish</AcButton>
                 </div>
+
+                <template #footer>
+                    <AcBadge variant="warning">Not saved</AcBadge>
+                    <span class="ml-1 text-xs text-gray-700">
+                        Save this post to be able to add more languages
+                    </span>
+                </template>
             </AcCard>
 
             <AcCard>
