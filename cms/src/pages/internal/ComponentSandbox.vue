@@ -3,17 +3,26 @@ import { ref } from "vue";
 import BasePage from "@/components/BasePage.vue";
 import AcButton from "@/components/button/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
+import AcSelect from "@/components/forms/AcSelect.vue";
 import { EnvelopeIcon } from "@heroicons/vue/20/solid";
 import AcCard from "@/components/common/AcCard.vue";
 import AcBadge from "@/components/common/AcBadge.vue";
 
 const input = ref("Test value");
+
+const languageOptions = [
+    { label: "English", value: "en" },
+    { label: "Swahili", value: "sw" },
+    { label: "Chichewa", value: "ny" },
+    { label: "Español", value: "es", disabled: true },
+];
+const selectedLanguage = ref("sw");
 </script>
 
 <template>
     <BasePage title="Component sandbox">
         <div class="space-y-6">
-            <AcCard title="Input elements">
+            <AcCard title="Form elements">
                 <div class="flex flex-col gap-4">
                     <AcInput
                         label="Normal input"
@@ -71,6 +80,33 @@ const input = ref("Test value");
                     >
                         This input is invalid
                     </AcInput>
+
+                    <AcSelect
+                        :options="languageOptions"
+                        v-model="selectedLanguage"
+                        label="Select a language"
+                        class="mt-6 w-1/2"
+                    >
+                        The language for this page
+                    </AcSelect>
+
+                    <AcSelect
+                        state="error"
+                        :options="languageOptions"
+                        v-model="selectedLanguage"
+                        label="Error select"
+                        class="w-1/2"
+                    >
+                        This input is invalid
+                    </AcSelect>
+
+                    <AcSelect
+                        disabled
+                        :options="languageOptions"
+                        v-model="selectedLanguage"
+                        label="Disabled select"
+                        class="w-1/2"
+                    />
                 </div>
             </AcCard>
 

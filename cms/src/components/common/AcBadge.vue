@@ -24,7 +24,7 @@ const variants = {
         :class="[
             variants[variant],
             {
-                'font-medium uppercase tracking-widest ring ring-inset ': type == 'language',
+                'font-medium uppercase tracking-widest ring ring-inset': type == 'language',
             },
         ]"
     >

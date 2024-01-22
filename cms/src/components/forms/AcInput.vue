@@ -10,6 +10,7 @@ import { useId } from "@/hooks/use-id";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "./FormLabel.vue";
+import FormMessage from "./FormMessage.vue";
 
 type Props = {
     modelValue?: string;
@@ -34,12 +35,12 @@ withDefaults(defineProps<Props>(), {
 const states = {
     default:
         "text-gray-900 ring-gray-300 placeholder:text-gray-400 hover:ring-gray-400 focus:ring-gray-950",
-    error: "text-red-900 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
+    error: "text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
 };
 
 const addOnStates = {
     default: "border-gray-300 px-3 text-gray-500",
-    error: "border-red-300 px-3 text-red-600",
+    error: "border-red-300 bg-red-50 px-3 text-red-600",
 };
 
 const sizes = {
@@ -116,13 +117,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
             </div>
         </div>
-        <p
-            v-if="$slots.default"
-            class="mt-2 text-sm"
-            :class="{ 'text-gray-600': state == 'default', 'text-red-600': state == 'error' }"
-            :id="`${id}-message`"
-        >
+        <FormMessage v-if="$slots.default" :state="state" :id="`${id}-message`">
             <slot />
-        </p>
+        </FormMessage>
     </div>
 </template>
