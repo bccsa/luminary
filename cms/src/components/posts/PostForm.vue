@@ -22,14 +22,14 @@ import BleedHorizontal from "@/components/BleedHorizontal.vue";
 
             <AcCard class="my-6">
                 <div class="flex gap-4">
-                    <AcButton variant="secondary">Save as draft</AcButton>
-                    <AcButton>Publish</AcButton>
+                    <AcButton>Save as draft</AcButton>
+                    <AcButton variant="primary">Publish</AcButton>
                 </div>
                 <p class="mt-4">Status: not saved</p>
             </AcCard>
 
             <AcCard>
-                <AcButton variant="secondary">Set custom image</AcButton>
+                <AcButton>Set custom image</AcButton>
 
                 <AcInput label="Title" class="mt-6" required />
 

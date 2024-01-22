@@ -12,7 +12,7 @@ type Props = {
 
 withDefaults(defineProps<Props>(), {
     is: "button",
-    variant: "primary",
+    variant: "secondary",
     size: "base",
     iconRight: false,
     disabled: false,

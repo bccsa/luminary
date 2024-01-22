@@ -77,10 +77,10 @@ const input = ref("Test value");
 
             <AcCard title="Buttons">
                 <div class="space-x-4">
-                    <AcButton variant="secondary">Save as draft</AcButton>
-                    <AcButton>Publish</AcButton>
-                    <AcButton disabled variant="secondary">Save as draft</AcButton>
-                    <AcButton disabled>Publish</AcButton>
+                    <AcButton>Save as draft</AcButton>
+                    <AcButton variant="primary">Publish</AcButton>
+                    <AcButton disabled>Save as draft</AcButton>
+                    <AcButton disabled variant="primary">Publish</AcButton>
                 </div>
             </AcCard>
         </div>
