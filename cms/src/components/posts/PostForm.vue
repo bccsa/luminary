@@ -10,32 +10,26 @@ import {
     VideoCameraIcon,
     MusicalNoteIcon,
 } from "@heroicons/vue/20/solid";
+import BleedHorizontal from "@/components/BleedHorizontal.vue";
 </script>
 
 <template>
     <div class="relative grid grid-cols-3 gap-8">
-        <div class="order-2 col-span-3 md:col-span-2">
-            <div class="sticky top-16 z-10 bg-white">
+        <div class="col-span-3 md:col-span-2">
+            <BleedHorizontal class="sticky top-16 z-10 bg-gray-50">
                 <AcTabs />
+            </BleedHorizontal>
 
-                <div class="mb-6 border-b border-gray-200 py-6">
-                    <div class="flex gap-4">
-                        <AcButton variant="secondary">Save as draft</AcButton>
-                        <AcButton>Publish</AcButton>
-                    </div>
-                    <p class="mt-4">Status: not saved</p>
+            <AcCard class="my-6">
+                <div class="flex gap-4">
+                    <AcButton variant="secondary">Save as draft</AcButton>
+                    <AcButton>Publish</AcButton>
                 </div>
-            </div>
+                <p class="mt-4">Status: not saved</p>
+            </AcCard>
 
             <AcCard>
-                <AcInput
-                    label="Image"
-                    placeholder="cdn.bcc.africa/img/image.png"
-                    leftAddOn="https://"
-                    class="mt-4 sm:w-1/2"
-                >
-                    This overrides the default image in Post Settings
-                </AcInput>
+                <AcButton variant="secondary">Set custom image</AcButton>
 
                 <AcInput label="Title" class="mt-6" required />
 
@@ -73,8 +67,8 @@ import {
             </AcCard>
         </div>
 
-        <div class="order-1 col-span-3 md:order-3 md:col-span-1">
-            <AcCard title="Post Settings" :icon="Cog6ToothIcon" class="sticky top-20">
+        <div class="col-span-3 md:col-span-1">
+            <AcCard title="Post Settings" :icon="Cog6ToothIcon" class="sticky top-20" subdued>
                 <AcInput
                     label="Default image"
                     placeholder="cdn.bcc.africa/img/image.png"

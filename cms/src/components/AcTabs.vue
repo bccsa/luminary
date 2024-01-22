@@ -1,9 +1,9 @@
 <script setup lang="ts">
 const tabs = [
     { name: "English", href: "#", current: true },
-    { name: "French", href: "#", current: false },
+    { name: "Français", href: "#", current: false },
     { name: "Swahili", href: "#", current: false },
-    { name: "Chichewa", href: "#", current: false },
+    { name: "+ Add language", href: "#", current: false },
 ];
 </script>
 
