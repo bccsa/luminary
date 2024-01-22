@@ -15,7 +15,7 @@ const tabs = [
             <select
                 id="tabs"
                 name="tabs"
-                class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-yellow-500 focus:outline-none focus:ring-yellow-500 sm:text-sm"
+                class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-gray-500 focus:outline-none focus:ring-gray-500 sm:text-sm"
             >
                 <option v-for="tab in tabs" :key="tab.name" :selected="tab.current">
                     {{ tab.name }}
@@ -31,7 +31,7 @@ const tabs = [
                         :href="tab.href"
                         :class="[
                             tab.current
-                                ? 'border-yellow-500 text-yellow-600'
+                                ? 'border-gray-500 text-gray-950'
                                 : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
                             'whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium',
                         ]"

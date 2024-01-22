@@ -20,13 +20,13 @@ withDefaults(defineProps<Props>(), {
 
 const variants = {
     primary:
-        "text-yellow-950 bg-yellow-300 ring-1 ring-inset ring-yellow-400/80 active:bg-yellow-300 hover:bg-yellow-300/80 disabled:bg-yellow-100 disabled:ring-yellow-200/80 disabled:text-yellow-700",
+        "bg-gray-900 text-white ring-gray-900/60 hover:bg-gray-900/90 active:bg-gray-900/80 disabled:bg-gray-500 disabled:text-gray-100 disabled:ring-gray-500",
     secondary:
-        "bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-500 active:bg-gray-100",
+        "bg-white text-gray-900 ring-gray-300 hover:bg-gray-50 active:bg-gray-100 disabled:bg-gray-100 disabled:text-gray-500",
 };
 
 const iconVariants = {
-    primary: "text-yellow-700/80 group-hover:text-yellow-800 group-active:text-yellow-800",
+    primary: "text-gray-100 group-hover:text-gray-50 group-active:text-white",
     secondary: "text-gray-600/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
 };
 
@@ -41,7 +41,7 @@ const sizes = {
     <component
         :is="is"
         :disabled="disabled"
-        class="group inline-flex items-center gap-x-1.5 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+        class="group inline-flex items-center gap-x-1.5 rounded-md text-sm font-semibold shadow-sm ring-1 ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
         :class="[variants[variant], sizes[size]]"
     >
         <component

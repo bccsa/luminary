@@ -36,13 +36,13 @@ const navigation = [
                         <li v-for="item in navigation" :key="item.name">
                             <RouterLink
                                 :to="item.to"
-                                active-class="bg-gray-200 text-yellow-600"
+                                active-class="bg-gray-200 text-gray-950"
                                 class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 hover:bg-gray-200"
                                 v-slot="{ isActive }"
                             >
                                 <component
                                     :is="item.icon"
-                                    :class="[isActive ? 'text-yellow-600' : 'text-gray-600']"
+                                    :class="[isActive ? 'text-gray-800' : 'text-gray-600']"
                                     class="h-6 w-6 shrink-0"
                                     aria-hidden="true"
                                 />
