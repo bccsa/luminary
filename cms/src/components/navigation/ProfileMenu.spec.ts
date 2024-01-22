@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import TopBar from "./TopBar.vue";
+import ProfileMenu from "./ProfileMenu.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { setActivePinia, createPinia } from "pinia";
 
 vi.mock("@auth0/auth0-vue");
 
-describe("TopBar", () => {
+describe("ProfileMenu", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
     });
@@ -22,7 +22,7 @@ describe("TopBar", () => {
             },
         });
 
-        const wrapper = mount(TopBar);
+        const wrapper = mount(ProfileMenu);
 
         expect(wrapper.html()).toContain("Test Person");
     });
@@ -33,7 +33,7 @@ describe("TopBar", () => {
             logout,
         });
 
-        const wrapper = mount(TopBar);
+        const wrapper = mount(ProfileMenu);
         await wrapper.find("button").trigger("click");
         await wrapper.find("a").trigger("click");
 
