@@ -2,7 +2,7 @@
 import { RouterLink } from "vue-router";
 import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import AcButton from "@/components/forms/AcButton.vue";
+import AcButton from "@/components/button/AcButton.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 </script>
 

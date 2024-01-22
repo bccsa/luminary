@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AcInput from "@/components/forms/AcInput.vue";
 import AcTextarea from "@/components/forms/AcTextarea.vue";
-import AcButton from "@/components/forms/AcButton.vue";
+import AcButton from "@/components/button/AcButton.vue";
 import AcCard from "@/components/AcCard.vue";
 import AcTabs from "@/components/AcTabs.vue";
 import {

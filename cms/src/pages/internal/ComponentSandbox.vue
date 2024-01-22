@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import BasePage from "@/components/BasePage.vue";
-import AcButton from "@/components/forms/AcButton.vue";
+import AcButton from "@/components/button/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
 import { EnvelopeIcon } from "@heroicons/vue/20/solid";
 import AcCard from "@/components/AcCard.vue";

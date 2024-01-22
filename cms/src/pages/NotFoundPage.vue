@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AcButton from "@/components/forms/AcButton.vue";
+import AcButton from "@/components/button/AcButton.vue";
 import { RouterLink } from "vue-router";
 </script>
 

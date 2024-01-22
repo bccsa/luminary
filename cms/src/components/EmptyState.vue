@@ -2,7 +2,7 @@
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import type { Component } from "vue";
-import AcButton from "@/components/forms/AcButton.vue";
+import AcButton from "@/components/button/AcButton.vue";
 import { RouterLink } from "vue-router";
 
 defineProps<{
