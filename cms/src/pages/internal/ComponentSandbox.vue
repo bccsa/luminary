@@ -84,6 +84,13 @@ const input = ref("Test value");
                     <AcBadge variant="error">Error</AcBadge>
                     <AcBadge variant="info">Info</AcBadge>
                 </div>
+                <div class="mt-4 flex gap-2">
+                    <AcBadge type="language">en</AcBadge>
+                    <AcBadge type="language" variant="success">fr</AcBadge>
+                    <AcBadge type="language" variant="warning">sw</AcBadge>
+                    <AcBadge type="language" variant="error">ny</AcBadge>
+                    <AcBadge type="language" variant="info">es</AcBadge>
+                </div>
             </AcCard>
 
             <AcCard title="Buttons">
