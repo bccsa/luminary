@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AcInput from "@/components/forms/AcInput.vue";
 import AcTextarea from "@/components/forms/AcTextarea.vue";
+import AcButton from "@/components/forms/AcButton.vue";
 import AcCard from "@/components/AcCard.vue";
 import AcTabs from "@/components/AcTabs.vue";
 import {
@@ -14,11 +15,19 @@ import {
 <template>
     <div class="relative grid grid-cols-3 gap-8">
         <div class="order-2 col-span-3 md:col-span-2">
-            <div class="sticky top-[10rem] z-10 bg-white">
+            <div class="sticky top-16 z-10 bg-white">
                 <AcTabs />
+
+                <div class="mb-6 border-b border-gray-200 py-6">
+                    <div class="flex gap-4">
+                        <AcButton variant="secondary">Save as draft</AcButton>
+                        <AcButton>Publish</AcButton>
+                    </div>
+                    <p class="mt-4">Status: not saved</p>
+                </div>
             </div>
 
-            <AcCard class="mt-6">
+            <AcCard>
                 <AcInput
                     label="Image"
                     placeholder="cdn.bcc.africa/img/image.png"
@@ -65,20 +74,11 @@ import {
         </div>
 
         <div class="order-1 col-span-3 md:order-3 md:col-span-1">
-            <AcCard title="Post Settings" :icon="Cog6ToothIcon" class="sticky top-[10.5rem]">
-                <p>Status: not saved</p>
-
-                <div class="mt-4 text-sm">
-                    <p>You can't publish this post yet because:</p>
-                    <p>- A default image is needed</p>
-                    <p>- At least one translation needs to be created</p>
-                </div>
-
+            <AcCard title="Post Settings" :icon="Cog6ToothIcon" class="sticky top-20">
                 <AcInput
                     label="Default image"
                     placeholder="cdn.bcc.africa/img/image.png"
                     leftAddOn="https://"
-                    class="mt-4"
                 >
                     This image can be overridden in a translation
                 </AcInput>

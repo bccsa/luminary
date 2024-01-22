@@ -20,9 +20,9 @@ withDefaults(defineProps<Props>(), {
 
 const variants = {
     primary:
-        "text-yellow-950 bg-yellow-300 ring-1 ring-inset ring-yellow-400/80 active:bg-yellow-300/80 hover:bg-yellow-300/80 disabled:bg-yellow-100 disabled:ring-yellow-200/80 disabled:text-yellow-700",
+        "text-yellow-950 bg-yellow-300 ring-1 ring-inset ring-yellow-400/80 active:bg-yellow-300 hover:bg-yellow-300/80 disabled:bg-yellow-100 disabled:ring-yellow-200/80 disabled:text-yellow-700",
     secondary:
-        "bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-500",
+        "bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-500 active:bg-gray-100",
 };
 
 const iconVariants = {
