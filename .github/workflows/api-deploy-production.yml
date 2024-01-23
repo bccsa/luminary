@@ -2,7 +2,7 @@ name: "Build & Deploy API to Production"
 
 on:
   push:
-    branches: [main]
+    branches: [add-deployable-docker-for-api]
     paths:
       - api/**
       - .github/workflows/api-deploy-production.yml
