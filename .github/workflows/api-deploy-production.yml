@@ -31,7 +31,7 @@ jobs:
         run: |
           touch .env
           echo PORT=80 >> .env
-          echo JWT_SECRET=${{ secrets.JWT_SECRET }} >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
         working-directory: api
 
       - name: Build Docker container
