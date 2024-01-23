@@ -20,7 +20,10 @@ app.use(
         authorizationParams: {
             audience: import.meta.env.VITE_AUTH0_AUDIENCE,
             redirect_uri: window.location.origin,
+            scope: "openid profile email offline_access",
         },
+        cacheLocation: "localstorage",
+        useRefreshTokens: true,
     }),
 );
 
