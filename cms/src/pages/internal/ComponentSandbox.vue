@@ -3,6 +3,7 @@ import { ref } from "vue";
 import BasePage from "@/components/BasePage.vue";
 import AcButton from "@/components/button/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
+import AcTextarea from "@/components/forms/AcTextarea.vue";
 import AcSelect from "@/components/forms/AcSelect.vue";
 import { EnvelopeIcon } from "@heroicons/vue/20/solid";
 import AcCard from "@/components/common/AcCard.vue";
@@ -80,6 +81,8 @@ const selectedLanguage = ref("sw");
                     >
                         This input is invalid
                     </AcInput>
+
+                    <AcTextarea label="Textarea" v-model="input" class="w-1/2" />
 
                     <AcSelect
                         :options="languageOptions"

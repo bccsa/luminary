@@ -15,7 +15,6 @@ type Option = { label: string; value: string; disabled?: boolean };
 
 type Props = {
     options: Option[];
-    modelValue?: string;
     state?: keyof typeof states;
     size?: "sm" | "base" | "lg";
     disabled?: boolean;
@@ -30,14 +29,14 @@ withDefaults(defineProps<Props>(), {
     required: false,
 });
 
+const model = defineModel();
+
 const states = {
     default: "text-gray-900 ring-gray-300 focus:ring-gray-950",
     error: "text-red-900 bg-red-50 ring-red-300 focus:ring-red-500",
 };
 
 const id = `ac-select-${useId()}`;
-
-const emit = defineEmits(["update:modelValue"]);
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>
@@ -48,13 +47,12 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             {{ label }}
         </FormLabel>
         <select
+            v-model="model"
             class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 ring-1 ring-inset focus:ring-2 disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6"
             :class="states[state]"
             :id="id"
-            :value="modelValue"
             :disabled="disabled"
             :required="required"
-            @input="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
             v-bind="attrsWithoutStyles"
         >
             <option

@@ -13,7 +13,6 @@ import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
 
 type Props = {
-    modelValue?: string;
     state?: keyof typeof states;
     size?: keyof typeof sizes;
     label?: string;
@@ -32,6 +31,8 @@ withDefaults(defineProps<Props>(), {
     disabled: false,
 });
 
+const model = defineModel();
+
 const states = {
     default:
         "text-gray-900 ring-gray-300 placeholder:text-gray-400 hover:ring-gray-400 focus:ring-gray-950",
@@ -48,8 +49,6 @@ const sizes = {
     base: "py-1.5",
     lg: "py-2.5",
 };
-
-const emit = defineEmits(["update:modelValue"]);
 
 const id = `ac-input-${useId()}`;
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
@@ -83,6 +82,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <input
+                v-model="model"
                 class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6"
                 :class="[
                     sizes[size],
@@ -95,11 +95,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     },
                 ]"
                 :id="id"
-                :value="modelValue"
                 :disabled="disabled"
                 :required="required"
                 :placeholder="placeholder"
-                @input="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
             />
