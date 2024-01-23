@@ -30,7 +30,7 @@ jobs:
       - name: Create .env file
         run: |
           touch .env
-          echo PORT=80 >> .env
+          echo PORT=${{ vars.DOCKER_PORT }} >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
         working-directory: api
 
@@ -43,7 +43,7 @@ jobs:
 
       - name: Run Docker container
         run: >
-          docker run -d -p "${{ vars.DOCKER_PORT }}":80 
+          docker run -d -p "${{ vars.DOCKER_PORT }}":"${{ vars.DOCKER_PORT }}" 
           --restart unless-stopped 
           --name=${{ vars.DOCKER_CONTAINER }} 
           ${{ vars.DOCKER_IMAGE }}
