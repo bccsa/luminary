@@ -1,0 +1,49 @@
+name: "Build & Deploy API to Production"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - api/**
+      - .github/workflows/api-deploy-production.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+
+jobs:
+  test:
+    uses: ./.github/workflows/api-unit-tests.yml
+
+  deploy:
+    needs: test
+    runs-on: [self-hosted, ac]
+    environment: api-production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create .env file
+        run: |
+          touch .env
+          echo PORT=80 >> .env
+          echo JWT_SECRET=${{ secrets.JWT_SECRET }} >> .env
+        working-directory: api
+
+      - name: Build Docker container
+        run: docker build . -t ${{ vars.DOCKER_IMAGE }}
+        working-directory: api
+
+      - name: Stop and remove old Docker container
+        run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
+
+      - name: Run Docker container
+        run: >
+          docker run -d -p "${{ vars.DOCKER_PORT }}":80 
+          --restart unless-stopped 
+          --name=${{ vars.DOCKER_CONTAINER }} 
+          ${{ vars.DOCKER_IMAGE }}
