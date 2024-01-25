@@ -1,15 +1,15 @@
 import { Controller, Get, UseGuards } from "@nestjs/common";
-import { AppService } from "./app.service";
 import { AuthGuard } from "./auth/auth.guard";
+import { DbService } from "./db/db.service";
 
 @Controller()
 export class AppController {
-    constructor(private readonly appService: AppService) {}
+    constructor(private dbService: DbService) {}
 
-    @Get("/test")
-    getHello(): string {
-        return this.appService.getHello();
-    }
+    // @Get("/test")
+    // getHello(): string {
+    //     return this.dataService.getHello();
+    // }
 
     @UseGuards(AuthGuard)
     @Get("/protected")

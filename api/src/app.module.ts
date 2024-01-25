@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { AppController } from "./app.controller";
-import { AppService } from "./app.service";
+import { DbService } from "./db/db.service";
 
 @Module({
     imports: [
@@ -12,6 +12,6 @@ import { AppService } from "./app.service";
         }),
     ],
     controllers: [AppController],
-    providers: [AppService],
+    providers: [DbService],
 })
 export class AppModule {}

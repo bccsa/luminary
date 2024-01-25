@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { AppController } from "./app.controller";
-import { AppService } from "./app.service";
 import { JwtModule } from "@nestjs/jwt";
 
 describe("AppController", () => {
@@ -14,7 +13,7 @@ describe("AppController", () => {
                 }),
             ],
             controllers: [AppController],
-            providers: [AppService],
+            providers: [],
         }).compile();
 
         appController = app.get<AppController>(AppController);
