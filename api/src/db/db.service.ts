@@ -3,13 +3,13 @@ import * as nano from "nano";
 
 @Injectable()
 export class DbService {
-    private db: any;
+    private db: nano.DocumentScope<unknown>;
     protected syncVersion: number;
     protected syncTolerance: number;
 
     constructor() {
-        this.connect(process.env.DB_CONNECTION_STRING, process.env.DB_DATABASE);
-        this.syncTolerance = Number.parseInt(process.env.SYNC_TOLERANCE);
+        this.connect(process.env.DB_CONNECTION_STRING as string, process.env.DB_DATABASE as string);
+        this.syncTolerance = Number.parseInt(process.env.SYNC_TOLERANCE as string);
     }
 
     /**
@@ -19,6 +19,29 @@ export class DbService {
      */
     private connect(connectionString: string, database: string) {
         this.db = nano(connectionString).use(database);
+    }
+
+    /**
+     * Insert or update a document with given ID.
+     * @param doc - CouchDB document with an _id field
+     */
+    upsertDoc(doc: any) {
+        return new Promise((resolve, reject) => {
+            if (!doc._id) {
+                reject("Invalid document: The passed document does not have an '_id' property");
+            }
+            this.db
+                .get(doc._id)
+                .then(async (existing) => {
+                    // TODO: Only update document if document has changed
+                    doc._rev = existing._rev;
+                    resolve(await this.db.insert(doc));
+                })
+                // Create new doc if it does not exit
+                .catch(async () => {
+                    resolve(await this.db.insert(doc));
+                });
+        });
     }
 
     /**
