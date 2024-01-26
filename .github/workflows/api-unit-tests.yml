@@ -40,7 +40,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password -d couchdb:3.3.3
+          docker run -v "/var/run/docker.sock":"/var/run/docker.sock" -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password -d couchdb:3.3.3
           curl -X PUT http://admin:password@127.0.0.1:5984/${{ env.DB_DATABASE }}
           npm run test
         working-directory: api
