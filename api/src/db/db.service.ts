@@ -45,6 +45,14 @@ export class DbService {
     }
 
     /**
+     * Get a document by ID
+     * @param id - document ID (_id field)
+     */
+    getDoc(id: string) {
+        return this.db.get(id);
+    }
+
+    /**
      * Gets the latest document update time for any documents that has the updatedTimeUtc property
      */
     getLatestUpdatedTime(): Promise<number> {
