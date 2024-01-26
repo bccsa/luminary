@@ -21,9 +21,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Start CouchDB docker
-        run: docker run -p 5984:5984 -d couchdb
-
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:

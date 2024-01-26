@@ -11,8 +11,9 @@
         "start:prod": "node dist/main",
         "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
         "lint:fix": "npm run lint -- --fix",
-        "test:unit": "DOTENV_CONFIG_PATH=.env.test jest --setupFiles dotenv/config",
-        "test:watch": "DOTENV_CONFIG_PATH=.env.test jest --setupFiles dotenv/config --watch",
+        "test:unit": "npm run test",
+        "test": "DOTENV_CONFIG_PATH=.env.test jest --setupFiles dotenv/config",
+        "test:watch": "npm run test:unit -- --watch",
         "test:cov": "jest --coverage",
         "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
         "test:e2e": "jest --config ./test/jest-e2e.json"
