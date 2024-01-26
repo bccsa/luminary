@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "./db.service";
 import { randomUUID } from "crypto";
-import { upsertDesignDocs } from "./db.seedingFunctions";
+import { upsertDesignDocs, upsertSeedingDocs } from "./db.seedingFunctions";
 
 describe("DbService", () => {
     let service: DbService;
@@ -13,7 +13,9 @@ describe("DbService", () => {
 
         service = module.get<DbService>(DbService);
 
+        // Seed database with required views and some default documents (needed for testing views)
         await upsertDesignDocs();
+        await upsertSeedingDocs();
     });
 
     it("can be instantiated", () => {
@@ -66,5 +68,17 @@ describe("DbService", () => {
 
         expect(testGet._id).toBe(uuid);
         expect(testGet.testData).toBe("changedData123");
+    });
+
+    it("can update get the latest document updated time", async () => {
+        const res: number = await service.getLatestUpdatedTime();
+
+        expect(res).toBeGreaterThan(0);
+    });
+
+    it("can update get the oldest changelogEntry document updated time", async () => {
+        const res: number = await service.getOldestChangelogEntryUpdatedTime();
+
+        expect(res).toBe(1);
     });
 });
