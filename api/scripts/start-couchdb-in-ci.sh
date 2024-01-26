@@ -6,10 +6,9 @@ sh -c "docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=passwor
 wait_for_couchdb() {
   echo "Waiting for CouchDB..."
 
-  while ! curl -f http://127.0.0.1:5984/ &> /dev/null
-  do
-    echo "."
-    sleep 1
-  done
+    until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:5984); do
+        printf '.'
+        sleep 5
+    done
 }
 wait_for_couchdb

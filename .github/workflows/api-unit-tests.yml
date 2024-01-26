@@ -26,6 +26,11 @@ jobs:
         run: cp .env.example .env.test
         working-directory: api
 
+      - name: Start CouchDB
+        run: |
+          ./scripts/start-couchdb-in-ci.sh
+          curl -X PUT http://admin:password@127.0.0.1:5984/${{ env.DB_DATABASE }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -39,10 +44,7 @@ jobs:
         working-directory: api
 
       - name: Run Tests
-        run: |
-          ./scripts/start-couchdb-in-ci.sh
-          curl -X PUT http://admin:password@127.0.0.1:5984/${{ env.DB_DATABASE }}
-          npm run test
+        run: npm run test
         working-directory: api
 
   lint:
