@@ -12,6 +12,7 @@ on:
 
 env:
   CI: true
+  DB_DATABASE: "ac-test"
 
 jobs:
   test:
@@ -22,13 +23,12 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Start CouchDB docker
-        run: docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password -d couchdb:3.3.3
+        run: |
+          docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password -d couchdb:3.3.3
+          curl -X PUT http://admin:password@127.0.0.1:5984/${{ env.DB_DATABASE }}
 
       - name: Create environment file
-        run: |
-          touch .env.test
-          echo DB_CONNECTION_STRING="http://admin:password@127.0.0.1:5984" >> .env.test
-          echo DB_DATABASE="ac-test" >> .env.test
+        run: cp .env.example .env.test
         working-directory: api
 
       - name: Setup Node.js
