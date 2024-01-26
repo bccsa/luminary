@@ -8,7 +8,7 @@ wait_for_couchdb() {
 
     until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:5984); do
         printf '.'
-        sleep 5
+        sleep 1
     done
 }
 wait_for_couchdb
