@@ -9,7 +9,7 @@ export class DbService {
 
     constructor() {
         this.connect(process.env.DB_CONNECTION_STRING as string, process.env.DB_DATABASE as string);
-        this.syncTolerance = Number.parseInt(process.env.SYNC_TOLERANCE as string);
+        this.syncTolerance = Number.parseInt((process.env.SYNC_TOLERANCE as string) || "1000");
     }
 
     /**
@@ -45,6 +45,14 @@ export class DbService {
     }
 
     /**
+     * Get a document by ID
+     * @param id - document ID (_id field)
+     */
+    getDoc(id: string) {
+        return this.db.get(id);
+    }
+
+    /**
      * Gets the latest document update time for any documents that has the updatedTimeUtc property
      */
     getLatestUpdatedTime(): Promise<number> {
@@ -72,7 +80,7 @@ export class DbService {
     /**
      * Gets the update time of the oldest changelog document.
      */
-    getOldestChangelogEntry(): Promise<number> {
+    getOldestChangelogEntryUpdatedTime(): Promise<number> {
         return new Promise((resolve) => {
             this.db
                 .view("sync", "changelogUpdatedTimeUtc", {
