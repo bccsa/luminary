@@ -9,7 +9,7 @@ export class DbService {
 
     constructor() {
         this.connect(process.env.DB_CONNECTION_STRING as string, process.env.DB_DATABASE as string);
-        this.syncTolerance = Number.parseInt(process.env.SYNC_TOLERANCE as string);
+        this.syncTolerance = Number.parseInt((process.env.SYNC_TOLERANCE as string) || "1000");
     }
 
     /**
