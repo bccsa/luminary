@@ -80,7 +80,7 @@ export class DbService {
     /**
      * Gets the update time of the oldest changelog document.
      */
-    getOldestChangelogEntry(): Promise<number> {
+    getOldestChangelogEntryUpdatedTime(): Promise<number> {
         return new Promise((resolve) => {
             this.db
                 .view("sync", "changelogUpdatedTimeUtc", {
