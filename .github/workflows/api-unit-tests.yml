@@ -24,9 +24,9 @@ jobs:
       - name: Start CouchDB docker
         run: docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password -d couchdb:3.3.3
 
-      - name: Create .env file
+      - name: Create environment file
         run: |
-          touch .env
+          touch .env.test
           echo DB_CONNECTION_STRING="http://admin:password@127.0.0.1:5984" >> .env
           echo DB_DATABASE="ac-test" >> .env
         working-directory: api
