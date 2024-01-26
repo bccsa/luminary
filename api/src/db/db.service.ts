@@ -8,8 +8,6 @@ export class DbService {
     protected syncTolerance: number;
 
     constructor() {
-        console.log(process.env);
-
         this.connect(process.env.DB_CONNECTION_STRING as string, process.env.DB_DATABASE as string);
         this.syncTolerance = Number.parseInt((process.env.SYNC_TOLERANCE as string) || "1000");
     }

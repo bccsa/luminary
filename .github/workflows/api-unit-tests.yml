@@ -27,8 +27,8 @@ jobs:
       - name: Create environment file
         run: |
           touch .env.test
-          echo DB_CONNECTION_STRING="http://admin:password@127.0.0.1:5984" >> .env
-          echo DB_DATABASE="ac-test" >> .env
+          echo DB_CONNECTION_STRING="http://admin:password@127.0.0.1:5984" >> .env.test
+          echo DB_DATABASE="ac-test" >> .env.test
         working-directory: api
 
       - name: Setup Node.js
