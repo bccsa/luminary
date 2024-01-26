@@ -22,12 +22,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Start CouchDB docker
-        run: docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password -d couchdb:3.3.3
-
-      - name: Create database
-        run: curl -X PUT http://admin:password@127.0.0.1:5984/${{ env.DB_DATABASE }}
-
       - name: Create environment file
         run: cp .env.example .env.test
         working-directory: api
@@ -45,7 +39,10 @@ jobs:
         working-directory: api
 
       - name: Run Tests
-        run: npm run test
+        run: |
+          docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password -d couchdb:3.3.3
+          curl -X PUT http://admin:password@127.0.0.1:5984/${{ env.DB_DATABASE }}
+          npm run test
         working-directory: api
 
   lint:
