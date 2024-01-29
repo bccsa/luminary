@@ -6,6 +6,7 @@ on:
     paths:
       - api/**
       - .github/workflows/api-deploy-production.yml
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
