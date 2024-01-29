@@ -102,28 +102,39 @@ export class DbService {
     }
 
     /**
-     * Get data to which a user has access and has subscribed to
-     * @param {Array<string>} accessTags - Array with access tag ID's
-     * @param {Array<string>} subscriptionTags - Array with subscription tag ID's
+     * Get data to which a user has access to including the user document itself.
+     * @param {string} userID - User document ID.
+     * @param {Array<string>} readAcl - Array with read access acl IDs to which the user has access to. This should be an expanded list of acl IDs.
+     * @param {DbService.getDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */
-    getDocs(accessTags: Array<string>, subscriptionTags: Array<string>) {
+    getDocs(
+        userId: string,
+        readAcl: Array<string>,
+        options: DbService.getDocsOptions,
+    ): Promise<unknown> {
+        // Set default options
+        if (!options.from) options.from = 0;
+
         const query = {
             selector: {
-                // TODO: determine if we need to filter on content type here or perhaps exclude certain types of content in the query?
-                // type: "post",
-                // tag criteria:
-                // return all documents matching any of the user's access tags AND matching any of the user's subscription tags
-                $and: [
+                $or: [
                     {
-                        tags: {
-                            $in: accessTags,
-                        },
+                        _id: userId,
                     },
                     {
-                        tags: {
-                            $in: subscriptionTags,
-                        },
+                        $and: [
+                            {
+                                from: {
+                                    $gte: options.from,
+                                },
+                            },
+                            {
+                                type: {
+                                    $in: options.types,
+                                },
+                            },
+                        ],
                     },
                 ],
             },
@@ -165,4 +176,17 @@ export class DbService {
             });
         });
     }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+module DbService {
+    /**
+     * @typedef {Object} - getDocsOptions
+     * @property {Array<string>} types - Array of document types to be included in the query result
+     * @property {number} from - Include documents with an updateTimeUtc timestamp greater or equal to the passed value. (Default 0)
+     */
+    export type getDocsOptions = {
+        types: Array<string>;
+        from: number;
+    };
 }
