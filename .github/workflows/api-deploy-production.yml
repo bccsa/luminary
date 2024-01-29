@@ -32,6 +32,8 @@ jobs:
           touch .env
           echo PORT=${{ vars.DOCKER_PORT }} >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}" >> .env
+          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
         working-directory: api
 
       - name: Build Docker container
