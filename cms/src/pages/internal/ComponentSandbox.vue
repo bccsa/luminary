@@ -196,6 +196,7 @@ const items = [
                         <span class="space-x-2">
                             <AcBadge
                                 v-for="(status, key) in translations"
+                                :key="key"
                                 type="language"
                                 :variant="status"
                             >
