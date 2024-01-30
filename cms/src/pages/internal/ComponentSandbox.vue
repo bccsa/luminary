@@ -8,9 +8,12 @@ import AcSelect from "@/components/forms/AcSelect.vue";
 import { EnvelopeIcon } from "@heroicons/vue/20/solid";
 import AcCard from "@/components/common/AcCard.vue";
 import AcBadge from "@/components/common/AcBadge.vue";
+import AcTable from "@/components/common/AcTable.vue";
 
+// Input
 const input = ref("Test value");
 
+// Select
 const languageOptions = [
     { label: "English", value: "en" },
     { label: "Swahili", value: "sw" },
@@ -18,6 +21,69 @@ const languageOptions = [
     { label: "Español", value: "es", disabled: true },
 ];
 const selectedLanguage = ref("sw");
+
+// Table
+const sortBy = ref(undefined);
+const sortDirection = ref(undefined);
+const columns = [
+    {
+        text: "Title",
+        key: "title",
+    },
+    {
+        text: "Translations",
+        key: "translations",
+        sortable: false,
+    },
+    {
+        text: "",
+        key: "actions",
+        sortable: false,
+    },
+];
+
+const items = [
+    {
+        id: 1,
+        title: "Life is the light of men",
+        translations: {
+            eng: "success",
+            fra: "success",
+            swa: "info",
+            nya: "default",
+        },
+    },
+    {
+        id: 2,
+        title: "A story about my cat",
+        translations: {
+            eng: "success",
+            fra: "default",
+            swa: "success",
+            nya: "info",
+        },
+    },
+    {
+        id: 3,
+        title: "Alons enfants de la patrie",
+        translations: {
+            eng: "default",
+            fra: "success",
+            swa: "default",
+            nya: "default",
+        },
+    },
+    {
+        id: 4,
+        title: "Forth Éorlingas, or what I learned watching Lord of the Rings",
+        translations: {
+            eng: "success",
+            fra: "success",
+            swa: "info",
+            nya: "success",
+        },
+    },
+];
 </script>
 
 <template>
@@ -119,6 +185,31 @@ const selectedLanguage = ref("sw");
                 <template #footer>With footer</template>
             </AcCard>
 
+            <AcCard padding="none" title="Table">
+                <AcTable
+                    :columns="columns"
+                    :items="items"
+                    v-model:sortBy="sortBy"
+                    v-model:sortDirection="sortDirection"
+                >
+                    <template #item.translations="{ translations }">
+                        <span class="flex gap-2">
+                            <AcBadge
+                                v-for="(status, key) in translations"
+                                :key="key"
+                                type="language"
+                                :variant="status"
+                            >
+                                {{ key }}
+                            </AcBadge>
+                        </span>
+                    </template>
+                    <template #item.actions>
+                        <AcButton variant="secondary" size="sm">Edit</AcButton>
+                    </template>
+                </AcTable>
+            </AcCard>
+
             <AcCard title="Badges">
                 <div class="flex gap-2">
                     <AcBadge>Default</AcBadge>
@@ -128,11 +219,11 @@ const selectedLanguage = ref("sw");
                     <AcBadge variant="info">Info</AcBadge>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <AcBadge type="language">en</AcBadge>
-                    <AcBadge type="language" variant="success">fr</AcBadge>
-                    <AcBadge type="language" variant="warning">sw</AcBadge>
-                    <AcBadge type="language" variant="error">ny</AcBadge>
-                    <AcBadge type="language" variant="info">es</AcBadge>
+                    <AcBadge type="language" :showIcon="false">eng</AcBadge>
+                    <AcBadge type="language" variant="success">fra</AcBadge>
+                    <AcBadge type="language" variant="warning">swa</AcBadge>
+                    <AcBadge type="language" variant="error">nya</AcBadge>
+                    <AcBadge type="language" variant="info">spa</AcBadge>
                 </div>
             </AcCard>
 

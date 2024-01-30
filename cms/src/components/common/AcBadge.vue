@@ -1,12 +1,21 @@
 <script setup lang="ts">
+import {
+    CheckCircleIcon,
+    EllipsisHorizontalCircleIcon,
+    ExclamationCircleIcon,
+    XCircleIcon,
+} from "@heroicons/vue/16/solid";
+
 type Props = {
     variant?: keyof typeof variants;
     type?: "default" | "language";
+    showIcon?: boolean;
 };
 
 withDefaults(defineProps<Props>(), {
     variant: "default",
     type: "default",
+    showIcon: true,
 });
 
 const variants = {
@@ -28,6 +37,26 @@ const variants = {
             },
         ]"
     >
+        <XCircleIcon
+            class="-ml-0.5 mr-1 h-3 w-3 text-gray-500"
+            v-if="showIcon && type == 'language' && variant == 'default'"
+        />
+        <CheckCircleIcon
+            class="-ml-0.5 mr-1 h-3 w-3 text-green-600"
+            v-if="showIcon && type == 'language' && variant == 'success'"
+        />
+        <EllipsisHorizontalCircleIcon
+            class="-ml-0.5 mr-1 h-3 w-3 text-blue-600"
+            v-if="showIcon && type == 'language' && variant == 'info'"
+        />
+        <ExclamationCircleIcon
+            class="-ml-0.5 mr-1 h-3 w-3 text-yellow-600"
+            v-if="showIcon && type == 'language' && variant == 'warning'"
+        />
+        <ExclamationCircleIcon
+            class="-ml-0.5 mr-1 h-3 w-3 text-red-600"
+            v-if="showIcon && type == 'language' && variant == 'error'"
+        />
         <slot />
     </span>
 </template>

@@ -14,5 +14,11 @@ module.exports = {
     },
     rules: {
         "prettier/prettier": "error",
+        "vue/valid-v-slot": [
+            "error",
+            {
+                allowModifiers: true,
+            },
+        ],
     },
 };
