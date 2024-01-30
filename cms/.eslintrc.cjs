@@ -13,7 +13,6 @@ module.exports = {
         ecmaVersion: "latest",
     },
     rules: {
-        "prettier/prettier": "error",
         "vue/valid-v-slot": [
             "error",
             {
