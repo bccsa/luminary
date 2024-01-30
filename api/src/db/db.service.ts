@@ -1,6 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import * as nano from "nano";
 
+/**
+ * @typedef {Object} - getDocsOptions
+ * @property {Array<string>} groups - Array with IDs of groups for which member documents should be returned.
+ * Note: If the "group" type is included in getDocsOptions.types, the group itself will be included in the result.
+ * @property {Array<string>} types - Array of document types to be included in the query result
+ * @property {number} from - Include documents with an updateTimeUtc timestamp greater or equal to the passed value. (Default 0)
+ */
+export type getDocsOptions = {
+    groups: Array<string>;
+    types: Array<string>;
+    from: number;
+};
+
 @Injectable()
 export class DbService {
     private db: nano.DocumentScope<unknown>;
@@ -104,15 +117,10 @@ export class DbService {
     /**
      * Get data to which a user has access to including the user document itself.
      * @param {string} userID - User document ID.
-     * @param {Array<string>} readAcl - Array with read access acl IDs to which the user has access to. This should be an expanded list of acl IDs.
-     * @param {DbService.getDocsOptions} options - Query configuration object.
+     * @param {getDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */
-    getDocs(
-        userId: string,
-        readAcl: Array<string>,
-        options: DbService.getDocsOptions,
-    ): Promise<unknown> {
+    getDocs(userId: string, options: getDocsOptions): Promise<unknown> {
         // Set default options
         if (!options.from) options.from = 0;
 
@@ -133,6 +141,20 @@ export class DbService {
                                 type: {
                                     $in: options.types,
                                 },
+                            },
+                            {
+                                $or: [
+                                    {
+                                        memberOf: {
+                                            $in: options.groups,
+                                        },
+                                    },
+                                    {
+                                        _id: {
+                                            $in: options.groups,
+                                        },
+                                    },
+                                ],
                             },
                         ],
                     },
@@ -176,17 +198,4 @@ export class DbService {
             });
         });
     }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-namespace
-module DbService {
-    /**
-     * @typedef {Object} - getDocsOptions
-     * @property {Array<string>} types - Array of document types to be included in the query result
-     * @property {number} from - Include documents with an updateTimeUtc timestamp greater or equal to the passed value. (Default 0)
-     */
-    export type getDocsOptions = {
-        types: Array<string>;
-        from: number;
-    };
 }
