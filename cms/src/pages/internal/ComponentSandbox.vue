@@ -8,9 +8,12 @@ import AcSelect from "@/components/forms/AcSelect.vue";
 import { EnvelopeIcon } from "@heroicons/vue/20/solid";
 import AcCard from "@/components/common/AcCard.vue";
 import AcBadge from "@/components/common/AcBadge.vue";
+import AcTable from "@/components/common/AcTable.vue";
 
+// Input
 const input = ref("Test value");
 
+// Select
 const languageOptions = [
     { label: "English", value: "en" },
     { label: "Swahili", value: "sw" },
@@ -18,6 +21,69 @@ const languageOptions = [
     { label: "Español", value: "es", disabled: true },
 ];
 const selectedLanguage = ref("sw");
+
+// Table
+const sortBy = ref(undefined);
+const sortDirection = ref(undefined);
+const columns = [
+    {
+        text: "Title",
+        key: "title",
+    },
+    {
+        text: "Translations",
+        key: "translations",
+        sortable: false,
+    },
+    {
+        text: "",
+        key: "actions",
+        sortable: false,
+    },
+];
+
+const items = [
+    {
+        id: 1,
+        title: "Life is the light of men",
+        translations: {
+            en: "success",
+            fr: "success",
+            sw: "info",
+            ny: "default",
+        },
+    },
+    {
+        id: 2,
+        title: "A story about my cat",
+        translations: {
+            en: "success",
+            fr: "default",
+            sw: "success",
+            ny: "info",
+        },
+    },
+    {
+        id: 3,
+        title: "Alons enfants de la patrie",
+        translations: {
+            en: "default",
+            fr: "success",
+            sw: "default",
+            ny: "default",
+        },
+    },
+    {
+        id: 4,
+        title: "Forth Éorlingas, or what I learned watching Lord of the Rings",
+        translations: {
+            en: "success",
+            fr: "success",
+            sw: "info",
+            ny: "success",
+        },
+    },
+];
 </script>
 
 <template>
@@ -117,6 +183,30 @@ const selectedLanguage = ref("sw");
                 Card without title
 
                 <template #footer>With footer</template>
+            </AcCard>
+
+            <AcCard padding="none" title="Table">
+                <AcTable
+                    :columns="columns"
+                    :items="items"
+                    v-model:sortBy="sortBy"
+                    v-model:sortDirection="sortDirection"
+                >
+                    <template #item.translations="{ translations }">
+                        <span class="space-x-2">
+                            <AcBadge
+                                v-for="(status, key) in translations"
+                                type="language"
+                                :variant="status"
+                            >
+                                {{ key }}
+                            </AcBadge>
+                        </span>
+                    </template>
+                    <template #item.actions>
+                        <AcButton variant="secondary" size="sm">Edit</AcButton>
+                    </template>
+                </AcTable>
             </AcCard>
 
             <AcCard title="Badges">
