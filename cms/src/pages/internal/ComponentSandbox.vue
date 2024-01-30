@@ -47,40 +47,40 @@ const items = [
         id: 1,
         title: "Life is the light of men",
         translations: {
-            en: "success",
-            fr: "success",
-            sw: "info",
-            ny: "default",
+            eng: "success",
+            fra: "success",
+            swa: "info",
+            nya: "default",
         },
     },
     {
         id: 2,
         title: "A story about my cat",
         translations: {
-            en: "success",
-            fr: "default",
-            sw: "success",
-            ny: "info",
+            eng: "success",
+            fra: "default",
+            swa: "success",
+            nya: "info",
         },
     },
     {
         id: 3,
         title: "Alons enfants de la patrie",
         translations: {
-            en: "default",
-            fr: "success",
-            sw: "default",
-            ny: "default",
+            eng: "default",
+            fra: "success",
+            swa: "default",
+            nya: "default",
         },
     },
     {
         id: 4,
         title: "Forth Éorlingas, or what I learned watching Lord of the Rings",
         translations: {
-            en: "success",
-            fr: "success",
-            sw: "info",
-            ny: "success",
+            eng: "success",
+            fra: "success",
+            swa: "info",
+            nya: "success",
         },
     },
 ];
@@ -193,7 +193,7 @@ const items = [
                     v-model:sortDirection="sortDirection"
                 >
                     <template #item.translations="{ translations }">
-                        <span class="space-x-2">
+                        <span class="flex gap-2">
                             <AcBadge
                                 v-for="(status, key) in translations"
                                 :key="key"
@@ -219,11 +219,11 @@ const items = [
                     <AcBadge variant="info">Info</AcBadge>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <AcBadge type="language">en</AcBadge>
-                    <AcBadge type="language" variant="success">fr</AcBadge>
-                    <AcBadge type="language" variant="warning">sw</AcBadge>
-                    <AcBadge type="language" variant="error">ny</AcBadge>
-                    <AcBadge type="language" variant="info">es</AcBadge>
+                    <AcBadge type="language" :showIcon="false">eng</AcBadge>
+                    <AcBadge type="language" variant="success">fra</AcBadge>
+                    <AcBadge type="language" variant="warning">swa</AcBadge>
+                    <AcBadge type="language" variant="error">nya</AcBadge>
+                    <AcBadge type="language" variant="info">spa</AcBadge>
                 </div>
             </AcCard>
 
