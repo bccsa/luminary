@@ -1,0 +1,11 @@
+{
+    "_id": "tag-topicB",
+    "type": "tag",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-private-content"],
+    "tagType": "topic",
+    "pinned": false,
+    "localisations": ["localisation-topicB-eng", "localisation-topicB-fra"],
+    "image": "",
+    "tags": []
+}

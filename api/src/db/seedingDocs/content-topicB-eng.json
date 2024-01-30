@@ -1,0 +1,19 @@
+{
+    "_id": "content-topicB-eng",
+    "type": "content",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-private-content"],
+    "language": "lang-eng",
+    "status": "published",
+    "slug": "topicB-eng",
+    "title": "topic B",
+    "summary": "This is an example topic",
+    "author": "",
+    "text": "",
+    "seo": "",
+    "localisedImage": "",
+    "audio": "",
+    "video": "",
+    "publishDate": 3,
+    "expiryDate": 0
+}
