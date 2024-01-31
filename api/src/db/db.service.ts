@@ -11,7 +11,7 @@ import * as nano from "nano";
 export type getDocsOptions = {
     groups: Array<string>;
     types: Array<string>;
-    from: number;
+    from?: number;
 };
 
 @Injectable()
