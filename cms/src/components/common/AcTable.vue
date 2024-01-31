@@ -16,19 +16,45 @@ type Props = {
     items: Item[];
     sortBy?: string;
     sortDirection?: SortDirection;
+    paginate?: boolean;
+    itemsPerPage?: number;
+    currentPage?: number;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     sortDirection: "descending",
+    paginate: false,
+    itemsPerPage: 25,
+    currentPage: 1,
 });
-const { columns, items, sortBy, sortDirection } = toRefs(props);
+const { columns, items, paginate, sortBy, sortDirection, currentPage, itemsPerPage } =
+    toRefs(props);
 
-const emit = defineEmits(["update:sortBy", "update:sortDirection"]);
+const emit = defineEmits(["update:sortBy", "update:sortDirection", "update:currentPage"]);
 
 function getField(item: Item, columnKey: string) {
     const segments = columnKey.split(".");
     return segments.reduce((obj, key) => obj[key], item);
 }
+
+const paginateStart = computed(() => {
+    return (currentPage.value - 1) * itemsPerPage.value;
+});
+const paginateEnd = computed(() => {
+    return Math.min(paginateStart.value + itemsPerPage.value, items.value.length);
+});
+
+const paginatedItems = computed(() => {
+    if (!paginate.value) {
+        return sortedItems.value;
+    }
+
+    return sortedItems.value.slice(paginateStart.value, paginateEnd.value);
+});
+
+const pages = computed(() => {
+    return Math.round(items.value.length / itemsPerPage.value);
+});
 
 const sortedItems = computed(() => {
     if (sortBy?.value == undefined) {
@@ -55,6 +81,10 @@ const sortedItems = computed(() => {
         return 0;
     });
 });
+
+function setCurrentPage(page: number) {
+    emit("update:currentPage", page);
+}
 
 function sort(column: Column) {
     if (column.sortable === false) {
@@ -120,7 +150,7 @@ function sort(column: Column) {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
-                    <tr v-for="(item, key) in sortedItems" :key="key">
+                    <tr v-for="(item, key) in paginatedItems" :key="key">
                         <td
                             v-for="(column, index) in columns"
                             :key="column.key"
@@ -142,6 +172,40 @@ function sort(column: Column) {
                         </td>
                     </tr>
                 </tbody>
+                <tfoot class="bg-gray-50 text-sm" v-if="paginate">
+                    <tr>
+                        <td :colspan="items.length - 1" class="py-3 pl-4 pr-3 sm:pl-6">
+                            <div
+                                class="flex flex-row-reverse items-center justify-between sm:flex-row"
+                            >
+                                <div class="text-gray-700">
+                                    Showing
+                                    <span class="font-medium">{{ paginateStart + 1 }}</span>
+                                    to
+                                    <span class="font-medium">{{ paginateEnd }}</span>
+                                    of
+                                    <span class="font-medium">{{ items.length }}</span>
+                                    results
+                                </div>
+                                <div>
+                                    <button
+                                        v-for="page in pages"
+                                        :key="page"
+                                        @click="setCurrentPage(page)"
+                                        class="page mx-0.5 cursor-pointer rounded px-2.5 py-1 text-gray-800 hover:bg-gray-200 active:bg-gray-300"
+                                        :class="{
+                                            'bg-gray-200 font-medium text-gray-900 ring-1 ring-inset ring-gray-300/80':
+                                                page == currentPage,
+                                        }"
+                                    >
+                                        <span class="sr-only">Go to page</span>
+                                        {{ page }}
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>
