@@ -133,7 +133,7 @@ export class DbService {
                     {
                         $and: [
                             {
-                                from: {
+                                updatedTimeUtc: {
                                     $gte: options.from,
                                 },
                             },
@@ -145,11 +145,13 @@ export class DbService {
                             {
                                 $or: [
                                     {
+                                        // Include documents who are a member of any of the passed groups
                                         memberOf: {
                                             $in: options.groups,
                                         },
                                     },
                                     {
+                                        // Include the (group) document itself
                                         _id: {
                                             $in: options.groups,
                                         },
