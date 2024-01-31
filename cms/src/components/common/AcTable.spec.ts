@@ -79,4 +79,29 @@ describe("AcTable", () => {
         expect(wrapper.emitted("update:sortBy")![0]).toEqual(["year_group"]);
         expect(wrapper.emitted("update:sortDirection")![0]).toEqual(["ascending"]);
     });
+
+    it("can paginate the items", async () => {
+        const wrapper = mount(AcTable, {
+            props: {
+                columns,
+                items,
+                paginate: true,
+                itemsPerPage: 1,
+                currentPage: 1,
+                "onUpdate:currentPage": (e) => wrapper.setProps({ currentPage: e }),
+            },
+        });
+
+        expect(wrapper.text()).toContain("Ada Lovelace");
+        expect(wrapper.text()).not.toContain("Firmus Piett");
+        expect(wrapper.text()).toContain("Go to page 1");
+        expect(wrapper.text()).toContain("Go to page 2");
+
+        await wrapper.findAll("button.page")[1].trigger("click");
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.emitted("update:currentPage")![0]).toEqual([2]);
+        expect(wrapper.text()).not.toContain("Ada Lovelace");
+        expect(wrapper.text()).toContain("Firmus Piett");
+    });
 });

@@ -25,6 +25,7 @@ const selectedLanguage = ref("sw");
 // Table
 const sortBy = ref(undefined);
 const sortDirection = ref(undefined);
+const currentPage = ref(1);
 const columns = [
     {
         text: "Title",
@@ -81,6 +82,16 @@ const items = [
             fra: "success",
             swa: "info",
             nya: "success",
+        },
+    },
+    {
+        id: 5,
+        title: "An unexpected journey",
+        translations: {
+            eng: "success",
+            fra: "info",
+            swa: "info",
+            nya: "default",
         },
     },
 ];
@@ -185,10 +196,13 @@ const items = [
                 <template #footer>With footer</template>
             </AcCard>
 
-            <AcCard padding="none" title="Table">
+            <AcCard padding="none">
                 <AcTable
                     :columns="columns"
                     :items="items"
+                    paginate
+                    v-model:currentPage="currentPage"
+                    :itemsPerPage="2"
                     v-model:sortBy="sortBy"
                     v-model:sortDirection="sortDirection"
                 >
