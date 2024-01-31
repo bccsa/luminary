@@ -73,12 +73,73 @@ describe("DbService", () => {
     it("can update get the latest document updated time", async () => {
         const res: number = await service.getLatestUpdatedTime();
 
-        expect(res).toBe(2);
+        expect(res).toBe(3);
     });
 
     it("can update get the oldest changelogEntry document updated time", async () => {
         const res: number = await service.getOldestChangelogEntryUpdatedTime();
 
         expect(res).toBe(1);
+    });
+
+    it("can retreive user's own document", async () => {
+        const res: any = await service.getDocs("user-public", {
+            groups: [],
+            types: [],
+            from: 0,
+        });
+
+        expect(res.docs[0]._id).toBe("user-public");
+        expect(res.docs.length).toBe(1);
+    });
+
+    it("can retreive documents using one group selector", async () => {
+        const res: any = await service.getDocs("user-public", {
+            groups: ["group-public-content"],
+            types: ["post", "tag"],
+            from: 0,
+        });
+
+        expect(res.docs.length).toBe(4);
+    });
+
+    it("can retreive documents using two group selectors", async () => {
+        const res: any = await service.getDocs("user-public", {
+            groups: ["group-public-content", "group-private-content"],
+            types: ["post", "tag"],
+            from: 0,
+        });
+
+        expect(res.docs.length).toBe(7);
+    });
+
+    it("can retreive documents of one type", async () => {
+        const res: any = await service.getDocs("user-public", {
+            groups: ["group-public-content"],
+            types: ["post"],
+            from: 0,
+        });
+
+        expect(res.docs.length).toBe(2); // result always includes the user's own user document
+    });
+
+    it("can retreive documents of two types", async () => {
+        const res: any = await service.getDocs("user-public", {
+            groups: ["group-public-content"],
+            types: ["post", "tag"],
+            from: 0,
+        });
+
+        expect(res.docs.length).toBe(4); // result always includes the user's own user document
+    });
+
+    it("can retreive documents from a given time", async () => {
+        const res: any = await service.getDocs("user-public", {
+            groups: ["group-public-content"],
+            types: ["post", "tag"],
+            from: 2,
+        });
+
+        expect(res.docs.length).toBe(3);
     });
 });
