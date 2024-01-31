@@ -219,7 +219,7 @@ const items = [
                         </span>
                     </template>
                     <template #item.actions>
-                        <AcButton variant="secondary" size="sm">Edit</AcButton>
+                        <AcButton variant="tertiary" size="sm">Edit</AcButton>
                     </template>
                 </AcTable>
             </AcCard>
@@ -245,8 +245,10 @@ const items = [
                 <div class="space-x-4">
                     <AcButton>Save as draft</AcButton>
                     <AcButton variant="primary">Publish</AcButton>
+                    <AcButton variant="tertiary">Edit post</AcButton>
                     <AcButton disabled>Save as draft</AcButton>
                     <AcButton disabled variant="primary">Publish</AcButton>
+                    <AcButton disabled variant="tertiary">Edit post</AcButton>
                 </div>
             </AcCard>
         </div>

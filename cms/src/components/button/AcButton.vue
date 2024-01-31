@@ -23,11 +23,14 @@ const variants = {
         "bg-gray-900 text-white ring-gray-900/60 hover:bg-gray-900/90 active:bg-gray-900/80 disabled:bg-gray-500 disabled:text-gray-100 disabled:ring-gray-500",
     secondary:
         "bg-white text-gray-900 ring-gray-300 hover:bg-gray-50 active:bg-gray-100 disabled:bg-gray-100 disabled:text-gray-500",
+    tertiary:
+        "bg-transparent text-gray-900 ring-0 shadow-none hover:text-gray-950 hover:bg-gray-100 active:bg-gray-200 disabled:text-gray-500 disabled:hover:bg-transparent",
 };
 
 const iconVariants = {
     primary: "text-gray-100 group-hover:text-gray-50 group-active:text-white",
     secondary: "text-gray-600/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
+    tertiary: "text-gray-600/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
 };
 
 const sizes = {
