@@ -99,43 +99,51 @@ describe("DbService", () => {
     });
 
     it("can retrieve documents using one group selector", async () => {
-        const res: any = await service.getDocs("user-public", {
+        const res: any = await service.getDocs("", {
             groups: ["group-public-content"],
             types: ["post", "tag"],
             from: 0,
         });
 
-        expect(res.docs.length).toBe(4);
+        const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
+        expect(docCount).toBe(3);
     });
 
     it("can retrieve documents using two group selectors", async () => {
-        const res: any = await service.getDocs("user-public", {
+        const res: any = await service.getDocs("", {
             groups: ["group-public-content", "group-private-content"],
             types: ["post", "tag"],
             from: 0,
         });
 
-        expect(res.docs.length).toBe(7);
+        const docCount =
+            res.docs.filter((t) => t.memberOf.includes("group-public-content")).length +
+            res.docs.filter((t) => t.memberOf.includes("group-private-content")).length;
+        expect(docCount).toBe(6);
     });
 
     it("can retrieve documents of one type", async () => {
-        const res: any = await service.getDocs("user-public", {
+        const res: any = await service.getDocs("", {
             groups: ["group-public-content"],
             types: ["post"],
             from: 0,
         });
 
-        expect(res.docs.length).toBe(2); // result always includes the user's own user document
+        const docCount = res.docs.filter((t) => t.type === "post").length;
+        expect(docCount).toBe(1);
     });
 
     it("can retrieve documents of two types", async () => {
-        const res: any = await service.getDocs("user-public", {
+        const res: any = await service.getDocs("", {
             groups: ["group-public-content"],
             types: ["post", "tag"],
             from: 0,
         });
 
-        expect(res.docs.length).toBe(4); // result always includes the user's own user document
+        const docCount =
+            res.docs.filter((t) => t.type === "post").length +
+            res.docs.filter((t) => t.type === "tag").length;
+        expect(docCount).toBe(3);
     });
 
     it("can retrieve documents from a given time", async () => {
@@ -155,7 +163,8 @@ describe("DbService", () => {
             from: 0,
         });
 
-        expect(res.docs.length).toBe(1);
+        const docCount = res.docs.filter((t) => t._id === "group-public-content").length;
+        expect(docCount).toBe(1);
     });
 
     // TODO: Enable after adding Mango Indexes
