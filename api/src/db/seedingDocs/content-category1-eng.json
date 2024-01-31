@@ -1,0 +1,19 @@
+{
+    "_id": "content-category1-eng",
+    "type": "content",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-public-content"],
+    "language": "lang-eng",
+    "status": "published",
+    "slug": "category1-eng",
+    "title": "Category 1",
+    "summary": "This is an example category",
+    "author": "",
+    "text": "",
+    "seo": "",
+    "localisedImage": "",
+    "audio": "",
+    "video": "",
+    "publishDate": 3,
+    "expiryDate": 0
+}

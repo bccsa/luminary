@@ -1,0 +1,33 @@
+{
+    "_id": "group-private-content",
+    "type": "group",
+    "updatedTimeUtc": 3,
+    "name": "Private Content",
+    "acl": [
+        {
+            "type": "post",
+            "groupId": "group-private-users",
+            "permission": ["view"]
+        },
+        {
+            "type": "tag",
+            "groupId": "group-private-users",
+            "permission": ["view"]
+        },
+        {
+            "type": "post",
+            "groupId": "group-private-editors",
+            "permission": ["view", "edit", "translate", "publish"]
+        },
+        {
+            "type": "tag",
+            "groupId": "group-private-editors",
+            "permission": ["view", "translate", "assign"]
+        },
+        {
+            "type": "group",
+            "groupId": "group-private-editors",
+            "permission": ["view", "assign"]
+        }
+    ]
+}

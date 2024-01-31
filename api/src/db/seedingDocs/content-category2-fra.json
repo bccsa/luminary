@@ -1,0 +1,19 @@
+{
+    "_id": "content-category2-fra",
+    "type": "content",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-private-content"],
+    "language": "lang-fra",
+    "status": "published",
+    "slug": "category2-fra",
+    "title": "Catégorie 2",
+    "summary": "Ceci est une catégorie exemple.",
+    "author": "",
+    "text": "",
+    "seo": "",
+    "localisedImage": "",
+    "audio": "",
+    "video": "",
+    "publishDate": 3,
+    "expiryDate": 0
+}

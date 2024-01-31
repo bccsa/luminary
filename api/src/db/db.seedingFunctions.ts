@@ -39,3 +39,7 @@ export function upsertDesignDocs(): Promise<any> {
 export function upsertSeedingDocs(): Promise<any> {
     return upsertFromDir("seedingDocs");
 }
+
+export function destroyAllDocs() {
+    return db.destroyAllDocs();
+}

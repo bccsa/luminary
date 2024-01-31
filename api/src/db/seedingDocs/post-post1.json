@@ -1,0 +1,9 @@
+{
+    "_id": "post-post1",
+    "type": "post",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-public-content"],
+    "content": ["content-post1-eng", "content-post1-fra"],
+    "image": "",
+    "tags": ["tag-category1", "tag-topicA"]
+}

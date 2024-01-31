@@ -1,6 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import * as nano from "nano";
 
+/**
+ * @typedef {Object} - getDocsOptions
+ * @property {Array<string>} groups - Array with IDs of groups for which member documents should be returned.
+ * Note: If the "group" type is included in getDocsOptions.types, the group itself will be included in the result.
+ * @property {Array<string>} types - Array of document types to be included in the query result
+ * @property {number} from - Include documents with an updateTimeUtc timestamp greater or equal to the passed value. (Default 0)
+ */
+export type getDocsOptions = {
+    groups: Array<string>;
+    types: Array<string>;
+    from?: number;
+};
+
 @Injectable()
 export class DbService {
     private db: nano.DocumentScope<unknown>;
@@ -55,7 +68,7 @@ export class DbService {
     /**
      * Gets the latest document update time for any documents that has the updatedTimeUtc property
      */
-    getLatestUpdatedTime(): Promise<number> {
+    getLatestDocUpdatedTime(): Promise<number> {
         return new Promise((resolve) => {
             this.db
                 .view("sync", "updatedTimeUtc", {
@@ -78,12 +91,12 @@ export class DbService {
     }
 
     /**
-     * Gets the update time of the oldest changelog document.
+     * Gets the update time of the oldest change document.
      */
-    getOldestChangelogEntryUpdatedTime(): Promise<number> {
+    getOldestChangeTime(): Promise<number> {
         return new Promise((resolve) => {
             this.db
-                .view("sync", "changelogUpdatedTimeUtc", {
+                .view("sync", "changeUpdatedTimeUtc", {
                     limit: 1,
                 })
                 .then((res) => {
@@ -102,28 +115,63 @@ export class DbService {
     }
 
     /**
-     * Get data to which a user has access and has subscribed to
-     * @param {Array<string>} accessTags - Array with access tag ID's
-     * @param {Array<string>} subscriptionTags - Array with subscription tag ID's
+     * Function used to clear a database
+     */
+    async destroyAllDocs() {
+        const res = await this.db.list();
+        const pList = [];
+        res.rows.forEach((doc) => {
+            pList.push(this.db.destroy(doc.id, doc.value.rev));
+        });
+
+        await Promise.all(pList);
+    }
+
+    /**
+     * Get data to which a user has access to including the user document itself.
+     * @param {string} userID - User document ID.
+     * @param {getDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */
-    getDocs(accessTags: Array<string>, subscriptionTags: Array<string>) {
+    getDocs(userId: string, options: getDocsOptions): Promise<unknown> {
+        // Set default options
+        if (!options.from) options.from = 0;
+
         const query = {
             selector: {
-                // TODO: determine if we need to filter on content type here or perhaps exclude certain types of content in the query?
-                // type: "post",
-                // tag criteria:
-                // return all documents matching any of the user's access tags AND matching any of the user's subscription tags
-                $and: [
+                $or: [
                     {
-                        tags: {
-                            $in: accessTags,
-                        },
+                        _id: userId,
                     },
                     {
-                        tags: {
-                            $in: subscriptionTags,
-                        },
+                        $and: [
+                            {
+                                updatedTimeUtc: {
+                                    $gte: options.from,
+                                },
+                            },
+                            {
+                                type: {
+                                    $in: options.types,
+                                },
+                            },
+                            {
+                                $or: [
+                                    {
+                                        // Include documents who are a member of any of the passed groups
+                                        memberOf: {
+                                            $in: options.groups,
+                                        },
+                                    },
+                                    {
+                                        // Include the (group) document itself
+                                        _id: {
+                                            $in: options.groups,
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
                     },
                 ],
             },

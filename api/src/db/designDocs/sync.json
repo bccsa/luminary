@@ -4,8 +4,8 @@
         "updatedTimeUtc": {
             "map": "function (doc) {\n  if (doc.updatedTimeUtc) {\n    emit(doc.updatedTimeUtc, doc.updatedTimeUtc);\n  }\n}"
         },
-        "changelogUpdatedTimeUtc": {
-            "map": "function (doc) {\n  if (doc.updatedTimeUtc && doc.type && doc.type === \"changelogEntry\") {\n    emit(doc.updatedTimeUtc, doc.updatedTimeUtc);\n  }\n}"
+        "changeUpdatedTimeUtc": {
+            "map": "function (doc) {\n  if (doc.updatedTimeUtc && doc.type && doc.type === \"change\") {\n    emit(doc.updatedTimeUtc, doc.updatedTimeUtc);\n  }\n}"
         }
     }
 }

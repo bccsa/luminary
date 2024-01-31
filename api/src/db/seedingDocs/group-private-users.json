@@ -1,0 +1,33 @@
+{
+    "_id": "group-private-users",
+    "type": "group",
+    "updatedTimeUtc": 3,
+    "name": "Private Users",
+    "acl": [
+        {
+            "type": "post",
+            "groupId": "group-super-admins",
+            "permission": ["view", "assign", "edit", "translate", "publish"]
+        },
+        {
+            "type": "tag",
+            "groupId": "group-super-admins",
+            "permission": ["view", "assign", "edit", "translate", "publish"]
+        },
+        {
+            "type": "group",
+            "groupId": "group-super-admins",
+            "permission": ["view", "assign", "edit", "translate", "publish"]
+        },
+        {
+            "type": "user",
+            "groupId": "group-super-admins",
+            "permission": ["view", "assign", "edit", "translate", "publish"]
+        },
+        {
+            "type": "language",
+            "groupId": "group-super-admins",
+            "permission": ["view", "assign", "edit", "translate", "publish"]
+        }
+    ]
+}

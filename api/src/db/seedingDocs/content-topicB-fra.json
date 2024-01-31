@@ -1,0 +1,19 @@
+{
+    "_id": "content-topicB-fra",
+    "type": "content",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-private-content"],
+    "language": "lang-fra",
+    "status": "published",
+    "slug": "topicB-fra",
+    "title": "Sujet B",
+    "summary": "Ceci est un exemple de sujet.",
+    "author": "",
+    "text": "",
+    "seo": "",
+    "localisedImage": "",
+    "audio": "",
+    "video": "",
+    "publishDate": 3,
+    "expiryDate": 0
+}

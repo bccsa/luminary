@@ -1,0 +1,8 @@
+{
+    "_id": "user-public",
+    "type": "user",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-public-users"],
+    "email": "public@users.test",
+    "name": "Public User"
+}
