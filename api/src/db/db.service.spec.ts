@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "./db.service";
 import { randomUUID } from "crypto";
-import { upsertDesignDocs, upsertSeedingDocs } from "./db.seedingFunctions";
+import { upsertDesignDocs, upsertSeedingDocs, destroyAllDocs } from "./db.seedingFunctions";
 
 describe("DbService", () => {
     let service: DbService;
@@ -16,6 +16,11 @@ describe("DbService", () => {
         // Seed database with required views and some default documents (needed for testing views)
         await upsertDesignDocs();
         await upsertSeedingDocs();
+    });
+
+    afterAll(async () => {
+        // Clear the database
+        await destroyAllDocs();
     });
 
     it("can be instantiated", () => {
@@ -71,18 +76,18 @@ describe("DbService", () => {
     });
 
     it("can update get the latest document updated time", async () => {
-        const res: number = await service.getLatestUpdatedTime();
+        const res: number = await service.getLatestDocUpdatedTime();
 
         expect(res).toBe(3);
     });
 
     it("can update get the oldest changelogEntry document updated time", async () => {
-        const res: number = await service.getOldestChangelogEntryUpdatedTime();
+        const res: number = await service.getOldestChangeTime();
 
         expect(res).toBe(1);
     });
 
-    it("can retreive user's own document", async () => {
+    it("can retrieve user's own document", async () => {
         const res: any = await service.getDocs("user-public", {
             groups: [],
             types: [],
@@ -93,7 +98,7 @@ describe("DbService", () => {
         expect(res.docs.length).toBe(1);
     });
 
-    it("can retreive documents using one group selector", async () => {
+    it("can retrieve documents using one group selector", async () => {
         const res: any = await service.getDocs("user-public", {
             groups: ["group-public-content"],
             types: ["post", "tag"],
@@ -103,7 +108,7 @@ describe("DbService", () => {
         expect(res.docs.length).toBe(4);
     });
 
-    it("can retreive documents using two group selectors", async () => {
+    it("can retrieve documents using two group selectors", async () => {
         const res: any = await service.getDocs("user-public", {
             groups: ["group-public-content", "group-private-content"],
             types: ["post", "tag"],
@@ -113,7 +118,7 @@ describe("DbService", () => {
         expect(res.docs.length).toBe(7);
     });
 
-    it("can retreive documents of one type", async () => {
+    it("can retrieve documents of one type", async () => {
         const res: any = await service.getDocs("user-public", {
             groups: ["group-public-content"],
             types: ["post"],
@@ -123,7 +128,7 @@ describe("DbService", () => {
         expect(res.docs.length).toBe(2); // result always includes the user's own user document
     });
 
-    it("can retreive documents of two types", async () => {
+    it("can retrieve documents of two types", async () => {
         const res: any = await service.getDocs("user-public", {
             groups: ["group-public-content"],
             types: ["post", "tag"],
@@ -133,7 +138,7 @@ describe("DbService", () => {
         expect(res.docs.length).toBe(4); // result always includes the user's own user document
     });
 
-    it("can retreive documents from a given time", async () => {
+    it("can retrieve documents from a given time", async () => {
         const res: any = await service.getDocs("user-public", {
             groups: ["group-public-content"],
             types: ["post", "tag"],
@@ -142,4 +147,26 @@ describe("DbService", () => {
 
         expect(res.docs.length).toBe(3);
     });
+
+    it("can retrieve the group itself from the passed groups query property", async () => {
+        const res: any = await service.getDocs("", {
+            groups: ["group-public-content"],
+            types: ["group"],
+            from: 0,
+        });
+
+        expect(res.docs.length).toBe(1);
+    });
+
+    // TODO: Enable after adding Mango Indexes
+    // it("does not return database warnings", async () => {
+    //     const res: any = await service.getDocs("", {
+    //         groups: [""],
+    //         types: [""],
+    //         from: 0,
+    //     });
+
+    //     console.log(res);
+    //     expect(res.warning).toBe(undefined);
+    // });
 });

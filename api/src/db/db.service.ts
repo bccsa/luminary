@@ -68,7 +68,7 @@ export class DbService {
     /**
      * Gets the latest document update time for any documents that has the updatedTimeUtc property
      */
-    getLatestUpdatedTime(): Promise<number> {
+    getLatestDocUpdatedTime(): Promise<number> {
         return new Promise((resolve) => {
             this.db
                 .view("sync", "updatedTimeUtc", {
@@ -91,12 +91,12 @@ export class DbService {
     }
 
     /**
-     * Gets the update time of the oldest changelog document.
+     * Gets the update time of the oldest change document.
      */
-    getOldestChangelogEntryUpdatedTime(): Promise<number> {
+    getOldestChangeTime(): Promise<number> {
         return new Promise((resolve) => {
             this.db
-                .view("sync", "changelogUpdatedTimeUtc", {
+                .view("sync", "changeUpdatedTimeUtc", {
                     limit: 1,
                 })
                 .then((res) => {
@@ -112,6 +112,19 @@ export class DbService {
                     }
                 });
         });
+    }
+
+    /**
+     * Function used to clear a database
+     */
+    async destroyAllDocs() {
+        const res = await this.db.list();
+        const pList = [];
+        res.rows.forEach((doc) => {
+            pList.push(this.db.destroy(doc.id, doc.value.rev));
+        });
+
+        await Promise.all(pList);
     }
 
     /**
