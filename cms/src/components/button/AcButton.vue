@@ -29,8 +29,8 @@ const variants = {
 
 const iconVariants = {
     primary: "text-gray-100 group-hover:text-gray-50 group-active:text-white",
-    secondary: "text-gray-600/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
-    tertiary: "text-gray-600/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
+    secondary: "text-gray-800/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
+    tertiary: "text-gray-800/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
 };
 
 const sizes = {
@@ -51,7 +51,11 @@ const sizes = {
             v-if="icon"
             :is="icon"
             class="order-2 h-5 w-5"
-            :class="[iconVariants[variant], { '-mr-0.5': iconRight, '-ml-0.5': !iconRight }]"
+            :class="{
+                [iconVariants[variant]]: $slots.default,
+                '-mr-0.5': iconRight && $slots.default,
+                '-ml-0.5': !iconRight && $slots.default,
+            }"
         />
         <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']"><slot /></span>
     </component>

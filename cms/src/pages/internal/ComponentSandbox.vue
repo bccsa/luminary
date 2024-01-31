@@ -5,7 +5,7 @@ import AcButton from "@/components/button/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
 import AcTextarea from "@/components/forms/AcTextarea.vue";
 import AcSelect from "@/components/forms/AcSelect.vue";
-import { EnvelopeIcon } from "@heroicons/vue/20/solid";
+import { EnvelopeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import AcCard from "@/components/common/AcCard.vue";
 import AcBadge from "@/components/common/AcBadge.vue";
 import AcTable from "@/components/common/AcTable.vue";
@@ -219,7 +219,7 @@ const items = [
                         </span>
                     </template>
                     <template #item.actions>
-                        <AcButton variant="tertiary" size="sm">Edit</AcButton>
+                        <AcButton variant="tertiary" size="sm" :icon="PencilSquareIcon"></AcButton>
                     </template>
                 </AcTable>
             </AcCard>
@@ -249,6 +249,12 @@ const items = [
                     <AcButton disabled>Save as draft</AcButton>
                     <AcButton disabled variant="primary">Publish</AcButton>
                     <AcButton disabled variant="tertiary">Edit post</AcButton>
+                </div>
+                <div class="mt-6 space-x-4">
+                    <AcButton :icon="PencilSquareIcon">Edit</AcButton>
+                    <AcButton variant="primary" :icon="PencilSquareIcon">Edit</AcButton>
+                    <AcButton variant="tertiary" :icon="PencilSquareIcon">Edit</AcButton>
+                    <AcButton variant="tertiary" :icon="PencilSquareIcon"></AcButton>
                 </div>
             </AcCard>
         </div>
