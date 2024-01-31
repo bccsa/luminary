@@ -175,7 +175,9 @@ function sort(column: Column) {
                 <tfoot class="bg-gray-50 text-sm" v-if="paginate">
                     <tr>
                         <td :colspan="items.length - 1" class="py-3 pl-4 pr-3 sm:pl-6">
-                            <div class="flex items-center justify-between">
+                            <div
+                                class="flex flex-row-reverse items-center justify-between sm:flex-row"
+                            >
                                 <div class="text-gray-700">
                                     Showing
                                     <span class="font-medium">{{ paginateStart + 1 }}</span>
