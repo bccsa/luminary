@@ -192,7 +192,7 @@ function sort(column: Column) {
                                         @click="setCurrentPage(page)"
                                         class="page mx-0.5 cursor-pointer rounded px-2.5 py-1 text-gray-800 hover:bg-gray-200 active:bg-gray-300"
                                         :class="{
-                                            'bg-gray-200 ring-1 ring-inset ring-gray-300/80':
+                                            'bg-gray-200 font-medium text-gray-900 ring-1 ring-inset ring-gray-300/80':
                                                 page == currentPage,
                                         }"
                                     >
