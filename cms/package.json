@@ -16,6 +16,7 @@
     "dependencies": {
         "@auth0/auth0-vue": "^2.3.3",
         "pinia": "^2.1.7",
+        "socket.io-client": "^4.7.4",
         "vue": "^3.3.11",
         "vue-router": "^4.2.5"
     },
