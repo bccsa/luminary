@@ -81,7 +81,7 @@ describe("AcTable", () => {
     });
 
     it("can paginate the items", async () => {
-        const wrapper = mount(AcTable, {
+        const wrapper: any = mount(AcTable, {
             props: {
                 columns,
                 items,
