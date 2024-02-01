@@ -1,7 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "./db.service";
 import { randomUUID } from "crypto";
-// import { upsertDesignDocs, upsertSeedingDocs } from "./db.seedingFunctions";
 
 describe("DbService", () => {
     let service: DbService;
