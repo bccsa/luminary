@@ -19,7 +19,7 @@ const socket = io(apiUrl);
 
 socket.on("connect", () => {
     socket.emit("clientDataReq", {
-        updateVersion: 0,
+        version: 0,
         cms: true,
     });
 });

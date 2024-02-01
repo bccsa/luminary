@@ -29,14 +29,13 @@ export class Socketio {
         socket.data.groups = ["group-private-content", "group-public-content"];
 
         // TODO: Move docTypes to function in db class with selection between cms vs non-cms
-        const docTypes = ["post", "tag"];
+        const docTypes = ["post", "tag", "lang"];
         if (reqData.cms) {
-            docTypes.push(...["group", "lang"]);
+            docTypes.push(...["group"]);
         }
 
-        let from: number;
-        if (reqData.updateVersion && typeof reqData.updateVersion === "number")
-            from = reqData.updateVersion;
+        let from = 0;
+        if (reqData.version && typeof reqData.version === "number") from = reqData.version;
 
         // Test query to return some data to CMS
         this.db

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "./db.service";
 import { randomUUID } from "crypto";
-import { upsertDesignDocs, upsertSeedingDocs, destroyAllDocs } from "./db.seedingFunctions";
+// import { upsertDesignDocs, upsertSeedingDocs } from "./db.seedingFunctions";
 
 describe("DbService", () => {
     let service: DbService;
@@ -12,15 +12,6 @@ describe("DbService", () => {
         }).compile();
 
         service = module.get<DbService>(DbService);
-
-        // Seed database with required views and some default documents (needed for testing views)
-        await upsertDesignDocs();
-        await upsertSeedingDocs();
-    });
-
-    afterAll(async () => {
-        // Clear the database
-        await destroyAllDocs();
     });
 
     it("can be instantiated", () => {
