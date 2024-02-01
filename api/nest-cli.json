@@ -7,12 +7,12 @@
         "assets": [
             {
                 "include": "db/designDocs/*.json",
-                "outDir": "dist",
+                "outDir": "dist/src",
                 "watchAssets": true
             },
             {
                 "include": "db/seedingDocs/*.json",
-                "outDir": "dist",
+                "outDir": "dist/src",
                 "watchAssets": true
             }
         ],

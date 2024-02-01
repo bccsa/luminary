@@ -25,6 +25,9 @@ $ npm run start:prod
 
 ## Test
 
+Copy and `.env.example` file to `.env.test` and change `DB_CONNECTION_STRING` to a local empty CouchDB database to be used for running local test.
+_Important! `PORT` must be set to a unique value (i.e. not the same as the port number used in the `.env` file)_
+
 ```sh
 # unit tests
 $ npm run test:unit

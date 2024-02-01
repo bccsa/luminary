@@ -3,6 +3,16 @@ import { AppModule } from "./app.module";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 
 async function bootstrap() {
+    // Create or update database design docs on api startup
+    upsertDesignDocs().catch((err) => {
+        console.error(err.message);
+    });
+
+    // TMP: Seed database with demo / initial data
+    upsertSeedingDocs().catch((err) => {
+        console.error(err.message);
+    });
+
     const app = await NestFactory.create(AppModule);
     app.enableCors({
         origin: [
@@ -13,15 +23,5 @@ async function bootstrap() {
         ],
     });
     await app.listen(process.env.PORT);
-
-    // Create or update database design docs on api startup
-    upsertDesignDocs().catch((err) => {
-        console.error(err.message);
-    });
-
-    // TMP: Seed database with demo / initial data
-    upsertSeedingDocs().catch((err) => {
-        console.error(err.message);
-    });
 }
 bootstrap();
