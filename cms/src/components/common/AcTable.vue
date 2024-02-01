@@ -128,7 +128,12 @@ function sort(column: Column) {
                                 'cursor-pointer': column.sortable !== false,
                             }"
                         >
-                            <div class="flex items-center gap-2">
+                            <div
+                                class="flex items-center gap-2"
+                                :class="{
+                                    'flex-row-reverse justify-start': index == columns.length - 1,
+                                }"
+                            >
                                 {{ column.text }}
 
                                 <button v-if="column.sortable !== false" aria-label="Sort column">

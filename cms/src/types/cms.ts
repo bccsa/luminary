@@ -1,4 +1,4 @@
-enum DocType {
+export enum DocType {
     Change = "change",
     Content = "content",
     Group = "group",
@@ -10,65 +10,65 @@ enum DocType {
     User = "user",
 }
 
-type BaseDocument = {
+export type BaseDocument = {
     _id: string;
     type: DocType;
     updatedTimeUtc: number;
 };
 
-type Group = BaseDocument & {
+export type Group = BaseDocument & {
     type: DocType.Group;
     name: string;
 };
 
-type ContentBase = BaseDocument & {
+export type ContentBase = BaseDocument & {
     memberOf: Group[];
 };
 
-type Language = ContentBase & {
+export type Language = ContentBase & {
     type: DocType.Language;
     languageCode: string;
     name: string;
 };
 
-enum MediaType {
+export enum MediaType {
     Audio = "audio",
     Image = "image",
     Video = "video",
 }
 
-type Media = ContentBase & {
+export type Media = ContentBase & {
     type: DocType.Media;
     mediaType: MediaType;
     url: string;
 };
 
-type MediaDownload = ContentBase & {
+export type MediaDownload = ContentBase & {
     type: DocType.MediaDownload;
     language: Language;
     url: string;
 };
 
-type Audio = Media & {
+export type Audio = Media & {
     mediaType: MediaType.Audio;
     downloads: MediaDownload[];
 };
 
-type Image = Media & {
+export type Image = Media & {
     mediaType: MediaType.Image;
 };
 
-type Video = Media & {
+export type Video = Media & {
     mediaType: MediaType.Video;
     downloads: MediaDownload[];
 };
 
-enum ContentStatus {
+export enum ContentStatus {
     Draft = "draft",
     Published = "published",
 }
 
-type Content = ContentBase & {
+export type Content = ContentBase & {
     type: DocType.Content;
     language: Language;
     status: ContentStatus;
@@ -81,13 +81,13 @@ type Content = ContentBase & {
     text: string;
 };
 
-enum TagType {
+export enum TagType {
     AudioPlaylist = "audioPlaylist",
     Category = "category",
     Topic = "topic",
 }
 
-type Tag = ContentBase & {
+export type Tag = ContentBase & {
     type: DocType.Tag;
     tagType: TagType;
     image: Image;
@@ -96,14 +96,14 @@ type Tag = ContentBase & {
     tags: Tag[];
 };
 
-type Post = ContentBase & {
+export type Post = ContentBase & {
     type: DocType.Post;
     content: Content[];
-    image: Image;
+    image?: Image;
     tags: Tag[];
 };
 
-type User = ContentBase & {
+export type User = ContentBase & {
     type: DocType.User;
     name: string;
     email: string;

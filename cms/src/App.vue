@@ -8,24 +8,19 @@ import { ref } from "vue";
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
 import { Bars3Icon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { io } from "socket.io-client";
+import { useSocketConnectionStore } from "@/stores/socketConnection";
+import { socket } from "@/socket";
 
 const { isAuthenticated } = useAuth0();
-const { appName, apiUrl } = useGlobalConfigStore();
+const { appName } = useGlobalConfigStore();
+const socketConnectionStore = useSocketConnectionStore();
+
+// remove any existing listeners (in case of hot reload)
+socket.off();
+
+socketConnectionStore.bindEvents();
 
 const sidebarOpen = ref(false);
-
-const socket = io(apiUrl);
-
-socket.on("connect", () => {
-    socket.emit("clientDataReq", {
-        version: 0,
-        cms: true,
-    });
-});
-socket.on("data", (res) => {
-    console.log(res);
-});
 </script>
 
 <template>
