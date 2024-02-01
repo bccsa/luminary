@@ -8,6 +8,7 @@ import {
 import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
+import * as nano from "nano";
 
 @WebSocketGateway({
     cors: {
@@ -44,7 +45,7 @@ export class Socketio {
                 types: docTypes,
                 from: from,
             })
-            .then((res: any) => {
+            .then((res: nano.MangoResponse<unknown>) => {
                 if (res.docs) {
                     socket.emit("data", res.docs);
                 }
