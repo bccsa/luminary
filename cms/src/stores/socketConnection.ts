@@ -1,7 +1,8 @@
 import { defineStore } from "pinia";
 import { socket } from "@/socket";
-import { type BaseDocument } from "@/types/cms";
+import { DocType, type BaseDocument, type PostDto, type ContentDto } from "@/types";
 import { usePostStore } from "./post";
+import { useContentStore } from "./content";
 
 export const useSocketConnectionStore = defineStore("socketConnection", {
     state: () => ({
@@ -23,12 +24,19 @@ export const useSocketConnectionStore = defineStore("socketConnection", {
                 this.isConnected = false;
             });
 
-            socket.on("data", (data: BaseDocument[]) => {
+            socket.on("data", async (data: BaseDocument[]) => {
                 console.log(data);
 
+                const contentStore = useContentStore();
                 const postStore = usePostStore();
 
-                postStore.savePosts(data);
+                await contentStore.saveContent(
+                    data.filter((item) => item.type == DocType.Content) as ContentDto[],
+                );
+
+                await postStore.savePosts(
+                    data.filter((item) => item.type == DocType.Post) as PostDto[],
+                );
             });
         },
     },

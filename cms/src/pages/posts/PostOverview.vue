@@ -20,7 +20,7 @@ const columns = [
     },
     {
         text: "Title",
-        key: "title",
+        key: "defaultTitle",
     },
     {
         text: "Last updated",
@@ -33,6 +33,7 @@ const columns = [
     <BasePage title="Posts">
         <template #actions>
             <AcButton
+                v-if="store.posts.length > 0"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"

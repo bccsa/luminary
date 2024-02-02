@@ -101,6 +101,7 @@ export type Post = ContentBase & {
     content: Content[];
     image?: Image;
     tags: Tag[];
+    defaultTitle?: string;
 };
 
 export type User = ContentBase & {
