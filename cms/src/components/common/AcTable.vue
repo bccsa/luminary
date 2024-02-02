@@ -179,7 +179,7 @@ function sort(column: Column) {
                 </tbody>
                 <tfoot class="bg-gray-50 text-sm" v-if="paginate">
                     <tr>
-                        <td :colspan="items.length - 1" class="py-3 pl-4 pr-3 sm:pl-6">
+                        <td :colspan="columns.length" class="py-3 pl-4 pr-3 sm:pl-6">
                             <div
                                 class="flex flex-row-reverse items-center justify-between sm:flex-row"
                             >
