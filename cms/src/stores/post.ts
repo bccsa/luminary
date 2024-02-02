@@ -1,38 +1,21 @@
 import { defineStore } from "pinia";
-import type { Post, Content, PostDto } from "@/types";
+import type { Post, PostDto } from "@/types";
+import { liveQuery } from "dexie";
 import { db } from "@/db";
-import { ref, type Ref } from "vue";
+import { useObservable } from "@vueuse/rxjs";
+import { type Ref } from "vue";
+import { fromDtos } from "@/types/postMapper";
 
 export const usePostStore = defineStore("post", () => {
-    const posts: Ref<Post[]> = ref([]);
+    const posts: Readonly<Ref<Post[] | undefined>> = useObservable(
+        liveQuery(async () => {
+            return await db.posts.toArray((dtos) => Promise.all(fromDtos(dtos)));
+        }) as any,
+    );
 
     async function savePosts(data: PostDto[]) {
-        await db.posts.bulkPut(data);
-
-        return updatePosts(data);
+        return db.posts.bulkPut(data);
     }
 
-    async function updatePosts(data?: PostDto[]) {
-        if (!data) {
-            data = await db.posts.toArray();
-        }
-
-        const content = await db.content.toArray();
-
-        posts.value = data.map((dto) => {
-            const post = dto as unknown as Post;
-
-            if (dto.content) {
-                post.content = dto.content.map(
-                    (contentId) => content.find((c) => c._id == contentId) as unknown as Content,
-                );
-
-                post.defaultTitle = post.content[0].title;
-            }
-
-            return post;
-        });
-    }
-
-    return { posts, savePosts, updatePosts };
+    return { posts, savePosts };
 });

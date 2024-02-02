@@ -7,7 +7,7 @@ import { PlusIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import AcCard from "@/components/common/AcCard.vue";
 import AcTable from "@/components/common/AcTable.vue";
-import { ref, toRefs } from "vue";
+import { ref } from "vue";
 
 const store = usePostStore();
 
@@ -15,12 +15,8 @@ const sortBy = ref(undefined);
 const sortDirection = ref(undefined);
 const columns = [
     {
-        text: "Id",
-        key: "_id",
-    },
-    {
         text: "Title",
-        key: "defaultTitle",
+        key: "title",
     },
     {
         text: "Last updated",
@@ -33,7 +29,7 @@ const columns = [
     <BasePage title="Posts">
         <template #actions>
             <AcButton
-                v-if="store.posts.length > 0"
+                v-if="store.posts && store.posts.length > 0"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
@@ -44,7 +40,7 @@ const columns = [
         </template>
 
         <EmptyState
-            v-if="store.posts.length == 0"
+            v-if="!store.posts || store.posts.length == 0"
             title="No posts yet"
             description="Get started by creating a new post."
             buttonText="Create Post"
@@ -57,7 +53,11 @@ const columns = [
                 :items="store.posts"
                 v-model:sortBy="sortBy"
                 v-model:sortDirection="sortDirection"
-            />
+            >
+                <template #item.title="{ content }">
+                    {{ content[0].title }}
+                </template>
+            </AcTable>
         </AcCard>
     </BasePage>
 </template>
