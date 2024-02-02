@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { socket } from "@/socket";
-import { DocType, type BaseDocument, type PostDto, type ContentDto } from "@/types";
+import { DocType, type BaseDocument, type PostDto } from "@/types";
 import { usePostStore } from "./post";
 
 export const useSocketConnectionStore = defineStore("socketConnection", {
