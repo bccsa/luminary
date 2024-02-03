@@ -13,7 +13,7 @@ export const usePostStore = defineStore("post", () => {
         }) as any,
     );
 
-    async function savePosts(data: PostDto[]) {
+    function savePosts(data: PostDto[]) {
         return db.posts.bulkPut(data);
     }
 
