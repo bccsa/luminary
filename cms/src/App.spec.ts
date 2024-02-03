@@ -29,13 +29,14 @@ describe("App", () => {
     });
 
     it("registers the socket connection events", () => {
+        const pinia = createTestingPinia();
+        const socketConnectionStore = useSocketConnectionStore();
+
         mount(App, {
             global: {
-                plugins: [createTestingPinia()],
+                plugins: [pinia],
             },
         });
-
-        const socketConnectionStore = useSocketConnectionStore();
 
         expect(socketConnectionStore.bindEvents).toHaveBeenCalledOnce();
     });

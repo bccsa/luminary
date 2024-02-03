@@ -73,12 +73,12 @@ export type Content = ContentBase & {
     language: Language;
     status: ContentStatus;
     publishDate: number;
-    expiryDate: number;
-    localisedImage?: Image;
+    expiryDate?: number;
     slug: string;
     title: string;
-    summary: string;
-    text: string;
+    localisedImage?: Image;
+    summary?: string;
+    text?: string;
 };
 
 export enum TagType {

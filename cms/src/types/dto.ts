@@ -13,12 +13,12 @@ export type ContentDto = ContentBaseDto & {
     language: Uuid;
     status: string;
     publishDate: number;
-    expiryDate: number;
+    expiryDate?: number;
     localisedImage?: Uuid;
     slug: string;
     title: string;
-    summary: string;
-    text: string;
+    summary?: string;
+    text?: string;
 };
 
 export type TagDto = ContentBaseDto & {
