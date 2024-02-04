@@ -58,6 +58,7 @@ class Group {
     >();
     private _groupTypePermissionMap = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
     private _aclMap = new Map<string, AclMapEntry>();
+    private _childGroups = new Map<string, Group>();
     private _id: string;
 
     private constructor(id: string) {
@@ -72,29 +73,30 @@ class Group {
     }
 
     /**
-     * Create groups from passed array of group database documents in passed groupMap
+     * Create or update groups from passed array of group database documents in passed groupMap
      * @param groupDocs
      * @param groupMap
      */
-    static createGroups(groupDocs: Array<any>, groupMap: Map<string, Group>) {
+    static updateGroups(groupDocs: Array<any>, groupMap: Map<string, Group>) {
         while (groupDocs.length > 0) {
-            this.createGroup(groupDocs.splice(0, 1)[0], groupDocs, groupMap);
+            this.updateGroup(groupDocs.splice(0, 1)[0], groupDocs, groupMap);
         }
     }
 
-    // Create single group
-    private static createGroup(
+    // Create or update single group
+    private static updateGroup(
         doc: any,
         groupDocs: Array<any>,
         groupMap: Map<string, Group>,
     ): Group {
+        let g: Group;
         // Check if group is already in groupList
-        if (groupMap[doc.id]) {
-            return groupMap[doc._id];
+        if (groupMap[doc._id]) {
+            g = groupMap[doc._id];
+        } else {
+            g = new Group(doc._id);
+            groupMap[doc._id] = g;
         }
-
-        const g = new Group(doc._id);
-        groupMap[doc._id] = g;
 
         doc.acl.forEach((aclEntry: AclEntry) => {
             let parent: Group = groupMap[aclEntry.groupId];
@@ -106,14 +108,14 @@ class Group {
                 if (i >= 0) {
                     const d = groupDocs.splice(i, 1)[0];
                     if (d) {
-                        parent = this.createGroup(d, groupDocs, groupMap);
+                        parent = this.updateGroup(d, groupDocs, groupMap);
                     }
                 }
             }
 
-            // If the parent now exists, add ACL's to this group
+            // If the parent now exists, add or update ACL's to this group
             if (parent) {
-                g.addAcl(parent, aclEntry.type, aclEntry.permission);
+                g.updateAcl(parent, aclEntry.type, aclEntry.permission);
             }
         });
 
@@ -136,7 +138,7 @@ class Group {
         // Find group in groupMap
         const g = groupMap[docId];
         if (g) {
-            // Remove access from parent groups
+            // Remove from parent maps
             Object.values(g._aclMap).forEach((_acl: AclMapEntry) => {
                 Object.keys(_acl.types).forEach((_type: DocType) => {
                     Object.keys(_acl.types[_type]).forEach((_permission: AclPermission) => {
@@ -145,15 +147,20 @@ class Group {
                 });
             });
 
+            // Remove ACL in referenced documents
+            Object.values(g._childGroups).forEach((group: Group) => {
+                if (group._aclMap[g.id]) {
+                    delete group._aclMap[g.id];
+                }
+            });
+
             // Delete from groupMap
             delete groupMap[docId];
         }
-
-        // TODO: Remove ACL in referenced documents if a group is removed
     }
 
-    // Add acl to Group object
-    private addAcl(parentGroup: Group, type: DocType, permissions: Array<AclPermission>) {
+    // Add or update acl to Group object
+    private updateAcl(parentGroup: Group, type: DocType, permissions: Array<AclPermission>) {
         // Add group to map
         if (!this._aclMap[parentGroup.id]) {
             this._aclMap[parentGroup.id] = {
@@ -162,12 +169,28 @@ class Group {
             };
         }
 
+        // Store reference to this group in parent group to facilitate automatic ACL removal
+        // when the parent group is deleted
+        if (!parentGroup._childGroups[this.id]) {
+            parentGroup._childGroups[this.id] = this;
+        }
+
         // Add docType to map
         if (!this._aclMap[parentGroup.id].types[type]) {
             this._aclMap[parentGroup.id].types[type] = {};
         }
 
-        // Add permission to map
+        // Remove revoked permissions from aclMap
+        Object.keys(this._aclMap[parentGroup.id].types[type]).forEach((p: AclPermission) => {
+            if (!permissions.includes(p)) {
+                delete this._aclMap[parentGroup.id].types[type][p];
+
+                // Update parent accessMap
+                parentGroup.removeMap(this.id, this.id, type, p);
+            }
+        });
+
+        // Add new permissions to aclMap
         permissions.forEach((p) => {
             if (!this._aclMap[parentGroup.id].types[type][p]) {
                 this._aclMap[parentGroup.id].types[type][p] = true;
@@ -176,10 +199,19 @@ class Group {
                 parentGroup.addMap(this.id, this.id, type, p);
             }
         });
-    }
 
-    // Remove acl from Group object
-    private removeAcl() {}
+        // Cleanup
+        if (Object.keys(this._aclMap[parentGroup.id].types[type]).length == 0) {
+            delete this._aclMap[parentGroup.id].types[type];
+        }
+
+        if (Object.keys(this._aclMap[parentGroup.id]).length == 0) {
+            delete this._aclMap[parentGroup.id];
+
+            // remove reference from parent
+            delete parentGroup._childGroups[this.id];
+        }
+    }
 
     private addMap(
         childGroupId: string,
@@ -343,10 +375,49 @@ export class DbService {
             ],
             types: ["group"],
         }).then((res: any) => {
-            Group.createGroups(res.docs, this.groupMap);
+            Group.updateGroups(res.docs, this.groupMap);
 
-            Group.removeGroups(["group-public-users"], this.groupMap);
-            Group.removeGroups(["group-super-admins"], this.groupMap);
+            Group.updateGroups(
+                [
+                    {
+                        _id: "group-public-content",
+                        type: "group",
+                        updatedTimeUtc: 3,
+                        name: "Public Content",
+                        acl: [
+                            {
+                                type: "post",
+                                groupId: "group-super-admins",
+                                permission: ["view"],
+                            },
+                            {
+                                type: "tag",
+                                groupId: "group-public-users",
+                                permission: ["view", "tag"],
+                            },
+                            {
+                                type: "post",
+                                groupId: "group-public-editors",
+                                permission: ["view", "edit", "translate"],
+                            },
+                            {
+                                type: "tag",
+                                groupId: "group-public-editors",
+                                permission: ["view", "translate", "assign"],
+                            },
+                            {
+                                type: "group",
+                                groupId: "group-public-editors",
+                                permission: ["view", "assign"],
+                            },
+                        ],
+                    },
+                ],
+                this.groupMap,
+            );
+
+            // Group.removeGroups(["group-public-users"], this.groupMap);
+            // Group.removeGroups(["group-super-admins"], this.groupMap);
         });
     }
 
