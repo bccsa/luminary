@@ -25,18 +25,17 @@ export const useSocketConnectionStore = defineStore("socketConnection", {
             });
 
             socket.on("data", async (data: BaseDocument[]) => {
-                console.log(data);
-
                 const contentStore = useContentStore();
                 const postStore = usePostStore();
 
-                await contentStore.saveContent(
-                    data.filter((item) => item.type == DocType.Content) as ContentDto[],
-                );
-
-                await postStore.savePosts(
-                    data.filter((item) => item.type == DocType.Post) as PostDto[],
-                );
+                await Promise.all([
+                    contentStore.saveContent(
+                        data.filter((item) => item.type == DocType.Content) as ContentDto[],
+                    ),
+                    postStore.savePosts(
+                        data.filter((item) => item.type == DocType.Post) as PostDto[],
+                    ),
+                ]);
             });
         },
     },
