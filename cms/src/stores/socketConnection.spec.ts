@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from "vites
 import { useSocketConnectionStore } from "./socketConnection";
 import { setActivePinia, createPinia } from "pinia";
 import { io } from "socket.io-client";
+import { mockContentDto, mockPostDto } from "@/tests/mockData";
 
 const socketMocks = vi.hoisted(() => {
     return {
@@ -96,41 +97,11 @@ describe("socketConnection", () => {
     it("saves data from the API", () => {
         const store = useSocketConnectionStore();
 
-        const post = {
-            _id: "post-post1",
-            type: "post",
-            updatedTimeUtc: 3,
-            memberOf: ["group-public-content"],
-            content: ["content-post1-eng"],
-            image: "",
-            tags: ["tag-category1", "tag-topicA"],
-        };
-
-        const content = {
-            _id: "content-post1-eng",
-            type: "content",
-            updatedTimeUtc: 3,
-            memberOf: ["group-public-content"],
-            language: "lang-eng",
-            status: "published",
-            slug: "post1-eng",
-            title: "Post 1",
-            summary: "This is an example post",
-            author: "ChatGPT",
-            text: "In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily's eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community's beloved guardian.",
-            seo: "",
-            localisedImage: "",
-            audio: "",
-            video: "",
-            publishDate: 3,
-            expiryDate: 0,
-        };
-
-        listenToSocketOnEvent("data", [post, content]);
+        listenToSocketOnEvent("data", [mockPostDto, mockContentDto]);
 
         store.bindEvents();
 
-        expect(contentStoreMock.saveContent).toHaveBeenCalledWith([content]);
-        expect(postStoreMock.savePosts).toHaveBeenCalledWith([post]);
+        expect(contentStoreMock.saveContent).toHaveBeenCalledWith([mockContentDto]);
+        expect(postStoreMock.savePosts).toHaveBeenCalledWith([mockPostDto]);
     });
 });
