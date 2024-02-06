@@ -8,6 +8,7 @@ import { usePostStore } from "@/stores/post";
 import AcCard from "@/components/common/AcCard.vue";
 import AcTable from "@/components/common/AcTable.vue";
 import { ref } from "vue";
+import type { Post } from "@/types";
 
 const store = usePostStore();
 
@@ -17,6 +18,13 @@ const columns = [
     {
         text: "Title",
         key: "title",
+        sortMethod: (a: Post, b: Post) => {
+            const firstItem = a.content[0].title;
+            const secondItem = b.content[0].title;
+            if (firstItem < secondItem) return sortDirection.value == "descending" ? 1 : -1;
+            if (firstItem > secondItem) return sortDirection.value == "descending" ? -1 : 1;
+            return 0;
+        },
     },
     {
         text: "Last updated",
