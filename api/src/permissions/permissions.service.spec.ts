@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "../db/db.service";
-import { Group } from "./permissions.service";
+import { AclPermission, DocType, Group } from "./permissions.service";
 
 describe("PermissionService", () => {
     let db: DbService;
@@ -27,12 +27,14 @@ describe("PermissionService", () => {
     });
 
     it("can calculate inherited groups", () => {
-        const res: Map<string, Map<string, Map<string, boolean>>> = Group.getAccess(
+        const res = Group.getAccess(
             ["group-super-admins"],
             groupMap,
+            [DocType.Language],
+            AclPermission.View,
         );
 
-        expect(res["group-languages"]["language"]["view"]).toBe(true);
+        expect(res.includes("group-languages")).toBe(true);
     });
 
     it("can update inherited groups", () => {
@@ -70,28 +72,46 @@ describe("PermissionService", () => {
             groupMap,
         );
 
-        const res1: Map<string, Map<string, Map<string, boolean>>> = Group.getAccess(
+        const res1 = Group.getAccess(
             ["group-private-content"],
             groupMap,
+            [DocType.Language],
+            AclPermission.Translate,
         );
-        const res2: Map<string, Map<string, Map<string, boolean>>> = Group.getAccess(
+        const res2 = Group.getAccess(
             ["group-public-editors"],
             groupMap,
+            [DocType.Language],
+            AclPermission.Translate,
         );
 
-        expect(res1["group-languages"]["language"]["translate"]).toBe(true);
-        expect(res2["group-languages"]["language"]["translate"]).toBe(undefined);
+        expect(res1.includes("group-languages")).toBe(true);
+        expect(res2.includes("group-languages")).toBe(false);
     });
 
     it("can remove a group", () => {
         Group.removeGroups(["group-languages"], groupMap);
 
-        const res: Map<string, Map<string, Map<string, boolean>>> = Group.getAccess(
+        const res = Group.getAccess(
             ["group-super-admins"],
             groupMap,
+            [
+                DocType.Audio,
+                DocType.Change,
+                DocType.Content,
+                DocType.Group,
+                DocType.Image,
+                DocType.Language,
+                DocType.MediaDownload,
+                DocType.Post,
+                DocType.Tag,
+                DocType.User,
+                DocType.Video,
+            ],
+            AclPermission.View,
         );
 
-        expect(res["group-languages"]).toBe(undefined);
+        expect(res.includes("group-languages")).toBe(false);
     });
 
     it("can remove an ACL", () => {
@@ -134,12 +154,26 @@ describe("PermissionService", () => {
             groupMap,
         );
 
-        const res: Map<string, Map<string, Map<string, boolean>>> = Group.getAccess(
+        const res = Group.getAccess(
             ["group-public-users"],
             groupMap,
+            [
+                DocType.Audio,
+                DocType.Change,
+                DocType.Content,
+                DocType.Group,
+                DocType.Image,
+                DocType.Language,
+                DocType.MediaDownload,
+                DocType.Post,
+                DocType.Tag,
+                DocType.User,
+                DocType.Video,
+            ],
+            AclPermission.View,
         );
 
-        expect(res["group-public-content"]).toBe(undefined);
+        expect(res.includes("group-public-content")).toBe(false);
     });
 
     it("can add an ACL to an existing group", () => {
@@ -193,18 +227,36 @@ describe("PermissionService", () => {
             groupMap,
         );
 
-        console.log(groupMap);
-
-        const res: Map<string, Map<string, Map<string, boolean>>> = Group.getAccess(
+        const res1 = Group.getAccess(
             ["group-public-users"],
             groupMap,
+            [DocType.Post],
+            AclPermission.Edit,
         );
+        expect(res1.includes("group-public-content")).toBe(true);
 
-        console.log(res);
+        const res2 = Group.getAccess(
+            ["group-public-users"],
+            groupMap,
+            [DocType.Tag],
+            AclPermission.Edit,
+        );
+        expect(res2.includes("group-public-content")).toBe(true);
 
-        expect(res["group-public-content"].post.edit).toBe(true);
-        expect(res["group-public-content"].tag.edit).toBe(true);
-        expect(res["group-public-content"].post.view).toBe(true);
-        expect(res["group-public-content"].tag.view).toBe(true);
+        const res3 = Group.getAccess(
+            ["group-public-users"],
+            groupMap,
+            [DocType.Post],
+            AclPermission.View,
+        );
+        expect(res3.includes("group-public-content")).toBe(true);
+
+        const res4 = Group.getAccess(
+            ["group-public-users"],
+            groupMap,
+            [DocType.Tag],
+            AclPermission.View,
+        );
+        expect(res4.includes("group-public-content")).toBe(true);
     });
 });

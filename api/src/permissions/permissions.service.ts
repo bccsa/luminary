@@ -33,6 +33,11 @@ export enum DocType {
 }
 
 /**
+ * Global Group Map used for permission lookups
+ */
+export const groupMap: Map<string, Group> = new Map<string, Group>();
+
+/**
  * Permission system Group class
  */
 export class Group {
@@ -57,19 +62,39 @@ export class Group {
     }
 
     /**
-     * Get effective (including inherited) access for the passed group IDs per docType and permission
+     * Get effective access (including inherited access) for the passed group IDs per docType and permission
      * @param groupIds
      * @param groupMap
+     * @param types
+     * @param permissions
      */
-    static getAccess(groupIds: Array<string>, groupMap: Map<string, Group>) {
-        let res = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
+    static getAccess(
+        groupIds: Array<string>,
+        groupMap: Map<string, Group>,
+        types: Array<DocType>,
+        permission: AclPermission,
+    ): Array<string> {
+        let map = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
         groupIds.forEach((id: string) => {
             const g = groupMap[id];
             if (!g) return;
 
-            res = { ...res, ...g._groupTypePermissionMap };
+            map = { ...map, ...g._groupTypePermissionMap };
         });
-        return res;
+
+        const res = new Map<string, boolean>();
+        Object.keys(map).forEach((groupId: string) => {
+            Object.keys(map[groupId])
+                .filter((t: DocType) => types.includes(t))
+                .forEach((docType: DocType) => {
+                    Object.keys(map[groupId][docType])
+                        .filter((t: AclPermission) => t === permission)
+                        .forEach(() => {
+                            res[groupId] = true;
+                        });
+                });
+        });
+        return Object.keys(res);
     }
 
     /**

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import * as nano from "nano";
+import { Group, groupMap } from "../permissions/permissions.service";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -19,10 +20,18 @@ export class DbService {
     private db: nano.DocumentScope<unknown>;
     protected syncVersion: number;
     protected syncTolerance: number;
+    private _groupMap: Map<string, Group>;
 
     constructor() {
         this.connect(process.env.DB_CONNECTION_STRING as string, process.env.DB_DATABASE as string);
         this.syncTolerance = Number.parseInt((process.env.SYNC_TOLERANCE as string) || "1000");
+
+        // Populate the permission system's Group Map
+        this._groupMap = groupMap;
+
+        this.getGroups().then((res: any) => {
+            Group.updateGroups(res.docs, this._groupMap);
+        });
     }
 
     /**
