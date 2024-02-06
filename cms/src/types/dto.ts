@@ -17,6 +17,9 @@ export type ContentDto = ContentBaseDto & {
     localisedImage?: Uuid;
     slug: string;
     title: string;
+    audio?: Uuid;
+    video?: Uuid;
+    author?: string;
     summary?: string;
     text?: string;
 };

@@ -77,6 +77,7 @@ export type Content = ContentBase & {
     slug: string;
     title: string;
     localisedImage?: Image;
+    author?: string;
     summary?: string;
     text?: string;
 };
