@@ -1,4 +1,4 @@
-import { DocType, type ContentDto, type PostDto } from "@/types";
+import { DocType, type ContentDto, type PostDto, type Content, ContentStatus } from "@/types";
 
 export const mockPostDto: PostDto = {
     _id: "post-post1",
@@ -25,6 +25,32 @@ export const mockContentDto: ContentDto = {
     localisedImage: "",
     audio: "",
     video: "",
+    publishDate: 3,
+    expiryDate: 0,
+};
+
+export const mockContent: Content = {
+    _id: "content-post1-eng",
+    type: DocType.Content,
+    updatedTimeUtc: 3,
+    memberOf: [],
+    language: {
+        _id: "lang-eng",
+        type: DocType.Language,
+        updatedTimeUtc: 3,
+        memberOf: [],
+        languageCode: "eng",
+        name: "English",
+    },
+    status: ContentStatus.Published,
+    slug: "post1-eng",
+    title: "Post 1",
+    summary: "This is an example post",
+    author: "ChatGPT",
+    text: "In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily's eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community's beloved guardian.",
+    localisedImage: undefined,
+    audio: undefined,
+    video: undefined,
     publishDate: 3,
     expiryDate: 0,
 };

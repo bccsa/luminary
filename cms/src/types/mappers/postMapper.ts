@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import type { Content, Post, PostDto } from ".";
+import type { Content, Post, PostDto } from "../";
 
 export function fromDtos(dtos: PostDto[]) {
     return dtos.map((dto) => fromDto(dto));

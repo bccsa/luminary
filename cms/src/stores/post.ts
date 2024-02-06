@@ -4,7 +4,7 @@ import { liveQuery } from "dexie";
 import { db } from "@/db";
 import { useObservable } from "@vueuse/rxjs";
 import { type Ref } from "vue";
-import { fromDtos } from "@/types/postMapper";
+import { fromDtos } from "@/types/mappers/postMapper";
 
 export const usePostStore = defineStore("post", () => {
     const posts: Readonly<Ref<Post[] | undefined>> = useObservable(

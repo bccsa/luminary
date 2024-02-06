@@ -80,6 +80,8 @@ export type Content = ContentBase & {
     author?: string;
     summary?: string;
     text?: string;
+    audio?: Audio;
+    video?: Video;
 };
 
 export enum TagType {
