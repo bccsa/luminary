@@ -8,7 +8,7 @@ type Column = {
     sortable?: boolean;
     sortMethod?: (a: Item, b: Item) => number;
 };
-type Item = Record<string, any>;
+type Item = any;
 type SortDirection = "ascending" | "descending";
 
 type Props = {
