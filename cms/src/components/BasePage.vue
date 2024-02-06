@@ -1,14 +1,32 @@
 <script setup lang="ts">
-defineProps<{
+import PageTitleSkeleton from "@/components/skeleton/PageTitleSkeleton.vue";
+import ButtonSkeleton from "@/components/skeleton/ButtonSkeleton.vue";
+import TableSkeleton from "@/components/skeleton/TableSkeleton.vue";
+
+type Props = {
     title?: string;
-}>();
+    loading?: boolean;
+};
+
+withDefaults(defineProps<Props>(), {
+    loading: false,
+});
 </script>
 
 <template>
-    <div>
+    <slot name="loading" v-if="loading">
+        <div class="flex flex-col gap-4 pb-6 sm:flex-row sm:justify-between">
+            <PageTitleSkeleton />
+
+            <ButtonSkeleton />
+        </div>
+
+        <TableSkeleton />
+    </slot>
+    <div v-else>
         <header
             v-if="title || $slots.actions"
-            class="flex flex-col gap-4 bg-gray-50 pb-6 sm:flex-row sm:justify-between"
+            class="flex flex-col gap-4 pb-6 sm:flex-row sm:justify-between"
         >
             <h1 class="text-lg font-semibold leading-7">{{ title }}</h1>
 
