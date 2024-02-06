@@ -8,7 +8,7 @@ type Column = {
     sortable?: boolean;
     sortMethod?: (a: Item, b: Item) => number;
 };
-type Item = Record<string, any>;
+type Item = any;
 type SortDirection = "ascending" | "descending";
 
 type Props = {
@@ -128,7 +128,12 @@ function sort(column: Column) {
                                 'cursor-pointer': column.sortable !== false,
                             }"
                         >
-                            <div class="flex items-center gap-2">
+                            <div
+                                class="flex items-center gap-2"
+                                :class="{
+                                    'flex-row-reverse justify-start': index == columns.length - 1,
+                                }"
+                            >
                                 {{ column.text }}
 
                                 <button v-if="column.sortable !== false" aria-label="Sort column">
@@ -174,7 +179,7 @@ function sort(column: Column) {
                 </tbody>
                 <tfoot class="bg-gray-50 text-sm" v-if="paginate">
                     <tr>
-                        <td :colspan="items.length - 1" class="py-3 pl-4 pr-3 sm:pl-6">
+                        <td :colspan="columns.length" class="py-3 pl-4 pr-3 sm:pl-6">
                             <div
                                 class="flex flex-row-reverse items-center justify-between sm:flex-row"
                             >

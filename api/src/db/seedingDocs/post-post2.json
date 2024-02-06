@@ -3,7 +3,7 @@
     "type": "post",
     "updatedTimeUtc": 3,
     "memberOf": ["group-private-content"],
-    "localisations": ["localisation-post2-eng", "localisation-post2-fra"],
+    "content": ["content-post2-eng", "content-post2-fra"],
     "image": "",
     "tags": ["tag-category2", "tag-topicB"]
 }
