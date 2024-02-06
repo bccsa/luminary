@@ -30,7 +30,7 @@ export class Socketio {
         socket.data.groups = ["group-private-content", "group-public-content"];
 
         // TODO: Move docTypes to function in db class with selection between cms vs non-cms
-        const docTypes = ["post", "tag", "content", "lang"];
+        const docTypes = ["post", "tag", "content", "language"];
         if (reqData.cms) {
             docTypes.push(...["group"]);
         }

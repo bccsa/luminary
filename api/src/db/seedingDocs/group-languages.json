@@ -5,22 +5,22 @@
     "name": "Languages",
     "acl": [
         {
-            "type": "lang",
+            "type": "language",
             "groupId": "group-public-content",
             "permission": ["view"]
         },
         {
-            "type": "lang",
+            "type": "language",
             "groupId": "group-private-content",
             "permission": ["view"]
         },
         {
-            "type": "post",
+            "type": "language",
             "groupId": "group-public-editors",
             "permission": ["view", "translate"]
         },
         {
-            "type": "post",
+            "type": "language",
             "groupId": "group-private-editors",
             "permission": ["view", "translate"]
         }
