@@ -1,15 +1,13 @@
 import Dexie, { type Table } from "dexie";
-import type { ContentDto, PostDto } from "./types";
+import type { BaseDocumentDto } from "./types";
 
 export class BaseDatabase extends Dexie {
-    posts!: Table<PostDto>;
-    content!: Table<ContentDto>;
+    docs!: Table<BaseDocumentDto>;
 
     constructor() {
         super("ac-db");
-        this.version(1).stores({
-            posts: "_id",
-            content: "_id",
+        this.version(2).stores({
+            docs: "_id, type",
         });
     }
 }

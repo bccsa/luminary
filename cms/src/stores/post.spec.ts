@@ -2,11 +2,10 @@ import { describe, it, beforeEach, afterEach, vi, afterAll, expect } from "vites
 import { usePostStore } from "./post";
 import { setActivePinia, createPinia } from "pinia";
 import { liveQuery } from "dexie";
-import { mockPostDto } from "@/tests/mockData";
+import { toArray } from "rxjs";
 
-const postsDb = vi.hoisted(() => {
+const docsDb = vi.hoisted(() => {
     return {
-        bulkPut: vi.fn(),
         toArray: vi.fn(),
     };
 });
@@ -14,7 +13,15 @@ const postsDb = vi.hoisted(() => {
 vi.mock("@/db", () => {
     return {
         db: {
-            posts: postsDb,
+            docs: {
+                where: vi.fn().mockImplementation(() => {
+                    return {
+                        equals: vi.fn().mockImplementation(() => {
+                            return docsDb;
+                        }),
+                    };
+                }),
+            },
         },
     };
 });
@@ -42,18 +49,10 @@ describe("post store", () => {
         vi.restoreAllMocks();
     });
 
-    it("can save posts to the database", () => {
-        const store = usePostStore();
-
-        store.savePosts([mockPostDto]);
-
-        expect(postsDb.bulkPut).toHaveBeenCalledWith([mockPostDto]);
-    });
-
     it("runs a live query to get all posts", () => {
         usePostStore();
 
         expect(liveQuery).toHaveBeenCalledOnce();
-        expect(postsDb.toArray).toHaveBeenCalledOnce();
+        expect(docsDb.toArray).toHaveBeenCalledOnce();
     });
 });

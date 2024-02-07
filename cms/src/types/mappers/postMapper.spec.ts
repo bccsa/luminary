@@ -15,7 +15,7 @@ const chainedWhere = vi.hoisted(() => {
     };
 });
 
-const contentDb = vi.hoisted(() => {
+const docsDb = vi.hoisted(() => {
     return {
         where: vi.fn().mockImplementation(() => chainedWhere),
     };
@@ -24,7 +24,7 @@ const contentDb = vi.hoisted(() => {
 vi.mock("@/db", () => {
     return {
         db: {
-            content: contentDb,
+            docs: docsDb,
         },
     };
 });
