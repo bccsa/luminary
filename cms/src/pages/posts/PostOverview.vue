@@ -9,7 +9,6 @@ import AcCard from "@/components/common/AcCard.vue";
 import AcTable from "@/components/common/AcTable.vue";
 import { ref } from "vue";
 import type { Post } from "@/types";
-import { dbReady } from "@/db";
 
 const store = usePostStore();
 
@@ -35,7 +34,7 @@ const columns = [
 </script>
 
 <template>
-    <BasePage title="Posts" :loading="!dbReady || store.posts == undefined">
+    <BasePage title="Posts" :loading="!store.initialized">
         <template #actions>
             <AcButton
                 v-if="store.posts && store.posts.length > 0"

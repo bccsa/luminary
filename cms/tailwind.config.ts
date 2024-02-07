@@ -8,16 +8,13 @@ export default {
             fontFamily: {
                 sans: ["Inter var", ...defaultTheme.fontFamily.sans],
             },
-            backgroundImage: {
-                shimmer:
-                    "linear-gradient(90deg,rgba(255,255,255,0) 0,rgba(255,255,255,.2) 20%,rgba(255,255,255,.5) 60%,rgba(255,255,255,0))",
-            },
             animation: {
-                shimmer: "shimmer 5s infinite",
+                "fade-in": "fade-in 0.3s",
             },
             keyframes: {
-                shimmer: {
-                    "100%": { transform: "translate(100%)" },
+                "fade-in": {
+                    "0%": { opacity: "0" },
+                    "100%": { opacity: "1" },
                 },
             },
         },
