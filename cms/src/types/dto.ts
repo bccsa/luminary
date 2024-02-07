@@ -9,7 +9,6 @@ export type ContentBaseDto = BaseDocumentDto & {
 };
 
 export type ContentDto = ContentBaseDto & {
-    type: string;
     language: Uuid;
     status: string;
     publishDate: number;

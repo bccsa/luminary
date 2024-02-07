@@ -1,0 +1,8 @@
+{
+    "_id": "lang-swa",
+    "type": "language",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-languages"],
+    "languageCode": "swa",
+    "name": "Swahili"
+}
