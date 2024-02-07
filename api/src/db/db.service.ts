@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import * as nano from "nano";
+import { Group } from "../permissions/permissions.service";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -23,6 +24,11 @@ export class DbService {
     constructor() {
         this.connect(process.env.DB_CONNECTION_STRING as string, process.env.DB_DATABASE as string);
         this.syncTolerance = Number.parseInt((process.env.SYNC_TOLERANCE as string) || "1000");
+
+        // Populate the permission system
+        this.getGroups().then((res: any) => {
+            Group.upsertGroups(res.docs);
+        });
     }
 
     /**
@@ -180,37 +186,14 @@ export class DbService {
     }
 
     /**
-     * Get all directly and indirectly related (child) tag ID's
-     * @param {Array} tagIDs - Array of tag ID's
-     * @returns - Promise containing an array of related tag ID's (i.e. which directly or indirectly has been tagged with one of the passed tag ID's). The passed tag ID's are also included in the result.
+     * Get all group documents from database
      */
-    getRelatedTags(tagIDs) {
-        return new Promise((resolve) => {
-            const res = [];
-            const pList = [];
-            res.push(...tagIDs);
-
-            this.db.view("tag", "tagChildRelation", { keys: tagIDs }).then((q) => {
-                if (q.rows) {
-                    // Iterate through children
-                    q.rows.forEach((row) => {
-                        pList.push(
-                            this.getRelatedTags([row.id]).then((r: Array<string>) => {
-                                res.push(...r);
-                            }),
-                        );
-                    });
-
-                    Promise.all(pList).then(() => {
-                        // Get unique values. This might not be the most efficient way.
-                        // It might be better to do a unique after the full iterative lookup is done.
-                        const unique = res.filter((value, index, array) => {
-                            return array.indexOf(value) === index;
-                        });
-                        resolve(unique);
-                    });
-                }
-            });
-        });
+    getGroups(): Promise<unknown> {
+        const query = {
+            selector: {
+                type: "group",
+            },
+        };
+        return this.db.find(query);
     }
 }

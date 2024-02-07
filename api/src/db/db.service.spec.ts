@@ -157,6 +157,13 @@ describe("DbService", () => {
         expect(docCount).toBe(1);
     });
 
+    it("can get all groups", async () => {
+        const res: any = await service.getGroups();
+
+        const docCount = res.docs.length;
+        expect(docCount).toBe(8);
+    });
+
     // TODO: Enable after adding Mango Indexes
     // it("does not return database warnings", async () => {
     //     const res: any = await service.getDocs("", {

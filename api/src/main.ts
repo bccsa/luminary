@@ -4,14 +4,10 @@ import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 
 async function bootstrap() {
     // Create or update database design docs on api startup
-    upsertDesignDocs().catch((err) => {
-        console.error(err.message);
-    });
+    await upsertDesignDocs();
 
     // TMP: Seed database with demo / initial data
-    upsertSeedingDocs().catch((err) => {
-        console.error(err.message);
-    });
+    await upsertSeedingDocs();
 
     const app = await NestFactory.create(AppModule);
     app.enableCors({

@@ -9,6 +9,7 @@ import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
+import { AclPermission, DocType, Group } from "./permissions/permissions.service";
 
 @WebSocketGateway({
     cors: {
@@ -27,21 +28,29 @@ export class Socketio {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         // TODO: Calculate expanded View group list to pass to db query. Store on socket / user object
         socket.data.user = "user-private";
-        socket.data.groups = ["group-private-content", "group-public-content"];
+        socket.data.groups = ["group-private-users"];
 
         // TODO: Move docTypes to function in db class with selection between cms vs non-cms
-        const docTypes = ["post", "tag", "content", "lang"];
+        const docTypes: Array<DocType> = [
+            DocType.Post,
+            DocType.Tag,
+            DocType.Content,
+            DocType.Language,
+        ];
         if (reqData.cms) {
-            docTypes.push(...["group"]);
+            docTypes.push(DocType.Group);
         }
 
         let from = 0;
         if (reqData.version && typeof reqData.version === "number") from = reqData.version;
 
-        // Test query to return some data to CMS
+        // Get user accessible groups
+        const userAccess = Group.getAccess(socket.data.groups, docTypes, AclPermission.View);
+
+        // Get data from database
         this.db
             .getDocs(socket.data.user, {
-                groups: socket.data.groups,
+                groups: userAccess,
                 types: docTypes,
                 from: from,
             })
