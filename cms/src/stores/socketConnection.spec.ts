@@ -29,25 +29,17 @@ function listenToSocketOnEvent(allowedEvent: string | string[], returnValue?: an
     });
 }
 
-const contentStoreMock = vi.hoisted(() => {
+const docsDb = vi.hoisted(() => {
     return {
-        saveContent: vi.fn(),
-    };
-});
-vi.mock("./content", () => {
-    return {
-        useContentStore: vi.fn().mockImplementation(() => contentStoreMock),
+        bulkPut: vi.fn(),
     };
 });
 
-const postStoreMock = vi.hoisted(() => {
+vi.mock("@/db", () => {
     return {
-        savePosts: vi.fn(),
-    };
-});
-vi.mock("./post", () => {
-    return {
-        usePostStore: vi.fn().mockImplementation(() => postStoreMock),
+        db: {
+            docs: docsDb,
+        },
     };
 });
 
@@ -101,7 +93,6 @@ describe("socketConnection", () => {
 
         store.bindEvents();
 
-        expect(contentStoreMock.saveContent).toHaveBeenCalledWith([mockContentDto]);
-        expect(postStoreMock.savePosts).toHaveBeenCalledWith([mockPostDto]);
+        expect(docsDb.bulkPut).toHaveBeenCalledWith([mockPostDto, mockContentDto]);
     });
 });

@@ -1,8 +1,7 @@
 import { defineStore } from "pinia";
 import { socket } from "@/socket";
-import { DocType, type BaseDocument, type PostDto, type ContentDto } from "@/types";
-import { usePostStore } from "./post";
-import { useContentStore } from "./content";
+import { type BaseDocumentDto } from "@/types";
+import { db } from "@/db";
 
 export const useSocketConnectionStore = defineStore("socketConnection", {
     state: () => ({
@@ -24,18 +23,8 @@ export const useSocketConnectionStore = defineStore("socketConnection", {
                 this.isConnected = false;
             });
 
-            socket.on("data", async (data: BaseDocument[]) => {
-                const contentStore = useContentStore();
-                const postStore = usePostStore();
-
-                await Promise.all([
-                    contentStore.saveContent(
-                        data.filter((item) => item.type == DocType.Content) as ContentDto[],
-                    ),
-                    postStore.savePosts(
-                        data.filter((item) => item.type == DocType.Post) as PostDto[],
-                    ),
-                ]);
+            socket.on("data", async (data: BaseDocumentDto[]) => {
+                await db.docs.bulkPut(data);
             });
         },
     },
