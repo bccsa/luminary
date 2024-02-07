@@ -19,6 +19,7 @@ describe("PostOverview", () => {
     it("displays posts from the store", async () => {
         const pinia = createTestingPinia();
         const store = usePostStore();
+        (store.initialized as any) = true;
 
         store.posts = [
             {
@@ -63,6 +64,8 @@ describe("PostOverview", () => {
 
     it("displays an empty state if there are no posts", async () => {
         const pinia = createTestingPinia();
+        const store = usePostStore(pinia);
+        (store.initialized as any) = true;
 
         const wrapper = mount(PostOverview, {
             global: {
@@ -71,5 +74,18 @@ describe("PostOverview", () => {
         });
 
         expect(wrapper.findComponent(EmptyState).exists()).toBe(true);
+    });
+
+    it("doesn't display anything when the db is still loading", async () => {
+        const pinia = createTestingPinia();
+
+        const wrapper = mount(PostOverview, {
+            global: {
+                plugins: [pinia],
+            },
+        });
+
+        expect(wrapper.find("button").exists()).toBe(false);
+        expect(wrapper.findComponent(EmptyState).exists()).toBe(false);
     });
 });
