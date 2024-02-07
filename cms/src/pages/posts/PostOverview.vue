@@ -34,7 +34,7 @@ const columns = [
 </script>
 
 <template>
-    <BasePage title="Posts">
+    <BasePage title="Posts" :loading="store.posts === undefined">
         <template #actions>
             <AcButton
                 v-if="store.posts && store.posts.length > 0"

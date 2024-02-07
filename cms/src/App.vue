@@ -5,11 +5,11 @@ import SideBar from "@/components/navigation/SideBar.vue";
 import TopBar from "@/components/navigation/TopBar.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ref } from "vue";
-import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
-import { Bars3Icon, XMarkIcon } from "@heroicons/vue/24/outline";
+import { Bars3Icon } from "@heroicons/vue/24/outline";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { socket } from "@/socket";
+import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 
 const { isAuthenticated } = useAuth0();
 const { appName } = useGlobalConfigStore();
@@ -25,59 +25,7 @@ const sidebarOpen = ref(false);
 
 <template>
     <div v-if="isAuthenticated">
-        <!-- Mobile sidebar -->
-        <TransitionRoot as="template" :show="sidebarOpen">
-            <Dialog as="div" class="relative z-50 lg:hidden" @close="sidebarOpen = false">
-                <TransitionChild
-                    as="template"
-                    enter="transition-opacity ease-linear duration-300"
-                    enter-from="opacity-0"
-                    enter-to="opacity-100"
-                    leave="transition-opacity ease-linear duration-300"
-                    leave-from="opacity-100"
-                    leave-to="opacity-0"
-                >
-                    <div class="fixed inset-0 bg-gray-900/80" />
-                </TransitionChild>
-
-                <div class="fixed inset-0 flex">
-                    <TransitionChild
-                        as="template"
-                        enter="transition ease-in-out duration-300 transform"
-                        enter-from="-translate-x-full"
-                        enter-to="translate-x-0"
-                        leave="transition ease-in-out duration-300 transform"
-                        leave-from="translate-x-0"
-                        leave-to="-translate-x-full"
-                    >
-                        <DialogPanel class="relative mr-16 flex w-full max-w-xs flex-1">
-                            <TransitionChild
-                                as="template"
-                                enter="ease-in-out duration-300"
-                                enter-from="opacity-0"
-                                enter-to="opacity-100"
-                                leave="ease-in-out duration-300"
-                                leave-from="opacity-100"
-                                leave-to="opacity-0"
-                            >
-                                <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
-                                    <button
-                                        type="button"
-                                        class="-m-2.5 p-2.5"
-                                        @click="sidebarOpen = false"
-                                    >
-                                        <span class="sr-only">Close sidebar</span>
-                                        <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
-                                    </button>
-                                </div>
-                            </TransitionChild>
-
-                            <SideBar />
-                        </DialogPanel>
-                    </TransitionChild>
-                </div>
-            </Dialog>
-        </TransitionRoot>
+        <MobileSideBar v-model:open="sidebarOpen" />
 
         <!-- Static sidebar for desktop -->
         <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
