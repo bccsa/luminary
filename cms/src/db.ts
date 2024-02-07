@@ -16,9 +16,3 @@ export class BaseDatabase extends Dexie {
 }
 
 export const db = new BaseDatabase();
-
-export const dbReady = ref(false);
-
-db.on("ready", () => {
-    dbReady.value = true;
-});
