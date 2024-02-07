@@ -1,3 +1,6 @@
+/**
+ * Acl permissions
+ */
 export enum AclPermission {
     View = "view",
     Assign = "assign",
@@ -7,17 +10,17 @@ export enum AclPermission {
     Delete = "delete",
 }
 
-export type AclEntry = {
-    type: DocType;
-    groupId: string;
-    permission: Array<AclPermission>;
-};
-
-export type AclMapEntry = {
+/**
+ * Acl map entry used internally in Group objects
+ */
+type AclMapEntry = {
     ref: Group;
     types: Map<DocType, Map<AclPermission, boolean>>;
 };
 
+/**
+ * Document types
+ */
 export enum DocType {
     Post = "post",
     Content = "content",
@@ -33,9 +36,35 @@ export enum DocType {
 }
 
 /**
+ * Database unique document ID
+ */
+export type Uuid = string;
+
+/**
+ * Database structured ACL entry (used in GroupDto)
+ */
+export type GroupAclEntryDto = {
+    type: DocType;
+    groupId: Uuid;
+    permission: Array<AclPermission>;
+};
+
+/**
+ * Database structured Group object
+ */
+export type GroupDto = {
+    _id: Uuid;
+    _rev?: string;
+    type: DocType;
+    updatedTimeUtc: number;
+    name: string;
+    acl: Array<GroupAclEntryDto>;
+};
+
+/**
  * Global Group Map used for permission lookups
  */
-export const groupMap: Map<string, Group> = new Map<string, Group>();
+const groupMap: Map<Uuid, Group> = new Map<Uuid, Group>();
 
 /**
  * Permission system Group class
@@ -43,12 +72,12 @@ export const groupMap: Map<string, Group> = new Map<string, Group>();
 export class Group {
     private _typePermissionGroupRequestorMap = new Map<
         DocType,
-        Map<AclPermission, Map<string, Map<string, boolean>>>
+        Map<AclPermission, Map<Uuid, Map<Uuid, boolean>>>
     >();
-    private _groupTypePermissionMap = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
-    private _aclMap = new Map<string, AclMapEntry>();
-    private _childGroups = new Map<string, Group>();
-    private _id: string;
+    private _groupTypePermissionMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+    private _aclMap = new Map<Uuid, AclMapEntry>();
+    private _childGroups = new Map<Uuid, Group>();
+    private _id: Uuid;
 
     private constructor(id: string) {
         this._id = id;
@@ -57,65 +86,61 @@ export class Group {
     /**
      * Database document ID of the group document
      */
-    public get id(): string {
+    public get id(): Uuid {
         return this._id;
     }
 
     /**
-     * Get effective access (including inherited access) for the passed group IDs per docType and permission
-     * @param groupIds
-     * @param groupMap
-     * @param types
-     * @param permissions
+     * Get list of effective access (including inherited access) for the passed group IDs per docType and permission
+     * @param groupIds - Group IDs to which the user is a member of
+     * @param types - Document for which effective access should be calculated
+     * @param permission - Permission for which effective access should be calculated
      */
     static getAccess(
-        groupIds: Array<string>,
-        groupMap: Map<string, Group>,
+        groupIds: Array<Uuid>,
         types: Array<DocType>,
         permission: AclPermission,
-    ): Array<string> {
-        let map = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
-        groupIds.forEach((id: string) => {
+    ): Array<Uuid> {
+        let resultMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+        groupIds.forEach((id: Uuid) => {
             const g = groupMap[id];
             if (!g) return;
 
-            map = { ...map, ...g._groupTypePermissionMap };
+            resultMap = { ...resultMap, ...g._groupTypePermissionMap };
         });
 
-        const res = new Map<string, boolean>();
-        Object.keys(map).forEach((groupId: string) => {
-            Object.keys(map[groupId])
+        const resultSet = new Set<Uuid>();
+        Object.keys(resultMap).forEach((groupId: Uuid) => {
+            Object.keys(resultMap[groupId])
                 .filter((t: DocType) => types.includes(t))
                 .forEach((docType: DocType) => {
-                    Object.keys(map[groupId][docType])
+                    Object.keys(resultMap[groupId][docType])
                         .filter((t: AclPermission) => t === permission)
                         .forEach(() => {
-                            res[groupId] = true;
+                            // Add to set to avoid duplicates
+                            resultSet.add(groupId);
                         });
                 });
         });
-        return Object.keys(res);
+
+        // Return only the group IDs as array.
+        return Array.from(resultSet);
     }
 
     /**
-     * Create or update groups from passed array of group database documents in passed groupMap
+     * Create or update groups from passed array of group database documents
      * @param groupDocs
-     * @param groupMap
      */
-    static updateGroups(groupDocs: Array<any>, groupMap: Map<string, Group>) {
+    static upsertGroups(groupDocs: Array<any>) {
         while (groupDocs.length > 0) {
-            this.updateGroup(groupDocs.splice(0, 1)[0], groupDocs, groupMap);
+            this.updateGroup(groupDocs.splice(0, 1)[0], groupDocs);
         }
     }
 
     // Create or update single group
-    private static updateGroup(
-        doc: any,
-        groupDocs: Array<any>,
-        groupMap: Map<string, Group>,
-    ): Group {
+    private static updateGroup(doc: GroupDto, groupDocs: Array<GroupDto>): Group {
         let g: Group;
-        // Check if group is already in groupList
+        // Check if group is already in group map
         if (groupMap[doc._id]) {
             g = groupMap[doc._id];
         } else {
@@ -124,15 +149,15 @@ export class Group {
         }
 
         // Remove ACL's not passed with document
-        Object.keys(g._aclMap).forEach((aclGroupId: string) => {
-            if (!doc.acl.includes((t) => t.groupId[aclGroupId])) {
+        Object.keys(g._aclMap).forEach((aclGroupId: Uuid) => {
+            if (!doc.acl.some((t: GroupAclEntryDto) => t.groupId[aclGroupId])) {
                 Object.keys(g._aclMap[aclGroupId].types).forEach((docType: DocType) => {
-                    g.updateAcl(g._aclMap[aclGroupId].ref, docType, []);
+                    g.upsertAcl(g._aclMap[aclGroupId].ref, docType, []);
                 });
             }
         });
 
-        doc.acl.forEach((aclEntry: AclEntry) => {
+        doc.acl.forEach((aclEntry: GroupAclEntryDto) => {
             let parent: Group = groupMap[aclEntry.groupId];
 
             // Create parent group if not existing
@@ -142,14 +167,14 @@ export class Group {
                 if (i >= 0) {
                     const d = groupDocs.splice(i, 1)[0];
                     if (d) {
-                        parent = this.updateGroup(d, groupDocs, groupMap);
+                        parent = this.updateGroup(d, groupDocs);
                     }
                 }
             }
 
             // If the parent now exists, add or update ACL's to this group
             if (parent) {
-                g.updateAcl(parent, aclEntry.type, aclEntry.permission);
+                g.upsertAcl(parent, aclEntry.type, aclEntry.permission);
             }
         });
 
@@ -157,18 +182,17 @@ export class Group {
     }
 
     /**
-     * Remove groups as per passed array of group IDs in the passed groupMap
+     * Remove groups as per passed array of group IDs
      * @param groupDocs
-     * @param groupMap
      */
-    static removeGroups(groupIds: Array<string>, groupMap: Map<string, Group>) {
+    static removeGroups(groupIds: Array<Uuid>) {
         while (groupIds.length > 0) {
-            this.removeGroup(groupIds.splice(0, 1)[0], groupMap);
+            this.removeGroup(groupIds.splice(0, 1)[0]);
         }
     }
 
     // Remove single group
-    private static removeGroup(docId: string, groupMap: Map<string, Group>) {
+    private static removeGroup(docId: Uuid) {
         // Find group in groupMap
         const g = groupMap[docId];
         if (g) {
@@ -194,7 +218,7 @@ export class Group {
     }
 
     // Add or update acl to Group object
-    private updateAcl(parentGroup: Group, type: DocType, permissions: Array<AclPermission>) {
+    private upsertAcl(parentGroup: Group, type: DocType, permissions: Array<AclPermission>) {
         // Add group to map
         if (!this._aclMap[parentGroup.id]) {
             this._aclMap[parentGroup.id] = {
@@ -223,7 +247,7 @@ export class Group {
                 parentGroup.removeMap(this.id, this.id, type, p);
 
                 // Remove inherited permissions from parent's map
-                Object.keys(this._childGroups).forEach((childGroupId: string) => {
+                Object.keys(this._childGroups).forEach((childGroupId: Uuid) => {
                     parentGroup.removeMap(childGroupId, this.id, type, p);
                 });
             }
@@ -233,12 +257,14 @@ export class Group {
         permissions.forEach((p) => {
             if (!this._aclMap[parentGroup.id].types[type][p]) {
                 this._aclMap[parentGroup.id].types[type][p] = true;
+                // Why are we setting this to true? The value is not used, and another alternative would have been to use a Set,
+                // but this makes the code less consistent so we chose to stick to an old-fasioned object here.
 
                 // Update parent's map
                 parentGroup.addMap(this.id, this.id, type, p);
 
                 // Update inherited permissions to parent's map
-                Object.keys(this._childGroups).forEach((childGroupId: string) => {
+                Object.keys(this._childGroups).forEach((childGroupId: Uuid) => {
                     parentGroup.addMap(childGroupId, this.id, type, p);
                 });
             }
@@ -258,8 +284,8 @@ export class Group {
     }
 
     private addMap(
-        childGroupId: string,
-        requesterGroupId: string,
+        childGroupId: Uuid,
+        requesterGroupId: Uuid,
         type: DocType,
         permission: AclPermission,
     ) {
@@ -274,6 +300,8 @@ export class Group {
 
         if (!this._groupTypePermissionMap[childGroupId][type][permission]) {
             this._groupTypePermissionMap[childGroupId][type][permission] = true;
+            // Why are we setting this to true? The value is not used, and another alternative would have been to use a Set,
+            // but this makes the code less consistent so we chose to stick to an old-fasioned object here.
         }
 
         // Build Type Permisson Group map
@@ -318,8 +346,8 @@ export class Group {
     }
 
     private removeMap(
-        childGroupId: string,
-        requestorGroupId: string,
+        childGroupId: Uuid,
+        requestorGroupId: Uuid,
         type: DocType,
         permission: AclPermission,
     ) {

@@ -9,7 +9,7 @@ import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
-import { AclPermission, DocType, Group, groupMap } from "./permissions/permissions.service";
+import { AclPermission, DocType, Group } from "./permissions/permissions.service";
 
 @WebSocketGateway({
     cors: {
@@ -18,10 +18,7 @@ import { AclPermission, DocType, Group, groupMap } from "./permissions/permissio
 })
 @Injectable()
 export class Socketio {
-    private _groupMap: Map<string, Group>;
-    constructor(private db: DbService) {
-        this._groupMap = groupMap;
-    }
+    constructor(private db: DbService) {}
 
     @WebSocketServer()
     server: Server;
@@ -48,12 +45,7 @@ export class Socketio {
         if (reqData.version && typeof reqData.version === "number") from = reqData.version;
 
         // Get user accessible groups
-        const userAccess = Group.getAccess(
-            socket.data.groups,
-            this._groupMap,
-            docTypes,
-            AclPermission.View,
-        );
+        const userAccess = Group.getAccess(socket.data.groups, docTypes, AclPermission.View);
 
         // Get data from database
         this.db
