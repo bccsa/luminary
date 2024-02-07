@@ -1,6 +1,5 @@
 import Dexie, { type Table } from "dexie";
 import type { ContentDto, PostDto } from "./types";
-import { ref } from "vue";
 
 export class BaseDatabase extends Dexie {
     posts!: Table<PostDto>;

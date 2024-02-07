@@ -19,7 +19,6 @@ describe("PostOverview", () => {
     it("displays posts from the store", async () => {
         const pinia = createTestingPinia();
         const store = usePostStore();
-        (store.initialized as any) = true;
 
         store.posts = [
             {
@@ -65,7 +64,7 @@ describe("PostOverview", () => {
     it("displays an empty state if there are no posts", async () => {
         const pinia = createTestingPinia();
         const store = usePostStore(pinia);
-        (store.initialized as any) = true;
+        store.posts = [];
 
         const wrapper = mount(PostOverview, {
             global: {
