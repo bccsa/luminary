@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { socket } from "@/socket";
 import { type BaseDocumentDto } from "@/types";
-import { db } from "@/db";
+import { db } from "@/db/baseDatabase";
 
 export const useSocketConnectionStore = defineStore("socketConnection", {
     state: () => ({

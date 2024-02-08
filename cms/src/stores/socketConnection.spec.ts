@@ -35,7 +35,7 @@ const docsDb = vi.hoisted(() => {
     };
 });
 
-vi.mock("@/db", () => {
+vi.mock("@/db/baseDatabase", () => {
     return {
         db: {
             docs: docsDb,

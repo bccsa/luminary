@@ -2,7 +2,6 @@ import { describe, it, beforeEach, afterEach, vi, afterAll, expect } from "vites
 import { usePostStore } from "./post";
 import { setActivePinia, createPinia } from "pinia";
 import { liveQuery } from "dexie";
-import { toArray } from "rxjs";
 
 const docsDb = vi.hoisted(() => {
     return {
@@ -10,7 +9,7 @@ const docsDb = vi.hoisted(() => {
     };
 });
 
-vi.mock("@/db", () => {
+vi.mock("@/db/baseDatabase", () => {
     return {
         db: {
             docs: {
