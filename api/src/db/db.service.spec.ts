@@ -202,20 +202,20 @@ describe("DbService", () => {
         expect(res).toBe("passed document equal to existing database document");
     });
 
-    // it("can handle simultaneous updates to a single document", async () => {
-    //     const pList = new Array<Promise<any>>();
+    it("can handle simultaneous updates to a single document", async () => {
+        const pList = new Array<Promise<any>>();
 
-    //     for (let index = 0; index < 50; index++) {
-    //         pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
-    //     }
+        for (let index = 0; index < 50; index++) {
+            pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
+        }
 
-    //     let res: boolean = false;
-    //     await Promise.all(pList);
+        let res: boolean = false;
+        await Promise.all(pList);
 
-    //     // if we got past this point without an exception, the test was successful
-    //     res = true;
-    //     expect(res).toBe(true);
-    // });
+        // if we got past this point without an exception, the test was successful
+        res = true;
+        expect(res).toBe(true);
+    });
 
     // TODO: Enable after adding Mango Indexes
     // it("does not return database warnings", async () => {
