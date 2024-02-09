@@ -164,6 +164,59 @@ describe("DbService", () => {
         expect(docCount).toBe(8);
     });
 
+    it("can detect that a document is exactly the same as the document in the database", async () => {
+        const res: any = await service.upsertDoc({
+            _id: "group-private-content",
+            type: "group",
+            updatedTimeUtc: 3,
+            name: "Private Content",
+            acl: [
+                {
+                    type: "post",
+                    groupId: "group-private-users",
+                    permission: ["view"],
+                },
+                {
+                    type: "tag",
+                    groupId: "group-private-users",
+                    permission: ["view"],
+                },
+                {
+                    type: "post",
+                    groupId: "group-private-editors",
+                    permission: ["view", "edit", "translate", "publish"],
+                },
+                {
+                    type: "tag",
+                    groupId: "group-private-editors",
+                    permission: ["view", "translate", "assign"],
+                },
+                {
+                    type: "group",
+                    groupId: "group-private-editors",
+                    permission: ["view", "assign"],
+                },
+            ],
+        });
+
+        expect(res).toBe("passed document equal to existing database document");
+    });
+
+    it("can handle simultaneous updates to a single document", async () => {
+        const pList = new Array<Promise<any>>();
+
+        for (let index = 0; index < 50; index++) {
+            pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
+        }
+
+        let res: boolean = false;
+        await Promise.all(pList);
+
+        // if we got past this point without an exception, the test was successful
+        res = true;
+        expect(res).toBe(true);
+    });
+
     // TODO: Enable after adding Mango Indexes
     // it("does not return database warnings", async () => {
     //     const res: any = await service.getDocs("", {

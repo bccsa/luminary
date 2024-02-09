@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import * as nano from "nano";
 import { Group } from "../permissions/permissions.service";
+import { isDeepStrictEqual } from "util";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -49,16 +50,62 @@ export class DbService {
             if (!doc._id) {
                 reject("Invalid document: The passed document does not have an '_id' property");
             }
-            this.db
-                .get(doc._id)
-                .then(async (existing) => {
-                    // TODO: Only update document if document has changed
-                    doc._rev = existing._rev;
-                    resolve(await this.db.insert(doc));
+            this.getDoc(doc._id)
+                .then((existing: any) => {
+                    let rev: string;
+
+                    // Remove revision from existing doc from database for comparison purposes
+                    if (existing) {
+                        rev = existing._rev as string;
+                        delete existing._rev;
+                    }
+
+                    if (existing && isDeepStrictEqual(doc, existing)) {
+                        // Document in DB is the same as passed doc: do nothing
+                        resolve("passed document equal to existing database document");
+                    } else if (existing) {
+                        // Passed document is differnt than document in DB: update
+                        doc._rev = rev;
+
+                        this.db
+                            .insert(doc)
+                            .then((res) => {
+                                resolve(res);
+                            })
+                            .catch((err) => {
+                                if (err.reason == "Document update conflict.") {
+                                    // This error can happen when a document is updated near-simultaneously by another process, i.e.
+                                    // after the revision has been returned to this process but before this process could write the
+                                    // change to the database. To resolve this, just try again to get the updated revision ID and update
+                                    // the document.
+
+                                    // TODO: We should probably have a retry counter here to prevent the code from retrying endlessly.
+                                    delete doc._rev;
+                                    this.upsertDoc(doc)
+                                        .then((res) => {
+                                            resolve(res);
+                                        })
+                                        .catch((err) => {
+                                            reject(err);
+                                        });
+                                } else {
+                                    reject(err);
+                                }
+                            });
+                    } else {
+                        // Passed document does not exist in database: create
+                        this.db
+                            .insert(doc)
+                            .then((res) => {
+                                resolve(res);
+                            })
+                            .catch((err) => {
+                                reject(err);
+                            });
+                    }
                 })
-                // Create new doc if it does not exit
-                .catch(async () => {
-                    resolve(await this.db.insert(doc));
+                .catch((err) => {
+                    reject(err);
                 });
         });
     }
@@ -67,8 +114,21 @@ export class DbService {
      * Get a document by ID
      * @param id - document ID (_id field)
      */
-    getDoc(id: string) {
-        return this.db.get(id);
+    getDoc(docId: string) {
+        return new Promise((resolve, reject) => {
+            this.db
+                .get(docId)
+                .then((res) => {
+                    resolve(res);
+                })
+                .catch((err) => {
+                    if (err.reason == "missing") {
+                        resolve(undefined);
+                    } else {
+                        reject();
+                    }
+                });
+        });
     }
 
     /**
