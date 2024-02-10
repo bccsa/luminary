@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from "vites
 import { useSocketConnectionStore } from "./socketConnection";
 import { setActivePinia, createPinia } from "pinia";
 import { io } from "socket.io-client";
-import { mockContentDto, mockPostDto } from "@/tests/mockData";
+import { mockEnglishContentDto, mockPostDto } from "@/tests/mockData";
 
 const socketMocks = vi.hoisted(() => {
     return {
@@ -89,10 +89,10 @@ describe("socketConnection", () => {
     it("saves data from the API", () => {
         const store = useSocketConnectionStore();
 
-        listenToSocketOnEvent("data", [mockPostDto, mockContentDto]);
+        listenToSocketOnEvent("data", [mockPostDto, mockEnglishContentDto]);
 
         store.bindEvents();
 
-        expect(docsDb.bulkPut).toHaveBeenCalledWith([mockPostDto, mockContentDto]);
+        expect(docsDb.bulkPut).toHaveBeenCalledWith([mockPostDto, mockEnglishContentDto]);
     });
 });

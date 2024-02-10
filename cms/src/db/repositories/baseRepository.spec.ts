@@ -1,56 +1,44 @@
-import { describe, it, afterEach, vi, afterAll, expect } from "vitest";
+import "fake-indexeddb/auto";
+import { describe, it, afterEach, expect } from "vitest";
 import { BaseRepository } from "./baseRepository";
 import { DocType } from "@/types";
-
-const docsDb = vi.hoisted(() => {
-    return {
-        where: vi.fn().mockReturnThis(),
-        anyOf: vi.fn().mockReturnThis(),
-        equals: vi.fn().mockReturnThis(),
-    };
-});
-
-vi.mock("@/db/baseDatabase", () => {
-    return {
-        db: {
-            docs: docsDb,
-        },
-    };
-});
+import { db } from "../baseDatabase";
+import { mockEnglishContentDto, mockFrenchContentDto, mockPostDto } from "@/tests/mockData";
 
 describe("baseRepository", () => {
     afterEach(() => {
-        vi.clearAllMocks();
-    });
-
-    afterAll(() => {
-        vi.restoreAllMocks();
+        db.docs.clear();
     });
 
     it("can find an item based on type", async () => {
+        db.docs.bulkPut([mockPostDto]);
         const repository = new BaseRepository();
 
-        repository.whereType(DocType.Post);
+        const result = await repository.whereType(DocType.Post).toArray();
 
-        expect(docsDb.where).toHaveBeenCalledWith("type");
-        expect(docsDb.equals).toHaveBeenCalledWith(DocType.Post);
+        expect(result[0]._id).toBe(mockPostDto._id);
+        expect(result[0].type).toBe(DocType.Post);
     });
 
     it("can find an item based on id", async () => {
+        db.docs.bulkPut([mockPostDto]);
         const repository = new BaseRepository();
 
-        repository.whereId("test-id");
+        const result = await repository.whereId(mockPostDto._id).first();
 
-        expect(docsDb.where).toHaveBeenCalledWith("_id");
-        expect(docsDb.equals).toHaveBeenCalledWith("test-id");
+        expect(result!._id).toBe(mockPostDto._id);
     });
 
     it("can find an item based on several id's", async () => {
+        db.docs.bulkPut([mockEnglishContentDto, mockFrenchContentDto]);
         const repository = new BaseRepository();
 
-        repository.whereIds(["test-id", "test-id2"]);
+        const result = await repository
+            .whereIds([mockEnglishContentDto._id, mockFrenchContentDto._id])
+            .toArray();
 
-        expect(docsDb.where).toHaveBeenCalledWith("_id");
-        expect(docsDb.anyOf).toHaveBeenCalledWith(["test-id", "test-id2"]);
+        expect(result.length).toBe(2);
+        expect(result[0]._id).toBe(mockEnglishContentDto._id);
+        expect(result[1]._id).toBe(mockFrenchContentDto._id);
     });
 });

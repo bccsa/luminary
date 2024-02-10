@@ -18,7 +18,7 @@ export const mockPostDto: PostDto = {
     tags: ["tag-category1", "tag-topicA"],
 };
 
-export const mockContentDto: ContentDto = {
+export const mockEnglishContentDto: ContentDto = {
     _id: "content-post1-eng",
     type: DocType.Content,
     updatedTimeUtc: 3,
@@ -36,8 +36,26 @@ export const mockContentDto: ContentDto = {
     publishDate: 3,
     expiryDate: 0,
 };
+export const mockFrenchContentDto: ContentDto = {
+    _id: "content-post1-fra",
+    type: DocType.Content,
+    updatedTimeUtc: 3,
+    memberOf: ["group-public-content"],
+    language: "lang-fra",
+    status: "published",
+    slug: "post1-fra",
+    title: "Post 1",
+    summary: "Ceci est un exemple de publication.",
+    author: "ChatGPT",
+    text: "Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l'aider. Lily s'accrocha à l'espoir alors qu'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté.",
+    localisedImage: "",
+    audio: "",
+    video: "",
+    publishDate: 3,
+    expiryDate: 0,
+};
 
-export const mockLanguage: Language = {
+export const mockLanguageEng: Language = {
     _id: "lang-eng",
     type: DocType.Language,
     updatedTimeUtc: 3,
@@ -45,13 +63,21 @@ export const mockLanguage: Language = {
     languageCode: "eng",
     name: "English",
 };
+export const mockLanguageFra: Language = {
+    _id: "lang-fra",
+    type: DocType.Language,
+    updatedTimeUtc: 3,
+    memberOf: [],
+    languageCode: "fra",
+    name: "Français",
+};
 
 export const mockContent: Content = {
     _id: "content-post1-eng",
     type: DocType.Content,
     updatedTimeUtc: 3,
     memberOf: [],
-    language: mockLanguage,
+    language: mockLanguageEng,
     status: ContentStatus.Published,
     slug: "post1-eng",
     title: "English translation title",

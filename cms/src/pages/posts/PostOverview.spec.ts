@@ -4,7 +4,7 @@ import { createTestingPinia } from "@pinia/testing";
 import PostOverview from "./PostOverview.vue";
 import { usePostStore } from "@/stores/post";
 import EmptyState from "@/components/EmptyState.vue";
-import { mockLanguage, mockPost } from "@/tests/mockData";
+import { mockLanguageEng, mockPost } from "@/tests/mockData";
 import AcBadge from "@/components/common/AcBadge.vue";
 import { useLanguageStore } from "@/stores/language";
 
@@ -24,7 +24,7 @@ describe("PostOverview", () => {
         const languageStore = useLanguageStore();
 
         postStore.posts = [mockPost];
-        languageStore.languages = [mockLanguage];
+        languageStore.languages = [mockLanguageEng];
 
         const wrapper = mount(PostOverview, {
             global: {
