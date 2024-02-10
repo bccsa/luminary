@@ -2,29 +2,11 @@ import { describe, it, beforeEach, afterEach, vi, afterAll, expect } from "vites
 import { usePostStore } from "./post";
 import { setActivePinia, createPinia } from "pinia";
 import { liveQuery } from "dexie";
-import { toArray } from "rxjs";
+import { PostRepository } from "@/db/repositories/postRepository";
 
-const docsDb = vi.hoisted(() => {
-    return {
-        toArray: vi.fn(),
-    };
-});
+vi.mock("@/db/repositories/postRepository");
 
-vi.mock("@/db", () => {
-    return {
-        db: {
-            docs: {
-                where: vi.fn().mockImplementation(() => {
-                    return {
-                        equals: vi.fn().mockImplementation(() => {
-                            return docsDb;
-                        }),
-                    };
-                }),
-            },
-        },
-    };
-});
+vi.mock("@/db/baseDatabase", () => ({}));
 
 vi.mock("dexie", () => {
     return {
@@ -50,9 +32,11 @@ describe("post store", () => {
     });
 
     it("runs a live query to get all posts", () => {
+        const findAllSpy = vi.spyOn(PostRepository.prototype, "findAll");
+
         usePostStore();
 
         expect(liveQuery).toHaveBeenCalledOnce();
-        expect(docsDb.toArray).toHaveBeenCalledOnce();
+        expect(findAllSpy).toHaveBeenCalledOnce();
     });
 });

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { BaseDocumentDto } from "./types";
+import type { BaseDocumentDto } from "@/types";
 
 export class BaseDatabase extends Dexie {
     docs!: Table<BaseDocumentDto>;
