@@ -9,7 +9,8 @@ import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
-import { AclPermission, DocType, Group } from "./permissions/permissions.service";
+import { DocType, AclPermission, UpdateDto, AckDto, Ack } from "./dto";
+import { Group } from "./permissions/permissions.service";
 
 @WebSocketGateway({
     cors: {
@@ -23,14 +24,18 @@ export class Socketio {
     @WebSocketServer()
     server: Server;
 
+    /**
+     * Client data request event handler
+     * @param reqData
+     * @param socket
+     */
     @SubscribeMessage("clientDataReq")
-    clientConnection(@MessageBody() reqData, @ConnectedSocket() socket: any) {
+    onClientConnection(@MessageBody() reqData, @ConnectedSocket() socket: any) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
-        // TODO: Calculate expanded View group list to pass to db query. Store on socket / user object
         socket.data.user = "user-private";
         socket.data.groups = ["group-private-users"];
 
-        // TODO: Move docTypes to function in db class with selection between cms vs non-cms
+        // Determine document types to be queried from database
         const docTypes: Array<DocType> = [
             DocType.Post,
             DocType.Tag,
@@ -60,5 +65,48 @@ export class Socketio {
                 }
             })
             .catch(console.error); // TODO: Add error logging provider
+    }
+
+    /**
+     * Client data submission event handler
+     * @param data
+     * @param socket
+     */
+    @SubscribeMessage("data")
+    onClientData(@MessageBody() data: any, @ConnectedSocket() socket: any) {
+        // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
+        socket.data.user = "editor-private";
+        socket.data.groups = ["group-private-editors"];
+
+        // UpdateDto type check
+        if (data && data.type === "update" && (data as UpdateDto).type) {
+            // TODO: Document type check
+
+            // TODO: Permission check
+
+            // Process update document
+            this.db
+                // Update in database
+                .upsertDoc(data.doc)
+                // Send acknowledgement to client
+                .then(() => {
+                    const ack: AckDto = {
+                        _id: data._id, // Uuid of submitted UpdateDto to be acknowledged
+                        type: DocType.Ack, // Should always be "ack"
+                        ack: Ack.Accepted,
+                        message: "",
+                    };
+                    socket.emit("data", ack);
+                })
+                .catch((err) => {
+                    const ack: AckDto = {
+                        _id: data._id, // Uuid of submitted UpdateDto to be acknowledged
+                        type: DocType.Ack, // Should always be "ack"
+                        ack: Ack.Rejected,
+                        message: err.message,
+                    };
+                    socket.emit("data", ack);
+                });
+        }
     }
 }

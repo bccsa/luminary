@@ -1,7 +1,6 @@
 {
     "_id": "change-post1",
     "type": "change",
-    "updatedTimeUtc": 1,
     "docId": "post-post1",
     "docType": "post",
     "memberOf": [],

@@ -1,7 +1,6 @@
 {
     "_id": "user-super-admin",
     "type": "user",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-super-admins"],
     "email": "superadmin@users.test",
     "name": "Super Admin"

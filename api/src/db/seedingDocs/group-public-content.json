@@ -1,7 +1,6 @@
 {
     "_id": "group-public-content",
     "type": "group",
-    "updatedTimeUtc": 3,
     "name": "Public Content",
     "acl": [
         {

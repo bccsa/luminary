@@ -1,7 +1,6 @@
 {
     "_id": "group-private-editors",
     "type": "group",
-    "updatedTimeUtc": 3,
     "name": "Editors Private",
     "acl": [
         {

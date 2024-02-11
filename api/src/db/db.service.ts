@@ -54,10 +54,14 @@ export class DbService {
                 .then((existing: any) => {
                     let rev: string;
 
-                    // Remove revision from existing doc from database for comparison purposes
+                    // Remove updatedTimeUtc if passed from client
+                    delete doc.updatedTimeUtc;
+
+                    // Remove revision and updateTimeUtc from existing doc from database for comparison purposes
                     if (existing) {
                         rev = existing._rev as string;
                         delete existing._rev;
+                        delete existing.updatedTimeUtc;
                     }
 
                     if (existing && isDeepStrictEqual(doc, existing)) {
@@ -66,6 +70,7 @@ export class DbService {
                     } else if (existing) {
                         // Passed document is differnt than document in DB: update
                         doc._rev = rev;
+                        doc.updatedTimeUtc = Date.now();
 
                         this.db
                             .insert(doc)
@@ -94,6 +99,7 @@ export class DbService {
                             });
                     } else {
                         // Passed document does not exist in database: create
+                        doc.updatedTimeUtc = Date.now();
                         this.db
                             .insert(doc)
                             .then((res) => {

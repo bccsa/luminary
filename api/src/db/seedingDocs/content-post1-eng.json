@@ -1,7 +1,6 @@
 {
     "_id": "content-post1-eng",
     "type": "content",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-public-content"],
     "language": "lang-eng",
     "status": "published",

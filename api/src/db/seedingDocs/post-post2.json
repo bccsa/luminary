@@ -1,7 +1,6 @@
 {
     "_id": "post-post2",
     "type": "post",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-private-content"],
     "content": ["content-post2-eng", "content-post2-fra"],
     "image": "",

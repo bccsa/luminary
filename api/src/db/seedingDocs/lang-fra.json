@@ -1,7 +1,6 @@
 {
     "_id": "lang-fra",
     "type": "language",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-languages"],
     "languageCode": "fra",
     "name": "French"

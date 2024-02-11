@@ -1,7 +1,6 @@
 {
     "_id": "group-languages",
     "type": "group",
-    "updatedTimeUtc": 3,
     "name": "Languages",
     "acl": [
         {

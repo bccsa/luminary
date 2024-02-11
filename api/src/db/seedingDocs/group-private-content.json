@@ -1,7 +1,6 @@
 {
     "_id": "group-private-content",
     "type": "group",
-    "updatedTimeUtc": 3,
     "name": "Private Content",
     "acl": [
         {

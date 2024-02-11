@@ -1,7 +1,6 @@
 {
     "_id": "group-super-admins",
     "type": "group",
-    "updatedTimeUtc": 3,
     "name": "Super Admins",
     "acl": [
         {

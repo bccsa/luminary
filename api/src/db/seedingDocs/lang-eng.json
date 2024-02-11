@@ -1,7 +1,6 @@
 {
     "_id": "lang-eng",
     "type": "language",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-languages"],
     "languageCode": "eng",
     "name": "English"
