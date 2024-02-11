@@ -82,7 +82,7 @@ export type ChangeDto = {
 export type UpdateDto = {
     _id: Uuid; // Uuid of submitted document in "doc" property
     type: DocType; // Should always be "update"
-    doc: any; // Object containing full submitted document
+    doc: any; // Object containing full submitted / updated document
 };
 
 /**
