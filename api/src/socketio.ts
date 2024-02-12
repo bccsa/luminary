@@ -9,7 +9,7 @@ import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
-import { DocType, AclPermission, UpdateDto, AckDto, Ack } from "./dto";
+import { DocType, AclPermission, ChangeReqDto, AckDto, Ack } from "./dto";
 import { Group } from "./permissions/permissions.service";
 
 @WebSocketGateway({
@@ -79,7 +79,7 @@ export class Socketio {
         socket.data.groups = ["group-private-editors"];
 
         // UpdateDto type check
-        if (data && data.type === "update" && (data as UpdateDto).type) {
+        if (data && data.type === "changeReq" && (data as ChangeReqDto).type) {
             // TODO: Document type check
 
             // TODO: Permission check
@@ -91,7 +91,7 @@ export class Socketio {
                 // Send acknowledgement to client
                 .then(() => {
                     const ack: AckDto = {
-                        _id: data._id, // Uuid of submitted UpdateDto to be acknowledged
+                        docId: data.docId, // Uuid of submitted UpdateDto to be acknowledged
                         type: DocType.Ack, // Should always be "ack"
                         ack: Ack.Accepted,
                         message: "",
@@ -100,7 +100,7 @@ export class Socketio {
                 })
                 .catch((err) => {
                     const ack: AckDto = {
-                        _id: data._id, // Uuid of submitted UpdateDto to be acknowledged
+                        docId: data.docId, // Uuid of submitted UpdateDto to be acknowledged
                         type: DocType.Ack, // Should always be "ack"
                         ack: Ack.Rejected,
                         message: err.message,

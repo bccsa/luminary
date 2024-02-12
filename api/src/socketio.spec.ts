@@ -84,8 +84,8 @@ describe("Socketio", () => {
                 client.on("data", c);
 
                 client.emit("data", {
-                    _id: "test update",
-                    type: "update",
+                    docId: "test change request",
+                    type: "changeReq",
                     doc: {
                         _id: "lang-eng",
                         type: "language",
@@ -98,7 +98,7 @@ describe("Socketio", () => {
         }
 
         const res: any = await testSocket();
-        expect(res._id).toBe("test update");
+        expect(res.docId).toBe("test change request");
         expect(res.type).toBe("ack");
         expect(res.ack).toBe("accepted");
     });
