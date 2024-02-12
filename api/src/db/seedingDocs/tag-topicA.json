@@ -1,7 +1,6 @@
 {
     "_id": "tag-topicA",
     "type": "tag",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-public-content"],
     "tagType": "topic",
     "pinned": false,

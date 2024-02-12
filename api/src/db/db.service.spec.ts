@@ -17,6 +17,18 @@ describe("DbService", () => {
         expect(service).toBeDefined();
     });
 
+    it("can read a single existing document", async () => {
+        const doc: any = await service.getDoc("user-public");
+
+        expect(doc._id).toBe("user-public");
+    });
+
+    it("can handle exceptions on reading non-exising documents", async () => {
+        const res: any = await service.getDoc("non-existing-document");
+
+        expect(res).toBe(undefined);
+    });
+
     it("can insert a new document", async () => {
         const uuid = randomUUID();
         const doc = {
@@ -65,16 +77,27 @@ describe("DbService", () => {
         expect(testGet.testData).toBe("changedData123");
     });
 
-    it("can update get the latest document updated time", async () => {
+    it("can get the latest document updated time", async () => {
+        // Add / update a document and check if the latest document update time is close to now.
+        const newDoc = {
+            _id: "docUpdateTimeTest",
+            testData: "newData123",
+        };
+        await service.upsertDoc(newDoc);
+
         const res: number = await service.getLatestDocUpdatedTime();
 
-        expect(res).toBe(3);
+        expect(res).toBeGreaterThan(Date.now() - 100);
     });
 
-    it("can update get the oldest changelogEntry document updated time", async () => {
+    it("can get the oldest changelogEntry document updated time", async () => {
+        // This is difficult to test accurately as the updated time is generated on document insertion into the
+        // database. We can at least check if it returns a number which is a valid timestamp (generated on 1
+        // January 2024 or later);
         const res: number = await service.getOldestChangeTime();
 
-        expect(res).toBe(1);
+        expect(res).toBeGreaterThan(1704067200); // 1 January 2024 00:00
+        expect(res).toBeLessThan(Date.now());
     });
 
     it("can retrieve user's own document", async () => {
@@ -137,13 +160,36 @@ describe("DbService", () => {
     });
 
     it("can retrieve documents from a given time", async () => {
-        const res: any = await service.getDocs("user-public", {
+        // Update a document and query documents from a timestamp just before the updated time.
+        // Only one document should be returned (which is newer than the update time)
+        const doc = {
+            _id: "content-post1-eng",
+            type: "content",
+            memberOf: ["group-public-content"],
+            language: "lang-eng",
+            status: "published",
+            slug: "post1-eng",
+            title: "Post 1",
+            summary: "This is an example post",
+            author: "ChatGPT",
+            text: "Unique text " + Date.now(),
+            seo: "",
+            localisedImage: "",
+            audio: "",
+            video: "",
+            publishDate: 3,
+            expiryDate: 0,
+        };
+
+        await service.upsertDoc(doc);
+
+        const res: any = await service.getDocs("", {
             groups: ["group-public-content"],
-            types: ["post", "tag"],
-            from: 2,
+            types: ["post", "tag", "content"],
+            from: Date.now() - 100,
         });
 
-        expect(res.docs.length).toBe(3);
+        expect(res.docs.length).toBe(1);
     });
 
     it("can retrieve the group itself from the passed groups query property", async () => {
@@ -162,6 +208,62 @@ describe("DbService", () => {
 
         const docCount = res.docs.length;
         expect(docCount).toBe(8);
+    });
+
+    it("can detect that a document is exactly the same as the document in the database", async () => {
+        const res: any = await service.upsertDoc({
+            _id: "group-private-content",
+            type: "group",
+            updatedTimeUtc: 3,
+            name: "Private Content",
+            acl: [
+                {
+                    type: "post",
+                    groupId: "group-private-users",
+                    permission: ["view"],
+                },
+                {
+                    type: "tag",
+                    groupId: "group-private-users",
+                    permission: ["view"],
+                },
+                {
+                    type: "post",
+                    groupId: "group-private-editors",
+                    permission: ["view", "edit", "translate", "publish"],
+                },
+                {
+                    type: "tag",
+                    groupId: "group-private-editors",
+                    permission: ["view", "translate", "assign"],
+                },
+                {
+                    type: "group",
+                    groupId: "group-private-editors",
+                    permission: ["view", "assign"],
+                },
+            ],
+        });
+        expect(res).toBe("passed document equal to existing database document");
+    });
+
+    it("can handle simultaneous updates to a single existing document", async () => {
+        // Insert a document into the database to ensure there is an existing document
+        await service.upsertDoc({ _id: "simultaneousTest", testVal: 0 });
+
+        // Generate changes to the document and submit them in parallel
+        const pList = new Array<Promise<any>>();
+
+        for (let index = 1; index <= 50; index++) {
+            pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
+        }
+
+        let res: boolean = false;
+        await Promise.all(pList);
+
+        // if we got past this point without an exception, the test was successful
+        res = true;
+        expect(res).toBe(true);
     });
 
     // TODO: Enable after adding Mango Indexes

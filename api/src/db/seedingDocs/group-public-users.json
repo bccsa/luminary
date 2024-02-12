@@ -1,7 +1,6 @@
 {
     "_id": "group-public-users",
     "type": "group",
-    "updatedTimeUtc": 3,
     "name": "Public Users",
     "acl": [
         {

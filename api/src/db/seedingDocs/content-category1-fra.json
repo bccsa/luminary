@@ -1,7 +1,6 @@
 {
     "_id": "content-category1-fra",
     "type": "content",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-public-content"],
     "language": "lang-fra",
     "status": "published",

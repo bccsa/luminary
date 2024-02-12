@@ -1,14 +1,4 @@
-/**
- * Acl permissions
- */
-export enum AclPermission {
-    View = "view",
-    Assign = "assign",
-    Edit = "edit",
-    Translate = "translate",
-    Publish = "publish",
-    Delete = "delete",
-}
+import { Uuid, DocType, AclPermission, GroupAclEntryDto, GroupDto } from "../dto";
 
 /**
  * Acl map entry used internally in Group objects
@@ -16,49 +6,6 @@ export enum AclPermission {
 type AclMapEntry = {
     ref: Group;
     types: Map<DocType, Map<AclPermission, boolean>>;
-};
-
-/**
- * Document types
- */
-export enum DocType {
-    Post = "post",
-    Content = "content",
-    Tag = "tag",
-    Image = "image",
-    Video = "video",
-    Audio = "Audio",
-    MediaDownload = "mediaDownload",
-    User = "user",
-    Language = "language",
-    Change = "change",
-    Group = "group",
-}
-
-/**
- * Database unique document ID
- */
-export type Uuid = string;
-
-/**
- * Database structured ACL entry (used in GroupDto)
- */
-export type GroupAclEntryDto = {
-    type: DocType;
-    groupId: Uuid;
-    permission: Array<AclPermission>;
-};
-
-/**
- * Database structured Group object
- */
-export type GroupDto = {
-    _id: Uuid;
-    _rev?: string;
-    type: DocType;
-    updatedTimeUtc: number;
-    name: string;
-    acl: Array<GroupAclEntryDto>;
 };
 
 /**

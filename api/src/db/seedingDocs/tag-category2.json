@@ -1,7 +1,6 @@
 {
     "_id": "tag-category2",
     "type": "tag",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-private-content"],
     "tagType": "category",
     "pinned": false,

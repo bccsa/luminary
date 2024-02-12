@@ -73,4 +73,33 @@ describe("Socketio", () => {
         const res: any = await testSocket();
         expect(res.filter((t) => t.type === "group").length).toBeGreaterThan(0);
     });
+
+    it("can submit a document update and receive an acknowledgement", async () => {
+        function testSocket() {
+            return new Promise((resolve) => {
+                const c = function (data) {
+                    client.off("data", c);
+                    resolve(data);
+                };
+                client.on("data", c);
+
+                client.emit("data", {
+                    docId: "test change request",
+                    type: "changeReq",
+                    doc: {
+                        _id: "lang-eng",
+                        type: "language",
+                        memberOf: ["group-languages"],
+                        languageCode: "eng",
+                        name: "English",
+                    },
+                });
+            });
+        }
+
+        const res: any = await testSocket();
+        expect(res.docId).toBe("test change request");
+        expect(res.type).toBe("ack");
+        expect(res.ack).toBe("accepted");
+    });
 });

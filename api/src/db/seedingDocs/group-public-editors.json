@@ -1,7 +1,6 @@
 {
     "_id": "group-public-editors",
     "type": "group",
-    "updatedTimeUtc": 3,
     "name": "Editors Public",
     "acl": [
         {

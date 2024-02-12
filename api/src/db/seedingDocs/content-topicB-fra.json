@@ -1,7 +1,6 @@
 {
     "_id": "content-topicB-fra",
     "type": "content",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-private-content"],
     "language": "lang-fra",
     "status": "published",
