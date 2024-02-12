@@ -14,6 +14,12 @@ import {
 import BleedHorizontal from "@/components/BleedHorizontal.vue";
 import { ref } from "vue";
 
+type Props = {
+    type: "post" | "tag";
+};
+
+defineProps<Props>();
+
 const tabs = [
     {
         title: "English",
