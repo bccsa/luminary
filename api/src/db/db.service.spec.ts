@@ -17,6 +17,18 @@ describe("DbService", () => {
         expect(service).toBeDefined();
     });
 
+    it("can read a single existing document", async () => {
+        const doc: any = await service.getDoc("user-public");
+
+        expect(doc._id).toBe("user-public");
+    });
+
+    it("can handle exceptions on reading non-exising documents", async () => {
+        const res: any = await service.getDoc("non-existing-document");
+
+        expect(res).toBe(undefined);
+    });
+
     it("can insert a new document", async () => {
         const uuid = randomUUID();
         const doc = {
@@ -232,7 +244,6 @@ describe("DbService", () => {
                 },
             ],
         });
-        // console.log(res);
         expect(res).toBe("passed document equal to existing database document");
     });
 
@@ -243,7 +254,7 @@ describe("DbService", () => {
         // Generate changes to the document and submit them in parallel
         const pList = new Array<Promise<any>>();
 
-        for (let index = 1; index <= 5; index++) {
+        for (let index = 1; index <= 50; index++) {
             pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
         }
 
