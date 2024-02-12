@@ -5,10 +5,11 @@ import AcButton from "@/components/button/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
 import AcTextarea from "@/components/forms/AcTextarea.vue";
 import AcSelect from "@/components/forms/AcSelect.vue";
-import { EnvelopeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
+import { EnvelopeIcon, PencilSquareIcon, PlusIcon } from "@heroicons/vue/20/solid";
 import AcCard from "@/components/common/AcCard.vue";
 import AcBadge from "@/components/common/AcBadge.vue";
 import AcTable from "@/components/common/AcTable.vue";
+import AcTabs from "@/components/common/AcTabs.vue";
 
 // Input
 const input = ref("Test value");
@@ -21,6 +22,18 @@ const languageOptions = [
     { label: "Español", value: "es", disabled: true },
 ];
 const selectedLanguage = ref("sw");
+
+const tabs = [
+    {
+        title: "English",
+        key: "eng",
+    },
+    {
+        title: "Swahili",
+        key: "swa",
+    },
+];
+const selectedTab = ref("eng");
 
 // Table
 const sortBy = ref(undefined);
@@ -222,6 +235,12 @@ const items = [
                         <AcButton variant="tertiary" size="sm" :icon="PencilSquareIcon"></AcButton>
                     </template>
                 </AcTable>
+            </AcCard>
+
+            <AcCard title="Tabs">
+                <AcTabs :tabs="tabs" v-model:currentTab="selectedTab">
+                    <AcButton variant="tertiary" :icon="PlusIcon">Add translation</AcButton>
+                </AcTabs>
             </AcCard>
 
             <AcCard title="Badges">

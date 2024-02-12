@@ -4,7 +4,7 @@ import AcTextarea from "@/components/forms/AcTextarea.vue";
 import AcButton from "@/components/button/AcButton.vue";
 import AcBadge from "@/components/common/AcBadge.vue";
 import AcCard from "@/components/common/AcCard.vue";
-import AcTabs from "@/components/AcTabs.vue";
+import AcTabs from "@/components/common/AcTabs.vue";
 import {
     Cog6ToothIcon,
     DocumentTextIcon,
@@ -12,19 +12,28 @@ import {
     MusicalNoteIcon,
 } from "@heroicons/vue/20/solid";
 import BleedHorizontal from "@/components/BleedHorizontal.vue";
+import { ref } from "vue";
+
+const tabs = [
+    {
+        title: "English",
+        key: "eng",
+    },
+];
+const currentTab = ref("eng");
 </script>
 
 <template>
     <div class="relative grid grid-cols-3 gap-8">
         <div class="col-span-3 md:col-span-2">
             <BleedHorizontal class="sticky top-16 z-10 bg-gray-50">
-                <AcTabs />
+                <AcTabs :tabs="tabs" v-model:currentTab="currentTab" />
             </BleedHorizontal>
 
             <AcCard class="my-6">
                 <div class="flex gap-4">
                     <AcButton>Save as draft</AcButton>
-                    <AcButton variant="primary">Save & Publish</AcButton>
+                    <AcButton variant="primary">Save & publish</AcButton>
                 </div>
 
                 <template #footer>
@@ -75,7 +84,7 @@ import BleedHorizontal from "@/components/BleedHorizontal.vue";
         </div>
 
         <div class="col-span-3 md:col-span-1">
-            <AcCard title="Post Settings" :icon="Cog6ToothIcon" class="sticky top-20" subdued>
+            <AcCard title="Post settings" :icon="Cog6ToothIcon" class="sticky top-20" subdued>
                 <AcInput
                     label="Default image"
                     placeholder="cdn.bcc.africa/img/image.png"
