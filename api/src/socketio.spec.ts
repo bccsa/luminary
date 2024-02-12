@@ -99,7 +99,7 @@ describe("Socketio", () => {
 
         const res: any = await testSocket();
         expect(res.docId).toBe("test change request");
-        expect(res.type).toBe("ack");
+        expect(res.type).toBe("changeReqAck");
         expect(res.ack).toBe("accepted");
     });
 });

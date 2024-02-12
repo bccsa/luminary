@@ -1,4 +1,6 @@
-import { Uuid, DocType, AclPermission, GroupAclEntryDto, GroupDto } from "../dto";
+import { Uuid, DocType, AclPermission } from "../types";
+import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
+import { GroupDto } from "../dto/GroupDto";
 
 /**
  * Acl map entry used internally in Group objects

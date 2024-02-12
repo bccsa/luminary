@@ -9,8 +9,12 @@ import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
-import { DocType, AclPermission, ChangeReqDto, AckDto, Ack } from "./dto";
+import { DocType, AclPermission, AckStatus, DocTypeMap } from "./types";
+import { ChangeReqDto } from "./dto/ChangeReqDto";
+import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Group } from "./permissions/permissions.service";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 
 @WebSocketGateway({
     cors: {
@@ -19,10 +23,10 @@ import { Group } from "./permissions/permissions.service";
 })
 @Injectable()
 export class Socketio {
-    constructor(private db: DbService) {}
-
     @WebSocketServer()
     server: Server;
+
+    constructor(private db: DbService) {}
 
     /**
      * Client data request event handler
@@ -73,40 +77,59 @@ export class Socketio {
      * @param socket
      */
     @SubscribeMessage("data")
-    onClientData(@MessageBody() data: any, @ConnectedSocket() socket: any) {
+    async onClientData(@MessageBody() data: any, @ConnectedSocket() socket: any) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         socket.data.user = "editor-private";
         socket.data.groups = ["group-private-editors"];
 
-        // UpdateDto type check
-        if (data && data.type === "changeReq" && (data as ChangeReqDto).type) {
-            // TODO: Document type check
-
-            // TODO: Permission check
-
-            // Process update document
-            this.db
-                // Update in database
-                .upsertDoc(data.doc)
-                // Send acknowledgement to client
-                .then(() => {
-                    const ack: AckDto = {
-                        docId: data.docId, // Uuid of submitted UpdateDto to be acknowledged
-                        type: DocType.Ack, // Should always be "ack"
-                        ack: Ack.Accepted,
-                        message: "",
-                    };
-                    socket.emit("data", ack);
-                })
-                .catch((err) => {
-                    const ack: AckDto = {
-                        docId: data.docId, // Uuid of submitted UpdateDto to be acknowledged
-                        type: DocType.Ack, // Should always be "ack"
-                        ack: Ack.Rejected,
-                        message: err.message,
-                    };
-                    socket.emit("data", ack);
-                });
+        // Validate change request document
+        const changeReq = plainToInstance(ChangeReqDto, data);
+        const changeReqValidation = await validate(changeReq);
+        if (changeReqValidation.length > 0) {
+            return;
+            // TODO: Return errors to client and add test
         }
+
+        // Check included document existance and type validity
+        if (!changeReq.doc.type || !Object.values(DocType).includes(changeReq.doc.type)) {
+            return;
+            // TODO: Return error to client and add test
+        }
+
+        // Check included document validity
+        const doc = plainToInstance(DocTypeMap[changeReq.doc.type], changeReq.doc);
+        const docValidation = await validate(doc);
+        if (docValidation.length > 0) {
+            return;
+            // TODO: Return errors to client and add test
+        }
+
+        // TODO: Check sub-types (e.g. GroupAclEntryDto) where applicable
+
+        // TODO: Permission check
+
+        // Process update document
+        this.db
+            // Update in database
+            .upsertDoc(data.doc)
+            // Send acknowledgement to client
+            .then(() => {
+                const ack: ChangeReqAckDto = {
+                    docId: data.docId, // Uuid of submitted ChangeReqDto to be acknowledged
+                    type: DocType.ChangeReqAck, // Should always be "ack"
+                    ack: AckStatus.Accepted,
+                    message: "",
+                };
+                socket.emit("data", ack);
+            })
+            .catch((err) => {
+                const ack: ChangeReqAckDto = {
+                    docId: data.docId, // Uuid of submitted ChangeReqDto to be acknowledged
+                    type: DocType.ChangeReqAck, // Should always be "ack"
+                    ack: AckStatus.Rejected,
+                    message: err.message,
+                };
+                socket.emit("data", ack);
+            });
     }
 }
