@@ -68,16 +68,16 @@ async function save() {
                             <button
                                 v-for="language in languageStore.languages"
                                 :key="language.languageCode"
-                                class="group flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm text-gray-950 hover:bg-gray-50 active:bg-gray-100"
+                                class="group flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm text-gray-950 hover:bg-gray-50 active:bg-gray-100"
                                 @click="chooseLanguage(language)"
                             >
-                                <div>
+                                <div class="flex items-center gap-2">
                                     <AcBadge type="language" no-icon>
                                         {{ language.languageCode }}
                                     </AcBadge>
                                     {{ language.name }}
                                 </div>
-                                <div class="hidden text-xs text-gray-600 group-hover:block">
+                                <div class="hidden text-xs text-gray-600 sm:group-hover:block">
                                     Select
                                 </div>
                             </button>
