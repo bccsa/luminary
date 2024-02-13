@@ -1,4 +1,4 @@
-import type { BaseDocument } from "./cms";
+import type { BaseDocument, DocType, Language } from "./cms";
 
 export type Uuid = string;
 
@@ -11,11 +11,11 @@ export type ContentBaseDto = BaseDocumentDto & {
 export type ContentDto = ContentBaseDto & {
     language: Uuid;
     status: string;
-    publishDate: number;
+    title: string;
+    publishDate?: number;
     expiryDate?: number;
     localisedImage?: Uuid;
-    slug: string;
-    title: string;
+    slug?: string;
     audio?: Uuid;
     video?: Uuid;
     author?: string;
@@ -34,4 +34,16 @@ export type PostDto = ContentBaseDto & {
     content: Uuid[];
     image: string;
     tags: Uuid[];
+};
+
+export type CreatePostDto = {
+    image: string;
+    language: Language;
+    title: string;
+};
+
+export type ChangeReqDto = {
+    docId: Uuid;
+    type: DocType.ChangeReq;
+    doc: any;
 };

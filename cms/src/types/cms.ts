@@ -1,5 +1,6 @@
 export enum DocType {
     Change = "change",
+    ChangeReq = "changeReq",
     Content = "content",
     Group = "group",
     Language = "language",

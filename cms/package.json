@@ -19,6 +19,7 @@
         "dexie": "^3.2.4",
         "pinia": "^2.1.7",
         "socket.io-client": "^4.7.4",
+        "uuid": "^9.0.1",
         "vue": "^3.3.11",
         "vue-router": "^4.2.5"
     },

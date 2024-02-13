@@ -6,12 +6,18 @@ import AcCard from "@/components/common/AcCard.vue";
 import AcInput from "@/components/forms/AcInput.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { useLanguageStore } from "@/stores/language";
-import type { Language } from "@/types";
+import type { CreatePostDto, Language } from "@/types";
 import { ref } from "vue";
 import { ArrowRightIcon } from "@heroicons/vue/20/solid";
+import { usePostStore } from "@/stores/post";
+import { useRouter } from "vue-router";
 
 const languageStore = useLanguageStore();
+const postStore = usePostStore();
+const router = useRouter();
 
+const image = ref<string>();
+const title = ref<string>();
 const chosenLanguage = ref<Language | undefined>(undefined);
 
 function chooseLanguage(language: Language) {
@@ -19,6 +25,20 @@ function chooseLanguage(language: Language) {
 }
 function resetLanguage() {
     chosenLanguage.value = undefined;
+}
+
+async function save() {
+    // TODO validation
+
+    const post: CreatePostDto = {
+        image: image.value!,
+        language: chosenLanguage.value!,
+        title: title.value!,
+    };
+    await postStore.createPost(post);
+
+    // TODO route to edit page
+    router.push({ name: "posts" });
 }
 </script>
 
@@ -33,6 +53,7 @@ function resetLanguage() {
                     </p>
 
                     <AcInput
+                        v-model="image"
                         label="Default image"
                         placeholder="cdn.bcc.africa/img/image.png"
                         leftAddOn="https://"
@@ -64,7 +85,12 @@ function resetLanguage() {
                     </div>
 
                     <div v-if="chosenLanguage" class="space-y-6">
-                        <AcInput label="Title" :placeholder="chosenLanguage.name" required />
+                        <AcInput
+                            v-model="title"
+                            label="Title"
+                            :placeholder="chosenLanguage.name"
+                            required
+                        />
 
                         <div class="flex flex-col gap-4 sm:flex-row sm:justify-between">
                             <button
@@ -73,7 +99,12 @@ function resetLanguage() {
                             >
                                 Select different language
                             </button>
-                            <AcButton variant="primary" :icon="ArrowRightIcon" icon-right>
+                            <AcButton
+                                variant="primary"
+                                :icon="ArrowRightIcon"
+                                icon-right
+                                @click="save"
+                            >
                                 Save as draft & continue
                             </AcButton>
                         </div>
