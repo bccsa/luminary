@@ -18,4 +18,21 @@ describe("AcCard", () => {
         expect(wrapper.text()).toContain("Card footer");
         expect(wrapper.findComponent(DocumentPlusIcon).exists()).toBe(true);
     });
+
+    it("can be collapsed", async () => {
+        const wrapper = mount(AcCard, {
+            props: {
+                title: "Card title",
+                collapsible: true,
+            },
+            slots: { default: "Card text", footer: "Card footer" },
+        });
+
+        await wrapper.find("button").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.text()).toContain("Card title");
+        expect(wrapper.text()).not.toContain("Card text");
+        expect(wrapper.text()).not.toContain("Card footer");
+    });
 });
