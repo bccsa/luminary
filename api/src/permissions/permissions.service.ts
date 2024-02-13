@@ -1,4 +1,4 @@
-import { Uuid, DocType, AclPermission } from "../types";
+import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
 

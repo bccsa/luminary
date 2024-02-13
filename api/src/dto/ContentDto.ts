@@ -1,36 +1,60 @@
-import { IsArray, IsNotEmpty, IsNumber, IsString } from "class-validator";
-import { ContentStatus, DocType, Uuid } from "../types";
+import { IsDate, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { ContentStatus, Uuid } from "../enums";
+import { _contentBaseDto } from "./_contentBaseDto";
 
 /**
  * Database structured Content object
  */
-export class ContentDto {
+export class ContentDto extends _contentBaseDto {
     @IsNotEmpty()
-    _id: Uuid;
-    @IsNotEmpty()
-    type: DocType.Content;
-    @IsArray()
-    memberOf: Uuid[];
-    @IsNotEmpty()
+    @IsString()
     language: Uuid;
+
     @IsNotEmpty()
+    @IsEnum(ContentStatus)
     status: ContentStatus;
+
     @IsString()
+    @IsNotEmpty()
     slug: string;
+
     @IsString()
+    @IsNotEmpty()
     title: string;
+
     @IsString()
+    @IsNotEmpty()
     summary: string;
+
     @IsString()
+    @IsOptional()
     author: string;
+
     @IsString()
+    @IsOptional()
     text: string;
+
+    // @IsString()
+    // @IsOptional()
+    // seo: string;
+
     @IsString()
-    seo: string;
+    @IsOptional()
     localisedImage?: Uuid;
+
+    @IsString()
+    @IsOptional()
     audio?: Uuid;
+
+    @IsString()
+    @IsOptional()
     video?: Uuid;
-    @IsNumber()
+
+    @IsDate()
+    @IsNotEmpty()
     publishDate: number;
+
+    @IsDate()
+    @IsOptional()
     expiryDate?: number;
 }

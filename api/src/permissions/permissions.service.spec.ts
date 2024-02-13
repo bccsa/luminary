@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "../db/db.service";
 import { Group } from "./permissions.service";
-import { DocType, AclPermission } from "../types";
+import { DocType, AclPermission } from "../enums";
 
 describe("PermissionService", () => {
     let db: DbService;

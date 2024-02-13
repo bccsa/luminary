@@ -1,18 +1,6 @@
 /* -------------------------------------------------------
- * This file contains the central types
- * used by both the API, CMS and app.
+ * This file contains central types and enumerators
  * ------------------------------------------------------- */
-
-import { ChangeDto } from "./dto/ChangeDto";
-import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
-import { ChangeReqDto } from "./dto/ChangeReqDto";
-import { ContentDto } from "./dto/ContentDto";
-import { GroupAclEntryDto } from "./dto/GroupAclEntryDto";
-import { GroupDto } from "./dto/GroupDto";
-import { LanguageDto } from "./dto/LanguageDto";
-import { PostDto } from "./dto/PostDto";
-import { TagDto } from "./dto/TagDto";
-import { UserDto } from "./dto/UserDto";
 
 /**
  * Database unique document ID
@@ -52,7 +40,7 @@ export enum AclPermission {
 }
 
 /**
- * Acknowledge status used in AckDto
+ * Acknowledge status used in ChangeAckDto
  */
 export enum AckStatus {
     Accepted = "accepted",
@@ -74,19 +62,3 @@ export enum TagType {
     Category = "category",
     Topic = "topic",
 }
-
-/**
- * DocType to DTO map
- */
-export const DocTypeMap = {
-    change: ChangeDto,
-    changeReq: ChangeReqDto,
-    changeReqAck: ChangeReqAckDto,
-    content: ContentDto,
-    group: GroupDto,
-    groupAclEntry: GroupAclEntryDto,
-    language: LanguageDto,
-    post: PostDto,
-    tag: TagDto,
-    user: UserDto,
-};

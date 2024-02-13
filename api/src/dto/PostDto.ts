@@ -1,20 +1,20 @@
-import { DocType, Uuid } from "../types";
-import { IsArray, IsNotEmpty } from "class-validator";
+import { Uuid } from "../enums";
+import { IsArray, IsNotEmpty, IsString } from "class-validator";
+import { _contentBaseDto } from "./_contentBaseDto";
 
 /**
  * Database structured Post object
  */
-export class PostDto {
-    @IsNotEmpty()
-    _id: Uuid;
-    @IsNotEmpty()
-    type: DocType.Post;
+export class PostDto extends _contentBaseDto {
     @IsArray()
-    memberOf: Uuid[];
-    @IsArray()
+    @IsString({ each: true })
     content: Uuid[];
+
     @IsNotEmpty()
+    @IsString()
     image: Uuid;
+
     @IsArray()
+    @IsString({ each: true })
     tags: Uuid[];
 }

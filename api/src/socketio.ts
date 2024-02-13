@@ -9,12 +9,36 @@ import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
-import { DocType, AclPermission, AckStatus, DocTypeMap } from "./types";
-import { ChangeReqDto } from "./dto/ChangeReqDto";
-import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
+import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
 import { Group } from "./permissions/permissions.service";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
+import { ChangeDto } from "./dto/ChangeDto";
+import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
+import { ChangeReqDto } from "./dto/ChangeReqDto";
+import { ContentDto } from "./dto/ContentDto";
+import { GroupAclEntryDto } from "./dto/GroupAclEntryDto";
+import { GroupDto } from "./dto/GroupDto";
+import { LanguageDto } from "./dto/LanguageDto";
+import { PostDto } from "./dto/PostDto";
+import { TagDto } from "./dto/TagDto";
+import { UserDto } from "./dto/UserDto";
+
+/**
+ * DocType to DTO map
+ */
+const DocTypeMap = {
+    change: ChangeDto,
+    changeReq: ChangeReqDto,
+    changeReqAck: ChangeReqAckDto,
+    content: ContentDto,
+    group: GroupDto,
+    groupAclEntry: GroupAclEntryDto,
+    language: LanguageDto,
+    post: PostDto,
+    tag: TagDto,
+    user: UserDto,
+};
 
 @WebSocketGateway({
     cors: {
@@ -86,25 +110,44 @@ export class Socketio {
         const changeReq = plainToInstance(ChangeReqDto, data);
         const changeReqValidation = await validate(changeReq);
         if (changeReqValidation.length > 0) {
+            let message = "Change request validation failed for the following constraints:\n";
+            changeReqValidation.forEach((c) => {
+                message += Object.values(c.constraints).join("\n") + "\n";
+            });
+            this.emitAck(socket, AckStatus.Rejected, data.reqId, message);
             return;
-            // TODO: Return errors to client and add test
         }
 
         // Check included document existance and type validity
         if (!changeReq.doc.type || !Object.values(DocType).includes(changeReq.doc.type)) {
+            this.emitAck(
+                socket,
+                AckStatus.Rejected,
+                data.reqId,
+                `Submitted "${changeReq.doc.type}" document validation failed:\nInvalid document type`,
+            );
             return;
-            // TODO: Return error to client and add test
         }
 
         // Check included document validity
         const doc = plainToInstance(DocTypeMap[changeReq.doc.type], changeReq.doc);
-        const docValidation = await validate(doc);
-        if (docValidation.length > 0) {
+        let message = `Submitted ${changeReq.doc.type} document validation failed for the following constraints:\n`;
+        // Try-catch is needed to handle nested validation errors (speficially for arrays?) which throws an exception instead of giving a meaningful validation result.
+        // TODO: Might be possible to work around the exception according to https://dev.to/avantar/validating-nested-objects-with-class-validator-in-nestjs-1gn8 (see comments) - but seems like they are just handling the error in any case.
+        try {
+            const docValidation = await validate(doc);
+            if (docValidation.length > 0) {
+                docValidation.forEach((c) => {
+                    message += Object.values(c.constraints).join("\n") + "\n";
+                });
+                this.emitAck(socket, AckStatus.Rejected, data.reqId, message);
+                return;
+            }
+        } catch (err) {
+            message += err.message;
+            this.emitAck(socket, AckStatus.Rejected, data.reqId, message);
             return;
-            // TODO: Return errors to client and add test
         }
-
-        // TODO: Check sub-types (e.g. GroupAclEntryDto) where applicable
 
         // TODO: Permission check
 
@@ -114,22 +157,35 @@ export class Socketio {
             .upsertDoc(data.doc)
             // Send acknowledgement to client
             .then(() => {
-                const ack: ChangeReqAckDto = {
-                    docId: data.docId, // Uuid of submitted ChangeReqDto to be acknowledged
-                    type: DocType.ChangeReqAck, // Should always be "ack"
-                    ack: AckStatus.Accepted,
-                    message: "",
-                };
-                socket.emit("data", ack);
+                this.emitAck(socket, AckStatus.Accepted, data.reqId);
             })
             .catch((err) => {
-                const ack: ChangeReqAckDto = {
-                    docId: data.docId, // Uuid of submitted ChangeReqDto to be acknowledged
-                    type: DocType.ChangeReqAck, // Should always be "ack"
-                    ack: AckStatus.Rejected,
-                    message: err.message,
-                };
-                socket.emit("data", ack);
+                this.emitAck(socket, AckStatus.Rejected, data.reqId, err.message);
             });
+    }
+
+    /**
+     * Emit an acknowledgement to a Change Request
+     * @param socket - Socket.io connected client instance
+     * @param ack - Acknowleded status
+     * @param message - Error message
+     * @param reqId - ID of submitted change request
+     */
+    private emitAck(socket: any, ack: AckStatus, reqId?: Uuid, message?: string) {
+        const _ack: ChangeReqAckDto = {
+            reqId: reqId,
+            type: DocType.ChangeReqAck,
+            ack: ack,
+        };
+
+        if (message && _ack.ack == AckStatus.Rejected) {
+            _ack.message = message;
+        }
+
+        if (!reqId) {
+            _ack.ack = AckStatus.Rejected;
+            _ack.message = "Invalid document ID. Unable to process change request.";
+        }
+        socket.emit("data", _ack);
     }
 }

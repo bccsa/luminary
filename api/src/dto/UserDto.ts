@@ -1,18 +1,15 @@
-import { IsArray, IsEmail, IsNotEmpty } from "class-validator";
-import { DocType, Uuid } from "../types";
+import { IsEmail, IsNotEmpty, IsString } from "class-validator";
+import { _contentBaseDto } from "./_contentBaseDto";
 
 /**
  * Database structured User object
  */
-export class UserDto {
-    @IsNotEmpty()
-    _id: Uuid;
-    @IsNotEmpty()
-    type: DocType.User;
-    @IsArray()
-    memberOf: Uuid[];
+export class UserDto extends _contentBaseDto {
     @IsEmail()
-    email: string;
     @IsNotEmpty()
+    email: string;
+
+    @IsNotEmpty()
+    @IsString()
     name: string;
 }

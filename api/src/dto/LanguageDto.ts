@@ -1,18 +1,15 @@
-import { IsArray, IsNotEmpty } from "class-validator";
-import { DocType, Uuid } from "../types";
+import { IsNotEmpty, IsString } from "class-validator";
+import { _contentBaseDto } from "./_contentBaseDto";
 
 /**
  * Database structured Language object
  */
-export class LanguageDto {
+export class LanguageDto extends _contentBaseDto {
     @IsNotEmpty()
-    _id: Uuid;
-    @IsNotEmpty()
-    type: DocType.Language;
-    @IsArray()
-    memberOf: Uuid[];
-    @IsNotEmpty()
+    @IsString()
     languageCode: string;
+
     @IsNotEmpty()
+    @IsString()
     name: string;
 }

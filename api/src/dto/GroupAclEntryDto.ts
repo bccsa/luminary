@@ -1,14 +1,19 @@
-import { DocType, Uuid, AclPermission } from "../types";
-import { IsArray, IsNotEmpty } from "class-validator";
+import { DocType, Uuid, AclPermission } from "../enums";
+import { IsArray, IsEnum, IsNotEmpty, IsString } from "class-validator";
 
 /**
  * Database structured ACL entry (used in GroupDto)
  */
 export class GroupAclEntryDto {
     @IsNotEmpty()
+    @IsEnum(DocType)
     type: DocType;
+
     @IsNotEmpty()
+    @IsString()
     groupId: Uuid;
+
     @IsArray()
-    permission: Array<AclPermission>;
+    @IsEnum(AclPermission, { each: true })
+    permission: AclPermission[];
 }
