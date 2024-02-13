@@ -44,7 +44,7 @@ const sizes = {
     <component
         :is="is"
         :disabled="disabled"
-        class="group inline-flex items-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+        class="group inline-flex items-center justify-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
         :class="[variants[variant], sizes[size]]"
     >
         <component

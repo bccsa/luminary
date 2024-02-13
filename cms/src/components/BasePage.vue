@@ -2,10 +2,12 @@
 type Props = {
     title?: string;
     loading?: boolean;
+    centered?: boolean;
 };
 
 withDefaults(defineProps<Props>(), {
     loading: false,
+    centered: false,
 });
 </script>
 
@@ -18,7 +20,13 @@ withDefaults(defineProps<Props>(), {
         <div v-if="!loading">
             <header
                 v-if="title || $slots.actions"
-                class="flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between"
+                :class="[
+                    'flex flex-col gap-4 pb-6 sm:flex-row sm:items-center',
+                    {
+                        'sm:justify-center': centered,
+                        'sm:justify-between': !centered,
+                    },
+                ]"
             >
                 <h1 class="text-lg font-semibold leading-7">{{ title }}</h1>
 

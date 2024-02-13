@@ -63,7 +63,7 @@ const translationStatus = (content: Content | undefined) => {
                 :is="RouterLink"
                 :to="{ name: 'posts.create' }"
             >
-                Create Post
+                Create post
             </AcButton>
         </template>
 
@@ -71,7 +71,7 @@ const translationStatus = (content: Content | undefined) => {
             v-if="!postStore.posts || postStore.posts.length == 0"
             title="No posts yet"
             description="Get started by creating a new post."
-            buttonText="Create Post"
+            buttonText="Create post"
             :buttonLink="{ name: 'posts.create' }"
         />
 

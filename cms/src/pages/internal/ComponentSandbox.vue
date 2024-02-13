@@ -252,7 +252,7 @@ const items = [
                     <AcBadge variant="info">Info</AcBadge>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <AcBadge type="language" :showIcon="false">eng</AcBadge>
+                    <AcBadge type="language" no-icon>eng</AcBadge>
                     <AcBadge type="language" variant="success">fra</AcBadge>
                     <AcBadge type="language" variant="warning">swa</AcBadge>
                     <AcBadge type="language" variant="error">nya</AcBadge>
