@@ -10,6 +10,8 @@ import {
     DocumentTextIcon,
     VideoCameraIcon,
     MusicalNoteIcon,
+    ArrowTopRightOnSquareIcon,
+    PlusIcon,
 } from "@heroicons/vue/20/solid";
 import BleedHorizontal from "@/components/BleedHorizontal.vue";
 import { ref } from "vue";
@@ -19,38 +21,12 @@ type Props = {
 };
 
 defineProps<Props>();
-
-const tabs = [
-    {
-        title: "English",
-        key: "eng",
-    },
-];
-const currentTab = ref("eng");
 </script>
 
 <template>
     <div class="relative grid grid-cols-3 gap-8">
-        <div class="col-span-3 md:col-span-2">
-            <BleedHorizontal class="sticky top-16 z-10 bg-gray-50">
-                <AcTabs :tabs="tabs" v-model:currentTab="currentTab" />
-            </BleedHorizontal>
-
-            <AcCard class="my-6">
-                <div class="flex gap-4">
-                    <AcButton>Save as draft</AcButton>
-                    <AcButton variant="primary">Save & publish</AcButton>
-                </div>
-
-                <template #footer>
-                    <AcBadge variant="warning">Not saved</AcBadge>
-                    <span class="ml-1 text-xs text-gray-700">
-                        Save this post to be able to add more languages
-                    </span>
-                </template>
-            </AcCard>
-
-            <AcCard>
+        <div class="col-span-3 space-y-6 md:col-span-2">
+            <AcCard title="Basic translation settings" collapsible>
                 <AcButton>Set custom image</AcButton>
 
                 <AcInput label="Title" class="mt-6" required />
@@ -68,11 +44,11 @@ const currentTab = ref("eng");
                 </div>
             </AcCard>
 
-            <AcCard title="Text content" :icon="DocumentTextIcon" class="mt-6">
+            <AcCard title="Text content" :icon="DocumentTextIcon" collapsible>
                 <AcTextarea rows="8" />
             </AcCard>
 
-            <AcCard title="Video" :icon="VideoCameraIcon" class="mt-6">
+            <AcCard title="Video" :icon="VideoCameraIcon" collapsible>
                 <AcInput
                     placeholder="videoTitle"
                     leftAddOn="https://cdn.bcc.africa/vod/"
@@ -80,7 +56,7 @@ const currentTab = ref("eng");
                 />
             </AcCard>
 
-            <AcCard title="Audio" :icon="MusicalNoteIcon" class="mt-6">
+            <AcCard title="Audio" :icon="MusicalNoteIcon" collapsible>
                 <AcInput
                     placeholder="audioTitle"
                     leftAddOn="https://cdn.bcc.africa/vod/"
@@ -90,27 +66,59 @@ const currentTab = ref("eng");
         </div>
 
         <div class="col-span-3 md:col-span-1">
-            <AcCard title="Post settings" :icon="Cog6ToothIcon" class="sticky top-20" subdued>
-                <AcInput
-                    label="Default image"
-                    placeholder="cdn.bcc.africa/img/image.png"
-                    leftAddOn="https://"
-                >
-                    This image can be overridden in a translation
-                </AcInput>
+            <div class="sticky top-20 space-y-6">
+                <AcCard>
+                    <div class="flex gap-4">
+                        <AcButton>Save as draft</AcButton>
+                        <AcButton variant="primary">Save & publish</AcButton>
+                    </div>
 
-                <AcInput
-                    label="Categories"
-                    placeholder="Begin typing to select one..."
-                    class="mt-4"
-                />
-                <AcInput label="Topics" placeholder="Begin typing to select one..." class="mt-4" />
-                <AcInput
-                    label="Audio playlists"
-                    placeholder="Begin typing to select one..."
-                    class="mt-4"
-                />
-            </AcCard>
+                    <template #footer>
+                        <AcBadge variant="warning">Not saved</AcBadge>
+                        <span class="ml-1 text-xs text-gray-700">
+                            Save this post to be able to add more languages
+                        </span>
+                    </template>
+                </AcCard>
+
+                <AcCard title="Preview">
+                    <div class="flex gap-4">
+                        <AcButton>Preview changes</AcButton>
+                        <AcButton :icon="ArrowTopRightOnSquareIcon" iconRight>Open link</AcButton>
+                    </div>
+                </AcCard>
+
+                <AcCard
+                    title="Post settings"
+                    :icon="Cog6ToothIcon"
+                    class="sticky top-20"
+                    collapsible
+                >
+                    <AcInput
+                        label="Default image"
+                        placeholder="cdn.bcc.africa/img/image.png"
+                        leftAddOn="https://"
+                    >
+                        This image can be overridden in a translation
+                    </AcInput>
+
+                    <AcInput
+                        label="Categories"
+                        placeholder="Begin typing to select one..."
+                        class="mt-4"
+                    />
+                    <AcInput
+                        label="Topics"
+                        placeholder="Begin typing to select one..."
+                        class="mt-4"
+                    />
+                    <AcInput
+                        label="Audio playlists"
+                        placeholder="Begin typing to select one..."
+                        class="mt-4"
+                    />
+                </AcCard>
+            </div>
         </div>
     </div>
 </template>

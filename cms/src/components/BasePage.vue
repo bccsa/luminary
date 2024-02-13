@@ -18,7 +18,7 @@ withDefaults(defineProps<Props>(), {
         <div v-if="!loading">
             <header
                 v-if="title || $slots.actions"
-                class="flex flex-col gap-4 pb-6 sm:flex-row sm:justify-between"
+                class="flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between"
             >
                 <h1 class="text-lg font-semibold leading-7">{{ title }}</h1>
 
