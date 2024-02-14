@@ -113,7 +113,7 @@ const items = [
 <template>
     <BasePage title="Component sandbox">
         <div class="space-y-6">
-            <AcCard title="Form elements">
+            <AcCard title="Form elements" collapsible>
                 <div class="flex flex-col gap-4">
                     <AcInput
                         label="Normal input"

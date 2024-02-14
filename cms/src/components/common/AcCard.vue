@@ -29,8 +29,10 @@ function collapse() {
     <div class="overflow-hidden rounded-md border border-gray-100 bg-white shadow">
         <div
             v-if="title || icon"
-            class="clickclick flex items-center justify-between gap-4 px-4 pt-5 sm:px-6"
-            :class="{ 'cursor-pointer': collapsible, 'pb-5': collapsed }"
+            :class="[
+                'flex items-center justify-between gap-4 px-4 pt-5 sm:px-6',
+                { 'cursor-pointer': collapsible, 'pb-5': collapsed },
+            ]"
             @click="collapse"
         >
             <div class="flex items-center gap-2">
@@ -50,17 +52,18 @@ function collapse() {
                 />
             </button>
         </div>
-        <div
-            :class="{
-                'px-4 py-5 sm:px-6': padding == 'normal',
-                'pt-5': padding == 'none' && title,
-            }"
-            v-if="!collapsed"
-        >
-            <slot />
-        </div>
-        <div v-if="$slots.footer && !collapsed" class="bg-gray-50 px-4 py-5 sm:px-6">
-            <slot name="footer" />
-        </div>
+        <template v-if="!collapsed">
+            <div
+                :class="{
+                    'px-4 py-5 sm:px-6': padding == 'normal',
+                    'pt-5': padding == 'none' && title,
+                }"
+            >
+                <slot />
+            </div>
+            <div v-if="$slots.footer" class="bg-gray-50 px-4 py-5 sm:px-6">
+                <slot name="footer" />
+            </div>
+        </template>
     </div>
 </template>
