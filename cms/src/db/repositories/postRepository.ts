@@ -47,13 +47,15 @@ export class PostRepository extends BaseRepository {
         await db.docs.put(post);
 
         // Save change, which will be sent to the API later
+        db.localChanges.put({
+            reqId: uuidv4(),
+            docId: contentId,
+            doc: content,
+        });
         return db.localChanges.put({
+            reqId: uuidv4(),
             docId: postId,
-            type: DocType.ChangeReq,
-            doc: {
-                ...post,
-                content: [content],
-            },
+            doc: postId,
         });
     }
 
