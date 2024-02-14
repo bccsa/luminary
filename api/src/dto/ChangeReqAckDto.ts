@@ -1,5 +1,5 @@
 import { DocType, Uuid, AckStatus } from "../enums";
-import { Equals, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 /**
  * API acknowledgement to client after client submission of an ChangeReqDto document.
@@ -10,8 +10,8 @@ export class ChangeReqAckDto {
     reqId: Uuid; // Uuid of submitted ChangeReqDto to be acknowledged
 
     @IsNotEmpty()
-    @Equals("changeReqAck")
-    type: DocType.ChangeReqAck;
+    @IsEnum(DocType)
+    type: DocType;
 
     @IsNotEmpty()
     @IsEnum(AckStatus)
