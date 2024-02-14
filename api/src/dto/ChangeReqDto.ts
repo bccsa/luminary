@@ -1,5 +1,5 @@
 import { DocType, Uuid } from "../enums";
-import { Equals, IsNotEmpty, IsObject, IsString } from "class-validator";
+import { IsEnum, IsNotEmpty, IsObject, IsString } from "class-validator";
 
 /**
  * Document structure for client / CMS submitted changes to existing documents or new documents.
@@ -12,8 +12,8 @@ export class ChangeReqDto {
     reqId: Uuid;
 
     @IsNotEmpty()
-    @Equals("changeReq")
-    type: DocType.ChangeReq;
+    @IsEnum(DocType)
+    type: DocType;
 
     @IsObject()
     doc: any; // Object containing full submitted / updated document
