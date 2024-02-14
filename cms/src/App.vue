@@ -14,6 +14,10 @@ import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 const { isAuthenticated } = useAuth0();
 const { appName } = useGlobalConfigStore();
 const socketConnectionStore = useSocketConnectionStore();
+declare global {
+    var socketIo: any;
+}
+globalThis.socketIo = socket;
 
 // remove any existing listeners (in case of hot reload)
 socket.off();

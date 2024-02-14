@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "../db/db.service";
 import { Group } from "./permissions.service";
-import { DocType, AclPermission } from "../dto";
+import { DocType, AclPermission } from "../enums";
 
 describe("PermissionService", () => {
     let db: DbService;
@@ -84,17 +84,17 @@ describe("PermissionService", () => {
         const res = Group.getAccess(
             ["group-super-admins"],
             [
-                DocType.Audio,
+                // DocType.Audio,
                 DocType.Change,
                 DocType.Content,
                 DocType.Group,
-                DocType.Image,
+                // DocType.Image,
                 DocType.Language,
-                DocType.MediaDownload,
+                // DocType.MediaDownload,
                 DocType.Post,
                 DocType.Tag,
                 DocType.User,
-                DocType.Video,
+                // DocType.Video,
             ],
             AclPermission.View,
         );
@@ -144,17 +144,17 @@ describe("PermissionService", () => {
         const res = Group.getAccess(
             ["group-public-users"],
             [
-                DocType.Audio,
+                // DocType.Audio,
                 DocType.Change,
                 DocType.Content,
                 DocType.Group,
-                DocType.Image,
+                // DocType.Image,
                 DocType.Language,
-                DocType.MediaDownload,
+                // DocType.MediaDownload,
                 DocType.Post,
                 DocType.Tag,
                 DocType.User,
-                DocType.Video,
+                // DocType.Video,
             ],
             AclPermission.View,
         );

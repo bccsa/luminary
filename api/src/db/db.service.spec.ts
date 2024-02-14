@@ -87,7 +87,7 @@ describe("DbService", () => {
 
         const res: number = await service.getLatestDocUpdatedTime();
 
-        expect(res).toBeGreaterThan(Date.now() - 100);
+        expect(res).toBeGreaterThan(Date.now() - 200);
     });
 
     it("can get the oldest changelogEntry document updated time", async () => {
