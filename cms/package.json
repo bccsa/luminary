@@ -15,12 +15,14 @@
     },
     "dependencies": {
         "@auth0/auth0-vue": "^2.3.3",
+        "@vee-validate/yup": "^4.12.5",
         "@vueuse/rxjs": "^10.7.2",
         "class-validator": "^0.14.1",
         "dexie": "^3.2.4",
         "pinia": "^2.1.7",
         "socket.io-client": "^4.7.4",
         "uuid": "^9.0.1",
+        "vee-validate": "^4.12.5",
         "vue": "^3.3.11",
         "vue-router": "^4.2.5"
     },

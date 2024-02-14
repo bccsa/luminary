@@ -11,17 +11,34 @@ import { ref } from "vue";
 import { ArrowRightIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import { useRouter } from "vue-router";
-import { useValidation } from "@/composables/validation";
+import { useForm, useIsFormValid } from "vee-validate";
+import * as yup from "yup";
+import { toTypedSchema } from "@vee-validate/yup";
 
 const languageStore = useLanguageStore();
 const postStore = usePostStore();
 const router = useRouter();
 
-const image = ref<string>("");
-const title = ref<string>("");
-const chosenLanguage = ref<Language>();
+const validationSchema = toTypedSchema(
+    yup.object({
+        image: yup.string().required(),
+        title: yup.string().required(),
+    }),
+);
 
-const { validate, hasValidationError, fieldError } = useValidation();
+const { errors, defineField } = useForm({
+    validationSchema,
+});
+const isFormValid = useIsFormValid();
+
+const [image, imageAttrs] = defineField("image");
+const [title, titleProps] = defineField("title", {
+    props: (state) => ({
+        errorMessage: state.errors[0],
+    }),
+});
+
+const chosenLanguage = ref<Language>();
 
 function chooseLanguage(language: Language) {
     chosenLanguage.value = language;
@@ -32,13 +49,11 @@ function resetLanguage() {
 }
 
 async function save() {
-    const post = new CreatePostDto(image.value, chosenLanguage.value!, title.value);
-
-    await validate(post);
-
-    if (hasValidationError) {
+    if (!isFormValid.value) {
         return;
     }
+
+    const post = new CreatePostDto(image.value!, chosenLanguage.value!, title.value!);
 
     await postStore.createPost(post);
 
@@ -63,9 +78,10 @@ async function save() {
                         placeholder="cdn.bcc.africa/img/image.png"
                         leftAddOn="https://"
                         required
-                        :state="fieldError('image') ? 'error' : 'default'"
+                        :state="errors.image ? 'error' : 'default'"
+                        v-bind="imageAttrs"
                     >
-                        {{ fieldError("image") }}
+                        {{ errors.image }}
                     </AcInput>
 
                     <AcInput label="Permissions" placeholder="Not implemented yet" disabled />
@@ -113,9 +129,10 @@ async function save() {
                                 label="Title"
                                 :placeholder="chosenLanguage.name"
                                 required
-                                :state="fieldError('title') ? 'error' : 'default'"
+                                :state="errors.title ? 'error' : 'default'"
+                                v-bind="titleProps"
                             >
-                                {{ fieldError("title") }}
+                                {{ errors.title }}
                             </AcInput>
 
                             <div class="flex flex-col gap-4 sm:flex-row sm:justify-between">
