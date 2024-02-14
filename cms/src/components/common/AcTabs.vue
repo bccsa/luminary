@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useId } from "@/hooks/use-id";
+import { useId } from "@/util/use-id";
 import type { Component } from "vue";
 
 type Tab = {

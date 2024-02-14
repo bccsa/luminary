@@ -6,35 +6,40 @@ import AcCard from "@/components/common/AcCard.vue";
 import AcInput from "@/components/forms/AcInput.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { useLanguageStore } from "@/stores/language";
-import type { CreatePostDto, Language } from "@/types";
+import { CreatePostDto, type Language } from "@/types";
 import { ref } from "vue";
 import { ArrowRightIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import { useRouter } from "vue-router";
+import { useValidation } from "@/composables/validation";
 
 const languageStore = useLanguageStore();
 const postStore = usePostStore();
 const router = useRouter();
 
-const image = ref<string>();
-const title = ref<string>();
-const chosenLanguage = ref<Language | undefined>(undefined);
+const image = ref<string>("");
+const title = ref<string>("");
+const chosenLanguage = ref<Language>();
+
+const { validate, hasValidationError, fieldError } = useValidation();
 
 function chooseLanguage(language: Language) {
     chosenLanguage.value = language;
 }
 function resetLanguage() {
     chosenLanguage.value = undefined;
+    title.value = "";
 }
 
 async function save() {
-    // TODO validation
+    const post = new CreatePostDto(image.value, chosenLanguage.value!, title.value);
 
-    const post: CreatePostDto = {
-        image: image.value!,
-        language: chosenLanguage.value!,
-        title: title.value!,
-    };
+    await validate(post);
+
+    if (hasValidationError) {
+        return;
+    }
+
     await postStore.createPost(post);
 
     // TODO route to edit page
@@ -58,7 +63,10 @@ async function save() {
                         placeholder="cdn.bcc.africa/img/image.png"
                         leftAddOn="https://"
                         required
-                    />
+                        :state="fieldError('image') ? 'error' : 'default'"
+                    >
+                        {{ fieldError("image") }}
+                    </AcInput>
 
                     <AcInput label="Permissions" placeholder="Not implemented yet" disabled />
 
@@ -83,7 +91,9 @@ async function save() {
                                         </AcBadge>
                                         {{ language.name }}
                                     </div>
-                                    <div class="hidden text-xs text-gray-600 sm:group-hover:block">
+                                    <div
+                                        class="hidden text-xs text-gray-600 sm:group-hover:block sm:group-active:block"
+                                    >
                                         Select
                                     </div>
                                 </button>
@@ -103,7 +113,10 @@ async function save() {
                                 label="Title"
                                 :placeholder="chosenLanguage.name"
                                 required
-                            />
+                                :state="fieldError('title') ? 'error' : 'default'"
+                            >
+                                {{ fieldError("title") }}
+                            </AcInput>
 
                             <div class="flex flex-col gap-4 sm:flex-row sm:justify-between">
                                 <button

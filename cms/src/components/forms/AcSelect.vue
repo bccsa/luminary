@@ -7,7 +7,7 @@ export default {
 <script setup lang="ts">
 import { type StyleValue } from "vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
-import { useId } from "@/hooks/use-id";
+import { useId } from "@/util/use-id";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
 
