@@ -74,6 +74,7 @@ describe("Socketio", () => {
         expect(res.filter((t) => t.type === "group").length).toBeGreaterThan(0);
     });
 
+    // TODO: move data validation tests to own file (validation.spec.ts). Tests do not need to use Socket.io connection but can interact directly with function.
     it("can submit a ChangeReq and receive an acknowledgement", async () => {
         function testSocket() {
             return new Promise((resolve) => {
