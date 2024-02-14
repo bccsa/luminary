@@ -7,9 +7,9 @@ export class BaseDatabase extends Dexie {
 
     constructor() {
         super("ac-db");
-        this.version(3).stores({
+        this.version(4).stores({
             docs: "_id, type",
-            localChanges: "++id, docId",
+            localChanges: "++id, reqId, docId",
         });
     }
 }

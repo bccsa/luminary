@@ -4,17 +4,13 @@ import AcTextarea from "@/components/forms/AcTextarea.vue";
 import AcButton from "@/components/button/AcButton.vue";
 import AcBadge from "@/components/common/AcBadge.vue";
 import AcCard from "@/components/common/AcCard.vue";
-import AcTabs from "@/components/common/AcTabs.vue";
 import {
     Cog6ToothIcon,
     DocumentTextIcon,
     VideoCameraIcon,
     MusicalNoteIcon,
     ArrowTopRightOnSquareIcon,
-    PlusIcon,
 } from "@heroicons/vue/20/solid";
-import BleedHorizontal from "@/components/BleedHorizontal.vue";
-import { ref } from "vue";
 
 type Props = {
     type: "post" | "tag";
