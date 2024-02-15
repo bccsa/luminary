@@ -55,7 +55,7 @@ export class PostRepository extends BaseRepository {
         return db.localChanges.put({
             reqId: uuidv4(),
             docId: postId,
-            doc: postId,
+            doc: post,
         });
     }
 

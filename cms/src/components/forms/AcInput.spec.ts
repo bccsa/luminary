@@ -4,7 +4,9 @@ import AcInput from "./AcInput.vue";
 
 describe("AcInput", () => {
     it("emits update event on input", async () => {
-        const wrapper = mount(AcInput);
+        const wrapper = mount(AcInput, {
+            props: { name: "input" },
+        });
         await wrapper.find("input").setValue("test value");
 
         expect(wrapper.emitted("update:modelValue")?.length).toBe(1);
@@ -13,7 +15,7 @@ describe("AcInput", () => {
 
     it("renders a label and message from the default slot", () => {
         const wrapper = mount(AcInput, {
-            props: { label: "Test label" },
+            props: { name: "input", label: "Test label" },
             slots: { default: "Test message" },
         });
 
@@ -22,13 +24,15 @@ describe("AcInput", () => {
     });
 
     it("renders without a label ", () => {
-        const wrapper = mount(AcInput);
+        const wrapper = mount(AcInput, {
+            props: { name: "input" },
+        });
 
         expect(wrapper.text()).toBe("");
     });
 
     it("passes through non-prop attributes", () => {
-        const wrapper = mount(AcInput, { attrs: { autocomplete: true } });
+        const wrapper = mount(AcInput, { props: { name: "input" }, attrs: { autocomplete: true } });
         expect(wrapper.html()).toContain('autocomplete="true"');
     });
 });

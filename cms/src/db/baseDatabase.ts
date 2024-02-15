@@ -1,9 +1,9 @@
 import Dexie, { type Table } from "dexie";
-import type { BaseDocumentDto, ChangeReqDto } from "@/types";
+import type { BaseDocumentDto, LocalChange } from "@/types";
 
 export class BaseDatabase extends Dexie {
     docs!: Table<BaseDocumentDto>;
-    localChanges!: Table<ChangeReqDto>;
+    localChanges!: Table<LocalChange>;
 
     constructor() {
         super("ac-db");
