@@ -3,6 +3,7 @@ import type { Uuid } from ".";
 export enum DocType {
     Change = "change",
     ChangeReq = "changeReq",
+    ChangeReqAck = "changeReqAck",
     Content = "content",
     Group = "group",
     Language = "language",

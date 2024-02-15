@@ -1,5 +1,10 @@
 import type { BaseDocument, DocType, Language } from "./cms";
 
+export enum AckStatus {
+    Accepted = "accepted",
+    Rejected = "rejected",
+}
+
 export type Uuid = string;
 
 export type BaseDocumentDto = BaseDocument;
@@ -43,7 +48,14 @@ export type CreatePostDto = {
 };
 
 export type ChangeReqDto = {
-    docId: Uuid;
+    reqId: Uuid;
     type: DocType.ChangeReq;
     doc: any;
+};
+
+export type ChangeReqAckDto = {
+    reqId: Uuid;
+    type: DocType.ChangeReqAck;
+    ack: AckStatus;
+    message?: string;
 };
