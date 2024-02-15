@@ -1,6 +1,6 @@
 import "./assets/main.css";
 
-import { createApp, watch } from "vue";
+import { createApp } from "vue";
 import { createPinia } from "pinia";
 
 import { createAuth0 } from "@auth0/auth0-vue";
@@ -10,8 +10,7 @@ import router from "./router";
 
 const app = createApp(App);
 
-const pinia = createPinia();
-app.use(pinia);
+app.use(createPinia());
 
 app.use(router);
 

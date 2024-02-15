@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { describe, it, afterEach, expect } from "vitest";
 import { db } from "../baseDatabase";
 import {
     mockEnglishContentDto,
