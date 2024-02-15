@@ -5,14 +5,18 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { type Component, type StyleValue } from "vue";
+import { computed, type Component, type StyleValue } from "vue";
 import { useId } from "@/util/use-id";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
+import { useField } from "vee-validate";
+import { capitalizeFirstLetter } from "@/util/string";
 
 type Props = {
+    name: string;
+    modelValue?: string;
     state?: keyof typeof states;
     size?: keyof typeof sizes;
     label?: string;
@@ -24,14 +28,33 @@ type Props = {
     rightAddOn?: string;
 };
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     state: "default",
     size: "base",
     required: false,
     disabled: false,
 });
 
-const model = defineModel();
+const { errorMessage, value, handleBlur, handleChange } = useField(() => props.name, undefined, {
+    syncVModel: true,
+    validateOnValueUpdate: false,
+});
+
+// Initially and if field is valid, only validate when user leaves field.
+// If the field is invalid, validate as user is typing.
+const validationListeners = {
+    blur: (e: any) => handleBlur(e, true),
+    change: handleChange,
+    input: (e: any) => handleChange(e, !!errorMessage.value),
+};
+
+const computedState = computed(() => {
+    if (errorMessage.value) {
+        return "error";
+    }
+
+    return props.state;
+});
 
 const states = {
     default:
@@ -77,22 +100,23 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             <span
                 v-if="leftAddOn"
                 class="inline-flex items-center rounded-l-md border border-r-0 px-3 sm:text-sm"
-                :class="[addOnStates[state]]"
+                :class="[addOnStates[computedState]]"
             >
                 {{ leftAddOn }}
             </span>
             <input
-                v-model="model"
-                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6"
+                v-model="value"
+                v-on="validationListeners"
                 :class="[
                     sizes[size],
-                    states[state],
+                    states[computedState],
                     {
                         'rounded-l-md': !leftAddOn,
                         'rounded-r-md': !rightAddOn,
                         'pl-10': icon,
                         'pr-10': state == 'error',
                     },
+                    'block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6',
                 ]"
                 :id="id"
                 :disabled="disabled"
@@ -104,7 +128,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             <span
                 v-if="rightAddOn"
                 class="inline-flex items-center rounded-r-md border border-l-0 px-3 sm:text-sm"
-                :class="[addOnStates[state]]"
+                :class="[addOnStates[computedState]]"
             >
                 {{ rightAddOn }}
             </span>
@@ -115,8 +139,13 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
             </div>
         </div>
-        <FormMessage v-if="$slots.default" :state="state" :id="`${id}-message`">
-            <slot />
+        <FormMessage
+            v-if="$slots.default || errorMessage"
+            :state="computedState"
+            :id="`${id}-message`"
+        >
+            <template v-if="errorMessage">{{ capitalizeFirstLetter(errorMessage) }}</template>
+            <slot v-else-if="$slots.default" />
         </FormMessage>
     </div>
 </template>

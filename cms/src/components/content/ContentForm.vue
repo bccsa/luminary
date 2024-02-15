@@ -25,15 +25,15 @@ defineProps<Props>();
             <AcCard title="Basic translation settings" collapsible>
                 <AcButton>Set custom image</AcButton>
 
-                <AcInput label="Title" class="mt-6" required />
+                <AcInput name="title" label="Title" class="mt-6" required />
 
                 <AcTextarea label="Summary" class="mt-4" />
 
                 <div class="mt-4 flex gap-4">
-                    <AcInput label="Publish date" class="w-1/2" type="date">
+                    <AcInput name="publishDate" label="Publish date" class="w-1/2" type="date">
                         This is the date that will be shown on the post
                     </AcInput>
-                    <AcInput label="Expiry date" class="w-1/2" type="date">
+                    <AcInput name="expiryDate" label="Expiry date" class="w-1/2" type="date">
                         When set, this translation will automatically be hidden on this date. Not
                         visible in the app
                     </AcInput>
@@ -46,6 +46,7 @@ defineProps<Props>();
 
             <AcCard title="Video" :icon="VideoCameraIcon" collapsible>
                 <AcInput
+                    name="video"
                     placeholder="videoTitle"
                     leftAddOn="https://cdn.bcc.africa/vod/"
                     rightAddOn="/playlist.m3u8"
@@ -54,6 +55,7 @@ defineProps<Props>();
 
             <AcCard title="Audio" :icon="MusicalNoteIcon" collapsible>
                 <AcInput
+                    name="audio"
                     placeholder="audioTitle"
                     leftAddOn="https://cdn.bcc.africa/vod/"
                     rightAddOn="/playlist.m3u8"
@@ -91,6 +93,7 @@ defineProps<Props>();
                     collapsible
                 >
                     <AcInput
+                        name="image"
                         label="Default image"
                         placeholder="cdn.bcc.africa/img/image.png"
                         leftAddOn="https://"
@@ -99,16 +102,19 @@ defineProps<Props>();
                     </AcInput>
 
                     <AcInput
+                        name="categories"
                         label="Categories"
                         placeholder="Begin typing to select one..."
                         class="mt-4"
                     />
                     <AcInput
+                        name="topics"
                         label="Topics"
                         placeholder="Begin typing to select one..."
                         class="mt-4"
                     />
                     <AcInput
+                        name="audio"
                         label="Audio playlists"
                         placeholder="Begin typing to select one..."
                         class="mt-4"

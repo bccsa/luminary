@@ -116,6 +116,7 @@ const items = [
             <AcCard title="Form elements" collapsible>
                 <div class="flex flex-col gap-4">
                     <AcInput
+                        name="input"
                         label="Normal input"
                         placeholder="Placeholder"
                         v-model="input"
@@ -124,6 +125,7 @@ const items = [
                         :icon="EnvelopeIcon"
                     />
                     <AcInput
+                        name="input"
                         label="Normal input"
                         placeholder="Placeholder"
                         v-model="input"
@@ -131,6 +133,7 @@ const items = [
                         class="w-1/2"
                     />
                     <AcInput
+                        name="input"
                         label="With addons"
                         placeholder="Placeholder"
                         v-model="input"
@@ -140,6 +143,7 @@ const items = [
                         rightAddOn="USD"
                     />
                     <AcInput
+                        name="input"
                         label="Disabled input"
                         placeholder="Placeholder"
                         v-model="input"
@@ -150,6 +154,7 @@ const items = [
                         With a bottom text
                     </AcInput>
                     <AcInput
+                        name="input"
                         label="Error input"
                         placeholder="Placeholder"
                         v-model="input"
@@ -160,6 +165,7 @@ const items = [
                         This input is invalid
                     </AcInput>
                     <AcInput
+                        name="input"
                         label="With addons"
                         placeholder="Placeholder"
                         v-model="input"
