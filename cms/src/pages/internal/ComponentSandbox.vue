@@ -5,10 +5,11 @@ import AcButton from "@/components/button/AcButton.vue";
 import AcInput from "@/components/forms/AcInput.vue";
 import AcTextarea from "@/components/forms/AcTextarea.vue";
 import AcSelect from "@/components/forms/AcSelect.vue";
-import { EnvelopeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
+import { EnvelopeIcon, PencilSquareIcon, PlusIcon } from "@heroicons/vue/20/solid";
 import AcCard from "@/components/common/AcCard.vue";
 import AcBadge from "@/components/common/AcBadge.vue";
 import AcTable from "@/components/common/AcTable.vue";
+import AcTabs from "@/components/common/AcTabs.vue";
 
 // Input
 const input = ref("Test value");
@@ -21,6 +22,18 @@ const languageOptions = [
     { label: "Español", value: "es", disabled: true },
 ];
 const selectedLanguage = ref("sw");
+
+const tabs = [
+    {
+        title: "English",
+        key: "eng",
+    },
+    {
+        title: "Swahili",
+        key: "swa",
+    },
+];
+const selectedTab = ref("eng");
 
 // Table
 const sortBy = ref(undefined);
@@ -100,9 +113,10 @@ const items = [
 <template>
     <BasePage title="Component sandbox">
         <div class="space-y-6">
-            <AcCard title="Form elements">
+            <AcCard title="Form elements" collapsible>
                 <div class="flex flex-col gap-4">
                     <AcInput
+                        name="input"
                         label="Normal input"
                         placeholder="Placeholder"
                         v-model="input"
@@ -111,6 +125,7 @@ const items = [
                         :icon="EnvelopeIcon"
                     />
                     <AcInput
+                        name="input"
                         label="Normal input"
                         placeholder="Placeholder"
                         v-model="input"
@@ -118,6 +133,7 @@ const items = [
                         class="w-1/2"
                     />
                     <AcInput
+                        name="input"
                         label="With addons"
                         placeholder="Placeholder"
                         v-model="input"
@@ -127,6 +143,7 @@ const items = [
                         rightAddOn="USD"
                     />
                     <AcInput
+                        name="input"
                         label="Disabled input"
                         placeholder="Placeholder"
                         v-model="input"
@@ -137,6 +154,7 @@ const items = [
                         With a bottom text
                     </AcInput>
                     <AcInput
+                        name="input"
                         label="Error input"
                         placeholder="Placeholder"
                         v-model="input"
@@ -147,6 +165,7 @@ const items = [
                         This input is invalid
                     </AcInput>
                     <AcInput
+                        name="input"
                         label="With addons"
                         placeholder="Placeholder"
                         v-model="input"
@@ -224,6 +243,12 @@ const items = [
                 </AcTable>
             </AcCard>
 
+            <AcCard title="Tabs">
+                <AcTabs :tabs="tabs" v-model:currentTab="selectedTab">
+                    <AcButton variant="tertiary" :icon="PlusIcon">Add translation</AcButton>
+                </AcTabs>
+            </AcCard>
+
             <AcCard title="Badges">
                 <div class="flex gap-2">
                     <AcBadge>Default</AcBadge>
@@ -233,7 +258,7 @@ const items = [
                     <AcBadge variant="info">Info</AcBadge>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <AcBadge type="language" :showIcon="false">eng</AcBadge>
+                    <AcBadge type="language" no-icon>eng</AcBadge>
                     <AcBadge type="language" variant="success">fra</AcBadge>
                     <AcBadge type="language" variant="warning">swa</AcBadge>
                     <AcBadge type="language" variant="error">nya</AcBadge>

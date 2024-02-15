@@ -1,5 +1,8 @@
+import type { Uuid } from ".";
+
 export enum DocType {
     Change = "change",
+    ChangeReq = "changeReq",
     Content = "content",
     Group = "group",
     Language = "language",
@@ -110,4 +113,10 @@ export type User = ContentBase & {
     type: DocType.User;
     name: string;
     email: string;
+};
+
+export type LocalChange = {
+    reqId: Uuid;
+    docId: Uuid;
+    doc: object;
 };

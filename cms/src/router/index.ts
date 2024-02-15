@@ -59,6 +59,14 @@ const router = createRouter({
                                 title: "Create Post",
                             },
                         },
+                        {
+                            path: "edit/:id",
+                            name: "posts.edit",
+                            component: () => import("../pages/posts/EditPost.vue"),
+                            meta: {
+                                title: "Edit Post",
+                            },
+                        },
                     ],
                 },
                 {
