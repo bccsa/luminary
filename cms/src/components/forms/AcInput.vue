@@ -119,6 +119,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     'block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6',
                 ]"
                 :id="id"
+                :name="name"
                 :disabled="disabled"
                 :required="required"
                 :placeholder="placeholder"

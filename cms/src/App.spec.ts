@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import App from "./App.vue";
 import * as auth0 from "@auth0/auth0-vue";
@@ -6,10 +6,15 @@ import { ref } from "vue";
 import { createTestingPinia } from "@pinia/testing";
 import LoadingSpinner from "./components/LoadingSpinner.vue";
 import { useSocketConnectionStore } from "./stores/socketConnection";
+import { setActivePinia } from "pinia";
 
 vi.mock("@auth0/auth0-vue");
 
 describe("App", () => {
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+    });
+
     afterEach(() => {
         vi.clearAllMocks();
     });
@@ -19,24 +24,15 @@ describe("App", () => {
             isAuthenticated: ref(false),
         });
 
-        const wrapper = mount(App, {
-            global: {
-                plugins: [createTestingPinia()],
-            },
-        });
+        const wrapper = mount(App);
 
         expect(wrapper.findComponent(LoadingSpinner).exists()).toBe(true);
     });
 
     it("registers the socket connection events", () => {
-        const pinia = createTestingPinia();
         const socketConnectionStore = useSocketConnectionStore();
 
-        mount(App, {
-            global: {
-                plugins: [pinia],
-            },
-        });
+        mount(App);
 
         expect(socketConnectionStore.bindEvents).toHaveBeenCalledOnce();
     });

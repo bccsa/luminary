@@ -45,10 +45,13 @@ const save = handleSubmit(async (values) => {
         language: chosenLanguage.value!,
         title: values.title,
     };
-    await postStore.createPost(post);
 
-    // TODO route to edit page
-    return router.push({ name: "posts" });
+    return Promise.all([
+        postStore.createPost(post),
+
+        // TODO route to edit page
+        router.push({ name: "posts" }),
+    ]);
 });
 </script>
 
@@ -67,8 +70,7 @@ const save = handleSubmit(async (values) => {
                         label="Default image"
                         placeholder="cdn.bcc.africa/img/image.png"
                         leftAddOn="https://"
-                    >
-                    </AcInput>
+                    />
 
                     <AcInput
                         name="permissions"
@@ -92,6 +94,7 @@ const save = handleSubmit(async (values) => {
                                     :key="language.languageCode"
                                     class="group flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm text-gray-950 hover:bg-gray-50 active:bg-gray-100"
                                     @click="chooseLanguage(language)"
+                                    data-test="language"
                                 >
                                     <div class="flex items-center gap-2">
                                         <AcBadge type="language" no-icon>
@@ -116,14 +119,18 @@ const save = handleSubmit(async (values) => {
                         leave-active-class="hidden"
                     >
                         <div v-if="chosenLanguage" class="space-y-6">
-                            <AcInput name="title" label="Title" :placeholder="chosenLanguage.name">
-                            </AcInput>
+                            <AcInput
+                                name="title"
+                                label="Title"
+                                :placeholder="chosenLanguage.name"
+                            />
 
                             <div class="flex flex-col gap-4 sm:flex-row sm:justify-between">
                                 <button
                                     type="button"
                                     class="text-xs text-gray-600 hover:text-gray-800"
                                     @click="resetLanguage"
+                                    data-test="reset"
                                 >
                                     Select different language
                                 </button>
