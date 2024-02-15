@@ -8,21 +8,20 @@ import { ref } from "vue";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
+import { useLocalChangeStore } from "@/stores/localChanges";
 import { socket } from "@/socket";
 import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 
 const { isAuthenticated } = useAuth0();
 const { appName } = useGlobalConfigStore();
 const socketConnectionStore = useSocketConnectionStore();
-declare global {
-    var socketIo: any;
-}
-globalThis.socketIo = socket;
+const localChangeStore = useLocalChangeStore();
 
 // remove any existing listeners (in case of hot reload)
 socket.off();
 
 socketConnectionStore.bindEvents();
+localChangeStore.watchForSyncableChanges();
 
 const sidebarOpen = ref(false);
 </script>

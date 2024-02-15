@@ -15,7 +15,8 @@ export class ContentDto extends _contentBaseDto {
     status: PublishStatus;
 
     @IsString()
-    @IsNotEmpty()
+    // TODO required if status set to published
+    @IsOptional()
     slug: string;
 
     @IsString()
@@ -23,7 +24,8 @@ export class ContentDto extends _contentBaseDto {
     title: string;
 
     @IsString()
-    @IsNotEmpty()
+    // TODO required if status set to published
+    @IsOptional()
     summary: string;
 
     @IsString()
@@ -51,10 +53,11 @@ export class ContentDto extends _contentBaseDto {
     video?: Uuid;
 
     @IsDate()
-    @IsNotEmpty()
+    @IsOptional()
     publishDate: number;
 
     @IsDate()
+    // TODO required if status set to published
     @IsOptional()
     expiryDate?: number;
 }

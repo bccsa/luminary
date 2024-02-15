@@ -5,6 +5,7 @@ import {
     type PostDto,
     type ContentDto,
     ContentStatus,
+    LocalChangeStatus,
 } from "@/types";
 import { ContentRepository } from "./contentRepository";
 import { BaseRepository } from "./baseRepository";
@@ -30,7 +31,7 @@ export class PostRepository extends BaseRepository {
             updatedTimeUtc: Date.now(),
             language: dto.language._id,
             title: dto.title,
-            memberOf: [],
+            memberOf: ["group-private-content"], // TODO set right group
         };
 
         const post: PostDto = {
@@ -39,8 +40,8 @@ export class PostRepository extends BaseRepository {
             updatedTimeUtc: Date.now(),
             image: dto.image,
             content: [contentId],
-            memberOf: [],
             tags: [],
+            memberOf: ["group-private-content"], // TODO set right group
         };
 
         await db.docs.put(content);
@@ -48,11 +49,13 @@ export class PostRepository extends BaseRepository {
 
         // Save change, which will be sent to the API later
         db.localChanges.put({
+            status: LocalChangeStatus.Unsynced,
             reqId: uuidv4(),
             docId: contentId,
             doc: content,
         });
         return db.localChanges.put({
+            status: LocalChangeStatus.Unsynced,
             reqId: uuidv4(),
             docId: postId,
             doc: post,

@@ -17,7 +17,7 @@ export class _baseDto {
     @IsEnum(DocType)
     type: DocType;
 
-    @IsDate()
+    // TODO check if it's a valid timestamp
     @IsOptional()
     updatedTimeUtc?: number;
 }

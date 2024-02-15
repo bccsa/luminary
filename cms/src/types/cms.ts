@@ -116,8 +116,15 @@ export type User = ContentBase & {
     email: string;
 };
 
+export enum LocalChangeStatus {
+    Unsynced = "unsynced",
+    Syncing = "syncing",
+    Rejected = "rejected",
+}
+
 export type LocalChange = {
     reqId: Uuid;
     docId: Uuid;
+    status: LocalChangeStatus.Unsynced;
     doc: object;
 };
