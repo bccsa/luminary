@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "./db.service";
 import { randomUUID } from "crypto";
+import { DocType } from "../enums";
 
 describe("DbService", () => {
     let service: DbService;
@@ -101,7 +102,7 @@ describe("DbService", () => {
     });
 
     it("can retrieve user's own document", async () => {
-        const res: any = await service.getDocs("user-public", {
+        const res: any = await service.getDocsPerGroup("user-public", {
             groups: [],
             types: [],
             from: 0,
@@ -112,9 +113,9 @@ describe("DbService", () => {
     });
 
     it("can retrieve documents using one group selector", async () => {
-        const res: any = await service.getDocs("", {
+        const res: any = await service.getDocsPerGroup("", {
             groups: ["group-public-content"],
-            types: ["post", "tag"],
+            types: [DocType.Post, DocType.Tag],
             from: 0,
         });
 
@@ -123,9 +124,9 @@ describe("DbService", () => {
     });
 
     it("can retrieve documents using two group selectors", async () => {
-        const res: any = await service.getDocs("", {
+        const res: any = await service.getDocsPerGroup("", {
             groups: ["group-public-content", "group-private-content"],
-            types: ["post", "tag"],
+            types: [DocType.Post, DocType.Tag],
             from: 0,
         });
 
@@ -136,26 +137,26 @@ describe("DbService", () => {
     });
 
     it("can retrieve documents of one type", async () => {
-        const res: any = await service.getDocs("", {
+        const res: any = await service.getDocsPerGroup("", {
             groups: ["group-public-content"],
-            types: ["post"],
+            types: [DocType.Post],
             from: 0,
         });
 
-        const docCount = res.docs.filter((t) => t.type === "post").length;
+        const docCount = res.docs.filter((t) => t.type === DocType.Post).length;
         expect(docCount).toBe(1);
     });
 
     it("can retrieve documents of two types", async () => {
-        const res: any = await service.getDocs("", {
+        const res: any = await service.getDocsPerGroup("", {
             groups: ["group-public-content"],
-            types: ["post", "tag"],
+            types: [DocType.Post, DocType.Tag],
             from: 0,
         });
 
         const docCount =
-            res.docs.filter((t) => t.type === "post").length +
-            res.docs.filter((t) => t.type === "tag").length;
+            res.docs.filter((t) => t.type === DocType.Post).length +
+            res.docs.filter((t) => t.type === DocType.Tag).length;
         expect(docCount).toBe(3);
     });
 
@@ -164,7 +165,7 @@ describe("DbService", () => {
         // Only one document should be returned (which is newer than the update time)
         const doc = {
             _id: "content-post1-eng",
-            type: "content",
+            type: DocType.Content,
             memberOf: ["group-public-content"],
             language: "lang-eng",
             status: "published",
@@ -183,9 +184,9 @@ describe("DbService", () => {
 
         await service.upsertDoc(doc);
 
-        const res: any = await service.getDocs("", {
+        const res: any = await service.getDocsPerGroup("", {
             groups: ["group-public-content"],
-            types: ["post", "tag", "content"],
+            types: [DocType.Post, DocType.Tag, DocType.Content],
             from: Date.now() - 100,
         });
 
@@ -193,9 +194,9 @@ describe("DbService", () => {
     });
 
     it("can retrieve the group itself from the passed groups query property", async () => {
-        const res: any = await service.getDocs("", {
+        const res: any = await service.getDocsPerGroup("", {
             groups: ["group-public-content"],
-            types: ["group"],
+            types: [DocType.Group],
             from: 0,
         });
 
@@ -213,32 +214,32 @@ describe("DbService", () => {
     it("can detect that a document is exactly the same as the document in the database", async () => {
         const res: any = await service.upsertDoc({
             _id: "group-private-content",
-            type: "group",
+            type: DocType.Group,
             updatedTimeUtc: 3,
             name: "Private Content",
             acl: [
                 {
-                    type: "post",
+                    type: DocType.Post,
                     groupId: "group-private-users",
                     permission: ["view"],
                 },
                 {
-                    type: "tag",
+                    type: DocType.Tag,
                     groupId: "group-private-users",
                     permission: ["view"],
                 },
                 {
-                    type: "post",
+                    type: DocType.Post,
                     groupId: "group-private-editors",
                     permission: ["view", "edit", "translate", "publish"],
                 },
                 {
-                    type: "tag",
+                    type: DocType.Tag,
                     groupId: "group-private-editors",
                     permission: ["view", "translate", "assign"],
                 },
                 {
-                    type: "group",
+                    type: DocType.Group,
                     groupId: "group-private-editors",
                     permission: ["view", "assign"],
                 },

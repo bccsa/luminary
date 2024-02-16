@@ -1,18 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import * as nano from "nano";
-import { Group } from "../permissions/permissions.service";
+import { PermissionSystem } from "../permissions/permissions.service";
 import { isDeepStrictEqual } from "util";
+import { DocType, Uuid } from "../enums";
 
 /**
  * @typedef {Object} - getDocsOptions
- * @property {Array<string>} groups - Array with IDs of groups for which member documents should be returned.
+ * @property {Array<Uuid>} groups - Array with IDs of groups for which member documents should be returned.
  * Note: If the "group" type is included in getDocsOptions.types, the group itself will be included in the result.
- * @property {Array<string>} types - Array of document types to be included in the query result
+ * @property {Array<DocType>} types - Array of document types to be included in the query result
  * @property {number} from - Include documents with an updateTimeUtc timestamp greater or equal to the passed value. (Default 0)
  */
 export type getDocsOptions = {
-    groups: Array<string>;
-    types: Array<string>;
+    groups: Array<Uuid>;
+    types: Array<DocType>;
     from?: number;
 };
 
@@ -28,7 +29,7 @@ export class DbService {
 
         // Populate the permission system
         this.getGroups().then((res: any) => {
-            Group.upsertGroups(res.docs);
+            PermissionSystem.upsertGroups(res.docs);
         });
     }
 
@@ -117,7 +118,7 @@ export class DbService {
     }
 
     /**
-     * Get a document by ID
+     * Get a single document by ID
      * @param id - document ID (_id field)
      */
     getDoc(docId: string) {
@@ -132,6 +133,56 @@ export class DbService {
                         resolve(undefined);
                     } else {
                         reject();
+                    }
+                });
+        });
+    }
+
+    /**
+     * Get multiple documents by ID and type
+     * @param {Uuid[]} docIds - Document IDs to be included in search.
+     * @param {DocType[]} types - Document types to be included in search
+     * @returns - Promise containing the query result
+     */
+    getDocs(docIds: Uuid[], types: DocType[]): Promise<nano.MangoResponse<unknown>> {
+        // TODO: Write unit test
+        const query = {
+            selector: {
+                $and: [
+                    {
+                        type: {
+                            $in: types,
+                        },
+                    },
+                    {
+                        _id: {
+                            $in: docIds,
+                        },
+                    },
+                ],
+            },
+        };
+        return this.db.find(query);
+    }
+
+    /**
+     * Get the parent Post or Tag document for the passed Content document ID.
+     * @param docId - Content document ID
+     * @returns
+     */
+    getParentDoc(docId: Uuid): Promise<any> {
+        return new Promise((resolve) => {
+            return this.db
+                .view("content", "contentParent", {
+                    key: docId,
+                    include_docs: true,
+                    limit: 1,
+                })
+                .then((res) => {
+                    if (res.rows && res.rows[0] && res.rows[0].doc) {
+                        resolve(res.rows[0].doc);
+                    } else {
+                        resolve(undefined);
                     }
                 });
         });
@@ -205,7 +256,7 @@ export class DbService {
      * @param {getDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */
-    getDocs(userId: string, options: getDocsOptions): Promise<unknown> {
+    getDocsPerGroup(userId: string, options: getDocsOptions): Promise<nano.MangoResponse<unknown>> {
         // Set default options
         if (!options.from) options.from = 0;
 
@@ -254,7 +305,7 @@ export class DbService {
     /**
      * Get all group documents from database
      */
-    getGroups(): Promise<unknown> {
+    getGroups(): Promise<nano.MangoResponse<unknown>> {
         const query = {
             selector: {
                 type: "group",

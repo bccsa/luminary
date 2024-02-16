@@ -31,11 +31,34 @@ export enum DocType {
  * Acl permissions
  */
 export enum AclPermission {
+    /**
+     * Access to view documents
+     */
     View = "view",
+
+    /**
+     * Access to assign tags to documents
+     */
     Assign = "assign",
+
+    /**
+     * Access to edit documents
+     */
     Edit = "edit",
+
+    /**
+     * Access to translate documents
+     */
     Translate = "translate",
+
+    /**
+     * Access to publish documents
+     */
     Publish = "publish",
+
+    /**
+     * Access to delete documents
+     */
     Delete = "delete",
 }
 
@@ -48,9 +71,9 @@ export enum AckStatus {
 }
 
 /**
- * Content status used in Content documents
+ * Publish status used in Content documents
  */
-export enum ContentStatus {
+export enum PublishStatus {
     Published = "published",
     Draft = "draft",
 }

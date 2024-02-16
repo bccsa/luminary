@@ -10,7 +10,7 @@ import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
 import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
-import { Group } from "./permissions/permissions.service";
+import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { validateChangeReq } from "./validation";
 
@@ -33,6 +33,7 @@ export class Socketio {
      */
     @SubscribeMessage("clientDataReq")
     onClientConnection(@MessageBody() reqData, @ConnectedSocket() socket: any) {
+        // TODO: Do type validation on reqData
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         socket.data.user = "user-private";
         socket.data.groups = ["group-private-users"];
@@ -52,11 +53,12 @@ export class Socketio {
         if (reqData.version && typeof reqData.version === "number") from = reqData.version;
 
         // Get user accessible groups
-        const userAccess = Group.getAccess(socket.data.groups, docTypes, AclPermission.View);
+        const userAccessMap = PermissionSystem.getAccessMap(socket.data.groups);
+        const userAccess = userAccessMap.calculateAccess(docTypes, AclPermission.View);
 
         // Get data from database
         this.db
-            .getDocs(socket.data.user, {
+            .getDocsPerGroup(socket.data.user, {
                 groups: userAccess,
                 types: docTypes,
                 from: from,
@@ -77,8 +79,8 @@ export class Socketio {
     @SubscribeMessage("data")
     async onClientData(@MessageBody() data: any, @ConnectedSocket() socket: any) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
-        socket.data.user = "editor-private";
-        socket.data.groups = ["group-private-editors"];
+        socket.data.user = "super-admin";
+        socket.data.groups = ["group-super-admins"];
 
         // Validate received data
         const message = await validateChangeReq(data);
@@ -87,7 +89,30 @@ export class Socketio {
             return;
         }
 
-        // TODO: Permission check
+        // Reject non user-editable types
+        // TODO: add test
+        if (
+            data.doc.type === DocType.Change ||
+            data.doc.type === DocType.ChangeReq ||
+            data.doc.tag === DocType.ChangeReqAck
+        ) {
+            this.emitAck(socket, AckStatus.Rejected, data.reqId, "Invalid document type");
+            return;
+        }
+
+        // Get user accessible groups and validate change request
+        const userAccessMap = PermissionSystem.getAccessMap(socket.data.groups);
+        const permissionCheck: string = await PermissionSystem.validateChangeRequest(
+            data,
+            userAccessMap,
+            this.db,
+        );
+
+        if (permissionCheck) {
+            // If string not empty, permission check failed and return error message
+            this.emitAck(socket, AckStatus.Rejected, data.reqId, permissionCheck);
+            return;
+        }
 
         // Process update document
         this.db

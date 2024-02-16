@@ -1,0 +1,8 @@
+{
+    "_id": "_design/content",
+    "views": {
+        "contentParent": {
+            "map": "function (doc) {\n  // Indexes all the Content document ID's for the Post or Tag document (from the content[] array)\n  if (doc.type === \"post\" || doc.type === \"tag\") {\n    doc.content.forEach(contentId => {\n      emit(contentId, doc._id);\n    });\n  }\n}"
+        }
+    }
+}

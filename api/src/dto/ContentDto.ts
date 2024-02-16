@@ -1,5 +1,5 @@
 import { IsDate, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { ContentStatus, Uuid } from "../enums";
+import { PublishStatus, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 
 /**
@@ -11,8 +11,8 @@ export class ContentDto extends _contentBaseDto {
     language: Uuid;
 
     @IsNotEmpty()
-    @IsEnum(ContentStatus)
-    status: ContentStatus;
+    @IsEnum(PublishStatus)
+    status: PublishStatus;
 
     @IsString()
     @IsNotEmpty()
