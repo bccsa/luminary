@@ -113,32 +113,42 @@ export class Socketio {
                 this.emitAck(socket, AckStatus.Accepted, data.reqId);
             })
             .catch((err) => {
-                this.emitAck(socket, AckStatus.Rejected, data.reqId, err.message);
+                this.emitAck(socket, AckStatus.Rejected, data.reqId, err.message, data.doc._id);
             });
     }
 
     /**
      * Emit an acknowledgement to a Change Request
      * @param socket - Socket.io connected client instance
-     * @param ack - Acknowleded status
+     * @param status - Acknowleded status
      * @param message - Error message
      * @param reqId - ID of submitted change request
+     * @param docId - ID of the submitted document
      */
-    private emitAck(socket: any, ack: AckStatus, reqId?: Uuid, message?: string) {
-        const _ack: ChangeReqAckDto = {
+    private emitAck(socket: any, status: AckStatus, reqId?: Uuid, message?: string, docId?: Uuid) {
+        const ack: ChangeReqAckDto = {
             reqId: reqId,
             type: DocType.ChangeReqAck,
-            ack: ack,
+            ack: status,
         };
 
-        if (message && _ack.ack == AckStatus.Rejected) {
-            _ack.message = message;
+        if (message && ack.ack == AckStatus.Rejected) {
+            ack.message = message;
         }
 
         if (!reqId) {
-            _ack.ack = AckStatus.Rejected;
-            _ack.message = "Invalid document ID. Unable to process change request.";
+            ack.ack = AckStatus.Rejected;
+            ack.message = "Invalid document ID. Unable to process change request.";
         }
-        socket.emit("data", _ack);
+
+        if (docId) {
+            this.db.getDoc(docId).then((doc) => {
+                if (doc) {
+                    ack.doc = doc;
+                }
+            });
+        }
+
+        socket.emit("data", ack);
     }
 }
