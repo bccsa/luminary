@@ -37,7 +37,9 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
     const syncLocalChangesToApi = async (localChanges?: LocalChange[]) => {
         await localChanges?.forEach(async (change) => {
             if (change.status == LocalChangeStatus.Unsynced) {
-                await localChangesRepository.startSync(change);
+                await localChangesRepository.update(change, {
+                    status: LocalChangeStatus.Syncing,
+                });
 
                 const changeReq: ChangeReqDto = {
                     reqId: change.reqId,
@@ -52,8 +54,7 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
 
     const handleAck = async (ack: ChangeReqAckDto) => {
         if (ack.ack == AckStatus.Rejected) {
-            await localChangesRepository.rejectSync(ack.reqId);
-            return;
+            // replace or delete document with the provided
         }
 
         await localChangesRepository.delete(ack.reqId);

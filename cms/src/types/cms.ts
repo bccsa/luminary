@@ -119,7 +119,6 @@ export type User = ContentBase & {
 export enum LocalChangeStatus {
     Unsynced = "unsynced",
     Syncing = "syncing",
-    Rejected = "rejected",
 }
 
 export type LocalChange = {

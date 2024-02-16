@@ -6,15 +6,8 @@ export class LocalChangesRepository {
         return db.localChanges.where("status").equals(LocalChangeStatus.Unsynced).toArray();
     }
 
-    async startSync(change: LocalChange) {
-        return db.localChanges.update(change, {
-            status: LocalChangeStatus.Syncing,
-        });
-    }
-    async rejectSync(reqId: Uuid) {
-        return db.localChanges.where("reqId").equals(reqId).modify({
-            status: LocalChangeStatus.Rejected,
-        });
+    async update(change: LocalChange, update: object) {
+        return db.localChanges.update(change, update);
     }
 
     async delete(reqId: Uuid) {

@@ -28,7 +28,6 @@ export class PostRepository extends BaseRepository {
             _id: contentId,
             type: DocType.Content,
             status: ContentStatus.Draft,
-            updatedTimeUtc: Date.now(),
             language: dto.language._id,
             title: dto.title,
             memberOf: ["group-private-content"], // TODO set right group
@@ -37,7 +36,6 @@ export class PostRepository extends BaseRepository {
         const post: PostDto = {
             _id: postId,
             type: DocType.Post,
-            updatedTimeUtc: Date.now(),
             image: dto.image,
             content: [contentId],
             tags: [],

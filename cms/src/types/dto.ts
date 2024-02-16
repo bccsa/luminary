@@ -7,7 +7,11 @@ export enum AckStatus {
 
 export type Uuid = string;
 
-export type BaseDocumentDto = BaseDocument;
+export type BaseDocumentDto = {
+    _id: string;
+    type: DocType;
+    updatedTimeUtc?: number;
+};
 
 export type ContentBaseDto = BaseDocumentDto & {
     memberOf: Uuid[];
@@ -58,4 +62,5 @@ export type ChangeReqAckDto = {
     type: DocType.ChangeReqAck;
     ack: AckStatus;
     message?: string;
+    doc?: BaseDocumentDto;
 };
