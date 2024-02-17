@@ -1,5 +1,5 @@
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { AccessMap } from "./accessMap";
+import { AccessMap } from "./AccessMap";
 import { DbService } from "../db/db.service";
 import { DocType, AclPermission, PublishStatus } from "../enums";
 import { LanguageDto } from "../dto/LanguageDto";
