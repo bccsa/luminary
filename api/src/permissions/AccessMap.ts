@@ -9,7 +9,7 @@ export class AccessMap {
      * @param types - Document for which effective access should be calculated
      * @param permission - Permission for which effective access should be calculated
      */
-    public calculateAccess: (types: DocType[], permission: AclPermission) => Array<Uuid>;
+    public calculateAccess;
 
     public Map: Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
 
