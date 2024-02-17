@@ -4,7 +4,6 @@ import { DocType, Uuid, AclPermission } from "../enums";
  * Access Map used for access calculations
  */
 export class AccessMap {
-    // TODO: Move to a separate file
     /**
      * Get list of effective access (including inherited access) for the passed group IDs per docType and permission
      * @param types - Document for which effective access should be calculated
