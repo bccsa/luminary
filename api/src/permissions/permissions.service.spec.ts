@@ -301,6 +301,74 @@ describe("PermissionService", () => {
             },
         });
 
+        describe("Invalid documents", () => {
+            it("can reject a Change document", async () => {
+                const testChangeReq_change = plainToClass(ChangeReqDto, {
+                    reqId: "test change request",
+                    type: DocType.ChangeReq,
+                    doc: {
+                        _id: "change-123",
+                        type: "change",
+                        name: "Change 123",
+                    },
+                });
+
+                const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
+                const res = await PermissionSystem.validateChangeRequest(
+                    testChangeReq_change,
+                    accessMap,
+                    db,
+                );
+                expect(res.error).toBe(
+                    "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
+                );
+            });
+
+            it("can reject a ChangeReq document", async () => {
+                const testChangeReq_changeReq = plainToClass(ChangeReqDto, {
+                    reqId: "test change request",
+                    type: DocType.ChangeReq,
+                    doc: {
+                        _id: "change-req-123",
+                        type: "changeReq",
+                        name: "Change Request 123",
+                    },
+                });
+
+                const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
+                const res = await PermissionSystem.validateChangeRequest(
+                    testChangeReq_changeReq,
+                    accessMap,
+                    db,
+                );
+                expect(res.error).toBe(
+                    "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
+                );
+            });
+
+            it("can reject a ChangeReqAck document", async () => {
+                const testChangeReq_changeReqAck = plainToClass(ChangeReqDto, {
+                    reqId: "test change request",
+                    type: DocType.ChangeReq,
+                    doc: {
+                        _id: "change-req-ack-123",
+                        type: "changeReqAck",
+                        name: "Change Request Acknowledgement 123",
+                    },
+                });
+
+                const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
+                const res = await PermissionSystem.validateChangeRequest(
+                    testChangeReq_changeReqAck,
+                    accessMap,
+                    db,
+                );
+                expect(res.error).toBe(
+                    "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
+                );
+            });
+        });
+
         describe("Group documents", () => {
             it("higher level group with edit access can pass validation", async () => {
                 const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
@@ -309,7 +377,7 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe(""); // empty string means validation passed
+                expect(res.validated).toBe(true);
             });
 
             it("group with no access can NOT pass validation ", async () => {
@@ -319,7 +387,7 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe("No access to 'Edit' document type 'Group'"); // empty string means validation passed
+                expect(res.error).toBe("No access to 'Edit' document type 'Group'");
             });
 
             it("can not assign a group to another group's ACL without 'Assign' access to the second group", async () => {
@@ -361,7 +429,7 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe("No access to 'Assign' one or more groups to the group ACL"); // empty string means validation passed
+                expect(res.error).toBe("No access to 'Assign' one or more groups to the group ACL");
             });
         });
 
@@ -397,7 +465,7 @@ describe("PermissionService", () => {
                     db,
                 );
 
-                expect(res).toBe(""); // empty string means validation passed
+                expect(res.validated).toBe(true);
             });
 
             it("ccan validate: No access to 'Translate' document", async () => {
@@ -408,7 +476,7 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe("No access to 'Translate' document"); // empty string means validation passed
+                expect(res.error).toBe("No access to 'Translate' document");
             });
 
             it("can validate: No 'Translate' access to the language of the Content object", async () => {
@@ -466,7 +534,9 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe("No 'Translate' access to the language of the Content object"); // empty string means validation passed
+                expect(res.error).toBe(
+                    "No 'Translate' access to the language of the Content object",
+                );
             });
 
             it("can validate: No 'Publish' access to document type 'Content'", async () => {
@@ -514,7 +584,7 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe("No 'Publish' access to document type 'Content'"); // empty string means validation passed
+                expect(res.error).toBe("No 'Publish' access to document type 'Content'");
             });
         });
 
@@ -539,7 +609,7 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe(""); // empty string means validation passed
+                expect(res.validated).toBe(true);
             });
 
             it("can validate: No 'Edit' access to one or more groups", async () => {
@@ -549,7 +619,7 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe("No 'Edit' access to one or more groups"); // empty string means validation passed
+                expect(res.error).toBe("No 'Edit' access to one or more groups");
             });
 
             it("can reject a document without group membership", async () => {
@@ -572,9 +642,9 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe(
+                expect(res.error).toBe(
                     "Unable to verify access. The document is not a group or does not have group membership",
-                ); // empty string means validation passed
+                );
             });
         });
 
@@ -635,7 +705,7 @@ describe("PermissionService", () => {
                     accessMap,
                     db,
                 );
-                expect(res).toBe("No 'Assign' access to one or more tags"); // empty string means validation passed
+                expect(res.error).toBe("No 'Assign' access to one or more tags");
             });
         });
     });

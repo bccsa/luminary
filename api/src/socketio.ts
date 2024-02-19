@@ -13,6 +13,7 @@ import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { validateChangeReq } from "./validation";
+import { ValidationResult } from "./permissions/validateChangeReq";
 
 @WebSocketGateway({
     cors: {
@@ -89,28 +90,17 @@ export class Socketio {
             return;
         }
 
-        // Reject non user-editable types
-        // TODO: add test
-        if (
-            data.doc.type === DocType.Change ||
-            data.doc.type === DocType.ChangeReq ||
-            data.doc.tag === DocType.ChangeReqAck
-        ) {
-            this.emitAck(socket, AckStatus.Rejected, data.reqId, "Invalid document type");
-            return;
-        }
-
         // Get user accessible groups and validate change request
         const userAccessMap = PermissionSystem.getAccessMap(socket.data.groups);
-        const permissionCheck: string = await PermissionSystem.validateChangeRequest(
+        const permissionCheck: ValidationResult = await PermissionSystem.validateChangeRequest(
             data,
             userAccessMap,
             this.db,
         );
 
-        if (permissionCheck) {
+        if (!permissionCheck.validated) {
             // If string not empty, permission check failed and return error message
-            this.emitAck(socket, AckStatus.Rejected, data.reqId, permissionCheck);
+            this.emitAck(socket, AckStatus.Rejected, data.reqId, permissionCheck.error);
             return;
         }
 

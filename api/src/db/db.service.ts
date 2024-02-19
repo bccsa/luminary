@@ -144,25 +144,22 @@ export class DbService {
      * @param {DocType[]} types - Document types to be included in search
      * @returns - Promise containing the query result
      */
-    getDocs(docIds: Uuid[], types: DocType[]): Promise<nano.MangoResponse<unknown>> {
-        // TODO: Write unit test
-        const query = {
-            selector: {
-                $and: [
-                    {
-                        type: {
-                            $in: types,
-                        },
-                    },
-                    {
-                        _id: {
-                            $in: docIds,
-                        },
-                    },
-                ],
-            },
-        };
-        return this.db.find(query);
+    getDocs(docIds: Uuid[], types: DocType[]): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.db
+                .fetch({ keys: docIds })
+                .then((res: nano.DocumentFetchResponse<unknown>) => {
+                    // reduce the result to only include valid documents that match the passed types
+                    resolve(
+                        res.rows
+                            .filter((row: any) => row.doc && types.includes(row.doc.type))
+                            .map((row: any) => row.doc),
+                    );
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
     }
 
     /**

@@ -21,6 +21,8 @@ const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
  * Permission system class
  */
 export class PermissionSystem {
+    // The permission system is a tree structure where each node is representing a group. Each group keeps track of implied permissions and references to parents (through the group's ACLs) and to children (through the childGroup map).
+    // The referenced groupMap is a global map of all groups, and is used to look up groups by their ID.
     private _typePermissionGroupRequestorMap = new Map<
         DocType,
         Map<AclPermission, Map<Uuid, Map<Uuid, boolean>>>
@@ -59,7 +61,7 @@ export class PermissionSystem {
             const g = groupMap[id];
             if (!g) return;
 
-            resultMap.Map = { ...resultMap, ...g._groupTypePermissionMap };
+            resultMap.map = { ...resultMap, ...g._groupTypePermissionMap };
         });
         return resultMap;
     }

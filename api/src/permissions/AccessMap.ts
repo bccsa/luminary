@@ -11,18 +11,18 @@ export class AccessMap {
      */
     public calculateAccess: (types: DocType[], permission: AclPermission) => Array<Uuid>;
 
-    public Map: Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
+    public map: Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
 
     constructor() {
-        this.Map = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+        this.map = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
 
         this.calculateAccess = function (types: DocType[], permission: AclPermission): Array<Uuid> {
             const resultSet = new Set<Uuid>();
-            Object.keys(this.Map).forEach((groupId: Uuid) => {
-                Object.keys(this.Map[groupId])
+            Object.keys(this.map).forEach((groupId: Uuid) => {
+                Object.keys(this.map[groupId])
                     .filter((t: DocType) => types.includes(t))
                     .forEach((docType: DocType) => {
-                        Object.keys(this.Map[groupId][docType])
+                        Object.keys(this.map[groupId][docType])
                             .filter((t: AclPermission) => t === permission)
                             .forEach(() => {
                                 // Add to set to avoid duplicates

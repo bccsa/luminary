@@ -6,6 +6,11 @@ import { LanguageDto } from "../dto/LanguageDto";
 import { plainToInstance } from "class-transformer";
 import { MangoResponse } from "nano";
 
+export type ValidationResult = {
+    validated: boolean;
+    error?: string;
+};
+
 /**
  * Validate a change request against a user's access map
  * @param changeReq Change Request document
@@ -16,11 +21,23 @@ export async function validateChangeRequest(
     changeReq: ChangeReqDto,
     accessMap: AccessMap,
     dbService: DbService,
-) {
+): Promise<ValidationResult> {
     // To save changes to a document / create a new document, a user needs to have the required permission
     // (e.g. edit, translate, assign) to all of the groups of which the document is a member of.
 
     const doc = changeReq.doc;
+    // Reject non-user editable document types
+    if (
+        doc.type === DocType.Change ||
+        doc.type === DocType.ChangeReq ||
+        doc.type === DocType.ChangeReqAck
+    ) {
+        return {
+            validated: false,
+            error: "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
+        };
+    }
+
     // Validate edit, translate and group ACL assign access
     // ====================================================
 
@@ -29,7 +46,10 @@ export async function validateChangeRequest(
         // -----------------------
         const editGroups = accessMap.calculateAccess([DocType.Group], AclPermission.Edit);
         if (!editGroups.includes(doc._id)) {
-            return "No access to 'Edit' document type 'Group'";
+            return {
+                validated: false,
+                error: "No access to 'Edit' document type 'Group'",
+            };
         }
 
         // Check assign access for groups in ACL list
@@ -38,7 +58,10 @@ export async function validateChangeRequest(
         for (const aclEntry of doc.acl) {
             // Check if the user has assign access to the ACL entry's group
             if (!assignGroups.includes(aclEntry.groupId)) {
-                return "No access to 'Assign' one or more groups to the group ACL";
+                return {
+                    validated: false,
+                    error: "No access to 'Assign' one or more groups to the group ACL",
+                };
             }
         }
     } else if (doc.type === DocType.Content) {
@@ -48,7 +71,10 @@ export async function validateChangeRequest(
         // Get the parent document (post / tag) from the database
         const parentDoc = await dbService.getParentDoc(doc._id);
         if (!parentDoc) {
-            return "Parent document not found";
+            return {
+                validated: false,
+                error: "Parent document not found",
+            };
         }
 
         // Check if the user has translate access to the Content document's parent document (post / tag)
@@ -60,14 +86,17 @@ export async function validateChangeRequest(
 
         for (const groupId of parentDoc.memberOf) {
             if (!translateGroups.includes(groupId)) {
-                return "No access to 'Translate' document";
+                return {
+                    validated: false,
+                    error: "No access to 'Translate' document",
+                };
             }
         }
 
         // Check if the user has access to the language of the Content document
         const dbLangDoc = await dbService.getDocs([doc.language], [DocType.Language]);
-        if (dbLangDoc.docs.length > 0) {
-            const language = plainToInstance(LanguageDto, dbLangDoc.docs[0]);
+        if (dbLangDoc.length > 0) {
+            const language = plainToInstance(LanguageDto, dbLangDoc[0]);
 
             // Get groups to which the user has Translate access to for Language documents
             const userLanguageGroups = accessMap.calculateAccess(
@@ -77,7 +106,10 @@ export async function validateChangeRequest(
 
             for (const groupId of language.memberOf) {
                 if (!userLanguageGroups.includes(groupId)) {
-                    return "No 'Translate' access to the language of the Content object";
+                    return {
+                        validated: false,
+                        error: "No 'Translate' access to the language of the Content object",
+                    };
                 }
             }
         }
@@ -90,7 +122,10 @@ export async function validateChangeRequest(
             );
             for (const groupId of parentDoc.memberOf) {
                 if (!publishGroups.includes(groupId)) {
-                    return "No 'Publish' access to document type 'Content'";
+                    return {
+                        validated: false,
+                        error: "No 'Publish' access to document type 'Content'",
+                    };
                 }
             }
         }
@@ -100,11 +135,17 @@ export async function validateChangeRequest(
         const editGroups = accessMap.calculateAccess([doc.type], AclPermission.Edit);
         for (const groupId of doc.memberOf) {
             if (!editGroups.includes(groupId)) {
-                return "No 'Edit' access to one or more groups";
+                return {
+                    validated: false,
+                    error: "No 'Edit' access to one or more groups",
+                };
             }
         }
     } else {
-        return "Unable to verify access. The document is not a group or does not have group membership";
+        return {
+            validated: false,
+            error: "Unable to verify access. The document is not a group or does not have group membership",
+        };
     }
 
     // Validate tag assign access
@@ -117,13 +158,16 @@ export async function validateChangeRequest(
         const assignGroups = accessMap.calculateAccess([DocType.Tag], AclPermission.Assign);
 
         // Compare tag group membership with groups to which the user has assign access to
-        if (tagDocs.docs && Array.isArray(tagDocs.docs)) {
-            for (const d of tagDocs.docs) {
+        if (tagDocs && Array.isArray(tagDocs)) {
+            for (const d of tagDocs) {
                 const tagDoc = d as any;
                 if (tagDoc.memberOf && Array.isArray(tagDoc.memberOf)) {
                     for (const groupId of tagDoc.memberOf) {
                         if (!assignGroups.includes(groupId)) {
-                            return "No 'Assign' access to one or more tags";
+                            return {
+                                validated: false,
+                                error: "No 'Assign' access to one or more tags",
+                            };
                         }
                     }
                 }
@@ -131,5 +175,7 @@ export async function validateChangeRequest(
         }
     }
 
-    return ""; // Empty response means the vaildation passed (i.e. no error)
+    return {
+        validated: true,
+    };
 }

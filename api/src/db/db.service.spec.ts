@@ -267,15 +267,25 @@ describe("DbService", () => {
         expect(res).toBe(true);
     });
 
-    // TODO: Enable after adding Mango Indexes
-    // it("does not return database warnings", async () => {
-    //     const res: any = await service.getDocs("", {
-    //         groups: [""],
-    //         types: [""],
-    //         from: 0,
-    //     });
+    it("can get a list of documents filtered by document ID and document type", async () => {
+        // Test if we can return two documents with the passed IDs and valid document types
+        const res: any = await service.getDocs(
+            ["lang-eng", "user-public"],
+            [DocType.Language, DocType.User],
+        );
 
-    //     console.log(res);
-    //     expect(res.warning).toBe(undefined);
-    // });
+        expect(res.length).toBe(2);
+        expect(res.some((d) => d._id === "lang-eng")).toBe(true);
+        expect(res.some((d) => d._id === "user-public")).toBe(true);
+
+        // Test if we can return one document with a correct document type, while the other document is discarded due to an incorrect document type
+        const res2: any = await service.getDocs(
+            ["lang-eng", "user-public"],
+            [DocType.Language, DocType.Group],
+        );
+
+        expect(res2.length).toBe(1);
+        expect(res2.some((d) => d._id === "lang-eng")).toBe(true);
+        expect(res2.some((d) => d._id === "user-public")).toBe(false);
+    });
 });
