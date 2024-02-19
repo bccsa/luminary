@@ -10,35 +10,10 @@ import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
 import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
-import { Group } from "./permissions/permissions.service";
-import { plainToInstance } from "class-transformer";
-import { validate } from "class-validator";
-import { ChangeDto } from "./dto/ChangeDto";
+import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
-import { ChangeReqDto } from "./dto/ChangeReqDto";
-import { ContentDto } from "./dto/ContentDto";
-import { GroupAclEntryDto } from "./dto/GroupAclEntryDto";
-import { GroupDto } from "./dto/GroupDto";
-import { LanguageDto } from "./dto/LanguageDto";
-import { PostDto } from "./dto/PostDto";
-import { TagDto } from "./dto/TagDto";
-import { UserDto } from "./dto/UserDto";
-
-/**
- * DocType to DTO map
- */
-const DocTypeMap = {
-    change: ChangeDto,
-    changeReq: ChangeReqDto,
-    changeReqAck: ChangeReqAckDto,
-    content: ContentDto,
-    group: GroupDto,
-    groupAclEntry: GroupAclEntryDto,
-    language: LanguageDto,
-    post: PostDto,
-    tag: TagDto,
-    user: UserDto,
-};
+import { validateChangeReq } from "./validation";
+import { ValidationResult } from "./permissions/validateChangeReq";
 
 @WebSocketGateway({
     cors: {
@@ -59,6 +34,7 @@ export class Socketio {
      */
     @SubscribeMessage("clientDataReq")
     onClientConnection(@MessageBody() reqData, @ConnectedSocket() socket: any) {
+        // TODO: Do type validation on reqData
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         socket.data.user = "user-private";
         socket.data.groups = ["group-private-users"];
@@ -78,11 +54,12 @@ export class Socketio {
         if (reqData.version && typeof reqData.version === "number") from = reqData.version;
 
         // Get user accessible groups
-        const userAccess = Group.getAccess(socket.data.groups, docTypes, AclPermission.View);
+        const userAccessMap = PermissionSystem.getAccessMap(socket.data.groups);
+        const userAccess = userAccessMap.calculateAccess(docTypes, AclPermission.View);
 
         // Get data from database
         this.db
-            .getDocs(socket.data.user, {
+            .getDocsPerGroup(socket.data.user, {
                 groups: userAccess,
                 types: docTypes,
                 from: from,
@@ -103,53 +80,29 @@ export class Socketio {
     @SubscribeMessage("data")
     async onClientData(@MessageBody() data: any, @ConnectedSocket() socket: any) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
-        socket.data.user = "editor-private";
-        socket.data.groups = ["group-private-editors"];
+        socket.data.user = "super-admin";
+        socket.data.groups = ["group-super-admins"];
 
-        // Validate change request document
-        const changeReq = plainToInstance(ChangeReqDto, data);
-        const changeReqValidation = await validate(changeReq);
-        if (changeReqValidation.length > 0) {
-            let message = "Change request validation failed for the following constraints:\n";
-            changeReqValidation.forEach((c) => {
-                message += Object.values(c.constraints).join("\n") + "\n";
-            });
+        // Validate received data
+        const message = await validateChangeReq(data);
+        if (message) {
             this.emitAck(socket, AckStatus.Rejected, data.reqId, message);
             return;
         }
 
-        // Check included document existance and type validity
-        if (!changeReq.doc.type || !Object.values(DocType).includes(changeReq.doc.type)) {
-            this.emitAck(
-                socket,
-                AckStatus.Rejected,
-                data.reqId,
-                `Submitted "${changeReq.doc.type}" document validation failed:\nInvalid document type`,
-            );
+        // Get user accessible groups and validate change request
+        const userAccessMap = PermissionSystem.getAccessMap(socket.data.groups);
+        const permissionCheck: ValidationResult = await PermissionSystem.validateChangeRequest(
+            data,
+            userAccessMap,
+            this.db,
+        );
+
+        if (!permissionCheck.validated) {
+            // If string not empty, permission check failed and return error message
+            this.emitAck(socket, AckStatus.Rejected, data.reqId, permissionCheck.error);
             return;
         }
-
-        // Check included document validity
-        const doc = plainToInstance(DocTypeMap[changeReq.doc.type], changeReq.doc);
-        let message = `Submitted ${changeReq.doc.type} document validation failed for the following constraints:\n`;
-        // Try-catch is needed to handle nested validation errors (speficially for arrays?) which throws an exception instead of giving a meaningful validation result.
-        // TODO: Might be possible to work around the exception according to https://dev.to/avantar/validating-nested-objects-with-class-validator-in-nestjs-1gn8 (see comments) - but seems like they are just handling the error in any case.
-        try {
-            const docValidation = await validate(doc);
-            if (docValidation.length > 0) {
-                docValidation.forEach((c) => {
-                    message += Object.values(c.constraints).join("\n") + "\n";
-                });
-                this.emitAck(socket, AckStatus.Rejected, data.reqId, message);
-                return;
-            }
-        } catch (err) {
-            message += err.message;
-            this.emitAck(socket, AckStatus.Rejected, data.reqId, message);
-            return;
-        }
-
-        // TODO: Permission check
 
         // Process update document
         this.db

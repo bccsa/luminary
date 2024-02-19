@@ -74,6 +74,8 @@ describe("Socketio", () => {
         expect(res.filter((t) => t.type === "group").length).toBeGreaterThan(0);
     });
 
+    // TODO: Need to re-think how to test this. Currently the user access is hard-coded but
+    // when we implement user authentication, the access will be determined by the user's group membership.
     it("can submit a ChangeReq and receive an acknowledgement", async () => {
         function testSocket() {
             return new Promise((resolve) => {

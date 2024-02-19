@@ -1,31 +1,35 @@
 import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
+import { AccessMap } from "./AccessMap";
+import { validateChangeRequest } from "./validateChangeReq";
 
 /**
  * Acl map entry used internally in Group objects
  */
 type AclMapEntry = {
-    ref: Group;
+    ref: PermissionSystem;
     types: Map<DocType, Map<AclPermission, boolean>>;
 };
 
 /**
  * Global Group Map used for permission lookups
  */
-const groupMap: Map<Uuid, Group> = new Map<Uuid, Group>();
+const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
 
 /**
- * Permission system Group class
+ * Permission system class
  */
-export class Group {
+export class PermissionSystem {
+    // The permission system is a tree structure where each node is representing a group. Each group keeps track of implied permissions and references to parents (through the group's ACLs) and to children (through the childGroup map).
+    // The referenced groupMap is a global map of all groups, and is used to look up groups by their ID.
     private _typePermissionGroupRequestorMap = new Map<
         DocType,
         Map<AclPermission, Map<Uuid, Map<Uuid, boolean>>>
     >();
     private _groupTypePermissionMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
     private _aclMap = new Map<Uuid, AclMapEntry>();
-    private _childGroups = new Map<Uuid, Group>();
+    private _childGroups = new Map<Uuid, PermissionSystem>();
     private _id: Uuid;
 
     private constructor(id: string) {
@@ -40,40 +44,26 @@ export class Group {
     }
 
     /**
-     * Get list of effective access (including inherited access) for the passed group IDs per docType and permission
-     * @param groupIds - Group IDs to which the user is a member of
-     * @param types - Document for which effective access should be calculated
-     * @param permission - Permission for which effective access should be calculated
+     * Validate a change request against a user's access map
      */
-    static getAccess(
-        groupIds: Array<Uuid>,
-        types: Array<DocType>,
-        permission: AclPermission,
-    ): Array<Uuid> {
-        let resultMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+    static get validateChangeRequest() {
+        return validateChangeRequest;
+    }
+
+    /**
+     * Extract an access map for the passed group ID's
+     * @param groupIds - Group IDs for which the access map should be extracted
+     * @returns - Access Map for the passed group IDs
+     */
+    static getAccessMap(groupIds: Array<Uuid>): AccessMap {
+        const resultMap = new AccessMap();
         groupIds.forEach((id: Uuid) => {
             const g = groupMap[id];
             if (!g) return;
 
-            resultMap = { ...resultMap, ...g._groupTypePermissionMap };
+            resultMap.map = { ...resultMap, ...g._groupTypePermissionMap };
         });
-
-        const resultSet = new Set<Uuid>();
-        Object.keys(resultMap).forEach((groupId: Uuid) => {
-            Object.keys(resultMap[groupId])
-                .filter((t: DocType) => types.includes(t))
-                .forEach((docType: DocType) => {
-                    Object.keys(resultMap[groupId][docType])
-                        .filter((t: AclPermission) => t === permission)
-                        .forEach(() => {
-                            // Add to set to avoid duplicates
-                            resultSet.add(groupId);
-                        });
-                });
-        });
-
-        // Return only the group IDs as array.
-        return Array.from(resultSet);
+        return resultMap;
     }
 
     /**
@@ -87,13 +77,13 @@ export class Group {
     }
 
     // Create or update single group
-    private static updateGroup(doc: GroupDto, groupDocs: Array<GroupDto>): Group {
-        let g: Group;
+    private static updateGroup(doc: GroupDto, groupDocs: Array<GroupDto>): PermissionSystem {
+        let g: PermissionSystem;
         // Check if group is already in group map
         if (groupMap[doc._id]) {
             g = groupMap[doc._id];
         } else {
-            g = new Group(doc._id);
+            g = new PermissionSystem(doc._id);
             groupMap[doc._id] = g;
         }
 
@@ -107,7 +97,7 @@ export class Group {
         });
 
         doc.acl.forEach((aclEntry: GroupAclEntryDto) => {
-            let parent: Group = groupMap[aclEntry.groupId];
+            let parent: PermissionSystem = groupMap[aclEntry.groupId];
 
             // Create parent group if not existing
             if (!parent) {
@@ -155,7 +145,7 @@ export class Group {
             });
 
             // Remove ACL in referenced documents
-            Object.values(g._childGroups).forEach((group: Group) => {
+            Object.values(g._childGroups).forEach((group: PermissionSystem) => {
                 if (group._aclMap[g.id]) {
                     delete group._aclMap[g.id];
                 }
@@ -167,7 +157,11 @@ export class Group {
     }
 
     // Add or update acl to Group object
-    private upsertAcl(parentGroup: Group, type: DocType, permissions: Array<AclPermission>) {
+    private upsertAcl(
+        parentGroup: PermissionSystem,
+        type: DocType,
+        permissions: Array<AclPermission>,
+    ) {
         // Add group to map
         if (!this._aclMap[parentGroup.id]) {
             this._aclMap[parentGroup.id] = {
