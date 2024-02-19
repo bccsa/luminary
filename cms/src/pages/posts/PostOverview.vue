@@ -11,9 +11,10 @@ import { ref } from "vue";
 import { ContentStatus, type Content, type Post } from "@/types";
 import { useLanguageStore } from "@/stores/language";
 import AcBadge from "@/components/common/AcBadge.vue";
+import { storeToRefs } from "pinia";
 
-const postStore = usePostStore();
-const languageStore = useLanguageStore();
+const { posts } = storeToRefs(usePostStore());
+const { languages } = storeToRefs(useLanguageStore());
 
 const sortBy = ref(undefined);
 const sortDirection = ref(undefined);
@@ -54,10 +55,10 @@ const translationStatus = (content: Content | undefined) => {
 </script>
 
 <template>
-    <BasePage title="Posts" :loading="postStore.posts === undefined">
+    <BasePage title="Posts" :loading="posts === undefined">
         <template #actions>
             <AcButton
-                v-if="postStore.posts && postStore.posts.length > 0"
+                v-if="posts && posts.length > 0"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
@@ -68,7 +69,7 @@ const translationStatus = (content: Content | undefined) => {
         </template>
 
         <EmptyState
-            v-if="!postStore.posts || postStore.posts.length == 0"
+            v-if="!posts || posts.length == 0"
             title="No posts yet"
             description="Get started by creating a new post."
             buttonText="Create post"
@@ -78,7 +79,7 @@ const translationStatus = (content: Content | undefined) => {
         <AcCard v-else padding="none">
             <AcTable
                 :columns="columns"
-                :items="postStore.posts"
+                :items="posts"
                 v-model:sortBy="sortBy"
                 v-model:sortDirection="sortDirection"
             >
@@ -88,7 +89,7 @@ const translationStatus = (content: Content | undefined) => {
                 <template #item.translations="{ content }">
                     <div class="flex gap-2">
                         <AcBadge
-                            v-for="language in languageStore.languages"
+                            v-for="language in languages"
                             :key="language.languageCode"
                             type="language"
                             :variant="
