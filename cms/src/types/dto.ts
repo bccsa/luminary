@@ -1,4 +1,4 @@
-import type { BaseDocument, DocType, Language } from "./cms";
+import type { DocType, Language } from "./cms";
 
 export enum AckStatus {
     Accepted = "accepted",
