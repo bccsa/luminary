@@ -14,11 +14,10 @@ import { LocalChangesRepository } from "@/db/repositories/localChangesRepository
 import type { Observable } from "rxjs";
 import { useSocketConnectionStore } from "./socketConnection";
 import { socket } from "@/socket";
-import { DocumentRepository } from "@/db/repositories/documentRepository";
+import { db } from "@/db/baseDatabase";
 
 export const useLocalChangeStore = defineStore("localChanges", () => {
     const localChangesRepository = new LocalChangesRepository();
-    const docRepository = new DocumentRepository();
 
     const unsyncedChanges: Readonly<Ref<LocalChange[] | undefined>> = useObservable(
         liveQuery(async () => localChangesRepository.getUnsynced()) as unknown as Observable<
@@ -58,11 +57,11 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
         if (ack.ack == AckStatus.Rejected) {
             if (ack.doc) {
                 // Replace our local copy with the provided database version
-                docRepository.update(ack.doc);
+                await db.docs.update(ack.doc._id, ack.doc);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
                 const docId = await localChangesRepository.getDocId(ack.reqId);
-                docRepository.delete(docId);
+                await db.docs.delete(docId);
             }
         }
 

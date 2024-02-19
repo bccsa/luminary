@@ -26,6 +26,7 @@ export class PostRepository extends BaseRepository {
 
         const content: ContentDto = {
             _id: contentId,
+            updatedTimeUtc: Date.now(),
             type: DocType.Content,
             status: ContentStatus.Draft,
             language: dto.language._id,
@@ -36,6 +37,7 @@ export class PostRepository extends BaseRepository {
 
         const post: PostDto = {
             _id: postId,
+            updatedTimeUtc: Date.now(),
             type: DocType.Post,
             image: dto.image,
             content: [contentId],
