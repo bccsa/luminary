@@ -150,7 +150,7 @@ export async function validateChangeRequest(
 
     // Validate tag assign access
     // ============================
-    if (doc.tags) {
+    if (doc.tags && doc.tags.length > 0) {
         // Get tag documents from database
         const tagDocs: MangoResponse<unknown> = await dbService.getDocs(doc.tags, [DocType.Tag]);
 
