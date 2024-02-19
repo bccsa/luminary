@@ -122,8 +122,9 @@ export enum LocalChangeStatus {
 }
 
 export type LocalChange = {
+    id?: number;
     reqId: Uuid;
     docId: Uuid;
-    status: LocalChangeStatus.Unsynced;
+    status: LocalChangeStatus;
     doc: object;
 };

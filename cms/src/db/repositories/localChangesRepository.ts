@@ -6,11 +6,11 @@ export class LocalChangesRepository {
         return db.localChanges.where("status").equals(LocalChangeStatus.Unsynced).toArray();
     }
 
-    async getDocId(reqId: Uuid) {
-        return (await db.localChanges.where("reqId").equals(reqId).first())?.docId as Uuid;
+    get(reqId: Uuid) {
+        return db.localChanges.where("reqId").equals(reqId).first();
     }
 
-    update(change: LocalChange, update: object) {
+    update(change: LocalChange, update: Partial<LocalChange>) {
         return db.localChanges.update(change, update);
     }
 

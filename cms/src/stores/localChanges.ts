@@ -60,8 +60,11 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
                 await db.docs.update(ack.doc._id, ack.doc);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
-                const docId = await localChangesRepository.getDocId(ack.reqId);
-                await db.docs.delete(docId);
+                const docId = (await localChangesRepository.get(ack.reqId))?.docId;
+
+                if (docId) {
+                    await db.docs.delete(docId);
+                }
             }
         }
 
