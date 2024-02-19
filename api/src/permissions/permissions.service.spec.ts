@@ -649,6 +649,29 @@ describe("PermissionService", () => {
         });
 
         describe("Tag assign access", () => {
+            it("can accept a document with no tags", async () => {
+                const testChangeReq_noTags = plainToClass(ChangeReqDto, {
+                    reqId: "test change request",
+                    type: DocType.ChangeReq,
+                    doc: {
+                        _id: "post-post2",
+                        type: "post",
+                        memberOf: ["group-private-content"],
+                        content: ["content-post2-eng", "content-post2-fra"],
+                        image: "",
+                        tags: [],
+                    },
+                });
+
+                const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
+                const res = await PermissionSystem.validateChangeRequest(
+                    testChangeReq_noTags,
+                    accessMap,
+                    db,
+                );
+                expect(res.validated).toBe(true);
+            });
+
             it("can validate: No 'Assign' access to one or more tags", async () => {
                 // Remove tag assign access from the group
                 PermissionSystem.upsertGroups([

@@ -83,7 +83,7 @@ export class Socketio {
         socket.data.user = "super-admin";
         socket.data.groups = ["group-super-admins"];
 
-        // Validate received data
+        // Validate received data transfer object
         const message = await validateChangeReq(data);
         if (message) {
             this.emitAck(socket, AckStatus.Rejected, data.reqId, message);
