@@ -30,6 +30,7 @@ export class PostRepository extends BaseRepository {
             status: ContentStatus.Draft,
             language: dto.language._id,
             title: dto.title,
+            slug: `slug-${dto.title}`, // TODO create actual slug from title
             memberOf: ["group-private-content"], // TODO set right group
         };
 

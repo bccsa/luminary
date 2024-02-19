@@ -21,10 +21,10 @@ export type ContentDto = ContentBaseDto & {
     language: Uuid;
     status: string;
     title: string;
+    slug: string;
     publishDate?: number;
     expiryDate?: number;
     localisedImage?: Uuid;
-    slug?: string;
     audio?: Uuid;
     video?: Uuid;
     author?: string;

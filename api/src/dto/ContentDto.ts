@@ -1,6 +1,9 @@
-import { IsDate, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
 import { PublishStatus, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
+import { IsOptionalIf } from "../validation/IsOptionalIf";
+
+const JANUARY_FIRST_2024_TIMESTAMP = 1704114000000;
 
 /**
  * Database structured Content object
@@ -14,50 +17,45 @@ export class ContentDto extends _contentBaseDto {
     @IsEnum(PublishStatus)
     status: PublishStatus;
 
+    @IsNotEmpty()
     @IsString()
-    // TODO required if status set to published
-    @IsOptional()
     slug: string;
 
-    @IsString()
     @IsNotEmpty()
+    @IsString()
     title: string;
 
+    @IsOptionalIf((c: ContentDto) => c.status === PublishStatus.Draft)
     @IsString()
-    // TODO required if status set to published
-    @IsOptional()
     summary: string;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     author: string;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     text: string;
 
-    // @IsString()
-    // @IsOptional()
-    // seo: string;
-
-    @IsString()
     @IsOptional()
+    @IsString()
     localisedImage?: Uuid;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     audio?: Uuid;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     video?: Uuid;
 
-    @IsDate()
-    @IsOptional()
+    @IsOptionalIf((c: ContentDto) => c.status === PublishStatus.Draft)
+    @IsNumber()
+    @Min(JANUARY_FIRST_2024_TIMESTAMP)
     publishDate: number;
 
-    @IsDate()
-    // TODO required if status set to published
     @IsOptional()
+    @IsNumber()
+    @Min(JANUARY_FIRST_2024_TIMESTAMP)
     expiryDate?: number;
 }
