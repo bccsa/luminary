@@ -54,9 +54,9 @@ describe("postRepository", () => {
 
         const localChanges = await db.localChanges.toArray();
         expect(localChanges.length).toBe(2);
-        expect(localChanges[0].docId).toEqual(content._id);
-        expect(localChanges[0].doc).toEqual(content);
-        expect(localChanges[1].docId).toEqual(post._id);
-        expect(localChanges[1].doc).toEqual(post);
+        expect(localChanges[0].docId).toEqual(post._id);
+        expect(localChanges[0].doc).toEqual(post);
+        expect(localChanges[1].docId).toEqual(content._id);
+        expect(localChanges[1].doc).toEqual(content);
     });
 });

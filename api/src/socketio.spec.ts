@@ -88,13 +88,18 @@ describe("Socketio", () => {
                 client.emit("data", {
                     reqId: "test change request",
                     type: "changeReq",
-                    doc: {
-                        _id: "lang-eng",
-                        type: "language",
-                        memberOf: ["group-languages"],
-                        languageCode: "eng",
-                        name: "English",
-                    },
+                    changes: [
+                        {
+                            id: 1,
+                            doc: {
+                                _id: "lang-eng",
+                                type: "language",
+                                memberOf: ["group-languages"],
+                                languageCode: "eng",
+                                name: "English",
+                            },
+                        },
+                    ],
                 });
             });
         }
@@ -102,6 +107,7 @@ describe("Socketio", () => {
         const res: any = await testSocket();
         expect(res.reqId).toBe("test change request");
         expect(res.type).toBe("changeReqAck");
+        expect(res.message).toBe(undefined);
         expect(res.ack).toBe("accepted");
     });
 

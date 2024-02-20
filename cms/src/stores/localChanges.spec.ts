@@ -69,7 +69,12 @@ describe("localChanges store", () => {
             expect(socketMock.emit).toHaveBeenCalledWith("data", {
                 reqId: mockLocalChange1.reqId,
                 type: "changeReq",
-                doc: mockLocalChange1.doc,
+                changes: [
+                    {
+                        id: 1,
+                        doc: mockLocalChange1.doc,
+                    },
+                ],
             });
         });
     });

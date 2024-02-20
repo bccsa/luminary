@@ -1,31 +1,45 @@
-import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { AccessMap } from "./AccessMap";
+import { ChangeReqDto, ChangeReqItemDto } from "../dto/ChangeReqDto";
+import { AccessMap } from "../permissions/AccessMap";
 import { DbService } from "../db/db.service";
 import { DocType, AclPermission, PublishStatus } from "../enums";
 import { LanguageDto } from "../dto/LanguageDto";
 import { plainToInstance } from "class-transformer";
 import { MangoResponse } from "nano";
+import { ValidationResult } from "./ValidationResult";
 
-export type ValidationResult = {
-    validated: boolean;
-    error?: string;
-};
+export async function validateChangeRequestAccess(
+    changeReq: ChangeReqDto,
+    accessMap: AccessMap,
+    dbService: DbService,
+) {
+    for (const change of changeReq.changes) {
+        const validationResult = await validateItemAccess(change, accessMap, dbService);
+
+        if (!validationResult.validated) {
+            return validationResult;
+        }
+    }
+
+    return {
+        validated: true,
+    };
+}
 
 /**
  * Validate a change request against a user's access map
- * @param changeReq Change Request document
+ * @param change Change Request document
  * @param accessMap Access map to validate change request against
  * @param dbService Database connection instance
  */
-export async function validateChangeRequest(
-    changeReq: ChangeReqDto,
+async function validateItemAccess(
+    change: ChangeReqItemDto,
     accessMap: AccessMap,
     dbService: DbService,
 ): Promise<ValidationResult> {
     // To save changes to a document / create a new document, a user needs to have the required permission
     // (e.g. edit, translate, assign) to all of the groups of which the document is a member of.
 
-    const doc = changeReq.doc;
+    const doc = change.doc;
     // Reject non-user editable document types
     if (
         doc.type === DocType.Change ||
