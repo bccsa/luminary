@@ -106,14 +106,14 @@ export const mockPost: Post = {
 export const mockLocalChange1: LocalChange = {
     id: 1,
     reqId: uuidv4(),
-    docId: uuidv4(),
+    docId: mockPost._id,
     status: LocalChangeStatus.Unsynced,
     doc: mockPost,
 };
 export const mockLocalChange2: LocalChange = {
     id: 2,
     reqId: uuidv4(),
-    docId: uuidv4(),
+    docId: mockContent._id,
     status: LocalChangeStatus.Unsynced,
     doc: mockContent,
 };
