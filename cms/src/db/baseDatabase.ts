@@ -3,7 +3,7 @@ import type { BaseDocumentDto, LocalChange } from "@/types";
 
 export class BaseDatabase extends Dexie {
     docs!: Table<BaseDocumentDto>;
-    localChanges!: Table<LocalChange>;
+    localChanges!: Table<Partial<LocalChange>>; // Partial because it includes id which is only set after saving
 
     constructor() {
         super("ac-db");
