@@ -25,7 +25,7 @@ describe("localChangesRepository", () => {
     it("can get a single document", async () => {
         const repository = new LocalChangesRepository();
 
-        const result = await repository.get(mockLocalChange1.reqId);
+        const result = await repository.get(mockLocalChange1.id);
 
         expect(result).toEqual(mockLocalChange1);
     });
@@ -36,7 +36,7 @@ describe("localChangesRepository", () => {
         await repository.update(mockLocalChange1, {
             status: LocalChangeStatus.Syncing,
         });
-        const result = await repository.get(mockLocalChange1.reqId);
+        const result = await repository.get(mockLocalChange1.id);
 
         expect(result).toEqual({
             ...mockLocalChange1,
@@ -47,8 +47,8 @@ describe("localChangesRepository", () => {
     it("can delete a document", async () => {
         const repository = new LocalChangesRepository();
 
-        await repository.delete(mockLocalChange1.reqId);
-        const result = await repository.get(mockLocalChange1.reqId);
+        await repository.delete(mockLocalChange1.id);
+        const result = await repository.get(mockLocalChange1.id);
 
         expect(result).toEqual(undefined);
     });

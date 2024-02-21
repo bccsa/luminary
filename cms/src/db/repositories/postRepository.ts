@@ -49,19 +49,12 @@ export class PostRepository extends BaseRepository {
         await db.docs.put(post);
 
         // Save change, which will be sent to the API later
-
-        const reqId = uuidv4();
-
         db.localChanges.put({
             status: LocalChangeStatus.Unsynced,
-            reqId,
-            docId: postId,
             doc: post,
         });
         return db.localChanges.put({
             status: LocalChangeStatus.Unsynced,
-            reqId,
-            docId: contentId,
             doc: content,
         });
     }

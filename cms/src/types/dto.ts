@@ -51,20 +51,13 @@ export type CreatePostDto = {
     title: string;
 };
 
-export type ChangeReqItemDto = {
+export type ChangeReqDto = {
     id: number;
     doc: BaseDocumentDto;
 };
 
-export type ChangeReqDto = {
-    reqId: Uuid;
-    type: DocType.ChangeReq;
-    changes: ChangeReqItemDto[];
-};
-
 export type ChangeReqAckDto = {
-    reqId: Uuid;
-    type: DocType.ChangeReqAck;
+    id: number;
     ack: AckStatus;
     message?: string;
     doc?: BaseDocumentDto;

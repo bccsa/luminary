@@ -1,9 +1,7 @@
-import type { Uuid } from ".";
+import type { BaseDocumentDto, Uuid } from ".";
 
 export enum DocType {
     Change = "change",
-    ChangeReq = "changeReq",
-    ChangeReqAck = "changeReqAck",
     Content = "content",
     Group = "group",
     Language = "language",
@@ -122,9 +120,7 @@ export enum LocalChangeStatus {
 }
 
 export type LocalChange = {
-    id?: number;
-    reqId: Uuid;
-    docId: Uuid;
+    id: number;
     status: LocalChangeStatus;
-    doc: object;
+    doc: BaseDocumentDto;
 };

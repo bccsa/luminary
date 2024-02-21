@@ -9,12 +9,12 @@ import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
-import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
+import { DocType, AclPermission, AckStatus } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket } from "socket.io-client";
 import { validateChangeRequest } from "./changeRequests/validateChangeRequest";
-import { validateChangeRequestItemAccess } from "./changeRequests/validateChangeRequestAccess";
+import { ChangeReqDto } from "./dto/ChangeReqDto";
 
 type ClientDataReq = {
     version?: number;
@@ -84,40 +84,39 @@ export class Socketio {
      * @param socket
      */
     @SubscribeMessage("data")
-    async onClientData(@MessageBody() data: any, @ConnectedSocket() socket: Socket) {
+    async onClientData(@MessageBody() data: any[], @ConnectedSocket() socket: Socket) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         // const user = "super-admin";
         const groups = ["group-super-admins"];
 
         // Get user accessible groups and validate change request
         const userAccessMap = PermissionSystem.getAccessMap(groups);
-        const validationResult = await validateChangeRequest(data);
 
-        if (!validationResult.validated) {
-            this.emitAck(socket, AckStatus.Rejected, data.reqId, validationResult.error);
-            return;
-        }
+        const sortedChangeRequests = data.sort((a, b) => {
+            return a.id - b.id;
+        });
 
-        for (const change of data.changes) {
-            const accessValidationResult = await validateChangeRequestItemAccess(
-                change,
+        // Process each change request individually
+        for (const changeRequest of sortedChangeRequests) {
+            const validationResult = await validateChangeRequest(
+                changeRequest,
                 userAccessMap,
                 this.db,
             );
 
-            if (!accessValidationResult.validated) {
-                this.emitAck(socket, AckStatus.Rejected, data.reqId, accessValidationResult.error);
+            if (!validationResult.validated) {
+                this.emitAck(socket, AckStatus.Rejected, changeRequest, validationResult.error);
                 return;
             }
 
-            this.db
-                .upsertDoc(change.doc)
+            await this.db
+                .upsertDoc(changeRequest.doc)
                 // Send acknowledgement to client
                 .then(() => {
-                    this.emitAck(socket, AckStatus.Accepted, data.reqId);
+                    this.emitAck(socket, AckStatus.Accepted, changeRequest);
                 })
                 .catch((err) => {
-                    this.emitAck(socket, AckStatus.Rejected, data.reqId, err.message);
+                    this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
                 });
         }
     }
@@ -133,27 +132,20 @@ export class Socketio {
     private emitAck(
         socket: Socket,
         status: AckStatus,
-        reqId?: Uuid,
+        changeRequest: ChangeReqDto,
         message?: string,
-        docId?: Uuid,
     ) {
         const ack: ChangeReqAckDto = {
-            reqId: reqId,
-            type: DocType.ChangeReqAck,
+            id: changeRequest.id,
             ack: status,
         };
 
-        if (message && ack.ack == AckStatus.Rejected) {
+        if (message && status == AckStatus.Rejected) {
             ack.message = message;
         }
 
-        if (!reqId) {
-            ack.ack = AckStatus.Rejected;
-            ack.message = "Invalid document ID. Unable to process change request.";
-        }
-
-        if (docId) {
-            this.db.getDoc(docId).then((doc) => {
+        if (changeRequest.doc && status == AckStatus.Rejected) {
+            this.db.getDoc(changeRequest.doc._id).then((doc) => {
                 if (doc) {
                     ack.doc = doc;
                 }

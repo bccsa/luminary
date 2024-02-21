@@ -104,16 +104,12 @@ export const mockPost: Post = {
 };
 
 export const mockLocalChange1: LocalChange = {
-    id: 1,
-    reqId: uuidv4(),
-    docId: mockPost._id,
+    id: 42,
     status: LocalChangeStatus.Unsynced,
     doc: mockPost,
 };
 export const mockLocalChange2: LocalChange = {
-    id: 2,
-    reqId: uuidv4(),
-    docId: mockContent._id,
+    id: 43,
     status: LocalChangeStatus.Unsynced,
     doc: mockContent,
 };

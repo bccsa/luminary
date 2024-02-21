@@ -28,10 +28,71 @@ describe("validateChangeRequestAccess", () => {
     });
 
     const testChangeReq_group = plainToClass(ChangeReqDto, {
-        reqId: "test change request",
-        type: DocType.ChangeReq,
-        changes: [
-            {
+        id: 1,
+
+        doc: {
+            _id: "group-languages",
+            type: "group",
+            name: "Languages",
+            acl: [
+                {
+                    type: "language",
+                    groupId: "group-public-content",
+                    permission: ["view"],
+                },
+                {
+                    type: "language",
+                    groupId: "group-private-content",
+                    permission: ["view"],
+                },
+                {
+                    type: "language",
+                    groupId: "group-public-editors",
+                    permission: ["view", "translate"],
+                },
+                {
+                    type: "language",
+                    groupId: "group-private-editors",
+                    permission: ["view", "translate"],
+                },
+            ],
+        },
+    });
+
+    describe("Invalid documents", () => {
+        it("can reject a Change document", async () => {
+            const testChangeReq_change = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "change-123",
+                    type: "change",
+                    name: "Change 123",
+                },
+            });
+
+            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
+            const res = await validateChangeRequestAccess(testChangeReq_change, accessMap, db);
+            expect(res.error).toBe(
+                "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
+            );
+        });
+    });
+
+    describe("Group documents", () => {
+        it("higher level group with edit access can pass validation", async () => {
+            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
+            const res = await validateChangeRequestAccess(testChangeReq_group, accessMap, db);
+            expect(res.validated).toBe(true);
+        });
+
+        it("group with no access can NOT pass validation ", async () => {
+            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
+            const res = await validateChangeRequestAccess(testChangeReq_group, accessMap, db);
+            expect(res.error).toBe("No access to 'Edit' document type 'Group'");
+        });
+
+        it("can not assign a group to another group's ACL without 'Assign' access to the second group", async () => {
+            const testChangeReq_groupAcl = plainToClass(ChangeReqDto, {
                 id: 1,
                 doc: {
                     _id: "group-languages",
@@ -55,139 +116,11 @@ describe("validateChangeRequestAccess", () => {
                         },
                         {
                             type: "language",
-                            groupId: "group-private-editors",
+                            groupId: "invalid-group",
                             permission: ["view", "translate"],
                         },
                     ],
                 },
-            },
-        ],
-    });
-
-    describe("Invalid documents", () => {
-        it("can reject a Change document", async () => {
-            const testChangeReq_change = plainToClass(ChangeReqDto, {
-                reqId: "test change request",
-                type: DocType.ChangeReq,
-                changes: [
-                    {
-                        id: 1,
-                        doc: {
-                            _id: "change-123",
-                            type: "change",
-                            name: "Change 123",
-                        },
-                    },
-                ],
-            });
-
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = await validateChangeRequestAccess(testChangeReq_change, accessMap, db);
-            expect(res.error).toBe(
-                "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
-            );
-        });
-
-        it("can reject a ChangeReq document", async () => {
-            const testChangeReq_changeReq = plainToClass(ChangeReqDto, {
-                reqId: "test change request",
-                type: DocType.ChangeReq,
-                changes: [
-                    {
-                        id: 1,
-                        doc: {
-                            _id: "change-req-123",
-                            type: "changeReq",
-                            name: "Change Request 123",
-                        },
-                    },
-                ],
-            });
-
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = await validateChangeRequestAccess(testChangeReq_changeReq, accessMap, db);
-            expect(res.error).toBe(
-                "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
-            );
-        });
-
-        it("can reject a ChangeReqAck document", async () => {
-            const testChangeReq_changeReqAck = plainToClass(ChangeReqDto, {
-                reqId: "test change request",
-                type: DocType.ChangeReq,
-                changes: [
-                    {
-                        id: 1,
-                        doc: {
-                            _id: "change-req-ack-123",
-                            type: "changeReqAck",
-                            name: "Change Request Acknowledgement 123",
-                        },
-                    },
-                ],
-            });
-
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = await validateChangeRequestAccess(
-                testChangeReq_changeReqAck,
-                accessMap,
-                db,
-            );
-            expect(res.error).toBe(
-                "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
-            );
-        });
-    });
-
-    describe("Group documents", () => {
-        it("higher level group with edit access can pass validation", async () => {
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = await validateChangeRequestAccess(testChangeReq_group, accessMap, db);
-            expect(res.validated).toBe(true);
-        });
-
-        it("group with no access can NOT pass validation ", async () => {
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_group, accessMap, db);
-            expect(res.error).toBe("No access to 'Edit' document type 'Group'");
-        });
-
-        it("can not assign a group to another group's ACL without 'Assign' access to the second group", async () => {
-            const testChangeReq_groupAcl = plainToClass(ChangeReqDto, {
-                reqId: "test change request",
-                type: DocType.ChangeReq,
-                changes: [
-                    {
-                        id: 1,
-                        doc: {
-                            _id: "group-languages",
-                            type: "group",
-                            name: "Languages",
-                            acl: [
-                                {
-                                    type: "language",
-                                    groupId: "group-public-content",
-                                    permission: ["view"],
-                                },
-                                {
-                                    type: "language",
-                                    groupId: "group-private-content",
-                                    permission: ["view"],
-                                },
-                                {
-                                    type: "language",
-                                    groupId: "group-public-editors",
-                                    permission: ["view", "translate"],
-                                },
-                                {
-                                    type: "language",
-                                    groupId: "invalid-group",
-                                    permission: ["view", "translate"],
-                                },
-                            ],
-                        },
-                    },
-                ],
             });
 
             const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
@@ -198,31 +131,25 @@ describe("validateChangeRequestAccess", () => {
 
     describe("Content documents", () => {
         const testChangeReq_Content = plainToClass(ChangeReqDto, {
-            reqId: "test change request",
-            type: DocType.ChangeReq,
-            changes: [
-                {
-                    id: 1,
-                    doc: {
-                        _id: "content-post2-eng",
-                        type: "content",
-                        memberOf: ["group-private-content"],
-                        language: "lang-eng",
-                        status: "published",
-                        slug: "post2-eng",
-                        title: "Post 2",
-                        summary: "This is an example post",
-                        author: "ChatGPT",
-                        text: "When young Oliver moved from the bustling city to a quiet town in a distant country, he felt lost and lonely. The language was different, the streets unfamiliar, and the faces foreign. However, fate had a heartwarming surprise in store for him. One sunny afternoon, while exploring the cobblestone lanes, Oliver spotted a group of kids playing soccer in a makeshift field. Hesitant but eager for connection, he approached them.\n\nTo his delight, a boy named Luca greeted him with a warm smile, effortlessly bridging the gap between their worlds. Though their languages differed, the universal joy of childhood transcended any barriers. Luca became Oliver's guide to the town, showing him secret hideouts, sharing local treats, and teaching him phrases in their shared laughter-filled language.\n\nIn the simplicity of friendship, Oliver found a new home. Together, they navigated the charming town, creating memories that painted the canvas of Oliver's new life. The small town, once foreign, now echoed with the laughter of two friends who proved that no matter where you are, the warmth of companionship can turn unfamiliarity into the sweet melody of belonging.",
-                        seo: "",
-                        localisedImage: "",
-                        audio: "",
-                        video: "",
-                        publishDate: 3,
-                        expiryDate: 0,
-                    },
-                },
-            ],
+            id: 1,
+            doc: {
+                _id: "content-post2-eng",
+                type: "content",
+                memberOf: ["group-private-content"],
+                language: "lang-eng",
+                status: "published",
+                slug: "post2-eng",
+                title: "Post 2",
+                summary: "This is an example post",
+                author: "ChatGPT",
+                text: "When young Oliver moved from the bustling city to a quiet town in a distant country, he felt lost and lonely. The language was different, the streets unfamiliar, and the faces foreign. However, fate had a heartwarming surprise in store for him. One sunny afternoon, while exploring the cobblestone lanes, Oliver spotted a group of kids playing soccer in a makeshift field. Hesitant but eager for connection, he approached them.\n\nTo his delight, a boy named Luca greeted him with a warm smile, effortlessly bridging the gap between their worlds. Though their languages differed, the universal joy of childhood transcended any barriers. Luca became Oliver's guide to the town, showing him secret hideouts, sharing local treats, and teaching him phrases in their shared laughter-filled language.\n\nIn the simplicity of friendship, Oliver found a new home. Together, they navigated the charming town, creating memories that painted the canvas of Oliver's new life. The small town, once foreign, now echoed with the laughter of two friends who proved that no matter where you are, the warmth of companionship can turn unfamiliarity into the sweet melody of belonging.",
+                seo: "",
+                localisedImage: "",
+                audio: "",
+                video: "",
+                publishDate: 3,
+                expiryDate: 0,
+            },
         });
 
         it("can validate: general test should pass all validations", async () => {
@@ -340,21 +267,15 @@ describe("validateChangeRequestAccess", () => {
 
     describe("Generic documents", () => {
         const testChangeReq_Post = plainToClass(ChangeReqDto, {
-            reqId: "test change request",
-            type: DocType.ChangeReq,
-            changes: [
-                {
-                    id: 1,
-                    doc: {
-                        _id: "post-post2",
-                        type: "post",
-                        memberOf: ["group-private-content"],
-                        content: ["content-post2-eng", "content-post2-fra"],
-                        image: "",
-                        tags: ["tag-category2", "tag-topicB"],
-                    },
-                },
-            ],
+            id: 1,
+            doc: {
+                _id: "post-post2",
+                type: "post",
+                memberOf: ["group-private-content"],
+                content: ["content-post2-eng", "content-post2-fra"],
+                image: "",
+                tags: ["tag-category2", "tag-topicB"],
+            },
         });
 
         it("can validate: general test should pass all validations", async () => {
@@ -371,21 +292,15 @@ describe("validateChangeRequestAccess", () => {
 
         it("can reject a document without group membership", async () => {
             const testChangeReq_noGroup = plainToClass(ChangeReqDto, {
-                reqId: "test change request",
-                type: DocType.ChangeReq,
-                changes: [
-                    {
-                        id: 1,
-                        doc: {
-                            _id: "post-post2",
-                            type: "post",
-                            memberOf: [],
-                            content: ["content-post2-eng", "content-post2-fra"],
-                            image: "",
-                            tags: ["tag-category2", "tag-topicB"],
-                        },
-                    },
-                ],
+                id: 1,
+                doc: {
+                    _id: "post-post2",
+                    type: "post",
+                    memberOf: [],
+                    content: ["content-post2-eng", "content-post2-fra"],
+                    image: "",
+                    tags: ["tag-category2", "tag-topicB"],
+                },
             });
 
             const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
@@ -399,21 +314,15 @@ describe("validateChangeRequestAccess", () => {
     describe("Tag assign access", () => {
         it("can accept a document with no tags", async () => {
             const testChangeReq_noTags = plainToClass(ChangeReqDto, {
-                reqId: "test change request",
-                type: DocType.ChangeReq,
-                changes: [
-                    {
-                        id: 1,
-                        doc: {
-                            _id: "post-post2",
-                            type: "post",
-                            memberOf: ["group-private-content"],
-                            content: ["content-post2-eng", "content-post2-fra"],
-                            image: "",
-                            tags: [],
-                        },
-                    },
-                ],
+                id: 1,
+                doc: {
+                    _id: "post-post2",
+                    type: "post",
+                    memberOf: ["group-private-content"],
+                    content: ["content-post2-eng", "content-post2-fra"],
+                    image: "",
+                    tags: [],
+                },
             });
 
             const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
@@ -459,21 +368,15 @@ describe("validateChangeRequestAccess", () => {
             ]);
 
             const testChangeReq_Tag = plainToClass(ChangeReqDto, {
-                reqId: "test change request",
-                type: DocType.ChangeReq,
-                changes: [
-                    {
-                        id: 1,
-                        doc: {
-                            _id: "post-post2",
-                            type: "post",
-                            memberOf: ["group-private-content"],
-                            content: ["content-post2-eng", "content-post2-fra"],
-                            image: "",
-                            tags: ["tag-category2", "tag-topicB"],
-                        },
-                    },
-                ],
+                id: 1,
+                doc: {
+                    _id: "post-post2",
+                    type: "post",
+                    memberOf: ["group-private-content"],
+                    content: ["content-post2-eng", "content-post2-fra"],
+                    image: "",
+                    tags: ["tag-category2", "tag-topicB"],
+                },
             });
 
             const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);

@@ -6,19 +6,15 @@ import {
     type LocalChange,
     type ChangeReqDto,
     type ChangeReqAckDto,
-    type Uuid,
-    type ChangeReqItemDto,
 } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
-import { watch, type Ref, computed } from "vue";
+import { watch, type Ref } from "vue";
 import { LocalChangesRepository } from "@/db/repositories/localChangesRepository";
 import type { Observable } from "rxjs";
 import { useSocketConnectionStore } from "./socketConnection";
 import { socket } from "@/socket";
 import { db } from "@/db/baseDatabase";
-
-type LocalChangeCollection = { [key: Uuid]: LocalChange[] };
 
 export const useLocalChangeStore = defineStore("localChanges", () => {
     const localChangesRepository = new LocalChangesRepository();
@@ -29,54 +25,24 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
         >,
     );
 
-    const unsyncedChangesByReqId = computed(() => {
-        if (!unsyncedChanges) {
-            return {};
-        }
-
-        return unsyncedChanges.value!.reduce((returnObject: LocalChangeCollection, change) => {
-            returnObject[change.reqId] = returnObject[change.reqId] || [];
-
-            returnObject[change.reqId].push(change);
-
-            return returnObject;
-        }, {});
-    });
-
     const watchForSyncableChanges = () => {
         const { isConnected } = storeToRefs(useSocketConnectionStore());
 
         watch([isConnected, unsyncedChanges], async ([isConnected, localChanges]) => {
             if (isConnected && localChanges && localChanges.length > 0) {
-                await syncLocalChangesToApi(unsyncedChangesByReqId.value);
+                await syncLocalChangesToApi(localChanges);
             }
         });
     };
 
-    const syncLocalChangesToApi = async (localChanges: LocalChangeCollection) => {
-        await Object.keys(localChanges).forEach(async (reqId) => {
-            const changesToSubmit = localChanges[reqId];
-
-            changesToSubmit.forEach(async (change) => {
-                await localChangesRepository.update(change, {
-                    status: LocalChangeStatus.Syncing,
-                });
+    const syncLocalChangesToApi = async (localChanges: LocalChange[]) => {
+        localChanges.forEach(async (change) => {
+            await localChangesRepository.update(change, {
+                status: LocalChangeStatus.Syncing,
             });
-
-            const changeReq: ChangeReqDto = {
-                reqId,
-                type: DocType.ChangeReq,
-                changes: localChanges[reqId].map(
-                    (change) =>
-                        ({
-                            id: change.id,
-                            doc: change.doc,
-                        }) as ChangeReqItemDto,
-                ),
-            };
-
-            socket.emit("data", changeReq);
         });
+
+        socket.emit("data", localChanges);
     };
 
     const handleAck = async (ack: ChangeReqAckDto) => {
@@ -86,15 +52,15 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
                 await db.docs.update(ack.doc._id, ack.doc);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
-                const docId = (await localChangesRepository.get(ack.reqId))?.docId;
+                const change = await localChangesRepository.get(ack.id);
 
-                if (docId) {
-                    await db.docs.delete(docId);
+                if (change?.doc) {
+                    await db.docs.delete(change.doc._id);
                 }
             }
         }
 
-        await localChangesRepository.delete(ack.reqId);
+        await localChangesRepository.delete(ack.id);
     };
 
     return { watchForSyncableChanges, handleAck };

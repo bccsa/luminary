@@ -1,8 +1,6 @@
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { ChangeDto } from "../dto/ChangeDto";
-import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { ContentDto } from "../dto/ContentDto";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
@@ -12,14 +10,14 @@ import { TagDto } from "../dto/TagDto";
 import { UserDto } from "../dto/UserDto";
 import { DocType } from "../enums";
 import { ValidationResult } from "./ValidationResult";
+import { AccessMap } from "src/permissions/AccessMap";
+import { DbService } from "src/db/db.service";
+import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 
 /**
  * DocType to DTO map
  */
 const DocTypeMap = {
-    change: ChangeDto,
-    changeReq: ChangeReqDto,
-    changeReqAck: ChangeReqAckDto,
     content: ContentDto,
     group: GroupDto,
     groupAclEntry: GroupAclEntryDto,
@@ -33,41 +31,40 @@ const DocTypeMap = {
  * Validates a change request received as a "data" message received from a CMS / client
  * @param data
  */
-export async function validateChangeRequest(data: any): Promise<ValidationResult> {
-    const changeReq = plainToInstance(ChangeReqDto, data);
+export async function validateChangeRequest(
+    data: any,
+    accessMap: AccessMap,
+    dbService: DbService,
+): Promise<ValidationResult> {
+    const changeRequest = plainToInstance(ChangeReqDto, data);
 
     // Validate main change request document
     let message = "Change request validation failed for the following constraints:\n";
-    const validationResult = await dtoValidate(changeReq, message);
+    let validationResult = await dtoValidate(changeRequest, message);
 
     if (!validationResult.validated) {
         return validationResult;
     }
 
-    // Validate all individual changes
-    for (const change of changeReq.changes) {
-        // Check included document existance and type validity
-        if (!change.doc.type || !Object.values(DocType).includes(change.doc.type)) {
-            return {
-                validated: false,
-                error: `Submitted "${change.doc.type}" document validation failed:\nInvalid document type`,
-            };
-        }
-
-        // Check included document validity
-        const doc = plainToInstance(DocTypeMap[change.doc.type], change.doc);
-
-        message = `Submitted ${change.doc.type} document validation failed for the following constraints:\n`;
-        const validationResult = await dtoValidate(doc, message);
-
-        if (!validationResult.validated) {
-            return validationResult;
-        }
+    // Check included document existance and type validity
+    if (!changeRequest.doc.type || !Object.values(DocType).includes(changeRequest.doc.type)) {
+        return {
+            validated: false,
+            error: `Submitted "${changeRequest.doc.type}" document validation failed:\nInvalid document type`,
+        };
     }
 
-    return {
-        validated: true,
-    };
+    // Check included document validity
+    const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc);
+
+    message = `Submitted ${changeRequest.doc.type} document validation failed for the following constraints:\n`;
+    validationResult = await dtoValidate(doc, message);
+
+    if (!validationResult.validated) {
+        return validationResult;
+    }
+
+    return validateChangeRequestAccess(changeRequest, accessMap, dbService);
 }
 
 async function dtoValidate(data: any, message: string): Promise<ValidationResult> {

@@ -45,6 +45,7 @@ describe("postRepository", () => {
 
         await repository.create(createPostDto);
 
+        // Assert content and post were created in local database
         const content = (await db.docs.where("type").equals(DocType.Content).first()) as Content;
         expect(content.title).toBe("testTitle");
 
@@ -52,11 +53,10 @@ describe("postRepository", () => {
         expect(post.image).toBe("testImage");
         expect(post.content[0]).toBe(content._id);
 
+        // Assert content and post were logged in the localChanges table
         const localChanges = await db.localChanges.toArray();
         expect(localChanges.length).toBe(2);
-        expect(localChanges[0].docId).toEqual(post._id);
         expect(localChanges[0].doc).toEqual(post);
-        expect(localChanges[1].docId).toEqual(content._id);
         expect(localChanges[1].doc).toEqual(content);
     });
 });

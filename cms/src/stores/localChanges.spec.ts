@@ -65,31 +65,24 @@ describe("localChanges store", () => {
         await flushPromises();
 
         await waitForExpect(() => {
-            expect(socketMock.emit).toHaveBeenCalledTimes(2);
-            expect(socketMock.emit).toHaveBeenCalledWith("data", {
-                reqId: mockLocalChange1.reqId,
-                type: "changeReq",
-                changes: [
-                    {
-                        id: 1,
-                        doc: mockLocalChange1.doc,
-                    },
-                ],
-            });
+            expect(socketMock.emit).toHaveBeenCalledTimes(1);
+            expect(socketMock.emit).toHaveBeenCalledWith("data", [
+                { ...mockLocalChange1, status: LocalChangeStatus.Syncing },
+                { ...mockLocalChange2, status: LocalChangeStatus.Syncing },
+            ]);
         });
     });
 
     it("can handle an accepted ack from the API", async () => {
         const localChangesStore = useLocalChangeStore();
         const ack: ChangeReqAckDto = {
-            reqId: mockLocalChange1.reqId,
-            type: DocType.ChangeReqAck,
+            id: mockLocalChange1.id,
             ack: AckStatus.Accepted,
         };
 
         localChangesStore.handleAck(ack);
 
-        const change = await db.localChanges.where("reqId").equals(mockLocalChange1.reqId).first();
+        const change = await db.localChanges.where("id").equals(mockLocalChange1.id).first();
 
         expect(change).toBe(undefined);
     });
@@ -97,8 +90,7 @@ describe("localChanges store", () => {
     it("can handle a rejected ack with a doc", async () => {
         const localChangesStore = useLocalChangeStore();
         const ack: ChangeReqAckDto = {
-            reqId: mockLocalChange1.reqId,
-            type: DocType.ChangeReqAck,
+            id: mockLocalChange1.id,
             ack: AckStatus.Rejected,
             doc: {
                 ...mockLocalChange1.doc,
@@ -115,10 +107,7 @@ describe("localChanges store", () => {
                 .first()) as unknown as Post;
             expect(doc!.tags).toEqual(["updated-tag"]);
 
-            const change = await db.localChanges
-                .where("reqId")
-                .equals(mockLocalChange1.reqId)
-                .first();
+            const change = await db.localChanges.where("id").equals(mockLocalChange1.id).first();
             expect(change).toBe(undefined);
         });
     });
@@ -126,8 +115,7 @@ describe("localChanges store", () => {
     it("can handle a rejected ack without a doc", async () => {
         const localChangesStore = useLocalChangeStore();
         const ack: ChangeReqAckDto = {
-            reqId: mockLocalChange1.reqId,
-            type: DocType.ChangeReqAck,
+            id: mockLocalChange1.id,
             ack: AckStatus.Rejected,
         };
 
@@ -137,10 +125,7 @@ describe("localChanges store", () => {
             const doc = await db.docs.where("_id").equals(mockPost._id).first();
             expect(doc).toBe(undefined);
 
-            const change = await db.localChanges
-                .where("reqId")
-                .equals(mockLocalChange1.reqId)
-                .first();
+            const change = await db.localChanges.where("id").equals(mockLocalChange1.id).first();
             expect(change).toBe(undefined);
         });
     });
