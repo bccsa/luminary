@@ -84,10 +84,10 @@ const translationStatus = (content: Content | undefined) => {
                 v-model:sortDirection="sortDirection"
             >
                 <template #item.title="{ content }">
-                    {{ content[0].title }}
+                    {{ content.length > 0 ? content[0].title : "No translation" }}
                 </template>
                 <template #item.translations="{ content }">
-                    <div class="flex gap-2">
+                    <div class="flex gap-2" v-if="content.length > 0">
                         <AcBadge
                             v-for="language in languages"
                             :key="language.languageCode"
