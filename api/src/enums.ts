@@ -23,8 +23,6 @@ export enum DocType {
     Language = "language",
     Group = "group",
     Change = "change",
-    ChangeReq = "changeReq",
-    ChangeReqAck = "changeReqAck",
 }
 
 /**

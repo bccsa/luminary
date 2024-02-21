@@ -7,6 +7,7 @@ import { createTestingPinia } from "@pinia/testing";
 import LoadingSpinner from "./components/LoadingSpinner.vue";
 import { useSocketConnectionStore } from "./stores/socketConnection";
 import { setActivePinia } from "pinia";
+import { useLocalChangeStore } from "./stores/localChanges";
 
 vi.mock("@auth0/auth0-vue");
 
@@ -35,5 +36,13 @@ describe("App", () => {
         mount(App);
 
         expect(socketConnectionStore.bindEvents).toHaveBeenCalledOnce();
+    });
+
+    it("watches for syncable changes", () => {
+        const localChangeStore = useLocalChangeStore();
+
+        mount(App);
+
+        expect(localChangeStore.watchForSyncableChanges).toHaveBeenCalledOnce();
     });
 });

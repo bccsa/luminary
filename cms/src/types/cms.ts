@@ -1,8 +1,7 @@
-import type { Uuid } from ".";
+import type { BaseDocumentDto, Uuid } from ".";
 
 export enum DocType {
     Change = "change",
-    ChangeReq = "changeReq",
     Content = "content",
     Group = "group",
     Language = "language",
@@ -115,8 +114,13 @@ export type User = ContentBase & {
     email: string;
 };
 
+export enum LocalChangeStatus {
+    Unsynced = "unsynced",
+    Syncing = "syncing",
+}
+
 export type LocalChange = {
-    reqId: Uuid;
-    docId: Uuid;
-    doc: object;
+    id: number;
+    status: LocalChangeStatus;
+    doc: BaseDocumentDto;
 };

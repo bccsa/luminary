@@ -9,11 +9,17 @@ import { Server } from "socket.io";
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
-import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
+import { DocType, AclPermission, AckStatus } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
-import { validateChangeReq } from "./validation";
-import { ValidationResult } from "./permissions/validateChangeReq";
+import { Socket } from "socket.io-client";
+import { validateChangeRequest } from "./changeRequests/validateChangeRequest";
+import { ChangeReqDto } from "./dto/ChangeReqDto";
+
+type ClientDataReq = {
+    version?: number;
+    cms?: boolean;
+};
 
 @WebSocketGateway({
     cors: {
@@ -33,11 +39,11 @@ export class Socketio {
      * @param socket
      */
     @SubscribeMessage("clientDataReq")
-    onClientConnection(@MessageBody() reqData, @ConnectedSocket() socket: any) {
+    onClientConnection(@MessageBody() reqData: ClientDataReq, @ConnectedSocket() socket: Socket) {
         // TODO: Do type validation on reqData
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
-        socket.data.user = "user-private";
-        socket.data.groups = ["group-private-users"];
+        const user = "user-private";
+        const groups = ["group-private-users"];
 
         // Determine document types to be queried from database
         const docTypes: Array<DocType> = [
@@ -54,12 +60,12 @@ export class Socketio {
         if (reqData.version && typeof reqData.version === "number") from = reqData.version;
 
         // Get user accessible groups
-        const userAccessMap = PermissionSystem.getAccessMap(socket.data.groups);
+        const userAccessMap = PermissionSystem.getAccessMap(groups);
         const userAccess = userAccessMap.calculateAccess(docTypes, AclPermission.View);
 
         // Get data from database
         this.db
-            .getDocsPerGroup(socket.data.user, {
+            .getDocsPerGroup(user, {
                 groups: userAccess,
                 types: docTypes,
                 from: from,
@@ -78,67 +84,74 @@ export class Socketio {
      * @param socket
      */
     @SubscribeMessage("data")
-    async onClientData(@MessageBody() data: any, @ConnectedSocket() socket: any) {
+    async onClientData(@MessageBody() data: any[], @ConnectedSocket() socket: Socket) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
-        socket.data.user = "super-admin";
-        socket.data.groups = ["group-super-admins"];
-
-        // Validate received data
-        const message = await validateChangeReq(data);
-        if (message) {
-            this.emitAck(socket, AckStatus.Rejected, data.reqId, message);
-            return;
-        }
+        // const user = "super-admin";
+        const groups = ["group-super-admins"];
 
         // Get user accessible groups and validate change request
-        const userAccessMap = PermissionSystem.getAccessMap(socket.data.groups);
-        const permissionCheck: ValidationResult = await PermissionSystem.validateChangeRequest(
-            data,
-            userAccessMap,
-            this.db,
-        );
+        const userAccessMap = PermissionSystem.getAccessMap(groups);
 
-        if (!permissionCheck.validated) {
-            // If string not empty, permission check failed and return error message
-            this.emitAck(socket, AckStatus.Rejected, data.reqId, permissionCheck.error);
-            return;
+        const sortedChangeRequests = data.sort((a, b) => {
+            return a.id - b.id;
+        });
+
+        // Process each change request individually
+        for (const changeRequest of sortedChangeRequests) {
+            const validationResult = await validateChangeRequest(
+                changeRequest,
+                userAccessMap,
+                this.db,
+            );
+
+            if (!validationResult.validated) {
+                this.emitAck(socket, AckStatus.Rejected, changeRequest, validationResult.error);
+                return;
+            }
+
+            await this.db
+                .upsertDoc(changeRequest.doc)
+                // Send acknowledgement to client
+                .then(() => {
+                    this.emitAck(socket, AckStatus.Accepted, changeRequest);
+                })
+                .catch((err) => {
+                    this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
+                });
         }
-
-        // Process update document
-        this.db
-            // Update in database
-            .upsertDoc(data.doc)
-            // Send acknowledgement to client
-            .then(() => {
-                this.emitAck(socket, AckStatus.Accepted, data.reqId);
-            })
-            .catch((err) => {
-                this.emitAck(socket, AckStatus.Rejected, data.reqId, err.message);
-            });
     }
 
     /**
      * Emit an acknowledgement to a Change Request
      * @param socket - Socket.io connected client instance
-     * @param ack - Acknowleded status
+     * @param status - Acknowleded status
      * @param message - Error message
      * @param reqId - ID of submitted change request
+     * @param docId - ID of the submitted document
      */
-    private emitAck(socket: any, ack: AckStatus, reqId?: Uuid, message?: string) {
-        const _ack: ChangeReqAckDto = {
-            reqId: reqId,
-            type: DocType.ChangeReqAck,
-            ack: ack,
+    private emitAck(
+        socket: Socket,
+        status: AckStatus,
+        changeRequest: ChangeReqDto,
+        message?: string,
+    ) {
+        const ack: ChangeReqAckDto = {
+            id: changeRequest.id,
+            ack: status,
         };
 
-        if (message && _ack.ack == AckStatus.Rejected) {
-            _ack.message = message;
+        if (message && status == AckStatus.Rejected) {
+            ack.message = message;
         }
 
-        if (!reqId) {
-            _ack.ack = AckStatus.Rejected;
-            _ack.message = "Invalid document ID. Unable to process change request.";
+        if (changeRequest.doc && status == AckStatus.Rejected) {
+            this.db.getDoc(changeRequest.doc._id).then((doc) => {
+                if (doc) {
+                    ack.doc = doc;
+                }
+            });
         }
-        socket.emit("data", _ack);
+
+        socket.emit("data", ack);
     }
 }

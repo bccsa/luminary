@@ -2,7 +2,6 @@ import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
 import { AccessMap } from "./AccessMap";
-import { validateChangeRequest } from "./validateChangeReq";
 
 /**
  * Acl map entry used internally in Group objects
@@ -41,13 +40,6 @@ export class PermissionSystem {
      */
     public get id(): Uuid {
         return this._id;
-    }
-
-    /**
-     * Validate a change request against a user's access map
-     */
-    static get validateChangeRequest() {
-        return validateChangeRequest;
     }
 
     /**

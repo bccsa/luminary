@@ -71,7 +71,7 @@ describe("CreatePost", () => {
         await wrapper.find("form").trigger("submit.prevent");
 
         await flushPromises();
-        waitForExpect(() => {
+        await waitForExpect(() => {
             expect(postStore.createPost).toHaveBeenCalled();
             expect(routePushMock).toHaveBeenCalled();
         });
@@ -87,9 +87,9 @@ describe("CreatePost", () => {
         await wrapper.find("input[name='title']").setValue("");
 
         await flushPromises();
-        waitForExpect(() => {
-            expect(wrapper.text()).toContain("Image is required");
-            expect(wrapper.text()).toContain("Title is required");
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Image is a required field");
+            expect(wrapper.text()).toContain("Title is a required field");
         });
     });
 });

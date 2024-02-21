@@ -11,7 +11,7 @@
         "start:prod": "node dist/main",
         "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
         "lint:fix": "npm run lint -- --fix",
-        "test:unit": "npm run test",
+        "test:unit": "npm run test:watch",
         "test": "dotenv -e .env.test -- jest --forceExit",
         "test:watch": "dotenv -e .env.test -- jest --watch --forceExit",
         "test:detect": "dotenv -e .env.test -- jest --detectOpenHandles",

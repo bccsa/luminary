@@ -85,23 +85,24 @@ describe("Socketio", () => {
                 };
                 client.on("data", c);
 
-                client.emit("data", {
-                    reqId: "test change request",
-                    type: "changeReq",
-                    doc: {
-                        _id: "lang-eng",
-                        type: "language",
-                        memberOf: ["group-languages"],
-                        languageCode: "eng",
-                        name: "English",
+                client.emit("data", [
+                    {
+                        id: 42,
+                        doc: {
+                            _id: "lang-eng",
+                            type: "language",
+                            memberOf: ["group-languages"],
+                            languageCode: "eng",
+                            name: "English",
+                        },
                     },
-                });
+                ]);
             });
         }
 
         const res: any = await testSocket();
-        expect(res.reqId).toBe("test change request");
-        expect(res.type).toBe("changeReqAck");
+        expect(res.id).toBe(42);
+        expect(res.message).toBe(undefined);
         expect(res.ack).toBe("accepted");
     });
 
@@ -114,17 +115,17 @@ describe("Socketio", () => {
                 };
                 client.on("data", c);
 
-                client.emit("data", {
-                    reqId: "invalid change request",
-                    type: "changeReq",
-                    invalidProperty: {},
-                });
+                client.emit("data", [
+                    {
+                        id: 42,
+                        invalidProperty: {},
+                    },
+                ]);
             });
         }
 
         const res: any = await testSocket();
-        expect(res.reqId).toBe("invalid change request");
-        expect(res.type).toBe("changeReqAck");
+        expect(res.id).toBe(42);
         expect(res.ack).toBe("rejected");
     });
 
@@ -137,23 +138,23 @@ describe("Socketio", () => {
                 };
                 client.on("data", c);
 
-                client.emit("data", {
-                    reqId: "change request with invalid document type",
-                    type: "changeReq",
-                    doc: {
-                        _id: "lang-eng",
-                        type: "invalid document type",
-                        memberOf: ["group-languages"],
-                        languageCode: "eng",
-                        name: "English",
+                client.emit("data", [
+                    {
+                        id: 42,
+                        doc: {
+                            _id: "lang-eng",
+                            type: "invalid document type",
+                            memberOf: ["group-languages"],
+                            languageCode: "eng",
+                            name: "English",
+                        },
                     },
-                });
+                ]);
             });
         }
 
         const res: any = await testSocket();
-        expect(res.reqId).toBe("change request with invalid document type");
-        expect(res.type).toBe("changeReqAck");
+        expect(res.id).toBe(42);
         expect(res.ack).toBe("rejected");
     });
 
@@ -166,24 +167,24 @@ describe("Socketio", () => {
                 };
                 client.on("data", c);
 
-                client.emit("data", {
-                    reqId: "change request with invalid document data",
-                    type: "changeReq",
-                    doc: {
-                        _id: "lang-eng",
-                        type: "language",
-                        memberOf: "invalid data (should have been an array)",
-                        languageCode: "eng",
-                        name: "English",
+                client.emit("data", [
+                    {
+                        id: 42,
+                        doc: {
+                            _id: "lang-eng",
+                            type: "language",
+                            memberOf: "invalid data (should have been an array)",
+                            languageCode: "eng",
+                            name: "English",
+                        },
                     },
-                });
+                ]);
             });
         }
 
         const res: any = await testSocket();
 
-        expect(res.reqId).toBe("change request with invalid document data");
-        expect(res.type).toBe("changeReqAck");
+        expect(res.id).toBe(42);
         expect(res.ack).toBe("rejected");
     });
 
@@ -196,33 +197,33 @@ describe("Socketio", () => {
                 };
                 client.on("data", c);
 
-                client.emit("data", {
-                    reqId: "test-group",
-                    type: "changeReq",
-                    doc: {
-                        _id: "test-group",
-                        type: "group",
-                        name: "Test",
-                        acl: [
-                            {
-                                type: "language",
-                                groupId: "group-public-content",
-                                permission: ["view"],
-                            },
-                            {
-                                type: "invalid", // This field is modified to an invalid value
-                                groupId: "group-private-content",
-                                permission: ["view"],
-                            },
-                        ],
+                client.emit("data", [
+                    {
+                        id: 42,
+                        doc: {
+                            _id: "test-group",
+                            type: "group",
+                            name: "Test",
+                            acl: [
+                                {
+                                    type: "language",
+                                    groupId: "group-public-content",
+                                    permission: ["view"],
+                                },
+                                {
+                                    type: "invalid", // This field is modified to an invalid value
+                                    groupId: "group-private-content",
+                                    permission: ["view"],
+                                },
+                            ],
+                        },
                     },
-                });
+                ]);
             });
         }
 
         const res: any = await testSocket();
-        expect(res.reqId).toBe("test-group");
-        expect(res.type).toBe("changeReqAck");
+        expect(res.id).toBe(42);
         expect(res.ack).toBe("rejected");
     });
 
@@ -235,33 +236,33 @@ describe("Socketio", () => {
                 };
                 client.on("data", c);
 
-                client.emit("data", {
-                    reqId: "test-group",
-                    type: "changeReq",
-                    doc: {
-                        _id: "test-group",
-                        type: "group",
-                        name: "Test",
-                        acl: [
-                            {
-                                type: "language",
-                                groupId: "group-public-content",
-                                permission: ["view"],
-                            },
-                            {
-                                type: "language",
-                                groupId: "group-private-content",
-                                permission: ["view", "invalid"], // This field is modified to include an invalid value
-                            },
-                        ],
+                client.emit("data", [
+                    {
+                        id: 42,
+                        doc: {
+                            _id: "test-group",
+                            type: "group",
+                            name: "Test",
+                            acl: [
+                                {
+                                    type: "language",
+                                    groupId: "group-public-content",
+                                    permission: ["view"],
+                                },
+                                {
+                                    type: "language",
+                                    groupId: "group-private-content",
+                                    permission: ["view", "invalid"], // This field is modified to include an invalid value
+                                },
+                            ],
+                        },
                     },
-                });
+                ]);
             });
         }
 
         const res: any = await testSocket();
-        expect(res.reqId).toBe("test-group");
-        expect(res.type).toBe("changeReqAck");
+        expect(res.id).toBe(42);
         expect(res.ack).toBe("rejected");
     });
 });

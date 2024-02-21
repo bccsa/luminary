@@ -3,6 +3,8 @@ import { useSocketConnectionStore } from "./socketConnection";
 import { setActivePinia, createPinia } from "pinia";
 import { io } from "socket.io-client";
 import { mockEnglishContentDto, mockPostDto } from "@/tests/mockData";
+import { type ChangeReqAckDto, DocType, AckStatus } from "@/types";
+import { useLocalChangeStore } from "./localChanges";
 
 const socketMocks = vi.hoisted(() => {
     return {
@@ -32,6 +34,9 @@ function listenToSocketOnEvent(allowedEvent: string | string[], returnValue?: an
 const docsDb = vi.hoisted(() => {
     return {
         bulkPut: vi.fn(),
+        where: vi.fn().mockReturnThis(),
+        equals: vi.fn().mockReturnThis(),
+        delete: vi.fn().mockReturnThis(),
     };
 });
 
@@ -39,6 +44,7 @@ vi.mock("@/db/baseDatabase", () => {
     return {
         db: {
             docs: docsDb,
+            localChanges: docsDb,
         },
     };
 });
@@ -94,5 +100,22 @@ describe("socketConnection", () => {
         store.bindEvents();
 
         expect(docsDb.bulkPut).toHaveBeenCalledWith([mockPostDto, mockEnglishContentDto]);
+    });
+
+    it("handles acks for changes", () => {
+        const store = useSocketConnectionStore();
+        const localChangeStore = useLocalChangeStore();
+        const handleAckSpy = vi.spyOn(localChangeStore, "handleAck");
+
+        const ack: ChangeReqAckDto = {
+            id: 42,
+            ack: AckStatus.Accepted,
+        };
+
+        listenToSocketOnEvent("data", ack);
+
+        store.bindEvents();
+
+        expect(handleAckSpy).toHaveBeenCalledWith(ack);
     });
 });

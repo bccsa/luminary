@@ -1,40 +1,32 @@
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { AccessMap } from "./AccessMap";
+import { AccessMap } from "../permissions/AccessMap";
 import { DbService } from "../db/db.service";
 import { DocType, AclPermission, PublishStatus } from "../enums";
 import { LanguageDto } from "../dto/LanguageDto";
 import { plainToInstance } from "class-transformer";
 import { MangoResponse } from "nano";
-
-export type ValidationResult = {
-    validated: boolean;
-    error?: string;
-};
+import { ValidationResult } from "./ValidationResult";
 
 /**
  * Validate a change request against a user's access map
- * @param changeReq Change Request document
+ * @param changeRequest Change Request document
  * @param accessMap Access map to validate change request against
  * @param dbService Database connection instance
  */
-export async function validateChangeRequest(
-    changeReq: ChangeReqDto,
+export async function validateChangeRequestAccess(
+    changeRequest: ChangeReqDto,
     accessMap: AccessMap,
     dbService: DbService,
 ): Promise<ValidationResult> {
     // To save changes to a document / create a new document, a user needs to have the required permission
     // (e.g. edit, translate, assign) to all of the groups of which the document is a member of.
 
-    const doc = changeReq.doc;
+    const doc = changeRequest.doc;
     // Reject non-user editable document types
-    if (
-        doc.type === DocType.Change ||
-        doc.type === DocType.ChangeReq ||
-        doc.type === DocType.ChangeReqAck
-    ) {
+    if (doc.type === DocType.Change) {
         return {
             validated: false,
-            error: "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
+            error: "Invalid document type - cannot submit Change documents",
         };
     }
 
@@ -150,7 +142,7 @@ export async function validateChangeRequest(
 
     // Validate tag assign access
     // ============================
-    if (doc.tags) {
+    if (doc.tags && doc.tags.length > 0) {
         // Get tag documents from database
         const tagDocs: MangoResponse<unknown> = await dbService.getDocs(doc.tags, [DocType.Tag]);
 

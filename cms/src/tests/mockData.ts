@@ -6,7 +6,10 @@ import {
     ContentStatus,
     type Post,
     type Language,
+    type LocalChange,
+    LocalChangeStatus,
 } from "@/types";
+import { v4 as uuidv4 } from "uuid";
 
 export const mockPostDto: PostDto = {
     _id: "post-post1",
@@ -98,4 +101,15 @@ export const mockPost: Post = {
     memberOf: [],
     content: [mockContent],
     tags: [],
+};
+
+export const mockLocalChange1: LocalChange = {
+    id: 42,
+    status: LocalChangeStatus.Unsynced,
+    doc: mockPost,
+};
+export const mockLocalChange2: LocalChange = {
+    id: 43,
+    status: LocalChangeStatus.Unsynced,
+    doc: mockContent,
 };

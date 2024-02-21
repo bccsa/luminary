@@ -1,23 +1,11 @@
-import { DocType, Uuid, AckStatus } from "../enums";
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { AckStatus } from "../enums";
 
 /**
  * API acknowledgement to client after client submission of an ChangeReqDto document.
  */
 export class ChangeReqAckDto {
-    @IsNotEmpty()
-    @IsString()
-    reqId: Uuid; // Uuid of submitted ChangeReqDto to be acknowledged
-
-    @IsNotEmpty()
-    @IsEnum(DocType)
-    type: DocType;
-
-    @IsNotEmpty()
-    @IsEnum(AckStatus)
+    id: number; // Id of submitted ChangeReqDto to be acknowledged
     ack: AckStatus;
-
-    @IsString()
-    @IsOptional()
     message?: string; // Reject reason if applicable
+    doc?: any; // The current database version if the change is rejected
 }
