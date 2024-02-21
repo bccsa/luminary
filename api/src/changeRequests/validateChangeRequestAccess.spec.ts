@@ -71,9 +71,7 @@ describe("validateChangeRequestAccess", () => {
 
             const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
             const res = await validateChangeRequestAccess(testChangeReq_change, accessMap, db);
-            expect(res.error).toBe(
-                "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
-            );
+            expect(res.error).toBe("Invalid document type - cannot submit Change documents");
         });
     });
 

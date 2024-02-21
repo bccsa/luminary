@@ -26,7 +26,7 @@ export async function validateChangeRequestAccess(
     if (doc.type === DocType.Change) {
         return {
             validated: false,
-            error: "Invalid document type - cannot submit Change, ChangeReq or ChangeReqAck documents",
+            error: "Invalid document type - cannot submit Change documents",
         };
     }
 
