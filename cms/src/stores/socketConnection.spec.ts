@@ -108,8 +108,7 @@ describe("socketConnection", () => {
         const handleAckSpy = vi.spyOn(localChangeStore, "handleAck");
 
         const ack: ChangeReqAckDto = {
-            reqId: "72ef3cd1-96b0-4a2e-afdd-f93214161e70",
-            type: DocType.ChangeReqAck,
+            id: 42,
             ack: AckStatus.Accepted,
         };
 

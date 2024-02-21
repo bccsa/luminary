@@ -1,7 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "../db/db.service";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { DocType } from "../enums";
 import { plainToClass } from "class-transformer";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
