@@ -1,0 +1,21 @@
+{
+    "_id": "_design/type-id-index",
+    "language": "query",
+    "views": {
+        "type-id-index": {
+            "map": {
+                "fields": {
+                    "type": "asc",
+                    "_id": "asc"
+                },
+                "partial_filter_selector": {}
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["type", "_id"]
+                }
+            }
+        }
+    }
+}

@@ -1,10 +1,9 @@
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { AccessMap } from "../permissions/AccessMap";
-import { DbService } from "../db/db.service";
+import { DbQueryResult, DbService } from "../db/db.service";
 import { DocType, AclPermission, PublishStatus } from "../enums";
 import { LanguageDto } from "../dto/LanguageDto";
 import { plainToInstance } from "class-transformer";
-import { MangoResponse } from "nano";
 import { ValidationResult } from "./ValidationResult";
 
 /**
@@ -87,8 +86,8 @@ export async function validateChangeRequestAccess(
 
         // Check if the user has access to the language of the Content document
         const dbLangDoc = await dbService.getDocs([doc.language], [DocType.Language]);
-        if (dbLangDoc.length > 0) {
-            const language = plainToInstance(LanguageDto, dbLangDoc[0]);
+        if (dbLangDoc.docs.length > 0) {
+            const language = plainToInstance(LanguageDto, dbLangDoc.docs[0]);
 
             // Get groups to which the user has Translate access to for Language documents
             const userLanguageGroups = accessMap.calculateAccess(
@@ -144,14 +143,14 @@ export async function validateChangeRequestAccess(
     // ============================
     if (doc.tags && doc.tags.length > 0) {
         // Get tag documents from database
-        const tagDocs: MangoResponse<unknown> = await dbService.getDocs(doc.tags, [DocType.Tag]);
+        const tagDocs: DbQueryResult = await dbService.getDocs(doc.tags, [DocType.Tag]);
 
         // Get array of groups to which the user has Assign access
         const assignGroups = accessMap.calculateAccess([DocType.Tag], AclPermission.Assign);
 
         // Compare tag group membership with groups to which the user has assign access to
-        if (tagDocs && Array.isArray(tagDocs)) {
-            for (const d of tagDocs) {
+        if (tagDocs.docs && Array.isArray(tagDocs.docs)) {
+            for (const d of tagDocs.docs) {
                 const tagDoc = d as any;
                 if (tagDoc.memberOf && Array.isArray(tagDoc.memberOf)) {
                     for (const groupId of tagDoc.memberOf) {

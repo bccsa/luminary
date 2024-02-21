@@ -1,0 +1,23 @@
+{
+    "_id": "_design/updatedTimeUtc-type-id-index",
+    "language": "query",
+    "views": {
+        "updatedTimeUtc-type-id-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "asc",
+                    "type": "asc",
+                    "_id": "asc"
+                },
+                "partial_filter_selector": {}
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc", "type", "_id"]
+                }
+            }
+        }
+    },
+    "updatedTimeUtc": 1708446120290
+}

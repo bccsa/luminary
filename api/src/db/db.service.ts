@@ -11,10 +11,18 @@ import { DocType, Uuid } from "../enums";
  * @property {Array<DocType>} types - Array of document types to be included in the query result
  * @property {number} from - Include documents with an updateTimeUtc timestamp greater or equal to the passed value. (Default 0)
  */
-export type getDocsOptions = {
+export type GetDocsOptions = {
     groups: Array<Uuid>;
     types: Array<DocType>;
     from?: number;
+};
+
+/**
+ * Standardized format for database query results
+ */
+export type DbQueryResult = {
+    docs: Array<any>;
+    warnings?: Array<string>;
 };
 
 @Injectable()
@@ -52,7 +60,12 @@ export class DbService {
                 reject("Invalid document: The passed document does not have an '_id' property");
             }
             this.getDoc(doc._id)
-                .then((existing: any) => {
+                .then((e) => {
+                    let existing;
+                    if (e.docs && e.docs.length > 0) {
+                        existing = e.docs[0];
+                    }
+
                     let rev: string;
 
                     // Remove updatedTimeUtc if passed from client
@@ -121,16 +134,16 @@ export class DbService {
      * Get a single document by ID
      * @param id - document ID (_id field)
      */
-    getDoc(docId: string) {
+    getDoc(docId: string): Promise<DbQueryResult> {
         return new Promise((resolve, reject) => {
             this.db
                 .get(docId)
                 .then((res) => {
-                    resolve(res);
+                    resolve({ docs: [res] });
                 })
                 .catch((err) => {
                     if (err.reason == "missing") {
-                        resolve(undefined);
+                        resolve({ docs: [], warnings: ["Document not found"] });
                     } else {
                         reject();
                     }
@@ -144,17 +157,16 @@ export class DbService {
      * @param {DocType[]} types - Document types to be included in search
      * @returns - Promise containing the query result
      */
-    getDocs(docIds: Uuid[], types: DocType[]): Promise<any> {
+    getDocs(docIds: Uuid[], types: DocType[]): Promise<DbQueryResult> {
         return new Promise((resolve, reject) => {
             this.db
                 .fetch({ keys: docIds })
                 .then((res: nano.DocumentFetchResponse<unknown>) => {
                     // reduce the result to only include valid documents that match the passed types
-                    resolve(
-                        res.rows
-                            .filter((row: any) => row.doc && types.includes(row.doc.type))
-                            .map((row: any) => row.doc),
-                    );
+                    const docs = res.rows
+                        .filter((row: any) => row.doc && types.includes(row.doc.type))
+                        .map((row: any) => row.doc);
+                    resolve({ docs });
                 })
                 .catch((err) => {
                     reject(err);
@@ -250,64 +262,136 @@ export class DbService {
     /**
      * Get data to which a user has access to including the user document itself.
      * @param {string} userID - User document ID.
-     * @param {getDocsOptions} options - Query configuration object.
+     * @param {GetDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */
-    getDocsPerGroup(userId: string, options: getDocsOptions): Promise<nano.MangoResponse<unknown>> {
+    getDocsPerGroup(userId: string, options: GetDocsOptions): Promise<DbQueryResult> {
         // Set default options
         if (!options.from) options.from = 0;
 
-        const query = {
-            selector: {
-                $or: [
-                    {
-                        _id: userId,
-                    },
-                    {
-                        $and: [
-                            {
-                                updatedTimeUtc: {
-                                    $gte: options.from,
+        return new Promise((resolve, reject) => {
+            // To allow effective indexing, the structure inside an "$or" selector should be identical for all the sub-selectors
+            // within the "$or". Because of this restriction, it is necessary to do multiple queries and join the result externally
+
+            const pList = [];
+
+            const query_memberOf_per_type = {
+                // TODO: The order of fields can possibly improve indexing effectiveness, as well as using
+                // different queries for the full time range vs a partial time range. We need a bigger data set / production data to test this.
+                selector: {
+                    $and: [
+                        {
+                            updatedTimeUtc: {
+                                $gte: options.from,
+                            },
+                        },
+                        {
+                            type: {
+                                $in: options.types,
+                            },
+                        },
+                        {
+                            memberOf: {
+                                $in: options.groups,
+                            },
+                        },
+                    ],
+                },
+                use_index: "updatedTimeUtc-type-memberOf-index",
+            };
+            pList.push(this.db.find(query_memberOf_per_type));
+
+            // Include the (group) document itself if the "group" type is included in the options
+            if (options.types.includes(DocType.Group)) {
+                // Use two different queries to allow for effective indexing
+                let query_groupDoc;
+                if (options.from === 0) {
+                    query_groupDoc = {
+                        selector: {
+                            $and: [
+                                {
+                                    type: DocType.Group,
                                 },
-                            },
-                            {
-                                type: {
-                                    $in: options.types,
+                                {
+                                    _id: {
+                                        $in: options.groups,
+                                    },
                                 },
-                            },
-                            {
-                                $or: [
-                                    {
-                                        // Include documents who are a member of any of the passed groups
-                                        memberOf: {
-                                            $in: options.groups,
-                                        },
+                            ],
+                        },
+                        use_index: "type-id-index",
+                    };
+                } else {
+                    query_groupDoc = {
+                        selector: {
+                            $and: [
+                                {
+                                    updatedTimeUtc: {
+                                        $gte: options.from,
                                     },
-                                    {
-                                        // Include the (group) document itself
-                                        _id: {
-                                            $in: options.groups,
-                                        },
+                                },
+                                {
+                                    type: DocType.Group,
+                                },
+
+                                {
+                                    _id: {
+                                        $in: options.groups,
                                     },
-                                ],
-                            },
-                        ],
-                    },
-                ],
-            },
-        };
-        return this.db.find(query);
+                                },
+                            ],
+                        },
+                        use_index: "updatedTimeUtc-type-id-index",
+                    };
+                }
+
+                pList.push(this.db.find(query_groupDoc));
+            }
+
+            // Include the user document
+            if (userId) {
+                pList.push(this.getDoc(userId));
+            }
+
+            Promise.all(pList)
+                .then((res) => {
+                    const docs = res.flatMap((r) => r.docs);
+                    const warnings = res.flatMap((r) => r.warning).filter((w) => w);
+                    if (warnings.length > 0) {
+                        resolve({ docs, warnings });
+                    } else {
+                        resolve({ docs });
+                    }
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
     }
 
     /**
      * Get all group documents from database
      */
-    getGroups(): Promise<nano.MangoResponse<unknown>> {
-        const query = {
-            selector: {
-                type: "group",
-            },
-        };
-        return this.db.find(query);
+    getGroups(): Promise<DbQueryResult> {
+        return new Promise((resolve, reject) => {
+            const query = {
+                selector: {
+                    type: "group",
+                },
+                use_index: "type-id-index",
+            };
+            this.db
+                .find(query)
+                .then((res) => {
+                    if (res.warning) {
+                        resolve({ docs: res.docs, warnings: [res.warning] });
+                    } else {
+                        resolve({ docs: res.docs });
+                    }
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
     }
 }

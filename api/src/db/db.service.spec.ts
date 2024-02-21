@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { DbService } from "./db.service";
+import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
 import { DocType } from "../enums";
 
@@ -19,15 +19,15 @@ describe("DbService", () => {
     });
 
     it("can read a single existing document", async () => {
-        const doc: any = await service.getDoc("user-public");
+        const res: any = await service.getDoc("user-public");
 
-        expect(doc._id).toBe("user-public");
+        expect(res.docs[0]._id).toBe("user-public");
     });
 
     it("can handle exceptions on reading non-exising documents", async () => {
         const res: any = await service.getDoc("non-existing-document");
 
-        expect(res).toBe(undefined);
+        expect(res.docs.length).toBe(0);
     });
 
     it("can insert a new document", async () => {
@@ -41,8 +41,8 @@ describe("DbService", () => {
 
         const testGet = (await service.getDoc(uuid)) as any;
 
-        expect(testGet._id).toBe(uuid);
-        expect(testGet.testData).toBe("test123");
+        expect(testGet.docs[0]._id).toBe(uuid);
+        expect(testGet.docs[0].testData).toBe("test123");
     });
 
     it("cannot insert a new document without an id", async () => {
@@ -74,8 +74,8 @@ describe("DbService", () => {
 
         const testGet = (await service.getDoc(uuid)) as any;
 
-        expect(testGet._id).toBe(uuid);
-        expect(testGet.testData).toBe("changedData123");
+        expect(testGet.docs[0]._id).toBe(uuid);
+        expect(testGet.docs[0].testData).toBe("changedData123");
     });
 
     it("can get the latest document updated time", async () => {
@@ -274,9 +274,9 @@ describe("DbService", () => {
             [DocType.Language, DocType.User],
         );
 
-        expect(res.length).toBe(2);
-        expect(res.some((d) => d._id === "lang-eng")).toBe(true);
-        expect(res.some((d) => d._id === "user-public")).toBe(true);
+        expect(res.docs.length).toBe(2);
+        expect(res.docs.some((d) => d._id === "lang-eng")).toBe(true);
+        expect(res.docs.some((d) => d._id === "user-public")).toBe(true);
 
         // Test if we can return one document with a correct document type, while the other document is discarded due to an incorrect document type
         const res2: any = await service.getDocs(
@@ -284,8 +284,33 @@ describe("DbService", () => {
             [DocType.Language, DocType.Group],
         );
 
-        expect(res2.length).toBe(1);
-        expect(res2.some((d) => d._id === "lang-eng")).toBe(true);
-        expect(res2.some((d) => d._id === "user-public")).toBe(false);
+        expect(res2.docs.length).toBe(1);
+        expect(res2.docs.some((d) => d._id === "lang-eng")).toBe(true);
+        expect(res2.docs.some((d) => d._id === "user-public")).toBe(false);
+    });
+
+    it("does not return indexing warnings on getDocsPerGroup queries", async () => {
+        // The first test checks for indexing warnings for queries on the full time range
+        const res: DbQueryResult = await service.getDocsPerGroup("user-public", {
+            groups: ["group-public-content"],
+            types: [DocType.Post, DocType.Tag, DocType.Group],
+            from: 0,
+        });
+        expect(res.warnings).toBe(undefined);
+
+        // The second test checks for indexing warnings for queries on a specific time range
+        const oldest = await service.getOldestChangeTime();
+        const newest = await service.getLatestDocUpdatedTime();
+        const res2: DbQueryResult = await service.getDocsPerGroup("user-public", {
+            groups: ["group-public-content"],
+            types: [DocType.Post, DocType.Tag, DocType.Group],
+            from: Math.floor(newest - (newest - oldest) / 2),
+        });
+        expect(res2.warnings).toBe(undefined);
+    });
+
+    it("does not return indexing warnings on getGroups queries", async () => {
+        const res: DbQueryResult = await service.getGroups();
+        expect(res.warnings).toBe(undefined);
     });
 });
