@@ -1,0 +1,22 @@
+{
+    "_id": "_design/updatedTimeUtc-type-memberOf-index",
+    "language": "query",
+    "views": {
+        "updatedTimeUtc-type-memberOf-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "asc",
+                    "type": "asc",
+                    "memberOf": "asc"
+                },
+                "partial_filter_selector": {}
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc", "type", "memberOf"]
+                }
+            }
+        }
+    }
+}
