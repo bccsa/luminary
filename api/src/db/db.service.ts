@@ -60,10 +60,10 @@ export class DbService {
                 reject("Invalid document: The passed document does not have an '_id' property");
             }
             this.getDoc(doc._id)
-                .then((e) => {
-                    let existing;
-                    if (e.docs && e.docs.length > 0) {
-                        existing = e.docs[0];
+                .then((res) => {
+                    let existing; // if no existing document, this will be undefined
+                    if (res.docs && res.docs.length > 0) {
+                        existing = res.docs[0];
                     }
 
                     let rev: string;
@@ -78,7 +78,18 @@ export class DbService {
                         delete existing.updatedTimeUtc;
                     }
 
-                    if (existing && isDeepStrictEqual(doc, existing)) {
+                    if (!existing) {
+                        // Passed document does not exist in database: create
+                        doc.updatedTimeUtc = Date.now();
+                        this.db
+                            .insert(doc)
+                            .then((insertResult) => {
+                                resolve(insertResult);
+                            })
+                            .catch((err) => {
+                                reject(err);
+                            });
+                    } else if (existing && isDeepStrictEqual(doc, existing)) {
                         // Document in DB is the same as passed doc: do nothing
                         resolve("passed document equal to existing database document");
                     } else if (existing) {
@@ -88,8 +99,8 @@ export class DbService {
 
                         this.db
                             .insert(doc)
-                            .then((res) => {
-                                resolve(res);
+                            .then((insertResult) => {
+                                resolve(insertResult);
                             })
                             .catch((err) => {
                                 if (err.reason == "Document update conflict.") {
@@ -101,8 +112,8 @@ export class DbService {
                                     // TODO: We should probably have a retry counter here to prevent the code from retrying endlessly.
                                     delete doc._rev;
                                     this.upsertDoc(doc)
-                                        .then((res) => {
-                                            resolve(res);
+                                        .then((upsertResult) => {
+                                            resolve(upsertResult);
                                         })
                                         .catch((err) => {
                                             reject(err);
@@ -110,17 +121,6 @@ export class DbService {
                                 } else {
                                     reject(err);
                                 }
-                            });
-                    } else {
-                        // Passed document does not exist in database: create
-                        doc.updatedTimeUtc = Date.now();
-                        this.db
-                            .insert(doc)
-                            .then((res) => {
-                                resolve(res);
-                            })
-                            .catch((err) => {
-                                reject(err);
                             });
                     }
                 })
@@ -357,11 +357,7 @@ export class DbService {
                 .then((res) => {
                     const docs = res.flatMap((r) => r.docs);
                     const warnings = res.flatMap((r) => r.warning).filter((w) => w);
-                    if (warnings.length > 0) {
-                        resolve({ docs, warnings });
-                    } else {
-                        resolve({ docs });
-                    }
+                    resolve({ docs, warnings: warnings.length > 0 ? warnings : undefined });
                 })
                 .catch((err) => {
                     reject(err);
@@ -383,11 +379,7 @@ export class DbService {
             this.db
                 .find(query)
                 .then((res) => {
-                    if (res.warning) {
-                        resolve({ docs: res.docs, warnings: [res.warning] });
-                    } else {
-                        resolve({ docs: res.docs });
-                    }
+                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
                 })
                 .catch((err) => {
                     reject(err);
