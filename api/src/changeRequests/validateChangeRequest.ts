@@ -12,9 +12,6 @@ import { TagDto } from "../dto/TagDto";
 import { UserDto } from "../dto/UserDto";
 import { DocType } from "../enums";
 import { ValidationResult } from "./ValidationResult";
-import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
-import { DbService } from "src/db/db.service";
-import { AccessMap } from "src/permissions/AccessMap";
 
 /**
  * DocType to DTO map
@@ -36,11 +33,7 @@ const DocTypeMap = {
  * Validates a change request received as a "data" message received from a CMS / client
  * @param data
  */
-export async function validateChangeRequest(
-    data: any,
-    accessMap: AccessMap,
-    dbService: DbService,
-): Promise<ValidationResult> {
+export async function validateChangeRequest(data: any): Promise<ValidationResult> {
     const changeReq = plainToInstance(ChangeReqDto, data);
 
     // Validate main change request document
@@ -72,7 +65,9 @@ export async function validateChangeRequest(
         }
     }
 
-    return validateChangeRequestAccess(changeReq, accessMap, dbService);
+    return {
+        validated: true,
+    };
 }
 
 async function dtoValidate(data: any, message: string): Promise<ValidationResult> {

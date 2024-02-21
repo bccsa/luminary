@@ -7,23 +7,23 @@ import { plainToInstance } from "class-transformer";
 import { MangoResponse } from "nano";
 import { ValidationResult } from "./ValidationResult";
 
-export async function validateChangeRequestAccess(
-    changeReq: ChangeReqDto,
-    accessMap: AccessMap,
-    dbService: DbService,
-) {
-    for (const change of changeReq.changes) {
-        const validationResult = await validateItemAccess(change, accessMap, dbService);
+// export async function validateChangeRequestAccess(
+//     changeReq: ChangeReqDto,
+//     accessMap: AccessMap,
+//     dbService: DbService,
+// ) {
+//     for (const change of changeReq.changes) {
+//         const validationResult = await validateItemAccess(change, accessMap, dbService);
 
-        if (!validationResult.validated) {
-            return validationResult;
-        }
-    }
+//         if (!validationResult.validated) {
+//             return validationResult;
+//         }
+//     }
 
-    return {
-        validated: true,
-    };
-}
+//     return {
+//         validated: true,
+//     };
+// }
 
 /**
  * Validate a change request against a user's access map
@@ -31,7 +31,7 @@ export async function validateChangeRequestAccess(
  * @param accessMap Access map to validate change request against
  * @param dbService Database connection instance
  */
-async function validateItemAccess(
+export async function validateChangeRequestItemAccess(
     change: ChangeReqItemDto,
     accessMap: AccessMap,
     dbService: DbService,

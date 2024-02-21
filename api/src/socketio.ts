@@ -14,6 +14,7 @@ import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket } from "socket.io-client";
 import { validateChangeRequest } from "./changeRequests/validateChangeRequest";
+import { validateChangeRequestItemAccess } from "./changeRequests/validateChangeRequestAccess";
 
 type ClientDataReq = {
     version?: number;
@@ -90,28 +91,35 @@ export class Socketio {
 
         // Get user accessible groups and validate change request
         const userAccessMap = PermissionSystem.getAccessMap(groups);
-        const validationResult = await validateChangeRequest(data, userAccessMap, this.db);
+        const validationResult = await validateChangeRequest(data);
 
         if (!validationResult.validated) {
             this.emitAck(socket, AckStatus.Rejected, data.reqId, validationResult.error);
             return;
         }
 
-        // Process update document
-        const docUpdates: Promise<unknown>[] = [];
+        for (const change of data.changes) {
+            const accessValidationResult = await validateChangeRequestItemAccess(
+                change,
+                userAccessMap,
+                this.db,
+            );
 
-        data.changes.forEach(({ doc }) => {
-            docUpdates.push(this.db.upsertDoc(doc));
-        });
+            if (!accessValidationResult.validated) {
+                this.emitAck(socket, AckStatus.Rejected, data.reqId, accessValidationResult.error);
+                return;
+            }
 
-        Promise.all(docUpdates)
-            // Send acknowledgement to client
-            .then(() => {
-                this.emitAck(socket, AckStatus.Accepted, data.reqId);
-            })
-            .catch((err) => {
-                this.emitAck(socket, AckStatus.Rejected, data.reqId, err.message);
-            });
+            this.db
+                .upsertDoc(change.doc)
+                // Send acknowledgement to client
+                .then(() => {
+                    this.emitAck(socket, AckStatus.Accepted, data.reqId);
+                })
+                .catch((err) => {
+                    this.emitAck(socket, AckStatus.Rejected, data.reqId, err.message);
+                });
+        }
     }
 
     /**
