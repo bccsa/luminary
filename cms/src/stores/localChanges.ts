@@ -30,6 +30,8 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
 
         watch([isConnected, unsyncedChanges], async ([isConnected, localChanges]) => {
             if (isConnected && localChanges && localChanges.length > 0) {
+                // TODO instead send changes that are younger than a certain timestamp
+                // so non-acknowledged onces are resent instead of being stuck in Syncing forever
                 await syncLocalChangesToApi(localChanges);
             }
         });
