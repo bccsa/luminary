@@ -35,7 +35,7 @@ export class DbService {
 
     constructor(private configService: ConfigService) {
         const dbConfig = this.configService.get<DatabaseConfig>("database");
-        const syncConfig = this.configService.get<SyncConfig>("database");
+        const syncConfig = this.configService.get<SyncConfig>("sync");
 
         this.connect(dbConfig.connectionString, dbConfig.database);
         this.syncTolerance = syncConfig.tolerance;
