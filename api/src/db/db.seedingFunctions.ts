@@ -1,8 +1,10 @@
+import { ConfigService } from "@nestjs/config";
 import { DbService } from "./db.service";
 import * as fs from "fs";
 import * as path from "path";
+import { INestApplication } from "@nestjs/common";
 
-const db = new DbService();
+let db;
 
 /**
  * Function to insert or update database documents from a directory with JSON formatted documents
@@ -29,14 +31,22 @@ function upsertFromDir(directory: string): Promise<any> {
 /**
  * Insert or update design documents
  */
-export function upsertDesignDocs(): Promise<any> {
+export function upsertDesignDocs(app: INestApplication): Promise<any> {
+    if (!db) {
+        db = new DbService(app.get(ConfigService));
+    }
+
     return upsertFromDir("designDocs");
 }
 
 /**
  * Insert or update database seeding documents (for unit testing or initial application installation)
  */
-export function upsertSeedingDocs(): Promise<any> {
+export function upsertSeedingDocs(app: INestApplication): Promise<any> {
+    if (!db) {
+        db = new DbService(app.get(ConfigService));
+    }
+
     return upsertFromDir("seedingDocs");
 }
 

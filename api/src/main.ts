@@ -3,13 +3,14 @@ import { AppModule } from "./app.module";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 
 async function bootstrap() {
+    const app = await NestFactory.create(AppModule);
+
     // Create or update database design docs on api startup
-    await upsertDesignDocs();
+    await upsertDesignDocs(app);
 
     // TMP: Seed database with demo / initial data
-    await upsertSeedingDocs();
+    await upsertSeedingDocs(app);
 
-    const app = await NestFactory.create(AppModule);
     app.enableCors({
         origin: [
             "http://localhost:4174",

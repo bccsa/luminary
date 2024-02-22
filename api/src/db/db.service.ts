@@ -3,6 +3,8 @@ import * as nano from "nano";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { isDeepStrictEqual } from "util";
 import { DocType, Uuid } from "../enums";
+import { ConfigService } from "@nestjs/config";
+import { DatabaseConfig, SyncConfig } from "../configuration";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -31,9 +33,12 @@ export class DbService {
     protected syncVersion: number;
     protected syncTolerance: number;
 
-    constructor() {
-        this.connect(process.env.DB_CONNECTION_STRING as string, process.env.DB_DATABASE as string);
-        this.syncTolerance = Number.parseInt((process.env.SYNC_TOLERANCE as string) || "1000");
+    constructor(private configService: ConfigService) {
+        const dbConfig = this.configService.get<DatabaseConfig>("database");
+        const syncConfig = this.configService.get<SyncConfig>("database");
+
+        this.connect(dbConfig.connectionString, dbConfig.database);
+        this.syncTolerance = syncConfig.tolerance;
 
         // Populate the permission system
         this.getGroups().then((res: any) => {

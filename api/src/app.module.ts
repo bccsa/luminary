@@ -4,10 +4,13 @@ import { JwtModule } from "@nestjs/jwt";
 import { AppController } from "./app.controller";
 import { DbService } from "./db/db.service";
 import { Socketio } from "./socketio";
+import configuration from "./configuration";
 
 @Module({
     imports: [
-        ConfigModule.forRoot(),
+        ConfigModule.forRoot({
+            load: [configuration],
+        }),
         JwtModule.register({
             global: true,
         }),
