@@ -1,12 +1,5 @@
 import { defineStore, storeToRefs } from "pinia";
-import {
-    AckStatus,
-    DocType,
-    LocalChangeStatus,
-    type LocalChange,
-    type ChangeReqDto,
-    type ChangeReqAckDto,
-} from "@/types";
+import { AckStatus, LocalChangeStatus, type LocalChange, type ChangeReqAckDto } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { watch, type Ref } from "vue";
