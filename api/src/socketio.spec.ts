@@ -16,7 +16,7 @@ describe("Socketio", () => {
     let client;
     let app: INestApplication;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
         app = await createNestApp();
         await app.listen(process.env.PORT);
 
@@ -24,7 +24,7 @@ describe("Socketio", () => {
         client = io(`http://localhost:${process.env.PORT}`);
     });
 
-    afterAll(async () => {
+    afterEach(async () => {
         app.close();
     });
 
@@ -104,6 +104,107 @@ describe("Socketio", () => {
         expect(res.id).toBe(42);
         expect(res.message).toBe(undefined);
         expect(res.ack).toBe("accepted");
+    });
+
+    it("can submit multiple change requests and receive an accepted acknowledgement for each", async () => {
+        const changeRequests = [
+            {
+                id: 43, // Deliberately higher than post, to check if they are sorted correctly. Post should be created first
+                doc: {
+                    _id: "content-submitted-with-post",
+                    type: "content",
+                    memberOf: ["group-public-content"],
+                    language: "lang-eng",
+                    status: "draft",
+                    slug: "post1-eng",
+                    title: "Post 1",
+                },
+            },
+            {
+                id: 42,
+                doc: {
+                    _id: "post-submitted-with-content",
+                    type: "post",
+                    memberOf: ["group-public-content"],
+                    content: ["content-submitted-with-post"],
+                    image: "img",
+                    tags: [],
+                },
+            },
+        ];
+
+        function testSocket() {
+            return new Promise((resolve) => {
+                const results = [];
+                const c = function (data) {
+                    results.push(data);
+
+                    if (results.length == changeRequests.length) {
+                        client.off("changeRequestAck", c);
+                        resolve(results);
+                    }
+                };
+                client.on("changeRequestAck", c);
+
+                client.emit("data", changeRequests);
+            });
+        }
+
+        const receivedAcks = await testSocket();
+        expect(receivedAcks[0].id).toBe(42);
+        expect(receivedAcks[0].message).toBe(undefined);
+        expect(receivedAcks[0].ack).toBe("accepted");
+        expect(receivedAcks[1].id).toBe(43);
+        expect(receivedAcks[1].message).toBe(undefined);
+        expect(receivedAcks[1].ack).toBe("accepted");
+    });
+
+    it("can submit multiple change requests and receive an different acknowledgement for each", async () => {
+        const changeRequests = [
+            {
+                id: 42,
+                doc: {
+                    _id: "lang-eng",
+                    type: "language",
+                    memberOf: ["group-languages"],
+                    languageCode: "eng",
+                    name: "English",
+                },
+            },
+            {
+                id: 43,
+                doc: {
+                    _id: "lang-fra",
+                    type: "post",
+                    invalidProperty: {},
+                },
+            },
+        ];
+
+        function testSocket() {
+            return new Promise((resolve) => {
+                const results = [];
+                const c = function (data) {
+                    results.push(data);
+
+                    if (results.length == changeRequests.length) {
+                        client.off("changeRequestAck", c);
+                        resolve(results);
+                    }
+                };
+                client.on("changeRequestAck", c);
+
+                client.emit("data", changeRequests);
+            });
+        }
+
+        const receivedAcks = await testSocket();
+        expect(receivedAcks[0].id).toBe(42);
+        expect(receivedAcks[0].message).toBe(undefined);
+        expect(receivedAcks[0].ack).toBe("accepted");
+        expect(receivedAcks[1].id).toBe(43);
+        expect(receivedAcks[1].message).toContain("Submitted post document validation failed");
+        expect(receivedAcks[1].ack).toBe("rejected");
     });
 
     it("can correctly fail validation of an invalid change request", async () => {
