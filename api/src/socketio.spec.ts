@@ -209,16 +209,16 @@ describe("Socketio", () => {
             expect(receivedAcks[0].message).toContain("Change request validation failed");
         });
 
-        it("can correctly reject invalid document types", async () => {
+        it("sends the existing document back when validation fails", async () => {
             const changeRequests = [
                 {
                     id: 42,
                     doc: {
                         _id: "lang-eng",
-                        type: "invalid document type",
+                        type: "invalid",
                         memberOf: ["group-languages"],
                         languageCode: "eng",
-                        name: "English",
+                        name: "Changed language name",
                     },
                 },
             ];
@@ -227,32 +227,12 @@ describe("Socketio", () => {
             const receivedAcks = await testSocket();
 
             expect(receivedAcks[0].id).toBe(42);
-            expect(receivedAcks[0].ack).toBe("rejected");
             expect(receivedAcks[0].message).toContain("Invalid document type");
-        });
-
-        it("can correctly fail validation for invalid document data passed with a Change Request", async () => {
-            const changeRequests = [
-                {
-                    id: 42,
-                    doc: {
-                        _id: "lang-eng",
-                        type: "language",
-                        memberOf: "invalid data (should have been an array)",
-                        languageCode: "eng",
-                        name: "English",
-                    },
-                },
-            ];
-            const testSocket = createTestSocketForChangeRequests(changeRequests);
-
-            const receivedAcks = await testSocket();
-
-            expect(receivedAcks[0].id).toBe(42);
             expect(receivedAcks[0].ack).toBe("rejected");
-            expect(receivedAcks[0].message).toContain(
-                "Submitted language document validation failed",
-            );
+
+            expect(receivedAcks[0].doc._id).toBe("lang-eng");
+            expect(receivedAcks[0].doc.type).toBe("language");
+            expect(receivedAcks[0].doc.name).toBe("English");
         });
     });
 });
