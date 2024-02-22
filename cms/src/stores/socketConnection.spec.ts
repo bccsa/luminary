@@ -112,7 +112,7 @@ describe("socketConnection", () => {
             ack: AckStatus.Accepted,
         };
 
-        listenToSocketOnEvent("data", ack);
+        listenToSocketOnEvent("changeRequestAck", ack);
 
         store.bindEvents();
 
