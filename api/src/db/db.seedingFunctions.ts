@@ -31,9 +31,9 @@ function upsertFromDir(directory: string): Promise<any> {
 /**
  * Insert or update design documents
  */
-export function upsertDesignDocs(configService: ConfigService): Promise<any> {
+export function upsertDesignDocs(dbService: DbService): Promise<any> {
     if (!db) {
-        db = new DbService(configService);
+        db = dbService;
     }
 
     return upsertFromDir("designDocs");
@@ -42,9 +42,9 @@ export function upsertDesignDocs(configService: ConfigService): Promise<any> {
 /**
  * Insert or update database seeding documents (for unit testing or initial application installation)
  */
-export function upsertSeedingDocs(configService: ConfigService): Promise<any> {
+export function upsertSeedingDocs(dbService: DbService): Promise<any> {
     if (!db) {
-        db = new DbService(configService);
+        db = dbService;
     }
 
     return upsertFromDir("seedingDocs");

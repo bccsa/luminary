@@ -49,8 +49,8 @@ describe("DbService", () => {
 
         service = module.get<DbService>(DbService);
 
-        await upsertDesignDocs(module.get(ConfigService));
-        await upsertSeedingDocs(module.get(ConfigService));
+        await upsertDesignDocs(service);
+        await upsertSeedingDocs(service);
     });
 
     it("can be instantiated", () => {
