@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="https://github.com/bccsa/luminary/blob/main/logo.svg?raw=true" width="120" style="margin-bottom: 10px;">
-</p>
+<img src="https://github.com/bccsa/luminary/blob/main/logo.svg?raw=true" width="200" style="margin-bottom: 10px;">
 
 Offline-first content platform consisting of an API, CMS, web app and native apps.
 
