@@ -5,6 +5,7 @@ export type AuthConfig = {
 export type DatabaseConfig = {
     connectionString: string;
     database: string;
+    maxSockets: number;
 };
 
 export type SyncConfig = {
@@ -18,6 +19,7 @@ export default () => ({
     database: {
         connectionString: process.env.DB_CONNECTION_STRING,
         database: process.env.DB_DATABASE,
+        maxSockets: parseInt(process.env.DB_MAX_SOCKETS, 10) || 512,
     } as DatabaseConfig,
     sync: {
         tolerance: parseInt(process.env.PORT, 10) || 1000,

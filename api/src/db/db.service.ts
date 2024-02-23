@@ -37,7 +37,7 @@ export class DbService {
         const dbConfig = this.configService.get<DatabaseConfig>("database");
         const syncConfig = this.configService.get<SyncConfig>("sync");
 
-        this.connect(dbConfig.connectionString, dbConfig.database);
+        this.connect(dbConfig);
         this.syncTolerance = syncConfig.tolerance;
     }
 
@@ -46,15 +46,15 @@ export class DbService {
      * @param {string} connectionString - CouchDB URL including username and password (http://user:password@hostname_or_ip)
      * @param {string} database - Database name.
      */
-    private connect(connectionString: string, database: string) {
+    private connect(dbConfig: DatabaseConfig) {
         this.db = nano({
-            url: connectionString,
+            url: dbConfig.connectionString,
             requestDefaults: {
                 agent: new http.Agent({
-                    maxSockets: 512,
+                    maxSockets: dbConfig.maxSockets,
                 }),
             },
-        }).use(database);
+        }).use(dbConfig.database);
     }
 
     /**
