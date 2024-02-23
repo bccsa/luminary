@@ -6,6 +6,7 @@ import * as nano from "nano";
 import { upsertDesignDocs, upsertSeedingDocs } from "../db/db.seedingFunctions";
 import { Socketio } from "../socketio";
 import { jest } from "@jest/globals";
+import { PermissionSystem } from "../permissions/permissions.service";
 
 /**
  * Creates a Nest TestingModule and a specific database and seeds it
@@ -52,6 +53,9 @@ export async function createTestingModule(dbName: string) {
 
     await upsertDesignDocs(dbService);
     await upsertSeedingDocs(dbService);
+
+    const dbGroups = await dbService.getGroups();
+    PermissionSystem.upsertGroups(dbGroups.docs);
 
     return {
         dbService,

@@ -9,7 +9,7 @@ describe("Socketio", () => {
     let app: INestApplication;
 
     async function createNestApp(): Promise<INestApplication> {
-        const testingModule = (await createTestingModule("socketio")).testingModule;
+        const { testingModule } = await createTestingModule("socketio");
         return testingModule.createNestApplication();
     }
 
@@ -119,8 +119,7 @@ describe("Socketio", () => {
             expect(receivedAcks[0].ack).toBe("accepted");
         });
 
-        // TODO re-enable when each test file uses its own database
-        xit("can submit multiple change requests and receive an accepted acknowledgement for each", async () => {
+        it("can submit multiple change requests and receive an accepted acknowledgement for each", async () => {
             const changeRequests = [
                 {
                     id: 43, // Deliberately higher than post, to check if they are sorted correctly. Post should be created first

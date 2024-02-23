@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import * as nano from "nano";
-import { PermissionSystem } from "../permissions/permissions.service";
 import { isDeepStrictEqual } from "util";
 import { DocType, Uuid } from "../enums";
 import { ConfigService } from "@nestjs/config";
@@ -39,11 +38,6 @@ export class DbService {
 
         this.connect(dbConfig.connectionString, dbConfig.database);
         this.syncTolerance = syncConfig.tolerance;
-
-        // Populate the permission system
-        this.getGroups().then((res: any) => {
-            PermissionSystem.upsertGroups(res.docs);
-        });
     }
 
     /**
