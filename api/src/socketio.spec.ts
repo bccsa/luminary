@@ -33,7 +33,7 @@ describe("Socketio", () => {
         };
     }
 
-    beforeEach(async () => {
+    beforeAll(async () => {
         app = await createNestApp();
         await app.listen(process.env.PORT);
 
@@ -41,7 +41,7 @@ describe("Socketio", () => {
         client = io(`http://localhost:${process.env.PORT}`);
     });
 
-    afterEach(async () => {
+    afterAll(async () => {
         await client.off();
         await app.close();
     });
