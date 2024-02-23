@@ -1,6 +1,6 @@
-# App
+# Luminary App
 
-This is the frontend of the ActiveChristianity app. It's a Vue app that runs both in the browser and as a "native" app on mobile phones using Capacitor.
+This is the frontend of the Luminary app. It's an offline-first Vue app that runs both in the browser and as a "native" app on mobile phones using Capacitor.
 
 ## Local setup
 

@@ -1,6 +1,6 @@
-# API
+# Luminary API
 
-The API layer for the ActiveChristianity app, built with [Nest](https://github.com/nestjs/nest) and [CouchDB](https://couchdb.apache.org/).
+API for Luminary, built with [Nest](https://github.com/nestjs/nest) and [CouchDB](https://couchdb.apache.org/).
 
 ## Installation
 

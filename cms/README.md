@@ -1,6 +1,6 @@
-# CMS
+# Luminary CMS
 
-This is the backend CMS for ActiveChristianity, a Vue app that communicates with the API.
+This is the backend CMS for Luminary, an offline-first Vue app that communicates with the API.
 
 ## Local setup
 

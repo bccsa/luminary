@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-We want to reach as wide an audience as possible with the ActiveChristianity app. A lot of people in Africa have older phones with mainly older Android versions.
+We want to reach as wide an audience as possible with the Luminary app. A lot of people in Africa have older phones with mainly older Android versions.
 
 ## Decision
 
