@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import AcCard from "./AcCard.vue";
+import LCard from "./LCard.vue";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 
-describe("AcCard", () => {
+describe("LCard", () => {
     it("renders the title, icon, and slots", async () => {
-        const wrapper = mount(AcCard, {
+        const wrapper = mount(LCard, {
             props: {
                 title: "Card title",
                 icon: DocumentPlusIcon,
@@ -20,7 +20,7 @@ describe("AcCard", () => {
     });
 
     it("can be collapsed", async () => {
-        const wrapper = mount(AcCard, {
+        const wrapper = mount(LCard, {
             props: {
                 title: "Card title",
                 collapsible: true,

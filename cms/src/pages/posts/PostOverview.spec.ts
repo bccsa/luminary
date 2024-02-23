@@ -5,7 +5,7 @@ import PostOverview from "./PostOverview.vue";
 import { usePostStore } from "@/stores/post";
 import EmptyState from "@/components/EmptyState.vue";
 import { mockLanguageEng, mockPost } from "@/tests/mockData";
-import AcBadge from "@/components/common/AcBadge.vue";
+import LBadge from "@/components/common/LBadge.vue";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 
@@ -35,7 +35,7 @@ describe("PostOverview", () => {
         expect(wrapper.html()).toContain("English translation title");
 
         // Assert there is a badge that indicates a published translation
-        const badge = await wrapper.findComponent(AcBadge);
+        const badge = await wrapper.findComponent(LBadge);
         expect(badge.props().variant).toBe("success");
     });
 

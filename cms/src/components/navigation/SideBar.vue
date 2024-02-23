@@ -27,7 +27,7 @@ const navigation = [
         class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-gray-100 px-6 pb-4"
     >
         <div class="flex h-16 shrink-0 items-center">
-            <img class="w-52" src="@/assets/logo.svg" :alt="appName" />
+            <img class="w-42" src="@/assets/logo.svg" :alt="appName" />
         </div>
         <nav class="flex flex-1 flex-col">
             <ul role="list" class="flex flex-1 flex-col gap-y-7">

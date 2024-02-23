@@ -1,6 +1,8 @@
-# ActiveChristianity Africa app
+<p align="center">
+  <img src="https://github.com/bccsa/luminary/blob/main/logo.svg?raw=true" width="120" style="margin-bottom: 10px;">
+</p>
 
-App and backend for [activechristianity.africa](https://activechristianity.africa).
+Offline-first content platform consisting of an API, CMS, web app and native apps.
 
 ## Folder structure
 

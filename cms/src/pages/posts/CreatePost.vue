@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import AcButton from "@/components/button/AcButton.vue";
-import AcBadge from "@/components/common/AcBadge.vue";
-import AcCard from "@/components/common/AcCard.vue";
-import AcInput from "@/components/forms/AcInput.vue";
+import LBadge from "@/components/common/LBadge.vue";
+import LCard from "@/components/common/LCard.vue";
+import LInput from "@/components/forms/LInput.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { useLanguageStore } from "@/stores/language";
 import type { CreatePostDto, Language } from "@/types";
@@ -58,21 +58,21 @@ const save = handleSubmit(async (values) => {
 <template>
     <BasePage title="Create post" centered>
         <div class="mx-auto max-w-xl">
-            <AcCard>
+            <LCard>
                 <form class="space-y-6" @submit.prevent="save">
                     <p class="text-sm text-gray-700">
                         These are all the required fields for creating a post. After clicking
                         'continue' the post will be saved as a draft and you can continue editing.
                     </p>
 
-                    <AcInput
+                    <LInput
                         name="image"
                         label="Default image"
                         placeholder="cdn.bcc.africa/img/image.png"
                         leftAddOn="https://"
                     />
 
-                    <AcInput
+                    <LInput
                         name="permissions"
                         label="Permissions"
                         placeholder="Not implemented yet"
@@ -97,9 +97,9 @@ const save = handleSubmit(async (values) => {
                                     data-test="language"
                                 >
                                     <div class="flex items-center gap-2">
-                                        <AcBadge type="language" no-icon>
+                                        <LBadge type="language" no-icon>
                                             {{ language.languageCode }}
-                                        </AcBadge>
+                                        </LBadge>
                                         {{ language.name }}
                                     </div>
                                     <div
@@ -119,11 +119,7 @@ const save = handleSubmit(async (values) => {
                         leave-active-class="hidden"
                     >
                         <div v-if="chosenLanguage" class="space-y-6">
-                            <AcInput
-                                name="title"
-                                label="Title"
-                                :placeholder="chosenLanguage.name"
-                            />
+                            <LInput name="title" label="Title" :placeholder="chosenLanguage.name" />
 
                             <div class="flex flex-col gap-4 sm:flex-row sm:justify-between">
                                 <button
@@ -146,7 +142,7 @@ const save = handleSubmit(async (values) => {
                         </div>
                     </transition>
                 </form>
-            </AcCard>
+            </LCard>
         </div>
     </BasePage>
 </template>

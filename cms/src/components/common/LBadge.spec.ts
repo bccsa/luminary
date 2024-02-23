@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import AcBadge from "./AcBadge.vue";
+import LBadge from "./LBadge.vue";
 
-describe("AcBadge", () => {
+describe("LBadge", () => {
     it("renders the default slot", async () => {
-        const wrapper = mount(AcBadge, {
+        const wrapper = mount(LBadge, {
             slots: { default: "Badge text" },
         });
 

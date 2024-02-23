@@ -2,14 +2,14 @@
 import { ref } from "vue";
 import BasePage from "@/components/BasePage.vue";
 import AcButton from "@/components/button/AcButton.vue";
-import AcInput from "@/components/forms/AcInput.vue";
-import AcTextarea from "@/components/forms/AcTextarea.vue";
-import AcSelect from "@/components/forms/AcSelect.vue";
+import LInput from "@/components/forms/LInput.vue";
+import LTextarea from "@/components/forms/LTextarea.vue";
+import LSelect from "@/components/forms/LSelect.vue";
 import { EnvelopeIcon, PencilSquareIcon, PlusIcon } from "@heroicons/vue/20/solid";
-import AcCard from "@/components/common/AcCard.vue";
-import AcBadge from "@/components/common/AcBadge.vue";
-import AcTable from "@/components/common/AcTable.vue";
-import AcTabs from "@/components/common/AcTabs.vue";
+import LCard from "@/components/common/LCard.vue";
+import LBadge from "@/components/common/LBadge.vue";
+import LTable from "@/components/common/LTable.vue";
+import LTabs from "@/components/common/LTabs.vue";
 
 // Input
 const input = ref("Test value");
@@ -113,9 +113,9 @@ const items = [
 <template>
     <BasePage title="Component sandbox">
         <div class="space-y-6">
-            <AcCard title="Form elements" collapsible>
+            <LCard title="Form elements" collapsible>
                 <div class="flex flex-col gap-4">
-                    <AcInput
+                    <LInput
                         name="input"
                         label="Normal input"
                         placeholder="Placeholder"
@@ -124,7 +124,7 @@ const items = [
                         class="w-1/2"
                         :icon="EnvelopeIcon"
                     />
-                    <AcInput
+                    <LInput
                         name="input"
                         label="Normal input"
                         placeholder="Placeholder"
@@ -132,7 +132,7 @@ const items = [
                         required
                         class="w-1/2"
                     />
-                    <AcInput
+                    <LInput
                         name="input"
                         label="With addons"
                         placeholder="Placeholder"
@@ -142,7 +142,7 @@ const items = [
                         leftAddOn="$"
                         rightAddOn="USD"
                     />
-                    <AcInput
+                    <LInput
                         name="input"
                         label="Disabled input"
                         placeholder="Placeholder"
@@ -152,8 +152,8 @@ const items = [
                         :icon="EnvelopeIcon"
                     >
                         With a bottom text
-                    </AcInput>
-                    <AcInput
+                    </LInput>
+                    <LInput
                         name="input"
                         label="Error input"
                         placeholder="Placeholder"
@@ -163,8 +163,8 @@ const items = [
                         :icon="EnvelopeIcon"
                     >
                         This input is invalid
-                    </AcInput>
-                    <AcInput
+                    </LInput>
+                    <LInput
                         name="input"
                         label="With addons"
                         placeholder="Placeholder"
@@ -176,20 +176,20 @@ const items = [
                         state="error"
                     >
                         This input is invalid
-                    </AcInput>
+                    </LInput>
 
-                    <AcTextarea label="Textarea" v-model="input" class="w-1/2" />
+                    <LTextarea label="Textarea" v-model="input" class="w-1/2" />
 
-                    <AcSelect
+                    <LSelect
                         :options="languageOptions"
                         v-model="selectedLanguage"
                         label="Select a language"
                         class="mt-6 w-1/2"
                     >
                         The language for this page
-                    </AcSelect>
+                    </LSelect>
 
-                    <AcSelect
+                    <LSelect
                         state="error"
                         :options="languageOptions"
                         v-model="selectedLanguage"
@@ -197,9 +197,9 @@ const items = [
                         class="w-1/2"
                     >
                         This input is invalid
-                    </AcSelect>
+                    </LSelect>
 
-                    <AcSelect
+                    <LSelect
                         disabled
                         :options="languageOptions"
                         v-model="selectedLanguage"
@@ -207,16 +207,16 @@ const items = [
                         class="w-1/2"
                     />
                 </div>
-            </AcCard>
+            </LCard>
 
-            <AcCard class="text-sm">
+            <LCard class="text-sm">
                 Card without title
 
                 <template #footer>With footer</template>
-            </AcCard>
+            </LCard>
 
-            <AcCard padding="none">
-                <AcTable
+            <LCard padding="none">
+                <LTable
                     :columns="columns"
                     :items="items"
                     paginate
@@ -227,46 +227,46 @@ const items = [
                 >
                     <template #item.translations="{ translations }">
                         <span class="flex gap-2">
-                            <AcBadge
+                            <LBadge
                                 v-for="(status, key) in translations"
                                 :key="key"
                                 type="language"
                                 :variant="status"
                             >
                                 {{ key }}
-                            </AcBadge>
+                            </LBadge>
                         </span>
                     </template>
                     <template #item.actions>
                         <AcButton variant="tertiary" size="sm" :icon="PencilSquareIcon"></AcButton>
                     </template>
-                </AcTable>
-            </AcCard>
+                </LTable>
+            </LCard>
 
-            <AcCard title="Tabs">
-                <AcTabs :tabs="tabs" v-model:currentTab="selectedTab">
+            <LCard title="Tabs">
+                <LTabs :tabs="tabs" v-model:currentTab="selectedTab">
                     <AcButton variant="tertiary" :icon="PlusIcon">Add translation</AcButton>
-                </AcTabs>
-            </AcCard>
+                </LTabs>
+            </LCard>
 
-            <AcCard title="Badges">
+            <LCard title="Badges">
                 <div class="flex gap-2">
-                    <AcBadge>Default</AcBadge>
-                    <AcBadge variant="success">Success</AcBadge>
-                    <AcBadge variant="warning">Warning</AcBadge>
-                    <AcBadge variant="error">Error</AcBadge>
-                    <AcBadge variant="info">Info</AcBadge>
+                    <LBadge>Default</LBadge>
+                    <LBadge variant="success">Success</LBadge>
+                    <LBadge variant="warning">Warning</LBadge>
+                    <LBadge variant="error">Error</LBadge>
+                    <LBadge variant="info">Info</LBadge>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <AcBadge type="language" no-icon>eng</AcBadge>
-                    <AcBadge type="language" variant="success">fra</AcBadge>
-                    <AcBadge type="language" variant="warning">swa</AcBadge>
-                    <AcBadge type="language" variant="error">nya</AcBadge>
-                    <AcBadge type="language" variant="info">spa</AcBadge>
+                    <LBadge type="language" no-icon>eng</LBadge>
+                    <LBadge type="language" variant="success">fra</LBadge>
+                    <LBadge type="language" variant="warning">swa</LBadge>
+                    <LBadge type="language" variant="error">nya</LBadge>
+                    <LBadge type="language" variant="info">spa</LBadge>
                 </div>
-            </AcCard>
+            </LCard>
 
-            <AcCard title="Buttons">
+            <LCard title="Buttons">
                 <div class="space-x-4">
                     <AcButton>Save as draft</AcButton>
                     <AcButton variant="primary">Publish</AcButton>
@@ -281,7 +281,7 @@ const items = [
                     <AcButton variant="tertiary" :icon="PencilSquareIcon">Edit</AcButton>
                     <AcButton variant="tertiary" :icon="PencilSquareIcon"></AcButton>
                 </div>
-            </AcCard>
+            </LCard>
         </div>
     </BasePage>
 </template>

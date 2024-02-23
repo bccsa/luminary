@@ -5,12 +5,12 @@ import EmptyState from "@/components/EmptyState.vue";
 import AcButton from "@/components/button/AcButton.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
-import AcCard from "@/components/common/AcCard.vue";
-import AcTable from "@/components/common/AcTable.vue";
+import LCard from "@/components/common/LCard.vue";
+import LTable from "@/components/common/LTable.vue";
 import { ref } from "vue";
 import { ContentStatus, type Content, type Post } from "@/types";
 import { useLanguageStore } from "@/stores/language";
-import AcBadge from "@/components/common/AcBadge.vue";
+import LBadge from "@/components/common/LBadge.vue";
 import { storeToRefs } from "pinia";
 
 const { posts } = storeToRefs(usePostStore());
@@ -76,8 +76,8 @@ const translationStatus = (content: Content | undefined) => {
             :buttonLink="{ name: 'posts.create' }"
         />
 
-        <AcCard v-else padding="none">
-            <AcTable
+        <LCard v-else padding="none">
+            <LTable
                 :columns="columns"
                 :items="posts"
                 v-model:sortBy="sortBy"
@@ -88,7 +88,7 @@ const translationStatus = (content: Content | undefined) => {
                 </template>
                 <template #item.translations="{ content }">
                     <div class="flex gap-2" v-if="content.length > 0">
-                        <AcBadge
+                        <LBadge
                             v-for="language in languages"
                             :key="language.languageCode"
                             type="language"
@@ -102,10 +102,10 @@ const translationStatus = (content: Content | undefined) => {
                             "
                         >
                             {{ language.languageCode }}
-                        </AcBadge>
+                        </LBadge>
                     </div>
                 </template>
-            </AcTable>
-        </AcCard>
+            </LTable>
+        </LCard>
     </BasePage>
 </template>

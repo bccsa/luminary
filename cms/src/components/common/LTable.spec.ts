@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { mount } from "@vue/test-utils";
-import AcTable from "./AcTable.vue";
+import LTable from "./LTable.vue";
 
 const columns = [
     {
@@ -34,9 +34,9 @@ const items = [
     },
 ];
 
-describe("AcTable", () => {
+describe("LTable", () => {
     it("renders data in a table", () => {
-        const wrapper = mount(AcTable, {
+        const wrapper = mount(LTable, {
             props: {
                 columns,
                 items,
@@ -49,7 +49,7 @@ describe("AcTable", () => {
     });
 
     it("can render a custom table cell", () => {
-        const wrapper = mount(AcTable, {
+        const wrapper = mount(LTable, {
             props: {
                 columns,
                 items,
@@ -65,7 +65,7 @@ describe("AcTable", () => {
     });
 
     it("can sort a column", async () => {
-        const wrapper = mount(AcTable, {
+        const wrapper = mount(LTable, {
             props: {
                 columns,
                 items,
@@ -81,7 +81,7 @@ describe("AcTable", () => {
     });
 
     it("can paginate the items", async () => {
-        const wrapper: any = mount(AcTable, {
+        const wrapper: any = mount(LTable, {
             props: {
                 columns,
                 items,
