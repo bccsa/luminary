@@ -28,7 +28,7 @@ describe("Socketio", () => {
                 };
                 client.on("changeRequestAck", c);
 
-                client.emit("data", changeRequests);
+                client.emit("changeRequest", changeRequests);
             });
         };
     }

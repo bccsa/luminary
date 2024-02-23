@@ -80,11 +80,11 @@ export class Socketio {
 
     /**
      * Client data submission event handler
-     * @param data
+     * @param changeRequests An array of change requests
      * @param socket
      */
-    @SubscribeMessage("data")
-    async onClientData(@MessageBody() data: any[], @ConnectedSocket() socket: Socket) {
+    @SubscribeMessage("changeRequest")
+    async onChangeRequest(@MessageBody() changeRequests: any[], @ConnectedSocket() socket: Socket) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         // const user = "super-admin";
         const groups = ["group-super-admins"];
@@ -92,7 +92,7 @@ export class Socketio {
         // Get user accessible groups and validate change request
         const userAccessMap = PermissionSystem.getAccessMap(groups);
 
-        const sortedChangeRequests = data.sort((a, b) => {
+        const sortedChangeRequests = changeRequests.sort((a, b) => {
             return a.id - b.id;
         });
 

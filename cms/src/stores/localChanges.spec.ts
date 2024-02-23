@@ -66,7 +66,7 @@ describe("localChanges store", () => {
 
         await waitForExpect(() => {
             expect(socketMock.emit).toHaveBeenCalledTimes(1);
-            expect(socketMock.emit).toHaveBeenCalledWith("data", [
+            expect(socketMock.emit).toHaveBeenCalledWith("changeRequest", [
                 { ...mockLocalChange1, status: LocalChangeStatus.Syncing },
                 { ...mockLocalChange2, status: LocalChangeStatus.Syncing },
             ]);

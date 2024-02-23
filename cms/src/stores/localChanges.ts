@@ -37,7 +37,7 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
             });
         });
 
-        socket.emit("data", localChanges);
+        socket.emit("changeRequest", localChanges);
     };
 
     const handleAck = async (ack: ChangeReqAckDto) => {
