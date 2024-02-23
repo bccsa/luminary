@@ -36,7 +36,7 @@ const states = {
     error: "text-red-900 bg-red-50 ring-red-300 focus:ring-red-500",
 };
 
-const id = `ac-select-${useId()}`;
+const id = `l-select-${useId()}`;
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>

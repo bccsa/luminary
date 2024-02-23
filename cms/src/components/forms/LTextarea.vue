@@ -50,7 +50,7 @@ const sizes = {
 
 const emit = defineEmits(["update:modelValue"]);
 
-const id = `ac-input-${useId()}`;
+const id = `l-input-${useId()}`;
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>
 

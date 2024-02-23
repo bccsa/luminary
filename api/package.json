@@ -1,5 +1,5 @@
 {
-    "name": "ac-api",
+    "name": "luminary-api",
     "private": true,
     "scripts": {
         "build": "nest build",

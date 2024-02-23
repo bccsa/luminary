@@ -73,7 +73,7 @@ const sizes = {
     lg: "py-2.5",
 };
 
-const id = `ac-input-${useId()}`;
+const id = `l-input-${useId()}`;
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>
 
