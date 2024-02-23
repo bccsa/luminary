@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import AcSelect from "./AcSelect.vue";
+import LSelect from "./LSelect.vue";
 
 const options = [
     { label: "Test item 1", value: "one" },
     { label: "Test item 2", value: "two" },
 ];
 
-describe("AcSelect", () => {
+describe("LSelect", () => {
     it("emits update event on input", async () => {
-        const wrapper = mount(AcSelect, {
+        const wrapper = mount(LSelect, {
             props: { options },
         });
         await wrapper.find("select").setValue("two");
@@ -19,7 +19,7 @@ describe("AcSelect", () => {
     });
 
     it("renders a label and message from the default slot", () => {
-        const wrapper = mount(AcSelect, {
+        const wrapper = mount(LSelect, {
             props: { label: "Test label", options },
             slots: { default: "Test message" },
         });
@@ -29,13 +29,13 @@ describe("AcSelect", () => {
     });
 
     it("renders without a label ", () => {
-        const wrapper = mount(AcSelect, { props: { options } });
+        const wrapper = mount(LSelect, { props: { options } });
 
         expect(wrapper.text()).toBe(options[0].label + options[1].label);
     });
 
     it("passes through non-prop attributes", () => {
-        const wrapper = mount(AcSelect, { props: { options }, attrs: { autocomplete: true } });
+        const wrapper = mount(LSelect, { props: { options }, attrs: { autocomplete: true } });
         expect(wrapper.html()).toContain('autocomplete="true"');
     });
 });

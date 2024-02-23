@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import AcInput from "./AcInput.vue";
+import LInput from "./LInput.vue";
 
-describe("AcInput", () => {
+describe("LInput", () => {
     it("emits update event on input", async () => {
-        const wrapper = mount(AcInput, {
+        const wrapper = mount(LInput, {
             props: { name: "input" },
         });
         await wrapper.find("input").setValue("test value");
@@ -14,7 +14,7 @@ describe("AcInput", () => {
     });
 
     it("renders a label and message from the default slot", () => {
-        const wrapper = mount(AcInput, {
+        const wrapper = mount(LInput, {
             props: { name: "input", label: "Test label" },
             slots: { default: "Test message" },
         });
@@ -24,7 +24,7 @@ describe("AcInput", () => {
     });
 
     it("renders without a label ", () => {
-        const wrapper = mount(AcInput, {
+        const wrapper = mount(LInput, {
             props: { name: "input" },
         });
 
@@ -32,7 +32,7 @@ describe("AcInput", () => {
     });
 
     it("passes through non-prop attributes", () => {
-        const wrapper = mount(AcInput, { props: { name: "input" }, attrs: { autocomplete: true } });
+        const wrapper = mount(LInput, { props: { name: "input" }, attrs: { autocomplete: true } });
         expect(wrapper.html()).toContain('autocomplete="true"');
     });
 });
