@@ -1,7 +1,9 @@
 # List of message names used for socket.io communication between the API and client / CMS
 
-| Message name  | Description                   | Use                   | Data                                                      |
-| ------------- | ----------------------------- | --------------------- | --------------------------------------------------------- |
-| connect       | connection established to API | client & cms built-in | -                                                         |
-| clientDataReq | Client data request           | client / cms -> API   | Object with client details such as current update version |
-| data          | document transfer             | client / cms <-> API  | Array of document objects                                 |
+| Message name     | Description                       | Use                   | Data                                                      |
+| ---------------- | --------------------------------- | --------------------- | --------------------------------------------------------- |
+| connect          | connection established to API     | client & cms built-in | -                                                         |
+| clientDataReq    | Client data request               | client / cms -> API   | Object with client details such as current update version |
+| data             | Document transfer                 | API -> client / cms   | Array of document objects                                 |
+| changeRequest    | Document changes                  | client / cms -> API   | Array of change requests                                  |
+| changeRequestAck | Acknowledgement of change request | API -> client / cms   | Acknowledgement of individual change request with status  |
