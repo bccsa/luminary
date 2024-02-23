@@ -1,8 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import * as nano from "nano";
-import { PermissionSystem } from "../permissions/permissions.service";
 import { isDeepStrictEqual } from "util";
 import { DocType, Uuid } from "../enums";
+import { ConfigService } from "@nestjs/config";
+import { DatabaseConfig, SyncConfig } from "../configuration";
+import * as http from "http";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -31,14 +33,12 @@ export class DbService {
     protected syncVersion: number;
     protected syncTolerance: number;
 
-    constructor() {
-        this.connect(process.env.DB_CONNECTION_STRING as string, process.env.DB_DATABASE as string);
-        this.syncTolerance = Number.parseInt((process.env.SYNC_TOLERANCE as string) || "1000");
+    constructor(private configService: ConfigService) {
+        const dbConfig = this.configService.get<DatabaseConfig>("database");
+        const syncConfig = this.configService.get<SyncConfig>("sync");
 
-        // Populate the permission system
-        this.getGroups().then((res: any) => {
-            PermissionSystem.upsertGroups(res.docs);
-        });
+        this.connect(dbConfig);
+        this.syncTolerance = syncConfig.tolerance;
     }
 
     /**
@@ -46,8 +46,15 @@ export class DbService {
      * @param {string} connectionString - CouchDB URL including username and password (http://user:password@hostname_or_ip)
      * @param {string} database - Database name.
      */
-    private connect(connectionString: string, database: string) {
-        this.db = nano(connectionString).use(database);
+    private connect(dbConfig: DatabaseConfig) {
+        this.db = nano({
+            url: dbConfig.connectionString,
+            requestDefaults: {
+                agent: new http.Agent({
+                    maxSockets: dbConfig.maxSockets,
+                }),
+            },
+        }).use(dbConfig.database);
     }
 
     /**

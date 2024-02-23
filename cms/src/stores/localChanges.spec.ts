@@ -5,7 +5,7 @@ import { setActivePinia, createPinia } from "pinia";
 import { useSocketConnectionStore } from "./socketConnection";
 import { db } from "@/db/baseDatabase";
 import { mockContent, mockLocalChange1, mockLocalChange2, mockPost } from "@/tests/mockData";
-import { AckStatus, DocType, LocalChangeStatus, type ChangeReqAckDto, type Post } from "@/types";
+import { AckStatus, LocalChangeStatus, type ChangeReqAckDto, type Post } from "@/types";
 import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
 
@@ -66,7 +66,7 @@ describe("localChanges store", () => {
 
         await waitForExpect(() => {
             expect(socketMock.emit).toHaveBeenCalledTimes(1);
-            expect(socketMock.emit).toHaveBeenCalledWith("data", [
+            expect(socketMock.emit).toHaveBeenCalledWith("changeRequest", [
                 { ...mockLocalChange1, status: LocalChangeStatus.Syncing },
                 { ...mockLocalChange2, status: LocalChangeStatus.Syncing },
             ]);

@@ -22,15 +22,14 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             isConnected.value = false;
         });
 
-        socket.on("data", async (data: BaseDocumentDto[] | ChangeReqAckDto) => {
+        socket.on("data", async (data: BaseDocumentDto[]) => {
+            await db.docs.bulkPut(data);
+        });
+
+        socket.on("changeRequestAck", async (ack: ChangeReqAckDto) => {
             const localChangeStore = useLocalChangeStore();
 
-            if (Array.isArray(data)) {
-                await db.docs.bulkPut(data);
-                return;
-            }
-
-            await localChangeStore.handleAck(data);
+            await localChangeStore.handleAck(ack);
         });
     };
 

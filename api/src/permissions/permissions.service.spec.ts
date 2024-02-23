@@ -1,20 +1,11 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { DbQueryResult, DbService } from "../db/db.service";
 import { PermissionSystem } from "./permissions.service";
 import { DocType, AclPermission } from "../enums";
 import { AccessMap } from "./AccessMap";
+import { createTestingModule } from "../test/testingModule";
 
 describe("PermissionService", () => {
-    let db: DbService;
-
     beforeAll(async () => {
-        const module: TestingModule = await Test.createTestingModule({
-            providers: [DbService],
-        }).compile();
-
-        db = module.get<DbService>(DbService);
-        const res: DbQueryResult = await db.getGroups();
-        PermissionSystem.upsertGroups(res.docs);
+        await createTestingModule("permission-service");
 
         // Wait a little bit for the permission system to update
         function timeout() {

@@ -3,7 +3,7 @@ import { useSocketConnectionStore } from "./socketConnection";
 import { setActivePinia, createPinia } from "pinia";
 import { io } from "socket.io-client";
 import { mockEnglishContentDto, mockPostDto } from "@/tests/mockData";
-import { type ChangeReqAckDto, DocType, AckStatus } from "@/types";
+import { type ChangeReqAckDto, AckStatus } from "@/types";
 import { useLocalChangeStore } from "./localChanges";
 
 const socketMocks = vi.hoisted(() => {
@@ -112,7 +112,7 @@ describe("socketConnection", () => {
             ack: AckStatus.Accepted,
         };
 
-        listenToSocketOnEvent("data", ack);
+        listenToSocketOnEvent("changeRequestAck", ack);
 
         store.bindEvents();
 

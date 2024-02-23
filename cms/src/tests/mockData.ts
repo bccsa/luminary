@@ -9,7 +9,6 @@ import {
     type LocalChange,
     LocalChangeStatus,
 } from "@/types";
-import { v4 as uuidv4 } from "uuid";
 
 export const mockPostDto: PostDto = {
     _id: "post-post1",

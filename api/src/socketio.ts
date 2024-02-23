@@ -80,11 +80,11 @@ export class Socketio {
 
     /**
      * Client data submission event handler
-     * @param data
+     * @param changeRequests An array of change requests
      * @param socket
      */
-    @SubscribeMessage("data")
-    async onClientData(@MessageBody() data: any[], @ConnectedSocket() socket: Socket) {
+    @SubscribeMessage("changeRequest")
+    async onChangeRequest(@MessageBody() changeRequests: any[], @ConnectedSocket() socket: Socket) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         // const user = "super-admin";
         const groups = ["group-super-admins"];
@@ -92,7 +92,7 @@ export class Socketio {
         // Get user accessible groups and validate change request
         const userAccessMap = PermissionSystem.getAccessMap(groups);
 
-        const sortedChangeRequests = data.sort((a, b) => {
+        const sortedChangeRequests = changeRequests.sort((a, b) => {
             return a.id - b.id;
         });
 
@@ -105,18 +105,23 @@ export class Socketio {
             );
 
             if (!validationResult.validated) {
-                this.emitAck(socket, AckStatus.Rejected, changeRequest, validationResult.error);
+                await this.emitAck(
+                    socket,
+                    AckStatus.Rejected,
+                    changeRequest,
+                    validationResult.error,
+                );
                 return;
             }
 
             await this.db
                 .upsertDoc(changeRequest.doc)
                 // Send acknowledgement to client
-                .then(() => {
-                    this.emitAck(socket, AckStatus.Accepted, changeRequest);
+                .then(async () => {
+                    await this.emitAck(socket, AckStatus.Accepted, changeRequest);
                 })
-                .catch((err) => {
-                    this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
+                .catch(async (err) => {
+                    await this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
                 });
         }
     }
@@ -129,7 +134,7 @@ export class Socketio {
      * @param reqId - ID of submitted change request
      * @param docId - ID of the submitted document
      */
-    private emitAck(
+    private async emitAck(
         socket: Socket,
         status: AckStatus,
         changeRequest: ChangeReqDto,
@@ -145,13 +150,13 @@ export class Socketio {
         }
 
         if (changeRequest.doc && status == AckStatus.Rejected) {
-            this.db.getDoc(changeRequest.doc._id).then((doc) => {
-                if (doc) {
-                    ack.doc = doc;
+            await this.db.getDoc(changeRequest.doc._id).then((res) => {
+                if (res.docs.length > 0) {
+                    ack.doc = res.docs[0];
                 }
             });
         }
 
-        socket.emit("data", ack);
+        socket.emit("changeRequestAck", ack);
     }
 }

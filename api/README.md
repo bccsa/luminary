@@ -4,13 +4,23 @@ The API layer for the ActiveChristianity app, built with [Nest](https://github.c
 
 ## Installation
 
+1. Copy the environment variable file and fill in required fields, such as the database connection string:
+
 ```sh
-$ npm install
+cp .env.example .env
+```
+
+2. Install dependencies:
+
+```sh
+$ npm ci
 ```
 
 ## Running the app
 
 By default the app will run at http://localhost:3000.
+
+3. Run the server:
 
 ```sh
 # development
@@ -25,15 +35,17 @@ $ npm run start:prod
 
 ## Test
 
-Copy and `.env.example` file to `.env.test` and change `DB_CONNECTION_STRING` to a local empty CouchDB database to be used for running local test.
-_Important! `PORT` must be set to a unique value (i.e. not the same as the port number used in the `.env` file)_
+Copy and `.env.test.example` file to `.env.test` and set the required values, such as the database connection string.
+
+```sh
+cp .env.test.example .env.test
+```
+
+Run the unit tests:
 
 ```sh
 # unit tests
 $ npm run test:unit
-
-# e2e tests
-$ npm run test:e2e
 
 # test coverage
 $ npm run test:cov

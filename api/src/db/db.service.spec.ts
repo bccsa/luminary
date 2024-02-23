@@ -1,17 +1,13 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
 import { DocType } from "../enums";
+import { createTestingModule } from "../test/testingModule";
 
 describe("DbService", () => {
     let service: DbService;
 
     beforeAll(async () => {
-        const module: TestingModule = await Test.createTestingModule({
-            providers: [DbService],
-        }).compile();
-
-        service = module.get<DbService>(DbService);
+        service = (await createTestingModule("db-service")).dbService;
     });
 
     it("can be instantiated", () => {
@@ -80,15 +76,16 @@ describe("DbService", () => {
 
     it("can get the latest document updated time", async () => {
         // Add / update a document and check if the latest document update time is close to now.
-        const newDoc = {
+        const doc = {
             _id: "docUpdateTimeTest",
             testData: "newData123",
         };
-        await service.upsertDoc(newDoc);
+        await service.upsertDoc(doc);
+        const newDoc = (await service.getDoc(doc._id)).docs[0];
 
         const res: number = await service.getLatestDocUpdatedTime();
 
-        expect(res).toBeGreaterThan(Date.now() - 200);
+        expect(res).toBe(newDoc.updatedTimeUtc);
     });
 
     it("can get the oldest changelogEntry document updated time", async () => {
@@ -183,11 +180,12 @@ describe("DbService", () => {
         };
 
         await service.upsertDoc(doc);
+        const updatedDoc = (await service.getDoc(doc._id)).docs[0];
 
         const res: any = await service.getDocsPerGroup("", {
             groups: ["group-public-content"],
             types: [DocType.Post, DocType.Tag, DocType.Content],
-            from: Date.now() - 100,
+            from: updatedDoc.updatedTimeUtc,
         });
 
         expect(res.docs.length).toBe(1);

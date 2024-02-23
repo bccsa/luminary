@@ -1,19 +1,16 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { DbService } from "../db/db.service";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { plainToClass } from "class-transformer";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
+import { createTestingModule } from "../test/testingModule";
 
 describe("validateChangeRequestAccess", () => {
     let db: DbService;
 
     beforeAll(async () => {
-        const module: TestingModule = await Test.createTestingModule({
-            providers: [DbService],
-        }).compile();
+        db = (await createTestingModule("validate-change-request-access")).dbService;
 
-        db = module.get<DbService>(DbService);
         const res: any = await db.getGroups();
         PermissionSystem.upsertGroups(res.docs);
 

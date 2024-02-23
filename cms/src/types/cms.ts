@@ -1,4 +1,4 @@
-import type { BaseDocumentDto, Uuid } from ".";
+import type { BaseDocumentDto } from ".";
 
 export enum DocType {
     Change = "change",
