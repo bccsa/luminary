@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Create environment file
-        run: cp .env.example .env.test
+        run: cp .env.test.example .env.test
         working-directory: api
 
       - name: Start CouchDB
