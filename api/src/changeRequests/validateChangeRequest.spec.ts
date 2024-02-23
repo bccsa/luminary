@@ -3,11 +3,15 @@ import { AccessMap } from "../permissions/AccessMap";
 import { validateChangeRequest } from "./validateChangeRequest";
 import { DbService } from "../db/db.service";
 import * as validateChangeRequestAccess from "./validateChangeRequestAccess";
+import { createTestingModule } from "../test/testingModule";
 
 describe("validateChangeRequest", () => {
     let validateChangeRequestAccessSpy: jest.SpyInstance;
+    let db: DbService;
 
-    beforeAll(() => {
+    beforeAll(async () => {
+        db = (await createTestingModule("validate-change-request")).dbService;
+
         validateChangeRequestAccessSpy = jest
             .spyOn(validateChangeRequestAccess, "validateChangeRequestAccess")
             .mockResolvedValue({
@@ -35,7 +39,7 @@ describe("validateChangeRequest", () => {
             },
         };
 
-        const result = await validateChangeRequest(changeRequest, new AccessMap(), new DbService());
+        const result = await validateChangeRequest(changeRequest, new AccessMap(), db);
 
         expect(result.validated).toBe(true);
         expect(result.error).toBe(undefined);
@@ -48,7 +52,7 @@ describe("validateChangeRequest", () => {
             invalidProperty: {},
         };
 
-        const result = await validateChangeRequest(changeRequest, new AccessMap(), new DbService());
+        const result = await validateChangeRequest(changeRequest, new AccessMap(), db);
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Change request validation failed");
@@ -67,7 +71,7 @@ describe("validateChangeRequest", () => {
             },
         };
 
-        const result = await validateChangeRequest(changeRequest, new AccessMap(), new DbService());
+        const result = await validateChangeRequest(changeRequest, new AccessMap(), db);
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Invalid document type");
@@ -86,7 +90,7 @@ describe("validateChangeRequest", () => {
             },
         };
 
-        const result = await validateChangeRequest(changeRequest, new AccessMap(), new DbService());
+        const result = await validateChangeRequest(changeRequest, new AccessMap(), db);
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Submitted language document validation failed");
@@ -115,7 +119,7 @@ describe("validateChangeRequest", () => {
             },
         };
 
-        const result = await validateChangeRequest(changeRequest, new AccessMap(), new DbService());
+        const result = await validateChangeRequest(changeRequest, new AccessMap(), db);
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Submitted group document validation failed");
@@ -144,7 +148,7 @@ describe("validateChangeRequest", () => {
             },
         };
 
-        const result = await validateChangeRequest(changeRequest, new AccessMap(), new DbService());
+        const result = await validateChangeRequest(changeRequest, new AccessMap(), db);
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Submitted group document validation failed");

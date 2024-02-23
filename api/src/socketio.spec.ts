@@ -1,20 +1,17 @@
 import { Socket, io } from "socket.io-client";
-import { Test } from "@nestjs/testing";
-import { DbService } from "./db/db.service";
 import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
-
-async function createNestApp(): Promise<INestApplication> {
-    const testingModule = await Test.createTestingModule({
-        providers: [Socketio, DbService],
-    }).compile();
-    return testingModule.createNestApplication();
-}
+import { createTestingModule } from "./test/testingModule";
 
 describe("Socketio", () => {
     let server: Socketio;
     let client: Socket;
     let app: INestApplication;
+
+    async function createNestApp(): Promise<INestApplication> {
+        const testingModule = (await createTestingModule("socketio")).testingModule;
+        return testingModule.createNestApplication();
+    }
 
     // Emits the given changeRequests from the client, and returns all received acks as an array
     function createTestSocketForChangeRequests(changeRequests) {

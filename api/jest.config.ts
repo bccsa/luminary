@@ -1,7 +1,6 @@
 import type { Config } from "jest";
 
 const config: Config = {
-    globalSetup: "<rootDir>/../jest.setup.ts",
     moduleFileExtensions: ["js", "json", "ts"],
     rootDir: "src",
     testRegex: ".*\\.spec\\.ts$",

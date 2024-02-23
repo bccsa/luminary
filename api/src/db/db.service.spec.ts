@@ -1,56 +1,13 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
 import { DocType } from "../enums";
-import { ConfigService } from "@nestjs/config";
-import { DatabaseConfig, SyncConfig } from "src/configuration";
-import * as nano from "nano";
-import { upsertDesignDocs, upsertSeedingDocs } from "./db.seedingFunctions";
+import { createTestingModule } from "../test/testingModule";
 
 describe("DbService", () => {
     let service: DbService;
 
     beforeAll(async () => {
-        const connectionString = process.env.DB_CONNECTION_STRING;
-        const dbName = "ac-test-dbtest";
-
-        const n = await nano(connectionString);
-
-        const databases = await n.db.list();
-        if (databases.find((d) => d == dbName)) {
-            await n.db.destroy(dbName);
-        }
-        await n.db.create(dbName);
-
-        const module: TestingModule = await Test.createTestingModule({
-            providers: [
-                DbService,
-                {
-                    provide: ConfigService,
-                    useValue: {
-                        get: jest.fn((key) => {
-                            if (key == "sync") {
-                                return {
-                                    tolerance: 1000,
-                                } as SyncConfig;
-                            }
-
-                            if (key == "database") {
-                                return {
-                                    connectionString,
-                                    database: dbName,
-                                } as DatabaseConfig;
-                            }
-                        }),
-                    },
-                },
-            ],
-        }).compile();
-
-        service = module.get<DbService>(DbService);
-
-        await upsertDesignDocs(service);
-        await upsertSeedingDocs(service);
+        service = (await createTestingModule("db-service")).dbService;
     });
 
     it("can be instantiated", () => {
