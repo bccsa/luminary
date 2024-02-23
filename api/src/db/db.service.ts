@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from "util";
 import { DocType, Uuid } from "../enums";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseConfig, SyncConfig } from "../configuration";
+import * as http from "http";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -46,7 +47,14 @@ export class DbService {
      * @param {string} database - Database name.
      */
     private connect(connectionString: string, database: string) {
-        this.db = nano(connectionString).use(database);
+        this.db = nano({
+            url: connectionString,
+            requestDefaults: {
+                agent: new http.Agent({
+                    maxSockets: 512,
+                }),
+            },
+        }).use(database);
     }
 
     /**
