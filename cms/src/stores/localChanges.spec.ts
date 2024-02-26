@@ -34,6 +34,15 @@ describe("localChanges store", () => {
         vi.restoreAllMocks();
     });
 
+    it("can check if a post has unsynced local changes", async () => {
+        const localChangesStore = useLocalChangeStore();
+
+        await waitForExpect(() => {
+            const res = localChangesStore.isLocalChange(mockPost._id);
+            expect(res).toBe(true);
+        });
+    });
+
     it("can watch for syncable changes", async () => {
         const localChangesStore = useLocalChangeStore();
         const socketConnectionStore = useSocketConnectionStore();

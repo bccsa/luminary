@@ -8,6 +8,7 @@ import { mockLanguageEng, mockPost } from "@/tests/mockData";
 import LBadge from "@/components/common/LBadge.vue";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
+import { useLocalChangeStore } from "@/stores/localChanges";
 
 vi.mock("vue-router", () => ({
     resolve: vi.fn(),
@@ -37,6 +38,24 @@ describe("PostOverview", () => {
         // Assert there is a badge that indicates a published translation
         const badge = await wrapper.findComponent(LBadge);
         expect(badge.props().variant).toBe("success");
+    });
+
+    it("displays a badge for a post with local unsynced changes", async () => {
+        const postStore = usePostStore();
+        const languageStore = useLanguageStore();
+        const localChangeStore = useLocalChangeStore();
+
+        postStore.posts = [mockPost];
+        languageStore.languages = [mockLanguageEng];
+        // @ts-expect-error - Property is read-only but we are mocking it
+        localChangeStore.isLocalChange = () => true;
+
+        const wrapper = mount(PostOverview);
+
+        // Assert there is a badge that indicates a post has unsynced local changes
+        const badge = wrapper.findComponent(LBadge);
+        expect(badge.props().variant).toBe("warning");
+        expect(wrapper.text()).toContain("Offline changes");
     });
 
     it("displays an empty state if there are no posts", async () => {

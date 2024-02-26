@@ -12,9 +12,11 @@ import { ContentStatus, type Content, type Post } from "@/types";
 import { useLanguageStore } from "@/stores/language";
 import LBadge from "@/components/common/LBadge.vue";
 import { storeToRefs } from "pinia";
+import { useLocalChangeStore } from "@/stores/localChanges";
 
 const { posts } = storeToRefs(usePostStore());
 const { languages } = storeToRefs(useLanguageStore());
+const { isLocalChange } = useLocalChangeStore();
 
 const sortBy = ref(undefined);
 const sortDirection = ref(undefined);
@@ -29,6 +31,11 @@ const columns = [
             if (firstItem > secondItem) return sortDirection.value == "descending" ? -1 : 1;
             return 0;
         },
+    },
+    {
+        text: "",
+        key: "offlineChanges",
+        sortable: false,
     },
     {
         text: "Translations",
@@ -85,6 +92,11 @@ const translationStatus = (content: Content | undefined) => {
             >
                 <template #item.title="{ content }">
                     {{ content.length > 0 ? content[0].title : "No translation" }}
+                </template>
+                <template #item.offlineChanges="post">
+                    <LBadge v-if="isLocalChange(post._id)" variant="warning">
+                        Offline changes
+                    </LBadge>
                 </template>
                 <template #item.translations="{ content }">
                     <div class="flex gap-2" v-if="content.length > 0">

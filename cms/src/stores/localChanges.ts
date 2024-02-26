@@ -2,7 +2,7 @@ import { defineStore, storeToRefs } from "pinia";
 import { AckStatus, LocalChangeStatus, type LocalChange, type ChangeReqAckDto } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
-import { watch, type Ref } from "vue";
+import { watch, type Ref, computed } from "vue";
 import { LocalChangesRepository } from "@/db/repositories/localChangesRepository";
 import type { Observable } from "rxjs";
 import { useSocketConnectionStore } from "./socketConnection";
@@ -17,6 +17,13 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
             LocalChange[]
         >,
     );
+
+    const isLocalChange = computed(() => {
+        return (docId: string) => {
+            return unsyncedChanges.value?.some((change) => change.doc._id === docId);
+            // TODO: filter on changed content documents who has the post/tag as parent if the document itself is not changed.
+        };
+    });
 
     const watchForSyncableChanges = () => {
         const { isConnected } = storeToRefs(useSocketConnectionStore());
@@ -58,5 +65,5 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
         await localChangesRepository.delete(ack.id);
     };
 
-    return { watchForSyncableChanges, handleAck };
+    return { watchForSyncableChanges, handleAck, isLocalChange };
 });
