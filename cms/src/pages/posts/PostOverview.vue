@@ -7,7 +7,7 @@ import { PlusIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import LCard from "@/components/common/LCard.vue";
 import LTable from "@/components/common/LTable.vue";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { ContentStatus, type Content, type Post } from "@/types";
 import { useLanguageStore } from "@/stores/language";
 import LBadge from "@/components/common/LBadge.vue";
@@ -48,17 +48,19 @@ const columns = [
     },
 ];
 
-const translationStatus = (content: Content | undefined) => {
-    if (content?.status == ContentStatus.Published) {
-        return "success";
-    }
+const translationStatus = computed(() => {
+    return (content: Content | undefined) => {
+        if (content?.status == ContentStatus.Published) {
+            return "success";
+        }
 
-    if (content?.status == ContentStatus.Draft) {
-        return "info";
-    }
+        if (content?.status == ContentStatus.Draft) {
+            return "info";
+        }
 
-    return "default";
-};
+        return "default";
+    };
+});
 </script>
 
 <template>
