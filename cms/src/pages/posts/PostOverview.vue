@@ -94,9 +94,9 @@ const translationStatus = (content: Content | undefined) => {
                     {{ content.length > 0 ? content[0].title : "No translation" }}
                 </template>
                 <template #item.offlineChanges="post">
-                    <AcBadge v-if="isLocalChange(post._id)" variant="warning">
+                    <LBadge v-if="isLocalChange(post._id)" variant="warning">
                         Offline changes
-                    </AcBadge>
+                    </LBadge>
                 </template>
                 <template #item.translations="{ content }">
                     <div class="flex gap-2" v-if="content.length > 0">
