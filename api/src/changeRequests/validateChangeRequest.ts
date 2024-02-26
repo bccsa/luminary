@@ -28,7 +28,7 @@ const DocTypeMap = {
 };
 
 /**
- * Validates a change request received as a "data" message received from a CMS / client
+ * Validates a change request received from a CMS / client
  * @param data
  */
 export async function validateChangeRequest(
