@@ -2,8 +2,8 @@
 import { RouterLink } from "vue-router";
 import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import AcButton from "@/components/button/AcButton.vue";
-import { PlusIcon } from "@heroicons/vue/20/solid";
+import LButton from "@/components/button/LButton.vue";
+import { PlusIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import LCard from "@/components/common/LCard.vue";
 import LTable from "@/components/common/LTable.vue";
@@ -46,6 +46,10 @@ const columns = [
         text: "Last updated",
         key: "updatedTimeUtc",
     },
+    {
+        text: "",
+        key: "actions",
+    },
 ];
 
 const translationStatus = computed(() => {
@@ -66,7 +70,7 @@ const translationStatus = computed(() => {
 <template>
     <BasePage title="Posts" :loading="posts === undefined">
         <template #actions>
-            <AcButton
+            <LButton
                 v-if="posts && posts.length > 0"
                 variant="primary"
                 :icon="PlusIcon"
@@ -74,7 +78,7 @@ const translationStatus = computed(() => {
                 :to="{ name: 'posts.create' }"
             >
                 Create post
-            </AcButton>
+            </LButton>
         </template>
 
         <EmptyState
@@ -119,7 +123,21 @@ const translationStatus = computed(() => {
                         </LBadge>
                     </div>
                 </template>
+                <template #item.actions="post">
+                    <LButton
+                        variant="tertiary"
+                        :icon="PencilSquareIcon"
+                        :is="RouterLink"
+                        :to="{
+                            name: 'posts.edit',
+                            params: {
+                                id: post._id,
+                            },
+                        }"
+                    ></LButton>
+                </template>
             </LTable>
         </LCard>
     </BasePage>
 </template>
+@/components/button/LButton.vue

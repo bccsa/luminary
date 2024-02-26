@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
-import AcButton from "@/components/button/AcButton.vue";
+import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
 import LInput from "@/components/forms/LInput.vue";
@@ -130,14 +130,14 @@ const save = handleSubmit(async (values) => {
                                 >
                                     Select different language
                                 </button>
-                                <AcButton
+                                <LButton
                                     type="submit"
                                     variant="primary"
                                     :icon="ArrowRightIcon"
                                     icon-right
                                 >
                                     Save as draft & continue
-                                </AcButton>
+                                </LButton>
                             </div>
                         </div>
                     </transition>
@@ -146,3 +146,4 @@ const save = handleSubmit(async (values) => {
         </div>
     </BasePage>
 </template>
+@/components/button/LButton.vue

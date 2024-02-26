@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
 import LTextarea from "@/components/forms/LTextarea.vue";
-import AcButton from "@/components/button/AcButton.vue";
+import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
 import {
@@ -23,7 +23,7 @@ defineProps<Props>();
     <div class="relative grid grid-cols-3 gap-8">
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
-                <AcButton>Set custom image</AcButton>
+                <LButton>Set custom image</LButton>
 
                 <LInput name="title" label="Title" class="mt-6" required />
 
@@ -67,8 +67,8 @@ defineProps<Props>();
             <div class="sticky top-20 space-y-6">
                 <LCard>
                     <div class="flex gap-4">
-                        <AcButton>Save as draft</AcButton>
-                        <AcButton variant="primary">Save & publish</AcButton>
+                        <LButton>Save as draft</LButton>
+                        <LButton variant="primary">Save & publish</LButton>
                     </div>
 
                     <template #footer>
@@ -81,8 +81,8 @@ defineProps<Props>();
 
                 <LCard title="Preview">
                     <div class="flex gap-4">
-                        <AcButton>Preview changes</AcButton>
-                        <AcButton :icon="ArrowTopRightOnSquareIcon" iconRight>Open link</AcButton>
+                        <LButton>Preview changes</LButton>
+                        <LButton :icon="ArrowTopRightOnSquareIcon" iconRight>Open link</LButton>
                     </div>
                 </LCard>
 
@@ -124,3 +124,4 @@ defineProps<Props>();
         </div>
     </div>
 </template>
+@/components/button/LButton.vue
