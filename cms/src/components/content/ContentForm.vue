@@ -74,8 +74,6 @@ const saveAsDraft = handleSubmit(async (values) => {
         ...values.parent,
     };
 
-    console.log(content, post);
-
     emit("save", content, post);
 });
 </script>
@@ -192,4 +190,3 @@ const saveAsDraft = handleSubmit(async (values) => {
         </div>
     </div>
 </template>
-@/components/button/LButton.vue

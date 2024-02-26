@@ -39,4 +39,3 @@ defineProps<{
         </div>
     </div>
 </template>
-@/components/button/LButton.vue

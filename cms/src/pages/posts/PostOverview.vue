@@ -140,4 +140,3 @@ const translationStatus = computed(() => {
         </LCard>
     </BasePage>
 </template>
-@/components/button/LButton.vue

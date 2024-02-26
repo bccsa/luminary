@@ -285,4 +285,3 @@ const items = [
         </div>
     </BasePage>
 </template>
-@/components/button/LButton.vue
