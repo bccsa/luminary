@@ -36,4 +36,8 @@ export class ChangeDto extends _baseDto {
 
     @IsObject()
     changes: any;
+
+    @IsNotEmpty()
+    @IsString()
+    changedByUser: Uuid;
 }

@@ -7,6 +7,7 @@ import { DocType } from "../enums";
 import { AccessMap } from "../permissions/AccessMap";
 
 export async function processChangeRequest(
+    userId: string,
     changeRequest: ChangeReqDto,
     userAccessMap: AccessMap,
     db: DbService,
@@ -28,6 +29,15 @@ export async function processChangeRequest(
         changeDoc.docType = changeRequest.doc.type;
         changeDoc.updatedTimeUtc = upsertResult.updatedTimeUtc;
         changeDoc.changes = upsertResult.changes;
+        changeDoc.changedByUser = userId;
+
+        if (upsertResult.changes.memberOf) {
+            changeDoc.memberOf = upsertResult.changes.memberOf;
+        }
+
+        if (upsertResult.changes.acl) {
+            changeDoc.acl = upsertResult.changes.acl;
+        }
 
         return db.insertDoc(changeDoc);
     }

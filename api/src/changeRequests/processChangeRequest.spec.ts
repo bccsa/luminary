@@ -30,7 +30,7 @@ describe("processChangeRequest", () => {
             doc: {},
         };
 
-        await processChangeRequest(changeRequest, new AccessMap(), db).catch((err) => {
+        await processChangeRequest("", changeRequest, new AccessMap(), db).catch((err) => {
             expect(err.message).toBeTruthy();
         });
     });
@@ -42,15 +42,25 @@ describe("processChangeRequest", () => {
                 _id: "new-language",
                 type: "language",
                 memberOf: ["group-languages"],
+                // Even though acl's are not valid for "language" documents, we include it here for unit testing purposes.
+                acl: [
+                    {
+                        group: "group-languages",
+                        permissions: ["read", "write"],
+                    },
+                ],
                 languageCode: "xho",
                 name: "Xhoza",
             },
         };
 
-        const processResult = await processChangeRequest(changeRequest, accessMap, db);
+        const processResult = await processChangeRequest("test-user", changeRequest, accessMap, db);
         const res = await db.getDoc(processResult.id);
 
         expect(isDeepStrictEqual(res.docs[0].changes, changeRequest.doc)).toBe(true);
+        expect(res.docs[0].changedByUser).toBe("test-user");
+        expect(res.docs[0].memberOf).toEqual(["group-languages"]);
+        expect(isDeepStrictEqual(res.docs[0].acl, changeRequest.doc.acl)).toBe(true);
     });
 
     it("is not creating a change request when updating a document to the same content", async () => {
@@ -74,8 +84,8 @@ describe("processChangeRequest", () => {
                 name: "Xhoza",
             },
         };
-        await processChangeRequest(changeRequest1, accessMap, db);
-        const processResult = await processChangeRequest(changeRequest2, accessMap, db);
+        await processChangeRequest("", changeRequest1, accessMap, db);
+        const processResult = await processChangeRequest("", changeRequest2, accessMap, db);
         expect(processResult).toBe(undefined);
     });
 });

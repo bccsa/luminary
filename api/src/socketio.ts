@@ -86,7 +86,7 @@ export class Socketio {
     @SubscribeMessage("changeRequest")
     async onChangeRequest(@MessageBody() changeRequests: any[], @ConnectedSocket() socket: Socket) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
-        // const user = "super-admin";
+        const user = "super-admin";
         const groups = ["group-super-admins"];
 
         // Get user accessible groups and validate change request
@@ -98,7 +98,7 @@ export class Socketio {
 
         // Process each change request individually
         for (const changeRequest of sortedChangeRequests) {
-            await processChangeRequest(changeRequest, userAccessMap, this.db)
+            await processChangeRequest(user, changeRequest, userAccessMap, this.db)
                 .then(() => {
                     this.emitAck(socket, AckStatus.Accepted, changeRequest);
                 })
