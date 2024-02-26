@@ -47,10 +47,12 @@ describe("DbService", () => {
         const doc1 = {
             _id: "diffTest",
             testData: "test123",
+            unchangedData: "test123",
         };
         const doc2 = {
             _id: "diffTest",
             testData: "changedData123",
+            unchangedData: "test123",
         };
 
         await service.upsertDoc(doc1);
@@ -58,6 +60,7 @@ describe("DbService", () => {
 
         expect(res.changes.testData).toBe("changedData123");
         expect(res.changes._id).toBe("diffTest");
+        expect(res.changes.unchangedData).toBe(undefined);
     });
 
     it("cannot insert a new document without an id", async () => {
