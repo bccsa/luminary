@@ -13,8 +13,8 @@ import { DocType, AclPermission, AckStatus } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket } from "socket.io-client";
-import { validateChangeRequest } from "./changeRequests/validateChangeRequest";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
+import { processChangeRequest } from "./changeRequests/processChangeRequest";
 
 type ClientDataReq = {
     version?: number;
@@ -98,30 +98,12 @@ export class Socketio {
 
         // Process each change request individually
         for (const changeRequest of sortedChangeRequests) {
-            const validationResult = await validateChangeRequest(
-                changeRequest,
-                userAccessMap,
-                this.db,
-            );
-
-            if (!validationResult.validated) {
-                await this.emitAck(
-                    socket,
-                    AckStatus.Rejected,
-                    changeRequest,
-                    validationResult.error,
-                );
-                return;
-            }
-
-            await this.db
-                .upsertDoc(changeRequest.doc)
-                // Send acknowledgement to client
-                .then(async () => {
-                    await this.emitAck(socket, AckStatus.Accepted, changeRequest);
+            await processChangeRequest(changeRequest, userAccessMap, this.db)
+                .then(() => {
+                    this.emitAck(socket, AckStatus.Accepted, changeRequest);
                 })
-                .catch(async (err) => {
-                    await this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
+                .catch((err) => {
+                    this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
                 });
         }
     }
@@ -130,9 +112,8 @@ export class Socketio {
      * Emit an acknowledgement to a Change Request
      * @param socket - Socket.io connected client instance
      * @param status - Acknowleded status
+     * @param changeRequest - Change request object
      * @param message - Error message
-     * @param reqId - ID of submitted change request
-     * @param docId - ID of the submitted document
      */
     private async emitAck(
         socket: Socket,

@@ -26,19 +26,38 @@ describe("DbService", () => {
         expect(res.docs.length).toBe(0);
     });
 
-    it("can insert a new document", async () => {
+    it("can insert a new document and return the full document in the result's 'changes' field", async () => {
         const uuid = randomUUID();
         const doc = {
             _id: uuid,
             testData: "test123",
         };
 
-        await service.upsertDoc(doc);
+        const res = await service.upsertDoc(doc);
 
         const testGet = (await service.getDoc(uuid)) as any;
 
         expect(testGet.docs[0]._id).toBe(uuid);
         expect(testGet.docs[0].testData).toBe("test123");
+        expect(res.changes.testData).toBe("test123");
+        expect(res.changes._id).toBe(uuid);
+    });
+
+    it("can calculate a document diff and return the diff with the upsert result", async () => {
+        const doc1 = {
+            _id: "diffTest",
+            testData: "test123",
+        };
+        const doc2 = {
+            _id: "diffTest",
+            testData: "changedData123",
+        };
+
+        await service.upsertDoc(doc1);
+        const res = await service.upsertDoc(doc2);
+
+        expect(res.changes.testData).toBe("changedData123");
+        expect(res.changes._id).toBe("diffTest");
     });
 
     it("cannot insert a new document without an id", async () => {
@@ -243,7 +262,7 @@ describe("DbService", () => {
                 },
             ],
         });
-        expect(res).toBe("passed document equal to existing database document");
+        expect(res.message).toBe("Document is identical to the one in the database");
     });
 
     it("can handle simultaneous updates to a single existing document", async () => {

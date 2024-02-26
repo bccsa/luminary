@@ -27,6 +27,18 @@ export type DbQueryResult = {
     warnings?: Array<string>;
 };
 
+/**
+ * Database upsert results
+ */
+export type DbUpsertResult = {
+    id: string;
+    ok: boolean;
+    rev: string;
+    updatedTimeUtc?: number;
+    message?: string;
+    changes?: any;
+};
+
 @Injectable()
 export class DbService {
     private db: nano.DocumentScope<unknown>;
@@ -58,10 +70,32 @@ export class DbService {
     }
 
     /**
+     * Insert a document into the database. This should only be used for new documents with unique IDs.
+     * @param {any} doc - Document to be inserted
+     * @returns - Promise containing the insert result
+     */
+    insertDoc(doc: any): Promise<DbUpsertResult> {
+        return new Promise((resolve, reject) => {
+            this.db
+                .insert(doc)
+                .then((insertResult) => {
+                    resolve({
+                        id: insertResult.id,
+                        ok: insertResult.ok,
+                        rev: insertResult.rev,
+                    });
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
+    }
+
+    /**
      * Insert or update a document with given ID.
      * @param doc - CouchDB document with an _id field
      */
-    upsertDoc(doc: any) {
+    upsertDoc(doc: any): Promise<DbUpsertResult> {
         return new Promise((resolve, reject) => {
             if (!doc._id) {
                 reject("Invalid document: The passed document does not have an '_id' property");
@@ -71,6 +105,13 @@ export class DbService {
                     let existing; // if no existing document, this will be undefined
                     if (res.docs && res.docs.length > 0) {
                         existing = res.docs[0];
+                    }
+
+                    // Check that the document type is not changed
+                    if (existing && existing.type !== doc.type) {
+                        reject(
+                            `Document type change not allowed. Existing type: ${existing.type}, New type: ${doc.type}`,
+                        );
                     }
 
                     let rev: string;
@@ -88,9 +129,10 @@ export class DbService {
                     if (!existing) {
                         // Passed document does not exist in database: create
                         doc.updatedTimeUtc = Date.now();
-                        this.db
-                            .insert(doc)
+                        this.insertDoc(doc)
                             .then((insertResult) => {
+                                insertResult.updatedTimeUtc = doc.updatedTimeUtc;
+                                insertResult.changes = doc;
                                 resolve(insertResult);
                             })
                             .catch((err) => {
@@ -98,15 +140,22 @@ export class DbService {
                             });
                     } else if (existing && isDeepStrictEqual(doc, existing)) {
                         // Document in DB is the same as passed doc: do nothing
-                        resolve("passed document equal to existing database document");
+                        resolve({
+                            id: doc._id,
+                            ok: true,
+                            rev: rev,
+                            message: "Document is identical to the one in the database",
+                        });
                     } else if (existing) {
-                        // Passed document is differnt than document in DB: update
+                        // Passed document is different than document in DB: update
                         doc._rev = rev;
                         doc.updatedTimeUtc = Date.now();
 
-                        this.db
-                            .insert(doc)
+                        const changes = this.calculateDiff(doc, existing);
+                        this.insertDoc(doc)
                             .then((insertResult) => {
+                                insertResult.updatedTimeUtc = doc.updatedTimeUtc;
+                                insertResult.changes = changes;
                                 resolve(insertResult);
                             })
                             .catch((err) => {
@@ -392,5 +441,28 @@ export class DbService {
                     reject(err);
                 });
         });
+    }
+
+    /**
+     * Generate a diff between two documents
+     * @param doc1
+     * @param doc2
+     * @returns
+     */
+    calculateDiff(doc1: any, doc2: any) {
+        return Object.keys(doc1).reduce((acc: any, key) => {
+            if (doc1[key] !== doc2[key]) {
+                acc[key] = doc1[key];
+            }
+
+            // Always include _id and type
+            if (doc1._id === doc2._id) {
+                acc._id = doc1._id;
+            }
+            if (doc1.type === doc2.type) {
+                acc.type = doc1.type;
+            }
+            return acc;
+        }, {});
     }
 }
