@@ -6,6 +6,7 @@ import {
     type ContentDto,
     ContentStatus,
     LocalChangeStatus,
+    type Content,
 } from "@/types";
 import { ContentRepository } from "./contentRepository";
 import { BaseRepository } from "./baseRepository";
@@ -59,6 +60,23 @@ export class PostRepository extends BaseRepository {
         });
     }
 
+    async update(content: Content, post: Post) {
+        const contentDto = this._contentRepository.toDto(content);
+        const postDto = this.toDto(post);
+        await db.docs.update(contentDto, contentDto);
+        await db.docs.update(postDto, postDto);
+
+        // Save change, which will be sent to the API later
+        db.localChanges.put({
+            status: LocalChangeStatus.Unsynced,
+            doc: postDto,
+        });
+        return db.localChanges.put({
+            status: LocalChangeStatus.Unsynced,
+            doc: contentDto,
+        });
+    }
+
     async findAll() {
         return this.whereType(DocType.Post).toArray((dtos) =>
             Promise.all(this.fromDtos(dtos as PostDto[])),
@@ -77,5 +95,13 @@ export class PostRepository extends BaseRepository {
         }
 
         return post;
+    }
+
+    private toDto(post: Post): PostDto {
+        const postDto = { ...post } as unknown as PostDto;
+
+        postDto.content = post.content.map((c) => c._id);
+
+        return postDto;
     }
 }

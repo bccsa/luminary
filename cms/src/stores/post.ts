@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
-import { type CreatePostDto, type Post } from "@/types";
+import { type Content, type CreatePostDto, type Post, type Uuid } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
-import { type Ref } from "vue";
+import { computed, type Ref } from "vue";
 import { PostRepository } from "@/db/repositories/postRepository";
 import type { Observable } from "rxjs";
 
@@ -13,9 +13,19 @@ export const usePostStore = defineStore("post", () => {
         liveQuery(async () => postRepository.findAll()) as unknown as Observable<Post[]>,
     );
 
+    const post = computed(() => {
+        return (postId: Uuid) => {
+            return posts.value?.find((p) => p._id == postId);
+        };
+    });
+
     const createPost = async (post: CreatePostDto) => {
         return postRepository.create(post);
     };
 
-    return { posts, createPost };
+    const updatePost = async (content: Content, post: Post) => {
+        return postRepository.update(content, post);
+    };
+
+    return { post, posts, createPost, updatePost };
 });

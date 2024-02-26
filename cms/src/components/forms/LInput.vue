@@ -56,6 +56,10 @@ const computedState = computed(() => {
     return props.state;
 });
 
+const renderedErrorMessage = computed(() => {
+    return capitalizeFirstLetter(errorMessage.value!.replace(/^[^.]*\./, ""));
+});
+
 const states = {
     default:
         "text-gray-900 ring-gray-300 placeholder:text-gray-400 hover:ring-gray-400 focus:ring-gray-950",
@@ -145,7 +149,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             :state="computedState"
             :id="`${id}-message`"
         >
-            <template v-if="errorMessage">{{ capitalizeFirstLetter(errorMessage) }}</template>
+            <template v-if="errorMessage">{{ renderedErrorMessage }}</template>
             <slot v-else-if="$slots.default" />
         </FormMessage>
     </div>

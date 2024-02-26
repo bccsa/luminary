@@ -11,12 +11,73 @@ import {
     MusicalNoteIcon,
     ArrowTopRightOnSquareIcon,
 } from "@heroicons/vue/20/solid";
+import { ContentStatus, type Content, type Post } from "@/types";
+import { toTypedSchema } from "@vee-validate/yup";
+import { useForm } from "vee-validate";
+import * as yup from "yup";
+import { computed, onMounted } from "vue";
 
 type Props = {
-    type: "post" | "tag";
+    content: Content;
+    post?: Post;
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const emit = defineEmits(["save"]);
+
+const validationSchema = toTypedSchema(
+    yup.object({
+        parent: yup.object({
+            image: yup.string().required(),
+        }),
+        title: yup.string().required(),
+        summary: yup.string(),
+    }),
+);
+
+const { handleSubmit, meta, setValues } = useForm({
+    validationSchema,
+});
+
+onMounted(() => {
+    setValues({
+        parent: props.post,
+    });
+
+    setValues(props.content);
+});
+
+const saveAndPublish = handleSubmit(async (values) => {
+    const content: Content = {
+        ...props.content,
+        ...values,
+        status: ContentStatus.Published,
+    };
+
+    const post = {
+        ...props.post,
+        ...values.parent,
+    };
+
+    emit("save", content, post);
+});
+const saveAsDraft = handleSubmit(async (values) => {
+    const content: Content = {
+        ...props.content,
+        ...values,
+        status: ContentStatus.Draft,
+    };
+
+    const post = {
+        ...props.post,
+        ...values.parent,
+    };
+
+    console.log(content, post);
+
+    emit("save", content, post);
+});
 </script>
 
 <template>
@@ -27,7 +88,7 @@ defineProps<Props>();
 
                 <LInput name="title" label="Title" class="mt-6" required />
 
-                <LTextarea label="Summary" class="mt-4" />
+                <LInput name="summary" label="Summary" class="mt-4" />
 
                 <div class="mt-4 flex gap-4">
                     <LInput name="publishDate" label="Publish date" class="w-1/2" type="date">
@@ -67,15 +128,22 @@ defineProps<Props>();
             <div class="sticky top-20 space-y-6">
                 <LCard>
                     <div class="flex gap-4">
-                        <LButton>Save as draft</LButton>
-                        <LButton variant="primary">Save & publish</LButton>
+                        <LButton @click="saveAsDraft">Save as draft</LButton>
+                        <LButton variant="primary" @click="saveAndPublish">Save & publish</LButton>
                     </div>
 
                     <template #footer>
-                        <LBadge variant="warning">Not saved</LBadge>
-                        <span class="ml-1 text-xs text-gray-700">
-                            Save this post to be able to add more languages
-                        </span>
+                        <template v-if="content.status == ContentStatus.Published">
+                            <LBadge variant="success">Published</LBadge>
+                            <span class="ml-1 text-xs text-gray-700"> ... </span>
+                        </template>
+                        <template v-else>
+                            <LBadge variant="info">Draft</LBadge>
+                            <span class="ml-1 text-xs text-gray-700">
+                                Fill in these fields to be able to publish:
+                            </span>
+                            <div v-if="!meta.valid">Form not valid</div>
+                        </template>
                     </template>
                 </LCard>
 
@@ -93,7 +161,7 @@ defineProps<Props>();
                     collapsible
                 >
                     <LInput
-                        name="image"
+                        name="parent.image"
                         label="Default image"
                         placeholder="cdn.bcc.africa/img/image.png"
                         leftAddOn="https://"
@@ -102,19 +170,19 @@ defineProps<Props>();
                     </LInput>
 
                     <LInput
-                        name="categories"
+                        name="parent.categories"
                         label="Categories"
                         placeholder="Begin typing to select one..."
                         class="mt-4"
                     />
                     <LInput
-                        name="topics"
+                        name="parent.topics"
                         label="Topics"
                         placeholder="Begin typing to select one..."
                         class="mt-4"
                     />
                     <LInput
-                        name="audio"
+                        name="parent.audioPlaylists"
                         label="Audio playlists"
                         placeholder="Begin typing to select one..."
                         class="mt-4"

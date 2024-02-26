@@ -27,4 +27,12 @@ export class ContentRepository extends BaseRepository {
 
         return content;
     }
+
+    toDto(content: Content) {
+        const contentDto = { ...content } as unknown as ContentDto;
+
+        contentDto.language = content.language._id;
+
+        return contentDto;
+    }
 }

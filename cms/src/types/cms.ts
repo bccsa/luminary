@@ -78,12 +78,12 @@ export type Content = ContentBase & {
     expiryDate?: number;
     slug: string;
     title: string;
-    localisedImage?: Image;
+    localisedImage?: string;
     author?: string;
     summary?: string;
     text?: string;
-    audio?: Audio;
-    video?: Video;
+    audio?: string;
+    video?: string;
 };
 
 export enum TagType {
@@ -104,7 +104,7 @@ export type Tag = ContentBase & {
 export type Post = ContentBase & {
     type: DocType.Post;
     content: Content[];
-    image?: Image;
+    image?: string;
     tags: Tag[];
 };
 
