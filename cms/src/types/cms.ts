@@ -15,7 +15,7 @@ export enum DocType {
 export type BaseDocument = {
     _id: string;
     type: DocType;
-    updatedTimeUtc: number;
+    updatedTimeUtc: Date;
 };
 
 export type Group = BaseDocument & {
@@ -74,8 +74,8 @@ export type Content = ContentBase & {
     type: DocType.Content;
     language: Language;
     status: ContentStatus;
-    publishDate: number;
-    expiryDate?: number;
+    publishDate?: Date;
+    expiryDate?: Date;
     slug: string;
     title: string;
     localisedImage?: string;

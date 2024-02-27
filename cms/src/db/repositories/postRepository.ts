@@ -90,6 +90,8 @@ export class PostRepository extends BaseRepository {
     private async fromDto(dto: PostDto) {
         const post = dto as unknown as Post;
 
+        post.updatedTimeUtc = new Date(post.updatedTimeUtc);
+
         if (dto.content.length > 0) {
             post.content = await this._contentRepository.getContentWithIds(dto.content);
         }
@@ -99,6 +101,8 @@ export class PostRepository extends BaseRepository {
 
     private toDto(post: Post): PostDto {
         const postDto = { ...post } as unknown as PostDto;
+
+        postDto.updatedTimeUtc = post.updatedTimeUtc.getTime();
 
         postDto.content = post.content.map((c) => c._id);
 

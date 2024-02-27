@@ -23,6 +23,10 @@ export class ContentRepository extends BaseRepository {
     private async fromDto(dto: ContentDto) {
         const content = dto as unknown as Content;
 
+        content.updatedTimeUtc = new Date(content.updatedTimeUtc);
+        content.publishDate = content.publishDate ? new Date(content.publishDate) : undefined;
+        content.expiryDate = content.expiryDate ? new Date(content.expiryDate) : undefined;
+
         content.language = await this._languageRepository.find(dto.language);
 
         return content;
@@ -31,7 +35,11 @@ export class ContentRepository extends BaseRepository {
     toDto(content: Content) {
         const contentDto = { ...content } as unknown as ContentDto;
 
+        contentDto.updatedTimeUtc = content.updatedTimeUtc.getTime();
+
         contentDto.language = content.language._id;
+        contentDto.publishDate = content.publishDate ? content.publishDate.getTime() : undefined;
+        contentDto.expiryDate = content.expiryDate ? content.expiryDate.getTime() : undefined;
 
         return contentDto;
     }

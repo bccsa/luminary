@@ -44,11 +44,13 @@ const columns = [
     },
     {
         text: "Last updated",
-        key: "updatedTimeUtc",
+        key: "updatedTime",
+        sortable: false,
     },
     {
         text: "",
         key: "actions",
+        sortable: false,
     },
 ];
 
@@ -64,6 +66,15 @@ const translationStatus = computed(() => {
 
         return "default";
     };
+});
+
+const dateFormatter = new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Africa/Johannesburg",
+});
+const formatDate = computed(() => {
+    return (date: Date) => dateFormatter.format(date);
 });
 </script>
 
@@ -122,6 +133,9 @@ const translationStatus = computed(() => {
                             {{ language.languageCode }}
                         </LBadge>
                     </div>
+                </template>
+                <template #item.updatedTime="post">
+                    {{ formatDate(post.updatedTimeUtc) }}
                 </template>
                 <template #item.actions="post">
                     <LButton

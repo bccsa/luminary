@@ -15,7 +15,7 @@ import { ContentStatus, type Content, type Post } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
-import { computed, onMounted } from "vue";
+import { onMounted, toRaw } from "vue";
 
 type Props = {
     content: Content;
@@ -33,48 +33,59 @@ const validationSchema = toTypedSchema(
         }),
         title: yup.string().required(),
         summary: yup.string(),
+        publishDate: yup.date().optional(),
     }),
 );
 
-const { handleSubmit, meta, setValues } = useForm({
+const { handleSubmit, meta, values, setValues } = useForm({
     validationSchema,
 });
 
+const onlyAllowedKeys = (raw: any, allowed: string[]) => {
+    return Object.keys(raw)
+        .filter((key) => allowed.includes(key))
+        .reduce((obj, key) => {
+            return {
+                ...obj,
+                [key]: raw[key],
+            };
+        }, {});
+};
+
 onMounted(() => {
-    setValues({
-        parent: props.post,
-    });
+    if (props.post) {
+        setValues({
+            parent: onlyAllowedKeys(props.post, Object.keys(values.parent as object)),
+        });
+    }
 
-    setValues(props.content);
+    // Convert dates to format VeeValidate understands
+    const content: any = { ...toRaw(props.content) };
+    content.publishDate = props.content.publishDate?.toISOString().split("T")[0];
+
+    setValues(onlyAllowedKeys(content, Object.keys(values)));
 });
 
-const saveAndPublish = handleSubmit(async (values) => {
+const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
     const content: Content = {
-        ...props.content,
-        ...values,
-        status: ContentStatus.Published,
+        ...toRaw(props.content),
+        ...validatedFormValues,
+        status,
     };
 
     const post = {
-        ...props.post,
-        ...values.parent,
+        ...toRaw(props.post),
+        ...validatedFormValues.parent,
     };
 
     emit("save", content, post);
+};
+
+const saveAndPublish = handleSubmit(async (validatedFormValues) => {
+    await save(validatedFormValues, ContentStatus.Published);
 });
-const saveAsDraft = handleSubmit(async (values) => {
-    const content: Content = {
-        ...props.content,
-        ...values,
-        status: ContentStatus.Draft,
-    };
-
-    const post = {
-        ...props.post,
-        ...values.parent,
-    };
-
-    emit("save", content, post);
+const saveAsDraft = handleSubmit(async (validatedFormValues) => {
+    await save(validatedFormValues, ContentStatus.Draft);
 });
 </script>
 
