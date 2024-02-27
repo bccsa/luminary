@@ -1,4 +1,4 @@
-import { plainToInstance } from "class-transformer";
+import { instanceToPlain, plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { ContentDto } from "../dto/ContentDto";
@@ -36,7 +36,7 @@ export async function validateChangeRequest(
     accessMap: AccessMap,
     dbService: DbService,
 ): Promise<ValidationResult> {
-    const changeRequest = plainToInstance(ChangeReqDto, data);
+    const changeRequest = plainToInstance(ChangeReqDto, data, { excludeExtraneousValues: true });
 
     // Validate main change request document
     let message = "Change request validation failed for the following constraints:\n";
@@ -55,8 +55,9 @@ export async function validateChangeRequest(
     }
 
     // Check included document validity
-    const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc);
-
+    const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc, {
+        excludeExtraneousValues: true,
+    });
     message = `Submitted ${changeRequest.doc.type} document validation failed for the following constraints:\n`;
     validationResult = await dtoValidate(doc, message);
 
@@ -64,14 +65,29 @@ export async function validateChangeRequest(
         return validationResult;
     }
 
-    return validateChangeRequestAccess(changeRequest, accessMap, dbService);
+    const accessValidationResult = await validateChangeRequestAccess(
+        changeRequest,
+        accessMap,
+        dbService,
+    );
+    if (!accessValidationResult.validated) {
+        return accessValidationResult;
+    }
+
+    return {
+        validated: true,
+        validatedData: instanceToPlain(doc),
+    };
 }
 
 async function dtoValidate(data: any, message: string): Promise<ValidationResult> {
     // Try-catch is needed to handle nested validation errors (speficially for arrays?) which throws an exception instead of giving a meaningful validation result.
     // TODO: Might be possible to work around the exception according to https://dev.to/avantar/validating-nested-objects-with-class-validator-in-nestjs-1gn8 (see comments) - but seems like they are just handling the error in any case.
     try {
-        const changeReqValidation = await validate(data);
+        const changeReqValidation = await validate(data, {
+            whitelist: true,
+            forbidNonWhitelisted: true,
+        });
         if (changeReqValidation.length > 0) {
             changeReqValidation.forEach((c) => {
                 message += Object.values(c.constraints).join("\n") + "\n";

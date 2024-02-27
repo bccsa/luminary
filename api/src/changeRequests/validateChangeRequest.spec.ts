@@ -154,4 +154,21 @@ describe("validateChangeRequest", () => {
         expect(result.error).toContain("Submitted group document validation failed");
         expect(validateChangeRequestAccessSpy).not.toHaveBeenCalled();
     });
+
+    it("removes invalid fields from the document", async () => {
+        const changeRequest = {
+            id: 42,
+            doc: {
+                _id: "new-lang",
+                type: "language",
+                memberOf: ["group-languages"],
+                languageCode: "new",
+                name: "New Language",
+                invalidField: "invalid",
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, new AccessMap(), db);
+        expect(result.validatedData.invalidField).toBe(undefined);
+    });
 });

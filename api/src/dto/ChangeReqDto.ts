@@ -1,3 +1,4 @@
+import { Expose } from "class-transformer";
 import { IsNotEmpty, IsNumber, IsObject } from "class-validator";
 
 /**
@@ -6,9 +7,11 @@ import { IsNotEmpty, IsNumber, IsObject } from "class-validator";
 export class ChangeReqDto {
     @IsNotEmpty()
     @IsNumber()
+    @Expose()
     id: number;
 
     @IsNotEmpty()
     @IsObject()
+    @Expose()
     doc: any; // Object containing full submitted / updated document
 }

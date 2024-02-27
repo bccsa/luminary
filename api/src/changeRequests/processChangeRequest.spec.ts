@@ -11,17 +11,9 @@ describe("processChangeRequest", () => {
     let accessMap: AccessMap;
 
     beforeAll(async () => {
-        db = (await createTestingModule("validate-change-request")).dbService;
+        db = (await createTestingModule("process-change-request")).dbService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
         accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-    });
-
-    afterEach(() => {
-        jest.clearAllMocks();
-    });
-
-    afterAll(() => {
-        jest.restoreAllMocks();
     });
 
     it("is rejecting invalid change requests", async () => {
@@ -30,12 +22,14 @@ describe("processChangeRequest", () => {
             doc: {},
         };
 
-        await processChangeRequest(changeRequest, new AccessMap(), db).catch((err) => {
-            expect(err.message).toBeTruthy();
+        await processChangeRequest("", changeRequest, new AccessMap(), db).catch((err) => {
+            expect(err.message).toBe(
+                `Submitted "undefined" document validation failed:\nInvalid document type`,
+            );
         });
     });
 
-    it("can insert a change document into the database for a correctly submitted new document", async () => {
+    it("can insert a change document into the database for a correctly submitted new document with group membership", async () => {
         const changeRequest = {
             id: 84,
             doc: {
@@ -47,10 +41,43 @@ describe("processChangeRequest", () => {
             },
         };
 
-        const processResult = await processChangeRequest(changeRequest, accessMap, db);
+        const processResult = await processChangeRequest("test-user", changeRequest, accessMap, db);
         const res = await db.getDoc(processResult.id);
 
+        // Remove non user-submitted fields
+        delete res.docs[0].changes.updatedTimeUtc;
+
         expect(isDeepStrictEqual(res.docs[0].changes, changeRequest.doc)).toBe(true);
+        expect(res.docs[0].changedByUser).toBe("test-user");
+        expect(res.docs[0].memberOf).toEqual(["group-languages"]);
+    });
+
+    it("can insert a change document into the database for a correctly submitted new group document", async () => {
+        const changeRequest = {
+            id: 85,
+            doc: {
+                _id: "new-group",
+                type: "group",
+                acl: [
+                    {
+                        type: "language",
+                        groupId: "group-languages",
+                        permission: ["view", "publish", "edit"],
+                    },
+                ],
+                name: "new group",
+            },
+        };
+
+        const processResult = await processChangeRequest("test-user", changeRequest, accessMap, db);
+        const res = await db.getDoc(processResult.id);
+
+        // Remove non user-submitted fields
+        delete res.docs[0].changes.updatedTimeUtc;
+
+        expect(isDeepStrictEqual(res.docs[0].changes, changeRequest.doc)).toBe(true);
+        expect(res.docs[0].changedByUser).toBe("test-user");
+        expect(isDeepStrictEqual(res.docs[0].acl, changeRequest.doc.acl)).toBe(true);
     });
 
     it("is not creating a change request when updating a document to the same content", async () => {
@@ -74,8 +101,9 @@ describe("processChangeRequest", () => {
                 name: "Xhoza",
             },
         };
-        await processChangeRequest(changeRequest1, accessMap, db);
-        const processResult = await processChangeRequest(changeRequest2, accessMap, db);
-        expect(processResult).toBe(undefined);
+        await processChangeRequest("", changeRequest1, accessMap, db);
+        const processResult = await processChangeRequest("", changeRequest2, accessMap, db);
+        expect(processResult.message).toBe("Document is identical to the one in the database");
+        expect(processResult.changes).toBeUndefined();
     });
 });
