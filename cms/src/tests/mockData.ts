@@ -60,7 +60,7 @@ export const mockFrenchContentDto: ContentDto = {
 export const mockLanguageEng: Language = {
     _id: "lang-eng",
     type: DocType.Language,
-    updatedTimeUtc: 3,
+    updatedTimeUtc: new Date(),
     memberOf: [],
     languageCode: "eng",
     name: "English",
@@ -68,7 +68,7 @@ export const mockLanguageEng: Language = {
 export const mockLanguageFra: Language = {
     _id: "lang-fra",
     type: DocType.Language,
-    updatedTimeUtc: 3,
+    updatedTimeUtc: new Date(),
     memberOf: [],
     languageCode: "fra",
     name: "Français",
@@ -77,7 +77,7 @@ export const mockLanguageFra: Language = {
 export const mockContent: Content = {
     _id: "content-post1-eng",
     type: DocType.Content,
-    updatedTimeUtc: 3,
+    updatedTimeUtc: new Date(),
     memberOf: [],
     language: mockLanguageEng,
     status: ContentStatus.Published,
@@ -89,14 +89,14 @@ export const mockContent: Content = {
     localisedImage: undefined,
     audio: undefined,
     video: undefined,
-    publishDate: 3,
-    expiryDate: 0,
+    publishDate: new Date(),
+    expiryDate: undefined,
 };
 
 export const mockPost: Post = {
     type: DocType.Post,
     _id: "post-post1",
-    updatedTimeUtc: 3,
+    updatedTimeUtc: new Date(),
     memberOf: [],
     content: [mockContent],
     tags: [],
@@ -105,10 +105,10 @@ export const mockPost: Post = {
 export const mockLocalChange1: LocalChange = {
     id: 42,
     status: LocalChangeStatus.Unsynced,
-    doc: mockPost,
+    doc: mockPostDto,
 };
 export const mockLocalChange2: LocalChange = {
     id: 43,
     status: LocalChangeStatus.Unsynced,
-    doc: mockContent,
+    doc: mockEnglishContentDto,
 };
