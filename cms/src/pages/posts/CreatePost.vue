@@ -146,4 +146,3 @@ const save = handleSubmit(async (values) => {
         </div>
     </BasePage>
 </template>
-@/components/button/LButton.vue

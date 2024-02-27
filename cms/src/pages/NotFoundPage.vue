@@ -19,4 +19,3 @@ import { RouterLink } from "vue-router";
         </div>
     </div>
 </template>
-@/components/button/LButton.vue
