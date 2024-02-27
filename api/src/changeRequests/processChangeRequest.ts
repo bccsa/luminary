@@ -41,7 +41,7 @@ export async function processChangeRequest(
         }
 
         return db.insertDoc(changeDoc);
-    } else {
-        return upsertResult;
     }
+
+    return upsertResult;
 }
