@@ -18,19 +18,20 @@ export async function processChangeRequest(
         throw new Error(validationResult.error);
     }
 
-    const upsertResult = await db.upsertDoc(changeRequest.doc);
+    const upsertResult = await db.upsertDoc(validationResult.validatedData);
 
     // Generate change document and store in database
     if (upsertResult.changes) {
         const changeDoc = new ChangeDto();
         changeDoc._id = "change:" + randomUUID();
         changeDoc.type = DocType.Change;
-        changeDoc.docId = changeRequest.doc._id;
-        changeDoc.docType = changeRequest.doc.type;
+        changeDoc.docId = validationResult.validatedData._id;
+        changeDoc.docType = validationResult.validatedData.type;
         changeDoc.updatedTimeUtc = upsertResult.updatedTimeUtc;
         changeDoc.changes = upsertResult.changes;
         changeDoc.changedByUser = userId;
 
+        // Apply the group membership or ACL of the included document to the change document
         if (upsertResult.changes.memberOf) {
             changeDoc.memberOf = upsertResult.changes.memberOf;
         }
@@ -40,5 +41,7 @@ export async function processChangeRequest(
         }
 
         return db.insertDoc(changeDoc);
+    } else {
+        return upsertResult;
     }
 }

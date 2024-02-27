@@ -121,6 +121,28 @@ describe("validateChangeRequestAccess", () => {
             const res = await validateChangeRequestAccess(testChangeReq_groupAcl, accessMap, db);
             expect(res.error).toBe("No access to 'Assign' one or more groups to the group ACL");
         });
+
+        it("can not create a new group without 'Edit' access to at least one group in the ACL", async () => {
+            const testChangeReq_newGroup = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "new-group",
+                    type: "group",
+                    acl: [
+                        {
+                            type: "language",
+                            groupId: "group-languages",
+                            permission: ["view", "publish", "edit"],
+                        },
+                    ],
+                    name: "new group",
+                },
+            });
+
+            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
+            const res = await validateChangeRequestAccess(testChangeReq_newGroup, accessMap, db);
+            expect(res.error).toBe("No access to 'Edit' document type 'Group'");
+        });
     });
 
     describe("Content documents", () => {

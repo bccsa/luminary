@@ -37,10 +37,25 @@ export async function validateChangeRequestAccess(
         // -----------------------
         const editGroups = accessMap.calculateAccess([DocType.Group], AclPermission.Edit);
         if (!editGroups.includes(doc._id)) {
-            return {
-                validated: false,
-                error: "No access to 'Edit' document type 'Group'",
-            };
+            // If this is a new group, the permission system does not yet know about it and it will not be in the access map.
+            // We need to check if the user has edit access to at least one of the groups in the ACL list, which will imply that
+            // the user has edit access to the new group through inheritance.
+            const aclEditGroups = accessMap.calculateAccess([DocType.Group], AclPermission.Edit);
+            let hasEditAccess = false;
+            for (const aclEntry of doc.acl) {
+                // Check if the user has assign access to the ACL entry's group
+                if (aclEditGroups.includes(aclEntry.groupId)) {
+                    hasEditAccess = true;
+                    break;
+                }
+            }
+
+            if (!hasEditAccess) {
+                return {
+                    validated: false,
+                    error: "No access to 'Edit' document type 'Group'",
+                };
+            }
         }
 
         // Check assign access for groups in ACL list
