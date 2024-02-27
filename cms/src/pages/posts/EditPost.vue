@@ -2,12 +2,15 @@
 import BasePage from "@/components/BasePage.vue";
 import ContentForm from "@/components/content/ContentForm.vue";
 import LSelect from "@/components/forms/LSelect.vue";
+import { useLanguageStore } from "@/stores/language";
 import { usePostStore } from "@/stores/post";
+import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
 const postStore = usePostStore();
+const { languages } = storeToRefs(useLanguageStore());
 
 const postId = route.params.id as string;
 
@@ -17,12 +20,18 @@ const content = computed(() => {
     return post.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
 });
 
-const languageOptions = [
-    { label: "English", value: "eng" },
-    { label: "Swahili", value: "swa" },
-    { label: "Chichewa", value: "nya" },
-    { label: "Español", value: "esp", disabled: true },
-];
+const languageOptions = computed(() => {
+    if (!languages.value) {
+        return [];
+    }
+
+    return languages.value.map((language) => {
+        return {
+            label: language.name,
+            value: language.languageCode,
+        };
+    });
+});
 const selectedLanguage = ref("eng");
 </script>
 

@@ -24,6 +24,8 @@ export const usePostStore = defineStore("post", () => {
     };
 
     const updatePost = async (content: Content, post: Post) => {
+        debugger;
+
         return postRepository.update(content, post);
     };
 

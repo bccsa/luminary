@@ -15,7 +15,7 @@ import { ContentStatus, type Content, type Post } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
-import { onMounted, toRaw } from "vue";
+import { onMounted, toRaw, toRefs, watch } from "vue";
 
 type Props = {
     content: Content;
@@ -23,6 +23,8 @@ type Props = {
 };
 
 const props = defineProps<Props>();
+
+const { content: contentProp, post: postProp } = toRefs(props);
 
 const emit = defineEmits(["save"]);
 
@@ -52,29 +54,33 @@ const onlyAllowedKeys = (raw: any, allowed: string[]) => {
         }, {});
 };
 
-onMounted(() => {
-    if (props.post) {
-        setValues({
-            parent: onlyAllowedKeys(props.post, Object.keys(values.parent as object)),
-        });
-    }
+watch(
+    [postProp, contentProp],
+    () => {
+        if (postProp.value) {
+            setValues({
+                parent: onlyAllowedKeys(postProp.value, Object.keys(values.parent as object)),
+            });
+        }
 
-    // Convert dates to format VeeValidate understands
-    const content: any = { ...toRaw(props.content) };
-    content.publishDate = props.content.publishDate?.toISOString().split("T")[0];
+        // Convert dates to format VeeValidate understands
+        const content: any = { ...toRaw(contentProp.value) };
+        content.publishDate = contentProp.value.publishDate?.toISOString().split("T")[0];
 
-    setValues(onlyAllowedKeys(content, Object.keys(values)));
-});
+        setValues(onlyAllowedKeys(content, Object.keys(values)));
+    },
+    { immediate: true },
+);
 
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
     const content: Content = {
-        ...toRaw(props.content),
+        ...toRaw(contentProp.value),
         ...validatedFormValues,
         status,
     };
 
     const post = {
-        ...toRaw(props.post),
+        ...toRaw(postProp.value),
         ...validatedFormValues.parent,
     };
 
