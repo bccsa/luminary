@@ -15,7 +15,7 @@ import { ContentStatus, type Content, type Post } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
-import { onMounted, toRaw, toRefs, watch } from "vue";
+import { toRaw, toRefs, watch } from "vue";
 
 type Props = {
     content: Content;
@@ -56,18 +56,15 @@ const onlyAllowedKeys = (raw: any, allowed: string[]) => {
 
 watch(
     [postProp, contentProp],
-    () => {
-        if (postProp.value) {
-            setValues({
-                parent: onlyAllowedKeys(postProp.value, Object.keys(values.parent as object)),
-            });
-        }
-
+    ([post, content]) => {
         // Convert dates to format VeeValidate understands
-        const content: any = { ...toRaw(contentProp.value) };
-        content.publishDate = contentProp.value.publishDate?.toISOString().split("T")[0];
+        const filteredContent: any = { ...content };
+        filteredContent.publishDate = content.publishDate?.toISOString().split("T")[0];
 
-        setValues(onlyAllowedKeys(content, Object.keys(values)));
+        setValues({
+            ...onlyAllowedKeys(filteredContent, Object.keys(values)),
+            parent: onlyAllowedKeys(post, Object.keys(values.parent as object)),
+        });
     },
     { immediate: true },
 );
@@ -75,7 +72,7 @@ watch(
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
     const content: Content = {
         ...toRaw(contentProp.value),
-        ...validatedFormValues,
+        ...onlyAllowedKeys(validatedFormValues, Object.keys(contentProp.value)),
         status,
     };
 
@@ -84,14 +81,14 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...validatedFormValues.parent,
     };
 
-    emit("save", content, post);
+    return emit("save", content, post);
 };
 
 const saveAndPublish = handleSubmit(async (validatedFormValues) => {
-    await save(validatedFormValues, ContentStatus.Published);
+    return save(validatedFormValues, ContentStatus.Published);
 });
 const saveAsDraft = handleSubmit(async (validatedFormValues) => {
-    await save(validatedFormValues, ContentStatus.Draft);
+    return save(validatedFormValues, ContentStatus.Draft);
 });
 </script>
 
@@ -143,8 +140,10 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
             <div class="sticky top-20 space-y-6">
                 <LCard>
                     <div class="flex gap-4">
-                        <LButton @click="saveAsDraft">Save as draft</LButton>
-                        <LButton variant="primary" @click="saveAndPublish">Save & publish</LButton>
+                        <LButton @click="saveAsDraft" data-test="draft">Save as draft</LButton>
+                        <LButton variant="primary" @click="saveAndPublish" data-test="publish"
+                            >Save & publish</LButton
+                        >
                     </div>
 
                     <template #footer>
