@@ -27,5 +27,7 @@ describe("languageRepository", () => {
         const result = await repository.findAll();
 
         expect(result.length).toBe(2);
+        expect(result[0]._id).toBe(mockLanguageDtoEng._id);
+        expect(result[0].updatedTimeUtc).toEqual(new Date(mockLanguageDtoEng.updatedTimeUtc!));
     });
 });

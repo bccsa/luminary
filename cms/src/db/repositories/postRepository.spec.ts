@@ -2,18 +2,21 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, expect } from "vitest";
 import { db } from "../baseDatabase";
 import {
+    mockContent,
     mockEnglishContentDto,
     mockFrenchContentDto,
     mockLanguageDtoEng,
     mockLanguageDtoFra,
     mockLanguageEng,
+    mockPost,
     mockPostDto,
 } from "@/tests/mockData";
 import { PostRepository } from "./postRepository";
-import { DocType, type ContentDto, type PostDto } from "@/types";
+import { DocType, type ContentDto, type PostDto, type Content, type Post } from "@/types";
 
 describe("postRepository", () => {
     afterEach(() => {
+        db.localChanges.clear();
         db.docs.clear();
     });
 
@@ -34,6 +37,7 @@ describe("postRepository", () => {
         expect(result[0]._id).toBe(mockPostDto._id);
         expect(result[0].content[0]._id).toBe(mockEnglishContentDto._id);
         expect(result[0].content[0].language._id).toBe(mockLanguageDtoEng._id);
+        expect(result[0].updatedTimeUtc).toEqual(new Date(mockPostDto.updatedTimeUtc!));
     });
 
     it("can create a post", async () => {
@@ -59,5 +63,43 @@ describe("postRepository", () => {
         expect(localChanges.length).toBe(2);
         expect(localChanges[0].doc).toEqual(post);
         expect(localChanges[1].doc).toEqual(content);
+    });
+
+    it("can update a post", async () => {
+        db.docs.bulkPut([
+            mockPostDto,
+            mockEnglishContentDto,
+            mockFrenchContentDto,
+            mockLanguageDtoEng,
+            mockLanguageDtoFra,
+        ]);
+        const repository = new PostRepository();
+        const content: Content = {
+            ...mockContent,
+            title: "Updated Title",
+        };
+        const post: Post = {
+            ...mockPost,
+            image: "updatedImage.jpg",
+        };
+
+        await repository.update(content, post);
+
+        // Assert content and post were created in local database
+        const dbContent = (await db.docs
+            .where("type")
+            .equals(DocType.Content)
+            .first()) as ContentDto;
+        expect(dbContent.title).toBe("Updated Title");
+
+        const dbPost = (await db.docs.where("type").equals(DocType.Post).first()) as PostDto;
+        expect(dbPost.image).toBe("updatedImage.jpg");
+        expect(dbPost.content[0]).toBe(content._id);
+
+        // Assert content and post were logged in the localChanges table
+        const localChanges = await db.localChanges.toArray();
+        expect(localChanges.length).toBe(2);
+        expect(localChanges[0].doc!._id).toBe(post._id);
+        expect(localChanges[1].doc!._id).toEqual(content._id);
     });
 });
