@@ -10,8 +10,8 @@ export class ContentRepository extends BaseRepository {
         this._languageRepository = new LanguageRepository();
     }
 
-    getContentWithIds(ids: Uuid[]) {
-        return this.whereIds(ids).toArray((content) => {
+    getContentWithParentId(id: Uuid) {
+        return this.whereParentId(id).toArray((content) => {
             return Promise.all(this.fromDtos(content as ContentDto[]));
         });
     }
@@ -32,9 +32,10 @@ export class ContentRepository extends BaseRepository {
         return content;
     }
 
-    toDto(content: Content) {
+    toDto(content: Content, postId: Uuid) {
         const contentDto = { ...content } as unknown as ContentDto;
 
+        contentDto.parentId = postId;
         contentDto.updatedTimeUtc = content.updatedTimeUtc.getTime();
 
         contentDto.language = content.language._id;

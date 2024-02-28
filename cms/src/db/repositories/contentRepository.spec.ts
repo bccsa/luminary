@@ -7,6 +7,7 @@ import {
     mockFrenchContentDto,
     mockLanguageDtoEng,
     mockLanguageDtoFra,
+    mockPostDto,
 } from "@/tests/mockData";
 
 describe("contentRepository", () => {
@@ -14,19 +15,17 @@ describe("contentRepository", () => {
         db.docs.clear();
     });
 
-    it("can get content for a list of id's", async () => {
+    it("can get content for a parent id", async () => {
         db.docs.bulkPut([
             mockEnglishContentDto,
             mockFrenchContentDto,
             mockLanguageDtoEng,
             mockLanguageDtoFra,
+            mockPostDto,
         ]);
         const repository = new ContentRepository();
 
-        const result = await repository.getContentWithIds([
-            mockEnglishContentDto._id,
-            mockFrenchContentDto._id,
-        ]);
+        const result = await repository.getContentWithParentId(mockPostDto._id);
 
         expect(result.length).toBe(2);
         expect(result[0]._id).toBe(mockEnglishContentDto._id);
