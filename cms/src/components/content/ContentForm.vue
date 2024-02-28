@@ -152,9 +152,9 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
                 <LCard>
                     <div class="flex gap-4">
                         <LButton @click="saveAsDraft" data-test="draft">Save as draft</LButton>
-                        <LButton variant="primary" @click="saveAndPublish" data-test="publish"
-                            >Save & publish</LButton
-                        >
+                        <LButton variant="primary" @click="saveAndPublish" data-test="publish">
+                            Save & publish
+                        </LButton>
                     </div>
 
                     <template #footer>
@@ -167,8 +167,8 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
                             <span class="ml-1 text-xs text-gray-700">
                                 Fill in these fields to be able to publish:
                             </span>
-                            <div v-if="!meta.valid">Form not valid</div>
                         </template>
+                        <div v-if="!meta.valid">Form not valid</div>
                     </template>
                 </LCard>
 
