@@ -46,12 +46,9 @@ const save = handleSubmit(async (values) => {
         title: values.title,
     };
 
-    return Promise.all([
-        postStore.createPost(post),
+    const postId = await postStore.createPost(post);
 
-        // TODO route to edit page
-        router.push({ name: "posts" }),
-    ]);
+    return router.push({ name: "posts.edit", params: { id: postId } });
 });
 </script>
 

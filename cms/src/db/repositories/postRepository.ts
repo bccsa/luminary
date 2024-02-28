@@ -50,14 +50,16 @@ export class PostRepository extends BaseRepository {
         await db.docs.put(post);
 
         // Save change, which will be sent to the API later
-        db.localChanges.put({
+        await db.localChanges.put({
             status: LocalChangeStatus.Unsynced,
             doc: post,
         });
-        return db.localChanges.put({
+        await db.localChanges.put({
             status: LocalChangeStatus.Unsynced,
             doc: content,
         });
+
+        return postId;
     }
 
     async update(content: Content, post: Post) {
@@ -67,7 +69,7 @@ export class PostRepository extends BaseRepository {
         await db.docs.update(postDto, postDto);
 
         // Save change, which will be sent to the API later
-        db.localChanges.put({
+        await db.localChanges.put({
             status: LocalChangeStatus.Unsynced,
             doc: postDto,
         });
