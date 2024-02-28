@@ -1,16 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { flushPromises, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import EditPost from "./EditPost.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useLanguageStore } from "@/stores/language";
-import {
-    mockContent,
-    mockEnglishContentDto,
-    mockLanguageEng,
-    mockLanguageFra,
-    mockPost,
-} from "@/tests/mockData";
+import { mockContent, mockLanguageEng, mockLanguageFra, mockPost } from "@/tests/mockData";
 import ContentForm from "@/components/content/ContentForm.vue";
 import { usePostStore } from "@/stores/post";
 import waitForExpect from "wait-for-expect";

@@ -5,8 +5,8 @@ import { db } from "../baseDatabase";
 import {
     mockEnglishContentDto,
     mockFrenchContentDto,
-    mockLanguageEng,
-    mockLanguageFra,
+    mockLanguageDtoEng,
+    mockLanguageDtoFra,
 } from "@/tests/mockData";
 
 describe("contentRepository", () => {
@@ -18,8 +18,8 @@ describe("contentRepository", () => {
         db.docs.bulkPut([
             mockEnglishContentDto,
             mockFrenchContentDto,
-            mockLanguageEng,
-            mockLanguageFra,
+            mockLanguageDtoEng,
+            mockLanguageDtoFra,
         ]);
         const repository = new ContentRepository();
 

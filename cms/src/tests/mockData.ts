@@ -8,12 +8,13 @@ import {
     type Language,
     type LocalChange,
     LocalChangeStatus,
+    type LanguageDto,
 } from "@/types";
 
 export const mockPostDto: PostDto = {
     _id: "post-post1",
     type: DocType.Post,
-    updatedTimeUtc: 3,
+    updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     content: ["content-post1-eng"],
     image: "",
@@ -23,7 +24,7 @@ export const mockPostDto: PostDto = {
 export const mockEnglishContentDto: ContentDto = {
     _id: "content-post1-eng",
     type: DocType.Content,
-    updatedTimeUtc: 3,
+    updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     language: "lang-eng",
     status: "published",
@@ -35,13 +36,13 @@ export const mockEnglishContentDto: ContentDto = {
     localisedImage: "",
     audio: "",
     video: "",
-    publishDate: 3,
-    expiryDate: 0,
+    publishDate: 1704114000000,
+    expiryDate: undefined,
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
     type: DocType.Content,
-    updatedTimeUtc: 3,
+    updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     language: "lang-fra",
     status: "published",
@@ -53,8 +54,8 @@ export const mockFrenchContentDto: ContentDto = {
     localisedImage: "",
     audio: "",
     video: "",
-    publishDate: 3,
-    expiryDate: 0,
+    publishDate: 1704114000000,
+    expiryDate: undefined,
 };
 
 export const mockLanguageEng: Language = {
@@ -69,6 +70,23 @@ export const mockLanguageFra: Language = {
     _id: "lang-fra",
     type: DocType.Language,
     updatedTimeUtc: new Date(),
+    memberOf: [],
+    languageCode: "fra",
+    name: "Français",
+};
+
+export const mockLanguageDtoEng: LanguageDto = {
+    _id: "lang-eng",
+    type: DocType.Language,
+    updatedTimeUtc: 1704114000000,
+    memberOf: [],
+    languageCode: "eng",
+    name: "English",
+};
+export const mockLanguageDtoFra: LanguageDto = {
+    _id: "lang-fra",
+    type: DocType.Language,
+    updatedTimeUtc: 1704114000000,
     memberOf: [],
     languageCode: "fra",
     name: "Français",

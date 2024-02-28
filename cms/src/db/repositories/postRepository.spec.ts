@@ -4,12 +4,13 @@ import { db } from "../baseDatabase";
 import {
     mockEnglishContentDto,
     mockFrenchContentDto,
+    mockLanguageDtoEng,
+    mockLanguageDtoFra,
     mockLanguageEng,
-    mockLanguageFra,
     mockPostDto,
 } from "@/tests/mockData";
 import { PostRepository } from "./postRepository";
-import { DocType, type Content, type Post } from "@/types";
+import { DocType, type ContentDto, type PostDto } from "@/types";
 
 describe("postRepository", () => {
     afterEach(() => {
@@ -21,8 +22,8 @@ describe("postRepository", () => {
             mockPostDto,
             mockEnglishContentDto,
             mockFrenchContentDto,
-            mockLanguageEng,
-            mockLanguageFra,
+            mockLanguageDtoEng,
+            mockLanguageDtoFra,
         ]);
 
         const repository = new PostRepository();
@@ -32,7 +33,7 @@ describe("postRepository", () => {
         expect(result.length).toBe(1);
         expect(result[0]._id).toBe(mockPostDto._id);
         expect(result[0].content[0]._id).toBe(mockEnglishContentDto._id);
-        expect(result[0].content[0].language._id).toBe(mockLanguageEng._id);
+        expect(result[0].content[0].language._id).toBe(mockLanguageDtoEng._id);
     });
 
     it("can create a post", async () => {
@@ -46,10 +47,10 @@ describe("postRepository", () => {
         await repository.create(createPostDto);
 
         // Assert content and post were created in local database
-        const content = (await db.docs.where("type").equals(DocType.Content).first()) as Content;
+        const content = (await db.docs.where("type").equals(DocType.Content).first()) as ContentDto;
         expect(content.title).toBe("testTitle");
 
-        const post = (await db.docs.where("type").equals(DocType.Post).first()) as Post;
+        const post = (await db.docs.where("type").equals(DocType.Post).first()) as PostDto;
         expect(post.image).toBe("testImage");
         expect(post.content[0]).toBe(content._id);
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { flushPromises, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import ContentForm from "./ContentForm.vue";
-import { mockContent, mockLanguageEng, mockLanguageFra, mockPost } from "@/tests/mockData";
+import { mockContent, mockPost } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType } from "@/types";
 
