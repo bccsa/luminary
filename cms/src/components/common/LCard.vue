@@ -52,7 +52,7 @@ function collapse() {
                 />
             </button>
         </div>
-        <div v-show="!collapsed">
+        <div v-show="!collapsed" data-test="collapsible-container">
             <div
                 :class="{
                     'px-4 py-5 sm:px-6': padding == 'normal',

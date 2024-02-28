@@ -29,10 +29,8 @@ describe("LCard", () => {
         });
 
         await wrapper.find("button").trigger("click");
-        await wrapper.vm.$nextTick();
+        const container = await wrapper.find("[data-test='collapsible-container']");
 
-        expect(wrapper.text()).toContain("Card title");
-        expect(wrapper.text()).not.toContain("Card text");
-        expect(wrapper.text()).not.toContain("Card footer");
+        expect(container.isVisible()).toBe(false);
     });
 });
