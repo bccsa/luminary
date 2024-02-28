@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
 import LTextarea from "@/components/forms/LTextarea.vue";
-import AcButton from "@/components/button/AcButton.vue";
+import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
 import {
@@ -11,29 +11,107 @@ import {
     MusicalNoteIcon,
     ArrowTopRightOnSquareIcon,
 } from "@heroicons/vue/20/solid";
+import { ContentStatus, type Content, type Post } from "@/types";
+import { toTypedSchema } from "@vee-validate/yup";
+import { useForm } from "vee-validate";
+import * as yup from "yup";
+import { toRaw, toRefs, watch } from "vue";
+import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
 
 type Props = {
-    type: "post" | "tag";
+    content: Content;
+    post?: Post;
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const { content: contentProp, post: postProp } = toRefs(props);
+
+const emit = defineEmits(["save"]);
+
+const validationSchema = toTypedSchema(
+    yup.object({
+        parent: yup.object({
+            image: yup.string().required(),
+        }),
+        title: yup.string().required(),
+        summary: yup.string().optional(),
+        publishDate: yup.date().optional(),
+    }),
+);
+
+const { handleSubmit, meta, values, setValues } = useForm({
+    validationSchema,
+});
+
+watch(
+    [postProp, contentProp],
+    ([post, content]) => {
+        // Convert dates to format VeeValidate understands
+        const filteredContent: any = { ...content };
+        filteredContent.publishDate = content.publishDate?.toISOString().split(".")[0];
+
+        setValues({
+            ...onlyAllowedKeys(filteredContent, Object.keys(values)),
+            parent: onlyAllowedKeys(post, Object.keys(values.parent as object)),
+        });
+    },
+    { immediate: true },
+);
+
+const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
+    // Make sure we don't accidentally add the 'parent' object to the content
+    const contentValues = { ...validatedFormValues };
+    delete contentValues["parent"];
+
+    const content: Content = {
+        ...toRaw(contentProp.value),
+        ...contentValues,
+        status,
+    };
+
+    const post = {
+        ...toRaw(postProp.value),
+        image: validatedFormValues.parent?.image,
+        // TODO create tags from topics etc.
+    };
+
+    return emit("save", content, post);
+};
+
+const saveAndPublish = handleSubmit(async (validatedFormValues) => {
+    return save(validatedFormValues, ContentStatus.Published);
+});
+const saveAsDraft = handleSubmit(async (validatedFormValues) => {
+    return save(validatedFormValues, ContentStatus.Draft);
+});
 </script>
 
 <template>
     <div class="relative grid grid-cols-3 gap-8">
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
-                <AcButton>Set custom image</AcButton>
+                <LButton>Set custom image</LButton>
 
                 <LInput name="title" label="Title" class="mt-6" required />
 
-                <LTextarea label="Summary" class="mt-4" />
+                <LInput name="summary" label="Summary" class="mt-4" />
 
                 <div class="mt-4 flex gap-4">
-                    <LInput name="publishDate" label="Publish date" class="w-1/2" type="date">
+                    <LInput
+                        name="publishDate"
+                        label="Publish date"
+                        class="w-1/2"
+                        type="datetime-local"
+                    >
                         This is the date that will be shown on the post
                     </LInput>
-                    <LInput name="expiryDate" label="Expiry date" class="w-1/2" type="date">
+                    <LInput
+                        name="expiryDate"
+                        label="Expiry date"
+                        class="w-1/2"
+                        type="datetime-local"
+                    >
                         When set, this translation will automatically be hidden on this date. Not
                         visible in the app
                     </LInput>
@@ -67,22 +145,31 @@ defineProps<Props>();
             <div class="sticky top-20 space-y-6">
                 <LCard>
                     <div class="flex gap-4">
-                        <AcButton>Save as draft</AcButton>
-                        <AcButton variant="primary">Save & publish</AcButton>
+                        <LButton @click="saveAsDraft" data-test="draft">Save as draft</LButton>
+                        <LButton variant="primary" @click="saveAndPublish" data-test="publish">
+                            Save & publish
+                        </LButton>
                     </div>
 
                     <template #footer>
-                        <LBadge variant="warning">Not saved</LBadge>
-                        <span class="ml-1 text-xs text-gray-700">
-                            Save this post to be able to add more languages
-                        </span>
+                        <template v-if="content.status == ContentStatus.Published">
+                            <LBadge variant="success">Published</LBadge>
+                            <span class="ml-1 text-xs text-gray-700"> ... </span>
+                        </template>
+                        <template v-else>
+                            <LBadge variant="info">Draft</LBadge>
+                            <span class="ml-1 text-xs text-gray-700">
+                                Fill in these fields to be able to publish:
+                            </span>
+                        </template>
+                        <div v-if="!meta.valid">Form not valid</div>
                     </template>
                 </LCard>
 
                 <LCard title="Preview">
                     <div class="flex gap-4">
-                        <AcButton>Preview changes</AcButton>
-                        <AcButton :icon="ArrowTopRightOnSquareIcon" iconRight>Open link</AcButton>
+                        <LButton>Preview changes</LButton>
+                        <LButton :icon="ArrowTopRightOnSquareIcon" iconRight>Open link</LButton>
                     </div>
                 </LCard>
 
@@ -93,7 +180,7 @@ defineProps<Props>();
                     collapsible
                 >
                     <LInput
-                        name="image"
+                        name="parent.image"
                         label="Default image"
                         placeholder="cdn.bcc.africa/img/image.png"
                         leftAddOn="https://"
@@ -102,19 +189,19 @@ defineProps<Props>();
                     </LInput>
 
                     <LInput
-                        name="categories"
+                        name="parent.categories"
                         label="Categories"
                         placeholder="Begin typing to select one..."
                         class="mt-4"
                     />
                     <LInput
-                        name="topics"
+                        name="parent.topics"
                         label="Topics"
                         placeholder="Begin typing to select one..."
                         class="mt-4"
                     />
                     <LInput
-                        name="audio"
+                        name="parent.audioPlaylists"
                         label="Audio playlists"
                         placeholder="Begin typing to select one..."
                         class="mt-4"

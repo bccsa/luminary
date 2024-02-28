@@ -4,7 +4,12 @@ import { useLocalChangeStore } from "./localChanges";
 import { setActivePinia, createPinia } from "pinia";
 import { useSocketConnectionStore } from "./socketConnection";
 import { db } from "@/db/baseDatabase";
-import { mockContent, mockLocalChange1, mockLocalChange2, mockPost } from "@/tests/mockData";
+import {
+    mockEnglishContentDto,
+    mockLocalChange1,
+    mockLocalChange2,
+    mockPostDto,
+} from "@/tests/mockData";
 import { AckStatus, LocalChangeStatus, type ChangeReqAckDto, type Post } from "@/types";
 import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
@@ -21,7 +26,7 @@ describe("localChanges store", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
         db.localChanges.bulkPut([mockLocalChange1, mockLocalChange2]);
-        db.docs.bulkPut([mockPost, mockContent]);
+        db.docs.bulkPut([mockPostDto, mockEnglishContentDto]);
     });
 
     afterEach(() => {
@@ -38,7 +43,7 @@ describe("localChanges store", () => {
         const localChangesStore = useLocalChangeStore();
 
         await waitForExpect(() => {
-            const res = localChangesStore.isLocalChange(mockPost._id);
+            const res = localChangesStore.isLocalChange(mockPostDto._id);
             expect(res).toBe(true);
         });
     });
@@ -131,7 +136,7 @@ describe("localChanges store", () => {
         localChangesStore.handleAck(ack);
 
         await waitForExpect(async () => {
-            const doc = await db.docs.where("_id").equals(mockPost._id).first();
+            const doc = await db.docs.where("_id").equals(mockPostDto._id).first();
             expect(doc).toBe(undefined);
 
             const change = await db.localChanges.where("id").equals(mockLocalChange1.id).first();

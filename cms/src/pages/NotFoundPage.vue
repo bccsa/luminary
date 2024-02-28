@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AcButton from "@/components/button/AcButton.vue";
+import LButton from "@/components/button/LButton.vue";
 import { RouterLink } from "vue-router";
 </script>
 
@@ -14,7 +14,7 @@ import { RouterLink } from "vue-router";
                 Sorry, we couldn’t find the page you’re looking for.
             </p>
             <div class="mt-10 flex items-center justify-center gap-x-6">
-                <AcButton :is="RouterLink" :to="{ name: 'dashboard' }">Back to dashboard</AcButton>
+                <LButton :is="RouterLink" :to="{ name: 'dashboard' }">Back to dashboard</LButton>
             </div>
         </div>
     </div>

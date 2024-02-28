@@ -2,12 +2,12 @@
 import { RouterLink } from "vue-router";
 import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import AcButton from "@/components/button/AcButton.vue";
-import { PlusIcon } from "@heroicons/vue/20/solid";
+import LButton from "@/components/button/LButton.vue";
+import { PlusIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import LCard from "@/components/common/LCard.vue";
 import LTable from "@/components/common/LTable.vue";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { ContentStatus, type Content, type Post } from "@/types";
 import { useLanguageStore } from "@/stores/language";
 import LBadge from "@/components/common/LBadge.vue";
@@ -44,27 +44,44 @@ const columns = [
     },
     {
         text: "Last updated",
-        key: "updatedTimeUtc",
+        key: "updatedTime",
+        sortable: false,
+    },
+    {
+        text: "",
+        key: "actions",
+        sortable: false,
     },
 ];
 
-const translationStatus = (content: Content | undefined) => {
-    if (content?.status == ContentStatus.Published) {
-        return "success";
-    }
+const translationStatus = computed(() => {
+    return (content: Content | undefined) => {
+        if (content?.status == ContentStatus.Published) {
+            return "success";
+        }
 
-    if (content?.status == ContentStatus.Draft) {
-        return "info";
-    }
+        if (content?.status == ContentStatus.Draft) {
+            return "info";
+        }
 
-    return "default";
-};
+        return "default";
+    };
+});
+
+const dateFormatter = new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Africa/Johannesburg",
+});
+const formatDate = computed(() => {
+    return (date: Date) => dateFormatter.format(date);
+});
 </script>
 
 <template>
     <BasePage title="Posts" :loading="posts === undefined">
         <template #actions>
-            <AcButton
+            <LButton
                 v-if="posts && posts.length > 0"
                 variant="primary"
                 :icon="PlusIcon"
@@ -72,7 +89,7 @@ const translationStatus = (content: Content | undefined) => {
                 :to="{ name: 'posts.create' }"
             >
                 Create post
-            </AcButton>
+            </LButton>
         </template>
 
         <EmptyState
@@ -116,6 +133,22 @@ const translationStatus = (content: Content | undefined) => {
                             {{ language.languageCode }}
                         </LBadge>
                     </div>
+                </template>
+                <template #item.updatedTime="post">
+                    {{ formatDate(post.updatedTimeUtc) }}
+                </template>
+                <template #item.actions="post">
+                    <LButton
+                        variant="tertiary"
+                        :icon="PencilSquareIcon"
+                        :is="RouterLink"
+                        :to="{
+                            name: 'posts.edit',
+                            params: {
+                                id: post._id,
+                            },
+                        }"
+                    ></LButton>
                 </template>
             </LTable>
         </LCard>

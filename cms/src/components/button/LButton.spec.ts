@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import AcButton from "./AcButton.vue";
+import LButton from "./LButton.vue";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 
-describe("AcButton", () => {
+describe("LButton", () => {
     it("renders the default slot and icon", async () => {
-        const wrapper = mount(AcButton, {
+        const wrapper = mount(LButton, {
             props: { icon: DocumentPlusIcon },
             slots: { default: "Button text" },
         });
@@ -15,7 +15,7 @@ describe("AcButton", () => {
     });
 
     it("can be a button or anchor element", async () => {
-        const wrapper = mount(AcButton);
+        const wrapper = mount(LButton);
         expect(wrapper.html()).toContain("<button");
 
         await wrapper.setProps({ is: "a" });

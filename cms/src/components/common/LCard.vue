@@ -52,7 +52,7 @@ function collapse() {
                 />
             </button>
         </div>
-        <template v-if="!collapsed">
+        <div v-show="!collapsed" data-test="collapsible-container">
             <div
                 :class="{
                     'px-4 py-5 sm:px-6': padding == 'normal',
@@ -64,6 +64,6 @@ function collapse() {
             <div v-if="$slots.footer" class="bg-gray-50 px-4 py-5 sm:px-6">
                 <slot name="footer" />
             </div>
-        </template>
+        </div>
     </div>
 </template>

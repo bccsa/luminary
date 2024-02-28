@@ -2,7 +2,7 @@
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import type { Component } from "vue";
-import AcButton from "@/components/button/AcButton.vue";
+import LButton from "@/components/button/LButton.vue";
 import { RouterLink } from "vue-router";
 
 defineProps<{
@@ -25,7 +25,7 @@ defineProps<{
         <h3 class="mt-2 text-sm font-semibold text-gray-900">{{ title }}</h3>
         <p class="mt-1 text-sm text-gray-500">{{ description }}</p>
         <div class="mt-6">
-            <AcButton
+            <LButton
                 v-if="buttonText && (buttonAction || buttonLink)"
                 @click="buttonAction ? buttonAction() : ''"
                 :is="buttonLink ? RouterLink : 'button'"
@@ -35,7 +35,7 @@ defineProps<{
                 size="lg"
             >
                 {{ buttonText }}
-            </AcButton>
+            </LButton>
         </div>
     </div>
 </template>

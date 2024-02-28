@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import BasePage from "@/components/BasePage.vue";
-import AcButton from "@/components/button/AcButton.vue";
+import LButton from "@/components/button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LTextarea from "@/components/forms/LTextarea.vue";
 import LSelect from "@/components/forms/LSelect.vue";
@@ -238,14 +238,14 @@ const items = [
                         </span>
                     </template>
                     <template #item.actions>
-                        <AcButton variant="tertiary" size="sm" :icon="PencilSquareIcon"></AcButton>
+                        <LButton variant="tertiary" size="sm" :icon="PencilSquareIcon"></LButton>
                     </template>
                 </LTable>
             </LCard>
 
             <LCard title="Tabs">
                 <LTabs :tabs="tabs" v-model:currentTab="selectedTab">
-                    <AcButton variant="tertiary" :icon="PlusIcon">Add translation</AcButton>
+                    <LButton variant="tertiary" :icon="PlusIcon">Add translation</LButton>
                 </LTabs>
             </LCard>
 
@@ -268,18 +268,18 @@ const items = [
 
             <LCard title="Buttons">
                 <div class="space-x-4">
-                    <AcButton>Save as draft</AcButton>
-                    <AcButton variant="primary">Publish</AcButton>
-                    <AcButton variant="tertiary">Edit post</AcButton>
-                    <AcButton disabled>Save as draft</AcButton>
-                    <AcButton disabled variant="primary">Publish</AcButton>
-                    <AcButton disabled variant="tertiary">Edit post</AcButton>
+                    <LButton>Save as draft</LButton>
+                    <LButton variant="primary">Publish</LButton>
+                    <LButton variant="tertiary">Edit post</LButton>
+                    <LButton disabled>Save as draft</LButton>
+                    <LButton disabled variant="primary">Publish</LButton>
+                    <LButton disabled variant="tertiary">Edit post</LButton>
                 </div>
                 <div class="mt-6 space-x-4">
-                    <AcButton :icon="PencilSquareIcon">Edit</AcButton>
-                    <AcButton variant="primary" :icon="PencilSquareIcon">Edit</AcButton>
-                    <AcButton variant="tertiary" :icon="PencilSquareIcon">Edit</AcButton>
-                    <AcButton variant="tertiary" :icon="PencilSquareIcon"></AcButton>
+                    <LButton :icon="PencilSquareIcon">Edit</LButton>
+                    <LButton variant="primary" :icon="PencilSquareIcon">Edit</LButton>
+                    <LButton variant="tertiary" :icon="PencilSquareIcon">Edit</LButton>
+                    <LButton variant="tertiary" :icon="PencilSquareIcon"></LButton>
                 </div>
             </LCard>
         </div>

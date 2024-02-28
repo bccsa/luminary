@@ -1,12 +1,12 @@
 import "fake-indexeddb/auto";
 import { describe, it, afterEach, expect, beforeEach } from "vitest";
 import { db } from "../baseDatabase";
-import { mockLanguageEng, mockLanguageFra } from "@/tests/mockData";
+import { mockLanguageDtoEng, mockLanguageDtoFra } from "@/tests/mockData";
 import { LanguageRepository } from "./languageRepository";
 
 describe("languageRepository", () => {
     beforeEach(() => {
-        db.docs.bulkPut([mockLanguageEng, mockLanguageFra]);
+        db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra]);
     });
 
     afterEach(() => {
@@ -27,5 +27,7 @@ describe("languageRepository", () => {
         const result = await repository.findAll();
 
         expect(result.length).toBe(2);
+        expect(result[0]._id).toBe(mockLanguageDtoEng._id);
+        expect(result[0].updatedTimeUtc).toEqual(new Date(mockLanguageDtoEng.updatedTimeUtc!));
     });
 });

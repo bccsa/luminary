@@ -17,6 +17,12 @@ export type ContentBaseDto = BaseDocumentDto & {
     memberOf: Uuid[];
 };
 
+export type LanguageDto = ContentBaseDto & {
+    type: DocType.Language;
+    languageCode: string;
+    name: string;
+};
+
 export type ContentDto = ContentBaseDto & {
     language: Uuid;
     status: string;
@@ -60,5 +66,5 @@ export type ChangeReqAckDto = {
     id: number;
     ack: AckStatus;
     message?: string;
-    doc?: BaseDocumentDto;
+    doc?: any;
 };
