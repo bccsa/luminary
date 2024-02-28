@@ -96,6 +96,7 @@ export const mockContent: Content = {
 export const mockPost: Post = {
     type: DocType.Post,
     _id: "post-post1",
+    image: "test.jpg",
     updatedTimeUtc: new Date(),
     memberOf: [],
     content: [mockContent],

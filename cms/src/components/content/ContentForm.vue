@@ -59,7 +59,7 @@ watch(
     ([post, content]) => {
         // Convert dates to format VeeValidate understands
         const filteredContent: any = { ...content };
-        filteredContent.publishDate = content.publishDate?.toISOString().split("T")[0];
+        filteredContent.publishDate = content.publishDate?.toISOString().split(".")[0];
 
         setValues({
             ...onlyAllowedKeys(filteredContent, Object.keys(values)),
@@ -78,7 +78,8 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
 
     const post = {
         ...toRaw(postProp.value),
-        ...validatedFormValues.parent,
+        image: validatedFormValues.parent?.image,
+        // TODO create tags from topics etc.
     };
 
     return emit("save", content, post);
@@ -103,10 +104,20 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
                 <LInput name="summary" label="Summary" class="mt-4" />
 
                 <div class="mt-4 flex gap-4">
-                    <LInput name="publishDate" label="Publish date" class="w-1/2" type="date">
+                    <LInput
+                        name="publishDate"
+                        label="Publish date"
+                        class="w-1/2"
+                        type="datetime-local"
+                    >
                         This is the date that will be shown on the post
                     </LInput>
-                    <LInput name="expiryDate" label="Expiry date" class="w-1/2" type="date">
+                    <LInput
+                        name="expiryDate"
+                        label="Expiry date"
+                        class="w-1/2"
+                        type="datetime-local"
+                    >
                         When set, this translation will automatically be hidden on this date. Not
                         visible in the app
                     </LInput>

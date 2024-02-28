@@ -104,7 +104,7 @@ export type Tag = ContentBase & {
 export type Post = ContentBase & {
     type: DocType.Post;
     content: Content[];
-    image?: string;
+    image: string;
     tags: Tag[];
 };
 
