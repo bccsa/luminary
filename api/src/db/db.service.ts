@@ -231,29 +231,6 @@ export class DbService {
     }
 
     /**
-     * Get the parent Post or Tag document for the passed Content document ID.
-     * @param docId - Content document ID
-     * @returns
-     */
-    getParentDoc(docId: Uuid): Promise<any> {
-        return new Promise((resolve) => {
-            return this.db
-                .view("content", "contentParent", {
-                    key: docId,
-                    include_docs: true,
-                    limit: 1,
-                })
-                .then((res) => {
-                    if (res.rows && res.rows[0] && res.rows[0].doc) {
-                        resolve(res.rows[0].doc);
-                    } else {
-                        resolve(undefined);
-                    }
-                });
-        });
-    }
-
-    /**
      * Gets the latest document update time for any documents that has the updatedTimeUtc property
      */
     getLatestDocUpdatedTime(): Promise<number> {
