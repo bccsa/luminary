@@ -35,7 +35,7 @@ const validationSchema = toTypedSchema(
             image: yup.string().required(),
         }),
         title: yup.string().required(),
-        summary: yup.string(),
+        summary: yup.string().optional(),
         publishDate: yup.date().optional(),
     }),
 );
@@ -60,9 +60,13 @@ watch(
 );
 
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
+    // Make sure we don't accidentally add the 'parent' object to the content
+    const contentValues = { ...validatedFormValues };
+    delete contentValues["parent"];
+
     const content: Content = {
         ...toRaw(contentProp.value),
-        ...onlyAllowedKeys(validatedFormValues, Object.keys(contentProp.value)),
+        ...contentValues,
         status,
     };
 
