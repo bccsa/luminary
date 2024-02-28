@@ -16,6 +16,7 @@ import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
 import { toRaw, toRefs, watch } from "vue";
+import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
 
 type Props = {
     content: Content;
@@ -42,17 +43,6 @@ const validationSchema = toTypedSchema(
 const { handleSubmit, meta, values, setValues } = useForm({
     validationSchema,
 });
-
-const onlyAllowedKeys = (raw: any, allowed: string[]) => {
-    return Object.keys(raw)
-        .filter((key) => allowed.includes(key))
-        .reduce((obj, key) => {
-            return {
-                ...obj,
-                [key]: raw[key],
-            };
-        }, {});
-};
 
 watch(
     [postProp, contentProp],
