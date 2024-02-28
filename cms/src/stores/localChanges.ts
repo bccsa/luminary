@@ -18,6 +18,12 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
         >,
     );
 
+    const syncingChanges: Readonly<Ref<LocalChange[] | undefined>> = useObservable(
+        liveQuery(async () => localChangesRepository.getSyncing()) as unknown as Observable<
+            LocalChange[]
+        >,
+    );
+
     const isLocalChange = computed(() => {
         return (docId: string) => {
             return unsyncedChanges.value?.some((change) => change.doc._id === docId);
@@ -28,23 +34,30 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
     const watchForSyncableChanges = () => {
         const { isConnected } = storeToRefs(useSocketConnectionStore());
 
-        watch([isConnected, unsyncedChanges], async ([isConnected, localChanges]) => {
-            if (isConnected && localChanges && localChanges.length > 0) {
-                // TODO instead send changes that are younger than a certain timestamp
-                // so non-acknowledged onces are resent instead of being stuck in Syncing forever
-                await syncLocalChangesToApi(localChanges);
-            }
-        });
+        watch(
+            [isConnected, unsyncedChanges, syncingChanges],
+            async ([isConnected, currentUnsyncedChanges, currentSyncingChanges]) => {
+                if (
+                    isConnected &&
+                    currentUnsyncedChanges &&
+                    currentUnsyncedChanges.length > 0 &&
+                    currentSyncingChanges &&
+                    currentSyncingChanges.length == 0
+                ) {
+                    // TODO instead send changes that are younger than a certain timestamp
+                    // so non-acknowledged onces are resent instead of being stuck in Syncing forever and blocking the queue
+                    await syncLocalChangesToApi(currentUnsyncedChanges[0]);
+                }
+            },
+        );
     };
 
-    const syncLocalChangesToApi = async (localChanges: LocalChange[]) => {
-        localChanges.forEach(async (change) => {
-            await localChangesRepository.update(change, {
-                status: LocalChangeStatus.Syncing,
-            });
+    const syncLocalChangesToApi = async (change: LocalChange) => {
+        await localChangesRepository.update(change, {
+            status: LocalChangeStatus.Syncing,
         });
 
-        socket.emit("changeRequest", localChanges);
+        socket.emit("changeRequest", change);
     };
 
     const handleAck = async (ack: ChangeReqAckDto) => {

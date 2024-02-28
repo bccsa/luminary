@@ -64,9 +64,24 @@ describe("localChanges store", () => {
         socketConnectionStore.isConnected = true;
         await flushPromises();
 
+        // Check that only one has begun syncing
         changes = await db.localChanges.toArray();
         expect(changes[0].status).toBe(LocalChangeStatus.Syncing);
-        expect(changes[1].status).toBe(LocalChangeStatus.Syncing);
+        expect(changes[1].status).toBe(LocalChangeStatus.Unsynced);
+    });
+
+    it("won't sync when another change is already syncing", async () => {
+        const localChangesStore = useLocalChangeStore();
+        db.localChanges.put({
+            ...mockLocalChange1,
+            status: LocalChangeStatus.Syncing,
+        });
+
+        localChangesStore.watchForSyncableChanges();
+
+        const changes = await db.localChanges.toArray();
+        expect(changes[0].status).toBe(LocalChangeStatus.Syncing);
+        expect(changes[1].status).toBe(LocalChangeStatus.Unsynced);
     });
 
     it("emits a change request when syncing", async () => {
@@ -80,10 +95,10 @@ describe("localChanges store", () => {
 
         await waitForExpect(() => {
             expect(socketMock.emit).toHaveBeenCalledTimes(1);
-            expect(socketMock.emit).toHaveBeenCalledWith("changeRequest", [
-                { ...mockLocalChange1, status: LocalChangeStatus.Syncing },
-                { ...mockLocalChange2, status: LocalChangeStatus.Syncing },
-            ]);
+            expect(socketMock.emit).toHaveBeenCalledWith("changeRequest", {
+                ...mockLocalChange1,
+                status: LocalChangeStatus.Syncing,
+            });
         });
     });
 

@@ -84,7 +84,7 @@ export class Socketio {
      * @param socket
      */
     @SubscribeMessage("changeRequest")
-    async onChangeRequest(@MessageBody() changeRequests: any[], @ConnectedSocket() socket: Socket) {
+    async onChangeRequest(@MessageBody() changeRequest: any, @ConnectedSocket() socket: Socket) {
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         const user = "super-admin";
         const groups = ["group-super-admins"];
@@ -92,20 +92,14 @@ export class Socketio {
         // Get user accessible groups and validate change request
         const userAccessMap = PermissionSystem.getAccessMap(groups);
 
-        const sortedChangeRequests = changeRequests.sort((a, b) => {
-            return a.id - b.id;
-        });
-
-        // Process each change request individually
-        for (const changeRequest of sortedChangeRequests) {
-            await processChangeRequest(user, changeRequest, userAccessMap, this.db)
-                .then(() => {
-                    this.emitAck(socket, AckStatus.Accepted, changeRequest);
-                })
-                .catch((err) => {
-                    this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
-                });
-        }
+        // Process change request
+        await processChangeRequest(user, changeRequest, userAccessMap, this.db)
+            .then(() => {
+                this.emitAck(socket, AckStatus.Accepted, changeRequest);
+            })
+            .catch((err) => {
+                this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
+            });
     }
 
     /**
