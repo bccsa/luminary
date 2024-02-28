@@ -1,0 +1,41 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CMS Web-App",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:4175",
+      "webRoot": "${workspaceFolder}/api"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "CMS webserver",
+      "skipFiles": ["<node_internals>/**"],
+      //   "program": "${workspaceFolder}/api/src/main.ts",
+      //   "outFiles": ["${workspaceFolder}/**/*.js"],
+      "cwd": "${workspaceFolder}/cms",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "API",
+      "skipFiles": ["<node_internals>/**"],
+      //   "program": "${workspaceFolder}/api/src/main.ts",
+      //   "outFiles": ["${workspaceFolder}/**/*.js"],
+      "cwd": "${workspaceFolder}/api",
+      // "runtimeExecutable": "npm",
+      // "runtimeArgs": ["run", "dev"]
+      "args": ["${workspaceFolder}/api/src/main.ts"],
+      "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
+      "sourceMaps": true,
+      "protocol": "inspector"
+    }
+  ]
+}
