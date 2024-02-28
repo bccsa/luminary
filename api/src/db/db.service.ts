@@ -354,6 +354,7 @@ export class DbService {
                     ],
                 },
                 use_index: "updatedTimeUtc-type-memberOf-index",
+                limit: Number.MAX_SAFE_INTEGER,
             };
             pList.push(this.db.find(query_memberOf_per_type));
 
@@ -376,6 +377,7 @@ export class DbService {
                             ],
                         },
                         use_index: "type-id-index",
+                        limit: Number.MAX_SAFE_INTEGER,
                     };
                 } else {
                     query_groupDoc = {
@@ -398,6 +400,7 @@ export class DbService {
                             ],
                         },
                         use_index: "updatedTimeUtc-type-id-index",
+                        limit: Number.MAX_SAFE_INTEGER,
                     };
                 }
 
@@ -431,6 +434,7 @@ export class DbService {
                     type: "group",
                 },
                 use_index: "type-id-index",
+                limit: Number.MAX_SAFE_INTEGER,
             };
             this.db
                 .find(query)
