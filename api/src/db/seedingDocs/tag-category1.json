@@ -4,7 +4,6 @@
     "memberOf": ["group-public-content"],
     "tagType": "category",
     "pinned": false,
-    "localisations": ["localisation-category1-eng", "localisation-category1-fra"],
     "image": "",
     "tags": []
 }

@@ -74,13 +74,15 @@ export async function validateChangeRequestAccess(
         // -----------------------------------------------------------------
 
         // Get the parent document (post / tag) from the database
-        const parentDoc = await dbService.getParentDoc(doc._id);
-        if (!parentDoc) {
+        const getRequest = await dbService.getDoc(doc.parentId);
+        if (getRequest.docs.length === 0) {
             return {
                 validated: false,
                 error: "Parent document not found",
             };
         }
+        const parentDoc = getRequest.docs[0];
+        // TODO: Cleanup dbService.getParentDoc(doc._id);
 
         // Check if the user has translate access to the Content document's parent document (post / tag)
         // Note: Content documents are always saved with the same group membership as their parent (post / tag) document

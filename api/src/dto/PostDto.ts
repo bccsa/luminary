@@ -7,11 +7,6 @@ import { Expose } from "class-transformer";
  * Database structured Post object
  */
 export class PostDto extends _contentBaseDto {
-    @IsArray()
-    @IsString({ each: true })
-    @Expose()
-    content: Uuid[];
-
     @IsNotEmpty()
     @IsString()
     @Expose()

@@ -2,6 +2,7 @@
     "_id": "content-topicB-eng",
     "type": "content",
     "memberOf": ["group-private-content"],
+    "parentId": "tag-topicB",
     "language": "lang-eng",
     "status": "published",
     "slug": "topicB-eng",

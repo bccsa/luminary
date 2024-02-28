@@ -2,6 +2,7 @@
     "_id": "content-topicA-fra",
     "type": "content",
     "memberOf": ["group-public-content"],
+    "parentId": "tag-topicA",
     "language": "lang-fra",
     "status": "published",
     "slug": "topicA-fra",
