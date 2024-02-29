@@ -153,4 +153,18 @@ describe("localChanges store", () => {
             expect(change).toBe(undefined);
         });
     });
+
+    it("syncs the next change request after receiving an ack", async () => {
+        const localChangesStore = useLocalChangeStore();
+        const ack: ChangeReqAckDto = {
+            id: mockLocalChange1.id,
+            ack: AckStatus.Accepted,
+        };
+
+        localChangesStore.handleAck(ack);
+
+        await waitForExpect(async () => {
+            expect(socketMock.emit).toHaveBeenCalled();
+        });
+    });
 });
