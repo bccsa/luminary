@@ -22,6 +22,19 @@ describe("localChangesRepository", () => {
         expect(result).toEqual([mockLocalChange1, mockLocalChange2]);
     });
 
+    it("can get all syncing changes", async () => {
+        const syncingChange = {
+            ...mockLocalChange1,
+            status: LocalChangeStatus.Syncing,
+        };
+        db.localChanges.put(syncingChange);
+        const repository = new LocalChangesRepository();
+
+        const result = await repository.getSyncing();
+
+        expect(result).toEqual([syncingChange]);
+    });
+
     it("can get a single document", async () => {
         const repository = new LocalChangesRepository();
 

@@ -6,6 +6,10 @@ export class LocalChangesRepository {
         return db.localChanges.where("status").equals(LocalChangeStatus.Unsynced).toArray();
     }
 
+    getSyncing() {
+        return db.localChanges.where("status").equals(LocalChangeStatus.Syncing).toArray();
+    }
+
     get(id: number) {
         return db.localChanges.where("id").equals(id).first();
     }

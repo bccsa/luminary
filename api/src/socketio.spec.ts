@@ -2,6 +2,7 @@ import { Socket, io } from "socket.io-client";
 import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
 import { createTestingModule } from "./test/testingModule";
+import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 
 describe("Socketio", () => {
     let server: Socketio;
@@ -14,21 +15,16 @@ describe("Socketio", () => {
     }
 
     // Emits the given changeRequests from the client, and returns all received acks as an array
-    function createTestSocketForChangeRequests(changeRequests) {
-        return () => {
+    function createTestSocketForChangeRequests(changeRequest): () => Promise<ChangeReqAckDto> {
+        return (): Promise<ChangeReqAckDto> => {
             return new Promise((resolve) => {
-                const results = [];
                 const c = function (data) {
-                    results.push(data);
-
-                    if (results.length == changeRequests.length) {
-                        client.off("changeRequestAck", c);
-                        resolve(results);
-                    }
+                    client.off("changeRequestAck");
+                    resolve(data);
                 };
                 client.on("changeRequestAck", c);
 
-                client.emit("changeRequest", changeRequests);
+                client.emit("changeRequest", changeRequest);
             });
         };
     }
@@ -98,138 +94,61 @@ describe("Socketio", () => {
         // TODO: Need to re-think how to test this. Currently the user access is hard-coded but
         // when we implement user authentication, the access will be determined by the user's group membership.
         it("can submit a single change request and receive an acknowledgement", async () => {
-            const changeRequests = [
-                {
-                    id: 42,
-                    doc: {
-                        _id: "lang-eng",
-                        type: "language",
-                        memberOf: ["group-languages"],
-                        languageCode: "eng",
-                        name: "English",
-                    },
+            const changeRequest = {
+                id: 42,
+                doc: {
+                    _id: "lang-eng",
+                    type: "language",
+                    memberOf: ["group-languages"],
+                    languageCode: "eng",
+                    name: "English",
                 },
-            ];
-            const testSocket = createTestSocketForChangeRequests(changeRequests);
+            };
+            const testSocket = createTestSocketForChangeRequests(changeRequest);
 
-            const receivedAcks = await testSocket();
+            const ack = await testSocket();
 
-            expect(receivedAcks[0].id).toBe(42);
-            expect(receivedAcks[0].message).toBe(undefined);
-            expect(receivedAcks[0].ack).toBe("accepted");
-        });
-
-        it("can submit multiple change requests and receive an accepted acknowledgement for each", async () => {
-            const changeRequests = [
-                {
-                    id: 43, // Deliberately higher than post, to check if they are sorted correctly. Post should be created first
-                    doc: {
-                        _id: "content-submitted-with-post",
-                        type: "content",
-                        memberOf: ["group-public-content"],
-                        language: "lang-eng",
-                        status: "draft",
-                        slug: "post1-eng",
-                        title: "Post 1",
-                    },
-                },
-                {
-                    id: 42,
-                    doc: {
-                        _id: "post-submitted-with-content",
-                        type: "post",
-                        memberOf: ["group-public-content"],
-                        content: ["content-submitted-with-post"],
-                        image: "img",
-                        tags: [],
-                    },
-                },
-            ];
-            const testSocket = createTestSocketForChangeRequests(changeRequests);
-
-            const receivedAcks = await testSocket();
-
-            expect(receivedAcks[0].id).toBe(42);
-            expect(receivedAcks[0].message).toBe(undefined);
-            expect(receivedAcks[0].ack).toBe("accepted");
-            expect(receivedAcks[1].id).toBe(43);
-            expect(receivedAcks[1].message).toBe(undefined);
-            expect(receivedAcks[1].ack).toBe("accepted");
-        });
-
-        it("can submit multiple change requests and receive an different acknowledgement for each", async () => {
-            const changeRequests = [
-                {
-                    id: 42,
-                    doc: {
-                        _id: "lang-eng",
-                        type: "language",
-                        memberOf: ["group-languages"],
-                        languageCode: "eng",
-                        name: "English",
-                    },
-                },
-                {
-                    id: 43,
-                    doc: {
-                        _id: "lang-fra",
-                        type: "post",
-                        invalidProperty: {},
-                    },
-                },
-            ];
-            const testSocket = createTestSocketForChangeRequests(changeRequests);
-
-            const receivedAcks = await testSocket();
-
-            expect(receivedAcks[0].id).toBe(42);
-            expect(receivedAcks[0].message).toBe(undefined);
-            expect(receivedAcks[0].ack).toBe("accepted");
-            expect(receivedAcks[1].id).toBe(43);
-            expect(receivedAcks[1].message).toContain("Submitted post document validation failed");
-            expect(receivedAcks[1].ack).toBe("rejected");
+            expect(ack.id).toBe(42);
+            expect(ack.message).toBe(undefined);
+            expect(ack.ack).toBe("accepted");
         });
 
         it("can correctly fail validation of an invalid change request", async () => {
-            const changeRequests = [
-                {
-                    id: 42,
-                    invalidProperty: {},
-                },
-            ];
-            const testSocket = createTestSocketForChangeRequests(changeRequests);
+            const changeRequest = {
+                id: 42,
+                invalidProperty: {},
+            };
+            const testSocket = createTestSocketForChangeRequests(changeRequest);
 
-            const receivedAcks = await testSocket();
+            const ack = await testSocket();
 
-            expect(receivedAcks[0].id).toBe(42);
-            expect(receivedAcks[0].ack).toBe("rejected");
-            expect(receivedAcks[0].message).toContain("Change request validation failed");
+            expect(ack.id).toBe(42);
+            expect(ack.ack).toBe("rejected");
+            expect(ack.message).toContain("Change request validation failed");
         });
 
         it("sends the existing document back when validation fails", async () => {
-            const changeRequests = [
-                {
-                    id: 42,
-                    doc: {
-                        _id: "lang-eng",
-                        type: "invalid",
-                        memberOf: ["group-languages"],
-                        languageCode: "eng",
-                        name: "Changed language name",
-                    },
+            const changeRequest = {
+                id: 42,
+                doc: {
+                    _id: "lang-eng",
+                    type: "invalid",
+                    memberOf: ["group-languages"],
+                    languageCode: "eng",
+                    name: "Changed language name",
                 },
-            ];
-            const testSocket = createTestSocketForChangeRequests(changeRequests);
+            };
+            const testSocket = createTestSocketForChangeRequests(changeRequest);
 
-            const receivedAcks = await testSocket();
+            const ack = await testSocket();
 
-            expect(receivedAcks[0].id).toBe(42);
-            expect(receivedAcks[0].message).toContain("Invalid document type");
-            expect(receivedAcks[0].ack).toBe("rejected");
+            expect(ack.id).toBe(42);
+            expect(ack.message).toContain("Invalid document type");
+            expect(ack.ack).toBe("rejected");
 
-            expect(receivedAcks[0].doc._id).toBe("lang-eng");
-            expect(receivedAcks[0].doc.type).toBe("language");
-            expect(receivedAcks[0].doc.name).toBe("English");
+            expect(ack.doc._id).toBe("lang-eng");
+            expect(ack.doc.type).toBe("language");
+            expect(ack.doc.name).toBe("English");
         });
     });
 });
