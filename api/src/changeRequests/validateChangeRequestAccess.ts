@@ -82,7 +82,6 @@ export async function validateChangeRequestAccess(
             };
         }
         const parentDoc = getRequest.docs[0];
-        // TODO: Cleanup dbService.getParentDoc(doc._id);
 
         // Check if the user has translate access to the Content document's parent document (post / tag)
         // Note: Content documents are always saved with the same group membership as their parent (post / tag) document
