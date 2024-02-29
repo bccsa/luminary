@@ -7,7 +7,6 @@ import {
     type Post,
     type Language,
     type LocalChange,
-    LocalChangeStatus,
     type LanguageDto,
 } from "@/types";
 
@@ -123,11 +122,9 @@ export const mockPost: Post = {
 
 export const mockLocalChange1: LocalChange = {
     id: 42,
-    status: LocalChangeStatus.Unsynced,
     doc: mockPostDto,
 };
 export const mockLocalChange2: LocalChange = {
     id: 43,
-    status: LocalChangeStatus.Unsynced,
     doc: mockEnglishContentDto,
 };

@@ -10,7 +10,7 @@ import {
     mockLocalChange2,
     mockPostDto,
 } from "@/tests/mockData";
-import { AckStatus, LocalChangeStatus, type ChangeReqAckDto, type Post } from "@/types";
+import { AckStatus, type ChangeReqAckDto, type Post } from "@/types";
 import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
 
@@ -41,65 +41,60 @@ describe("localChanges store", () => {
 
     it("can check if a post has unsynced local changes", async () => {
         const localChangesStore = useLocalChangeStore();
+        localChangesStore.localChanges = [mockLocalChange1, mockLocalChange2];
 
-        await waitForExpect(() => {
-            const res = localChangesStore.isLocalChange(mockPostDto._id);
-            expect(res).toBe(true);
-        });
+        const res = localChangesStore.isLocalChange(mockPostDto._id);
+        expect(res).toBe(true);
     });
 
-    it("can watch for syncable changes", async () => {
+    it("will immediately sync when online", async () => {
         const localChangesStore = useLocalChangeStore();
         const socketConnectionStore = useSocketConnectionStore();
+        localChangesStore.localChanges = [];
+        socketConnectionStore.isConnected = true;
+
+        localChangesStore.watchForSyncableChanges();
+        localChangesStore.localChanges = [mockLocalChange1];
+
+        await flushPromises();
+
+        expect(socketMock.emit).toHaveBeenCalledTimes(1);
+        expect(socketMock.emit).toHaveBeenCalledWith("changeRequest", mockLocalChange1);
+    });
+
+    it("will start syncing when coming online", async () => {
+        const localChangesStore = useLocalChangeStore();
+        const socketConnectionStore = useSocketConnectionStore();
+        localChangesStore.localChanges = [mockLocalChange1, mockLocalChange2];
+
         socketConnectionStore.isConnected = false;
 
         localChangesStore.watchForSyncableChanges();
 
         // Check that nothing was synced
-        let changes = await db.localChanges.toArray();
-        expect(changes[0].status).toBe(LocalChangeStatus.Unsynced);
-        expect(changes[1].status).toBe(LocalChangeStatus.Unsynced);
+        expect(socketMock.emit).not.toHaveBeenCalled();
 
         // Start syncing when socket is connected
         socketConnectionStore.isConnected = true;
         await flushPromises();
 
-        // Check that only one has begun syncing
-        changes = await db.localChanges.toArray();
-        expect(changes[0].status).toBe(LocalChangeStatus.Syncing);
-        expect(changes[1].status).toBe(LocalChangeStatus.Unsynced);
+        // Check that only one has been synced
+        expect(socketMock.emit).toHaveBeenCalledTimes(1);
+        expect(socketMock.emit).toHaveBeenCalledWith("changeRequest", mockLocalChange1);
     });
 
-    it("won't sync when another change is already syncing", async () => {
-        const localChangesStore = useLocalChangeStore();
-        db.localChanges.put({
-            ...mockLocalChange1,
-            status: LocalChangeStatus.Syncing,
-        });
-
-        localChangesStore.watchForSyncableChanges();
-
-        const changes = await db.localChanges.toArray();
-        expect(changes[0].status).toBe(LocalChangeStatus.Syncing);
-        expect(changes[1].status).toBe(LocalChangeStatus.Unsynced);
-    });
-
-    it("emits a change request when syncing", async () => {
+    it("will not sync via the watcher if there are multiple changes when online", async () => {
         const localChangesStore = useLocalChangeStore();
         const socketConnectionStore = useSocketConnectionStore();
+        localChangesStore.localChanges = [];
         socketConnectionStore.isConnected = true;
 
         localChangesStore.watchForSyncableChanges();
+        localChangesStore.localChanges = [mockLocalChange1, mockLocalChange2];
 
         await flushPromises();
 
-        await waitForExpect(() => {
-            expect(socketMock.emit).toHaveBeenCalledTimes(1);
-            expect(socketMock.emit).toHaveBeenCalledWith("changeRequest", {
-                ...mockLocalChange1,
-                status: LocalChangeStatus.Syncing,
-            });
-        });
+        expect(socketMock.emit).not.toHaveBeenCalled();
     });
 
     it("can handle an accepted ack from the API", async () => {
@@ -156,6 +151,20 @@ describe("localChanges store", () => {
 
             const change = await db.localChanges.where("id").equals(mockLocalChange1.id).first();
             expect(change).toBe(undefined);
+        });
+    });
+
+    it("syncs the next change request after receiving an ack", async () => {
+        const localChangesStore = useLocalChangeStore();
+        const ack: ChangeReqAckDto = {
+            id: mockLocalChange1.id,
+            ack: AckStatus.Accepted,
+        };
+
+        localChangesStore.handleAck(ack);
+
+        await waitForExpect(async () => {
+            expect(socketMock.emit).toHaveBeenCalled();
         });
     });
 });

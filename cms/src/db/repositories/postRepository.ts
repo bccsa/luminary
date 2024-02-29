@@ -5,7 +5,6 @@ import {
     type PostDto,
     type ContentDto,
     ContentStatus,
-    LocalChangeStatus,
     type Content,
 } from "@/types";
 import { ContentRepository } from "./contentRepository";
@@ -51,11 +50,9 @@ export class PostRepository extends BaseRepository {
 
         // Save change, which will be sent to the API later
         await db.localChanges.put({
-            status: LocalChangeStatus.Unsynced,
             doc: post,
         });
         await db.localChanges.put({
-            status: LocalChangeStatus.Unsynced,
             doc: content,
         });
 
@@ -70,11 +67,9 @@ export class PostRepository extends BaseRepository {
 
         // Save change, which will be sent to the API later
         await db.localChanges.put({
-            status: LocalChangeStatus.Unsynced,
             doc: postDto,
         });
         return db.localChanges.put({
-            status: LocalChangeStatus.Unsynced,
             doc: contentDto,
         });
     }

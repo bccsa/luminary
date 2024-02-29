@@ -114,13 +114,7 @@ export type User = ContentBase & {
     email: string;
 };
 
-export enum LocalChangeStatus {
-    Unsynced = "unsynced",
-    Syncing = "syncing",
-}
-
 export type LocalChange = {
     id: number;
-    status: LocalChangeStatus;
     doc: BaseDocumentDto;
 };

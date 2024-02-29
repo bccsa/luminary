@@ -1,32 +1,29 @@
 import { defineStore, storeToRefs } from "pinia";
-import { AckStatus, LocalChangeStatus, type LocalChange, type ChangeReqAckDto } from "@/types";
+import { AckStatus, type LocalChange, type ChangeReqAckDto } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { watch, type Ref, computed } from "vue";
 import { LocalChangesRepository } from "@/db/repositories/localChangesRepository";
-import type { Observable } from "rxjs";
+import { type Observable } from "rxjs";
 import { useSocketConnectionStore } from "./socketConnection";
 import { socket } from "@/socket";
 import { db } from "@/db/baseDatabase";
 
+const ONE_MINUTE_IN_MS = 60000;
+
 export const useLocalChangeStore = defineStore("localChanges", () => {
+    let retryApiSubmissionTimeout: number;
     const localChangesRepository = new LocalChangesRepository();
 
-    const unsyncedChanges: Readonly<Ref<LocalChange[] | undefined>> = useObservable(
-        liveQuery(async () => localChangesRepository.getUnsynced()) as unknown as Observable<
-            LocalChange[]
-        >,
-    );
-
-    const syncingChanges: Readonly<Ref<LocalChange[] | undefined>> = useObservable(
-        liveQuery(async () => localChangesRepository.getSyncing()) as unknown as Observable<
+    const localChanges: Readonly<Ref<LocalChange[] | undefined>> = useObservable(
+        liveQuery(async () => localChangesRepository.getAll()) as unknown as Observable<
             LocalChange[]
         >,
     );
 
     const isLocalChange = computed(() => {
         return (docId: string) => {
-            return unsyncedChanges.value?.some((change) => change.doc._id === docId);
+            return localChanges.value?.some((change) => change.doc._id === docId);
             // TODO: filter on changed content documents who has the post/tag as parent if the document itself is not changed.
         };
     });
@@ -34,28 +31,35 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
     const watchForSyncableChanges = () => {
         const { isConnected } = storeToRefs(useSocketConnectionStore());
 
-        watch(
-            [isConnected, unsyncedChanges, syncingChanges],
-            async ([isConnected, currentUnsyncedChanges, currentSyncingChanges]) => {
-                if (
-                    isConnected &&
-                    currentUnsyncedChanges &&
-                    currentUnsyncedChanges.length > 0 &&
-                    currentSyncingChanges &&
-                    currentSyncingChanges.length == 0
-                ) {
-                    // TODO instead send changes that are younger than a certain timestamp
-                    // so non-acknowledged onces are resent instead of being stuck in Syncing forever and blocking the queue
-                    await syncLocalChangeToApi(currentUnsyncedChanges[0]);
-                }
-            },
-        );
+        watch([isConnected, localChanges], async ([isConnected, localChanges], [wasConnected]) => {
+            if (!localChanges || localChanges.length == 0) {
+                return;
+            }
+
+            if (
+                (isConnected && !wasConnected && localChanges.length > 0) ||
+                (isConnected && localChanges.length == 1)
+            ) {
+                await syncFirstLocalChangeToApi();
+            }
+        });
     };
 
-    const syncLocalChangeToApi = async (change: LocalChange) => {
-        await localChangesRepository.update(change, {
-            status: LocalChangeStatus.Syncing,
-        });
+    const syncFirstLocalChangeToApi = async () => {
+        if (retryApiSubmissionTimeout) {
+            clearTimeout(retryApiSubmissionTimeout);
+        }
+
+        const change = localChanges.value![0];
+        // Sanity check for if this method was somehow called when there are no local changes
+        if (!change) {
+            return;
+        }
+
+        // Retry the submission after one minute if we haven't gotten an ack from the API
+        retryApiSubmissionTimeout = window.setTimeout(() => {
+            syncFirstLocalChangeToApi();
+        }, ONE_MINUTE_IN_MS);
 
         socket.emit("changeRequest", change);
     };
@@ -76,7 +80,13 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
         }
 
         await localChangesRepository.delete(ack.id);
+
+        clearTimeout(retryApiSubmissionTimeout);
+
+        if (localChanges.value && localChanges.value.length > 1) {
+            await syncFirstLocalChangeToApi();
+        }
     };
 
-    return { watchForSyncableChanges, handleAck, isLocalChange };
+    return { localChanges, watchForSyncableChanges, handleAck, isLocalChange };
 });
