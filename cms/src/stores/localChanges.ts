@@ -46,13 +46,13 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
                 ) {
                     // TODO instead send changes that are younger than a certain timestamp
                     // so non-acknowledged onces are resent instead of being stuck in Syncing forever and blocking the queue
-                    await syncLocalChangesToApi(currentUnsyncedChanges[0]);
+                    await syncLocalChangeToApi(currentUnsyncedChanges[0]);
                 }
             },
         );
     };
 
-    const syncLocalChangesToApi = async (change: LocalChange) => {
+    const syncLocalChangeToApi = async (change: LocalChange) => {
         await localChangesRepository.update(change, {
             status: LocalChangeStatus.Syncing,
         });
