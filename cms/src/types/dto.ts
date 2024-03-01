@@ -24,6 +24,7 @@ export type LanguageDto = ContentBaseDto & {
 };
 
 export type ContentDto = ContentBaseDto & {
+    parentId: Uuid;
     language: Uuid;
     status: string;
     title: string;
@@ -41,12 +42,10 @@ export type ContentDto = ContentBaseDto & {
 export type TagDto = ContentBaseDto & {
     pinned: boolean;
     image: string;
-    content: Uuid[];
     tags: Uuid[];
 };
 
 export type PostDto = ContentBaseDto & {
-    content: Uuid[];
     image: string;
     tags: Uuid[];
 };

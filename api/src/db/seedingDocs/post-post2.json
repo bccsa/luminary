@@ -2,7 +2,6 @@
     "_id": "post-post2",
     "type": "post",
     "memberOf": ["group-private-content"],
-    "content": ["content-post2-eng", "content-post2-fra"],
     "image": "",
     "tags": ["tag-category2", "tag-topicB"]
 }

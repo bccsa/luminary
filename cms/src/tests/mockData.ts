@@ -15,7 +15,6 @@ export const mockPostDto: PostDto = {
     type: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
-    content: ["content-post1-eng"],
     image: "",
     tags: ["tag-category1", "tag-topicA"],
 };
@@ -23,6 +22,7 @@ export const mockPostDto: PostDto = {
 export const mockEnglishContentDto: ContentDto = {
     _id: "content-post1-eng",
     type: DocType.Content,
+    parentId: "post-post1",
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     language: "lang-eng",
@@ -41,6 +41,7 @@ export const mockEnglishContentDto: ContentDto = {
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
     type: DocType.Content,
+    parentId: "post-post1",
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     language: "lang-fra",

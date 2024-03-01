@@ -2,6 +2,7 @@
     "_id": "content-category2-eng",
     "type": "content",
     "memberOf": ["group-private-content"],
+    "parentId": "tag-category2",
     "language": "lang-eng",
     "status": "published",
     "slug": "category2-eng",

@@ -13,6 +13,11 @@ export class ContentDto extends _contentBaseDto {
     @IsNotEmpty()
     @IsString()
     @Expose()
+    parentId: Uuid;
+
+    @IsNotEmpty()
+    @IsString()
+    @Expose()
     language: Uuid;
 
     @IsNotEmpty()

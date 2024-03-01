@@ -2,6 +2,7 @@
     "_id": "content-post1-eng",
     "type": "content",
     "memberOf": ["group-public-content"],
+    "parentId": "post-post1",
     "language": "lang-eng",
     "status": "published",
     "slug": "post1-eng",

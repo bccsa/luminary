@@ -26,6 +26,7 @@ export class PostRepository extends BaseRepository {
 
         const content: ContentDto = {
             _id: contentId,
+            parentId: postId,
             updatedTimeUtc: Date.now(),
             type: DocType.Content,
             status: ContentStatus.Draft,
@@ -40,7 +41,6 @@ export class PostRepository extends BaseRepository {
             updatedTimeUtc: Date.now(),
             type: DocType.Post,
             image: dto.image,
-            content: [contentId],
             tags: [],
             memberOf: ["group-private-content"], // TODO set right group
         };
@@ -60,7 +60,7 @@ export class PostRepository extends BaseRepository {
     }
 
     async update(content: Content, post: Post) {
-        const contentDto = this._contentRepository.toDto(content);
+        const contentDto = this._contentRepository.toDto(content, post._id);
         const postDto = this.toDto(post);
         await db.docs.update(contentDto, contentDto);
         await db.docs.update(postDto, postDto);
@@ -89,9 +89,7 @@ export class PostRepository extends BaseRepository {
 
         post.updatedTimeUtc = new Date(post.updatedTimeUtc);
 
-        if (dto.content.length > 0) {
-            post.content = await this._contentRepository.getContentWithIds(dto.content);
-        }
+        post.content = await this._contentRepository.getContentWithParentId(dto._id);
 
         return post;
     }
@@ -100,8 +98,6 @@ export class PostRepository extends BaseRepository {
         const postDto = { ...post } as unknown as PostDto;
 
         postDto.updatedTimeUtc = post.updatedTimeUtc.getTime();
-
-        postDto.content = post.content.map((c) => c._id);
 
         return postDto;
     }

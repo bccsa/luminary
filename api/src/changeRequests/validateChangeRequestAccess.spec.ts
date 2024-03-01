@@ -152,6 +152,7 @@ describe("validateChangeRequestAccess", () => {
                 _id: "content-post2-eng",
                 type: "content",
                 memberOf: ["group-private-content"],
+                parentId: "post-post2",
                 language: "lang-eng",
                 status: "published",
                 slug: "post2-eng",
