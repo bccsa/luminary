@@ -123,4 +123,46 @@ describe("ContentForm", () => {
             expect(wrapper.text()).toContain("Form not valid");
         });
     });
+
+    it("does not display text, audio or video when not defined", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: {
+                    ...mockContent,
+                    text: undefined,
+                },
+            },
+        });
+
+        const textInput = await wrapper.find("input[name='text']");
+        const audioInput = await wrapper.find("input[name='audio']");
+        const videoInput = await wrapper.find("input[name='video']");
+        expect(textInput.isVisible()).toBe(false);
+        expect(audioInput.isVisible()).toBe(false);
+        expect(videoInput.isVisible()).toBe(false);
+    });
+
+    it("adds a field for text, audio, or video when a button is clicked", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: {
+                    ...mockContent,
+                    text: undefined,
+                },
+            },
+        });
+
+        await wrapper.find("button[data-test='addText']").trigger("click");
+        await wrapper.find("button[data-test='addAudio']").trigger("click");
+        await wrapper.find("button[data-test='addVideo']").trigger("click");
+
+        const textInput = await wrapper.find("input[name='text']");
+        const audioInput = await wrapper.find("input[name='audio']");
+        const videoInput = await wrapper.find("input[name='video']");
+        expect(textInput.isVisible()).toBe(true);
+        expect(audioInput.isVisible()).toBe(true);
+        expect(videoInput.isVisible()).toBe(true);
+    });
 });

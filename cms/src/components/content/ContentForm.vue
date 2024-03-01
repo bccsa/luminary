@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import LTextarea from "@/components/forms/LTextarea.vue";
 import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
@@ -15,7 +14,7 @@ import { ContentStatus, type Content, type Post } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
-import { toRaw, toRefs, watch } from "vue";
+import { ref, toRaw, toRefs, watch } from "vue";
 import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
 import { DateTime } from "luxon";
 
@@ -28,6 +27,10 @@ const props = defineProps<Props>();
 
 const { content: contentProp, post: postProp } = toRefs(props);
 
+const hasText = ref(contentProp.value.text != undefined && contentProp.value.text.trim() != "");
+const hasAudio = ref(contentProp.value.audio != undefined && contentProp.value.audio.trim() != "");
+const hasVideo = ref(contentProp.value.video != undefined && contentProp.value.video.trim() != "");
+
 const emit = defineEmits(["save"]);
 
 const validationSchema = toTypedSchema(
@@ -38,6 +41,9 @@ const validationSchema = toTypedSchema(
         title: yup.string().required(),
         summary: yup.string().optional(),
         publishDate: yup.date().optional(),
+        text: yup.string().optional(),
+        audio: yup.string().optional(),
+        video: yup.string().optional(),
     }),
 );
 
@@ -115,26 +121,43 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
                 </div>
             </LCard>
 
-            <LCard title="Text content" :icon="DocumentTextIcon" collapsible>
-                <LTextarea rows="8" />
+            <LButton
+                variant="tertiary"
+                :icon="DocumentTextIcon"
+                @click="hasText = true"
+                v-if="!hasText"
+                data-test="addText"
+            >
+                Add text
+            </LButton>
+            <LCard title="Text content" :icon="DocumentTextIcon" collapsible v-show="hasText">
+                <LInput name="text" />
             </LCard>
 
-            <LCard title="Video" :icon="VideoCameraIcon" collapsible>
-                <LInput
-                    name="video"
-                    placeholder="videoTitle"
-                    leftAddOn="https://cdn.bcc.africa/vod/"
-                    rightAddOn="/playlist.m3u8"
-                />
+            <LButton
+                variant="tertiary"
+                :icon="VideoCameraIcon"
+                @click="hasVideo = true"
+                v-if="!hasVideo"
+                data-test="addVideo"
+            >
+                Add Video
+            </LButton>
+            <LCard title="Video" :icon="VideoCameraIcon" collapsible v-show="hasVideo">
+                <LInput name="video" leftAddOn="https://" />
             </LCard>
 
-            <LCard title="Audio" :icon="MusicalNoteIcon" collapsible>
-                <LInput
-                    name="audio"
-                    placeholder="audioTitle"
-                    leftAddOn="https://cdn.bcc.africa/vod/"
-                    rightAddOn="/playlist.m3u8"
-                />
+            <LButton
+                variant="tertiary"
+                :icon="MusicalNoteIcon"
+                @click="hasAudio = true"
+                v-if="!hasAudio"
+                data-test="addAudio"
+            >
+                Add Audio
+            </LButton>
+            <LCard title="Audio" :icon="MusicalNoteIcon" collapsible v-show="hasAudio">
+                <LInput name="audio" leftAddOn="https://" />
             </LCard>
         </div>
 
