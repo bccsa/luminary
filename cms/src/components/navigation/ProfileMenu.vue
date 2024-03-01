@@ -16,7 +16,7 @@ const userNavigation: [
 ] = [{ name: "Sign out", to: "#", action: logout }];
 
 if (isDevMode) {
-    userNavigation.push({ name: "Sandbox", to: "sandbox" });
+    userNavigation.push({ name: "Sandbox", to: "/sandbox" });
 }
 </script>
 
