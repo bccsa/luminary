@@ -16,3 +16,10 @@ We record our decisions in the `docs/adr` folder. See the [first ADR](./docs/adr
 ```sh
 adr new Branching strategy
 ```
+
+## Name
+
+lu·​mi·​nary - ˈlü-mə-ˌner-ē
+
+1. a person of prominence or brilliant achievement
+2. a body that gives light
