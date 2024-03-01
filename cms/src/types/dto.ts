@@ -10,7 +10,7 @@ export type Uuid = string;
 export type BaseDocumentDto = {
     _id: string;
     type: DocType;
-    updatedTimeUtc?: number;
+    updatedTimeUtc: number;
 };
 
 export type ContentBaseDto = BaseDocumentDto & {

@@ -1,6 +1,7 @@
 import { type ContentDto, type Uuid, type Content } from "@/types";
 import { BaseRepository } from "./baseRepository";
 import { LanguageRepository } from "./languageRepository";
+import { DateTime } from "luxon";
 
 export class ContentRepository extends BaseRepository {
     private _languageRepository: LanguageRepository;
@@ -21,11 +22,10 @@ export class ContentRepository extends BaseRepository {
     }
 
     private async fromDto(dto: ContentDto) {
-        const content = dto as unknown as Content;
+        const content = this.fromBaseDto<Content>(dto);
 
-        content.updatedTimeUtc = new Date(content.updatedTimeUtc);
-        content.publishDate = content.publishDate ? new Date(content.publishDate) : undefined;
-        content.expiryDate = content.expiryDate ? new Date(content.expiryDate) : undefined;
+        content.publishDate = dto.publishDate ? DateTime.fromMillis(dto.publishDate) : undefined;
+        content.expiryDate = dto.expiryDate ? DateTime.fromMillis(dto.expiryDate) : undefined;
 
         content.language = await this._languageRepository.find(dto.language);
 
@@ -33,15 +33,14 @@ export class ContentRepository extends BaseRepository {
     }
 
     toDto(content: Content, postId: Uuid) {
-        const contentDto = { ...content } as unknown as ContentDto;
+        const dto = this.toBaseDto<ContentDto>(content);
 
-        contentDto.parentId = postId;
-        contentDto.updatedTimeUtc = content.updatedTimeUtc.getTime();
+        dto.parentId = postId;
+        dto.language = content.language._id;
 
-        contentDto.language = content.language._id;
-        contentDto.publishDate = content.publishDate ? content.publishDate.getTime() : undefined;
-        contentDto.expiryDate = content.expiryDate ? content.expiryDate.getTime() : undefined;
+        dto.publishDate = content.publishDate ? content.publishDate.toMillis() : undefined;
+        dto.expiryDate = content.expiryDate ? content.expiryDate.toMillis() : undefined;
 
-        return contentDto;
+        return dto;
     }
 }

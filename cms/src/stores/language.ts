@@ -10,7 +10,7 @@ export const useLanguageStore = defineStore("language", () => {
 
     const languages: Readonly<Ref<Language[] | undefined>> = useObservable(
         liveQuery(async () => {
-            return await languageRepository.findAll();
+            return await languageRepository.getAll();
         }) as any,
     );
 

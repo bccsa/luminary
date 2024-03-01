@@ -21,13 +21,13 @@ describe("languageRepository", () => {
         expect(result._id).toBe("lang-eng");
     });
 
-    it("can find all languages", async () => {
+    it("can get all languages", async () => {
         const repository = new LanguageRepository();
 
-        const result = await repository.findAll();
+        const result = await repository.getAll();
 
         expect(result.length).toBe(2);
         expect(result[0]._id).toBe(mockLanguageDtoEng._id);
-        expect(result[0].updatedTimeUtc).toEqual(new Date(mockLanguageDtoEng.updatedTimeUtc!));
+        expect(result[0].updatedTimeUtc.toMillis()).toEqual(mockLanguageDtoEng.updatedTimeUtc);
     });
 });

@@ -1,3 +1,4 @@
+import type { DateTime } from "luxon";
 import type { BaseDocumentDto } from ".";
 
 export enum DocType {
@@ -15,7 +16,7 @@ export enum DocType {
 export type BaseDocument = {
     _id: string;
     type: DocType;
-    updatedTimeUtc: Date;
+    updatedTimeUtc: DateTime;
 };
 
 export type Group = BaseDocument & {
@@ -74,8 +75,8 @@ export type Content = ContentBase & {
     type: DocType.Content;
     language: Language;
     status: ContentStatus;
-    publishDate?: Date;
-    expiryDate?: Date;
+    publishDate?: DateTime;
+    expiryDate?: DateTime;
     slug: string;
     title: string;
     localisedImage?: string;

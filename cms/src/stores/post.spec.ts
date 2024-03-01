@@ -33,12 +33,12 @@ describe("post store", () => {
     });
 
     it("runs a live query to get all posts", () => {
-        const findAllSpy = vi.spyOn(PostRepository.prototype, "findAll");
+        const getAllSpy = vi.spyOn(PostRepository.prototype, "getAll");
 
         usePostStore();
 
         expect(liveQuery).toHaveBeenCalledOnce();
-        expect(findAllSpy).toHaveBeenCalledOnce();
+        expect(getAllSpy).toHaveBeenCalledOnce();
     });
 
     it("can create a post", () => {

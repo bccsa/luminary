@@ -6,7 +6,7 @@ export class LanguageRepository extends BaseRepository {
         return this.whereId(id).first() as unknown as Language;
     }
 
-    findAll() {
+    getAll() {
         return this.whereType(DocType.Language).toArray((dtos) =>
             Promise.all(this.fromDtos(dtos as LanguageDto[])),
         );
@@ -17,10 +17,7 @@ export class LanguageRepository extends BaseRepository {
     }
 
     private async fromDto(dto: LanguageDto) {
-        const language = dto as unknown as Language;
-
-        language.updatedTimeUtc = new Date(language.updatedTimeUtc);
-
+        const language = this.fromBaseDto<Language>(dto);
         return language;
     }
 }
