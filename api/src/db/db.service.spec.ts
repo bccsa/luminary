@@ -333,4 +333,37 @@ describe("DbService", () => {
         const res: DbQueryResult = await service.getGroups();
         expect(res.warnings).toBe(undefined);
     });
+
+    it("emits two 'update' events when a document is added or updated", async () => {
+        const doc = {
+            _id: "post-post1",
+            type: "post",
+            memberOf: ["group-public-content"],
+            image: "test-data",
+            tags: ["tag-category1", "tag-topicA"],
+        };
+
+        // check if an update is emitted with the updated document
+        const postUpdateHandler = (update: any) => {
+            if (update.type === DocType.Post) {
+                expect(update._id).toBe("post-post1");
+                expect(update.image).toBe("test-data");
+                service.off("update", postUpdateHandler);
+            }
+        };
+
+        // check if an update is emitted with the change document
+        const changeUpdateHandler = (update: any) => {
+            if (update.type === DocType.Change) {
+                expect(update.docId).toBe("post-post1");
+                expect(update.change.image).toBe("test-data");
+                service.off("update", changeUpdateHandler);
+            }
+        };
+
+        service.on("update", postUpdateHandler);
+        service.on("update", changeUpdateHandler);
+
+        await service.upsertDoc(doc);
+    });
 });

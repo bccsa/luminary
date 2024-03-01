@@ -17,11 +17,6 @@ export class TagDto extends _contentBaseDto {
     @Expose()
     pinned: boolean;
 
-    @IsArray()
-    @IsString({ each: true })
-    @Expose()
-    localisations: Uuid[];
-
     @IsOptional()
     @IsString()
     @Expose()

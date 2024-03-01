@@ -5,6 +5,7 @@ import { DocType, Uuid } from "../enums";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseConfig, SyncConfig } from "../configuration";
 import * as http from "http";
+import { EventEmitter } from "stream";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -40,12 +41,13 @@ export type DbUpsertResult = {
 };
 
 @Injectable()
-export class DbService {
-    private db: nano.DocumentScope<unknown>;
+export class DbService extends EventEmitter {
+    private db: any;
     protected syncVersion: number;
     protected syncTolerance: number;
 
     constructor(private configService: ConfigService) {
+        super();
         const dbConfig = this.configService.get<DatabaseConfig>("database");
         const syncConfig = this.configService.get<SyncConfig>("sync");
 
@@ -67,6 +69,28 @@ export class DbService {
                 }),
             },
         }).use(dbConfig.database);
+
+        // Subscribe to database changes feed
+        this.db.changesReader
+            .start({ includeDocs: true })
+            .on("change", (update) => {
+                // emit update event for all valid documents
+                if (update.doc && update.doc.type) {
+                    // emit update event for all valid documents
+                    this.emit("update", update.doc);
+
+                    // TODO: emit specific group document update event (used by permission system to update access maps)
+                    // if (update.doc.type === "group") {
+                    //     this.emit("groupUpdate", update.doc);
+                    // }
+                }
+            })
+            .on("error", (err) => {
+                // TODO: Implement error logging. The changes reader stops on error, so it should be restarted.
+                // At this point clients will get out of sync, so it will be better to restart the server.
+                console.log("error", err.message);
+                throw err;
+            });
     }
 
     /**
