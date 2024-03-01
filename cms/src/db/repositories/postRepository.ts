@@ -74,7 +74,7 @@ export class PostRepository extends BaseRepository {
         });
     }
 
-    async findAll() {
+    async getAll() {
         return this.whereType(DocType.Post).toArray((dtos) =>
             Promise.all(this.fromDtos(dtos as PostDto[])),
         );
@@ -85,20 +85,15 @@ export class PostRepository extends BaseRepository {
     }
 
     private async fromDto(dto: PostDto) {
-        const post = dto as unknown as Post;
-
-        post.updatedTimeUtc = new Date(post.updatedTimeUtc);
+        const post = this.fromBaseDto<Post>(dto);
 
         post.content = await this._contentRepository.getContentWithParentId(dto._id);
 
         return post;
     }
 
-    private toDto(post: Post): PostDto {
-        const postDto = { ...post } as unknown as PostDto;
-
-        postDto.updatedTimeUtc = post.updatedTimeUtc.getTime();
-
-        return postDto;
+    private toDto(post: Post) {
+        const dto = this.toBaseDto<PostDto>(post);
+        return dto;
     }
 }

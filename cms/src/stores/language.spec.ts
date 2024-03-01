@@ -32,11 +32,11 @@ describe("language store", () => {
     });
 
     it("runs a live query to get all languages", () => {
-        const findAllSpy = vi.spyOn(LanguageRepository.prototype, "findAll");
+        const getAllSpy = vi.spyOn(LanguageRepository.prototype, "getAll");
 
         useLanguageStore();
 
         expect(liveQuery).toHaveBeenCalledOnce();
-        expect(findAllSpy).toHaveBeenCalledOnce();
+        expect(getAllSpy).toHaveBeenCalledOnce();
     });
 });

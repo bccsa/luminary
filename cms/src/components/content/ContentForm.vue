@@ -17,6 +17,7 @@ import { useForm } from "vee-validate";
 import * as yup from "yup";
 import { toRaw, toRefs, watch } from "vue";
 import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
+import { DateTime } from "luxon";
 
 type Props = {
     content: Content;
@@ -49,7 +50,7 @@ watch(
     ([post, content]) => {
         // Convert dates to format VeeValidate understands
         const filteredContent: any = { ...content };
-        filteredContent.publishDate = content.publishDate?.toISOString().split(".")[0];
+        filteredContent.publishDate = content.publishDate?.toISO()?.split(".")[0];
 
         setValues({
             ...onlyAllowedKeys(filteredContent, Object.keys(values)),
@@ -63,10 +64,15 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     // Make sure we don't accidentally add the 'parent' object to the content
     const contentValues = { ...validatedFormValues };
     delete contentValues["parent"];
+    let publishDate;
+    if (contentValues.publishDate) {
+        publishDate = DateTime.fromJSDate(contentValues.publishDate);
+    }
 
     const content: Content = {
         ...toRaw(contentProp.value),
         ...contentValues,
+        publishDate,
         status,
     };
 
@@ -104,16 +110,7 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
                         class="w-1/2"
                         type="datetime-local"
                     >
-                        This is the date that will be shown on the post
-                    </LInput>
-                    <LInput
-                        name="expiryDate"
-                        label="Expiry date"
-                        class="w-1/2"
-                        type="datetime-local"
-                    >
-                        When set, this translation will automatically be hidden on this date. Not
-                        visible in the app
+                        Only used for display, does not automatically publish at this date
                     </LInput>
                 </div>
             </LCard>

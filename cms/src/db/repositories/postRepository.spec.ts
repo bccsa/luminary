@@ -20,7 +20,7 @@ describe("postRepository", () => {
         db.docs.clear();
     });
 
-    it("can find all posts", async () => {
+    it("can get all posts", async () => {
         db.docs.bulkPut([
             mockPostDto,
             mockEnglishContentDto,
@@ -31,13 +31,13 @@ describe("postRepository", () => {
 
         const repository = new PostRepository();
 
-        const result = await repository.findAll();
+        const result = await repository.getAll();
 
         expect(result.length).toBe(1);
         expect(result[0]._id).toBe(mockPostDto._id);
         expect(result[0].content[0]._id).toBe(mockEnglishContentDto._id);
         expect(result[0].content[0].language._id).toBe(mockLanguageDtoEng._id);
-        expect(result[0].updatedTimeUtc).toEqual(new Date(mockPostDto.updatedTimeUtc!));
+        expect(result[0].updatedTimeUtc.toISODate()).toEqual("2024-01-01");
     });
 
     it("can create a post", async () => {

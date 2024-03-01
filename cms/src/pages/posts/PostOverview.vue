@@ -13,6 +13,7 @@ import { useLanguageStore } from "@/stores/language";
 import LBadge from "@/components/common/LBadge.vue";
 import { storeToRefs } from "pinia";
 import { useLocalChangeStore } from "@/stores/localChanges";
+import { DateTime } from "luxon";
 
 const { posts } = storeToRefs(usePostStore());
 const { languages } = storeToRefs(useLanguageStore());
@@ -66,15 +67,6 @@ const translationStatus = computed(() => {
 
         return "default";
     };
-});
-
-const dateFormatter = new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "Africa/Johannesburg",
-});
-const formatDate = computed(() => {
-    return (date: Date) => dateFormatter.format(date);
 });
 </script>
 
@@ -135,7 +127,7 @@ const formatDate = computed(() => {
                     </div>
                 </template>
                 <template #item.updatedTime="post">
-                    {{ formatDate(post.updatedTimeUtc) }}
+                    {{ post.updatedTimeUtc.toLocaleString(DateTime.DATETIME_MED) }}
                 </template>
                 <template #item.actions="post">
                     <LButton

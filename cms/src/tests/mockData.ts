@@ -9,6 +9,7 @@ import {
     type LocalChange,
     type LanguageDto,
 } from "@/types";
+import { DateTime } from "luxon";
 
 export const mockPostDto: PostDto = {
     _id: "post-post1",
@@ -61,7 +62,7 @@ export const mockFrenchContentDto: ContentDto = {
 export const mockLanguageEng: Language = {
     _id: "lang-eng",
     type: DocType.Language,
-    updatedTimeUtc: new Date(),
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
     languageCode: "eng",
     name: "English",
@@ -69,7 +70,7 @@ export const mockLanguageEng: Language = {
 export const mockLanguageFra: Language = {
     _id: "lang-fra",
     type: DocType.Language,
-    updatedTimeUtc: new Date(),
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
     languageCode: "fra",
     name: "Français",
@@ -95,7 +96,7 @@ export const mockLanguageDtoFra: LanguageDto = {
 export const mockContent: Content = {
     _id: "content-post1-eng",
     type: DocType.Content,
-    updatedTimeUtc: new Date(),
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
     language: mockLanguageEng,
     status: ContentStatus.Published,
@@ -107,7 +108,7 @@ export const mockContent: Content = {
     localisedImage: undefined,
     audio: undefined,
     video: undefined,
-    publishDate: new Date(),
+    publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     expiryDate: undefined,
 };
 
@@ -115,7 +116,7 @@ export const mockPost: Post = {
     type: DocType.Post,
     _id: "post-post1",
     image: "test.jpg",
-    updatedTimeUtc: new Date(),
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
     content: [mockContent],
     tags: [],

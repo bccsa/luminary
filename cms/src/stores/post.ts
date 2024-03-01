@@ -10,7 +10,7 @@ export const usePostStore = defineStore("post", () => {
     const postRepository = new PostRepository();
 
     const posts: Readonly<Ref<Post[] | undefined>> = useObservable(
-        liveQuery(async () => postRepository.findAll()) as unknown as Observable<Post[]>,
+        liveQuery(async () => postRepository.getAll()) as unknown as Observable<Post[]>,
     );
 
     const post = computed(() => {
