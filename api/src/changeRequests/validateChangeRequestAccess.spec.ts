@@ -305,7 +305,37 @@ describe("validateChangeRequestAccess", () => {
             expect(res.error).toBe("No 'Publish' access to document type 'Content'");
         });
 
-        //Language document not found
+        it("can reject a document with an invalid language", async () => {
+            const testChangeReq_invalidLanguage = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "content-post2-eng",
+                    type: "content",
+                    memberOf: ["group-private-content"],
+                    parentId: "post-post2",
+                    language: "invalid-lang",
+                    status: "published",
+                    slug: "post2-eng",
+                    title: "Post 2",
+                    summary: "This is an example post",
+                    author: "",
+                    text: "",
+                    seo: "",
+                    localisedImage: "",
+                    audio: "",
+                    video: "",
+                    publishDate: 3,
+                    expiryDate: 0,
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_invalidLanguage,
+                ["group-private-editors"],
+                db,
+            );
+            expect(res.error).toBe("Language document not found");
+        });
     });
 
     describe("Generic documents", () => {
