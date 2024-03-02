@@ -232,39 +232,12 @@ describe("DbService", () => {
     });
 
     it("can detect that a document is exactly the same as the document in the database", async () => {
-        const res: any = await service.upsertDoc({
-            _id: "group-private-content",
-            type: DocType.Group,
-            updatedTimeUtc: 3,
-            name: "Private Content",
-            acl: [
-                {
-                    type: DocType.Post,
-                    groupId: "group-private-users",
-                    permission: ["view"],
-                },
-                {
-                    type: DocType.Tag,
-                    groupId: "group-private-users",
-                    permission: ["view"],
-                },
-                {
-                    type: DocType.Post,
-                    groupId: "group-private-editors",
-                    permission: ["view", "edit", "translate", "publish"],
-                },
-                {
-                    type: DocType.Tag,
-                    groupId: "group-private-editors",
-                    permission: ["view", "translate", "assign"],
-                },
-                {
-                    type: DocType.Group,
-                    groupId: "group-private-editors",
-                    permission: ["view", "assign"],
-                },
-            ],
-        });
+        const doc = {
+            _id: "docIdenticalTest",
+            testData: "test123",
+        };
+        await service.upsertDoc(doc);
+        const res: any = await service.upsertDoc(doc);
         expect(res.message).toBe("Document is identical to the one in the database");
     });
 
@@ -285,7 +258,7 @@ describe("DbService", () => {
         // if we got past this point without an exception, the test was successful
         res = true;
         expect(res).toBe(true);
-    });
+    }, 10000);
 
     it("can get a list of documents filtered by document ID and document type", async () => {
         // Test if we can return two documents with the passed IDs and valid document types

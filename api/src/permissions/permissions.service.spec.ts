@@ -24,13 +24,62 @@ describe("PermissionService", () => {
     });
 
     describe("Model tests", () => {
+        it("can verify access to two target groups with verification type 'any'", () => {
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content", "group-private-content"],
+                    DocType.Language,
+                    AclPermission.View,
+                    ["group-public-users"],
+                ),
+            ).toBe(true);
+        });
+
+        it("can verify access to two target groups with verification type 'all'", () => {
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content", "group-private-content"],
+                    DocType.Post,
+                    AclPermission.View,
+                    ["group-public-users"],
+                    "all",
+                ),
+            ).toBe(false);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content", "group-private-content"],
+                    DocType.Post,
+                    AclPermission.View,
+                    ["group-private-users"],
+                    "all",
+                ),
+            ).toBe(true);
+        });
+
+        it("can verify access to two target groups with verification type 'all' from two user groups of which only one group has access", () => {
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content", "group-private-content"],
+                    DocType.Post,
+                    AclPermission.View,
+                    ["group-languages", "group-private-users"], // We are using group-languages as it has no access to the target groups. We are putting it first to make sure it is tested.
+                    "all",
+                ),
+            ).toBe(true);
+        });
+
         it("can calculate inherited groups", () => {
             // group-super-admins is the top level group in the testing data set, and group-language the lowest level group.
             // Test if inheritance is replicated through the whole testing data set.
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = accessMap.calculateAccess([DocType.Language], AclPermission.View);
-
-            expect(res.includes("group-languages")).toBe(true);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-languages"],
+                    DocType.Language,
+                    AclPermission.View,
+                    ["group-super-admins"],
+                ),
+            ).toBe(true);
         });
 
         it("can update inherited groups", () => {
@@ -66,39 +115,36 @@ describe("PermissionService", () => {
                 },
             ]);
 
-            const accessMap1 = PermissionSystem.getAccessMap(["group-private-content"]);
-            const res1 = accessMap1.calculateAccess([DocType.Language], AclPermission.Translate);
-
-            const accessMap2 = PermissionSystem.getAccessMap(["group-public-editors"]);
-            const res2 = accessMap2.calculateAccess([DocType.Language], AclPermission.Translate);
-
-            expect(res1.includes("group-languages")).toBe(true);
-            expect(res2.includes("group-languages")).toBe(false);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-languages"],
+                    DocType.Language,
+                    AclPermission.Translate,
+                    ["group-private-content"],
+                ),
+            ).toBe(true);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-languages"],
+                    DocType.Language,
+                    AclPermission.Translate,
+                    ["group-public-editors"],
+                ),
+            ).toBe(false);
         });
 
         it("can remove a group", () => {
             PermissionSystem.removeGroups(["group-languages"]);
 
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = accessMap.calculateAccess(
-                [
-                    // DocType.Audio,
-                    DocType.Change,
-                    DocType.Content,
-                    DocType.Group,
-                    // DocType.Image,
-                    DocType.Language,
-                    // DocType.MediaDownload,
-                    DocType.Post,
-                    DocType.Tag,
-                    DocType.User,
-                    // DocType.Video,
-                ],
-                AclPermission.View,
-            );
-
             // Check if the (removed) inherited group is removed from the top level parent
-            expect(res.includes("group-languages")).toBe(false);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-languages"],
+                    DocType.Language,
+                    AclPermission.View,
+                    ["group-super-admins"],
+                ),
+            ).toBe(false);
 
             // Restore group for further tests
             PermissionSystem.upsertGroups([
@@ -171,26 +217,15 @@ describe("PermissionService", () => {
                 },
             ]);
 
-            const accessMap = PermissionSystem.getAccessMap(["group-public-users"]);
-            const res = accessMap.calculateAccess(
-                [
-                    // DocType.Audio,
-                    DocType.Change,
-                    DocType.Content,
-                    DocType.Group,
-                    // DocType.Image,
-                    DocType.Language,
-                    // DocType.MediaDownload,
-                    DocType.Post,
-                    DocType.Tag,
-                    DocType.User,
-                    // DocType.Video,
-                ],
-                AclPermission.View,
-            );
-
             // Check if the removed ACL's group is not available anymore
-            expect(res.includes("group-public-content")).toBe(false);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content"],
+                    DocType.Language,
+                    AclPermission.View,
+                    ["group-public-users"],
+                ),
+            ).toBe(false);
         });
 
         it("can add an ACL to an existing group", () => {
@@ -241,19 +276,41 @@ describe("PermissionService", () => {
                 },
             ]);
 
-            const accessMap = PermissionSystem.getAccessMap(["group-public-users"]);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content"],
+                    DocType.Post,
+                    AclPermission.Edit,
+                    ["group-public-users"],
+                ),
+            ).toBe(true);
 
-            const res1 = accessMap.calculateAccess([DocType.Post], AclPermission.Edit);
-            expect(res1.includes("group-public-content")).toBe(true);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content"],
+                    DocType.Tag,
+                    AclPermission.Edit,
+                    ["group-public-users"],
+                ),
+            ).toBe(true);
 
-            const res2 = accessMap.calculateAccess([DocType.Tag], AclPermission.Edit);
-            expect(res2.includes("group-public-content")).toBe(true);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content"],
+                    DocType.Post,
+                    AclPermission.View,
+                    ["group-public-users"],
+                ),
+            ).toBe(true);
 
-            const res3 = accessMap.calculateAccess([DocType.Post], AclPermission.View);
-            expect(res3.includes("group-public-content")).toBe(true);
-
-            const res4 = accessMap.calculateAccess([DocType.Tag], AclPermission.View);
-            expect(res4.includes("group-public-content")).toBe(true);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-public-content"],
+                    DocType.Tag,
+                    AclPermission.View,
+                    ["group-public-users"],
+                ),
+            ).toBe(true);
         });
     });
 });

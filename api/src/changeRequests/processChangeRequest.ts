@@ -3,17 +3,16 @@ import { validateChangeRequest } from "./validateChangeRequest";
 import { DbService } from "../db/db.service";
 import { ChangeDto } from "../dto/ChangeDto";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { DocType } from "../enums";
-import { AccessMap } from "../permissions/AccessMap";
+import { DocType, Uuid } from "../enums";
 
 export async function processChangeRequest(
     userId: string,
     changeRequest: ChangeReqDto,
-    userAccessMap: AccessMap,
+    groupMembership: Array<Uuid>,
     db: DbService,
 ) {
     // Validate change request
-    const validationResult = await validateChangeRequest(changeRequest, userAccessMap, db);
+    const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
     }

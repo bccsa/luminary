@@ -58,6 +58,71 @@ export class PermissionSystem {
         return resultMap;
     }
 
+    // static calculateAccess(
+    //     types: Array<DocType>,
+    //     permission: AclPermission,
+    //     groupIds: Array<Uuid>,
+    // ) {
+    //     const resultMap = new Set<Uuid>();
+    //     groupIds.forEach((groupId: Uuid) => {
+    //         const g = groupMap[groupId];
+    //         if (!g) return;
+
+    //         types.forEach((type: DocType) => {
+    //             if (
+    //                 g._groupTypePermissionMap[type] &&
+    //                 g._groupTypePermissionMap[type][permission]
+    //             ) {
+    //                 resultMap.add(groupId);
+    //             }
+    //         });
+    //     });
+    //     return Array.from(resultMap);
+    // }
+
+    /**
+     * Verify access for the passed target group ID
+     * @param targetGroup - Group ID for which user access should be verified for given document type and permission
+     * @param type - Document type for which access should be verified
+     * @param permission - Permission for which access should be verified
+     * @param memberOfGroups - User group membership
+     * @param validation - Validation type. "any" = returns true if ANY the user's membership groups has access to ANY of the "targetGroups". "all" = returns true if the ANY of the users membership groups has access to ALL of the "targetGroups". (Default: "any")
+     * @returns - True if access is granted, otherwise false
+     */
+    static verifyAccess(
+        targetGroups: Uuid[],
+        type: DocType,
+        permission: AclPermission,
+        memberOfGroups: Array<Uuid>,
+        validation: "any" | "all" = "any",
+    ) {
+        for (const memberGroup of memberOfGroups) {
+            let memberGroupValidated = true;
+            for (const targetGroup of targetGroups) {
+                const g = groupMap[memberGroup];
+                if (
+                    g &&
+                    g._groupTypePermissionMap[targetGroup] &&
+                    g._groupTypePermissionMap[targetGroup][type] &&
+                    g._groupTypePermissionMap[targetGroup][type][permission]
+                ) {
+                    if (validation === "any") {
+                        return true;
+                    }
+                } else {
+                    if (validation === "all") {
+                        memberGroupValidated = false;
+                    }
+                }
+            }
+            if (validation === "all" && memberGroupValidated) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Create or update groups from passed array of group database documents
      * @param groupDocs

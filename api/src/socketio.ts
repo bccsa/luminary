@@ -133,11 +133,8 @@ export class Socketio implements OnGatewayInit {
         const user = "super-admin";
         const groups = ["group-super-admins"];
 
-        // Get user accessible groups and validate change request
-        const userAccessMap = PermissionSystem.getAccessMap(groups);
-
         // Process change request
-        await processChangeRequest(user, changeRequest, userAccessMap, this.db)
+        await processChangeRequest(user, changeRequest, groups, this.db)
             .then(() => {
                 this.emitAck(socket, AckStatus.Accepted, changeRequest);
             })

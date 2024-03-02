@@ -1,5 +1,4 @@
 import "reflect-metadata";
-import { AccessMap } from "../permissions/AccessMap";
 import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { processChangeRequest } from "./processChangeRequest";
@@ -8,12 +7,10 @@ import { PermissionSystem } from "../permissions/permissions.service";
 
 describe("processChangeRequest", () => {
     let db: DbService;
-    let accessMap: AccessMap;
 
     beforeAll(async () => {
         db = (await createTestingModule("process-change-request")).dbService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
-        accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
     });
 
     it("is rejecting invalid change requests", async () => {
@@ -22,7 +19,7 @@ describe("processChangeRequest", () => {
             doc: {},
         };
 
-        await processChangeRequest("", changeRequest, new AccessMap(), db).catch((err) => {
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db).catch((err) => {
             expect(err.message).toBe(
                 `Submitted "undefined" document validation failed:\nInvalid document type`,
             );
@@ -41,7 +38,12 @@ describe("processChangeRequest", () => {
             },
         };
 
-        const processResult = await processChangeRequest("test-user", changeRequest, accessMap, db);
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
         const res = await db.getDoc(processResult.id);
 
         // Remove non user-submitted fields
@@ -69,7 +71,12 @@ describe("processChangeRequest", () => {
             },
         };
 
-        const processResult = await processChangeRequest("test-user", changeRequest, accessMap, db);
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+        );
         const res = await db.getDoc(processResult.id);
 
         // Remove non user-submitted fields
@@ -101,8 +108,13 @@ describe("processChangeRequest", () => {
                 name: "Xhoza",
             },
         };
-        await processChangeRequest("", changeRequest1, accessMap, db);
-        const processResult = await processChangeRequest("", changeRequest2, accessMap, db);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
+        const processResult = await processChangeRequest(
+            "",
+            changeRequest2,
+            ["group-super-admins"],
+            db,
+        );
         expect(processResult.message).toBe("Document is identical to the one in the database");
         expect(processResult.changes).toBeUndefined();
     });

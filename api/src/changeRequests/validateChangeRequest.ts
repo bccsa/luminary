@@ -8,9 +8,8 @@ import { LanguageDto } from "../dto/LanguageDto";
 import { PostDto } from "../dto/PostDto";
 import { TagDto } from "../dto/TagDto";
 import { UserDto } from "../dto/UserDto";
-import { DocType } from "../enums";
+import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
-import { AccessMap } from "src/permissions/AccessMap";
 import { DbService } from "src/db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 
@@ -33,7 +32,7 @@ const DocTypeMap = {
  */
 export async function validateChangeRequest(
     data: any,
-    accessMap: AccessMap,
+    groupMembership: Array<Uuid>,
     dbService: DbService,
 ): Promise<ValidationResult> {
     const changeRequest = plainToInstance(ChangeReqDto, data, { excludeExtraneousValues: true });
@@ -67,7 +66,7 @@ export async function validateChangeRequest(
 
     const accessValidationResult = await validateChangeRequestAccess(
         changeRequest,
-        accessMap,
+        groupMembership,
         dbService,
     );
     if (!accessValidationResult.validated) {
