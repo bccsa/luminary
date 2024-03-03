@@ -7,7 +7,6 @@ This setup is almost entirely the same for both the app and the CMS.
 The recommended editor is [Visual Studio Code](https://code.visualstudio.com/), with the following extensions (which VS Code should automatically prompt you to install when first opening the repository):
 
 - [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)
-- [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin)
 - [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
 - [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
 - [TailwindCSS Intellisense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss)
