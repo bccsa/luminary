@@ -13,6 +13,7 @@ import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
 import { useField } from "vee-validate";
 import { capitalizeFirstLetter } from "@/util/string";
+import { renderErrorMessage } from "@/util/renderErrorMessage";
 
 type Props = {
     name: string;
@@ -54,10 +55,6 @@ const computedState = computed(() => {
     }
 
     return props.state;
-});
-
-const renderedErrorMessage = computed(() => {
-    return capitalizeFirstLetter(errorMessage.value!.replace(/^[^.]*\./, ""));
 });
 
 const states = {
@@ -149,7 +146,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             :state="computedState"
             :id="`${id}-message`"
         >
-            <template v-if="errorMessage">{{ renderedErrorMessage }}</template>
+            <template v-if="errorMessage">{{ renderErrorMessage(errorMessage) }}</template>
             <slot v-else-if="$slots.default" />
         </FormMessage>
     </div>
