@@ -118,7 +118,7 @@ export class Socketio implements OnGatewayInit {
         // Join user to group rooms
         for (const group of userAccess) {
             // @ts-expect-error Seems as if the Socket type definition does not include the join method
-            socket.join(reqData.cms ? "cms-" + group : "app-" + group);
+            socket.join(reqData.cms ? `cms-${group}` : `app-${group}`);
         }
     }
 
