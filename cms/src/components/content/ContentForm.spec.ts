@@ -4,6 +4,9 @@ import ContentForm from "./ContentForm.vue";
 import { mockContent, mockPost, mockUnpublishableContent } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType } from "@/types";
+import { useLocalChangeStore } from "@/stores/localChanges";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -14,7 +17,9 @@ vi.mock("vue-router", () => ({
 }));
 
 describe("ContentForm", () => {
-    beforeEach(() => {});
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+    });
 
     afterEach(() => {
         vi.clearAllMocks();
@@ -197,5 +202,21 @@ describe("ContentForm", () => {
         await wrapper.find("input[name='title']").setValue("Updated Title");
 
         expect(wrapper.text()).toContain("Unsaved changes");
+    });
+
+    it("displays a badge when there are offline changes", async () => {
+        const localChangeStore = useLocalChangeStore();
+
+        // @ts-expect-error - Property is read-only but we are mocking it
+        localChangeStore.isLocalChange = () => true;
+
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockContent,
+            },
+        });
+
+        expect(wrapper.text()).toContain("Offline changes");
     });
 });
