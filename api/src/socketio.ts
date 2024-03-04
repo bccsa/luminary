@@ -45,7 +45,9 @@ export class Socketio implements OnGatewayInit {
             if (this.cmsDocTypes.includes(update.type)) {
                 // Change documents referencing a non-group document
                 if (update.memberOf) {
-                    server.to(update.memberOf.map((g: Uuid) => "cms-" + g)).emit("data", [update]);
+                    server
+                        .to(update.memberOf.map((group: Uuid) => `cms-${group}`))
+                        .emit("data", [update]);
                     return;
                 }
 
@@ -60,14 +62,15 @@ export class Socketio implements OnGatewayInit {
                     return;
                 }
 
+                // TODO: Add error logging provider
                 return;
             }
 
             // All other valid documents - broadcast to App and CMS group rooms
             if (this.appDocTypes.includes(update.type)) {
                 server
-                    .to(update.memberOf.map((g) => "cms-" + g))
-                    .to(update.memberOf.map((g) => "app-" + g))
+                    .to(update.memberOf.map((group) => `cms-${group}`))
+                    .to(update.memberOf.map((group) => `app-${group}`))
                     .emit("data", [update]);
 
                 return;

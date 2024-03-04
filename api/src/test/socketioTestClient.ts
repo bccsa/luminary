@@ -2,6 +2,13 @@ import { io } from "socket.io-client";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 
+export type socketioTestRequest = {
+    cms: boolean;
+    version: number;
+    changeRequest?: ChangeReqDto;
+    timeout?: number;
+};
+
 /**
  * Send a change request to the server and wait for the server to emit the expected number of 'data' events
  * @param changeRequest
@@ -10,11 +17,10 @@ import { ChangeReqDto } from "../dto/ChangeReqDto";
  * @returns
  */
 export const socketioTestClient = (
-    cms: boolean,
-    version: number = 0,
-    changeRequest?: ChangeReqDto,
-    timeout: number = 1000,
+    config: socketioTestRequest,
 ): Promise<{ data: any[]; ack: ChangeReqAckDto }> => {
+    if (config.timeout === undefined) config.timeout = 1000;
+
     return new Promise(async (resolve) => {
         // TODO: Implement authentication in tests and update tests making use of this function
 
@@ -24,7 +30,7 @@ export const socketioTestClient = (
         const testClient = io(`http://localhost:${process.env.PORT}`);
 
         // We need to send a clientDataReq event to the server to get the latest data and subscribe to updates
-        testClient.emit("clientDataReq", { version, cms });
+        testClient.emit("clientDataReq", { version: config.version, cms: config.cms });
 
         // Event handlers
         const dataHandler = (data) => {
@@ -40,8 +46,8 @@ export const socketioTestClient = (
         testClient.on("changeRequestAck", ackHandler);
 
         // Emit change request. The server should emit 'data' and 'changeRequestAck' messages in response (captured in the handlers above)
-        if (changeRequest) {
-            testClient.emit("changeRequest", changeRequest);
+        if (config.changeRequest) {
+            testClient.emit("changeRequest", config.changeRequest);
         }
 
         // Wait for the server to emit the expected events
@@ -51,6 +57,6 @@ export const socketioTestClient = (
                 testClient.disconnect();
             }
             resolve(res);
-        }, timeout);
+        }, config.timeout);
     });
 };

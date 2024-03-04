@@ -31,6 +31,7 @@ describe("PermissionService", () => {
                     DocType.Language,
                     AclPermission.View,
                     ["group-public-users"],
+                    "any",
                 ),
             ).toBe(true);
         });
