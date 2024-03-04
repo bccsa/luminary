@@ -18,6 +18,7 @@ import { computed, ref, toRaw, toRefs, watch } from "vue";
 import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
 import { DateTime } from "luxon";
 import { renderErrorMessage } from "@/util/renderErrorMessage";
+import { useLocalChangeStore } from "@/stores/localChanges";
 
 type Props = {
     content: Content;
@@ -27,6 +28,8 @@ type Props = {
 const props = defineProps<Props>();
 
 const { content: contentProp, post: postProp } = toRefs(props);
+
+const { isLocalChange } = useLocalChangeStore();
 
 const hasText = ref(contentProp.value.text != undefined && contentProp.value.text.trim() != "");
 const hasAudio = ref(contentProp.value.audio != undefined && contentProp.value.audio.trim() != "");
@@ -61,19 +64,19 @@ const validationSchema = toTypedSchema(
     }),
 );
 
-const { handleSubmit, meta, values, setValues, errors, resetForm } = useForm({
+const { handleSubmit, values, setValues, errors } = useForm({
     validationSchema,
 });
 watch(
     [postProp, contentProp],
     ([post, content]) => {
         // Convert dates to format VeeValidate understands
-        const filteredContent: any = { ...content };
+        const filteredContent: any = { ...toRaw(content) };
         filteredContent.publishDate = content.publishDate?.toISO()?.split(".")[0];
 
         setValues({
             ...onlyAllowedKeys(filteredContent, Object.keys(values)),
-            parent: onlyAllowedKeys(post, Object.keys(values.parent as object)),
+            parent: onlyAllowedKeys(toRaw(post), Object.keys(values.parent as object)),
         });
     },
     { immediate: true },
@@ -101,14 +104,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         // TODO create tags from topics etc.
     };
 
-    // resetForm({
-    //     values: {
-    //         ...values,
-    //         publishDate: values.publishDate
-    //             ? DateTime.fromJSDate(values.publishDate).toISO()?.split(".")[0]
-    //             : undefined,
-    //     },
-    // });
+    isDirty.value = false;
 
     return emit("save", content, post);
 };
@@ -141,10 +137,17 @@ const hasPublishDate = computed(() => {
 const hasParentImage = computed(() => {
     return values.parent?.image != undefined;
 });
+
+const isDirty = ref(false);
 </script>
 
 <template>
-    <div class="relative grid grid-cols-3 gap-8">
+    <form
+        type="post"
+        class="relative grid grid-cols-3 gap-8"
+        @submit.prevent
+        @change="isDirty = true"
+    >
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
                 <LInput name="title" label="Title" required />
@@ -165,6 +168,7 @@ const hasParentImage = computed(() => {
             </LCard>
 
             <LButton
+                type="button"
                 variant="tertiary"
                 :icon="DocumentTextIcon"
                 @click="hasText = true"
@@ -178,6 +182,7 @@ const hasParentImage = computed(() => {
             </LCard>
 
             <LButton
+                type="button"
                 variant="tertiary"
                 :icon="VideoCameraIcon"
                 @click="hasVideo = true"
@@ -191,6 +196,7 @@ const hasParentImage = computed(() => {
             </LCard>
 
             <LButton
+                type="button"
                 variant="tertiary"
                 :icon="MusicalNoteIcon"
                 @click="hasAudio = true"
@@ -208,8 +214,11 @@ const hasParentImage = computed(() => {
             <div class="sticky top-20 space-y-6">
                 <LCard>
                     <div class="flex gap-4">
-                        <LButton @click="saveAsDraft" data-test="draft">Save as draft</LButton>
+                        <LButton type="button" @click="saveAsDraft" data-test="draft">
+                            Save as draft
+                        </LButton>
                         <LButton
+                            type="button"
                             variant="primary"
                             @click="saveAndPublish"
                             :disabled="!canPublish"
@@ -224,8 +233,13 @@ const hasParentImage = computed(() => {
                             <div class="flex items-end justify-between">
                                 <div>Status</div>
                                 <div class="flex justify-end gap-2">
-                                    <LBadge v-if="meta.dirty">Unsaved changes</LBadge>
-                                    <!-- <LBadge v-else>Offline changes</LBadge> -->
+                                    <LBadge v-if="isDirty">Unsaved changes</LBadge>
+                                    <LBadge
+                                        v-else-if="isLocalChange(content._id)"
+                                        variant="warning"
+                                    >
+                                        Offline changes
+                                    </LBadge>
 
                                     <LBadge
                                         variant="success"
@@ -266,8 +280,10 @@ const hasParentImage = computed(() => {
 
                 <LCard title="Preview">
                     <div class="flex gap-4">
-                        <LButton>Preview changes</LButton>
-                        <LButton :icon="ArrowTopRightOnSquareIcon" iconRight>Open link</LButton>
+                        <LButton type="button">Preview changes</LButton>
+                        <LButton type="button" :icon="ArrowTopRightOnSquareIcon" iconRight>
+                            Open link
+                        </LButton>
                     </div>
                 </LCard>
 
@@ -307,5 +323,5 @@ const hasParentImage = computed(() => {
                 </LCard>
             </div>
         </div>
-    </div>
+    </form>
 </template>

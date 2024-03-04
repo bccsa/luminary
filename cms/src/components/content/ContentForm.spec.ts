@@ -185,4 +185,17 @@ describe("ContentForm", () => {
             );
         });
     });
+
+    it("displays when there are unsaved changes", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockContent,
+            },
+        });
+
+        await wrapper.find("input[name='title']").setValue("Updated Title");
+
+        expect(wrapper.text()).toContain("Unsaved changes");
+    });
 });
