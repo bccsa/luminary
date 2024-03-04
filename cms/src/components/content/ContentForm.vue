@@ -160,7 +160,6 @@ const isDirty = ref(false);
                         label="Publish date"
                         class="w-1/2"
                         type="datetime-local"
-                        @reset="(e) => console.log(e)"
                     >
                         Only used for display, does not automatically publish at this date
                     </LInput>
