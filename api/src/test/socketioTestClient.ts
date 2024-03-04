@@ -19,7 +19,7 @@ export type socketioTestRequest = {
 export const socketioTestClient = (
     config: socketioTestRequest,
 ): Promise<{ data: any[]; ack: ChangeReqAckDto }> => {
-    if (config.timeout === undefined) config.timeout = 1000;
+    if (config.timeout === undefined) config.timeout = 500;
 
     return new Promise(async (resolve) => {
         // TODO: Implement authentication in tests and update tests making use of this function
@@ -28,9 +28,6 @@ export const socketioTestClient = (
 
         // Connect with new instance of socket.io client to avoid interference with other tests
         const testClient = io(`http://localhost:${process.env.PORT}`);
-
-        // We need to send a clientDataReq event to the server to get the latest data and subscribe to updates
-        testClient.emit("clientDataReq", { version: config.version, cms: config.cms });
 
         // Event handlers
         const dataHandler = (data) => {
@@ -44,6 +41,9 @@ export const socketioTestClient = (
         // Subscribe to events
         testClient.on("data", dataHandler);
         testClient.on("changeRequestAck", ackHandler);
+
+        // We need to send a clientDataReq event to the server to get the latest data and subscribe to updates
+        testClient.emit("clientDataReq", { version: config.version, cms: config.cms });
 
         // Emit change request. The server should emit 'data' and 'changeRequestAck' messages in response (captured in the handlers above)
         if (config.changeRequest) {

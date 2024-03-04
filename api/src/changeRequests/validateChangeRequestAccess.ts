@@ -87,6 +87,9 @@ export async function validateChangeRequestAccess(
         }
         const parentDoc = getRequest.docs[0];
 
+        // Set the parent document type on the Content document
+        doc.parentType = parentDoc.type;
+
         // Check if the user has translate access to the Content document's parent document (post / tag)
         // Note: Content documents are always saved with the same group membership as their parent (post / tag) document
         if (
@@ -203,5 +206,6 @@ export async function validateChangeRequestAccess(
 
     return {
         validated: true,
+        validatedData: doc,
     };
 }

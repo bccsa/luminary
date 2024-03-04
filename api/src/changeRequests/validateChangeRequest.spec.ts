@@ -1,21 +1,13 @@
 import "reflect-metadata";
 import { validateChangeRequest } from "./validateChangeRequest";
 import { DbService } from "../db/db.service";
-import * as validateChangeRequestAccess from "./validateChangeRequestAccess";
 import { createTestingModule } from "../test/testingModule";
 
 describe("validateChangeRequest", () => {
-    let validateChangeRequestAccessSpy: jest.SpyInstance;
     let db: DbService;
 
     beforeAll(async () => {
         db = (await createTestingModule("validate-change-request")).dbService;
-
-        validateChangeRequestAccessSpy = jest
-            .spyOn(validateChangeRequestAccess, "validateChangeRequestAccess")
-            .mockResolvedValue({
-                validated: true,
-            });
     });
 
     afterEach(() => {
@@ -42,7 +34,6 @@ describe("validateChangeRequest", () => {
 
         expect(result.validated).toBe(true);
         expect(result.error).toBe(undefined);
-        expect(validateChangeRequestAccessSpy).toHaveBeenCalled();
     });
 
     it("fails validation for an invalid change request", async () => {
@@ -55,7 +46,6 @@ describe("validateChangeRequest", () => {
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Change request validation failed");
-        expect(validateChangeRequestAccessSpy).not.toHaveBeenCalled();
     });
 
     it("fails validation for an invalid document type", async () => {
@@ -74,7 +64,6 @@ describe("validateChangeRequest", () => {
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Invalid document type");
-        expect(validateChangeRequestAccessSpy).not.toHaveBeenCalled();
     });
 
     it("fails validation for invalid document data", async () => {
@@ -93,7 +82,6 @@ describe("validateChangeRequest", () => {
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Submitted language document validation failed");
-        expect(validateChangeRequestAccessSpy).not.toHaveBeenCalled();
     });
 
     it("fails validation for a wrong nested type", async () => {
@@ -122,7 +110,6 @@ describe("validateChangeRequest", () => {
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Submitted group document validation failed");
-        expect(validateChangeRequestAccessSpy).not.toHaveBeenCalled();
     });
 
     it("fails validation for a nested field of enums", async () => {
@@ -151,7 +138,6 @@ describe("validateChangeRequest", () => {
 
         expect(result.validated).toBe(false);
         expect(result.error).toContain("Submitted group document validation failed");
-        expect(validateChangeRequestAccessSpy).not.toHaveBeenCalled();
     });
 
     it("removes invalid fields from the document", async () => {

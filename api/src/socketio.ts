@@ -8,7 +8,7 @@ import {
 import { Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
 import * as nano from "nano";
-import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
+import { DocType, AclPermission, AckStatus } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket } from "socket.io-client";
@@ -29,7 +29,7 @@ type ClientDataReq = {
 @Injectable()
 export class Socketio implements OnGatewayInit {
     appDocTypes: Array<DocType> = [DocType.Post, DocType.Tag, DocType.Content, DocType.Language];
-    cmsDocTypes: Array<DocType> = [DocType.Change, DocType.Group];
+    cmsDocTypes: Array<DocType> = [DocType.Group];
 
     constructor(private db: DbService) {}
 
@@ -41,38 +41,41 @@ export class Socketio implements OnGatewayInit {
                 return;
             }
 
-            // Broadcast CMS specific documents to CMS group rooms
-            if (this.cmsDocTypes.includes(update.type)) {
-                // Change documents referencing a non-group document
-                if (update.memberOf) {
-                    server
-                        .to(update.memberOf.map((group: Uuid) => `cms-${group}`))
-                        .emit("data", [update]);
-                    return;
+            // We are using a socket.io room per document type per group. Change documents are broadcasted to the document-group rooms of the documents they reference.
+            // Content documents are broadcasted to their parent document-group rooms.
+
+            // Non-group documents
+            if (update.memberOf) {
+                let docType = update.type;
+                if (update.type == "change" && update.changes) {
+                    if (update.changes.type == "content") {
+                        docType = update.changes.parentType;
+                    } else {
+                        docType = update.changes.type;
+                    }
+                    docType = "cms-" + docType; // Prepend "cms-" to the docType for (CMS only) change documents. This is needed to be able to allow the CMS to specifically subscribe to change documents.
+                } else if (update.type == "content") {
+                    docType = update.parentType;
                 }
 
-                // Group documents and Change documents referencing a group document
-                if (
-                    update.acl &&
-                    (update.type == DocType.Group || update.docType == DocType.Group)
-                ) {
-                    server
-                        .to(`cms-${update.docId ? update.docId : update._id}`)
-                        .emit("data", [update]);
-                    return;
-                }
-
-                // TODO: Add error logging provider
+                server
+                    .to(update.memberOf.map((group) => `${docType}-${group}`))
+                    .emit("data", [update]);
                 return;
             }
 
-            // All other valid documents - broadcast to App and CMS group rooms
-            if (this.appDocTypes.includes(update.type)) {
-                server
-                    .to(update.memberOf.map((group) => `cms-${group}`))
-                    .to(update.memberOf.map((group) => `app-${group}`))
-                    .emit("data", [update]);
+            // Group documents
+            if (update.acl) {
+                // If the document is a "change" document, the group id is stored in the docId property
+                let docType = update.type;
+                let groupId = update._id;
 
+                if (update.type == "change" && update.changes) {
+                    docType = update.changes.type;
+                    groupId = update.docId;
+                }
+
+                server.to(`${docType}-${groupId}`).emit("data", [update]);
                 return;
             }
 
@@ -90,7 +93,7 @@ export class Socketio implements OnGatewayInit {
         // TODO: Do type validation on reqData
         // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
         const user = "user-private";
-        const groups = ["group-super-admins"];
+        const memberOfGroups = ["group-super-admins"];
 
         // Determine which doc types to get
         const docTypes = reqData.cms
@@ -101,14 +104,16 @@ export class Socketio implements OnGatewayInit {
         if (reqData.version && typeof reqData.version === "number") from = reqData.version;
 
         // Get user accessible groups
-        const userAccessMap = PermissionSystem.getAccessMap(groups);
-        const userAccess = userAccessMap.calculateAccess(docTypes, AclPermission.View);
+        const userAccess = PermissionSystem.getAccessibleGroups(
+            docTypes,
+            AclPermission.View,
+            memberOfGroups,
+        );
 
         // Get data from database
         this.db
             .getDocsPerGroup(user, {
-                groups: userAccess,
-                types: docTypes,
+                userAccess: userAccess,
                 from: from,
             })
             .then((res: nano.MangoResponse<unknown>) => {
@@ -119,9 +124,17 @@ export class Socketio implements OnGatewayInit {
             .catch(console.error); // TODO: Add error logging provider
 
         // Join user to group rooms
-        for (const group of userAccess) {
-            // @ts-expect-error Seems as if the Socket type definition does not include the join method
-            socket.join(reqData.cms ? `cms-${group}` : `app-${group}`);
+        for (const docType of Object.keys(userAccess)) {
+            for (const group of userAccess[docType]) {
+                // @ts-expect-error Seems as if the Socket type definition does not include the join method
+                socket.join(`${docType}-${group}`);
+
+                // Subscribe to cms specific rooms
+                if (reqData.cms) {
+                    // @ts-expect-error Seems as if the Socket type definition does not include the join method
+                    socket.join(`cms-${docType}-${group}`);
+                }
+            }
         }
     }
 
