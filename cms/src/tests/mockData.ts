@@ -112,6 +112,25 @@ export const mockContent: Content = {
     expiryDate: undefined,
 };
 
+export const mockUnpublishableContent: Content = {
+    _id: "content-post1-eng",
+    type: DocType.Content,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    language: mockLanguageEng,
+    status: ContentStatus.Draft,
+    slug: "post1-eng",
+    title: "English translation title",
+    summary: undefined,
+    author: undefined,
+    text: undefined,
+    localisedImage: undefined,
+    audio: undefined,
+    video: undefined,
+    publishDate: undefined,
+    expiryDate: undefined,
+};
+
 export const mockPost: Post = {
     type: DocType.Post,
     _id: "post-post1",

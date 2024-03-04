@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import ContentForm from "./ContentForm.vue";
-import { mockContent, mockPost } from "@/tests/mockData";
+import { mockContent, mockPost, mockUnpublishableContent } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType } from "@/types";
 
@@ -119,8 +119,6 @@ describe("ContentForm", () => {
         await waitForExpect(() => {
             const saveEvent: any = wrapper.emitted("save");
             expect(saveEvent).toBe(undefined);
-
-            expect(wrapper.text()).toContain("Form not valid");
         });
     });
 
@@ -164,5 +162,27 @@ describe("ContentForm", () => {
         expect(textInput.isVisible()).toBe(true);
         expect(audioInput.isVisible()).toBe(true);
         expect(videoInput.isVisible()).toBe(true);
+    });
+
+    it("displays why a post cannot be published", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockUnpublishableContent,
+            },
+        });
+
+        await wrapper.find("button[data-test='publish']").trigger("click");
+
+        await waitForExpect(() => {
+            const saveEvent: any = wrapper.emitted("save");
+            expect(saveEvent).toBe(undefined);
+
+            expect(wrapper.text()).toContain("Summary is required");
+            expect(wrapper.text()).toContain("Publish date is required");
+            expect(wrapper.text()).toContain(
+                "At least one of text, audio or video content is required",
+            );
+        });
     });
 });
