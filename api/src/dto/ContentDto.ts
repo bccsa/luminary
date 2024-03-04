@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
-import { PublishStatus, Uuid } from "../enums";
+import { DocType, PublishStatus, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
 import { Expose } from "class-transformer";
@@ -14,6 +14,10 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     parentId: Uuid;
+
+    @IsOptional()
+    @IsString()
+    parentType?: DocType;
 
     @IsNotEmpty()
     @IsString()

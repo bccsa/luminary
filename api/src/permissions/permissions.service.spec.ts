@@ -1,6 +1,5 @@
 import { PermissionSystem } from "./permissions.service";
 import { DocType, AclPermission } from "../enums";
-import { AccessMap } from "./AccessMap";
 import { createTestingModule } from "../test/testingModule";
 
 describe("PermissionService", () => {
@@ -19,11 +18,32 @@ describe("PermissionService", () => {
     it("can be instantiated", () => {
         expect(PermissionSystem.upsertGroups).toBeDefined();
         expect(PermissionSystem.removeGroups).toBeDefined();
-        expect(PermissionSystem.getAccessMap).toBeDefined();
-        expect(AccessMap).toBeDefined();
     });
 
     describe("Model tests", () => {
+        it("can get accessible groups per document type and permission", () => {
+            const res1 = PermissionSystem.getAccessibleGroups(
+                [DocType.Post, DocType.Language],
+                AclPermission.Edit,
+                ["group-public-editors"],
+            );
+
+            expect(res1[DocType.Post].length).toBe(2);
+            expect(res1[DocType.Post].includes("group-public-content")).toBe(true);
+            expect(res1[DocType.Post].includes("group-languages")).toBe(true);
+
+            const res2 = PermissionSystem.getAccessibleGroups(
+                [DocType.Post, DocType.Language],
+                AclPermission.Edit,
+                ["group-public-editors", "group-private-editors"],
+            );
+
+            expect(res2[DocType.Post].length).toBe(3);
+            expect(res2[DocType.Post].includes("group-public-content")).toBe(true);
+            expect(res2[DocType.Post].includes("group-private-content")).toBe(true);
+            expect(res2[DocType.Post].includes("group-languages")).toBe(true);
+        });
+
         it("can verify access to two target groups with verification type 'any'", () => {
             expect(
                 PermissionSystem.verifyAccess(

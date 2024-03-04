@@ -1,4 +1,4 @@
-import { instanceToPlain, plainToInstance } from "class-transformer";
+import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { ContentDto } from "../dto/ContentDto";
@@ -64,19 +64,11 @@ export async function validateChangeRequest(
         return validationResult;
     }
 
-    const accessValidationResult = await validateChangeRequestAccess(
-        changeRequest,
-        groupMembership,
-        dbService,
-    );
-    if (!accessValidationResult.validated) {
-        return accessValidationResult;
-    }
+    // Replace the included document in the change request with the validated document
+    changeRequest.doc = doc;
 
-    return {
-        validated: true,
-        validatedData: instanceToPlain(doc),
-    };
+    // Validate access and return result
+    return validateChangeRequestAccess(changeRequest, groupMembership, dbService);
 }
 
 async function dtoValidate(data: any, message: string): Promise<ValidationResult> {

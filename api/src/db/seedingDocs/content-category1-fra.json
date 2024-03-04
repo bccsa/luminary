@@ -3,6 +3,7 @@
     "type": "content",
     "memberOf": ["group-public-content"],
     "parentId": "tag-category1",
+    "parentType": "tag",
     "language": "lang-fra",
     "status": "published",
     "slug": "category1-fra",

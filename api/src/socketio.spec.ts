@@ -147,9 +147,9 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_tag(),
                     });
                     expect(res.data.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
-                    expect(res.data[1].type).toBe("tag");
-                    expect(res.data[2].type).toBe("change");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
+                    expect(res.data.some((d) => d.type == "tag")).toBe(true);
+                    expect(res.data.some((d) => d.type == "change")).toBe(true);
                 });
 
                 it("Content documents: emits two data socket.io events after change request submission", async () => {
@@ -159,9 +159,9 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_content(),
                     });
                     expect(res.data.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
-                    expect(res.data[1].type).toBe("content");
-                    expect(res.data[2].type).toBe("change");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
+                    expect(res.data.some((d) => d.type == "content")).toBe(true);
+                    expect(res.data.some((d) => d.type == "change")).toBe(true);
                 });
 
                 it("Language documents: emits two data socket.io events after change request submission", async () => {
@@ -171,9 +171,9 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_language(),
                     });
                     expect(res.data.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
-                    expect(res.data[1].type).toBe("language");
-                    expect(res.data[2].type).toBe("change");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
+                    expect(res.data.some((d) => d.type == "language")).toBe(true);
+                    expect(res.data.some((d) => d.type == "change")).toBe(true);
                 });
 
                 it("Group documents: emits two data socket.io events after change request submission", async () => {
@@ -183,9 +183,9 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_group(),
                     });
                     expect(res.data.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
-                    expect(res.data[1].type).toBe("group");
-                    expect(res.data[2].type).toBe("change");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
+                    expect(res.data.some((d) => d.type == "group")).toBe(true);
+                    expect(res.data.some((d) => d.type == "change")).toBe(true);
                 });
             });
 
@@ -197,8 +197,8 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_post(),
                     });
                     expect(res.data.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
-                    expect(res.data[1].type).toBe("post");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
+                    expect(res.data.some((d) => d.type == "post")).toBe(true);
                 });
 
                 it("Tag documents: emits one data socket.io events after change request submission", async () => {
@@ -208,8 +208,8 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_tag(),
                     });
                     expect(res.data.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
-                    expect(res.data[1].type).toBe("tag");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
+                    expect(res.data.some((d) => d.type == "tag")).toBe(true);
                 });
 
                 it("Content documents: emits one data socket.io events after change request submission", async () => {
@@ -219,8 +219,8 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_content(),
                     });
                     expect(res.data.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
-                    expect(res.data[1].type).toBe("content");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
+                    expect(res.data.some((d) => d.type == "content")).toBe(true);
                 });
 
                 it("Language documents: emits one data socket.io events after change request submission", async () => {
@@ -230,8 +230,8 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_language(),
                     });
                     expect(res.data.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
-                    expect(res.data[1].type).toBe("language");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
+                    expect(res.data.some((d) => d.type == "language")).toBe(true);
                 });
 
                 it("Group documents: emits no data socket.io events after change request submission", async () => {
@@ -241,7 +241,7 @@ describe("Socketio", () => {
                         changeRequest: changeRequest_group(),
                     });
                     expect(res.data.length).toBe(1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.data[0].type).toBe("user");
+                    expect(res.data.some((d) => d.type == "user")).toBe(true);
                 });
             });
         });

@@ -3,6 +3,7 @@
     "type": "content",
     "memberOf": ["group-public-content"],
     "parentId": "post-post1",
+    "parentType": "post",
     "language": "lang-fra",
     "status": "published",
     "slug": "post1-fra",

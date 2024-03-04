@@ -6,6 +6,7 @@ import { ConfigService } from "@nestjs/config";
 import { DatabaseConfig, SyncConfig } from "../configuration";
 import * as http from "http";
 import { EventEmitter } from "stream";
+import { instanceToPlain } from "class-transformer";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -15,8 +16,7 @@ import { EventEmitter } from "stream";
  * @property {number} from - Include documents with an updateTimeUtc timestamp greater or equal to the passed value. (Default 0)
  */
 export type GetDocsOptions = {
-    groups: Array<Uuid>;
-    types: Array<DocType>;
+    userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
     from?: number;
 };
 
@@ -162,7 +162,7 @@ export class DbService extends EventEmitter {
                             .catch((err) => {
                                 reject(err);
                             });
-                    } else if (existing && isDeepStrictEqual(doc, existing)) {
+                    } else if (existing && isDeepStrictEqual(instanceToPlain(doc), existing)) {
                         // Document in DB is the same as passed doc: do nothing
                         resolve({
                             id: doc._id,
@@ -332,78 +332,76 @@ export class DbService extends EventEmitter {
 
             const pList = [];
 
-            const query_memberOf_per_type = {
-                // TODO: The order of fields can possibly improve indexing effectiveness, as well as using
-                // different queries for the full time range vs a partial time range. We need a bigger data set / production data to test this.
-                selector: {
-                    $and: [
-                        {
-                            updatedTimeUtc: {
-                                $gte: options.from,
-                            },
-                        },
-                        {
-                            type: {
-                                $in: options.types,
-                            },
-                        },
-                        {
-                            memberOf: {
-                                $in: options.groups,
-                            },
-                        },
-                    ],
+            const timeSelector = {
+                updatedTimeUtc: {
+                    $gte: options.from,
                 },
-                use_index: "updatedTimeUtc-type-memberOf-index",
-                limit: Number.MAX_SAFE_INTEGER,
             };
-            pList.push(this.db.find(query_memberOf_per_type));
+
+            // Construct queries for each DocType
+            Object.keys(options.userAccess).forEach((docType: DocType) => {
+                const docQuery = {
+                    selector: {
+                        $and: [
+                            ...(options.from > 0 ? [timeSelector] : []),
+                            {
+                                type: docType,
+                            },
+                            {
+                                memberOf: {
+                                    $in: options.userAccess[docType],
+                                },
+                            },
+                        ],
+                    },
+                    limit: Number.MAX_SAFE_INTEGER,
+                };
+                pList.push(this.db.find(docQuery));
+
+                // Query for associated content documents
+                if (docType === DocType.Post || docType === DocType.Tag) {
+                    const contentQuery = {
+                        selector: {
+                            $and: [
+                                ...(options.from > 0 ? [timeSelector] : []),
+                                {
+                                    type: DocType.Content,
+                                },
+                                {
+                                    memberOf: {
+                                        $in: options.userAccess[docType],
+                                    },
+                                },
+                                {
+                                    parentType: docType,
+                                },
+                            ],
+                        },
+                        limit: Number.MAX_SAFE_INTEGER,
+                    };
+                    pList.push(this.db.find(contentQuery));
+                }
+            });
 
             // Include the (group) document itself if the "group" type is included in the options
-            if (options.types.includes(DocType.Group)) {
-                // Use two different queries to allow for effective indexing
-                let query_groupDoc;
-                if (options.from === 0) {
-                    query_groupDoc = {
-                        selector: {
-                            $and: [
-                                {
-                                    type: DocType.Group,
-                                },
-                                {
-                                    _id: {
-                                        $in: options.groups,
-                                    },
-                                },
-                            ],
-                        },
-                        use_index: "type-id-index",
-                        limit: Number.MAX_SAFE_INTEGER,
-                    };
-                } else {
-                    query_groupDoc = {
-                        selector: {
-                            $and: [
-                                {
-                                    updatedTimeUtc: {
-                                        $gte: options.from,
-                                    },
-                                },
-                                {
-                                    type: DocType.Group,
-                                },
+            if (options.userAccess[DocType.Group]) {
+                const query_groupDoc = {
+                    selector: {
+                        $and: [
+                            ...(options.from > 0 ? [timeSelector] : []),
+                            {
+                                type: DocType.Group,
+                            },
 
-                                {
-                                    _id: {
-                                        $in: options.groups,
-                                    },
+                            {
+                                _id: {
+                                    $in: options.userAccess[DocType.Group],
                                 },
-                            ],
-                        },
-                        use_index: "updatedTimeUtc-type-id-index",
-                        limit: Number.MAX_SAFE_INTEGER,
-                    };
-                }
+                            },
+                        ],
+                    },
+                    limit: Number.MAX_SAFE_INTEGER,
+                };
 
                 pList.push(this.db.find(query_groupDoc));
             }
@@ -461,12 +459,14 @@ export class DbService extends EventEmitter {
             }
 
             // Always include _id and type
-            if (doc1._id === doc2._id) {
-                acc._id = doc1._id;
+            acc._id = doc1._id;
+            acc.type = doc1.type;
+
+            // Include parentType if it exists
+            if (doc1.parentType) {
+                acc.parentType = doc1.parentType;
             }
-            if (doc1.type === doc2.type) {
-                acc.type = doc1.type;
-            }
+
             return acc;
         }, {});
     }

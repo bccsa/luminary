@@ -1,7 +1,6 @@
 import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
-import { AccessMap } from "./AccessMap";
 
 /**
  * Acl map entry used internally in Group objects
@@ -17,7 +16,8 @@ type AclMapEntry = {
 const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
 
 /**
- * Permission system class
+ * Represents a permission system that uses a tree structure to organize groups and manage permissions.
+ * Each group keeps track of implied permissions and references to parents and children.
  */
 export class PermissionSystem {
     // The permission system is a tree structure where each node is representing a group. Each group keeps track of implied permissions and references to parents (through the group's ACLs) and to children (through the childGroup map).
@@ -42,43 +42,56 @@ export class PermissionSystem {
         return this._id;
     }
 
-    /**
-     * Extract an access map for the passed group ID's
-     * @param groupIds - Group IDs for which the access map should be extracted
-     * @returns - Access Map for the passed group IDs
-     */
-    static getAccessMap(groupIds: Array<Uuid>): AccessMap {
-        const resultMap = new AccessMap();
-        groupIds.forEach((id: Uuid) => {
-            const g = groupMap[id];
-            if (!g) return;
+    // TODO: Add access map extraction function to extract map to be passed to CMS
+    // /**
+    //  * Extract an access map for the passed group ID's
+    //  * @param groupIds - Group IDs for which the access map should be extracted
+    //  * @returns - Access Map for the passed group IDs
+    //  */
+    // static getAccessMap(groupIds: Array<Uuid>): AccessMap {
+    //     const resultMap = new AccessMap();
+    //     groupIds.forEach((id: Uuid) => {
+    //         const g = groupMap[id];
+    //         if (!g) return;
 
-            resultMap.map = { ...resultMap, ...g._groupTypePermissionMap };
+    //         resultMap.map = { ...resultMap, ...g._groupTypePermissionMap };
+    //     });
+    //     return resultMap;
+    // }
+
+    /**
+     * Get the accessible groups based on the specified document type, permission, and member groups.
+     * @param types - The document types for which access should be verified.
+     * @param permission - The permission for which access should be verified.
+     * @param memberOfGroups - The array of member groups.
+     * @returns An array of accessible group IDs.
+     */
+    static getAccessibleGroups(
+        types: DocType[],
+        permission: AclPermission,
+        memberOfGroups: Array<Uuid>,
+    ): Map<DocType, Uuid[]> {
+        const resultMap = new Map<DocType, Uuid[]>();
+        memberOfGroups.forEach((memberGroup: Uuid) => {
+            const g = groupMap[memberGroup];
+            if (!g) return;
+            types.forEach((type: DocType) => {
+                if (
+                    g._typePermissionGroupRequestorMap[type] &&
+                    g._typePermissionGroupRequestorMap[type][permission]
+                ) {
+                    // Add to result map and remove duplicates
+                    if (!resultMap[type]) resultMap[type] = [];
+                    const unique = new Set([
+                        ...resultMap[type],
+                        ...Object.keys(g._typePermissionGroupRequestorMap[type][permission]),
+                    ]);
+                    resultMap[type] = [...unique];
+                }
+            });
         });
         return resultMap;
     }
-
-    // static calculateAccess(
-    //     types: Array<DocType>,
-    //     permission: AclPermission,
-    //     groupIds: Array<Uuid>,
-    // ) {
-    //     const resultMap = new Set<Uuid>();
-    //     groupIds.forEach((groupId: Uuid) => {
-    //         const g = groupMap[groupId];
-    //         if (!g) return;
-
-    //         types.forEach((type: DocType) => {
-    //             if (
-    //                 g._groupTypePermissionMap[type] &&
-    //                 g._groupTypePermissionMap[type][permission]
-    //             ) {
-    //                 resultMap.add(groupId);
-    //             }
-    //         });
-    //     });
-    //     return Array.from(resultMap);
-    // }
 
     /**
      * Verify access for the passed target group ID
