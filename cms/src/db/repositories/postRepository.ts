@@ -62,8 +62,8 @@ export class PostRepository extends BaseRepository {
     async update(content: Content, post: Post) {
         const contentDto = this._contentRepository.toDto(content, post._id);
         const postDto = this.toDto(post);
-        await db.docs.update(contentDto, contentDto);
-        await db.docs.update(postDto, postDto);
+        await db.docs.put(contentDto);
+        await db.docs.put(postDto);
 
         // Save change, which will be sent to the API later
         await db.localChanges.put({
