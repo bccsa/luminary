@@ -6,13 +6,12 @@ export default {
 
 <script setup lang="ts">
 import { computed, type Component, type StyleValue } from "vue";
-import { useId } from "@/util/use-id";
+import { useId } from "@/util/useId";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
 import { useField } from "vee-validate";
-import { capitalizeFirstLetter } from "@/util/string";
 import { renderErrorMessage } from "@/util/renderErrorMessage";
 
 type Props = {
