@@ -10,6 +10,7 @@ import {
     MusicalNoteIcon,
     ArrowTopRightOnSquareIcon,
 } from "@heroicons/vue/20/solid";
+import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/16/solid";
 import { ContentStatus, type Content, type Post } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
@@ -251,26 +252,42 @@ const isDirty = ref(false);
                             </div>
                         </div>
 
+                        <template v-if="Object.keys(errors).length > 0">
+                            <p class="mt-6 text-xs text-gray-700">
+                                These fields prevent <strong>saving</strong>:
+                            </p>
+                            <div class="mt-2 flex flex-col gap-2 pt-2 text-sm text-gray-900">
+                                <div v-for="(error, key) in errors" :key="key" class="flex gap-2">
+                                    <p>
+                                        <ExclamationCircleIcon
+                                            class="mt-0.5 h-4 w-4 text-gray-400"
+                                        />
+                                    </p>
+                                    <p>{{ renderErrorMessage(error) }}</p>
+                                </div>
+                            </div>
+                        </template>
+
                         <template v-if="!canPublish">
                             <p class="mt-6 text-xs text-gray-700">
-                                These fields prevent publishing:
+                                These fields prevent <strong>publishing</strong>:
                             </p>
-                            <div class="mt-2 flex flex-col gap-2">
-                                <div v-if="!hasOneContentField" class="ml-3 text-sm text-gray-900">
-                                    - At least one of text, audio or video content is required
+                            <div class="mt-2 flex flex-col gap-2 pt-2 text-sm text-gray-900">
+                                <div v-if="!hasOneContentField" class="flex gap-2">
+                                    <p><XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" /></p>
+                                    <p>At least one of text, audio or video content is required</p>
                                 </div>
-                                <div v-if="!hasSummary" class="ml-3 text-sm text-gray-900">
-                                    - Summary is required
+                                <div v-if="!hasSummary" class="flex gap-2">
+                                    <p><XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" /></p>
+                                    <p>Summary is required</p>
                                 </div>
-                                <div v-if="!hasPublishDate" class="ml-3 text-sm text-gray-900">
-                                    - Publish date is required
+                                <div v-if="!hasPublishDate" class="flex gap-2">
+                                    <p><XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" /></p>
+                                    <p>Publish date is required</p>
                                 </div>
-                                <div
-                                    v-for="(error, key) in errors"
-                                    :key="key"
-                                    class="ml-3 text-sm text-gray-900"
-                                >
-                                    - {{ renderErrorMessage(error) }}
+                                <div v-for="(error, key) in errors" :key="key" class="flex gap-2">
+                                    <p><XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" /></p>
+                                    <p>{{ renderErrorMessage(error) }}</p>
                                 </div>
                             </div>
                         </template>
