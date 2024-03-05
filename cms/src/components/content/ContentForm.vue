@@ -133,7 +133,8 @@ const hasSummary = computed(() => {
     return values.summary != undefined && values.summary.trim() != "";
 });
 const hasPublishDate = computed(() => {
-    return values.publishDate != undefined;
+    // @ts-ignore The browser resets the date to empty string when clicking 'Clear'
+    return values.publishDate != undefined && values.publishDate != "";
 });
 const hasParentImage = computed(() => {
     return values.parent?.image != undefined;
