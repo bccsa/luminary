@@ -23,11 +23,13 @@ const content = computed(() => {
 });
 
 const languageOptions = computed(() => {
-    if (!languages.value) {
+    if (!post.value) {
         return [];
     }
 
-    return languages.value.map((language) => {
+    const languages = post.value.content.map((c) => c.language);
+
+    return languages.map((language) => {
         return {
             label: language.name,
             value: language.languageCode,
