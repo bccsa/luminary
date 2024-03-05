@@ -6,13 +6,15 @@ import { useLanguageStore } from "@/stores/language";
 import { usePostStore } from "@/stores/post";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
+const router = useRouter();
 const postStore = usePostStore();
 const { languages } = storeToRefs(useLanguageStore());
 
-const postId = route.params.id as string;
+const postId = route.params.postId as string;
+const language = route.params.language as string;
 
 const post = computed(() => postStore.post(postId));
 const isLoading = computed(() => postStore.posts == undefined);
@@ -21,11 +23,13 @@ const content = computed(() => {
 });
 
 const languageOptions = computed(() => {
-    if (!languages.value) {
+    if (!post.value) {
         return [];
     }
 
-    return languages.value.map((language) => {
+    const languages = post.value.content.map((c) => c.language);
+
+    return languages.map((language) => {
         return {
             label: language.name,
             value: language.languageCode,
@@ -33,6 +37,12 @@ const languageOptions = computed(() => {
     });
 });
 const selectedLanguage = ref("eng");
+
+if (language) {
+    selectedLanguage.value = language;
+
+    router.replace({ name: "posts.edit", params: { postId } });
+}
 </script>
 
 <template>

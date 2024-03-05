@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import ContentForm from "./ContentForm.vue";
-import { mockContent, mockPost, mockUnpublishableContent } from "@/tests/mockData";
+import { mockEnglishContent, mockPost, mockUnpublishableContent } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType } from "@/types";
 import { useLocalChangeStore } from "@/stores/localChanges";
@@ -29,7 +29,7 @@ describe("ContentForm", () => {
         const wrapper = mount(ContentForm, {
             props: {
                 post: mockPost,
-                content: mockContent,
+                content: mockEnglishContent,
             },
         });
 
@@ -49,7 +49,7 @@ describe("ContentForm", () => {
         const wrapper = mount(ContentForm, {
             props: {
                 post: mockPost,
-                content: mockContent,
+                content: mockEnglishContent,
             },
         });
 
@@ -69,7 +69,7 @@ describe("ContentForm", () => {
         const wrapper = mount(ContentForm, {
             props: {
                 post: mockPost,
-                content: mockContent,
+                content: mockEnglishContent,
             },
         });
 
@@ -92,7 +92,7 @@ describe("ContentForm", () => {
         const wrapper = mount(ContentForm, {
             props: {
                 post: mockPost,
-                content: mockContent,
+                content: mockEnglishContent,
             },
         });
 
@@ -113,7 +113,7 @@ describe("ContentForm", () => {
         const wrapper = mount(ContentForm, {
             props: {
                 post: mockPost,
-                content: mockContent,
+                content: mockEnglishContent,
             },
         });
 
@@ -132,7 +132,7 @@ describe("ContentForm", () => {
             props: {
                 post: mockPost,
                 content: {
-                    ...mockContent,
+                    ...mockEnglishContent,
                     text: undefined,
                 },
             },
@@ -151,7 +151,7 @@ describe("ContentForm", () => {
             props: {
                 post: mockPost,
                 content: {
-                    ...mockContent,
+                    ...mockEnglishContent,
                     text: undefined,
                 },
             },
@@ -195,7 +195,7 @@ describe("ContentForm", () => {
         const wrapper = mount(ContentForm, {
             props: {
                 post: mockPost,
-                content: mockContent,
+                content: mockEnglishContent,
             },
         });
 
@@ -213,7 +213,7 @@ describe("ContentForm", () => {
         const wrapper = mount(ContentForm, {
             props: {
                 post: mockPost,
-                content: mockContent,
+                content: mockEnglishContent,
             },
         });
 

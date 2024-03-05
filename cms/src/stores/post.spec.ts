@@ -3,7 +3,7 @@ import { usePostStore } from "./post";
 import { setActivePinia, createPinia } from "pinia";
 import { liveQuery } from "dexie";
 import { PostRepository } from "@/db/repositories/postRepository";
-import { mockContent, mockLanguageEng, mockPost } from "@/tests/mockData";
+import { mockEnglishContent, mockLanguageEng, mockPost } from "@/tests/mockData";
 
 vi.mock("@/db/repositories/postRepository");
 
@@ -59,8 +59,8 @@ describe("post store", () => {
         const createSpy = vi.spyOn(PostRepository.prototype, "update");
 
         const store = usePostStore();
-        store.updatePost(mockContent, mockPost);
+        store.updatePost(mockEnglishContent, mockPost);
 
-        expect(createSpy).toHaveBeenCalledWith(mockContent, mockPost);
+        expect(createSpy).toHaveBeenCalledWith(mockEnglishContent, mockPost);
     });
 });

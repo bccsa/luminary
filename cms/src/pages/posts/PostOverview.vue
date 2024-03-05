@@ -107,23 +107,33 @@ const translationStatus = computed(() => {
                         Offline changes
                     </LBadge>
                 </template>
-                <template #item.translations="{ content }">
-                    <div class="flex gap-2" v-if="content.length > 0">
-                        <LBadge
+                <template #item.translations="post">
+                    <div class="flex gap-2" v-if="post.content.length > 0">
+                        <RouterLink
                             v-for="language in languages"
                             :key="language.languageCode"
-                            type="language"
-                            :variant="
-                                translationStatus(
-                                    content.find(
-                                        (c: Content) =>
-                                            c.language.languageCode == language.languageCode,
-                                    ),
-                                )
-                            "
+                            :to="{
+                                name: 'posts.edit',
+                                params: {
+                                    postId: post._id,
+                                    language: language.languageCode,
+                                },
+                            }"
                         >
-                            {{ language.languageCode }}
-                        </LBadge>
+                            <LBadge
+                                type="language"
+                                :variant="
+                                    translationStatus(
+                                        post.content.find(
+                                            (c: Content) =>
+                                                c.language.languageCode == language.languageCode,
+                                        ),
+                                    )
+                                "
+                            >
+                                {{ language.languageCode }}
+                            </LBadge>
+                        </RouterLink>
                     </div>
                 </template>
                 <template #item.updatedTime="post">
@@ -137,7 +147,7 @@ const translationStatus = computed(() => {
                         :to="{
                             name: 'posts.edit',
                             params: {
-                                id: post._id,
+                                postId: post._id,
                             },
                         }"
                     ></LButton>
