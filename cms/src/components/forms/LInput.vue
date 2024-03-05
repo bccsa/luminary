@@ -6,13 +6,13 @@ export default {
 
 <script setup lang="ts">
 import { computed, type Component, type StyleValue } from "vue";
-import { useId } from "@/util/use-id";
+import { useId } from "@/util/useId";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
 import { useField } from "vee-validate";
-import { capitalizeFirstLetter } from "@/util/string";
+import { renderErrorMessage } from "@/util/renderErrorMessage";
 
 type Props = {
     name: string;
@@ -54,10 +54,6 @@ const computedState = computed(() => {
     }
 
     return props.state;
-});
-
-const renderedErrorMessage = computed(() => {
-    return capitalizeFirstLetter(errorMessage.value!.replace(/^[^.]*\./, ""));
 });
 
 const states = {
@@ -138,7 +134,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ rightAddOn }}
             </span>
             <div
-                v-if="state == 'error' && !rightAddOn"
+                v-if="computedState == 'error' && !rightAddOn"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
             >
                 <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
@@ -149,7 +145,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             :state="computedState"
             :id="`${id}-message`"
         >
-            <template v-if="errorMessage">{{ renderedErrorMessage }}</template>
+            <template v-if="errorMessage">{{ renderErrorMessage(errorMessage) }}</template>
             <slot v-else-if="$slots.default" />
         </FormMessage>
     </div>

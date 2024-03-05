@@ -6,7 +6,7 @@ export default {
 
 <script setup lang="ts">
 import { type Component, type StyleValue } from "vue";
-import { useId } from "@/util/use-id";
+import { useId } from "@/util/useId";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "./FormLabel.vue";

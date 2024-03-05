@@ -54,7 +54,7 @@ describe("EditPost", () => {
         expect(wrapper.text()).toContain(mockPost.content[0].title);
     });
 
-    it.skip("saves the content", async () => {
+    it("saves the content", async () => {
         const postStore = usePostStore();
         const wrapper = mount(EditPost);
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import LTextarea from "@/components/forms/LTextarea.vue";
 import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
@@ -11,13 +10,16 @@ import {
     MusicalNoteIcon,
     ArrowTopRightOnSquareIcon,
 } from "@heroicons/vue/20/solid";
+import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/16/solid";
 import { ContentStatus, type Content, type Post } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
-import { toRaw, toRefs, watch } from "vue";
+import { computed, ref, toRaw, toRefs, watch } from "vue";
 import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
 import { DateTime } from "luxon";
+import { renderErrorMessage } from "@/util/renderErrorMessage";
+import { useLocalChangeStore } from "@/stores/localChanges";
 
 type Props = {
     content: Content;
@@ -28,6 +30,12 @@ const props = defineProps<Props>();
 
 const { content: contentProp, post: postProp } = toRefs(props);
 
+const { isLocalChange } = useLocalChangeStore();
+
+const hasText = ref(contentProp.value.text != undefined && contentProp.value.text.trim() != "");
+const hasAudio = ref(contentProp.value.audio != undefined && contentProp.value.audio.trim() != "");
+const hasVideo = ref(contentProp.value.video != undefined && contentProp.value.video.trim() != "");
+
 const emit = defineEmits(["save"]);
 
 const validationSchema = toTypedSchema(
@@ -37,24 +45,39 @@ const validationSchema = toTypedSchema(
         }),
         title: yup.string().required(),
         summary: yup.string().optional(),
-        publishDate: yup.date().optional(),
+        publishDate: yup
+            .date()
+            .transform((value, _, context) => {
+                // Check to see if the previous transform already parsed the date
+                if (context.isType(value)) {
+                    return value;
+                }
+
+                // Default validation failed, clear the field
+                // This happens when the 'clear' button in the browser datepicker is used,
+                // which sets the value to an empty string
+                return undefined;
+            })
+            .optional(),
+        text: yup.string().optional(),
+        audio: yup.string().optional(),
+        video: yup.string().optional(),
     }),
 );
 
-const { handleSubmit, meta, values, setValues } = useForm({
+const { handleSubmit, values, setValues, errors } = useForm({
     validationSchema,
 });
-
 watch(
     [postProp, contentProp],
     ([post, content]) => {
         // Convert dates to format VeeValidate understands
-        const filteredContent: any = { ...content };
+        const filteredContent: any = { ...toRaw(content) };
         filteredContent.publishDate = content.publishDate?.toISO()?.split(".")[0];
 
         setValues({
             ...onlyAllowedKeys(filteredContent, Object.keys(values)),
-            parent: onlyAllowedKeys(post, Object.keys(values.parent as object)),
+            parent: onlyAllowedKeys(toRaw(post), Object.keys(values.parent as object)),
         });
     },
     { immediate: true },
@@ -82,6 +105,8 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         // TODO create tags from topics etc.
     };
 
+    isDirty.value = false;
+
     return emit("save", content, post);
 };
 
@@ -91,15 +116,43 @@ const saveAndPublish = handleSubmit(async (validatedFormValues) => {
 const saveAsDraft = handleSubmit(async (validatedFormValues) => {
     return save(validatedFormValues, ContentStatus.Draft);
 });
+
+const canPublish = computed(() => {
+    return (
+        hasOneContentField.value && hasPublishDate.value && hasSummary.value && hasParentImage.value
+    );
+});
+const hasOneContentField = computed(() => {
+    return (
+        (values.text != undefined && values.text?.trim() != "") ||
+        (values.audio != undefined && values.audio?.trim() != "") ||
+        (values.video != undefined && values.video?.trim() != "")
+    );
+});
+const hasSummary = computed(() => {
+    return values.summary != undefined && values.summary.trim() != "";
+});
+const hasPublishDate = computed(() => {
+    // @ts-ignore The browser resets the date to empty string when clicking 'Clear'
+    return values.publishDate != undefined && values.publishDate != "";
+});
+const hasParentImage = computed(() => {
+    return values.parent?.image != undefined;
+});
+
+const isDirty = ref(false);
 </script>
 
 <template>
-    <div class="relative grid grid-cols-3 gap-8">
+    <form
+        type="post"
+        class="relative grid grid-cols-3 gap-8"
+        @submit.prevent
+        @change="isDirty = true"
+    >
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
-                <LButton>Set custom image</LButton>
-
-                <LInput name="title" label="Title" class="mt-6" required />
+                <LInput name="title" label="Title" required />
 
                 <LInput name="summary" label="Summary" class="mt-4" />
 
@@ -115,26 +168,46 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
                 </div>
             </LCard>
 
-            <LCard title="Text content" :icon="DocumentTextIcon" collapsible>
-                <LTextarea rows="8" />
+            <LButton
+                type="button"
+                variant="tertiary"
+                :icon="DocumentTextIcon"
+                @click="hasText = true"
+                v-if="!hasText"
+                data-test="addText"
+            >
+                Add text
+            </LButton>
+            <LCard title="Text content" :icon="DocumentTextIcon" collapsible v-show="hasText">
+                <LInput name="text" />
             </LCard>
 
-            <LCard title="Video" :icon="VideoCameraIcon" collapsible>
-                <LInput
-                    name="video"
-                    placeholder="videoTitle"
-                    leftAddOn="https://cdn.bcc.africa/vod/"
-                    rightAddOn="/playlist.m3u8"
-                />
+            <LButton
+                type="button"
+                variant="tertiary"
+                :icon="VideoCameraIcon"
+                @click="hasVideo = true"
+                v-if="!hasVideo"
+                data-test="addVideo"
+            >
+                Add Video
+            </LButton>
+            <LCard title="Video" :icon="VideoCameraIcon" collapsible v-show="hasVideo">
+                <LInput name="video" leftAddOn="https://" />
             </LCard>
 
-            <LCard title="Audio" :icon="MusicalNoteIcon" collapsible>
-                <LInput
-                    name="audio"
-                    placeholder="audioTitle"
-                    leftAddOn="https://cdn.bcc.africa/vod/"
-                    rightAddOn="/playlist.m3u8"
-                />
+            <LButton
+                type="button"
+                variant="tertiary"
+                :icon="MusicalNoteIcon"
+                @click="hasAudio = true"
+                v-if="!hasAudio"
+                data-test="addAudio"
+            >
+                Add Audio
+            </LButton>
+            <LCard title="Audio" :icon="MusicalNoteIcon" collapsible v-show="hasAudio">
+                <LInput name="audio" leftAddOn="https://" />
             </LCard>
         </div>
 
@@ -142,32 +215,124 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
             <div class="sticky top-20 space-y-6">
                 <LCard>
                     <div class="flex gap-4">
-                        <LButton @click="saveAsDraft" data-test="draft">Save as draft</LButton>
-                        <LButton variant="primary" @click="saveAndPublish" data-test="publish">
+                        <LButton type="button" @click="saveAsDraft" data-test="draft">
+                            Save as draft
+                        </LButton>
+                        <LButton
+                            type="button"
+                            variant="primary"
+                            @click="saveAndPublish"
+                            :disabled="!canPublish"
+                            data-test="publish"
+                        >
                             Save & publish
                         </LButton>
                     </div>
 
                     <template #footer>
-                        <template v-if="content.status == ContentStatus.Published">
-                            <LBadge variant="success">Published</LBadge>
-                            <span class="ml-1 text-xs text-gray-700"> ... </span>
-                        </template>
-                        <template v-else>
-                            <LBadge variant="info">Draft</LBadge>
-                            <span class="ml-1 text-xs text-gray-700">
-                                Fill in these fields to be able to publish:
-                            </span>
-                        </template>
-                        <div v-if="!meta.valid">Form not valid</div>
-                    </template>
-                </LCard>
+                        <div class="flex flex-col gap-4 text-sm text-gray-700">
+                            <div class="flex items-end justify-between">
+                                <div>Status</div>
+                                <div class="flex justify-end gap-2">
+                                    <LBadge v-if="isDirty">Unsaved changes</LBadge>
+                                    <LBadge
+                                        v-else-if="isLocalChange(content._id)"
+                                        variant="warning"
+                                    >
+                                        Offline changes
+                                    </LBadge>
 
-                <LCard title="Preview">
-                    <div class="flex gap-4">
-                        <LButton>Preview changes</LButton>
-                        <LButton :icon="ArrowTopRightOnSquareIcon" iconRight>Open link</LButton>
-                    </div>
+                                    <LBadge
+                                        variant="success"
+                                        v-if="content.status == ContentStatus.Published"
+                                    >
+                                        Published
+                                    </LBadge>
+                                    <LBadge variant="info" v-else>Draft</LBadge>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Transition
+                            enter-active-class="transition ease-out duration-300"
+                            enter-from-class="opacity-0 -translate-y-8 scale-y-50"
+                            leave-active-class="transition ease-out duration-300 absolute"
+                            leave-to-class="opacity-0 -translate-y-8 scale-y-[.1]"
+                        >
+                            <div v-if="Object.keys(errors).length > 0">
+                                <p class="mt-6 text-xs text-gray-700">
+                                    These errors prevent <strong>saving</strong>, even as draft:
+                                </p>
+
+                                <TransitionGroup
+                                    class="mt-2 space-y-2 pt-2 text-sm text-red-600"
+                                    move-class="transition ease-out duration-300"
+                                    enter-active-class="transition ease-out duration-300"
+                                    enter-from-class="opacity-0 translate-x-8"
+                                    leave-to-class="opacity-0 translate-x-8"
+                                    leave-active-class="transition ease-out duration-300 absolute"
+                                    tag="div"
+                                >
+                                    <div
+                                        v-for="(error, key) in errors"
+                                        :key="key"
+                                        class="flex gap-2"
+                                    >
+                                        <p>
+                                            <ExclamationCircleIcon
+                                                class="mt-0.5 h-4 w-4 text-red-400"
+                                            />
+                                        </p>
+                                        <p>{{ renderErrorMessage(error) }}</p>
+                                    </div>
+                                </TransitionGroup>
+                            </div>
+                        </Transition>
+
+                        <Transition
+                            enter-active-class="transition ease-out duration-300"
+                            enter-from-class="opacity-0 -translate-y-8 scale-y-50"
+                            leave-active-class="transition ease-out duration-300 absolute"
+                            leave-to-class="opacity-0 -translate-y-8 scale-y-[.1]"
+                        >
+                            <div v-if="!canPublish">
+                                <p class="mt-6 text-xs text-gray-700">
+                                    These fields prevent <strong>publishing</strong>:
+                                </p>
+
+                                <TransitionGroup
+                                    class="mt-2 space-y-2 pt-2 text-sm text-gray-900"
+                                    move-class="transition ease-out duration-300"
+                                    enter-active-class="transition ease-out duration-300"
+                                    enter-from-class="opacity-0 translate-x-8"
+                                    leave-to-class="opacity-0 translate-x-8"
+                                    leave-active-class="transition ease-out duration-300 absolute"
+                                    tag="div"
+                                >
+                                    <div v-if="!hasOneContentField" class="flex gap-2">
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                        </p>
+                                        <p>
+                                            At least one of text, audio or video content is required
+                                        </p>
+                                    </div>
+                                    <div v-if="!hasSummary" class="flex gap-2">
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                        </p>
+                                        <p>Summary is required</p>
+                                    </div>
+                                    <div v-if="!hasPublishDate" class="flex gap-2">
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                        </p>
+                                        <p>Publish date is required</p>
+                                    </div>
+                                </TransitionGroup>
+                            </div>
+                        </Transition>
+                    </template>
                 </LCard>
 
                 <LCard
@@ -206,5 +371,5 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
                 </LCard>
             </div>
         </div>
-    </div>
+    </form>
 </template>

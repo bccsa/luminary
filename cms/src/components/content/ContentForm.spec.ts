@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import ContentForm from "./ContentForm.vue";
-import { mockContent, mockPost } from "@/tests/mockData";
+import { mockContent, mockPost, mockUnpublishableContent } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType } from "@/types";
+import { useLocalChangeStore } from "@/stores/localChanges";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -14,7 +17,9 @@ vi.mock("vue-router", () => ({
 }));
 
 describe("ContentForm", () => {
-    beforeEach(() => {});
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+    });
 
     afterEach(() => {
         vi.clearAllMocks();
@@ -119,8 +124,99 @@ describe("ContentForm", () => {
         await waitForExpect(() => {
             const saveEvent: any = wrapper.emitted("save");
             expect(saveEvent).toBe(undefined);
-
-            expect(wrapper.text()).toContain("Form not valid");
         });
+    });
+
+    it("does not display text, audio or video when not defined", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: {
+                    ...mockContent,
+                    text: undefined,
+                },
+            },
+        });
+
+        const textInput = await wrapper.find("input[name='text']");
+        const audioInput = await wrapper.find("input[name='audio']");
+        const videoInput = await wrapper.find("input[name='video']");
+        expect(textInput.isVisible()).toBe(false);
+        expect(audioInput.isVisible()).toBe(false);
+        expect(videoInput.isVisible()).toBe(false);
+    });
+
+    it("adds a field for text, audio, or video when a button is clicked", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: {
+                    ...mockContent,
+                    text: undefined,
+                },
+            },
+        });
+
+        await wrapper.find("button[data-test='addText']").trigger("click");
+        await wrapper.find("button[data-test='addAudio']").trigger("click");
+        await wrapper.find("button[data-test='addVideo']").trigger("click");
+
+        const textInput = await wrapper.find("input[name='text']");
+        const audioInput = await wrapper.find("input[name='audio']");
+        const videoInput = await wrapper.find("input[name='video']");
+        expect(textInput.isVisible()).toBe(true);
+        expect(audioInput.isVisible()).toBe(true);
+        expect(videoInput.isVisible()).toBe(true);
+    });
+
+    it("displays why a post cannot be published", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockUnpublishableContent,
+            },
+        });
+
+        await wrapper.find("button[data-test='publish']").trigger("click");
+
+        await waitForExpect(() => {
+            const saveEvent: any = wrapper.emitted("save");
+            expect(saveEvent).toBe(undefined);
+
+            expect(wrapper.text()).toContain("Summary is required");
+            expect(wrapper.text()).toContain("Publish date is required");
+            expect(wrapper.text()).toContain(
+                "At least one of text, audio or video content is required",
+            );
+        });
+    });
+
+    it("displays when there are unsaved changes", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockContent,
+            },
+        });
+
+        await wrapper.find("input[name='title']").setValue("Updated Title");
+
+        expect(wrapper.text()).toContain("Unsaved changes");
+    });
+
+    it("displays a badge when there are offline changes", async () => {
+        const localChangeStore = useLocalChangeStore();
+
+        // @ts-expect-error - Property is read-only but we are mocking it
+        localChangeStore.isLocalChange = () => true;
+
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockContent,
+            },
+        });
+
+        expect(wrapper.text()).toContain("Offline changes");
     });
 });

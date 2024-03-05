@@ -77,6 +77,7 @@ describe("postRepository", () => {
         const content: Content = {
             ...mockContent,
             title: "Updated Title",
+            publishDate: undefined,
         };
         const post: Post = {
             ...mockPost,
@@ -95,6 +96,7 @@ describe("postRepository", () => {
             .first()) as ContentDto;
         expect(dbContent.title).toBe("Updated Title");
         expect(dbContent.parentId).toBe(dbPost._id);
+        expect(dbContent.publishDate).toBe(undefined);
 
         // Assert content and post were logged in the localChanges table
         const localChanges = await db.localChanges.toArray();
