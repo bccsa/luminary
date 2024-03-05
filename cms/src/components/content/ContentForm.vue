@@ -335,15 +335,6 @@ const isDirty = ref(false);
                     </template>
                 </LCard>
 
-                <LCard title="Preview">
-                    <div class="flex gap-4">
-                        <LButton type="button">Preview changes</LButton>
-                        <LButton type="button" :icon="ArrowTopRightOnSquareIcon" iconRight>
-                            Open link
-                        </LButton>
-                    </div>
-                </LCard>
-
                 <LCard
                     title="Post settings"
                     :icon="Cog6ToothIcon"
