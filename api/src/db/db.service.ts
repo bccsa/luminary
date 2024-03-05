@@ -373,7 +373,7 @@ export class DbService extends EventEmitter {
                                     },
                                 },
                                 {
-                                    parentType: docType,
+                                    parentType: docType, // TODO: Remove the parentType field if permissions are simplified
                                 },
                             ],
                         },
@@ -462,9 +462,9 @@ export class DbService extends EventEmitter {
             acc._id = doc1._id;
             acc.type = doc1.type;
 
-            // Include parentType if it exists
-            if (doc1.parentType) {
-                acc.parentType = doc1.parentType;
+            // Include parentId if it exists
+            if (doc1.parentId) {
+                acc.parentId = doc1.parentId;
             }
 
             return acc;

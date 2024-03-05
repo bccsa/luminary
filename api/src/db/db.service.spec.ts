@@ -300,30 +300,30 @@ describe("DbService", () => {
     });
 
     // TODO: Fix this test after researching CouchDB indexing
-    // it("does not return indexing warnings on getDocsPerGroup queries", async () => {
-    //     const userAccess = new Map<DocType, Uuid[]>();
-    //     userAccess[DocType.Post] = ["group-public-content"];
-    //     userAccess[DocType.Tag] = ["group-public-content"];
-    //     userAccess[DocType.Group] = ["group-public-content"];
+    it.skip("does not return indexing warnings on getDocsPerGroup queries", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = ["group-public-content"];
+        userAccess[DocType.Tag] = ["group-public-content"];
+        userAccess[DocType.Group] = ["group-public-content"];
 
-    //     // The first test checks for indexing warnings for queries on the full time range
-    //     const res: DbQueryResult = await service.getDocsPerGroup("user-public", {
-    //         userAccess,
-    //         from: 0,
-    //     });
+        // The first test checks for indexing warnings for queries on the full time range
+        const res: DbQueryResult = await service.getDocsPerGroup("user-public", {
+            userAccess,
+            from: 0,
+        });
 
-    //     // The second test checks for indexing warnings for queries on a specific time range
-    //     // const oldest = await service.getOldestChangeTime();
-    //     const newest = await service.getLatestDocUpdatedTime();
-    //     const res2: DbQueryResult = await service.getDocsPerGroup("user-public", {
-    //         userAccess,
-    //         // from: Math.floor(newest - (newest - oldest) / 2),
-    //         from: newest,
-    //     });
+        // The second test checks for indexing warnings for queries on a specific time range
+        // const oldest = await service.getOldestChangeTime();
+        const newest = await service.getLatestDocUpdatedTime();
+        const res2: DbQueryResult = await service.getDocsPerGroup("user-public", {
+            userAccess,
+            // from: Math.floor(newest - (newest - oldest) / 2),
+            from: newest,
+        });
 
-    //     expect(res.warnings).toBe(undefined);
-    //     expect(res2.warnings).toBe(undefined);
-    // });
+        expect(res.warnings).toBe(undefined);
+        expect(res2.warnings).toBe(undefined);
+    });
 
     it("does not return indexing warnings on getGroups queries", async () => {
         const res: DbQueryResult = await service.getGroups();

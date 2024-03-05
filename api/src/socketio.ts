@@ -29,57 +29,43 @@ type ClientDataReq = {
 @Injectable()
 export class Socketio implements OnGatewayInit {
     appDocTypes: Array<DocType> = [DocType.Post, DocType.Tag, DocType.Content, DocType.Language];
-    cmsDocTypes: Array<DocType> = [DocType.Group];
+    cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
 
     constructor(private db: DbService) {}
 
     afterInit(server: Server) {
         // Subscribe to database changes and broadcast change to all group rooms to which the document belongs
-        this.db.on("update", (update: any) => {
+        this.db.on("update", async (update: any) => {
             // Only include documents with a document type property
             if (!update.type) {
-                return;
+                return; // TODO: Add error logging provider
             }
 
             // We are using a socket.io room per document type per group. Change documents are broadcasted to the document-group rooms of the documents they reference.
             // Content documents are broadcasted to their parent document-group rooms.
+            let refDoc = update;
 
-            // Non-group documents
-            if (update.memberOf) {
-                let docType = update.type;
-                if (update.type == "change" && update.changes) {
-                    if (update.changes.type == "content") {
-                        docType = update.changes.parentType;
-                    } else {
-                        docType = update.changes.type;
-                    }
-                    docType = "cms-" + docType; // Prepend "cms-" to the docType for (CMS only) change documents. This is needed to be able to allow the CMS to specifically subscribe to change documents.
-                } else if (update.type == "content") {
-                    docType = update.parentType;
-                }
+            // Extract reference document info from change documents
+            if (refDoc.type == "change" && refDoc.changes) refDoc = update.changes;
 
-                server
-                    .to(update.memberOf.map((group) => `${docType}-${group}`))
-                    .emit("data", [update]);
-                return;
+            // Get parent document as reference document for content documents
+            if (refDoc.type == "content") {
+                const res = await this.db.getDoc(refDoc.parentId);
+                if (!(res.docs && Array.isArray(res.docs) && res.docs.length > 0)) return; // TODO: Add error logging provider
+                refDoc = res.docs[0];
             }
 
-            // Group documents
-            if (update.acl) {
-                // If the document is a "change" document, the group id is stored in the docId property
-                let docType = update.type;
-                let groupId = update._id;
+            // Get groups of reference document
+            const refGroups = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf;
 
-                if (update.type == "change" && update.changes) {
-                    docType = update.changes.type;
-                    groupId = update.docId;
-                }
+            // Create room names to emit to
+            let rooms = refGroups.map((group) => `${refDoc.type}-${group}`);
 
-                server.to(`${docType}-${groupId}`).emit("data", [update]);
-                return;
-            }
+            // Prepend "cms-" to the room names for (CMS only) change documents. This is needed to be able to allow the CMS to specifically subscribe to change documents.
+            if (update.type == "change") rooms = rooms.map((room) => `cms-${room}`);
 
-            // TODO: Add error logging provider
+            // Emit to rooms
+            if (rooms.length > 0) server.to(rooms).emit("data", [update]);
         });
     }
 

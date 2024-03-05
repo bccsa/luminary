@@ -42,23 +42,6 @@ export class PermissionSystem {
         return this._id;
     }
 
-    // TODO: Add access map extraction function to extract map to be passed to CMS
-    // /**
-    //  * Extract an access map for the passed group ID's
-    //  * @param groupIds - Group IDs for which the access map should be extracted
-    //  * @returns - Access Map for the passed group IDs
-    //  */
-    // static getAccessMap(groupIds: Array<Uuid>): AccessMap {
-    //     const resultMap = new AccessMap();
-    //     groupIds.forEach((id: Uuid) => {
-    //         const g = groupMap[id];
-    //         if (!g) return;
-
-    //         resultMap.map = { ...resultMap, ...g._groupTypePermissionMap };
-    //     });
-    //     return resultMap;
-    // }
-
     /**
      * Get the accessible groups based on the specified document type, permission, and member groups.
      * @param types - The document types for which access should be verified.
