@@ -253,45 +253,85 @@ const isDirty = ref(false);
                             </div>
                         </div>
 
-                        <template v-if="Object.keys(errors).length > 0">
-                            <p class="mt-6 text-xs text-gray-700">
-                                These fields prevent <strong>saving</strong>:
-                            </p>
-                            <div class="mt-2 flex flex-col gap-2 pt-2 text-sm text-gray-900">
-                                <div v-for="(error, key) in errors" :key="key" class="flex gap-2">
-                                    <p>
-                                        <ExclamationCircleIcon
-                                            class="mt-0.5 h-4 w-4 text-gray-400"
-                                        />
-                                    </p>
-                                    <p>{{ renderErrorMessage(error) }}</p>
-                                </div>
-                            </div>
-                        </template>
+                        <Transition
+                            enter-active-class="transition ease-out duration-300"
+                            enter-from-class="opacity-0 -translate-y-8 scale-y-50"
+                            leave-active-class="transition ease-out duration-300 absolute"
+                            leave-to-class="opacity-0 -translate-y-8 scale-y-50"
+                        >
+                            <div v-if="Object.keys(errors).length > 0">
+                                <p class="mt-6 text-xs text-gray-700">
+                                    These errors prevent <strong>saving</strong>, even as draft:
+                                </p>
 
-                        <template v-if="!canPublish">
-                            <p class="mt-6 text-xs text-gray-700">
-                                These fields prevent <strong>publishing</strong>:
-                            </p>
-                            <div class="mt-2 flex flex-col gap-2 pt-2 text-sm text-gray-900">
-                                <div v-if="!hasOneContentField" class="flex gap-2">
-                                    <p><XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" /></p>
-                                    <p>At least one of text, audio or video content is required</p>
-                                </div>
-                                <div v-if="!hasSummary" class="flex gap-2">
-                                    <p><XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" /></p>
-                                    <p>Summary is required</p>
-                                </div>
-                                <div v-if="!hasPublishDate" class="flex gap-2">
-                                    <p><XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" /></p>
-                                    <p>Publish date is required</p>
-                                </div>
-                                <div v-for="(error, key) in errors" :key="key" class="flex gap-2">
-                                    <p><XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" /></p>
-                                    <p>{{ renderErrorMessage(error) }}</p>
-                                </div>
+                                <TransitionGroup
+                                    class="mt-2 space-y-2 pt-2 text-sm text-red-600"
+                                    move-class="transition ease-out duration-300"
+                                    enter-active-class="transition ease-out duration-300"
+                                    enter-from-class="opacity-0 translate-x-8"
+                                    leave-to-class="opacity-0 translate-x-8"
+                                    leave-active-class="transition ease-out duration-300 absolute"
+                                    tag="div"
+                                >
+                                    <div
+                                        v-for="(error, key) in errors"
+                                        :key="key"
+                                        class="flex gap-2"
+                                    >
+                                        <p>
+                                            <ExclamationCircleIcon
+                                                class="mt-0.5 h-4 w-4 text-red-400"
+                                            />
+                                        </p>
+                                        <p>{{ renderErrorMessage(error) }}</p>
+                                    </div>
+                                </TransitionGroup>
                             </div>
-                        </template>
+                        </Transition>
+
+                        <Transition
+                            enter-active-class="transition ease-out duration-300"
+                            enter-from-class="opacity-0 -translate-y-8 scale-y-50"
+                            leave-active-class="transition ease-out duration-300 absolute"
+                            leave-to-class="opacity-0 -translate-y-8 scale-y-50"
+                        >
+                            <div v-if="!canPublish">
+                                <p class="mt-6 text-xs text-gray-700">
+                                    These fields prevent <strong>publishing</strong>:
+                                </p>
+
+                                <TransitionGroup
+                                    class="mt-2 space-y-2 pt-2 text-sm text-gray-900"
+                                    move-class="transition ease-out duration-300"
+                                    enter-active-class="transition ease-out duration-300"
+                                    enter-from-class="opacity-0 translate-x-8"
+                                    leave-to-class="opacity-0 translate-x-8"
+                                    leave-active-class="transition ease-out duration-300 absolute"
+                                    tag="div"
+                                >
+                                    <div v-if="!hasOneContentField" class="flex gap-2">
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                        </p>
+                                        <p>
+                                            At least one of text, audio or video content is required
+                                        </p>
+                                    </div>
+                                    <div v-if="!hasSummary" class="flex gap-2">
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                        </p>
+                                        <p>Summary is required</p>
+                                    </div>
+                                    <div v-if="!hasPublishDate" class="flex gap-2">
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                        </p>
+                                        <p>Publish date is required</p>
+                                    </div>
+                                </TransitionGroup>
+                            </div>
+                        </Transition>
                     </template>
                 </LCard>
 
