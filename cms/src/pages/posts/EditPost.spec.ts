@@ -4,16 +4,22 @@ import EditPost from "./EditPost.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useLanguageStore } from "@/stores/language";
-import { mockContent, mockLanguageEng, mockLanguageFra, mockPost } from "@/tests/mockData";
+import { mockEnglishContent, mockLanguageEng, mockLanguageFra, mockPost } from "@/tests/mockData";
 import ContentForm from "@/components/content/ContentForm.vue";
 import { usePostStore } from "@/stores/post";
 import waitForExpect from "wait-for-expect";
 
+let routeLanguage: string;
+
 vi.mock("vue-router", () => ({
     resolve: vi.fn(),
+    useRouter: vi.fn().mockImplementation(() => ({
+        replace: vi.fn(),
+    })),
     useRoute: vi.fn().mockImplementation(() => ({
         params: {
-            id: mockPost._id,
+            postId: mockPost._id,
+            language: routeLanguage,
         },
     })),
 }));
@@ -61,7 +67,15 @@ describe("EditPost", () => {
         await wrapper.find("button[data-test='publish']").trigger("click");
 
         await waitForExpect(() => {
-            expect(postStore.updatePost).toHaveBeenCalledWith(mockContent, mockPost);
+            expect(postStore.updatePost).toHaveBeenCalledWith(mockEnglishContent, mockPost);
         });
+    });
+
+    it("can set the language from the route params", async () => {
+        routeLanguage = "fra";
+
+        const wrapper = mount(EditPost);
+
+        expect(wrapper.text()).toContain(mockPost.content[1].title);
     });
 });

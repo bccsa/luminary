@@ -93,7 +93,7 @@ export const mockLanguageDtoFra: LanguageDto = {
     name: "Français",
 };
 
-export const mockContent: Content = {
+export const mockEnglishContent: Content = {
     _id: "content-post1-eng",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
@@ -105,6 +105,24 @@ export const mockContent: Content = {
     summary: "This is an example post",
     author: "ChatGPT",
     text: "In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily's eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community's beloved guardian.",
+    localisedImage: undefined,
+    audio: undefined,
+    video: undefined,
+    publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    expiryDate: undefined,
+};
+export const mockFrenchContent: Content = {
+    _id: "content-post1-fra",
+    type: DocType.Content,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    language: mockLanguageFra,
+    status: ContentStatus.Published,
+    slug: "post1-fra",
+    title: "Post 1",
+    summary: "Ceci est un exemple de publication.",
+    author: "ChatGPT",
+    text: "Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l'aider. Lily s'accrocha à l'espoir alors qu'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté.",
     localisedImage: undefined,
     audio: undefined,
     video: undefined,
@@ -137,7 +155,7 @@ export const mockPost: Post = {
     image: "test.jpg",
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
-    content: [mockContent],
+    content: [mockEnglishContent, mockFrenchContent],
     tags: [],
 };
 

@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, expect } from "vitest";
 import { db } from "../baseDatabase";
 import {
-    mockContent,
+    mockEnglishContent,
     mockEnglishContentDto,
     mockFrenchContentDto,
     mockLanguageDtoEng,
@@ -75,7 +75,7 @@ describe("postRepository", () => {
         ]);
         const repository = new PostRepository();
         const content: Content = {
-            ...mockContent,
+            ...mockEnglishContent,
             title: "Updated Title",
             publishDate: undefined,
         };
