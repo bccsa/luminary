@@ -3,6 +3,7 @@
     "type": "content",
     "memberOf": ["group-private-content"],
     "parentId": "tag-topicB",
+    "parentType": "tag",
     "language": "lang-fra",
     "status": "published",
     "slug": "topicB-fra",

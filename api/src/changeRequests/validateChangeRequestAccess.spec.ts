@@ -66,22 +66,31 @@ describe("validateChangeRequestAccess", () => {
                 },
             });
 
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = await validateChangeRequestAccess(testChangeReq_change, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_change,
+                ["group-super-admins"],
+                db,
+            );
             expect(res.error).toBe("Invalid document type - cannot submit Change documents");
         });
     });
 
     describe("Group documents", () => {
         it("higher level group with edit access can pass validation", async () => {
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = await validateChangeRequestAccess(testChangeReq_group, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_group,
+                ["group-super-admins"],
+                db,
+            );
             expect(res.validated).toBe(true);
         });
 
         it("group with no access can NOT pass validation ", async () => {
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_group, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_group,
+                ["group-private-editors"],
+                db,
+            );
             expect(res.error).toBe("No access to 'Edit' document type 'Group'");
         });
 
@@ -117,8 +126,11 @@ describe("validateChangeRequestAccess", () => {
                 },
             });
 
-            const accessMap = PermissionSystem.getAccessMap(["group-super-admins"]);
-            const res = await validateChangeRequestAccess(testChangeReq_groupAcl, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_groupAcl,
+                ["group-super-admins"],
+                db,
+            );
             expect(res.error).toBe("No access to 'Assign' one or more groups to the group ACL");
         });
 
@@ -139,8 +151,11 @@ describe("validateChangeRequestAccess", () => {
                 },
             });
 
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_newGroup, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_newGroup,
+                ["group-private-editors"],
+                db,
+            );
             expect(res.error).toBe("No access to 'Edit' document type 'Group'");
         });
     });
@@ -170,16 +185,22 @@ describe("validateChangeRequestAccess", () => {
         });
 
         it("can validate: general test should pass all validations", async () => {
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_Content, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_Content,
+                ["group-private-editors"],
+                db,
+            );
 
             expect(res.validated).toBe(true);
         });
 
-        it("ccan validate: No access to 'Translate' document", async () => {
+        it("can validate: No access to 'Translate' document", async () => {
             // Test if another group does not have translate access to the Content document
-            const accessMap = PermissionSystem.getAccessMap(["group-public-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_Content, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_Content,
+                ["group-public-editors"],
+                db,
+            );
             expect(res.error).toBe("No access to 'Translate' document");
         });
 
@@ -230,10 +251,12 @@ describe("validateChangeRequestAccess", () => {
                     ],
                 },
             ]);
-            const accessMap = PermissionSystem.getAccessMap([
-                "group-test-language-translate-access",
-            ]);
-            const res = await validateChangeRequestAccess(testChangeReq_Content, accessMap, db);
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_Content,
+                ["group-test-language-translate-access"],
+                db,
+            );
             expect(res.error).toBe("No 'Translate' access to the language of the Content object");
         });
 
@@ -274,11 +297,44 @@ describe("validateChangeRequestAccess", () => {
                 },
             ]);
 
-            const accessMap = PermissionSystem.getAccessMap([
-                "group-test-language-translate-access",
-            ]);
-            const res = await validateChangeRequestAccess(testChangeReq_Content, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_Content,
+                ["group-test-language-translate-access"],
+                db,
+            );
             expect(res.error).toBe("No 'Publish' access to document type 'Content'");
+        });
+
+        it("can reject a document with an invalid language", async () => {
+            const testChangeReq_invalidLanguage = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "content-post2-eng",
+                    type: "content",
+                    memberOf: ["group-private-content"],
+                    parentId: "post-post2",
+                    language: "invalid-lang",
+                    status: "published",
+                    slug: "post2-eng",
+                    title: "Post 2",
+                    summary: "This is an example post",
+                    author: "",
+                    text: "",
+                    seo: "",
+                    localisedImage: "",
+                    audio: "",
+                    video: "",
+                    publishDate: 3,
+                    expiryDate: 0,
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_invalidLanguage,
+                ["group-private-editors"],
+                db,
+            );
+            expect(res.error).toBe("Language document not found");
         });
     });
 
@@ -296,15 +352,21 @@ describe("validateChangeRequestAccess", () => {
         });
 
         it("can validate: general test should pass all validations", async () => {
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_Post, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_Post,
+                ["group-private-editors"],
+                db,
+            );
             expect(res.validated).toBe(true);
         });
 
-        it("can validate: No 'Edit' access to one or more groups", async () => {
-            const accessMap = PermissionSystem.getAccessMap(["group-private-users"]);
-            const res = await validateChangeRequestAccess(testChangeReq_Post, accessMap, db);
-            expect(res.error).toBe("No 'Edit' access to one or more groups");
+        it("can validate: No 'Edit' access to document", async () => {
+            const res = await validateChangeRequestAccess(
+                testChangeReq_Post,
+                ["group-private-users"],
+                db,
+            );
+            expect(res.error).toBe("No 'Edit' access to document");
         });
 
         it("can reject a document without group membership", async () => {
@@ -320,8 +382,11 @@ describe("validateChangeRequestAccess", () => {
                 },
             });
 
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_noGroup, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_noGroup,
+                ["group-private-editors"],
+                db,
+            );
             expect(res.error).toBe(
                 "Unable to verify access. The document is not a group or does not have group membership",
             );
@@ -342,8 +407,11 @@ describe("validateChangeRequestAccess", () => {
                 },
             });
 
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_noTags, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_noTags,
+                ["group-private-editors"],
+                db,
+            );
             expect(res.validated).toBe(true);
         });
 
@@ -396,8 +464,11 @@ describe("validateChangeRequestAccess", () => {
                 },
             });
 
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_Tag, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_Tag,
+                ["group-private-editors"],
+                db,
+            );
             expect(res.error).toBe("No 'Assign' access to one or more tags");
         });
 
@@ -414,8 +485,11 @@ describe("validateChangeRequestAccess", () => {
                 },
             });
 
-            const accessMap = PermissionSystem.getAccessMap(["group-private-editors"]);
-            const res = await validateChangeRequestAccess(testChangeReq_noTags, accessMap, db);
+            const res = await validateChangeRequestAccess(
+                testChangeReq_noTags,
+                ["group-private-editors"],
+                db,
+            );
             expect(res.validated).toBe(true);
         });
     });

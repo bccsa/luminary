@@ -1,4 +1,4 @@
-import { instanceToPlain, plainToInstance } from "class-transformer";
+import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { ContentDto } from "../dto/ContentDto";
@@ -8,9 +8,8 @@ import { LanguageDto } from "../dto/LanguageDto";
 import { PostDto } from "../dto/PostDto";
 import { TagDto } from "../dto/TagDto";
 import { UserDto } from "../dto/UserDto";
-import { DocType } from "../enums";
+import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
-import { AccessMap } from "src/permissions/AccessMap";
 import { DbService } from "src/db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 
@@ -33,7 +32,7 @@ const DocTypeMap = {
  */
 export async function validateChangeRequest(
     data: any,
-    accessMap: AccessMap,
+    groupMembership: Array<Uuid>,
     dbService: DbService,
 ): Promise<ValidationResult> {
     const changeRequest = plainToInstance(ChangeReqDto, data, { excludeExtraneousValues: true });
@@ -65,19 +64,11 @@ export async function validateChangeRequest(
         return validationResult;
     }
 
-    const accessValidationResult = await validateChangeRequestAccess(
-        changeRequest,
-        accessMap,
-        dbService,
-    );
-    if (!accessValidationResult.validated) {
-        return accessValidationResult;
-    }
+    // Replace the included document in the change request with the validated document
+    changeRequest.doc = doc;
 
-    return {
-        validated: true,
-        validatedData: instanceToPlain(doc),
-    };
+    // Validate access and return result
+    return validateChangeRequestAccess(changeRequest, groupMembership, dbService);
 }
 
 async function dtoValidate(data: any, message: string): Promise<ValidationResult> {

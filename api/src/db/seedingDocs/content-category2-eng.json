@@ -3,6 +3,7 @@
     "type": "content",
     "memberOf": ["group-private-content"],
     "parentId": "tag-category2",
+    "parentType": "tag",
     "language": "lang-eng",
     "status": "published",
     "slug": "category2-eng",

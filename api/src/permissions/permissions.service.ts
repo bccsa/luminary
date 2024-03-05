@@ -1,7 +1,6 @@
 import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
-import { AccessMap } from "./AccessMap";
 
 /**
  * Acl map entry used internally in Group objects
@@ -17,7 +16,8 @@ type AclMapEntry = {
 const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
 
 /**
- * Permission system class
+ * Represents a permission system that uses a tree structure to organize groups and manage permissions.
+ * Each group keeps track of implied permissions and references to parents and children.
  */
 export class PermissionSystem {
     // The permission system is a tree structure where each node is representing a group. Each group keeps track of implied permissions and references to parents (through the group's ACLs) and to children (through the childGroup map).
@@ -43,19 +43,80 @@ export class PermissionSystem {
     }
 
     /**
-     * Extract an access map for the passed group ID's
-     * @param groupIds - Group IDs for which the access map should be extracted
-     * @returns - Access Map for the passed group IDs
+     * Get the accessible groups based on the specified document type, permission, and member groups.
+     * @param types - The document types for which access should be verified.
+     * @param permission - The permission for which access should be verified.
+     * @param memberOfGroups - The array of member groups.
+     * @returns An array of accessible group IDs.
      */
-    static getAccessMap(groupIds: Array<Uuid>): AccessMap {
-        const resultMap = new AccessMap();
-        groupIds.forEach((id: Uuid) => {
-            const g = groupMap[id];
+    static getAccessibleGroups(
+        types: DocType[],
+        permission: AclPermission,
+        memberOfGroups: Array<Uuid>,
+    ): Map<DocType, Uuid[]> {
+        const resultMap = new Map<DocType, Uuid[]>();
+        memberOfGroups.forEach((memberGroup: Uuid) => {
+            const g = groupMap[memberGroup];
             if (!g) return;
-
-            resultMap.map = { ...resultMap, ...g._groupTypePermissionMap };
+            types.forEach((type: DocType) => {
+                if (
+                    g._typePermissionGroupRequestorMap[type] &&
+                    g._typePermissionGroupRequestorMap[type][permission]
+                ) {
+                    // Add to result map and remove duplicates
+                    if (!resultMap[type]) resultMap[type] = [];
+                    const unique = new Set([
+                        ...resultMap[type],
+                        ...Object.keys(g._typePermissionGroupRequestorMap[type][permission]),
+                    ]);
+                    resultMap[type] = [...unique];
+                }
+            });
         });
         return resultMap;
+    }
+
+    /**
+     * Verify access for the passed target group ID
+     * @param targetGroup - Group ID for which user access should be verified for given document type and permission
+     * @param type - Document type for which access should be verified
+     * @param permission - Permission for which access should be verified
+     * @param memberOfGroups - User group membership
+     * @param validation - Validation type. "any" = returns true if ANY the user's membership groups has access to ANY of the "targetGroups". "all" = returns true if the ANY of the users membership groups has access to ALL of the "targetGroups". (Default: "any")
+     * @returns - True if access is granted, otherwise false
+     */
+    static verifyAccess(
+        targetGroups: Uuid[],
+        type: DocType,
+        permission: AclPermission,
+        memberOfGroups: Array<Uuid>,
+        validation: "any" | "all" = "any",
+    ) {
+        for (const memberGroup of memberOfGroups) {
+            let memberGroupValidated = true;
+            for (const targetGroup of targetGroups) {
+                const g = groupMap[memberGroup];
+                if (
+                    g &&
+                    g._groupTypePermissionMap[targetGroup] &&
+                    g._groupTypePermissionMap[targetGroup][type] &&
+                    g._groupTypePermissionMap[targetGroup][type][permission]
+                ) {
+                    if (validation === "any") {
+                        return true;
+                    }
+                } else {
+                    if (validation === "all") {
+                        memberGroupValidated = false;
+                    }
+                }
+            }
+            if (validation === "all" && memberGroupValidated) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
