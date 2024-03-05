@@ -257,7 +257,7 @@ const isDirty = ref(false);
                             enter-active-class="transition ease-out duration-300"
                             enter-from-class="opacity-0 -translate-y-8 scale-y-50"
                             leave-active-class="transition ease-out duration-300 absolute"
-                            leave-to-class="opacity-0 -translate-y-8 scale-y-50"
+                            leave-to-class="opacity-0 -translate-y-8 scale-y-[.1]"
                         >
                             <div v-if="Object.keys(errors).length > 0">
                                 <p class="mt-6 text-xs text-gray-700">
@@ -293,7 +293,7 @@ const isDirty = ref(false);
                             enter-active-class="transition ease-out duration-300"
                             enter-from-class="opacity-0 -translate-y-8 scale-y-50"
                             leave-active-class="transition ease-out duration-300 absolute"
-                            leave-to-class="opacity-0 -translate-y-8 scale-y-50"
+                            leave-to-class="opacity-0 -translate-y-8 scale-y-[.1]"
                         >
                             <div v-if="!canPublish">
                                 <p class="mt-6 text-xs text-gray-700">
