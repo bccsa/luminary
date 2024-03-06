@@ -16,7 +16,7 @@ const postId = route.params.postId as string;
 const routeLanguage = route.params.language as string;
 
 const post = computed(() => postStore.post(postId));
-const isLoading = computed(() => postStore.posts == undefined);
+const isLoading = computed(() => post.value == undefined);
 const content = computed(() => {
     return post.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
 });
