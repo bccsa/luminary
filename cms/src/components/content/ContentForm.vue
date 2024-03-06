@@ -8,14 +8,13 @@ import {
     DocumentTextIcon,
     VideoCameraIcon,
     MusicalNoteIcon,
-    ArrowTopRightOnSquareIcon,
 } from "@heroicons/vue/20/solid";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/16/solid";
 import { ContentStatus, type Content, type Post } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
-import { computed, ref, toRaw, toRefs, watch } from "vue";
+import { computed, onBeforeMount, ref, toRaw } from "vue";
 import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
 import { DateTime } from "luxon";
 import { renderErrorMessage } from "@/util/renderErrorMessage";
@@ -28,15 +27,13 @@ type Props = {
 
 const props = defineProps<Props>();
 
-const { content: contentProp, post: postProp } = toRefs(props);
-
 const { isLocalChange } = useLocalChangeStore();
 
-const hasText = ref(contentProp.value.text != undefined && contentProp.value.text.trim() != "");
-const hasAudio = ref(contentProp.value.audio != undefined && contentProp.value.audio.trim() != "");
-const hasVideo = ref(contentProp.value.video != undefined && contentProp.value.video.trim() != "");
-
 const emit = defineEmits(["save"]);
+
+const hasText = ref(props.content.text != undefined && props.content.text.trim() != "");
+const hasAudio = ref(props.content.audio != undefined && props.content.audio.trim() != "");
+const hasVideo = ref(props.content.video != undefined && props.content.video.trim() != "");
 
 const validationSchema = toTypedSchema(
     yup.object({
@@ -68,20 +65,17 @@ const validationSchema = toTypedSchema(
 const { handleSubmit, values, setValues, errors } = useForm({
     validationSchema,
 });
-watch(
-    [postProp, contentProp],
-    ([post, content]) => {
-        // Convert dates to format VeeValidate understands
-        const filteredContent: any = { ...toRaw(content) };
-        filteredContent.publishDate = content.publishDate?.toISO()?.split(".")[0];
 
-        setValues({
-            ...onlyAllowedKeys(filteredContent, Object.keys(values)),
-            parent: onlyAllowedKeys(toRaw(post), Object.keys(values.parent as object)),
-        });
-    },
-    { immediate: true },
-);
+onBeforeMount(() => {
+    // Convert dates to format VeeValidate understands
+    const filteredContent: any = { ...toRaw(props.content) };
+    filteredContent.publishDate = props.content.publishDate?.toISO()?.split(".")[0];
+
+    setValues({
+        ...onlyAllowedKeys(filteredContent, Object.keys(values)),
+        parent: onlyAllowedKeys(toRaw(props.post), Object.keys(values.parent as object)),
+    });
+});
 
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
     // Make sure we don't accidentally add the 'parent' object to the content
@@ -93,14 +87,14 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     }
 
     const content: Content = {
-        ...toRaw(contentProp.value),
+        ...toRaw(props.content),
         ...contentValues,
         publishDate,
         status,
     };
 
     const post = {
-        ...toRaw(postProp.value),
+        ...toRaw(props.post),
         image: validatedFormValues.parent?.image,
         // TODO create tags from topics etc.
     };

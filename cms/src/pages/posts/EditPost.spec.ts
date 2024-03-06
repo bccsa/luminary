@@ -4,10 +4,17 @@ import EditPost from "./EditPost.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useLanguageStore } from "@/stores/language";
-import { mockEnglishContent, mockLanguageEng, mockLanguageFra, mockPost } from "@/tests/mockData";
+import {
+    mockEnglishContent,
+    mockLanguageEng,
+    mockLanguageFra,
+    mockLanguageSwa,
+    mockPost,
+} from "@/tests/mockData";
 import ContentForm from "@/components/content/ContentForm.vue";
 import { usePostStore } from "@/stores/post";
 import waitForExpect from "wait-for-expect";
+import LanguageSelector from "@/components/content/LanguageSelector.vue";
 
 let routeLanguage: string;
 
@@ -30,7 +37,7 @@ describe("EditPost", () => {
 
         const languageStore = useLanguageStore();
         const postStore = usePostStore();
-        languageStore.languages = [mockLanguageEng, mockLanguageFra];
+        languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
         postStore.posts = [mockPost];
     });
 
@@ -77,5 +84,19 @@ describe("EditPost", () => {
         const wrapper = mount(EditPost);
 
         expect(wrapper.text()).toContain(mockPost.content[1].title);
+    });
+
+    it("can create a translation", async () => {
+        const postStore = usePostStore();
+        const wrapper = mount(EditPost);
+
+        await wrapper.find("button[data-test='language-selector']").trigger("click");
+        await wrapper.find("button[data-test='select-language-swa']").trigger("click");
+
+        expect(postStore.createTranslation).toHaveBeenCalledWith(mockPost, mockLanguageSwa);
+        // Test that it switched the current language
+        expect(wrapper.text()).toContain("Swahili");
+        expect(wrapper.text()).not.toContain("Français");
+        expect(wrapper.text()).not.toContain("English");
     });
 });

@@ -75,6 +75,14 @@ export const mockLanguageFra: Language = {
     languageCode: "fra",
     name: "Français",
 };
+export const mockLanguageSwa: Language = {
+    _id: "lang-swa",
+    type: DocType.Language,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    languageCode: "swa",
+    name: "Swahili",
+};
 
 export const mockLanguageDtoEng: LanguageDto = {
     _id: "lang-eng",
@@ -117,7 +125,7 @@ export const mockFrenchContent: Content = {
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
     language: mockLanguageFra,
-    status: ContentStatus.Published,
+    status: ContentStatus.Draft,
     slug: "post1-fra",
     title: "Post 1",
     summary: "Ceci est un exemple de publication.",
