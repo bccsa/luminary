@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import ContentForm from "@/components/content/ContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { usePostStore } from "@/stores/post";
-import type { Content, Language } from "@/types";
-import { computed, ref, toRaw, watch } from "vue";
+import type { Language } from "@/types";
+import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -12,7 +13,7 @@ const router = useRouter();
 const postStore = usePostStore();
 
 const postId = route.params.postId as string;
-const language = route.params.language as string;
+const routeLanguage = route.params.language as string;
 
 const post = computed(() => postStore.post(postId));
 const isLoading = computed(() => postStore.posts == undefined);
@@ -20,13 +21,38 @@ const content = computed(() => {
     return post.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
 });
 
-const selectedLanguage = ref("eng");
+const selectedLanguage = ref<string>();
 
-if (language) {
-    selectedLanguage.value = language;
+onBeforeMount(() => {
+    if (routeLanguage) {
+        selectedLanguage.value = routeLanguage;
 
-    router.replace({ name: "posts.edit", params: { postId } });
-}
+        router.replace({ name: "posts.edit", params: { postId } });
+    }
+});
+
+watch(
+    post,
+    (post) => {
+        if (!post || post.content.length == 0 || routeLanguage || selectedLanguage.value) {
+            return;
+        }
+
+        // TODO this needs to come from a profile setting
+        const defaultLanguage = "eng";
+
+        const defaultLanguageContent = post.content.find(
+            (c) => c.language.languageCode == defaultLanguage,
+        );
+        if (defaultLanguageContent) {
+            selectedLanguage.value = defaultLanguage;
+            return;
+        }
+
+        selectedLanguage.value = post.content[0].language.languageCode;
+    },
+    { immediate: true },
+);
 
 async function createTranslation(language: Language) {
     await postStore.createTranslation(post.value!, language);
@@ -36,14 +62,27 @@ async function createTranslation(language: Language) {
 </script>
 
 <template>
-    <BasePage :title="content?.title" :loading="isLoading">
+    <BasePage :title="content ? content.title : 'Edit post'" :loading="isLoading">
         <template #actions>
             <LanguageSelector
+                v-if="content"
                 :post="post"
                 v-model="selectedLanguage"
                 @create-translation="createTranslation"
             />
         </template>
+
+        <EmptyState
+            v-if="!content"
+            title="No translations found"
+            description="This post does not have any translations. Click to get started:"
+        >
+            <LanguageSelector
+                :post="post"
+                v-model="selectedLanguage"
+                @create-translation="createTranslation"
+            />
+        </EmptyState>
 
         <transition
             enter-active-class="transition ease duration-500"

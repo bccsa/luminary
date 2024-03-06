@@ -32,6 +32,20 @@ describe("LanguageSelector", () => {
         expect(wrapper.text()).not.toContain("Français");
     });
 
+    it("can handle an unset language", async () => {
+        const wrapper = mount(LanguageSelector, {
+            props: {
+                post: undefined,
+                modelValue: undefined,
+            },
+        });
+
+        expect(wrapper.text()).toContain("Select language");
+        expect(wrapper.text()).not.toContain("Swahili");
+        expect(wrapper.text()).not.toContain("English");
+        expect(wrapper.text()).not.toContain("Français");
+    });
+
     it("can display a dropdown with all languages", async () => {
         const wrapper = mount(LanguageSelector, {
             props: {

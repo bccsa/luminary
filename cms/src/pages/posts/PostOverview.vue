@@ -8,7 +8,7 @@ import { usePostStore } from "@/stores/post";
 import LCard from "@/components/common/LCard.vue";
 import LTable from "@/components/common/LTable.vue";
 import { computed, ref } from "vue";
-import { ContentStatus, type Content, type Post } from "@/types";
+import { ContentStatus, type Content, type Post, type Language } from "@/types";
 import { useLanguageStore } from "@/stores/language";
 import LBadge from "@/components/common/LBadge.vue";
 import { storeToRefs } from "pinia";
@@ -56,16 +56,42 @@ const columns = [
 ];
 
 const translationStatus = computed(() => {
-    return (content: Content | undefined) => {
-        if (content?.status == ContentStatus.Published) {
+    return (content: Content[], language: Language) => {
+        const item = content.find((c: Content) => c.language.languageCode == language.languageCode);
+
+        if (!item) {
+            return "default";
+        }
+
+        if (item.status == ContentStatus.Published) {
             return "success";
         }
 
-        if (content?.status == ContentStatus.Draft) {
+        if (item.status == ContentStatus.Draft) {
             return "info";
         }
 
         return "default";
+    };
+});
+
+const postTitle = computed(() => {
+    return (content: Content[]) => {
+        if (content.length == 0) {
+            return "No translation";
+        }
+
+        // TODO this needs to come from a profile setting
+        const defaultLanguage = "eng";
+
+        const defaultLanguageContent = content.find(
+            (c) => c.language.languageCode == defaultLanguage,
+        );
+        if (defaultLanguageContent) {
+            return defaultLanguageContent.title;
+        }
+
+        return content[0].title;
     };
 });
 </script>
@@ -100,7 +126,7 @@ const translationStatus = computed(() => {
                 v-model:sortDirection="sortDirection"
             >
                 <template #item.title="{ content }">
-                    {{ content.length > 0 ? content[0].title : "No translation" }}
+                    {{ postTitle(content) }}
                 </template>
                 <template #item.offlineChanges="post">
                     <LBadge v-if="isLocalChange(post._id)" variant="warning">
@@ -110,8 +136,10 @@ const translationStatus = computed(() => {
                 <template #item.translations="post">
                     <div class="flex gap-2" v-if="post.content.length > 0">
                         <RouterLink
+                            custom
                             v-for="language in languages"
                             :key="language.languageCode"
+                            v-slot="{ navigate }"
                             :to="{
                                 name: 'posts.edit',
                                 params: {
@@ -121,15 +149,17 @@ const translationStatus = computed(() => {
                             }"
                         >
                             <LBadge
-                                type="language"
-                                :variant="
-                                    translationStatus(
-                                        post.content.find(
-                                            (c: Content) =>
-                                                c.language.languageCode == language.languageCode,
-                                        ),
-                                    )
+                                @click="
+                                    translationStatus(post.content, language) == 'default'
+                                        ? ''
+                                        : navigate()
                                 "
+                                type="language"
+                                :variant="translationStatus(post.content, language)"
+                                :class="{
+                                    'cursor-pointer hover:opacity-75':
+                                        translationStatus(post.content, language) !== 'default',
+                                }"
                             >
                                 {{ language.languageCode }}
                             </LBadge>

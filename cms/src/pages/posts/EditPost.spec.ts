@@ -6,6 +6,7 @@ import { setActivePinia } from "pinia";
 import { useLanguageStore } from "@/stores/language";
 import {
     mockEnglishContent,
+    mockFrenchContent,
     mockLanguageEng,
     mockLanguageFra,
     mockLanguageSwa,
@@ -14,6 +15,7 @@ import {
 import ContentForm from "@/components/content/ContentForm.vue";
 import { usePostStore } from "@/stores/post";
 import waitForExpect from "wait-for-expect";
+import EmptyState from "@/components/EmptyState.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 
 let routeLanguage: string;
@@ -61,10 +63,54 @@ describe("EditPost", () => {
         expect(form.exists()).toBe(true);
     });
 
-    it("renders the title of the selected language", async () => {
+    it("renders an empty state when there is no content in the post", async () => {
+        const postStore = usePostStore();
+        postStore.posts = [
+            {
+                ...mockPost,
+                content: [],
+            },
+        ];
+
         const wrapper = mount(EditPost);
 
-        expect(wrapper.text()).toContain(mockPost.content[0].title);
+        const emptyState = await wrapper.findComponent(EmptyState);
+        expect(emptyState.exists()).toBe(true);
+        const languageSelector = await wrapper.findComponent(LanguageSelector);
+        expect(languageSelector.exists()).toBe(true);
+        const form = await wrapper.findComponent(ContentForm);
+        expect(form.exists()).toBe(false);
+    });
+
+    it("renders the title of the default language", async () => {
+        const wrapper = mount(EditPost);
+
+        expect(wrapper.text()).toContain(mockEnglishContent.title);
+    });
+
+    it("renders a different language than the default when it's not available", async () => {
+        const postStore = usePostStore();
+        postStore.posts = [
+            {
+                ...mockPost,
+                content: [mockFrenchContent],
+            },
+        ];
+
+        const wrapper = mount(EditPost);
+
+        expect(wrapper.text()).toContain(mockFrenchContent.title);
+    });
+
+    it("can set the language from the route params", async () => {
+        routeLanguage = "fra";
+
+        const wrapper = mount(EditPost);
+
+        expect(wrapper.text()).toContain(mockPost.content[1].title);
+
+        // Reset test state
+        routeLanguage = "";
     });
 
     it("saves the content", async () => {
@@ -76,14 +122,6 @@ describe("EditPost", () => {
         await waitForExpect(() => {
             expect(postStore.updatePost).toHaveBeenCalledWith(mockEnglishContent, mockPost);
         });
-    });
-
-    it("can set the language from the route params", async () => {
-        routeLanguage = "fra";
-
-        const wrapper = mount(EditPost);
-
-        expect(wrapper.text()).toContain(mockPost.content[1].title);
     });
 
     it("can create a translation", async () => {

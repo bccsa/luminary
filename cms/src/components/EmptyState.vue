@@ -36,6 +36,7 @@ defineProps<{
             >
                 {{ buttonText }}
             </LButton>
+            <slot />
         </div>
     </div>
 </template>

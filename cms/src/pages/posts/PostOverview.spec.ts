@@ -4,7 +4,7 @@ import { createTestingPinia } from "@pinia/testing";
 import PostOverview from "./PostOverview.vue";
 import { usePostStore } from "@/stores/post";
 import EmptyState from "@/components/EmptyState.vue";
-import { mockLanguageEng, mockPost } from "@/tests/mockData";
+import { mockFrenchContent, mockLanguageEng, mockLanguageFra, mockPost } from "@/tests/mockData";
 import LBadge from "@/components/common/LBadge.vue";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
@@ -36,6 +36,25 @@ describe("PostOverview", () => {
         // Assert there is a badge that indicates a published translation
         const badge = await wrapper.findComponent(LBadge);
         expect(badge.props().variant).toBe("success");
+    });
+
+    it("displays a different translation title if the default isn't available", async () => {
+        const postStore = usePostStore();
+        const languageStore = useLanguageStore();
+
+        postStore.posts = [
+            {
+                ...mockPost,
+                content: [mockFrenchContent],
+            },
+        ];
+        languageStore.languages = [mockLanguageEng, mockLanguageFra];
+
+        const wrapper = mount(PostOverview, {
+            global: { stubs: { RouterLink: RouterLinkStub } },
+        });
+
+        expect(wrapper.html()).toContain("French translation title");
     });
 
     it("displays a badge for a post with local unsynced changes", async () => {

@@ -59,4 +59,18 @@ describe("EmptyState", () => {
         expect(wrapper.html()).toContain("Button text");
         expect(buttonAction).toHaveBeenCalled();
     });
+
+    it("renders the default slot", async () => {
+        const wrapper = mount(EmptyState, {
+            props: {
+                title: "Empty state title",
+                description: "Empty state description",
+            },
+            slots: {
+                default: "Test slot",
+            },
+        });
+
+        expect(wrapper.html()).toContain("Test slot");
+    });
 });
