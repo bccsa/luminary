@@ -7,6 +7,7 @@ import { useLanguageStore } from "@/stores/language";
 import { ContentStatus, type Content, type Post } from "@/types";
 import { computed, toRefs } from "vue";
 import { ArrowRightIcon, CheckCircleIcon } from "@heroicons/vue/16/solid";
+import { sortByName } from "@/util/sortByName";
 
 const props = defineProps<{
     post?: Post;
@@ -29,7 +30,9 @@ const translatedLanguages = computed(() => {
         return [];
     }
 
-    return post.value.content.map((c) => c.language);
+    const list = post.value.content.map((c) => c.language);
+
+    return list.sort(sortByName);
 });
 
 const untranslatedLanguages = computed(() => {
@@ -37,9 +40,11 @@ const untranslatedLanguages = computed(() => {
         return [];
     }
 
-    return languages.value.filter(
+    const list = languages.value.filter(
         (language) => translatedLanguages.value.findIndex((t) => t._id == language._id) < 0,
     );
+
+    return list.sort(sortByName);
 });
 
 const translationStatus = computed(() => {
