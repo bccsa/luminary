@@ -11,6 +11,11 @@ type AclMapEntry = {
 };
 
 /**
+ * Access Map used for access calculations
+ */
+export type AccessMap = Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
+
+/**
  * Global Group Map used for permission lookups
  */
 const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
@@ -40,6 +45,75 @@ export class PermissionSystem {
      */
     public get id(): Uuid {
         return this._id;
+    }
+
+    /**
+     * Extract an access map for the passed group ID's
+     * @param groupIds - Group IDs for which the access map should be extracted
+     * @returns - Access Map for the passed group IDs
+     */
+    static getAccessMap(groupIds: Array<Uuid>): AccessMap {
+        let resultMap: AccessMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+        groupIds.forEach((id: Uuid) => {
+            const g = groupMap[id];
+            if (!g) return;
+
+            resultMap = { ...resultMap, ...g._groupTypePermissionMap };
+        });
+        return resultMap;
+    }
+
+    /**
+     * Compare two access maps and return entries that are not present in the second map
+     * @param accessMap1
+     * @param accessMap2
+     * @returns
+     */
+    static accessMapDiff(accessMap1: AccessMap, accessMap2: AccessMap) {
+        const diff = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+        if (accessMap1 === undefined || accessMap2 === undefined) return diff;
+
+        Object.keys(accessMap1).forEach((groupId: Uuid) => {
+            Object.keys(accessMap1[groupId]).forEach((docType: DocType) => {
+                Object.keys(accessMap1[groupId][docType]).forEach((permission: AclPermission) => {
+                    if (
+                        !accessMap2[groupId] ||
+                        !accessMap2[groupId][docType] ||
+                        !accessMap2[groupId][docType][permission]
+                    ) {
+                        if (!diff[groupId]) diff[groupId] = {};
+                        if (!diff[groupId][docType]) diff[groupId][docType] = {};
+                        diff[groupId][docType][permission] = true;
+                    }
+                });
+            });
+        });
+        return diff;
+    }
+
+    /**
+     * Convert an access map to a list of accessible groups per document type for a given permission
+     * @param accessMap
+     * @param permission
+     * @returns
+     */
+    static accessMapToGroups(
+        accessMap: AccessMap,
+        permission: AclPermission,
+        docTypes: DocType[],
+    ): Map<DocType, Uuid[]> {
+        const groups = new Map<DocType, Uuid[]>();
+        Object.keys(accessMap).forEach((groupId: Uuid) => {
+            Object.keys(accessMap[groupId])
+                .filter((d: DocType) => docTypes.includes(d))
+                .forEach((docType: DocType) => {
+                    if (accessMap[groupId][docType][permission]) {
+                        if (!groups[docType]) groups[docType] = [];
+                        groups[docType].push(groupId);
+                    }
+                });
+        });
+        return groups;
     }
 
     /**

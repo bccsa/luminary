@@ -18,6 +18,7 @@ import { instanceToPlain } from "class-transformer";
 export type GetDocsOptions = {
     userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
     from?: number;
+    to?: number;
 };
 
 /**
@@ -323,27 +324,43 @@ export class DbService extends EventEmitter {
      * @returns - Promise containing the query result
      */
     getDocsPerGroup(userId: string, options: GetDocsOptions): Promise<DbQueryResult> {
-        // Set default options
-        if (!options.from) options.from = 0;
-
         return new Promise((resolve, reject) => {
             // To allow effective indexing, the structure inside an "$or" selector should be identical for all the sub-selectors
             // within the "$or". Because of this restriction, it is necessary to do multiple queries and join the result externally
 
             const pList = [];
 
-            const timeSelector = {
-                updatedTimeUtc: {
-                    $gte: options.from,
-                },
-            };
+            const timeSelector = [];
+            let selectors = timeSelector;
+            if (options.from && options.to) {
+                timeSelector.push({
+                    $and: [],
+                });
+                selectors = timeSelector[0].$and;
+            }
+
+            if (options.from) {
+                selectors.push({
+                    updatedTimeUtc: {
+                        $gte: options.from - this.syncTolerance,
+                    },
+                });
+            }
+
+            if (options.to) {
+                selectors.push({
+                    updatedTimeUtc: {
+                        $lt: options.to + this.syncTolerance,
+                    },
+                });
+            }
 
             // Construct queries for each DocType
             Object.keys(options.userAccess).forEach((docType: DocType) => {
                 const docQuery = {
                     selector: {
                         $and: [
-                            ...(options.from > 0 ? [timeSelector] : []),
+                            ...timeSelector,
                             {
                                 type: docType,
                             },
@@ -363,7 +380,7 @@ export class DbService extends EventEmitter {
                     const contentQuery = {
                         selector: {
                             $and: [
-                                ...(options.from > 0 ? [timeSelector] : []),
+                                ...timeSelector,
                                 {
                                     type: DocType.Content,
                                 },
@@ -388,7 +405,7 @@ export class DbService extends EventEmitter {
                 const query_groupDoc = {
                     selector: {
                         $and: [
-                            ...(options.from > 0 ? [timeSelector] : []),
+                            ...timeSelector,
                             {
                                 type: DocType.Group,
                             },

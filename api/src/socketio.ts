@@ -6,8 +6,7 @@ import {
     OnGatewayInit,
 } from "@nestjs/websockets";
 import { Injectable } from "@nestjs/common";
-import { DbService } from "./db/db.service";
-import * as nano from "nano";
+import { DbQueryResult, DbService } from "./db/db.service";
 import { DocType, AclPermission, AckStatus } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
@@ -15,10 +14,12 @@ import { Socket } from "socket.io-client";
 import { Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { processChangeRequest } from "./changeRequests/processChangeRequest";
+import { AccessMap } from "./permissions/permissions.service";
 
 type ClientDataReq = {
     version?: number;
     cms?: boolean;
+    accessMap?: AccessMap;
 };
 
 @WebSocketGateway({
@@ -81,6 +82,10 @@ export class Socketio implements OnGatewayInit {
         const user = "user-private";
         const memberOfGroups = ["group-super-admins"];
 
+        // Get access map and send to client
+        const accessMap = PermissionSystem.getAccessMap(memberOfGroups);
+        socket.emit("accessMap", accessMap);
+
         // Determine which doc types to get
         const docTypes = reqData.cms
             ? [...this.cmsDocTypes, ...this.appDocTypes]
@@ -90,28 +95,15 @@ export class Socketio implements OnGatewayInit {
         if (reqData.version && typeof reqData.version === "number") from = reqData.version;
 
         // Get user accessible groups
-        const userAccess = PermissionSystem.getAccessibleGroups(
-            docTypes,
+        const userViewGroups = PermissionSystem.accessMapToGroups(
+            accessMap,
             AclPermission.View,
-            memberOfGroups,
+            docTypes,
         );
 
-        // Get data from database
-        this.db
-            .getDocsPerGroup(user, {
-                userAccess: userAccess,
-                from: from,
-            })
-            .then((res: nano.MangoResponse<unknown>) => {
-                if (res.docs) {
-                    socket.emit("data", res.docs);
-                }
-            })
-            .catch(console.error); // TODO: Add error logging provider
-
         // Join user to group rooms
-        for (const docType of Object.keys(userAccess)) {
-            for (const group of userAccess[docType]) {
+        for (const docType of Object.keys(userViewGroups)) {
+            for (const group of userViewGroups[docType]) {
                 // @ts-expect-error Seems as if the Socket type definition does not include the join method
                 socket.join(`${docType}-${group}`);
 
@@ -121,6 +113,46 @@ export class Socketio implements OnGatewayInit {
                     socket.join(`cms-${docType}-${group}`);
                 }
             }
+        }
+
+        // Get updated data from database
+        this.db
+            .getDocsPerGroup(user, {
+                userAccess: userViewGroups,
+                from: from,
+            })
+            .then((res: DbQueryResult) => {
+                if (res.docs) {
+                    socket.emit("data", res.docs);
+                }
+            })
+            .catch(console.error); // TODO: Add error logging provider
+
+        reqData.accessMap = JSON.parse(JSON.stringify(accessMap));
+        delete reqData.accessMap["group-super-admins"];
+        delete reqData.accessMap["group-private-users"][DocType.Tag];
+
+        // Get diff between user submitted access map and actual access
+        const diff = PermissionSystem.accessMapDiff(accessMap, reqData.accessMap);
+        const newAccessibleGroups = PermissionSystem.accessMapToGroups(
+            diff,
+            AclPermission.View,
+            docTypes,
+        );
+
+        // Get historical data from database for newly accessible groups
+        if (newAccessibleGroups.size > 0) {
+            this.db
+                .getDocsPerGroup(user, {
+                    userAccess: newAccessibleGroups,
+                    to: from,
+                })
+                .then((res: DbQueryResult) => {
+                    if (res.docs) {
+                        socket.emit("data", res.docs);
+                    }
+                })
+                .catch(console.error); // TODO: Add error logging provider
         }
     }
 
