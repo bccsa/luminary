@@ -86,7 +86,7 @@ const translationStatus = computed(() => {
             leave-to-class="transform opacity-0 scale-95"
         >
             <MenuItems
-                class="absolute -right-1 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                class="absolute -left-1 z-10 mt-2 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:-right-1 sm:left-auto sm:origin-top-right"
             >
                 <div class="py-1">
                     <MenuItem
