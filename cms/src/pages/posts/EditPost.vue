@@ -1,56 +1,106 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import ContentForm from "@/components/content/ContentForm.vue";
-import LSelect from "@/components/forms/LSelect.vue";
-import { useLanguageStore } from "@/stores/language";
+import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { usePostStore } from "@/stores/post";
-import { storeToRefs } from "pinia";
-import { computed, ref } from "vue";
+import type { Language } from "@/types";
+import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
 const router = useRouter();
 const postStore = usePostStore();
-const { languages } = storeToRefs(useLanguageStore());
 
 const postId = route.params.postId as string;
-const language = route.params.language as string;
+const routeLanguage = route.params.language as string;
 
 const post = computed(() => postStore.post(postId));
-const isLoading = computed(() => postStore.posts == undefined);
+const isLoading = computed(() => post.value == undefined);
 const content = computed(() => {
     return post.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
 });
 
-const languageOptions = computed(() => {
-    if (!post.value) {
-        return [];
+const selectedLanguage = ref<string>();
+
+onBeforeMount(() => {
+    if (routeLanguage) {
+        selectedLanguage.value = routeLanguage;
+
+        router.replace({ name: "posts.edit", params: { postId } });
     }
-
-    const languages = post.value.content.map((c) => c.language);
-
-    return languages.map((language) => {
-        return {
-            label: language.name,
-            value: language.languageCode,
-        };
-    });
 });
-const selectedLanguage = ref("eng");
 
-if (language) {
-    selectedLanguage.value = language;
+watch(
+    post,
+    (post) => {
+        if (!post || post.content.length == 0 || routeLanguage || selectedLanguage.value) {
+            return;
+        }
 
-    router.replace({ name: "posts.edit", params: { postId } });
+        // TODO this needs to come from a profile setting
+        const defaultLanguage = "eng";
+
+        const defaultLanguageContent = post.content.find(
+            (c) => c.language.languageCode == defaultLanguage,
+        );
+        if (defaultLanguageContent) {
+            selectedLanguage.value = defaultLanguage;
+            return;
+        }
+
+        selectedLanguage.value = post.content[0].language.languageCode;
+    },
+    { immediate: true },
+);
+
+async function createTranslation(language: Language) {
+    await postStore.createTranslation(post.value!, language);
+
+    selectedLanguage.value = language.languageCode;
 }
 </script>
 
 <template>
-    <BasePage :title="content?.title" :loading="isLoading">
+    <BasePage
+        :title="content ? content.title : 'Edit post'"
+        :loading="isLoading"
+        :back-link-location="{ name: 'posts.index' }"
+        back-link-text="Posts"
+    >
         <template #actions>
-            <LSelect :options="languageOptions" v-model="selectedLanguage" />
+            <LanguageSelector
+                v-if="content"
+                :post="post"
+                v-model="selectedLanguage"
+                @create-translation="createTranslation"
+            />
         </template>
 
-        <ContentForm :post="post" :content="content" v-if="content" @save="postStore.updatePost" />
+        <EmptyState
+            v-if="!content"
+            title="No translations found"
+            description="This post does not have any translations. Click to get started:"
+        >
+            <LanguageSelector
+                :post="post"
+                v-model="selectedLanguage"
+                @create-translation="createTranslation"
+            />
+        </EmptyState>
+
+        <transition
+            enter-active-class="transition ease duration-500"
+            enter-from-class="opacity-0 scale-90"
+            enter-to-class="opacity-100 scale-100"
+        >
+            <ContentForm
+                v-if="content"
+                :key="content._id"
+                :post="post"
+                :content="content"
+                @save="postStore.updatePost"
+            />
+        </transition>
     </BasePage>
 </template>

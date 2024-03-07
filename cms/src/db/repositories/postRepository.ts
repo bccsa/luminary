@@ -1,12 +1,4 @@
-import {
-    DocType,
-    type CreatePostDto,
-    type Post,
-    type PostDto,
-    type ContentDto,
-    ContentStatus,
-    type Content,
-} from "@/types";
+import { DocType, type CreatePostDto, type Post, type PostDto, type Content } from "@/types";
 import { ContentRepository } from "./contentRepository";
 import { BaseRepository } from "./baseRepository";
 import { db } from "../baseDatabase";
@@ -21,20 +13,7 @@ export class PostRepository extends BaseRepository {
     }
 
     async create(dto: CreatePostDto) {
-        const contentId = uuidv4();
         const postId = uuidv4();
-
-        const content: ContentDto = {
-            _id: contentId,
-            parentId: postId,
-            updatedTimeUtc: Date.now(),
-            type: DocType.Content,
-            status: ContentStatus.Draft,
-            language: dto.language._id,
-            title: dto.title,
-            slug: `slug-${dto.title}`, // TODO create actual slug from title
-            memberOf: ["group-private-content"], // TODO set right group
-        };
 
         const post: PostDto = {
             _id: postId,
@@ -45,15 +24,18 @@ export class PostRepository extends BaseRepository {
             memberOf: ["group-private-content"], // TODO set right group
         };
 
-        await db.docs.put(content);
         await db.docs.put(post);
 
         // Save change, which will be sent to the API later
         await db.localChanges.put({
             doc: post,
         });
-        await db.localChanges.put({
-            doc: content,
+
+        // Create content
+        await this._contentRepository.create({
+            parentId: postId,
+            language: dto.language._id,
+            title: dto.title,
         });
 
         return postId;

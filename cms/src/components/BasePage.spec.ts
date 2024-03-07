@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mount } from "@vue/test-utils";
+import { RouterLinkStub, mount } from "@vue/test-utils";
 import BasePage from "./BasePage.vue";
 
 describe("BasePage", () => {
@@ -9,7 +9,17 @@ describe("BasePage", () => {
             slots: { default: "Default slot content" },
         });
 
-        expect(wrapper.html()).toContain("Page title");
-        expect(wrapper.html()).toContain("Default slot content");
+        expect(wrapper.text()).toContain("Page title");
+        expect(wrapper.text()).toContain("Default slot content");
+    });
+
+    it("renders the back link", async () => {
+        const wrapper = mount(BasePage, {
+            props: { backLinkLocation: { name: "posts.index" }, backLinkText: "Posts" },
+        });
+
+        const routerLink = await wrapper.findComponent(RouterLinkStub);
+        expect(routerLink.props().to).toEqual({ name: "posts.index" });
+        expect(wrapper.text()).toContain("Posts");
     });
 });

@@ -75,6 +75,14 @@ export const mockLanguageFra: Language = {
     languageCode: "fra",
     name: "Français",
 };
+export const mockLanguageSwa: Language = {
+    _id: "lang-swa",
+    type: DocType.Language,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    languageCode: "swa",
+    name: "Swahili",
+};
 
 export const mockLanguageDtoEng: LanguageDto = {
     _id: "lang-eng",
@@ -117,9 +125,9 @@ export const mockFrenchContent: Content = {
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
     language: mockLanguageFra,
-    status: ContentStatus.Published,
+    status: ContentStatus.Draft,
     slug: "post1-fra",
-    title: "Post 1",
+    title: "French translation title",
     summary: "Ceci est un exemple de publication.",
     author: "ChatGPT",
     text: "Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l'aider. Lily s'accrocha à l'espoir alors qu'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté.",

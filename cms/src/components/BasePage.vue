@@ -1,13 +1,19 @@
 <script setup lang="ts">
+import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
+import type { RouteLocationRaw } from "vue-router";
+
 type Props = {
     title?: string;
     loading?: boolean;
     centered?: boolean;
+    backLinkLocation?: RouteLocationRaw;
+    backLinkText?: string;
 };
 
 withDefaults(defineProps<Props>(), {
     loading: false,
     centered: false,
+    backLinkText: "Back",
 });
 </script>
 
@@ -18,6 +24,13 @@ withDefaults(defineProps<Props>(), {
         enter-to-class="opacity-100"
     >
         <div v-if="!loading">
+            <RouterLink
+                v-if="backLinkLocation"
+                :to="backLinkLocation"
+                class="-mx-2 mb-1 inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200"
+            >
+                <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
+            </RouterLink>
             <header
                 v-if="title || $slots.actions"
                 :class="[
