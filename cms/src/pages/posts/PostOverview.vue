@@ -19,8 +19,8 @@ const { posts } = storeToRefs(usePostStore());
 const { languages } = storeToRefs(useLanguageStore());
 const { isLocalChange } = useLocalChangeStore();
 
-const sortBy = ref(undefined);
-const sortDirection = ref(undefined);
+const sortBy = ref("updatedTime");
+const sortDirection = ref("descending");
 const columns = [
     {
         text: "Title",
@@ -46,7 +46,13 @@ const columns = [
     {
         text: "Last updated",
         key: "updatedTime",
-        sortable: false,
+        sortMethod: (a: Post, b: Post) => {
+            const firstItem = a.updatedTimeUtc;
+            const secondItem = b.updatedTimeUtc;
+            if (firstItem < secondItem) return sortDirection.value == "descending" ? 1 : -1;
+            if (firstItem > secondItem) return sortDirection.value == "descending" ? -1 : 1;
+            return 0;
+        },
     },
     {
         text: "",
