@@ -62,7 +62,12 @@ async function createTranslation(language: Language) {
 </script>
 
 <template>
-    <BasePage :title="content ? content.title : 'Edit post'" :loading="isLoading">
+    <BasePage
+        :title="content ? content.title : 'Edit post'"
+        :loading="isLoading"
+        :back-link-location="{ name: 'posts.index' }"
+        back-link-text="Posts"
+    >
         <template #actions>
             <LanguageSelector
                 v-if="content"
