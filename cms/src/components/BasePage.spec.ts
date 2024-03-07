@@ -7,7 +7,6 @@ describe("BasePage", () => {
         const wrapper = mount(BasePage, {
             props: { title: "Page title" },
             slots: { default: "Default slot content" },
-            global: { stubs: { RouterLink: RouterLinkStub } },
         });
 
         expect(wrapper.text()).toContain("Page title");
@@ -17,7 +16,6 @@ describe("BasePage", () => {
     it("renders the back link", async () => {
         const wrapper = mount(BasePage, {
             props: { backLinkLocation: { name: "posts.index" }, backLinkText: "Posts" },
-            global: { stubs: { RouterLink: RouterLinkStub } },
         });
 
         const routerLink = await wrapper.findComponent(RouterLinkStub);

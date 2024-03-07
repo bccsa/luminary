@@ -9,7 +9,6 @@ import LBadge from "@/components/common/LBadge.vue";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useLocalChangeStore } from "@/stores/localChanges";
-import { RouterLinkStub } from "@vue/test-utils";
 
 describe("PostOverview", () => {
     beforeEach(() => {
@@ -27,9 +26,7 @@ describe("PostOverview", () => {
         postStore.posts = [mockPost];
         languageStore.languages = [mockLanguageEng];
 
-        const wrapper = mount(PostOverview, {
-            global: { stubs: { RouterLink: RouterLinkStub } },
-        });
+        const wrapper = mount(PostOverview);
 
         expect(wrapper.html()).toContain("English translation title");
 
@@ -50,9 +47,7 @@ describe("PostOverview", () => {
         ];
         languageStore.languages = [mockLanguageEng, mockLanguageFra];
 
-        const wrapper = mount(PostOverview, {
-            global: { stubs: { RouterLink: RouterLinkStub } },
-        });
+        const wrapper = mount(PostOverview);
 
         expect(wrapper.html()).toContain("French translation title");
     });
@@ -67,9 +62,7 @@ describe("PostOverview", () => {
         // @ts-expect-error - Property is read-only but we are mocking it
         localChangeStore.isLocalChange = () => true;
 
-        const wrapper = mount(PostOverview, {
-            global: { stubs: { RouterLink: RouterLinkStub } },
-        });
+        const wrapper = mount(PostOverview);
 
         // Assert there is a badge that indicates a post has unsynced local changes
         const badge = wrapper.findComponent(LBadge);
@@ -81,17 +74,13 @@ describe("PostOverview", () => {
         const store = usePostStore();
         store.posts = [];
 
-        const wrapper = mount(PostOverview, {
-            global: { stubs: { RouterLink: RouterLinkStub } },
-        });
+        const wrapper = mount(PostOverview);
 
         expect(wrapper.findComponent(EmptyState).exists()).toBe(true);
     });
 
     it("doesn't display anything when the db is still loading", async () => {
-        const wrapper = mount(PostOverview, {
-            global: { stubs: { RouterLink: RouterLinkStub } },
-        });
+        const wrapper = mount(PostOverview);
 
         expect(wrapper.find("button").exists()).toBe(false);
         expect(wrapper.findComponent(EmptyState).exists()).toBe(false);
@@ -106,9 +95,7 @@ describe("PostOverview", () => {
 
         postStore.posts = [post];
 
-        const wrapper = mount(PostOverview, {
-            global: { stubs: { RouterLink: RouterLinkStub } },
-        });
+        const wrapper = mount(PostOverview);
 
         expect(wrapper.html()).toContain("No translation");
     });
