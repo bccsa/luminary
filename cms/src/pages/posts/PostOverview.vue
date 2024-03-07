@@ -26,8 +26,8 @@ const columns = [
         text: "Title",
         key: "title",
         sortMethod: (a: Post, b: Post) => {
-            const firstItem = a.content[0].title;
-            const secondItem = b.content[0].title;
+            const firstItem = a.content[0]?.title;
+            const secondItem = b.content[0]?.title;
             if (firstItem < secondItem) return sortDirection.value == "descending" ? 1 : -1;
             if (firstItem > secondItem) return sortDirection.value == "descending" ? -1 : 1;
             return 0;
