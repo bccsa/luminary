@@ -6,7 +6,7 @@ import LButton from "@/components/button/LButton.vue";
 import { PlusIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import LCard from "@/components/common/LCard.vue";
-import LTable from "@/components/common/LTable.vue";
+import LTable, { type SortDirection } from "@/components/common/LTable.vue";
 import { computed, ref } from "vue";
 import { ContentStatus, type Content, type Post, type Language } from "@/types";
 import { useLanguageStore } from "@/stores/language";
@@ -20,7 +20,7 @@ const { languages } = storeToRefs(useLanguageStore());
 const { isLocalChange } = useLocalChangeStore();
 
 const sortBy = ref("updatedTime");
-const sortDirection = ref("descending");
+const sortDirection = ref<SortDirection>("descending");
 const columns = [
     {
         text: "Title",

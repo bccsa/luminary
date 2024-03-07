@@ -1,15 +1,17 @@
-<script setup lang="ts">
-import { ArrowsUpDownIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/vue/20/solid";
-import { computed, toRefs } from "vue";
-
-type Column = {
+<script lang="ts">
+export type Column = {
     key: string;
     text?: string;
     sortable?: boolean;
     sortMethod?: (a: Item, b: Item) => number;
 };
-type Item = any;
-type SortDirection = "ascending" | "descending";
+export type Item = any;
+export type SortDirection = "ascending" | "descending";
+</script>
+
+<script setup lang="ts">
+import { ArrowsUpDownIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/vue/20/solid";
+import { computed, toRefs } from "vue";
 
 type Props = {
     columns: Column[];
