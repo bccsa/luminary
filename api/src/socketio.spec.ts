@@ -57,6 +57,14 @@ describe("Socketio", () => {
             // CMS option is included, so the "group" type should be included in result
             expect(res.data.some((t) => t.type == DocType.Group)).toBe(true);
         });
+
+        it("can send an accessMap to the client after receiving a 'clientDataReq' message", async () => {
+            const res = await socketioTestClient({ cms: false, version: 0, getAccessMap: true });
+
+            expect(res.accessMap).toBeDefined();
+            expect(Object.keys(res.accessMap).length).toBeGreaterThan(0);
+            expect(res.accessMap["group-private-users"].post.view).toBe(true);
+        });
     });
 
     describe("Change requests", () => {
