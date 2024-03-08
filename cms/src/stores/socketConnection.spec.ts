@@ -5,6 +5,9 @@ import { io } from "socket.io-client";
 import { mockEnglishContentDto, mockPostDto } from "@/tests/mockData";
 import { type ChangeReqAckDto, AckStatus } from "@/types";
 import { useLocalChangeStore } from "./localChanges";
+import { flushPromises } from "@vue/test-utils";
+
+const lastUpdatedTime = 42;
 
 const socketMocks = vi.hoisted(() => {
     return {
@@ -34,9 +37,17 @@ function listenToSocketOnEvent(allowedEvent: string | string[], returnValue?: an
 const docsDb = vi.hoisted(() => {
     return {
         bulkPut: vi.fn(),
+        orderBy: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         equals: vi.fn().mockReturnThis(),
         delete: vi.fn().mockReturnThis(),
+        last: vi.fn().mockImplementation(() => {
+            return new Promise((resolve) => {
+                resolve({
+                    updatedTimeUtc: lastUpdatedTime,
+                });
+            });
+        }),
     };
 });
 
@@ -73,14 +84,19 @@ describe("socketConnection", () => {
         expect(store.isConnected).toEqual(true);
     });
 
-    it("emits a clientDataReq after connecting", () => {
+    it("emits a clientDataReq after connecting", async () => {
         const store = useSocketConnectionStore();
         listenToSocketOnEvent("connect");
 
         store.bindEvents();
 
+        await flushPromises();
+
         expect(socketMocks.emit).toHaveBeenCalledOnce();
-        expect(socketMocks.emit).toHaveBeenCalledWith("clientDataReq", { version: 0, cms: true });
+        expect(socketMocks.emit).toHaveBeenCalledWith("clientDataReq", {
+            version: lastUpdatedTime,
+            cms: true,
+        });
     });
 
     it("sets the state after disconnecting", () => {

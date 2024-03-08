@@ -6,11 +6,11 @@ export class BaseDatabase extends Dexie {
     localChanges!: Table<Partial<LocalChange>>; // Partial because it includes id which is only set after saving
 
     constructor() {
-        super("ac-db");
+        super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(6).stores({
-            docs: "_id, type, parentId",
+        this.version(1).stores({
+            docs: "_id, type, parentId, updatedTimeUtc",
             localChanges: "++id, reqId, docId, status",
         });
     }

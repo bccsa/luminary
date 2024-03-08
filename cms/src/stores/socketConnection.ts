@@ -9,11 +9,13 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
     const isConnected = ref(false);
 
     const bindEvents = () => {
-        socket.on("connect", () => {
+        socket.on("connect", async () => {
             isConnected.value = true;
 
+            const lastUpdatedDoc = await db.docs.orderBy("updatedTimeUtc").last();
+
             socket.emit("clientDataReq", {
-                version: 0,
+                version: lastUpdatedDoc ? lastUpdatedDoc.updatedTimeUtc : 0, // Get documents that are newer than our most recent document
                 cms: true,
             });
         });

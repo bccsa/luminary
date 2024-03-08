@@ -19,6 +19,8 @@ import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
 import { DateTime } from "luxon";
 import { renderErrorMessage } from "@/util/renderErrorMessage";
 import { useLocalChangeStore } from "@/stores/localChanges";
+import { storeToRefs } from "pinia";
+import { useSocketConnectionStore } from "@/stores/socketConnection";
 
 type Props = {
     content: Content;
@@ -28,6 +30,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const { isLocalChange } = useLocalChangeStore();
+const { isConnected } = storeToRefs(useSocketConnectionStore());
 
 const emit = defineEmits(["save"]);
 
@@ -230,7 +233,7 @@ const isDirty = ref(false);
                                 <div class="flex justify-end gap-2">
                                     <LBadge v-if="isDirty">Unsaved changes</LBadge>
                                     <LBadge
-                                        v-else-if="isLocalChange(content._id)"
+                                        v-else-if="isLocalChange(content._id) && !isConnected"
                                         variant="warning"
                                     >
                                         Offline changes
