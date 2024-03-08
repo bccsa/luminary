@@ -20,6 +20,71 @@ describe("PermissionService", () => {
         expect(PermissionSystem.removeGroups).toBeDefined();
     });
 
+    // We do this before the model tests, as the model tests modifies the data set
+    describe("Data extraction tests", () => {
+        it("can extract an AccessMap", () => {
+            const accessMap = PermissionSystem.getAccessMap(["group-public-users"]);
+            expect(accessMap).toBeDefined();
+            expect(accessMap["group-public-content"][DocType.Post][AclPermission.View]).toBe(true);
+        });
+
+        it("can convert an AccessMap to a map of accessible groups", () => {
+            const accessMap = PermissionSystem.getAccessMap(["group-public-users"]);
+            const accessibleGroups = PermissionSystem.accessMapToGroups(
+                accessMap,
+                AclPermission.View,
+                [DocType.Post, DocType.Tag],
+            );
+            expect(accessibleGroups).toBeDefined();
+            expect(accessibleGroups[DocType.Post].length).toBe(2);
+            expect(accessibleGroups[DocType.Tag].length).toBe(2);
+            expect(accessibleGroups[DocType.Post].includes("group-public-content")).toBe(true);
+            expect(accessibleGroups[DocType.Tag].includes("group-public-content")).toBe(true);
+            expect(accessibleGroups[DocType.Post].includes("group-languages")).toBe(true);
+            expect(accessibleGroups[DocType.Tag].includes("group-languages")).toBe(true);
+        });
+
+        it("can calculate a diff on an AccessMap", () => {
+            const accessMap1 = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
+            accessMap1["group-public-users"] = new Map<DocType, Map<AclPermission, boolean>>();
+            accessMap1["group-public-users"][DocType.Post] = new Map<AclPermission, boolean>();
+            accessMap1["group-public-users"][DocType.Post][AclPermission.View] = true;
+            accessMap1["group-public-users"][DocType.Tag] = new Map<AclPermission, boolean>();
+            accessMap1["group-public-users"][DocType.Tag][AclPermission.View] = true;
+            accessMap1["group-public-users"][DocType.Tag][AclPermission.Edit] = true;
+            accessMap1["group-private-users"] = new Map<DocType, Map<AclPermission, boolean>>();
+            accessMap1["group-private-users"][DocType.Post] = new Map<AclPermission, boolean>();
+            accessMap1["group-private-users"][DocType.Post][AclPermission.View] = true;
+
+            const accessMap2 = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
+            accessMap2["group-public-users"] = new Map<DocType, Map<AclPermission, boolean>>();
+            accessMap2["group-public-users"][DocType.Post] = new Map<AclPermission, boolean>();
+            accessMap2["group-public-users"][DocType.Post][AclPermission.View] = true;
+
+            const diff = PermissionSystem.accessMapDiff(accessMap1, accessMap2);
+            expect(diff).toBeDefined();
+            expect(diff["group-private-users"][DocType.Post][AclPermission.View]).toBe(true);
+            expect(diff["group-public-users"][DocType.Tag][AclPermission.View]).toBe(true);
+            expect(diff["group-public-users"][DocType.Tag][AclPermission.Edit]).toBe(true);
+        });
+
+        it("accessMapDiff: returns the first AccessMap second AccessMap is invalid", () => {
+            const accessMap1 = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
+            accessMap1["group-public-users"] = new Map<DocType, Map<AclPermission, boolean>>();
+            accessMap1["group-public-users"][DocType.Post] = new Map<AclPermission, boolean>();
+            accessMap1["group-public-users"][DocType.Post][AclPermission.View] = true;
+
+            const accessMap2 = {
+                invalidData: "invalidData",
+            };
+
+            // @ts-expect-error We are testing the error case
+            const diff = PermissionSystem.accessMapDiff(accessMap1, accessMap2);
+            expect(diff).toBeDefined();
+            expect(diff["group-public-users"][DocType.Post][AclPermission.View]).toBe(true);
+        });
+    });
+
     describe("Model tests", () => {
         it("can get accessible groups per document type and permission", () => {
             const res1 = PermissionSystem.getAccessibleGroups(
