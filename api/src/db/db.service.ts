@@ -330,15 +330,8 @@ export class DbService extends EventEmitter {
 
             const pList = [];
 
-            const timeSelector = [];
-            let selectors = timeSelector;
-            if (options.from && options.to) {
-                timeSelector.push({
-                    $and: [],
-                });
-                selectors = timeSelector[0].$and;
-            }
-
+            // Construct time selectors
+            const selectors = [];
             if (options.from) {
                 selectors.push({
                     updatedTimeUtc: {
@@ -353,6 +346,15 @@ export class DbService extends EventEmitter {
                         $lt: options.to + this.syncTolerance,
                     },
                 });
+            }
+
+            const timeSelector = [];
+            if (selectors.length > 0) {
+                timeSelector.push({
+                    $and: selectors,
+                });
+            } else {
+                timeSelector.push(...selectors);
             }
 
             // Construct queries for each DocType
