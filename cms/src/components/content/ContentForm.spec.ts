@@ -7,7 +7,6 @@ import { ContentStatus, DocType } from "@/types";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { wrap } from "module";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
