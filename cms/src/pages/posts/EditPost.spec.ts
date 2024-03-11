@@ -33,6 +33,23 @@ vi.mock("vue-router", () => ({
     })),
 }));
 
+const docsDb = vi.hoisted(() => {
+    return {
+        where: vi.fn().mockReturnThis(),
+        equals: vi.fn().mockReturnThis(),
+        count: vi.fn().mockReturnValue(0),
+    };
+});
+
+vi.mock("@/db/baseDatabase", () => {
+    return {
+        db: {
+            docs: docsDb,
+            localChanges: docsDb,
+        },
+    };
+});
+
 describe("EditPost", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
