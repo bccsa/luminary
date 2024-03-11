@@ -1,22 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import LanguageSelector from "./LanguageSelector.vue";
-import {
-    mockCategory,
-    mockLanguageEng,
-    mockLanguageFra,
-    mockLanguageSwa,
-    mockPost,
-    mockTopic,
-} from "@/tests/mockData";
+import { mockCategory, mockLanguageEng, mockTopic } from "@/tests/mockData";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { useLanguageStore } from "@/stores/language";
-import LBadge from "@/components/common/LBadge.vue";
 import { useTagStore } from "@/stores/tag";
 import TagSelector from "./TagSelector.vue";
-import { DocType } from "@/types";
-import waitForExpect from "wait-for-expect";
 
 describe("TagSelector", () => {
     beforeEach(() => {
@@ -35,6 +23,7 @@ describe("TagSelector", () => {
             props: {
                 tags: [mockCategory, mockTopic],
                 selectedTags: [],
+                language: mockLanguageEng,
             },
         });
 
@@ -49,6 +38,7 @@ describe("TagSelector", () => {
             props: {
                 tags: [mockCategory, mockTopic],
                 selectedTags: [],
+                language: mockLanguageEng,
             },
         });
 
@@ -63,6 +53,7 @@ describe("TagSelector", () => {
             props: {
                 tags: [mockCategory, mockTopic],
                 selectedTags: [],
+                language: mockLanguageEng,
             },
         });
 

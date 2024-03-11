@@ -185,6 +185,20 @@ const addTag = (tag: Tag) => {
 const removeTag = (tag: Tag) => {
     selectedTags.value = selectedTags.value.filter((t) => t._id != tag._id);
 };
+
+const localisedContentTitle = computed(() => {
+    return (tag: Tag) => {
+        const contentForSelectedLanguage = tag.content.find(
+            (c) => c.language._id == props.content.language._id,
+        );
+
+        if (contentForSelectedLanguage) {
+            return contentForSelectedLanguage.title;
+        }
+
+        return tag.content[0].title;
+    };
+});
 </script>
 
 <template>
@@ -416,10 +430,11 @@ const removeTag = (tag: Tag) => {
                         class="mt-6"
                         :tags="availableCategories"
                         :selected-tags="selectedCategories"
+                        :language="content.language"
                         @select="addTag"
                     />
                     <div v-for="category in selectedCategories" :key="category._id">
-                        {{ category.content[0].title }}
+                        {{ localisedContentTitle(category) }}
                         <button
                             class="text-blue-600"
                             @click="removeTag(category)"
