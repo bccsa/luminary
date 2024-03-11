@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
-import { type Tag } from "@/types";
+import { TagType, type Tag } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
-import { type Ref } from "vue";
+import { computed, type Ref } from "vue";
 import type { Observable } from "rxjs";
 import { TagRepository } from "@/db/repositories/tagRepository";
 
@@ -13,5 +13,29 @@ export const useTagStore = defineStore("tag", () => {
         liveQuery(async () => tagRepository.getAll()) as unknown as Observable<Tag[]>,
     );
 
-    return { tags };
+    const categories = computed(() => {
+        if (!tags.value) {
+            return [];
+        }
+
+        return tags.value?.filter((tag) => tag.tagType == TagType.Category);
+    });
+
+    const topics = computed(() => {
+        if (!tags.value) {
+            return [];
+        }
+
+        return tags.value?.filter((tag) => tag.tagType == TagType.Topic);
+    });
+
+    const audioPlaylists = computed(() => {
+        if (!tags.value) {
+            return [];
+        }
+
+        return tags.value?.filter((tag) => tag.tagType == TagType.AudioPlaylist);
+    });
+
+    return { tags, categories, topics, audioPlaylists };
 });

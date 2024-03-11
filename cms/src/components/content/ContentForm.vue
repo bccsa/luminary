@@ -37,19 +37,21 @@ const { isConnected } = storeToRefs(useSocketConnectionStore());
 
 const emit = defineEmits(["save"]);
 
-const { tags } = storeToRefs(useTagStore());
-
-const availableCategories = computed(() => {
-    if (!tags.value) {
-        return [];
-    }
-
-    return tags.value?.filter((tag) => tag.tagType == TagType.Category);
-});
+const {
+    categories: availableCategories,
+    topics: availableTopics,
+    audioPlaylists: availableAudioPlaylists,
+} = storeToRefs(useTagStore());
 
 const selectedTags = ref<Tag[]>([]);
 const selectedCategories = computed(() => {
     return selectedTags.value.filter((t) => t.tagType == TagType.Category);
+});
+const selectedTopics = computed(() => {
+    return selectedTags.value.filter((t) => t.tagType == TagType.Topic);
+});
+const selectedAudioPlaylists = computed(() => {
+    return selectedTags.value.filter((t) => t.tagType == TagType.AudioPlaylist);
 });
 
 const hasText = ref(props.content.text != undefined && props.content.text.trim() != "");
@@ -185,20 +187,6 @@ const addTag = (tag: Tag) => {
 const removeTag = (tag: Tag) => {
     selectedTags.value = selectedTags.value.filter((t) => t._id != tag._id);
 };
-
-const localisedContentTitle = computed(() => {
-    return (tag: Tag) => {
-        const contentForSelectedLanguage = tag.content.find(
-            (c) => c.language._id == props.content.language._id,
-        );
-
-        if (contentForSelectedLanguage) {
-            return contentForSelectedLanguage.title;
-        }
-
-        return tag.content[0].title;
-    };
-});
 </script>
 
 <template>
@@ -432,19 +420,31 @@ const localisedContentTitle = computed(() => {
                         :selected-tags="selectedCategories"
                         :language="content.language"
                         @select="addTag"
+                        @remove="removeTag"
                     />
-                    <div v-for="category in selectedCategories" :key="category._id">
-                        {{ localisedContentTitle(category) }}
-                        <button
-                            class="text-blue-600"
-                            @click="removeTag(category)"
-                            data-test="removeTag"
-                        >
-                            X
-                        </button>
-                    </div>
+
+                    <TagSelector
+                        label="Topics"
+                        class="mt-6"
+                        :tags="availableTopics"
+                        :selected-tags="selectedTopics"
+                        :language="content.language"
+                        @select="addTag"
+                        @remove="removeTag"
+                    />
+
+                    <TagSelector
+                        label="Audio playlists"
+                        class="mt-6"
+                        :tags="availableAudioPlaylists"
+                        :selected-tags="selectedAudioPlaylists"
+                        :language="content.language"
+                        @select="addTag"
+                        @remove="removeTag"
+                    />
                 </LCard>
             </div>
         </div>
     </form>
 </template>
+./LTag.vue
