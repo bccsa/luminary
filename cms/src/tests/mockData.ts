@@ -8,8 +8,22 @@ import {
     type Language,
     type LocalChange,
     type LanguageDto,
+    TagType,
+    type Tag,
+    type TagDto,
 } from "@/types";
 import { DateTime } from "luxon";
+
+export const mockCategoryDto: TagDto = {
+    _id: "tag-category1",
+    type: DocType.Tag,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-public-content"],
+    tagType: TagType.Category,
+    pinned: false,
+    image: "",
+    tags: [],
+};
 
 export const mockPostDto: PostDto = {
     _id: "post-post1",
@@ -17,7 +31,7 @@ export const mockPostDto: PostDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     image: "",
-    tags: ["tag-category1", "tag-topicA"],
+    tags: ["tag-category1"],
 };
 
 export const mockEnglishContentDto: ContentDto = {
@@ -57,6 +71,20 @@ export const mockFrenchContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
+};
+export const mockCategoryContentDto: ContentDto = {
+    _id: "content-tag-category1",
+    type: DocType.Content,
+    parentId: "tag-category1",
+    updatedTimeUtc: 1704114000000,
+    memberOf: [],
+    language: "lang-eng",
+    status: ContentStatus.Published,
+    slug: "content-tag-category1",
+    title: "Category 1",
+    summary: "Example tag",
+    text: "A category.",
+    publishDate: 1704114000000,
 };
 
 export const mockLanguageEng: Language = {
@@ -157,6 +185,55 @@ export const mockUnpublishableContent: Content = {
     expiryDate: undefined,
 };
 
+export const mockCategoryContent: Content = {
+    _id: "content-tag-category1",
+    type: DocType.Content,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    language: mockLanguageEng,
+    status: ContentStatus.Published,
+    slug: "content-tag-category1",
+    title: "Category 1",
+    summary: "Example tag",
+    text: "A category.",
+    publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+};
+export const mockTopicContent: Content = {
+    _id: "content-tag-topicA",
+    type: DocType.Content,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    language: mockLanguageEng,
+    status: ContentStatus.Published,
+    slug: "content-tag-topicA",
+    title: "Topic A",
+    summary: "Another example tag",
+    text: "A topic",
+    publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+};
+export const mockCategory: Tag = {
+    _id: "tag-category1",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    tagType: TagType.Category,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockCategoryContent],
+};
+export const mockTopic: Tag = {
+    _id: "tag-topicA",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    tagType: TagType.Topic,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockTopicContent],
+};
+
 export const mockPost: Post = {
     type: DocType.Post,
     _id: "post-post1",
@@ -164,7 +241,7 @@ export const mockPost: Post = {
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
     content: [mockEnglishContent, mockFrenchContent],
-    tags: [],
+    tags: [mockCategory],
 };
 
 export const mockLocalChange1: LocalChange = {

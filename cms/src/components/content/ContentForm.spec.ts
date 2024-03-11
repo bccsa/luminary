@@ -34,6 +34,9 @@ vi.mock("@/db/baseDatabase", () => {
 });
 
 describe("ContentForm", () => {
+    const saveAsDraftButton = "button[data-test='draft']";
+    const publishButton = "button[data-test='publish']";
+
     beforeEach(() => {
         setActivePinia(createTestingPinia());
     });
@@ -50,7 +53,7 @@ describe("ContentForm", () => {
             },
         });
 
-        await wrapper.find("button[data-test='draft']").trigger("click");
+        await wrapper.find(saveAsDraftButton).trigger("click");
 
         await waitForExpect(() => {
             const saveEvent: any = wrapper.emitted("save");
@@ -70,7 +73,7 @@ describe("ContentForm", () => {
             },
         });
 
-        await wrapper.find("button[data-test='publish']").trigger("click");
+        await wrapper.find(publishButton).trigger("click");
 
         await waitForExpect(() => {
             const saveEvent: any = wrapper.emitted("save");
@@ -93,7 +96,7 @@ describe("ContentForm", () => {
         await wrapper.find("input[name='title']").setValue("Updated Title");
         await wrapper.find("input[name='summary']").setValue("Updated Summary");
 
-        await wrapper.find("button[data-test='draft']").trigger("click");
+        await wrapper.find(saveAsDraftButton).trigger("click");
 
         await waitForExpect(() => {
             const saveEvent: any = wrapper.emitted("save");
@@ -115,7 +118,7 @@ describe("ContentForm", () => {
 
         await wrapper.find("input[name='parent.image']").setValue("updatedImage.jpg");
 
-        await wrapper.find("button[data-test='draft']").trigger("click");
+        await wrapper.find(saveAsDraftButton).trigger("click");
 
         await waitForExpect(() => {
             const saveEvent: any = wrapper.emitted("save");
@@ -136,7 +139,7 @@ describe("ContentForm", () => {
 
         await wrapper.find("input[name='title']").setValue("");
 
-        await wrapper.find("button[data-test='draft']").trigger("click");
+        await wrapper.find(saveAsDraftButton).trigger("click");
 
         await waitForExpect(() => {
             const saveEvent: any = wrapper.emitted("save");
@@ -194,7 +197,7 @@ describe("ContentForm", () => {
             },
         });
 
-        await wrapper.find("button[data-test='publish']").trigger("click");
+        await wrapper.find(publishButton).trigger("click");
 
         await waitForExpect(() => {
             const saveEvent: any = wrapper.emitted("save");
@@ -251,5 +254,27 @@ describe("ContentForm", () => {
 
         await flushPromises();
         expect(wrapper.text()).toContain("Slug:updated-title");
+    });
+
+    it("shows and saves the selected tags", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockEnglishContent,
+            },
+        });
+
+        expect(wrapper.text()).toContain("Category 1");
+
+        await wrapper.find("button[data-test='removeTag']").trigger("click");
+        expect(wrapper.text()).not.toContain("Category 1");
+
+        await wrapper.find(saveAsDraftButton).trigger("click");
+        await waitForExpect(() => {
+            const saveEvent: any = wrapper.emitted("save");
+            expect(saveEvent).not.toBe(undefined);
+
+            expect(saveEvent![0][1].tags).toEqual([]);
+        });
     });
 });

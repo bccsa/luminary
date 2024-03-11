@@ -73,13 +73,13 @@ describe("post store", () => {
         expect(createSpy).toHaveBeenCalledWith(post);
     });
 
-    it("can create a post", () => {
-        const createSpy = vi.spyOn(PostRepository.prototype, "update");
+    it("can update a post", () => {
+        const updateSpy = vi.spyOn(PostRepository.prototype, "update");
 
         const store = usePostStore();
         store.updatePost(mockEnglishContent, mockPost);
 
-        expect(createSpy).toHaveBeenCalledWith(mockEnglishContent, mockPost);
+        expect(updateSpy).toHaveBeenCalledWith(mockEnglishContent, mockPost);
     });
 
     it("can create a translation", () => {
