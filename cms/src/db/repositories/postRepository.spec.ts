@@ -2,6 +2,8 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, expect } from "vitest";
 import { db } from "../baseDatabase";
 import {
+    mockCategoryContentDto,
+    mockCategoryDto,
     mockEnglishContent,
     mockEnglishContentDto,
     mockFrenchContentDto,
@@ -23,6 +25,8 @@ describe("postRepository", () => {
     it("can get all posts", async () => {
         db.docs.bulkPut([
             mockPostDto,
+            mockCategoryDto,
+            mockCategoryContentDto,
             mockEnglishContentDto,
             mockFrenchContentDto,
             mockLanguageDtoEng,
@@ -38,6 +42,7 @@ describe("postRepository", () => {
         expect(result[0].content[0]._id).toBe(mockEnglishContentDto._id);
         expect(result[0].content[0].language._id).toBe(mockLanguageDtoEng._id);
         expect(result[0].updatedTimeUtc.toISODate()).toEqual("2024-01-01");
+        expect(result[0].tags[0].content[0].title).toEqual("Category 1");
     });
 
     it("can create a post", async () => {

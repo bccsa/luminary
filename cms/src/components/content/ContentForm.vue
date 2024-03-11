@@ -10,7 +10,7 @@ import {
     MusicalNoteIcon,
 } from "@heroicons/vue/20/solid";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/16/solid";
-import { ContentStatus, type Content, type Post } from "@/types";
+import { ContentStatus, type Content, type Post, type Tag, TagType } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
@@ -22,6 +22,8 @@ import { useLocalChangeStore } from "@/stores/localChanges";
 import { storeToRefs } from "pinia";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { Slug } from "@/util/slug";
+import TagSelector from "./TagSelector.vue";
+import { useTagStore } from "@/stores/tag";
 
 type Props = {
     content: Content;
@@ -34,6 +36,21 @@ const { isLocalChange } = useLocalChangeStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
 
 const emit = defineEmits(["save"]);
+
+const { tags } = storeToRefs(useTagStore());
+
+const availableCategories = computed(() => {
+    if (!tags.value) {
+        return [];
+    }
+
+    return tags.value?.filter((tag) => tag.tagType == TagType.Category);
+});
+
+const selectedTags = ref<Tag[]>([]);
+const selectedCategories = computed(() => {
+    return selectedTags.value.filter((t) => t.tagType == TagType.Category);
+});
 
 const hasText = ref(props.content.text != undefined && props.content.text.trim() != "");
 const hasAudio = ref(props.content.audio != undefined && props.content.audio.trim() != "");
@@ -72,6 +89,10 @@ const { handleSubmit, values, setValues, errors } = useForm({
 });
 
 onBeforeMount(() => {
+    if (props.post) {
+        selectedTags.value = [...props.post.tags];
+    }
+
     // Convert dates to format VeeValidate understands
     const filteredContent: any = { ...toRaw(props.content) };
     filteredContent.publishDate = props.content.publishDate?.toISO()?.split(".")[0];
@@ -99,10 +120,10 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         slug: await Slug.makeUnique(contentValues.slug!), // Ensure slug is still unique before saving
     };
 
-    const post = {
+    const post: Partial<Post> = {
         ...toRaw(props.post),
         image: validatedFormValues.parent?.image,
-        // TODO create tags from topics etc.
+        tags: selectedTags.value,
     };
 
     isDirty.value = false;
@@ -119,7 +140,11 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
 
 const canPublish = computed(() => {
     return (
-        hasOneContentField.value && hasPublishDate.value && hasSummary.value && hasParentImage.value
+        hasOneContentField.value &&
+        hasPublishDate.value &&
+        hasSummary.value &&
+        hasParentImage.value &&
+        hasTag.value
     );
 });
 const hasOneContentField = computed(() => {
@@ -139,11 +164,26 @@ const hasPublishDate = computed(() => {
 const hasParentImage = computed(() => {
     return values.parent?.image != undefined;
 });
+const hasTag = computed(() => {
+    return selectedTags.value.length > 0;
+});
 
 const isDirty = ref(false);
 
 const updateSlug = async (title: string) => {
     setValues({ slug: await Slug.generate(title) });
+};
+
+const addTag = (tag: Tag) => {
+    const existing = selectedTags.value.find((c) => c._id == tag._id);
+
+    if (!existing) {
+        selectedTags.value.push(tag);
+    }
+};
+
+const removeTag = (tag: Tag) => {
+    selectedTags.value = selectedTags.value.filter((t) => t._id != tag._id);
 };
 </script>
 
@@ -344,6 +384,12 @@ const updateSlug = async (title: string) => {
                                         </p>
                                         <p>Publish date is required</p>
                                     </div>
+                                    <div v-if="!hasTag" class="flex gap-2">
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                        </p>
+                                        <p>At least one tag is required</p>
+                                    </div>
                                 </TransitionGroup>
                             </div>
                         </Transition>
@@ -365,24 +411,23 @@ const updateSlug = async (title: string) => {
                         This image can be overridden in a translation
                     </LInput>
 
-                    <LInput
-                        name="parent.categories"
+                    <TagSelector
                         label="Categories"
-                        placeholder="Begin typing to select one..."
-                        class="mt-4"
+                        class="mt-6"
+                        :tags="availableCategories"
+                        :selected-tags="selectedCategories"
+                        @select="addTag"
                     />
-                    <LInput
-                        name="parent.topics"
-                        label="Topics"
-                        placeholder="Begin typing to select one..."
-                        class="mt-4"
-                    />
-                    <LInput
-                        name="parent.audioPlaylists"
-                        label="Audio playlists"
-                        placeholder="Begin typing to select one..."
-                        class="mt-4"
-                    />
+                    <div v-for="category in selectedCategories" :key="category._id">
+                        {{ category.content[0].title }}
+                        <button
+                            class="text-blue-600"
+                            @click="removeTag(category)"
+                            data-test="removeTag"
+                        >
+                            X
+                        </button>
+                    </div>
                 </LCard>
             </div>
         </div>

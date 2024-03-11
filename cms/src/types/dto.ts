@@ -1,4 +1,4 @@
-import type { DocType, Language } from "./cms";
+import type { DocType, Language, TagType } from "./cms";
 
 export enum AckStatus {
     Accepted = "accepted",
@@ -40,6 +40,7 @@ export type ContentDto = ContentBaseDto & {
 };
 
 export type TagDto = ContentBaseDto & {
+    tagType: TagType;
     pinned: boolean;
     image: string;
     tags: Uuid[];

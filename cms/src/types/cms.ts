@@ -96,7 +96,7 @@ export enum TagType {
 export type Tag = ContentBase & {
     type: DocType.Tag;
     tagType: TagType;
-    image: Image;
+    image: string;
     content: Content[];
     pinned: boolean;
     tags: Tag[];
