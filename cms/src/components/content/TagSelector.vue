@@ -71,15 +71,16 @@ const selectTag = (tag: Tag) => {
                     v-for="tag in filteredTags"
                     :key="tag._id"
                     :value="tag"
+                    :disabled="isTagSelected(tag._id)"
                     as="template"
-                    v-slot="{ active }"
+                    v-slot="{ active, disabled }"
                 >
                     <li
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
                             { 'bg-gray-100': active },
-                            { 'text-gray-900': active && !isTagSelected(tag._id) },
-                            { 'text-gray-500': isTagSelected(tag._id) },
+                            { 'text-gray-900': active && !disabled },
+                            { 'text-gray-500': disabled },
                         ]"
                     >
                         <span class="block truncate" data-test="tag-selector">
