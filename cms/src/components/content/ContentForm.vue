@@ -96,7 +96,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...contentValues,
         publishDate,
         status,
-        // slug: Slug.makeUnique(slug), // Ensure slug is still unique before saving
+        slug: await Slug.makeUnique(contentValues.slug!), // Ensure slug is still unique before saving
     };
 
     const post = {
