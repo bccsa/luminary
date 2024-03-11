@@ -14,7 +14,6 @@ const docsDb = vi.hoisted(() => {
         where: vi.fn().mockReturnThis(),
         equals: vi.fn().mockReturnThis(),
         delete: vi.fn().mockReturnThis(),
-        count: vi.fn().mockReturnValue(0),
     };
 });
 
@@ -26,6 +25,12 @@ vi.mock("@/db/baseDatabase", () => {
         },
     };
 });
+
+vi.mock("@/util/slug", () => ({
+    Slug: {
+        generate: () => "fake-slug",
+    },
+}));
 
 vi.mock("dexie", () => {
     return {

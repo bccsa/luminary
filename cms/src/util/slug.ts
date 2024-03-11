@@ -1,5 +1,6 @@
 import { slugify } from "transliteration";
 import { db } from "@/db/baseDatabase";
+import type { Uuid } from "@/types";
 
 /**
  * Functions to generate and validate slugs
@@ -7,24 +8,21 @@ import { db } from "@/db/baseDatabase";
 export class Slug {
     /**
      * Automatically generates a unique slug from a title
-     * @param title
-     * @returns
      */
-    static async generate(title: string) {
+    static async generate(title: string, contentId: Uuid) {
         const slug = slugify(title, {
             lowercase: true,
             separator: "-",
         });
-        return await this.makeUnique(slug);
+        return await this.makeUnique(slug, contentId);
     }
 
     /**
      * Ensures the slug is unique
-     * @param slug
      * @returns Promise containing a unique slug
      */
-    static async makeUnique(slug: string) {
-        while (!(await this._checkUnique(slug))) {
+    static async makeUnique(slug: string, contentId: Uuid) {
+        while (!(await this._checkUnique(slug, contentId))) {
             slug = `${slug}-${Math.floor(Math.random() * 999)}`;
         }
         return slug;
@@ -32,12 +30,14 @@ export class Slug {
 
     /**
      * Returns true if the slug is unique
-     * @param slug
-     * @returns
      */
-    private static async _checkUnique(slug: string) {
-        const existingSlug = await db.docs.where("slug").equals(slug).count();
+    private static async _checkUnique(slug: string, contentId: Uuid) {
+        const existingContentWithSlug = await db.docs.where("slug").equals(slug).first();
 
-        return existingSlug === 0;
+        if (existingContentWithSlug && existingContentWithSlug._id != contentId) {
+            return false;
+        }
+
+        return true;
     }
 }

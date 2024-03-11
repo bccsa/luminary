@@ -37,7 +37,7 @@ const docsDb = vi.hoisted(() => {
     return {
         where: vi.fn().mockReturnThis(),
         equals: vi.fn().mockReturnThis(),
-        count: vi.fn().mockReturnValue(0),
+        first: vi.fn().mockImplementation(() => ({ _id: "content-post1-eng" })),
     };
 });
 

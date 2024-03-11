@@ -119,7 +119,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...contentValues,
         publishDate,
         status,
-        slug: await Slug.makeUnique(contentValues.slug!), // Ensure slug is still unique before saving
+        slug: await Slug.makeUnique(contentValues.slug!, props.content._id), // Ensure slug is still unique before saving
     };
 
     const post: Partial<Post> = {
@@ -173,7 +173,7 @@ const hasTag = computed(() => {
 const isDirty = ref(false);
 
 const updateSlug = async (title: string) => {
-    setValues({ slug: await Slug.generate(title) });
+    setValues({ slug: await Slug.generate(title, props.content._id) });
 };
 
 const addTag = (tag: Tag) => {
