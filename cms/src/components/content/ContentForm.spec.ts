@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import ContentForm from "./ContentForm.vue";
 import { mockEnglishContent, mockPost, mockUnpublishableContent } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
@@ -15,6 +15,23 @@ vi.mock("vue-router", () => ({
         push: routePushMock,
     })),
 }));
+
+const docsDb = vi.hoisted(() => {
+    return {
+        where: vi.fn().mockReturnThis(),
+        equals: vi.fn().mockReturnThis(),
+        count: vi.fn().mockReturnValue(0),
+    };
+});
+
+vi.mock("@/db/baseDatabase", () => {
+    return {
+        db: {
+            docs: docsDb,
+            localChanges: docsDb,
+        },
+    };
+});
 
 describe("ContentForm", () => {
     beforeEach(() => {
@@ -218,5 +235,21 @@ describe("ContentForm", () => {
         });
 
         expect(wrapper.text()).toContain("Offline changes");
+    });
+
+    it("displays the slug", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockEnglishContent,
+            },
+        });
+
+        expect(wrapper.text()).toContain(mockEnglishContent.slug);
+
+        await wrapper.find("input[name='title']").setValue("Updated Title");
+
+        await flushPromises();
+        expect(wrapper.text()).toContain("Slug:updated-title");
     });
 });

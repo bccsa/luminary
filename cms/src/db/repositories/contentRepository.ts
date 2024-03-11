@@ -4,6 +4,7 @@ import { LanguageRepository } from "./languageRepository";
 import { DateTime } from "luxon";
 import { db } from "../baseDatabase";
 import { v4 as uuidv4 } from "uuid";
+import { Slug } from "@/util/slug";
 
 export class ContentRepository extends BaseRepository {
     private _languageRepository: LanguageRepository;
@@ -19,7 +20,7 @@ export class ContentRepository extends BaseRepository {
         });
     }
 
-    async create(values: Partial<ContentDto>) {
+    async create(values: Partial<ContentDto> & { title: string }) {
         const contentId = uuidv4();
         const content = {
             ...values,
@@ -27,7 +28,7 @@ export class ContentRepository extends BaseRepository {
             updatedTimeUtc: Date.now(),
             type: DocType.Content,
             status: ContentStatus.Draft,
-            slug: `slug-${values.title}`, // TODO create actual slug from title
+            slug: await Slug.generate(values.title),
             memberOf: ["group-private-content"], // TODO set right group
         };
 

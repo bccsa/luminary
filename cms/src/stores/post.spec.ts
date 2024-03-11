@@ -14,6 +14,7 @@ const docsDb = vi.hoisted(() => {
         where: vi.fn().mockReturnThis(),
         equals: vi.fn().mockReturnThis(),
         delete: vi.fn().mockReturnThis(),
+        count: vi.fn().mockReturnValue(0),
     };
 });
 

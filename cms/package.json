@@ -23,6 +23,7 @@
         "luxon": "^3.4.4",
         "pinia": "^2.1.7",
         "socket.io-client": "^4.7.4",
+        "transliteration": "^2.3.5",
         "uuid": "^9.0.1",
         "vee-validate": "^4.12.5",
         "vue": "^3.3.11",

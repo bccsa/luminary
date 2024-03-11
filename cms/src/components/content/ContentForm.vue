@@ -21,6 +21,7 @@ import { renderErrorMessage } from "@/util/renderErrorMessage";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { storeToRefs } from "pinia";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
+import { Slug } from "@/util/slug";
 
 type Props = {
     content: Content;
@@ -44,6 +45,7 @@ const validationSchema = toTypedSchema(
             image: yup.string().required(),
         }),
         title: yup.string().required(),
+        slug: yup.string().required(),
         summary: yup.string().optional(),
         publishDate: yup
             .date()
@@ -94,6 +96,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...contentValues,
         publishDate,
         status,
+        slug: await Slug.makeUnique(contentValues.slug!), // Ensure slug is still unique before saving
     };
 
     const post = {
@@ -138,6 +141,10 @@ const hasParentImage = computed(() => {
 });
 
 const isDirty = ref(false);
+
+const updateSlug = async (title: string) => {
+    setValues({ slug: await Slug.generate(title) });
+};
 </script>
 
 <template>
@@ -149,7 +156,18 @@ const isDirty = ref(false);
     >
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
-                <LInput name="title" label="Title" required />
+                <LInput
+                    @change="(e) => updateSlug(e.target.value)"
+                    name="title"
+                    label="Title"
+                    required
+                />
+                <div class="mt-2 flex gap-1 text-xs text-gray-800">
+                    <span class="py-0.5">Slug:</span>
+                    <span class="inline-block rounded bg-gray-200 px-1.5 py-0.5">{{
+                        values.slug
+                    }}</span>
+                </div>
 
                 <LInput name="summary" label="Summary" class="mt-4" />
 
