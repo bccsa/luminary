@@ -134,11 +134,11 @@ const contentTitle = computed(() => {
             </TransitionGroup>
         </div>
         <Transition
-            enter-active-class="transition duration-75"
-            enter-from-class="transform scale-90 opacity-0"
+            enter-active-class="transition duration-75 delay-100"
+            enter-from-class="transform scale-90 opacity-0 absolute"
             enter-to-class="transform scale-100 opacity-100"
-            leave-active-class="transition duration-75 delay-100"
-            leave-from-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-75"
+            leave-from-class="transform scale-100 opacity-100 absolute"
             leave-to-class="transform scale-90 opacity-0"
         >
             <div v-if="selectedTags.length == 0" class="text-xs text-gray-500">
