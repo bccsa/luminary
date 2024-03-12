@@ -134,12 +134,12 @@ describe("processChangeRequest", () => {
     });
 
     it("can validate a unique slug for a content document that exists", async () => {
-        // This test relies on the previous test to have run first
         const changeRequest = changeRequest_content();
         changeRequest.doc.parentId = "post-post1";
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = "this-is-a-test-slug";
 
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db); // ensure that the slug is already in use
         const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
@@ -148,14 +148,21 @@ describe("processChangeRequest", () => {
     });
 
     it("can rectify a non-unique slug by appending a random number to the end of the slug", async () => {
-        // This test relies on the previous test to have run first
-        const changeRequest = changeRequest_content();
-        changeRequest.doc.parentId = "post-post1";
-        changeRequest.doc._id = "test-slug-2";
-        changeRequest.doc.slug = "this-is-a-test-slug";
+        // ensure that the slug is already in use
+        const changeRequest1 = changeRequest_content();
+        changeRequest1.doc.parentId = "post-post1";
+        changeRequest1.doc._id = "test-slug-1";
+        changeRequest1.doc.slug = "this-is-a-test-slug";
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
 
-        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
-        const dbDoc = await db.getDoc(changeRequest.doc._id);
+        // Create a new change request with the same slug
+        const changeRequest2 = changeRequest_content();
+        changeRequest2.doc.parentId = "post-post1";
+        changeRequest2.doc._id = "test-slug-2";
+        changeRequest2.doc.slug = "this-is-a-test-slug";
+
+        const res = await processChangeRequest("", changeRequest2, ["group-super-admins"], db);
+        const dbDoc = await db.getDoc(changeRequest2.doc._id);
 
         expect(res.ok).toBe(true);
         expect(dbDoc.docs[0].slug).toMatch(/this-is-a-test-slug-[0-9](0-9)*/);
