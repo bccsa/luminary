@@ -22,7 +22,7 @@ const { audioPlaylists } = storeToRefs(useTagStore());
                 :is="RouterLink"
                 :to="{ name: 'tags.create' }"
             >
-                Create tag
+                Create audio playlist
             </LButton>
         </template>
 

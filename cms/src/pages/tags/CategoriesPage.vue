@@ -22,7 +22,7 @@ const { categories } = storeToRefs(useTagStore());
                 :is="RouterLink"
                 :to="{ name: 'tags.create' }"
             >
-                Create tag
+                Create category
             </LButton>
         </template>
 

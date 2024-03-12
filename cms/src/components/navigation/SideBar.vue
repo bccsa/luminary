@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RouterLink, type RouteLocationRaw, useRoute } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
 import {
     DocumentDuplicateIcon,
     TagIcon,
@@ -9,12 +9,12 @@ import {
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { computed } from "vue";
+import { ref, watch } from "vue";
 
 const { appName } = useGlobalConfigStore();
 const route = useRoute();
 
-const navigation = [
+const navigation = ref([
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon },
     {
         name: "Posts",
@@ -24,6 +24,7 @@ const navigation = [
     {
         name: "Tags",
         icon: TagIcon,
+        open: false,
         children: [
             {
                 name: "Categories",
@@ -40,18 +41,20 @@ const navigation = [
         ],
     },
     { name: "Users", to: { name: "users" }, icon: UsersIcon },
-];
+]);
 
-const showSubNavigation = computed(() => {
-    return ({ children }: any) => {
-        for (const subItem of children) {
-            if (subItem.to.name == route.name) {
-                return true;
+watch(route, (newRoute) => {
+    navigation.value = navigation.value.map((item) => {
+        if (!item.children) return item;
+
+        item.children.forEach((subItem) => {
+            if (subItem.to.name == newRoute.name) {
+                item.open = true;
             }
-        }
+        });
 
-        return false;
-    };
+        return item;
+    });
 });
 </script>
 
@@ -87,6 +90,7 @@ const showSubNavigation = computed(() => {
                                     :class="[
                                         'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-gray-700',
                                     ]"
+                                    @click="item.open = !item.open"
                                 >
                                     <component
                                         :is="item.icon"
@@ -96,7 +100,7 @@ const showSubNavigation = computed(() => {
                                     {{ item.name }}
                                     <ChevronRightIcon
                                         :class="[
-                                            open || showSubNavigation(item)
+                                            open || item.open
                                                 ? 'rotate-90 text-gray-500'
                                                 : 'text-gray-400',
                                             'ml-auto h-5 w-5 shrink-0',
@@ -108,13 +112,13 @@ const showSubNavigation = computed(() => {
                                     as="ul"
                                     class="mt-1 space-y-1 px-2"
                                     static
-                                    v-show="open || showSubNavigation(item)"
+                                    v-show="open || item.open"
                                 >
                                     <li v-for="subItem in item.children" :key="subItem.name">
                                         <DisclosureButton
                                             :as="RouterLink"
                                             :to="subItem.to"
-                                            active-class="bg-gray-200"
+                                            active-class="bg-gray-200 text-gray-900"
                                             class="block rounded-md py-2 pl-9 pr-2 text-sm leading-6 text-gray-700 hover:bg-gray-200"
                                         >
                                             {{ subItem.name }}
