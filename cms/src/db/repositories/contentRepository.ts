@@ -28,7 +28,7 @@ export class ContentRepository extends BaseRepository {
             updatedTimeUtc: Date.now(),
             type: DocType.Content,
             status: ContentStatus.Draft,
-            slug: await Slug.generate(values.title),
+            slug: await Slug.generate(values.title, contentId),
             memberOf: ["group-private-content"], // TODO set right group
         };
 
