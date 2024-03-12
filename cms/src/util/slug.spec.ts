@@ -27,7 +27,7 @@ describe("Slug", () => {
         expect(generatedSlug).toMatch(/sample-title-[0-9]([0-9])*/);
     });
 
-    it("should not make the title for the same content unique", async () => {
+    it("should not make the slug for the same document unique", async () => {
         db.docs.put({ ...mockEnglishContentDto, slug: "sample-title" } as ContentDto);
         const title = "Sample Title";
 
