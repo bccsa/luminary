@@ -248,12 +248,16 @@ describe("ContentForm", () => {
             },
         });
 
+        const slug = wrapper.find("[name='slugSpan']");
+
         expect(wrapper.text()).toContain(mockEnglishContent.slug);
 
         await wrapper.find("input[name='title']").setValue("Updated Title");
 
         await flushPromises();
-        expect(wrapper.text()).toContain("Slug:updated-title");
+        waitForExpect(() => {
+            expect(slug.text()).toBe("updated-title");
+        });
     });
 
     it("displays a text input when the slug edit button is pressed", async () => {
@@ -264,7 +268,7 @@ describe("ContentForm", () => {
             },
         });
 
-        await wrapper.find("button[name='editSlugButton']").trigger("click");
+        await wrapper.find("button[data-test='editSlugButton']").trigger("click");
 
         await flushPromises();
         const input = wrapper.find("input[name='slug']");
@@ -279,9 +283,9 @@ describe("ContentForm", () => {
             },
         });
         const input = wrapper.find("input[name='slug']");
-        const slug = wrapper.find("span[name='slugSpan']");
+        const slug = wrapper.find("[data-test='slugSpan']");
 
-        await wrapper.find("button[name='editSlugButton']").trigger("click");
+        await wrapper.find("button[data-test='editSlugButton']").trigger("click");
         await flushPromises();
         await input.setValue("new-slug");
         await input.trigger("blur");
@@ -289,6 +293,52 @@ describe("ContentForm", () => {
         expect(slug.text()).toBe("new-slug");
         expect(input.isVisible()).toBe(false);
         expect(slug.isVisible()).toBe(true);
+    });
+
+    it("does not update the slug if the slug has been edited and the title is changed", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockEnglishContent,
+            },
+        });
+        const input = wrapper.find("input[name='slug']");
+        const title = wrapper.find("input[name='title']");
+        const slug = wrapper.find("[data-test='slugSpan']");
+
+        await wrapper.find("button[data-test='editSlugButton']").trigger("click");
+        await flushPromises();
+        await input.setValue("new-slug");
+        await input.trigger("blur");
+        await flushPromises();
+        await title.setValue("New Title 123");
+        await flushPromises();
+
+        expect(slug.text()).toBe("new-slug");
+    });
+
+    it("does not update the slug if the slug has been edited and the title is cleared before a new title is added", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockEnglishContent,
+            },
+        });
+        const input = wrapper.find("input[name='slug']");
+        const title = wrapper.find("input[name='title']");
+        const slug = wrapper.find("[data-test='slugSpan']");
+
+        await wrapper.find("button[data-test='editSlugButton']").trigger("click");
+        await flushPromises();
+        await input.setValue("new-slug");
+        await input.trigger("blur");
+        await flushPromises();
+        await title.setValue("");
+        await flushPromises();
+        await title.setValue("New title");
+        await flushPromises();
+
+        expect(slug.text()).toBe("new-slug");
     });
 
     it("shows and saves the selected tags", async () => {

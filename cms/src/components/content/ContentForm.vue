@@ -175,20 +175,16 @@ const slugInput = ref<HTMLInputElement | undefined>(undefined);
 
 const updateSlug = async (text: string) => {
     if (!text.trim() && values.title) text = values.title;
-    if (!text.trim()) return;
     setValues({ slug: await Slug.generate(text.trim(), props.content._id) });
 };
 
-let previousTitle: string = values.title || "";
+const previousTitle = ref(props.content.title);
 const updateSlugFromTitle = async (title: string) => {
     // Check if the slug is still the default value
-    if (
-        previousTitle == "" ||
-        values.slug?.replace(/-[0-9]*$/g, "") == Slug.generateNonUnique(previousTitle)
-    ) {
-        await updateSlug(title);
+    if (values.slug?.replace(/-[0-9]*$/g, "") == Slug.generateNonUnique(previousTitle.value)) {
+        await updateSlug(title.toString());
     }
-    previousTitle = title;
+    previousTitle.value = title;
 };
 
 const addTag = (tag: Tag) => {
@@ -206,7 +202,6 @@ const removeTag = (tag: Tag) => {
 const startEditingSlug = () => {
     isEditingSlug.value = true;
     nextTick(() => {
-        console.log(slugInput.value);
         slugInput.value?.focus();
     });
 };
@@ -231,7 +226,7 @@ const startEditingSlug = () => {
                     <span class="py-0.5">Slug:</span>
                     <span
                         v-show="!isEditingSlug"
-                        name="slugSpan"
+                        data-test="slugSpan"
                         class="inline-block rounded bg-gray-200 px-1.5 py-0.5"
                         >{{ values.slug }}</span
                     >
@@ -245,7 +240,7 @@ const startEditingSlug = () => {
                         @blur="isEditingSlug = false"
                     />
                     <button
-                        name="editSlugButton"
+                        data-test="editSlugButton"
                         v-if="!isEditingSlug"
                         @click="startEditingSlug"
                         class="flex h-5 w-5 min-w-5 items-center justify-center rounded py-0.5 hover:bg-gray-200"
