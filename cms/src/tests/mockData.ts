@@ -211,6 +211,19 @@ export const mockTopicContent: Content = {
     text: "A topic",
     publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
 };
+export const mockAudioPlaylistContent: Content = {
+    _id: "content-tag-audioPlaylist-Faith",
+    type: DocType.Content,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    language: mockLanguageEng,
+    status: ContentStatus.Published,
+    slug: "content-tag-audioPlaylist-Faith",
+    title: "Faith",
+    summary: "A playlist about faith",
+    text: "An audio playlist",
+    publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+};
 export const mockCategory: Tag = {
     _id: "tag-category1",
     type: DocType.Tag,
@@ -232,6 +245,17 @@ export const mockTopic: Tag = {
     image: "image.jpg",
     tags: [],
     content: [mockTopicContent],
+};
+export const mockAudioPlaylist: Tag = {
+    _id: "tag-audioPlaylist-Faith",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    tagType: TagType.AudioPlaylist,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockAudioPlaylistContent],
 };
 
 export const mockPost: Post = {

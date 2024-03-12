@@ -46,11 +46,11 @@ const save = handleSubmit(async (values) => {
         title: values.title,
     };
 
-    const postId = await postStore.createPost(post);
+    const id = await postStore.createPost(post);
 
     return router.push({
         name: "posts.edit",
-        params: { postId, language: post.language.languageCode },
+        params: { id, language: post.language.languageCode },
     });
 });
 </script>

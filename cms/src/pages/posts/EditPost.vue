@@ -12,7 +12,7 @@ const route = useRoute();
 const router = useRouter();
 const postStore = usePostStore();
 
-const postId = route.params.postId as string;
+const postId = route.params.id as string;
 const routeLanguage = route.params.language as string;
 
 const post = computed(() => postStore.post(postId));

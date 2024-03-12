@@ -27,7 +27,7 @@ vi.mock("vue-router", () => ({
     })),
     useRoute: vi.fn().mockImplementation(() => ({
         params: {
-            postId: mockPost._id,
+            id: mockPost._id,
             language: routeLanguage,
         },
     })),

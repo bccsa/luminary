@@ -60,7 +60,7 @@ const router = createRouter({
                             },
                         },
                         {
-                            path: "edit/:postId/:language?",
+                            path: "edit/:id/:language?",
                             name: "posts.edit",
                             component: () => import("../pages/posts/EditPost.vue"),
                             meta: {
@@ -70,16 +70,49 @@ const router = createRouter({
                     ],
                 },
                 {
-                    path: "videos",
-                    name: "videos",
-                    redirect: { name: "videos.index" },
+                    path: "tags",
+                    name: "tags",
+                    redirect: { name: "tags.categories" },
                     children: [
                         {
-                            path: "",
-                            name: "videos.index",
-                            component: () => import("../pages/VideosPage.vue"),
+                            path: "create",
+                            name: "tags.create",
+                            component: () => import("../pages/posts/CreatePost.vue"),
                             meta: {
-                                title: "Videos",
+                                title: "Create tag",
+                            },
+                        },
+                        {
+                            path: "edit/:id/:language?",
+                            name: "tags.edit",
+                            component: () => import("../pages/posts/EditPost.vue"),
+                            meta: {
+                                title: "Edit tag",
+                            },
+                        },
+
+                        {
+                            path: "categories",
+                            name: "tags.categories",
+                            component: () => import("../pages/tags/CategoriesOverview.vue"),
+                            meta: {
+                                title: "Categories",
+                            },
+                        },
+                        {
+                            path: "topics",
+                            name: "tags.topics",
+                            component: () => import("../pages/tags/TopicsOverview.vue"),
+                            meta: {
+                                title: "Topics",
+                            },
+                        },
+                        {
+                            path: "audio-playlists",
+                            name: "tags.audio-playlists",
+                            component: () => import("../pages/tags/AudioPlaylistsOverview.vue"),
+                            meta: {
+                                title: "AudioPlaylists",
                             },
                         },
                     ],
