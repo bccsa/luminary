@@ -9,12 +9,12 @@ import {
     VideoCameraIcon,
     MusicalNoteIcon,
 } from "@heroicons/vue/20/solid";
-import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/16/solid";
+import { ExclamationCircleIcon, PencilIcon, XCircleIcon } from "@heroicons/vue/16/solid";
 import { ContentStatus, type Content, type Post, type Tag, TagType } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
-import { computed, onBeforeMount, ref, toRaw } from "vue";
+import { computed, nextTick, onBeforeMount, ref, toRaw } from "vue";
 import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
 import { DateTime } from "luxon";
 import { renderErrorMessage } from "@/util/renderErrorMessage";
@@ -34,7 +34,6 @@ const props = defineProps<Props>();
 
 const { isLocalChange } = useLocalChangeStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
-
 const emit = defineEmits(["save"]);
 
 const {
@@ -171,9 +170,25 @@ const hasTag = computed(() => {
 });
 
 const isDirty = ref(false);
+const isEditingSlug = ref(false);
+const slugInput = ref<HTMLInputElement | undefined>(undefined);
 
-const updateSlug = async (title: string) => {
-    setValues({ slug: await Slug.generate(title, props.content._id) });
+const updateSlug = async (text: string) => {
+    if (!text.trim() && values.title) text = values.title;
+    setValues({ slug: await Slug.generate(text.trim(), props.content._id) });
+};
+
+const previousTitle = ref(props.content.title);
+const updateSlugFromTitle = async (title: string) => {
+    // Only auto-update if in draft mode
+    // Check if the slug is still the default value
+    if (
+        props.content.status == ContentStatus.Draft &&
+        values.slug?.replace(/-[0-9]*$/g, "") == Slug.generateNonUnique(previousTitle.value)
+    ) {
+        await updateSlug(title.toString());
+    }
+    previousTitle.value = title;
 };
 
 const addTag = (tag: Tag) => {
@@ -187,6 +202,13 @@ const addTag = (tag: Tag) => {
 const removeTag = (tag: Tag) => {
     selectedTags.value = selectedTags.value.filter((t) => t._id != tag._id);
 };
+
+const startEditingSlug = () => {
+    isEditingSlug.value = true;
+    nextTick(() => {
+        slugInput.value?.focus();
+    });
+};
 </script>
 
 <template>
@@ -199,16 +221,37 @@ const removeTag = (tag: Tag) => {
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
                 <LInput
-                    @change="(e) => updateSlug(e.target.value)"
+                    @input="(e) => updateSlugFromTitle(e.target.value)"
                     name="title"
                     label="Title"
                     required
                 />
-                <div class="mt-2 flex gap-1 text-xs text-gray-800">
+                <div class="mt-2 flex gap-1 align-top text-xs text-gray-800">
                     <span class="py-0.5">Slug:</span>
-                    <span class="inline-block rounded bg-gray-200 px-1.5 py-0.5">{{
-                        values.slug
-                    }}</span>
+                    <span
+                        v-show="!isEditingSlug"
+                        data-test="slugSpan"
+                        class="inline-block rounded bg-gray-200 px-1.5 py-0.5"
+                        >{{ values.slug }}</span
+                    >
+                    <LInput
+                        v-show="isEditingSlug"
+                        ref="slugInput"
+                        name="slug"
+                        size="sm"
+                        class="w-full"
+                        @change="(e) => updateSlug(e.target.value)"
+                        @blur="isEditingSlug = false"
+                    />
+                    <button
+                        data-test="editSlugButton"
+                        v-if="!isEditingSlug"
+                        @click="startEditingSlug"
+                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded py-0.5 hover:bg-gray-200"
+                        title="Edit slug"
+                    >
+                        <component :is="PencilIcon" class="h-4 w-4 text-gray-500" />
+                    </button>
                 </div>
 
                 <LInput name="summary" label="Summary" class="mt-4" />

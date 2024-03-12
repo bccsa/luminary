@@ -5,7 +5,7 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { computed, type Component, type StyleValue } from "vue";
+import { computed, type Component, type StyleValue, ref } from "vue";
 import { useId } from "@/util/useId";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
@@ -34,6 +34,13 @@ const props = withDefaults(defineProps<Props>(), {
     required: false,
     disabled: false,
 });
+
+// Expose the focus method to parent components.
+const input = ref<HTMLInputElement | undefined>(undefined);
+const focus = () => {
+    input.value?.focus();
+};
+defineExpose({ focus });
 
 const { errorMessage, value, handleBlur, handleChange } = useField(() => props.name, undefined, {
     syncVModel: true,
@@ -79,10 +86,10 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
 <template>
     <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <FormLabel v-if="label" :for="id" :required="required">
+        <FormLabel v-if="label" :for="id" :required="required" class="mb-2">
             {{ label }}
         </FormLabel>
-        <div class="relative mt-2 flex rounded-md shadow-sm">
+        <div class="relative flex rounded-md shadow-sm">
             <div
                 v-if="icon"
                 class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
@@ -105,6 +112,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <input
+                ref="input"
                 v-model="value"
                 v-on="validationListeners"
                 :class="[
