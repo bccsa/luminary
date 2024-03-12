@@ -70,16 +70,32 @@ const router = createRouter({
                     ],
                 },
                 {
-                    path: "videos",
-                    name: "videos",
-                    redirect: { name: "videos.index" },
+                    path: "tags",
+                    name: "tags",
+                    redirect: { name: "tags.categories" },
                     children: [
                         {
-                            path: "",
-                            name: "videos.index",
-                            component: () => import("../pages/VideosPage.vue"),
+                            path: "categories",
+                            name: "tags.categories",
+                            component: () => import("../pages/tags/CategoriesPage.vue"),
                             meta: {
-                                title: "Videos",
+                                title: "Categories",
+                            },
+                        },
+                        {
+                            path: "topics",
+                            name: "tags.topics",
+                            component: () => import("../pages/tags/TopicsPage.vue"),
+                            meta: {
+                                title: "Topics",
+                            },
+                        },
+                        {
+                            path: "audio-playlists",
+                            name: "tags.audio-playlists",
+                            component: () => import("../pages/tags/AudioPlaylistsPage.vue"),
+                            meta: {
+                                title: "AudioPlaylists",
                             },
                         },
                     ],

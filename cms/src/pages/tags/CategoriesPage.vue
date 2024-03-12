@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { VideoCameraIcon } from "@heroicons/vue/24/outline";
+import { TagIcon } from "@heroicons/vue/24/outline";
 </script>
 
 <template>
-    <BasePage title="Videos">
+    <BasePage title="Categories">
         <EmptyState
-            :icon="VideoCameraIcon"
-            title="No videos yet"
+            :icon="TagIcon"
+            title="No categories yet"
             description="This functionality is not yet included in the CMS."
         />
     </BasePage>
