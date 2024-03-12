@@ -94,7 +94,7 @@ const router = createRouter({
                         {
                             path: "categories",
                             name: "tags.categories",
-                            component: () => import("../pages/tags/CategoriesPage.vue"),
+                            component: () => import("../pages/tags/CategoriesOverview.vue"),
                             meta: {
                                 title: "Categories",
                             },
@@ -102,7 +102,7 @@ const router = createRouter({
                         {
                             path: "topics",
                             name: "tags.topics",
-                            component: () => import("../pages/tags/TopicsPage.vue"),
+                            component: () => import("../pages/tags/TopicsOverview.vue"),
                             meta: {
                                 title: "Topics",
                             },
@@ -110,7 +110,7 @@ const router = createRouter({
                         {
                             path: "audio-playlists",
                             name: "tags.audio-playlists",
-                            component: () => import("../pages/tags/AudioPlaylistsPage.vue"),
+                            component: () => import("../pages/tags/AudioPlaylistsOverview.vue"),
                             meta: {
                                 title: "AudioPlaylists",
                             },

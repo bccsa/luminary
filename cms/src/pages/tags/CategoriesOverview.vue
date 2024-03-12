@@ -9,32 +9,32 @@ import { RouterLink } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useTagStore } from "@/stores/tag";
 
-const { audioPlaylists } = storeToRefs(useTagStore());
+const { tags, categories } = storeToRefs(useTagStore());
 </script>
 
 <template>
-    <BasePage title="Audio playlists" :loading="audioPlaylists === undefined">
+    <BasePage title="Categories" :loading="tags === undefined">
         <template #actions>
             <LButton
-                v-if="audioPlaylists && audioPlaylists.length > 0"
+                v-if="categories && categories.length > 0"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
                 :to="{ name: 'tags.create' }"
             >
-                Create audio playlist
+                Create category
             </LButton>
         </template>
 
         <EmptyState
-            v-if="!audioPlaylists || audioPlaylists.length == 0"
+            v-if="!categories || categories.length == 0"
             :icon="TagIcon"
-            title="No audio playlists yet"
-            description="Get started by creating a new audio playlist."
-            buttonText="Create audio playlist"
+            title="No categories yet"
+            description="Get started by creating a new category."
+            buttonText="Create category"
             :buttonLink="{ name: 'tags.create' }"
         />
 
-        <ContentTable v-else :items="audioPlaylists" editLinkName="tags.edit" />
+        <ContentTable v-else :items="categories" editLinkName="tags.edit" />
     </BasePage>
 </template>

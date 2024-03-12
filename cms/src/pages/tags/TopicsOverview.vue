@@ -9,32 +9,32 @@ import { RouterLink } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useTagStore } from "@/stores/tag";
 
-const { categories } = storeToRefs(useTagStore());
+const { tags, topics } = storeToRefs(useTagStore());
 </script>
 
 <template>
-    <BasePage title="Categories" :loading="categories === undefined">
+    <BasePage title="Topics" :loading="tags === undefined">
         <template #actions>
             <LButton
-                v-if="categories && categories.length > 0"
+                v-if="topics && topics.length > 0"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
                 :to="{ name: 'tags.create' }"
             >
-                Create category
+                Create topic
             </LButton>
         </template>
 
         <EmptyState
-            v-if="!categories || categories.length == 0"
+            v-if="!topics || topics.length == 0"
             :icon="TagIcon"
-            title="No categories yet"
-            description="Get started by creating a new category."
-            buttonText="Create category"
+            title="No topics yet"
+            description="Get started by creating a new topic."
+            buttonText="Create topic"
             :buttonLink="{ name: 'tags.create' }"
         />
 
-        <ContentTable v-else :items="categories" editLinkName="tags.edit" />
+        <ContentTable v-else :items="topics" editLinkName="tags.edit" />
     </BasePage>
 </template>

@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import PostOverview from "./PostOverview.vue";
-import { usePostStore } from "@/stores/post";
+import AudioPlaylistsOverview from "./AudioPlaylistsOverview.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { mockLanguageEng, mockPost } from "@/tests/mockData";
+import { mockAudioPlaylist, mockLanguageEng } from "@/tests/mockData";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
+import { useTagStore } from "@/stores/tag";
 
-describe("PostOverview", () => {
+describe("AudioPlaylistsOverview", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
     });
@@ -18,28 +18,34 @@ describe("PostOverview", () => {
     });
 
     it("displays posts from the store", async () => {
-        const postStore = usePostStore();
+        const tagStore = useTagStore();
         const languageStore = useLanguageStore();
 
-        postStore.posts = [mockPost];
+        // @ts-ignore Property is readonly
+        tagStore.tags = [mockAudioPlaylist];
+        // @ts-ignore Property is readonly
+        tagStore.audioPlaylists = [mockAudioPlaylist];
         languageStore.languages = [mockLanguageEng];
 
-        const wrapper = mount(PostOverview);
+        const wrapper = mount(AudioPlaylistsOverview);
 
-        expect(wrapper.html()).toContain("English translation title");
+        expect(wrapper.html()).toContain("Faith");
     });
 
     it("displays an empty state if there are no posts", async () => {
-        const store = usePostStore();
-        store.posts = [];
+        const store = useTagStore();
+        // @ts-ignore Property is readonly
+        store.tags = [];
+        // @ts-ignore Property is readonly
+        store.audioPlaylists = [];
 
-        const wrapper = mount(PostOverview);
+        const wrapper = mount(AudioPlaylistsOverview);
 
         expect(wrapper.findComponent(EmptyState).exists()).toBe(true);
     });
 
     it("doesn't display anything when the db is still loading", async () => {
-        const wrapper = mount(PostOverview);
+        const wrapper = mount(AudioPlaylistsOverview);
 
         expect(wrapper.find("button").exists()).toBe(false);
         expect(wrapper.findComponent(EmptyState).exists()).toBe(false);
