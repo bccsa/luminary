@@ -48,7 +48,7 @@ describe("ContentForm", () => {
     it("can save as draft", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });
@@ -68,7 +68,7 @@ describe("ContentForm", () => {
     it("can publish the post", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });
@@ -88,7 +88,7 @@ describe("ContentForm", () => {
     it("can can edit basic content fields", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });
@@ -111,7 +111,7 @@ describe("ContentForm", () => {
     it("can can edit parent image", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });
@@ -132,7 +132,7 @@ describe("ContentForm", () => {
     it("does not submit invalid forms", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });
@@ -150,7 +150,7 @@ describe("ContentForm", () => {
     it("does not display text, audio or video when not defined", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: {
                     ...mockEnglishContent,
                     text: undefined,
@@ -169,7 +169,7 @@ describe("ContentForm", () => {
     it("adds a field for text, audio, or video when a button is clicked", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: {
                     ...mockEnglishContent,
                     text: undefined,
@@ -192,7 +192,7 @@ describe("ContentForm", () => {
     it("displays why a post cannot be published", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockUnpublishableContent,
             },
         });
@@ -214,7 +214,7 @@ describe("ContentForm", () => {
     it("displays when there are unsaved changes", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });
@@ -232,7 +232,7 @@ describe("ContentForm", () => {
 
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });
@@ -269,7 +269,7 @@ describe("ContentForm", () => {
     it("displays a text input when the slug edit button is pressed", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });
@@ -362,7 +362,7 @@ describe("ContentForm", () => {
     it("shows and saves the selected tags", async () => {
         const wrapper = mount(ContentForm, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 content: mockEnglishContent,
             },
         });

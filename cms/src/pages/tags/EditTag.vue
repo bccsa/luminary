@@ -3,22 +3,22 @@ import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import ContentForm from "@/components/content/ContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
-import { usePostStore } from "@/stores/post";
+import { useTagStore } from "@/stores/tag";
 import type { Language } from "@/types";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
 const router = useRouter();
-const postStore = usePostStore();
+const tagStore = useTagStore();
 
-const postId = route.params.id as string;
+const tagId = route.params.id as string;
 const routeLanguage = route.params.language as string;
 
-const post = computed(() => postStore.post(postId));
-const isLoading = computed(() => post.value == undefined);
+const tag = computed(() => tagStore.tag(tagId));
+const isLoading = computed(() => tag.value == undefined);
 const content = computed(() => {
-    return post.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
+    return tag.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
 });
 
 const selectedLanguage = ref<string>();
@@ -27,21 +27,21 @@ onBeforeMount(() => {
     if (routeLanguage) {
         selectedLanguage.value = routeLanguage;
 
-        router.replace({ name: "posts.edit", params: { postId } });
+        router.replace({ name: "tags.edit", params: { tagId } });
     }
 });
 
 watch(
-    post,
-    (post) => {
-        if (!post || post.content.length == 0 || routeLanguage || selectedLanguage.value) {
+    tag,
+    (tag) => {
+        if (!tag || tag.content.length == 0 || routeLanguage || selectedLanguage.value) {
             return;
         }
 
         // TODO this needs to come from a profile setting
         const defaultLanguage = "eng";
 
-        const defaultLanguageContent = post.content.find(
+        const defaultLanguageContent = tag.content.find(
             (c) => c.language.languageCode == defaultLanguage,
         );
         if (defaultLanguageContent) {
@@ -49,13 +49,13 @@ watch(
             return;
         }
 
-        selectedLanguage.value = post.content[0].language.languageCode;
+        selectedLanguage.value = tag.content[0].language.languageCode;
     },
     { immediate: true },
 );
 
 async function createTranslation(language: Language) {
-    await postStore.createTranslation(post.value!, language);
+    await tagStore.createTranslation(tag.value!, language);
 
     selectedLanguage.value = language.languageCode;
 }
@@ -63,15 +63,15 @@ async function createTranslation(language: Language) {
 
 <template>
     <BasePage
-        :title="content ? content.title : 'Edit post'"
+        :title="content ? content.title : 'Edit tag'"
         :loading="isLoading"
-        :back-link-location="{ name: 'posts.index' }"
-        back-link-text="Posts"
+        :back-link-location="{ name: 'tags.categories' }"
+        back-link-text="Categories"
     >
         <template #actions>
             <LanguageSelector
                 v-if="content"
-                :parent="post"
+                :parent="tag"
                 v-model="selectedLanguage"
                 @create-translation="createTranslation"
             />
@@ -80,10 +80,10 @@ async function createTranslation(language: Language) {
         <EmptyState
             v-if="!content"
             title="No translations found"
-            description="This post does not have any translations. Click to get started:"
+            description="This tag does not have any translations. Click to get started:"
         >
             <LanguageSelector
-                :parent="post"
+                :parent="tag"
                 v-model="selectedLanguage"
                 @create-translation="createTranslation"
             />
@@ -95,11 +95,11 @@ async function createTranslation(language: Language) {
             enter-to-class="opacity-100 scale-100"
         >
             <ContentForm
-                v-if="content && post"
+                v-if="content && tag"
                 :key="content._id"
-                :parent="post"
+                :parent="tag"
                 :content="content"
-                @save="postStore.updatePost"
+                @save="tagStore.updateTag"
             />
         </transition>
     </BasePage>

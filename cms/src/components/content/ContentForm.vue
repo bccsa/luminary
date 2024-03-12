@@ -27,7 +27,7 @@ import { useTagStore } from "@/stores/tag";
 
 type Props = {
     content: Content;
-    post?: Post;
+    parent: Post | Tag;
 };
 
 const props = defineProps<Props>();
@@ -90,9 +90,7 @@ const { handleSubmit, values, setValues, errors } = useForm({
 });
 
 onBeforeMount(() => {
-    if (props.post) {
-        selectedTags.value = [...props.post.tags];
-    }
+    selectedTags.value = [...props.parent.tags];
 
     // Convert dates to format VeeValidate understands
     const filteredContent: any = { ...toRaw(props.content) };
@@ -100,7 +98,7 @@ onBeforeMount(() => {
 
     setValues({
         ...onlyAllowedKeys(filteredContent, Object.keys(values)),
-        parent: onlyAllowedKeys(toRaw(props.post), Object.keys(values.parent as object)),
+        parent: onlyAllowedKeys(toRaw(props.parent), Object.keys(values.parent as object)),
     });
 });
 
@@ -121,10 +119,10 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         slug: await Slug.makeUnique(contentValues.slug!, props.content._id), // Ensure slug is still unique before saving
     };
 
-    const post: Partial<Post> = {
-        ...toRaw(props.post),
+    const post: Partial<Post | Tag> = {
+        ...toRaw(props.parent),
         image: validatedFormValues.parent?.image,
-        tags: selectedTags.value,
+        tags: toRaw(selectedTags.value),
     };
 
     isDirty.value = false;
@@ -447,19 +445,14 @@ const startEditingSlug = () => {
                     class="sticky top-20"
                     collapsible
                 >
-                    <LInput
-                        name="parent.image"
-                        label="Default image"
-                        placeholder="cdn.bcc.africa/img/image.png"
-                        leftAddOn="https://"
-                    >
+                    <LInput name="parent.image" label="Default image" leftAddOn="https://">
                         This image can be overridden in a translation
                     </LInput>
 
                     <TagSelector
                         label="Categories"
                         class="mt-6"
-                        :tags="availableCategories"
+                        :tags="availableCategories.filter((t) => t._id != parent._id)"
                         :selected-tags="selectedCategories"
                         :language="content.language"
                         @select="addTag"
@@ -469,7 +462,7 @@ const startEditingSlug = () => {
                     <TagSelector
                         label="Topics"
                         class="mt-6"
-                        :tags="availableTopics"
+                        :tags="availableTopics.filter((t) => t._id != parent._id)"
                         :selected-tags="selectedTopics"
                         :language="content.language"
                         @select="addTag"
@@ -479,7 +472,7 @@ const startEditingSlug = () => {
                     <TagSelector
                         label="Audio playlists"
                         class="mt-6"
-                        :tags="availableAudioPlaylists"
+                        :tags="availableAudioPlaylists.filter((t) => t._id != parent._id)"
                         :selected-tags="selectedAudioPlaylists"
                         :language="content.language"
                         @select="addTag"

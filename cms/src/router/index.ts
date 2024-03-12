@@ -85,7 +85,7 @@ const router = createRouter({
                         {
                             path: "edit/:id/:language?",
                             name: "tags.edit",
-                            component: () => import("../pages/posts/EditPost.vue"),
+                            component: () => import("../pages/tags/EditTag.vue"),
                             meta: {
                                 title: "Edit tag",
                             },
