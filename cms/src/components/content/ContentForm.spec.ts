@@ -341,6 +341,29 @@ describe("ContentForm", () => {
         expect(slug.text()).toBe("new-slug");
     });
 
+    it("does not update the slug if the content status is 'published'", async () => {
+        const props = {
+            post: mockPost,
+            content: mockEnglishContent,
+        };
+        props.content.title = "New Title";
+        props.content.slug = "new-title";
+        props.content.status = ContentStatus.Published;
+
+        const wrapper = mount(ContentForm, {
+            props,
+        });
+
+        const title = wrapper.find("input[name='title']");
+        const slug = wrapper.find("[data-test='slugSpan']");
+        await flushPromises();
+
+        await title.setValue("New Title 123");
+        await flushPromises();
+
+        expect(slug.text()).toBe("new-title");
+    });
+
     it("shows and saves the selected tags", async () => {
         const wrapper = mount(ContentForm, {
             props: {

@@ -180,8 +180,12 @@ const updateSlug = async (text: string) => {
 
 const previousTitle = ref(props.content.title);
 const updateSlugFromTitle = async (title: string) => {
+    // Only auto-update if in draft mode
     // Check if the slug is still the default value
-    if (values.slug?.replace(/-[0-9]*$/g, "") == Slug.generateNonUnique(previousTitle.value)) {
+    if (
+        props.content.status == ContentStatus.Draft &&
+        values.slug?.replace(/-[0-9]*$/g, "") == Slug.generateNonUnique(previousTitle.value)
+    ) {
         await updateSlug(title.toString());
     }
     previousTitle.value = title;
