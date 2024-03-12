@@ -99,6 +99,7 @@ async function createTranslation(language: Language) {
                 :key="content._id"
                 :parent="post"
                 :content="content"
+                ruleset="post"
                 @save="postStore.updatePost"
             />
         </transition>

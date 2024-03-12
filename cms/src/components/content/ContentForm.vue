@@ -28,6 +28,7 @@ import { useTagStore } from "@/stores/tag";
 type Props = {
     content: Content;
     parent: Post | Tag;
+    ruleset: "post" | "tag";
 };
 
 const props = defineProps<Props>();
@@ -138,6 +139,10 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
 });
 
 const canPublish = computed(() => {
+    if (props.ruleset == "tag") {
+        return hasPublishDate.value && hasSummary.value && hasParentImage.value;
+    }
+
     return (
         hasOneContentField.value &&
         hasPublishDate.value &&

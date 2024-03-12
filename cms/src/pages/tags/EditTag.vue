@@ -99,6 +99,7 @@ async function createTranslation(language: Language) {
                 :key="content._id"
                 :parent="tag"
                 :content="content"
+                ruleset="tag"
                 @save="tagStore.updateTag"
             />
         </transition>
