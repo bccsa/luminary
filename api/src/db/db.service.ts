@@ -466,6 +466,25 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * Check if a slug is unique
+     * @param slug - Slug to be checked
+     * @param documentId - ID of the document to be excluded from the check
+     * @returns Promise containing a boolean indicating if the slug is unique
+     */
+    async checkUniqueSlug(slug: string, documentId: Uuid): Promise<boolean> {
+        return new Promise((resolve) => {
+            this.db.view("slug", "slug", { key: slug }).then((res) => {
+                if (res.rows.length > 1) resolve(false);
+
+                // Skip the check if the only result is the document itself
+                if (res.rows.length == 1 && res.rows[0].id != documentId) resolve(false);
+
+                resolve(true);
+            });
+        });
+    }
+
+    /**
      * Generate a diff between two documents
      * @param doc1
      * @param doc2

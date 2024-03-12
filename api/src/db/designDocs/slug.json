@@ -1,0 +1,8 @@
+{
+    "_id": "_design/slug",
+    "views": {
+        "slug": {
+            "map": "function (doc) {\n  if (doc.type === \"content\" && doc.slug) {\n    emit(doc.slug, 1);\n  }\n}"
+        }
+    }
+}

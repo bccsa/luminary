@@ -4,6 +4,7 @@ import { DbService } from "../db/db.service";
 import { ChangeDto } from "../dto/ChangeDto";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { DocType, Uuid } from "../enums";
+import { validateSlug } from "./validateSlug";
 
 export async function processChangeRequest(
     userId: string,
@@ -17,15 +18,23 @@ export async function processChangeRequest(
         throw new Error(validationResult.error);
     }
 
-    const upsertResult = await db.upsertDoc(validationResult.validatedData);
+    const doc = validationResult.validatedData;
+
+    // Validate slug
+    if (doc.type == DocType.Content) {
+        doc.slug = await validateSlug(doc.slug, doc._id, db);
+    }
+
+    // Insert / update the document in the database
+    const upsertResult = await db.upsertDoc(doc);
 
     // Generate change document and store in database
     if (upsertResult.changes) {
         const changeDoc = new ChangeDto();
         changeDoc._id = "change:" + randomUUID();
         changeDoc.type = DocType.Change;
-        changeDoc.docId = validationResult.validatedData._id;
-        changeDoc.docType = validationResult.validatedData.type;
+        changeDoc.docId = doc._id;
+        changeDoc.docType = doc.type;
         changeDoc.updatedTimeUtc = upsertResult.updatedTimeUtc;
         changeDoc.changes = upsertResult.changes;
         changeDoc.changedByUser = userId;
