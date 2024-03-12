@@ -75,6 +75,23 @@ const router = createRouter({
                     redirect: { name: "tags.categories" },
                     children: [
                         {
+                            path: "create",
+                            name: "tags.create",
+                            component: () => import("../pages/posts/CreatePost.vue"),
+                            meta: {
+                                title: "Create tag",
+                            },
+                        },
+                        {
+                            path: "edit/:tagId/:language?",
+                            name: "tags.edit",
+                            component: () => import("../pages/posts/EditPost.vue"),
+                            meta: {
+                                title: "Edit tag",
+                            },
+                        },
+
+                        {
                             path: "categories",
                             name: "tags.categories",
                             component: () => import("../pages/tags/CategoriesPage.vue"),
