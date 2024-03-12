@@ -256,6 +256,41 @@ describe("ContentForm", () => {
         expect(wrapper.text()).toContain("Slug:updated-title");
     });
 
+    it("displays a text input when the slug edit button is pressed", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockEnglishContent,
+            },
+        });
+
+        await wrapper.find("button[name='editSlugButton']").trigger("click");
+
+        await flushPromises();
+        const input = wrapper.find("input[name='slug']");
+        expect(input.isVisible()).toBe(true);
+    });
+
+    it("saves the new slug when the text input loses focus and hides the input", async () => {
+        const wrapper = mount(ContentForm, {
+            props: {
+                post: mockPost,
+                content: mockEnglishContent,
+            },
+        });
+        const input = wrapper.find("input[name='slug']");
+        const slug = wrapper.find("span[name='slugSpan']");
+
+        await wrapper.find("button[name='editSlugButton']").trigger("click");
+        await flushPromises();
+        await input.setValue("new-slug");
+        await input.trigger("blur");
+
+        expect(slug.text()).toBe("new-slug");
+        expect(input.isVisible()).toBe(false);
+        expect(slug.isVisible()).toBe(true);
+    });
+
     it("shows and saves the selected tags", async () => {
         const wrapper = mount(ContentForm, {
             props: {

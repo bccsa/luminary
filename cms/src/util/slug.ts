@@ -7,14 +7,21 @@ import type { Uuid } from "@/types";
  */
 export class Slug {
     /**
-     * Automatically generates a unique slug from a title.
-     * Ignores the current documentId when checking for uniqueness.
+     * Converts a string to a slug without uniqueness validation
      */
-    static async generate(title: string, documentId: Uuid) {
-        const slug = slugify(title, {
+    static generateNonUnique(text: string) {
+        return slugify(text, {
             lowercase: true,
             separator: "-",
         });
+    }
+
+    /**
+     * Automatically generates a unique slug from a title.
+     * Ignores the current documentId when checking for uniqueness.
+     */
+    static async generate(text: string, documentId: Uuid) {
+        const slug = this.generateNonUnique(text);
         return await this.makeUnique(slug, documentId);
     }
 
@@ -22,18 +29,18 @@ export class Slug {
      * Ensures the slug is unique
      * @returns Promise containing a unique slug
      */
-    static async makeUnique(slug: string, documentId: Uuid) {
-        while (!(await this._checkUnique(slug, documentId))) {
-            slug = `${slug}-${Math.floor(Math.random() * 999)}`;
+    static async makeUnique(text: string, documentId: Uuid) {
+        while (!(await this._checkUnique(text, documentId))) {
+            text = `${text}-${Math.floor(Math.random() * 999)}`;
         }
-        return slug;
+        return text;
     }
 
     /**
      * Returns true if the slug is unique
      */
-    private static async _checkUnique(slug: string, documentId: Uuid) {
-        const existingDocWithSlug = await db.docs.where("slug").equals(slug).first();
+    private static async _checkUnique(text: string, documentId: Uuid) {
+        const existingDocWithSlug = await db.docs.where("slug").equals(text).first();
 
         if (existingDocWithSlug && existingDocWithSlug._id != documentId) {
             return false;
