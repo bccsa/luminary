@@ -60,7 +60,7 @@ const router = createRouter({
                             },
                         },
                         {
-                            path: "edit/:postId/:language?",
+                            path: "edit/:id/:language?",
                             name: "posts.edit",
                             component: () => import("../pages/posts/EditPost.vue"),
                             meta: {
@@ -83,7 +83,7 @@ const router = createRouter({
                             },
                         },
                         {
-                            path: "edit/:tagId/:language?",
+                            path: "edit/:id/:language?",
                             name: "tags.edit",
                             component: () => import("../pages/posts/EditPost.vue"),
                             meta: {

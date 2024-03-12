@@ -127,9 +127,9 @@ const postTitle = computed(() => {
                         :key="language.languageCode"
                         v-slot="{ navigate }"
                         :to="{
-                            name: 'tags.edit',
+                            name: editLinkName,
                             params: {
-                                tagId: tag._id,
+                                id: tag._id,
                                 language: language.languageCode,
                             },
                         }"
@@ -161,9 +161,9 @@ const postTitle = computed(() => {
                     :icon="PencilSquareIcon"
                     :is="RouterLink"
                     :to="{
-                        name: 'tags.edit',
+                        name: editLinkName,
                         params: {
-                            tagId: tag._id,
+                            id: tag._id,
                         },
                     }"
                 ></LButton>

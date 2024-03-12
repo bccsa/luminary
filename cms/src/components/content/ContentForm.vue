@@ -194,7 +194,7 @@ const removeTag = (tag: Tag) => {
         type="post"
         class="relative grid grid-cols-3 gap-8"
         @submit.prevent
-        @change="isDirty = true"
+        @input="isDirty = true"
     >
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
