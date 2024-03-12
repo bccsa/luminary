@@ -241,23 +241,29 @@ describe("ContentForm", () => {
     });
 
     it("displays the slug", async () => {
+        const props = {
+            post: mockPost,
+            content: mockEnglishContent,
+        };
+        props.content.title = "Test Title";
+        props.content.slug = "test-title";
+        props.content.status = ContentStatus.Draft;
+
         const wrapper = mount(ContentForm, {
-            props: {
-                post: mockPost,
-                content: mockEnglishContent,
-            },
+            props,
         });
 
-        const slug = wrapper.find("[name='slugSpan']");
+        const slug = wrapper.find("[data-test='slugSpan']");
+        const title = wrapper.find("input[name='title']");
 
-        expect(wrapper.text()).toContain(mockEnglishContent.slug);
+        // Check if the slug is displayed
+        expect(slug.text()).toBe("test-title");
 
-        await wrapper.find("input[name='title']").setValue("Updated Title");
-
+        await title.setValue("Updated Title");
         await flushPromises();
-        waitForExpect(() => {
-            expect(slug.text()).toBe("updated-title");
-        });
+
+        // Check if the slug is updated
+        expect(slug.text()).toBe("updated-title");
     });
 
     it("displays a text input when the slug edit button is pressed", async () => {
@@ -270,7 +276,6 @@ describe("ContentForm", () => {
 
         await wrapper.find("button[data-test='editSlugButton']").trigger("click");
 
-        await flushPromises();
         const input = wrapper.find("input[name='slug']");
         expect(input.isVisible()).toBe(true);
     });
@@ -286,7 +291,6 @@ describe("ContentForm", () => {
         const slug = wrapper.find("[data-test='slugSpan']");
 
         await wrapper.find("button[data-test='editSlugButton']").trigger("click");
-        await flushPromises();
         await input.setValue("new-slug");
         await input.trigger("blur");
 
@@ -307,12 +311,9 @@ describe("ContentForm", () => {
         const slug = wrapper.find("[data-test='slugSpan']");
 
         await wrapper.find("button[data-test='editSlugButton']").trigger("click");
-        await flushPromises();
         await input.setValue("new-slug");
         await input.trigger("blur");
-        await flushPromises();
         await title.setValue("New Title 123");
-        await flushPromises();
 
         expect(slug.text()).toBe("new-slug");
     });
@@ -329,14 +330,10 @@ describe("ContentForm", () => {
         const slug = wrapper.find("[data-test='slugSpan']");
 
         await wrapper.find("button[data-test='editSlugButton']").trigger("click");
-        await flushPromises();
         await input.setValue("new-slug");
         await input.trigger("blur");
-        await flushPromises();
         await title.setValue("");
-        await flushPromises();
         await title.setValue("New title");
-        await flushPromises();
 
         expect(slug.text()).toBe("new-slug");
     });
@@ -356,10 +353,8 @@ describe("ContentForm", () => {
 
         const title = wrapper.find("input[name='title']");
         const slug = wrapper.find("[data-test='slugSpan']");
-        await flushPromises();
 
         await title.setValue("New Title 123");
-        await flushPromises();
 
         expect(slug.text()).toBe("new-title");
     });
