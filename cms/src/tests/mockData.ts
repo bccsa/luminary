@@ -185,7 +185,7 @@ export const mockUnpublishableContent: Content = {
     expiryDate: undefined,
 };
 
-export const mockCategoryContent: Content = {
+export const mockEnglishCategoryContent: Content = {
     _id: "content-tag-category1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
@@ -196,6 +196,19 @@ export const mockCategoryContent: Content = {
     title: "Category 1",
     summary: "Example tag",
     text: "A category.",
+    publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+};
+export const mockFrenchCategoryContent: Content = {
+    _id: "content-tag-category1-fra",
+    type: DocType.Content,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    language: mockLanguageFra,
+    status: ContentStatus.Published,
+    slug: "content-tag-category1-fra",
+    title: "Categorie 1",
+    summary: "Tag example",
+    text: "Un categorie",
     publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
 };
 export const mockTopicContent: Content = {
@@ -233,7 +246,7 @@ export const mockCategory: Tag = {
     pinned: false,
     image: "image.jpg",
     tags: [],
-    content: [mockCategoryContent],
+    content: [mockEnglishCategoryContent, mockFrenchCategoryContent],
 };
 export const mockTopic: Tag = {
     _id: "tag-topicA",

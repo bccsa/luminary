@@ -31,6 +31,8 @@ export class BaseRepository {
         const dto = { ...obj } as unknown as T;
 
         dto.updatedTimeUtc = obj.updatedTimeUtc.toMillis();
+        // @ts-ignore Content does not always exist, but make sure it's undefined
+        delete dto.content;
 
         return dto;
     }

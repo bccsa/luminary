@@ -116,11 +116,11 @@ const postTitle = computed(() => {
             <template #item.title="{ content }">
                 {{ postTitle(content) }}
             </template>
-            <template #item.offlineChanges="tag">
-                <LBadge v-if="isLocalChange(tag._id)" variant="warning"> Offline changes </LBadge>
+            <template #item.offlineChanges="item">
+                <LBadge v-if="isLocalChange(item._id)" variant="warning"> Offline changes </LBadge>
             </template>
-            <template #item.translations="tag">
-                <div class="flex gap-2" v-if="tag.content.length > 0">
+            <template #item.translations="item">
+                <div class="flex gap-2" v-if="item.content.length > 0">
                     <RouterLink
                         custom
                         v-for="language in languages"
@@ -129,22 +129,22 @@ const postTitle = computed(() => {
                         :to="{
                             name: editLinkName,
                             params: {
-                                id: tag._id,
+                                id: item._id,
                                 language: language.languageCode,
                             },
                         }"
                     >
                         <LBadge
                             @click="
-                                translationStatus(tag.content, language) == 'default'
+                                translationStatus(item.content, language) == 'default'
                                     ? ''
                                     : navigate()
                             "
                             type="language"
-                            :variant="translationStatus(tag.content, language)"
+                            :variant="translationStatus(item.content, language)"
                             :class="{
                                 'cursor-pointer hover:opacity-75':
-                                    translationStatus(tag.content, language) !== 'default',
+                                    translationStatus(item.content, language) !== 'default',
                             }"
                         >
                             {{ language.languageCode }}
@@ -152,10 +152,10 @@ const postTitle = computed(() => {
                     </RouterLink>
                 </div>
             </template>
-            <template #item.updatedTime="tag">
-                {{ tag.updatedTimeUtc.toLocaleString(DateTime.DATETIME_MED) }}
+            <template #item.updatedTime="item">
+                {{ item.updatedTimeUtc.toLocaleString(DateTime.DATETIME_MED) }}
             </template>
-            <template #item.actions="tag">
+            <template #item.actions="item">
                 <LButton
                     variant="tertiary"
                     :icon="PencilSquareIcon"
@@ -163,7 +163,7 @@ const postTitle = computed(() => {
                     :to="{
                         name: editLinkName,
                         params: {
-                            id: tag._id,
+                            id: item._id,
                         },
                     }"
                 ></LButton>

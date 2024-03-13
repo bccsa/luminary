@@ -4,16 +4,16 @@ import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import LBadge from "@/components/common/LBadge.vue";
 import { storeToRefs } from "pinia";
 import { useLanguageStore } from "@/stores/language";
-import { ContentStatus, type Content, type Post } from "@/types";
+import { ContentStatus, type Content, type Post, type Tag } from "@/types";
 import { computed, toRefs } from "vue";
 import { ArrowRightIcon, CheckCircleIcon } from "@heroicons/vue/16/solid";
 import { sortByName } from "@/util/sortByName";
 
 const props = defineProps<{
-    post?: Post;
+    parent?: Post | Tag;
 }>();
 
-const { post } = toRefs(props);
+const { parent } = toRefs(props);
 
 const emit = defineEmits(["createTranslation"]);
 
@@ -26,17 +26,17 @@ const selectedLanguageName = computed(() => {
 });
 
 const translatedLanguages = computed(() => {
-    if (!post.value) {
+    if (!parent.value) {
         return [];
     }
 
-    const list = post.value.content.map((c) => c.language);
+    const list = parent.value.content.map((c) => c.language);
 
     return list.sort(sortByName);
 });
 
 const untranslatedLanguages = computed(() => {
-    if (!post.value || !languages.value) {
+    if (!parent.value || !languages.value) {
         return [];
     }
 
@@ -109,7 +109,7 @@ const translationStatus = computed(() => {
                                     type="language"
                                     :variant="
                                         translationStatus(
-                                            post?.content.find(
+                                            parent?.content.find(
                                                 (c: Content) =>
                                                     c.language.languageCode ==
                                                     language.languageCode,

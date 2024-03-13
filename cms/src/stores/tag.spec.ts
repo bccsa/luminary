@@ -3,6 +3,7 @@ import { setActivePinia, createPinia } from "pinia";
 import { liveQuery } from "dexie";
 import { TagRepository } from "@/db/repositories/tagRepository";
 import { useTagStore } from "./tag";
+import { mockCategory, mockEnglishCategoryContent } from "@/tests/mockData";
 
 vi.mock("@/db/repositories/postRepository");
 
@@ -55,5 +56,14 @@ describe("post store", () => {
 
         expect(liveQuery).toHaveBeenCalledOnce();
         expect(getAllSpy).toHaveBeenCalledOnce();
+    });
+
+    it("can update a tag", () => {
+        const updateSpy = vi.spyOn(TagRepository.prototype, "update");
+
+        const store = useTagStore();
+        store.updateTag(mockEnglishCategoryContent, mockCategory);
+
+        expect(updateSpy).toHaveBeenCalledWith(mockEnglishCategoryContent, mockCategory);
     });
 });

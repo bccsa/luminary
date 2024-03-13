@@ -92,13 +92,10 @@ describe("postRepository", () => {
         await repository.update(content, post);
 
         // Assert content and post were created in local database
-        const dbPost = (await db.docs.where("type").equals(DocType.Post).first()) as PostDto;
+        const dbPost = (await db.docs.where("_id").equals(post._id).first()) as PostDto;
         expect(dbPost.image).toBe("updatedImage.jpg");
 
-        const dbContent = (await db.docs
-            .where("type")
-            .equals(DocType.Content)
-            .first()) as ContentDto;
+        const dbContent = (await db.docs.where("_id").equals(content._id).first()) as ContentDto;
         expect(dbContent.title).toBe("Updated Title");
         expect(dbContent.parentId).toBe(dbPost._id);
         expect(dbContent.publishDate).toBe(undefined);
