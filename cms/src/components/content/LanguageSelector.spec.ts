@@ -22,7 +22,7 @@ describe("LanguageSelector", () => {
     it("displays the current language", async () => {
         const wrapper = mount(LanguageSelector, {
             props: {
-                post: mockPost,
+                parent: mockPost,
                 modelValue: "swa",
             },
         });
@@ -49,8 +49,7 @@ describe("LanguageSelector", () => {
     it("can display a dropdown with all languages", async () => {
         const wrapper = mount(LanguageSelector, {
             props: {
-                post: mockPost,
-                modelValue: "eng",
+                parent: mockPost,
             },
         });
 
@@ -65,8 +64,7 @@ describe("LanguageSelector", () => {
     it("displays a label with the translation status", async () => {
         const wrapper = mount(LanguageSelector, {
             props: {
-                post: mockPost,
-                modelValue: "eng",
+                parent: mockPost,
             },
         });
 

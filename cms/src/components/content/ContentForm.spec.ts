@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ContentForm from "./ContentForm.vue";
-import { mockEnglishContent, mockPost, mockUnpublishableContent } from "@/tests/mockData";
+import {
+    mockCategory,
+    mockEnglishContent,
+    mockPost,
+    mockUnpublishableContent,
+} from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType } from "@/types";
 import { useLocalChangeStore } from "@/stores/localChanges";
@@ -50,6 +55,7 @@ describe("ContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
+                ruleset: "post",
             },
         });
 
@@ -70,6 +76,7 @@ describe("ContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
+                ruleset: "post",
             },
         });
 
@@ -90,6 +97,7 @@ describe("ContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
+                ruleset: "post",
             },
         });
 
@@ -113,6 +121,7 @@ describe("ContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
+                ruleset: "post",
             },
         });
 
@@ -129,24 +138,6 @@ describe("ContentForm", () => {
         });
     });
 
-    it("does not submit invalid forms", async () => {
-        const wrapper = mount(ContentForm, {
-            props: {
-                parent: mockPost,
-                content: mockEnglishContent,
-            },
-        });
-
-        await wrapper.find("input[name='title']").setValue("");
-
-        await wrapper.find(saveAsDraftButton).trigger("click");
-
-        await waitForExpect(() => {
-            const saveEvent: any = wrapper.emitted("save");
-            expect(saveEvent).toBe(undefined);
-        });
-    });
-
     it("does not display text, audio or video when not defined", async () => {
         const wrapper = mount(ContentForm, {
             props: {
@@ -155,6 +146,7 @@ describe("ContentForm", () => {
                     ...mockEnglishContent,
                     text: undefined,
                 },
+                ruleset: "post",
             },
         });
 
@@ -174,6 +166,7 @@ describe("ContentForm", () => {
                     ...mockEnglishContent,
                     text: undefined,
                 },
+                ruleset: "post",
             },
         });
 
@@ -189,33 +182,12 @@ describe("ContentForm", () => {
         expect(videoInput.isVisible()).toBe(true);
     });
 
-    it("displays why a post cannot be published", async () => {
-        const wrapper = mount(ContentForm, {
-            props: {
-                parent: mockPost,
-                content: mockUnpublishableContent,
-            },
-        });
-
-        await wrapper.find(publishButton).trigger("click");
-
-        await waitForExpect(() => {
-            const saveEvent: any = wrapper.emitted("save");
-            expect(saveEvent).toBe(undefined);
-
-            expect(wrapper.text()).toContain("Summary is required");
-            expect(wrapper.text()).toContain("Publish date is required");
-            expect(wrapper.text()).toContain(
-                "At least one of text, audio or video content is required",
-            );
-        });
-    });
-
     it("displays when there are unsaved changes", async () => {
         const wrapper = mount(ContentForm, {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
+                ruleset: "post",
             },
         });
 
@@ -234,129 +206,11 @@ describe("ContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
+                ruleset: "post",
             },
         });
 
         expect(wrapper.text()).toContain("Offline changes");
-    });
-
-    it("displays the slug", async () => {
-        const props = {
-            post: mockPost,
-            content: mockEnglishContent,
-        };
-        props.content.title = "Test Title";
-        props.content.slug = "test-title";
-        props.content.status = ContentStatus.Draft;
-
-        const wrapper = mount(ContentForm, {
-            props,
-        });
-
-        const slug = wrapper.find("[data-test='slugSpan']");
-        const title = wrapper.find("input[name='title']");
-
-        // Check if the slug is displayed
-        expect(slug.text()).toBe("test-title");
-
-        await title.setValue("Updated Title");
-        await flushPromises();
-
-        // Check if the slug is updated
-        expect(slug.text()).toBe("updated-title");
-    });
-
-    it("displays a text input when the slug edit button is pressed", async () => {
-        const wrapper = mount(ContentForm, {
-            props: {
-                parent: mockPost,
-                content: mockEnglishContent,
-            },
-        });
-
-        await wrapper.find("button[data-test='editSlugButton']").trigger("click");
-
-        const input = wrapper.find("input[name='slug']");
-        expect(input.isVisible()).toBe(true);
-    });
-
-    it("saves the new slug when the text input loses focus and hides the input", async () => {
-        const wrapper = mount(ContentForm, {
-            props: {
-                post: mockPost,
-                content: mockEnglishContent,
-            },
-        });
-        const input = wrapper.find("input[name='slug']");
-        const slug = wrapper.find("[data-test='slugSpan']");
-
-        await wrapper.find("button[data-test='editSlugButton']").trigger("click");
-        await input.setValue("new-slug");
-        await input.trigger("blur");
-
-        expect(slug.text()).toBe("new-slug");
-        expect(input.isVisible()).toBe(false);
-        expect(slug.isVisible()).toBe(true);
-    });
-
-    it("does not update the slug if the slug has been edited and the title is changed", async () => {
-        const wrapper = mount(ContentForm, {
-            props: {
-                post: mockPost,
-                content: mockEnglishContent,
-            },
-        });
-        const input = wrapper.find("input[name='slug']");
-        const title = wrapper.find("input[name='title']");
-        const slug = wrapper.find("[data-test='slugSpan']");
-
-        await wrapper.find("button[data-test='editSlugButton']").trigger("click");
-        await input.setValue("new-slug");
-        await input.trigger("blur");
-        await title.setValue("New Title 123");
-
-        expect(slug.text()).toBe("new-slug");
-    });
-
-    it("does not update the slug if the slug has been edited and the title is cleared before a new title is added", async () => {
-        const wrapper = mount(ContentForm, {
-            props: {
-                post: mockPost,
-                content: mockEnglishContent,
-            },
-        });
-        const input = wrapper.find("input[name='slug']");
-        const title = wrapper.find("input[name='title']");
-        const slug = wrapper.find("[data-test='slugSpan']");
-
-        await wrapper.find("button[data-test='editSlugButton']").trigger("click");
-        await input.setValue("new-slug");
-        await input.trigger("blur");
-        await title.setValue("");
-        await title.setValue("New title");
-
-        expect(slug.text()).toBe("new-slug");
-    });
-
-    it("does not update the slug if the content status is 'published'", async () => {
-        const props = {
-            post: mockPost,
-            content: mockEnglishContent,
-        };
-        props.content.title = "New Title";
-        props.content.slug = "new-title";
-        props.content.status = ContentStatus.Published;
-
-        const wrapper = mount(ContentForm, {
-            props,
-        });
-
-        const title = wrapper.find("input[name='title']");
-        const slug = wrapper.find("[data-test='slugSpan']");
-
-        await title.setValue("New Title 123");
-
-        expect(slug.text()).toBe("new-title");
     });
 
     it("shows and saves the selected tags", async () => {
@@ -364,6 +218,7 @@ describe("ContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
+                ruleset: "post",
             },
         });
 
@@ -378,6 +233,208 @@ describe("ContentForm", () => {
             expect(saveEvent).not.toBe(undefined);
 
             expect(saveEvent![0][1].tags).toEqual([]);
+        });
+    });
+
+    describe("validation", () => {
+        it("does not submit invalid forms", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: mockEnglishContent,
+                    ruleset: "post",
+                },
+            });
+
+            await wrapper.find("input[name='title']").setValue("");
+
+            await wrapper.find(saveAsDraftButton).trigger("click");
+
+            await waitForExpect(() => {
+                const saveEvent: any = wrapper.emitted("save");
+                expect(saveEvent).toBe(undefined);
+            });
+        });
+
+        it("displays why a post cannot be published", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: {
+                        ...mockPost,
+                        tags: [],
+                    },
+                    content: mockUnpublishableContent,
+                    ruleset: "post",
+                },
+            });
+
+            await wrapper.find(publishButton).trigger("click");
+
+            await waitForExpect(() => {
+                const saveEvent: any = wrapper.emitted("save");
+                expect(saveEvent).toBe(undefined);
+
+                expect(wrapper.text()).toContain("Summary is required");
+                expect(wrapper.text()).toContain("Publish date is required");
+                expect(wrapper.text()).toContain(
+                    "At least one of text, audio or video content is required",
+                );
+                expect(wrapper.text()).toContain("At least one tag is required");
+            });
+        });
+
+        it("displays why a tag cannot be published", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: {
+                        ...mockCategory,
+                        tags: [],
+                    },
+                    content: mockUnpublishableContent,
+                    ruleset: "tag",
+                },
+            });
+
+            await wrapper.find(publishButton).trigger("click");
+
+            await waitForExpect(() => {
+                const saveEvent: any = wrapper.emitted("save");
+                expect(saveEvent).toBe(undefined);
+
+                expect(wrapper.text()).toContain("Summary is required");
+                expect(wrapper.text()).toContain("Publish date is required");
+                expect(wrapper.text()).not.toContain(
+                    "At least one of text, audio or video content is required",
+                );
+                expect(wrapper.text()).not.toContain("At least one tag is required");
+            });
+        });
+    });
+
+    describe("slug", () => {
+        it("displays the slug", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: {
+                        ...mockEnglishContent,
+                        title: "Test title",
+                        slug: "test-title",
+                        status: ContentStatus.Draft,
+                    },
+                    ruleset: "post",
+                },
+            });
+
+            const slug = wrapper.find("[data-test='slugSpan']");
+            const title = wrapper.find("input[name='title']");
+
+            // Check if the slug is displayed
+            expect(slug.text()).toBe("test-title");
+
+            await title.setValue("Updated Title");
+            await flushPromises();
+
+            // Check if the slug is updated
+            expect(slug.text()).toBe("updated-title");
+        });
+
+        it("displays a text input when the slug edit button is pressed", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: mockEnglishContent,
+                    ruleset: "post",
+                },
+            });
+
+            await wrapper.find("button[data-test='editSlugButton']").trigger("click");
+
+            const input = wrapper.find("input[name='slug']");
+            expect(input.isVisible()).toBe(true);
+        });
+
+        it("saves the new slug when the text input loses focus and hides the input", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: mockEnglishContent,
+                    ruleset: "post",
+                },
+            });
+            const input = wrapper.find("input[name='slug']");
+            const slug = wrapper.find("[data-test='slugSpan']");
+
+            await wrapper.find("button[data-test='editSlugButton']").trigger("click");
+            await input.setValue("new-slug");
+            await input.trigger("blur");
+
+            expect(slug.text()).toBe("new-slug");
+            expect(input.isVisible()).toBe(false);
+            expect(slug.isVisible()).toBe(true);
+        });
+
+        it("does not update the slug if the slug has been edited and the title is changed", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: mockEnglishContent,
+                    ruleset: "post",
+                },
+            });
+            const input = wrapper.find("input[name='slug']");
+            const title = wrapper.find("input[name='title']");
+            const slug = wrapper.find("[data-test='slugSpan']");
+
+            await wrapper.find("button[data-test='editSlugButton']").trigger("click");
+            await input.setValue("new-slug");
+            await input.trigger("blur");
+            await title.setValue("New Title 123");
+
+            expect(slug.text()).toBe("new-slug");
+        });
+
+        it("does not update the slug if the slug has been edited and the title is cleared before a new title is added", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: mockEnglishContent,
+                    ruleset: "post",
+                },
+            });
+            const input = wrapper.find("input[name='slug']");
+            const title = wrapper.find("input[name='title']");
+            const slug = wrapper.find("[data-test='slugSpan']");
+
+            await wrapper.find("button[data-test='editSlugButton']").trigger("click");
+            await input.setValue("new-slug");
+            await input.trigger("blur");
+            await title.setValue("");
+            await title.setValue("New title");
+
+            expect(slug.text()).toBe("new-slug");
+        });
+
+        it("does not update the slug if the content status is 'published'", async () => {
+            const wrapper = mount(ContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: {
+                        ...mockEnglishContent,
+                        title: "Test title",
+                        slug: "test-title",
+                        status: ContentStatus.Published,
+                    },
+                    ruleset: "post",
+                },
+            });
+
+            const title = wrapper.find("input[name='title']");
+            const slug = wrapper.find("[data-test='slugSpan']");
+
+            await title.setValue("New Title 123");
+
+            expect(slug.text()).toBe("test-title");
         });
     });
 });

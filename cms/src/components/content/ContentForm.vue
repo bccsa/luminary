@@ -91,7 +91,9 @@ const { handleSubmit, values, setValues, errors } = useForm({
 });
 
 onBeforeMount(() => {
-    selectedTags.value = [...props.parent.tags];
+    if (props.parent.tags) {
+        selectedTags.value = [...props.parent.tags];
+    }
 
     // Convert dates to format VeeValidate understands
     const filteredContent: any = { ...toRaw(props.content) };
@@ -412,7 +414,10 @@ const startEditingSlug = () => {
                                     leave-active-class="transition ease-out duration-300 absolute"
                                     tag="div"
                                 >
-                                    <div v-if="!hasOneContentField" class="flex gap-2">
+                                    <div
+                                        v-if="!hasOneContentField && ruleset == 'post'"
+                                        class="flex gap-2"
+                                    >
                                         <p>
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
                                         </p>
@@ -432,7 +437,7 @@ const startEditingSlug = () => {
                                         </p>
                                         <p>Publish date is required</p>
                                     </div>
-                                    <div v-if="!hasTag" class="flex gap-2">
+                                    <div v-if="!hasTag && ruleset == 'post'" class="flex gap-2">
                                         <p>
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
                                         </p>
