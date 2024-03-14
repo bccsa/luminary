@@ -13,7 +13,7 @@ import {
     mockLanguageSwa,
     mockTopic,
 } from "@/tests/mockData";
-import ContentForm from "@/components/content/ContentForm.vue";
+import EditContentForm from "@/components/content/EditContentForm.vue";
 import waitForExpect from "wait-for-expect";
 import EmptyState from "@/components/EmptyState.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
@@ -70,14 +70,14 @@ describe("EditTag", () => {
         tagStore.tags = [];
         const wrapper = mount(EditTag);
 
-        const form = await wrapper.findComponent(ContentForm);
+        const form = await wrapper.findComponent(EditContentForm);
         expect(form.exists()).toBe(false);
     });
 
     it("renders the form", async () => {
         const wrapper = mount(EditTag);
 
-        const form = await wrapper.findComponent(ContentForm);
+        const form = await wrapper.findComponent(EditContentForm);
         expect(form.exists()).toBe(true);
     });
 
@@ -96,7 +96,7 @@ describe("EditTag", () => {
         expect(emptyState.exists()).toBe(true);
         const languageSelector = await wrapper.findComponent(LanguageSelector);
         expect(languageSelector.exists()).toBe(true);
-        const form = await wrapper.findComponent(ContentForm);
+        const form = await wrapper.findComponent(EditContentForm);
         expect(form.exists()).toBe(false);
     });
 

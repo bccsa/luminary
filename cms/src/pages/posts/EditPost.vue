@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import ContentForm from "@/components/content/ContentForm.vue";
+import EditContentForm from "@/components/content/EditContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { usePostStore } from "@/stores/post";
 import type { Language } from "@/types";
@@ -94,7 +94,7 @@ async function createTranslation(language: Language) {
             enter-from-class="opacity-0 scale-90"
             enter-to-class="opacity-100 scale-100"
         >
-            <ContentForm
+            <EditContentForm
                 v-if="content && post"
                 :key="content._id"
                 :parent="post"

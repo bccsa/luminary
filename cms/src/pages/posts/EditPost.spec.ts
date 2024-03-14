@@ -12,7 +12,7 @@ import {
     mockLanguageSwa,
     mockPost,
 } from "@/tests/mockData";
-import ContentForm from "@/components/content/ContentForm.vue";
+import EditContentForm from "@/components/content/EditContentForm.vue";
 import { usePostStore } from "@/stores/post";
 import waitForExpect from "wait-for-expect";
 import EmptyState from "@/components/EmptyState.vue";
@@ -69,14 +69,14 @@ describe("EditPost", () => {
         postStore.posts = [];
         const wrapper = mount(EditPost);
 
-        const form = await wrapper.findComponent(ContentForm);
+        const form = await wrapper.findComponent(EditContentForm);
         expect(form.exists()).toBe(false);
     });
 
     it("renders the form", async () => {
         const wrapper = mount(EditPost);
 
-        const form = await wrapper.findComponent(ContentForm);
+        const form = await wrapper.findComponent(EditContentForm);
         expect(form.exists()).toBe(true);
     });
 
@@ -95,7 +95,7 @@ describe("EditPost", () => {
         expect(emptyState.exists()).toBe(true);
         const languageSelector = await wrapper.findComponent(LanguageSelector);
         expect(languageSelector.exists()).toBe(true);
-        const form = await wrapper.findComponent(ContentForm);
+        const form = await wrapper.findComponent(EditContentForm);
         expect(form.exists()).toBe(false);
     });
 
