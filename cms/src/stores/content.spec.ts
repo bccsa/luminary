@@ -3,8 +3,6 @@ import { useContentStore } from "./content";
 import { setActivePinia, createPinia } from "pinia";
 import { liveQuery } from "dexie";
 import { ContentRepository } from "@/db/repositories/contentRepository";
-import { mockEnglishContent, mockFrenchContent } from "@/tests/mockData";
-import { ref } from "vue";
 
 vi.mock("@/db/repositories/contentRepository");
 
