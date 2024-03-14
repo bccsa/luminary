@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { flushPromises, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import EditTag from "./EditTag.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";

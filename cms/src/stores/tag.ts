@@ -5,7 +5,6 @@ import {
     type Content,
     type Uuid,
     type Language,
-    type CreateContentParentDto,
     type CreateTagDto,
 } from "@/types";
 import { liveQuery } from "dexie";

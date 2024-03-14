@@ -4,8 +4,6 @@ import {
     type Tag,
     type Uuid,
     type Content,
-    type CreateContentParentDto,
-    TagType,
     type CreateTagDto,
 } from "@/types";
 import { ContentRepository } from "./contentRepository";
