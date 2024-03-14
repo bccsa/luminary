@@ -23,7 +23,7 @@ const save = async (dto: CreateContentParentDto) => {
         tagType,
     });
 
-    return router.push({
+    return router.replace({
         name: "tags.edit",
         params: { id, language: dto.language.languageCode },
     });
