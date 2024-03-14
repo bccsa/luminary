@@ -3,6 +3,7 @@ import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
+import { useContentStore } from "@/stores/content";
 import { usePostStore } from "@/stores/post";
 import type { Language } from "@/types";
 import { DocumentIcon } from "@heroicons/vue/24/solid";
@@ -12,15 +13,20 @@ import { useRoute, useRouter } from "vue-router";
 const route = useRoute();
 const router = useRouter();
 const postStore = usePostStore();
+const contentStore = useContentStore();
 
 const postId = route.params.id as string;
 const routeLanguage = route.params.language as string;
 
 const post = computed(() => postStore.post(postId));
-const isLoading = computed(() => post.value == undefined);
 const content = computed(() => {
-    return post.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
+    if (post.value && post.value.content.length > 0) {
+        return post.value.content.find((c) => c.language.languageCode == selectedLanguage.value);
+    }
+
+    return contentStore.singleContent(postId, selectedLanguage.value ?? "eng");
 });
+const isLoading = computed(() => post.value == undefined);
 
 const selectedLanguage = ref<string>();
 
@@ -28,7 +34,7 @@ onBeforeMount(() => {
     if (routeLanguage) {
         selectedLanguage.value = routeLanguage;
 
-        router.replace({ name: "posts.edit", params: { postId } });
+        router.replace({ name: "posts.edit", params: { id: postId } });
     }
 });
 

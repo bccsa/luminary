@@ -16,6 +16,26 @@ describe("contentRepository", () => {
         db.docs.clear();
     });
 
+    it("can get all content", async () => {
+        db.docs.bulkPut([
+            mockPostDto,
+            mockEnglishContentDto,
+            mockFrenchContentDto,
+            mockLanguageDtoEng,
+            mockLanguageDtoFra,
+        ]);
+
+        const repository = new ContentRepository();
+
+        const result = await repository.getAll();
+
+        expect(result.length).toBe(2);
+        expect(result[0]._id).toBe(mockEnglishContentDto._id);
+        expect(result[0].language._id).toBe(mockLanguageDtoEng._id);
+        expect(result[0].updatedTimeUtc.toISODate()).toEqual("2024-01-01");
+        expect(result[1]._id).toBe(mockFrenchContentDto._id);
+    });
+
     it("can get content for a parent id", async () => {
         db.docs.bulkPut([
             mockEnglishContentDto,

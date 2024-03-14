@@ -14,7 +14,7 @@ const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
     resolve: vi.fn(),
     useRouter: vi.fn().mockImplementation(() => ({
-        push: routePushMock,
+        replace: routePushMock,
     })),
     useRoute: vi.fn().mockImplementation(() => ({
         params: {
