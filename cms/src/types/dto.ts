@@ -51,10 +51,14 @@ export type PostDto = ContentBaseDto & {
     tags: Uuid[];
 };
 
-export type CreatePostDto = {
+export type CreateContentParentDto = {
     image: string;
     language: Language;
     title: string;
+};
+
+export type CreateTagDto = CreateContentParentDto & {
+    tagType: TagType;
 };
 
 export type ChangeReqDto = {

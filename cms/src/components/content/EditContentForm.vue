@@ -24,6 +24,7 @@ import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { Slug } from "@/util/slug";
 import TagSelector from "./TagSelector.vue";
 import { useTagStore } from "@/stores/tag";
+import { capitalizeFirstLetter } from "@/util/string";
 
 type Props = {
     content: Content;
@@ -450,7 +451,7 @@ const startEditingSlug = () => {
                 </LCard>
 
                 <LCard
-                    title="Post settings"
+                    :title="`${capitalizeFirstLetter(ruleset)} settings`"
                     :icon="Cog6ToothIcon"
                     class="sticky top-20"
                     collapsible

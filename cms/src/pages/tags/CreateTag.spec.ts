@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import CreatePost from "./CreatePost.vue";
+import CreateTag from "./CreateTag.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useLanguageStore } from "@/stores/language";
 import { mockLanguageEng, mockLanguageFra } from "@/tests/mockData";
-import { usePostStore } from "@/stores/post";
+import { useTagStore } from "@/stores/tag";
 import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
+import { TagType } from "@/types";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -15,9 +16,14 @@ vi.mock("vue-router", () => ({
     useRouter: vi.fn().mockImplementation(() => ({
         push: routePushMock,
     })),
+    useRoute: vi.fn().mockImplementation(() => ({
+        params: {
+            tagType: TagType.AudioPlaylist,
+        },
+    })),
 }));
 
-describe("CreatePost", () => {
+describe("CreateTag", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
 
@@ -29,10 +35,16 @@ describe("CreatePost", () => {
         vi.clearAllMocks();
     });
 
-    it("can submit the form", async () => {
-        const postStore = usePostStore();
+    it("renders the entity name", async () => {
+        const wrapper = mount(CreateTag);
 
-        const wrapper = mount(CreatePost);
+        expect(wrapper.text()).toContain("audio playlist");
+    });
+
+    it("can submit the form", async () => {
+        const tagStore = useTagStore();
+
+        const wrapper = mount(CreateTag);
 
         await wrapper.find("input[name='image']").setValue("testImage");
         await wrapper.findAll("button[data-test='language']")[0].trigger("click"); // English
@@ -42,7 +54,7 @@ describe("CreatePost", () => {
 
         await flushPromises();
         await waitForExpect(() => {
-            expect(postStore.createPost).toHaveBeenCalled();
+            expect(tagStore.createTag).toHaveBeenCalled();
             expect(routePushMock).toHaveBeenCalled();
         });
     });

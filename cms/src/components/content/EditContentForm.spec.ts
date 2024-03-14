@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
-import ContentForm from "./ContentForm.vue";
+import EditContentForm from "./EditContentForm.vue";
 import {
     mockCategory,
     mockEnglishContent,
@@ -38,7 +38,7 @@ vi.mock("@/db/baseDatabase", () => {
     };
 });
 
-describe("ContentForm", () => {
+describe("EditContentForm", () => {
     const saveAsDraftButton = "button[data-test='draft']";
     const publishButton = "button[data-test='publish']";
 
@@ -51,7 +51,7 @@ describe("ContentForm", () => {
     });
 
     it("can save as draft", async () => {
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
@@ -72,7 +72,7 @@ describe("ContentForm", () => {
     });
 
     it("can publish the post", async () => {
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
@@ -93,7 +93,7 @@ describe("ContentForm", () => {
     });
 
     it("can can edit basic content fields", async () => {
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
@@ -117,7 +117,7 @@ describe("ContentForm", () => {
     });
 
     it("can can edit parent image", async () => {
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
@@ -139,7 +139,7 @@ describe("ContentForm", () => {
     });
 
     it("does not display text, audio or video when not defined", async () => {
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: {
@@ -159,7 +159,7 @@ describe("ContentForm", () => {
     });
 
     it("adds a field for text, audio, or video when a button is clicked", async () => {
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: {
@@ -183,7 +183,7 @@ describe("ContentForm", () => {
     });
 
     it("displays when there are unsaved changes", async () => {
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
@@ -202,7 +202,7 @@ describe("ContentForm", () => {
         // @ts-expect-error - Property is read-only but we are mocking it
         localChangeStore.isLocalChange = () => true;
 
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
@@ -214,7 +214,7 @@ describe("ContentForm", () => {
     });
 
     it("shows and saves the selected tags", async () => {
-        const wrapper = mount(ContentForm, {
+        const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
@@ -238,7 +238,7 @@ describe("ContentForm", () => {
 
     describe("validation", () => {
         it("does not submit invalid forms", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
@@ -257,7 +257,7 @@ describe("ContentForm", () => {
         });
 
         it("displays why a post cannot be published", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: {
                         ...mockPost,
@@ -284,7 +284,7 @@ describe("ContentForm", () => {
         });
 
         it("displays why a tag cannot be published", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: {
                         ...mockCategory,
@@ -313,7 +313,7 @@ describe("ContentForm", () => {
 
     describe("slug", () => {
         it("displays the slug", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: mockPost,
                     content: {
@@ -340,7 +340,7 @@ describe("ContentForm", () => {
         });
 
         it("displays a text input when the slug edit button is pressed", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
@@ -355,7 +355,7 @@ describe("ContentForm", () => {
         });
 
         it("saves the new slug when the text input loses focus and hides the input", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
@@ -375,7 +375,7 @@ describe("ContentForm", () => {
         });
 
         it("does not update the slug if the slug has been edited and the title is changed", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
@@ -395,7 +395,7 @@ describe("ContentForm", () => {
         });
 
         it("does not update the slug if the slug has been edited and the title is cleared before a new title is added", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
@@ -416,7 +416,7 @@ describe("ContentForm", () => {
         });
 
         it("does not update the slug if the content status is 'published'", async () => {
-            const wrapper = mount(ContentForm, {
+            const wrapper = mount(EditContentForm, {
                 props: {
                     parent: mockPost,
                     content: {

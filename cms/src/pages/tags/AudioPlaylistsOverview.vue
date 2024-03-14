@@ -8,6 +8,7 @@ import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useTagStore } from "@/stores/tag";
+import { TagType } from "@/types";
 
 const { tags, audioPlaylists } = storeToRefs(useTagStore());
 </script>
@@ -20,7 +21,7 @@ const { tags, audioPlaylists } = storeToRefs(useTagStore());
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
-                :to="{ name: 'tags.create' }"
+                :to="{ name: 'tags.create', params: { tagType: TagType.AudioPlaylist } }"
             >
                 Create audio playlist
             </LButton>
@@ -32,7 +33,7 @@ const { tags, audioPlaylists } = storeToRefs(useTagStore());
             title="No audio playlists yet"
             description="Get started by creating a new audio playlist."
             buttonText="Create audio playlist"
-            :buttonLink="{ name: 'tags.create' }"
+            :buttonLink="{ name: 'tags.create', params: { tagType: TagType.AudioPlaylist } }"
         />
 
         <ContentTable v-else :items="audioPlaylists" editLinkName="tags.edit" />

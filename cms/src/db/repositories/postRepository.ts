@@ -1,4 +1,10 @@
-import { DocType, type CreatePostDto, type Post, type PostDto, type Content } from "@/types";
+import {
+    DocType,
+    type CreateContentParentDto,
+    type Post,
+    type PostDto,
+    type Content,
+} from "@/types";
 import { ContentRepository } from "./contentRepository";
 import { BaseRepository } from "./baseRepository";
 import { db } from "../baseDatabase";
@@ -15,7 +21,7 @@ export class PostRepository extends BaseRepository {
         this._tagRepository = new TagRepository();
     }
 
-    async create(dto: CreatePostDto) {
+    async create(dto: CreateContentParentDto) {
         const postId = uuidv4();
 
         const post: PostDto = {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import ContentForm from "@/components/content/ContentForm.vue";
+import EditContentForm from "@/components/content/EditContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { usePostStore } from "@/stores/post";
 import type { Language } from "@/types";
+import { DocumentIcon } from "@heroicons/vue/24/solid";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -64,6 +65,7 @@ async function createTranslation(language: Language) {
 <template>
     <BasePage
         :title="content ? content.title : 'Edit post'"
+        :icon="DocumentIcon"
         :loading="isLoading"
         :back-link-location="{ name: 'posts.index' }"
         back-link-text="Posts"
@@ -94,7 +96,7 @@ async function createTranslation(language: Language) {
             enter-from-class="opacity-0 scale-90"
             enter-to-class="opacity-100 scale-100"
         >
-            <ContentForm
+            <EditContentForm
                 v-if="content && post"
                 :key="content._id"
                 :parent="post"

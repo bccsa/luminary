@@ -3,7 +3,7 @@ import { PlusIcon } from "@heroicons/vue/20/solid";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import type { Component } from "vue";
 import LButton from "@/components/button/LButton.vue";
-import { RouterLink } from "vue-router";
+import { RouterLink, type RouteLocationRaw } from "vue-router";
 
 defineProps<{
     title: string;
@@ -11,7 +11,7 @@ defineProps<{
     icon?: string | Component | Function;
     buttonText?: string;
     buttonAction?: Function;
-    buttonLink?: string | { name: string };
+    buttonLink?: RouteLocationRaw;
 }>();
 </script>
 
