@@ -20,17 +20,17 @@ withDefaults(defineProps<Props>(), {
 
 const variants = {
     primary:
-        "bg-gray-900 ring-1 shadow-sm text-white ring-gray-900/60 hover:bg-gray-900/90 active:bg-gray-900/80 disabled:bg-gray-500 disabled:text-gray-100 disabled:ring-gray-500",
+        "bg-zinc-900 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-900/90 active:bg-zinc-900/80 disabled:bg-zinc-500 disabled:text-zinc-100 disabled:ring-zinc-500",
     secondary:
-        "bg-white ring-1 shadow-sm text-gray-900 ring-gray-300 hover:bg-gray-50 active:bg-gray-100 disabled:bg-gray-100 disabled:text-gray-500",
+        "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100 disabled:bg-zinc-100 disabled:text-zinc-500",
     tertiary:
-        "bg-transparent text-gray-900 hover:text-gray-950 hover:bg-gray-100 active:bg-gray-200 disabled:text-gray-500 disabled:hover:bg-transparent",
+        "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
 };
 
 const iconVariants = {
-    primary: "text-gray-100 group-hover:text-gray-50 group-active:text-white",
-    secondary: "text-gray-800/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
-    tertiary: "text-gray-800/80 group-hover:text-gray-900/80 group-active:text-gray-900/80",
+    primary: "text-zinc-100 group-hover:text-zinc-50 group-active:text-white",
+    secondary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
+    tertiary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
 };
 
 const sizes = {

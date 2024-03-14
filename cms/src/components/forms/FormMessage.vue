@@ -11,7 +11,7 @@ withDefaults(defineProps<Props>(), {
 <template>
     <p
         class="mt-2 text-sm"
-        :class="{ 'text-gray-600': state == 'default', 'text-red-600': state == 'error' }"
+        :class="{ 'text-zinc-600': state == 'default', 'text-red-600': state == 'error' }"
     >
         <slot />
     </p>

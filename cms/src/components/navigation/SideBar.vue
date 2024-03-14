@@ -60,7 +60,7 @@ watch(route, (newRoute) => {
 
 <template>
     <div
-        class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-gray-100 px-6 pb-4"
+        class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-zinc-200 bg-zinc-100 px-6 pb-4"
     >
         <div class="flex h-16 shrink-0 items-center">
             <img class="w-42" src="@/assets/logo.svg" :alt="appName" />
@@ -73,13 +73,13 @@ watch(route, (newRoute) => {
                             <RouterLink
                                 v-if="!item.children"
                                 :to="item.to"
-                                active-class="bg-gray-200 text-gray-950"
-                                class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 hover:bg-gray-200"
+                                active-class="bg-zinc-200 text-zinc-950"
+                                class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
                                 v-slot="{ isActive }"
                             >
                                 <component
                                     :is="item.icon"
-                                    :class="[isActive ? 'text-gray-800' : 'text-gray-600']"
+                                    :class="[isActive ? 'text-zinc-800' : 'text-zinc-600']"
                                     class="h-6 w-6 shrink-0"
                                     aria-hidden="true"
                                 />
@@ -88,21 +88,21 @@ watch(route, (newRoute) => {
                             <Disclosure as="div" v-else v-slot="{ open }">
                                 <DisclosureButton
                                     :class="[
-                                        'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-gray-700',
+                                        'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700',
                                     ]"
                                     @click="item.open = !item.open"
                                 >
                                     <component
                                         :is="item.icon"
-                                        class="h-6 w-6 shrink-0 text-gray-600"
+                                        class="h-6 w-6 shrink-0 text-zinc-600"
                                         aria-hidden="true"
                                     />
                                     {{ item.name }}
                                     <ChevronRightIcon
                                         :class="[
                                             open || item.open
-                                                ? 'rotate-90 text-gray-500'
-                                                : 'text-gray-400',
+                                                ? 'rotate-90 text-zinc-500'
+                                                : 'text-zinc-400',
                                             'ml-auto h-5 w-5 shrink-0',
                                         ]"
                                         aria-hidden="true"
@@ -118,8 +118,8 @@ watch(route, (newRoute) => {
                                         <DisclosureButton
                                             :as="RouterLink"
                                             :to="subItem.to"
-                                            active-class="bg-gray-200 text-gray-900"
-                                            class="block rounded-md py-2 pl-9 pr-2 text-sm leading-6 text-gray-700 hover:bg-gray-200"
+                                            active-class="bg-zinc-200 text-zinc-900"
+                                            class="block rounded-md py-2 pl-9 pr-2 text-sm leading-6 text-zinc-700 hover:bg-zinc-200"
                                         >
                                             {{ subItem.name }}
                                         </DisclosureButton>

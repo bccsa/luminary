@@ -26,7 +26,7 @@ function collapse() {
 </script>
 
 <template>
-    <div class="overflow-hidden rounded-md border border-gray-100 bg-white shadow">
+    <div class="overflow-hidden rounded-md border border-zinc-100 bg-white shadow">
         <div
             v-if="title || icon"
             :class="[
@@ -36,18 +36,18 @@ function collapse() {
             @click="collapse"
         >
             <div class="flex items-center gap-2">
-                <component v-if="icon" :is="icon" class="h-4 w-4 text-gray-600" />
-                <h3 class="text-sm font-semibold leading-6 text-gray-900">{{ title }}</h3>
+                <component v-if="icon" :is="icon" class="h-4 w-4 text-zinc-600" />
+                <h3 class="text-sm font-semibold leading-6 text-zinc-900">{{ title }}</h3>
             </div>
             <button v-if="collapsible">
                 <ChevronDownIcon
                     v-if="collapsed"
-                    class="h-5 w-5 text-gray-600"
+                    class="h-5 w-5 text-zinc-600"
                     title="Open card content"
                 />
                 <ChevronUpIcon
                     v-if="!collapsed"
-                    class="h-5 w-5 text-gray-600"
+                    class="h-5 w-5 text-zinc-600"
                     title="Collapse card content"
                 />
             </button>
@@ -61,7 +61,7 @@ function collapse() {
             >
                 <slot />
             </div>
-            <div v-if="$slots.footer" class="bg-gray-50 px-4 py-5 sm:px-6">
+            <div v-if="$slots.footer" class="bg-zinc-50 px-4 py-5 sm:px-6">
                 <slot name="footer" />
             </div>
         </div>

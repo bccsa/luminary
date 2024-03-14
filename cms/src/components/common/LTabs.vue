@@ -27,7 +27,7 @@ const id = useId().toString();
             <select
                 :id="id"
                 name="tabs"
-                class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-gray-500 focus:outline-none focus:ring-gray-500 sm:text-sm"
+                class="block w-full rounded-md border-zinc-300 py-2 pl-3 pr-10 text-base focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
             >
                 <option
                     v-for="tab in tabs"
@@ -40,7 +40,7 @@ const id = useId().toString();
             </select>
         </div>
         <div>
-            <div class="flex items-center justify-between sm:border-b sm:border-gray-200">
+            <div class="flex items-center justify-between sm:border-b sm:border-zinc-200">
                 <nav class="-mb-px hidden space-x-8 sm:flex" aria-label="Tabs">
                     <span
                         v-for="tab in tabs"
@@ -48,8 +48,8 @@ const id = useId().toString();
                         :key="tab.key"
                         :class="[
                             tab.key == currentTab
-                                ? 'border-gray-500 text-gray-950'
-                                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
+                                ? 'border-zinc-500 text-zinc-950'
+                                : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700',
                             'flex cursor-pointer items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium',
                         ]"
                         :aria-current="tab.key == currentTab ? 'page' : undefined"
@@ -58,7 +58,7 @@ const id = useId().toString();
                             :is="tab.icon"
                             v-if="tab.icon"
                             class="h-4 w-4"
-                            :class="[tab.key == currentTab ? 'text-gray-800' : 'text-gray-400']"
+                            :class="[tab.key == currentTab ? 'text-zinc-800' : 'text-zinc-400']"
                         />
                         {{ tab.title }}
                     </span>

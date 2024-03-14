@@ -33,12 +33,12 @@ withDefaults(defineProps<Props>(), {
 
 const states = {
     default:
-        "text-gray-900 ring-gray-300 placeholder:text-gray-400 hover:ring-gray-400 focus:ring-gray-950",
+        "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
     error: "text-red-900 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
 };
 
 const addOnStates = {
-    default: "border-gray-300 px-3 text-gray-500",
+    default: "border-zinc-300 px-3 text-zinc-500",
     error: "border-red-300 px-3 text-red-600",
 };
 
@@ -68,8 +68,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     :is="icon"
                     class="h-5 w-5"
                     :class="{
-                        'text-gray-400': state == 'default' && !disabled,
-                        'text-gray-300': state == 'default' && disabled,
+                        'text-zinc-400': state == 'default' && !disabled,
+                        'text-zinc-300': state == 'default' && disabled,
                         'text-red-400': state == 'error',
                     }"
                 />
@@ -82,7 +82,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <textarea
-                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6"
+                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
                 :class="[
                     sizes[size],
                     states[state],
@@ -119,7 +119,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
         <p
             v-if="$slots.default"
             class="mt-2 text-sm"
-            :class="{ 'text-gray-600': state == 'default', 'text-red-600': state == 'error' }"
+            :class="{ 'text-zinc-600': state == 'default', 'text-red-600': state == 'error' }"
             :id="`${id}-message`"
         >
             <slot />

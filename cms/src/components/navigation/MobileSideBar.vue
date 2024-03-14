@@ -26,7 +26,7 @@ const emit = defineEmits(["update:open"]);
                 leave-from="opacity-100"
                 leave-to="opacity-0"
             >
-                <div class="fixed inset-0 bg-gray-900/80" />
+                <div class="fixed inset-0 bg-zinc-900/80" />
             </TransitionChild>
 
             <div class="fixed inset-0 flex">

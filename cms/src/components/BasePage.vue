@@ -29,7 +29,7 @@ withDefaults(defineProps<Props>(), {
             <RouterLink
                 v-if="backLinkLocation"
                 :to="backLinkLocation"
-                class="-mx-2 mb-1 inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200"
+                class="-mx-2 mb-1 inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
             >
                 <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
             </RouterLink>
@@ -44,7 +44,7 @@ withDefaults(defineProps<Props>(), {
                 ]"
             >
                 <h1 class="flex items-center gap-2 text-lg font-semibold leading-7">
-                    <component :is="icon" v-if="icon" class="h-5 w-5 text-gray-500" />
+                    <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
                     {{ title }}
                 </h1>
 

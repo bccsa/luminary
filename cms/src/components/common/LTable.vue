@@ -115,15 +115,15 @@ function sort(column: Column) {
 <template>
     <div class="overflow-x-auto">
         <div class="inline-block min-w-full align-middle">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-zinc-200">
+                <thead class="bg-zinc-50">
                     <tr>
                         <th
                             v-for="(column, index) in columns"
                             :key="column.key"
                             @click="sort(column)"
                             scope="col"
-                            class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900"
+                            class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900"
                             :class="{
                                 'sm:pl-6': index == 0,
                                 'sm:pl-3': index != 0,
@@ -140,15 +140,15 @@ function sort(column: Column) {
 
                                 <button v-if="column.sortable !== false" aria-label="Sort column">
                                     <ArrowsUpDownIcon
-                                        class="h-5 w-5 text-transparent group-hover:text-gray-600"
+                                        class="h-5 w-5 text-transparent group-hover:text-zinc-600"
                                         v-if="sortBy !== column.key"
                                     />
                                     <ArrowUpIcon
-                                        class="h-5 w-5 text-gray-600"
+                                        class="h-5 w-5 text-zinc-600"
                                         v-if="sortBy == column.key && sortDirection == 'ascending'"
                                     />
                                     <ArrowDownIcon
-                                        class="h-5 w-5 text-gray-600"
+                                        class="h-5 w-5 text-zinc-600"
                                         v-if="sortBy == column.key && sortDirection == 'descending'"
                                     />
                                 </button>
@@ -156,14 +156,14 @@ function sort(column: Column) {
                         </th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
+                <tbody class="divide-y divide-zinc-200 bg-white">
                     <tr v-for="(item, key) in paginatedItems" :key="key">
                         <td
                             v-for="(column, index) in columns"
                             :key="column.key"
                             class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium"
                             :class="[
-                                index == 0 ? 'text-gray-900 sm:pl-6' : 'text-gray-700 sm:pl-3',
+                                index == 0 ? 'text-zinc-900 sm:pl-6' : 'text-zinc-700 sm:pl-3',
                             ]"
                         >
                             <div :class="{ 'flex justify-end': index == columns.length - 1 }">
@@ -179,13 +179,13 @@ function sort(column: Column) {
                         </td>
                     </tr>
                 </tbody>
-                <tfoot class="bg-gray-50 text-sm" v-if="paginate">
+                <tfoot class="bg-zinc-50 text-sm" v-if="paginate">
                     <tr>
                         <td :colspan="columns.length" class="py-3 pl-4 pr-3 sm:pl-6">
                             <div
                                 class="flex flex-row-reverse items-center justify-between sm:flex-row"
                             >
-                                <div class="text-gray-700">
+                                <div class="text-zinc-700">
                                     Showing
                                     <span class="font-medium">{{ paginateStart + 1 }}</span>
                                     to
@@ -199,9 +199,9 @@ function sort(column: Column) {
                                         v-for="page in pages"
                                         :key="page"
                                         @click="setCurrentPage(page)"
-                                        class="page mx-0.5 cursor-pointer rounded px-2.5 py-1 text-gray-800 hover:bg-gray-200 active:bg-gray-300"
+                                        class="page mx-0.5 cursor-pointer rounded px-2.5 py-1 text-zinc-800 hover:bg-zinc-200 active:bg-zinc-300"
                                         :class="{
-                                            'bg-gray-200 font-medium text-gray-900 ring-1 ring-inset ring-gray-300/80':
+                                            'bg-zinc-200 font-medium text-zinc-900 ring-1 ring-inset ring-zinc-300/80':
                                                 page == currentPage,
                                         }"
                                     >
