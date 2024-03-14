@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
+import type { Component } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 
 type Props = {
     title?: string;
+    icon?: Component | Function;
     loading?: boolean;
     centered?: boolean;
     backLinkLocation?: RouteLocationRaw;
@@ -41,7 +43,10 @@ withDefaults(defineProps<Props>(), {
                     },
                 ]"
             >
-                <h1 class="text-lg font-semibold leading-7">{{ title }}</h1>
+                <h1 class="flex items-center gap-2 text-lg font-semibold leading-7">
+                    <component :is="icon" v-if="icon" class="h-5 w-5 text-gray-500" />
+                    {{ title }}
+                </h1>
 
                 <div v-if="$slots.actions">
                     <slot name="actions" />

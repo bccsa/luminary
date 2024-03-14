@@ -5,6 +5,7 @@ import EditContentForm from "@/components/content/EditContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useTagStore } from "@/stores/tag";
 import { TagType, type Language } from "@/types";
+import { TagIcon } from "@heroicons/vue/24/solid";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -87,6 +88,7 @@ async function createTranslation(language: Language) {
 <template>
     <BasePage
         :title="content ? content.title : 'Edit tag'"
+        :icon="TagIcon"
         :loading="isLoading"
         :back-link-location="{ name: backLink.link }"
         :back-link-text="backLink.text"
