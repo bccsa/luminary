@@ -3,20 +3,22 @@ import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { useRouter } from "vue-router";
 
 const { user, logout } = useAuth0();
 const { isDevMode } = useGlobalConfigStore();
+const router = useRouter();
 
-const userNavigation: [
-    {
-        name: string;
-        to: string;
-        action?: Function;
-    },
-] = [{ name: "Sign out", to: "#", action: logout }];
+const userNavigation: {
+    name: string;
+    action: Function;
+}[] = [
+    { name: "Settings", action: () => router.push({ name: "settings" }) },
+    { name: "Sign out", action: logout },
+];
 
 if (isDevMode) {
-    userNavigation.push({ name: "Sandbox", to: "/sandbox" });
+    userNavigation.push({ name: "Sandbox", action: () => router.push({ name: "sandbox" }) });
 }
 </script>
 
@@ -54,16 +56,15 @@ if (isDevMode) {
                 class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
             >
                 <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
-                    <a
-                        @click="item.action"
-                        :href="item.to"
+                    <button
                         :class="[
                             active ? 'bg-zinc-50' : '',
-                            'block px-3 py-1 text-sm leading-6 text-zinc-900',
+                            'block w-full cursor-pointer px-3 py-1 text-left text-sm leading-6 text-zinc-900 ',
                         ]"
+                        @click="item.action"
                     >
                         {{ item.name }}
-                    </a>
+                    </button>
                 </MenuItem>
             </MenuItems>
         </transition>

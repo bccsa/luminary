@@ -39,6 +39,14 @@ const router = createRouter({
                     },
                 },
                 {
+                    path: "settings",
+                    name: "settings",
+                    component: () => import("../pages/SettingsPage.vue"),
+                    meta: {
+                        title: "Settings",
+                    },
+                },
+                {
                     path: "posts",
                     name: "posts",
                     redirect: { name: "posts.index" },
