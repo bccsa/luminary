@@ -16,14 +16,14 @@ defineProps<{
 </script>
 
 <template>
-    <div class="rounded border-2 border-dashed border-gray-200 py-12 text-center">
+    <div class="rounded border-2 border-dashed border-zinc-200 py-12 text-center">
         <component
             :is="icon ?? DocumentPlusIcon"
-            class="mx-auto h-10 w-10 text-gray-400"
+            class="mx-auto h-10 w-10 text-zinc-400"
             aria-hidden="true"
         />
-        <h3 class="mt-2 text-sm font-semibold text-gray-900">{{ title }}</h3>
-        <p class="mt-1 text-sm text-gray-500">{{ description }}</p>
+        <h3 class="mt-2 text-sm font-semibold text-zinc-900">{{ title }}</h3>
+        <p class="mt-1 text-sm text-zinc-500">{{ description }}</p>
         <div class="mt-6">
             <LButton
                 v-if="buttonText && (buttonAction || buttonLink)"

@@ -32,7 +32,7 @@ withDefaults(defineProps<Props>(), {
 const model = defineModel();
 
 const states = {
-    default: "text-gray-900 ring-gray-300 focus:ring-gray-950",
+    default: "text-zinc-900 ring-zinc-300 focus:ring-zinc-950",
     error: "text-red-900 bg-red-50 ring-red-300 focus:ring-red-500",
 };
 
@@ -43,12 +43,12 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
 <template>
     <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <FormLabel :for="id" class="block text-sm font-medium leading-6 text-gray-900">
+        <FormLabel :for="id" class="block text-sm font-medium leading-6 text-zinc-900">
             {{ label }}
         </FormLabel>
         <select
             v-model="model"
-            class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 ring-1 ring-inset focus:ring-2 disabled:bg-gray-100 disabled:text-gray-500 disabled:ring-gray-200 sm:text-sm sm:leading-6"
+            class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 ring-1 ring-inset focus:ring-2 disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
             :class="states[state]"
             :id="id"
             :disabled="disabled"

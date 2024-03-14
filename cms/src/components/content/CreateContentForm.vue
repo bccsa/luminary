@@ -54,7 +54,7 @@ const save = handleSubmit(async (values) => {
 
 <template>
     <form class="space-y-6" @submit.prevent="save">
-        <p class="text-sm text-gray-700">
+        <p class="text-sm text-zinc-700">
             These are all the required fields for creating a new {{ entityName }}. After clicking
             'continue' the {{ entityName }} will be saved as a draft and you can continue editing.
         </p>
@@ -76,12 +76,12 @@ const save = handleSubmit(async (values) => {
         >
             <div class="space-y-2" v-if="!chosenLanguage">
                 <FormLabel>Select language for first translation</FormLabel>
-                <div class="rounded-lg border-2 border-gray-100">
+                <div class="rounded-lg border-2 border-zinc-100">
                     <button
                         type="button"
                         v-for="language in languageStore.languages"
                         :key="language.languageCode"
-                        class="group flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm text-gray-950 hover:bg-gray-50 active:bg-gray-100"
+                        class="group flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm text-zinc-950 hover:bg-zinc-50 active:bg-zinc-100"
                         @click="chooseLanguage(language)"
                         data-test="language"
                     >
@@ -92,7 +92,7 @@ const save = handleSubmit(async (values) => {
                             {{ language.name }}
                         </div>
                         <div
-                            class="hidden text-xs text-gray-600 sm:group-hover:block sm:group-active:block"
+                            class="hidden text-xs text-zinc-600 sm:group-hover:block sm:group-active:block"
                         >
                             Select
                         </div>
@@ -113,7 +113,7 @@ const save = handleSubmit(async (values) => {
                 <div class="flex flex-col gap-4 sm:flex-row sm:justify-between">
                     <button
                         type="button"
-                        class="text-xs text-gray-600 hover:text-gray-800"
+                        class="text-xs text-zinc-600 hover:text-zinc-800"
                         @click="resetLanguage"
                         data-test="reset"
                     >

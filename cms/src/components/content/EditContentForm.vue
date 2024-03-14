@@ -232,12 +232,12 @@ const startEditingSlug = () => {
                     label="Title"
                     required
                 />
-                <div class="mt-2 flex gap-1 align-top text-xs text-gray-800">
+                <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
                     <span class="py-0.5">Slug:</span>
                     <span
                         v-show="!isEditingSlug"
                         data-test="slugSpan"
-                        class="inline-block rounded bg-gray-200 px-1.5 py-0.5"
+                        class="inline-block rounded bg-zinc-200 px-1.5 py-0.5"
                         >{{ values.slug }}</span
                     >
                     <LInput
@@ -253,10 +253,10 @@ const startEditingSlug = () => {
                         data-test="editSlugButton"
                         v-if="!isEditingSlug"
                         @click="startEditingSlug"
-                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded py-0.5 hover:bg-gray-200"
+                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded py-0.5 hover:bg-zinc-200"
                         title="Edit slug"
                     >
-                        <component :is="PencilIcon" class="h-4 w-4 text-gray-500" />
+                        <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
                     </button>
                 </div>
 
@@ -336,7 +336,7 @@ const startEditingSlug = () => {
                     </div>
 
                     <template #footer>
-                        <div class="flex flex-col gap-4 text-sm text-gray-700">
+                        <div class="flex flex-col gap-4 text-sm text-zinc-700">
                             <div class="flex items-end justify-between">
                                 <div>Status</div>
                                 <div class="flex justify-end gap-2">
@@ -366,7 +366,7 @@ const startEditingSlug = () => {
                             leave-to-class="opacity-0 -translate-y-8 scale-y-[.1]"
                         >
                             <div v-if="Object.keys(errors).length > 0">
-                                <p class="mt-6 text-xs text-gray-700">
+                                <p class="mt-6 text-xs text-zinc-700">
                                     These errors prevent <strong>saving</strong>, even as draft:
                                 </p>
 
@@ -402,12 +402,12 @@ const startEditingSlug = () => {
                             leave-to-class="opacity-0 -translate-y-8 scale-y-[.1]"
                         >
                             <div v-if="!canPublish">
-                                <p class="mt-6 text-xs text-gray-700">
+                                <p class="mt-6 text-xs text-zinc-700">
                                     These fields prevent <strong>publishing</strong>:
                                 </p>
 
                                 <TransitionGroup
-                                    class="mt-2 space-y-2 pt-2 text-sm text-gray-900"
+                                    class="mt-2 space-y-2 pt-2 text-sm text-zinc-900"
                                     move-class="transition ease-out duration-300"
                                     enter-active-class="transition ease-out duration-300"
                                     enter-from-class="opacity-0 translate-x-8"
@@ -420,7 +420,7 @@ const startEditingSlug = () => {
                                         class="flex gap-2"
                                     >
                                         <p>
-                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
                                         <p>
                                             At least one of text, audio or video content is required
@@ -428,19 +428,19 @@ const startEditingSlug = () => {
                                     </div>
                                     <div v-if="!hasSummary" class="flex gap-2">
                                         <p>
-                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
                                         <p>Summary is required</p>
                                     </div>
                                     <div v-if="!hasPublishDate" class="flex gap-2">
                                         <p>
-                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
                                         <p>Publish date is required</p>
                                     </div>
                                     <div v-if="!hasTag && ruleset == 'post'" class="flex gap-2">
                                         <p>
-                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
                                         <p>At least one tag is required</p>
                                     </div>

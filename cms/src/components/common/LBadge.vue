@@ -19,7 +19,7 @@ withDefaults(defineProps<Props>(), {
 });
 
 const variants = {
-    default: "bg-gray-100 text-gray-600 ring-gray-200",
+    default: "bg-zinc-100 text-zinc-600 ring-zinc-200",
     success: "bg-green-100 text-green-700 ring-green-200",
     warning: "bg-yellow-100 text-yellow-800 ring-yellow-300",
     error: "bg-red-100 text-red-700 ring-red-200",
@@ -41,7 +41,7 @@ const variants = {
         ]"
     >
         <XCircleIcon
-            class="-ml-0.5 mr-1 h-3 w-3 text-gray-500"
+            class="-ml-0.5 mr-1 h-3 w-3 text-zinc-500"
             v-if="!noIcon && type == 'language' && variant == 'default'"
         />
         <CheckCircleIcon
