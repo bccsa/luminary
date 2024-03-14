@@ -57,6 +57,10 @@ export type CreateContentParentDto = {
     title: string;
 };
 
+export type CreateTagDto = CreateContentParentDto & {
+    tagType: TagType;
+};
+
 export type ChangeReqDto = {
     id: number;
     doc: BaseDocumentDto;

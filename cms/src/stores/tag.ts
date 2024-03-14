@@ -6,6 +6,7 @@ import {
     type Uuid,
     type Language,
     type CreateContentParentDto,
+    type CreateTagDto,
 } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
@@ -52,7 +53,7 @@ export const useTagStore = defineStore("tag", () => {
         };
     });
 
-    const createTag = async (tag: CreateContentParentDto) => {
+    const createTag = async (tag: CreateTagDto) => {
         return tagRepository.create(tag);
     };
 

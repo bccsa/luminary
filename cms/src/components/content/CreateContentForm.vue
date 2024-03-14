@@ -4,7 +4,7 @@ import LBadge from "@/components/common/LBadge.vue";
 import LInput from "@/components/forms/LInput.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { useLanguageStore } from "@/stores/language";
-import type { CreateContentParentDto, Language } from "@/types";
+import type { CreateContentParentDto, Language, TagType } from "@/types";
 import { ref } from "vue";
 import { ArrowRightIcon } from "@heroicons/vue/20/solid";
 import { useForm } from "vee-validate";
@@ -55,7 +55,7 @@ const save = handleSubmit(async (values) => {
 <template>
     <form class="space-y-6" @submit.prevent="save">
         <p class="text-sm text-gray-700">
-            These are all the required fields for creating a {{ entityName }}. After clicking
+            These are all the required fields for creating a new {{ entityName }}. After clicking
             'continue' the {{ entityName }} will be saved as a draft and you can continue editing.
         </p>
 

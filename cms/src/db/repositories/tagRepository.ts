@@ -6,6 +6,7 @@ import {
     type Content,
     type CreateContentParentDto,
     TagType,
+    type CreateTagDto,
 } from "@/types";
 import { ContentRepository } from "./contentRepository";
 import { BaseRepository } from "./baseRepository";
@@ -20,14 +21,14 @@ export class TagRepository extends BaseRepository {
         this._contentRepository = new ContentRepository();
     }
 
-    async create(dto: CreateContentParentDto) {
+    async create(dto: CreateTagDto) {
         const tagId = uuidv4();
 
         const tag: TagDto = {
             _id: tagId,
             updatedTimeUtc: Date.now(),
             type: DocType.Tag,
-            tagType: TagType.Category,
+            tagType: dto.tagType,
             image: dto.image,
             pinned: false,
             tags: [],

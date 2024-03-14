@@ -8,6 +8,7 @@ import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useTagStore } from "@/stores/tag";
+import { TagType } from "@/types";
 
 const { tags, topics } = storeToRefs(useTagStore());
 </script>
@@ -20,7 +21,7 @@ const { tags, topics } = storeToRefs(useTagStore());
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
-                :to="{ name: 'tags.create' }"
+                :to="{ name: 'tags.create', params: { tagType: TagType.Topic } }"
             >
                 Create topic
             </LButton>
@@ -32,7 +33,7 @@ const { tags, topics } = storeToRefs(useTagStore());
             title="No topics yet"
             description="Get started by creating a new topic."
             buttonText="Create topic"
-            :buttonLink="{ name: 'tags.create' }"
+            :buttonLink="{ name: 'tags.create', params: { tagType: TagType.Topic } }"
         />
 
         <ContentTable v-else :items="topics" editLinkName="tags.edit" />
