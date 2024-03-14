@@ -11,6 +11,12 @@ import { useForm } from "vee-validate";
 import * as yup from "yup";
 import { toTypedSchema } from "@vee-validate/yup";
 
+type Props = {
+    entityName: string;
+};
+
+defineProps<Props>();
+
 const languageStore = useLanguageStore();
 
 const emit = defineEmits(["save"]);
@@ -49,8 +55,8 @@ const save = handleSubmit(async (values) => {
 <template>
     <form class="space-y-6" @submit.prevent="save">
         <p class="text-sm text-gray-700">
-            These are all the required fields for creating a post. After clicking 'continue' the
-            post will be saved as a draft and you can continue editing.
+            These are all the required fields for creating a {{ entityName }}. After clicking
+            'continue' the {{ entityName }} will be saved as a draft and you can continue editing.
         </p>
 
         <LInput

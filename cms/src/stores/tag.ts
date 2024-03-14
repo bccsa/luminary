@@ -1,5 +1,12 @@
 import { defineStore } from "pinia";
-import { TagType, type Tag, type Content, type Uuid, type Language } from "@/types";
+import {
+    TagType,
+    type Tag,
+    type Content,
+    type Uuid,
+    type Language,
+    type CreateContentParentDto,
+} from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { computed, type Ref } from "vue";
@@ -45,6 +52,10 @@ export const useTagStore = defineStore("tag", () => {
         };
     });
 
+    const createTag = async (tag: CreateContentParentDto) => {
+        return tagRepository.create(tag);
+    };
+
     const updateTag = async (content: Content, tag: Tag) => {
         return tagRepository.update(content, tag);
     };
@@ -57,5 +68,14 @@ export const useTagStore = defineStore("tag", () => {
         });
     };
 
-    return { tags, tag, updateTag, createTranslation, categories, topics, audioPlaylists };
+    return {
+        tags,
+        tag,
+        createTag,
+        updateTag,
+        createTranslation,
+        categories,
+        topics,
+        audioPlaylists,
+    };
 });

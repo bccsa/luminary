@@ -77,7 +77,7 @@ const router = createRouter({
                         {
                             path: "create",
                             name: "tags.create",
-                            component: () => import("../pages/posts/CreatePost.vue"),
+                            component: () => import("../pages/tags/CreateTag.vue"),
                             meta: {
                                 title: "Create tag",
                             },
