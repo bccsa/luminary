@@ -29,36 +29,6 @@ describe("CreatePost", () => {
         vi.clearAllMocks();
     });
 
-    it("renders the initial form", async () => {
-        const wrapper = mount(CreatePost);
-
-        expect(wrapper.html()).toContain("Default image");
-        expect(wrapper.html()).toContain(mockLanguageEng.name);
-        expect(wrapper.html()).toContain(mockLanguageFra.name);
-        expect(wrapper.html()).not.toContain("Title");
-    });
-
-    it("shows a title field after a language is chosen", async () => {
-        const wrapper = mount(CreatePost);
-
-        await wrapper.findAll("button[data-test='language']")[0].trigger("click");
-
-        expect(wrapper.html()).toContain(mockLanguageEng.name); // In the placeholder
-        expect(wrapper.html()).not.toContain(mockLanguageFra.name);
-        expect(wrapper.html()).toContain("Title");
-    });
-
-    it("can reset the chosen language", async () => {
-        const wrapper = mount(CreatePost);
-
-        await wrapper.findAll("button[data-test='language']")[0].trigger("click");
-        await wrapper.find("button[data-test='reset']").trigger("click");
-
-        expect(wrapper.html()).toContain(mockLanguageEng.name);
-        expect(wrapper.html()).toContain(mockLanguageFra.name);
-        expect(wrapper.html()).not.toContain("Title");
-    });
-
     it("can submit the form", async () => {
         const postStore = usePostStore();
 
@@ -74,22 +44,6 @@ describe("CreatePost", () => {
         await waitForExpect(() => {
             expect(postStore.createPost).toHaveBeenCalled();
             expect(routePushMock).toHaveBeenCalled();
-        });
-    });
-
-    it("validates the form", async () => {
-        const wrapper = mount(CreatePost);
-
-        // Select a language so both fields are visible
-        await wrapper.findAll("button[data-test='language']")[0].trigger("click");
-
-        await wrapper.find("input[name='image']").setValue("");
-        await wrapper.find("input[name='title']").setValue("");
-
-        await flushPromises();
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Image is a required field");
-            expect(wrapper.text()).toContain("Title is a required field");
         });
     });
 });

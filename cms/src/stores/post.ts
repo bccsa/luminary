@@ -1,5 +1,11 @@
 import { defineStore } from "pinia";
-import { type Content, type CreatePostDto, type Language, type Post, type Uuid } from "@/types";
+import {
+    type Content,
+    type CreateContentParentDto,
+    type Language,
+    type Post,
+    type Uuid,
+} from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { computed, type Ref } from "vue";
@@ -21,7 +27,7 @@ export const usePostStore = defineStore("post", () => {
         };
     });
 
-    const createPost = async (post: CreatePostDto) => {
+    const createPost = async (post: CreateContentParentDto) => {
         return postRepository.create(post);
     };
 
