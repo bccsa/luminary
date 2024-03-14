@@ -4,9 +4,24 @@ import EmptyState from "@/components/EmptyState.vue";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useTagStore } from "@/stores/tag";
-import type { Language } from "@/types";
+import { TagType, type Language } from "@/types";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+
+const backLinkMap = {
+    [TagType.Category]: {
+        link: "tags.categories",
+        text: "Categories",
+    },
+    [TagType.Topic]: {
+        link: "tags.topics",
+        text: "Topics",
+    },
+    [TagType.AudioPlaylist]: {
+        link: "tags.audio-playlists",
+        text: "Audio playlists",
+    },
+};
 
 const route = useRoute();
 const router = useRouter();
@@ -19,6 +34,14 @@ const tag = computed(() => tagStore.tag(tagId));
 const isLoading = computed(() => tag.value == undefined);
 const content = computed(() => {
     return tag.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
+});
+
+const backLink = computed(() => {
+    if (!tag.value) {
+        return backLinkMap[TagType.Category];
+    }
+
+    return backLinkMap[tag.value.tagType];
 });
 
 const selectedLanguage = ref<string>();
@@ -65,8 +88,8 @@ async function createTranslation(language: Language) {
     <BasePage
         :title="content ? content.title : 'Edit tag'"
         :loading="isLoading"
-        :back-link-location="{ name: 'tags.categories' }"
-        back-link-text="Categories"
+        :back-link-location="{ name: backLink.link }"
+        :back-link-text="backLink.text"
     >
         <template #actions>
             <LanguageSelector
