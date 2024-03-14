@@ -3,9 +3,16 @@ import { setActivePinia, createPinia } from "pinia";
 import { liveQuery } from "dexie";
 import { TagRepository } from "@/db/repositories/tagRepository";
 import { useTagStore } from "./tag";
-import { mockCategory, mockEnglishCategoryContent } from "@/tests/mockData";
+import {
+    mockCategory,
+    mockEnglishCategoryContent,
+    mockLanguageEng,
+    mockLanguageSwa,
+} from "@/tests/mockData";
+import { TagType } from "@/types";
+import { ContentRepository } from "@/db/repositories/contentRepository";
 
-vi.mock("@/db/repositories/postRepository");
+vi.mock("@/db/repositories/TagRepository");
 
 const docsDb = vi.hoisted(() => {
     return {
@@ -25,6 +32,12 @@ vi.mock("@/db/baseDatabase", () => {
         },
     };
 });
+
+vi.mock("@/util/slug", () => ({
+    Slug: {
+        generate: () => "fake-slug",
+    },
+}));
 
 vi.mock("dexie", () => {
     return {
@@ -58,6 +71,21 @@ describe("post store", () => {
         expect(getAllSpy).toHaveBeenCalledOnce();
     });
 
+    it("can create a post", () => {
+        const createSpy = vi.spyOn(TagRepository.prototype, "create");
+        const tag = {
+            image: "image",
+            language: mockLanguageEng,
+            title: "title",
+            tagType: TagType.Topic,
+        };
+
+        const store = useTagStore();
+        store.createTag(tag);
+
+        expect(createSpy).toHaveBeenCalledWith(tag);
+    });
+
     it("can update a tag", () => {
         const updateSpy = vi.spyOn(TagRepository.prototype, "update");
 
@@ -65,5 +93,18 @@ describe("post store", () => {
         store.updateTag(mockEnglishCategoryContent, mockCategory);
 
         expect(updateSpy).toHaveBeenCalledWith(mockEnglishCategoryContent, mockCategory);
+    });
+
+    it("can create a translation", () => {
+        const createSpy = vi.spyOn(ContentRepository.prototype, "create");
+
+        const store = useTagStore();
+        store.createTranslation(mockCategory, mockLanguageSwa);
+
+        expect(createSpy).toHaveBeenCalledWith({
+            parentId: mockCategory._id,
+            language: mockLanguageSwa._id,
+            title: mockLanguageSwa.name,
+        });
     });
 });

@@ -10,17 +10,10 @@ import {
     mockFrenchContentDto,
     mockLanguageDtoEng,
     mockLanguageDtoFra,
+    mockLanguageEng,
 } from "@/tests/mockData";
 import { TagRepository } from "./tagRepository";
-import {
-    type Content,
-    type Post,
-    DocType,
-    type PostDto,
-    type ContentDto,
-    type Tag,
-    type TagDto,
-} from "@/types";
+import { TagType, type Content, type ContentDto, type Tag, type TagDto, DocType } from "@/types";
 
 describe("tagRepository", () => {
     afterEach(() => {
@@ -40,6 +33,33 @@ describe("tagRepository", () => {
         expect(result[0].content[0]._id).toBe(mockCategoryContentDto._id);
         expect(result[0].content[0].language._id).toBe(mockLanguageDtoEng._id);
         expect(result[0].updatedTimeUtc.toISODate()).toEqual("2024-01-01");
+    });
+
+    it("can create a post", async () => {
+        const repository = new TagRepository();
+        const createTagDto = {
+            image: "testImage",
+            language: mockLanguageEng,
+            title: "testTitle",
+            tagType: TagType.Topic,
+        };
+
+        await repository.create(createTagDto);
+
+        // Assert content and post were created in local database
+        const tag = (await db.docs.where("type").equals(DocType.Tag).first()) as TagDto;
+        expect(tag.image).toBe("testImage");
+        expect(tag.tagType).toBe(TagType.Topic);
+
+        const content = (await db.docs.where("type").equals(DocType.Content).first()) as ContentDto;
+        expect(content.title).toBe("testTitle");
+        expect(content.parentId).toBe(tag._id);
+
+        // Assert content and post were logged in the localChanges table
+        const localChanges = await db.localChanges.toArray();
+        expect(localChanges.length).toBe(2);
+        expect(localChanges[0].doc).toEqual(tag);
+        expect(localChanges[1].doc).toEqual(content);
     });
 
     it("can update a tag", async () => {
