@@ -23,10 +23,14 @@ export type GetDocsOptions = {
 
 /**
  * Standardized format for database query results
+ * @param {Array<any>} docs - Array of databased returned documents
+ * @param {Array<string>} warnings - Array of warnings
+ * @param {number} version - Timestamp of the latest document update
  */
 export type DbQueryResult = {
     docs: Array<any>;
     warnings?: Array<string>;
+    version?: number;
 };
 
 /**
@@ -431,10 +435,20 @@ export class DbService extends EventEmitter {
             }
 
             Promise.all(pList)
-                .then((res) => {
+                .then(async (res) => {
                     const docs = res.flatMap((r) => r.docs);
                     const warnings = res.flatMap((r) => r.warning).filter((w) => w);
-                    resolve({ docs, warnings: warnings.length > 0 ? warnings : undefined });
+
+                    // Only get the latest version if the "to" parameter is not set
+                    let version: number | undefined;
+                    if (options.to == undefined) {
+                        version = await this.getLatestDocUpdatedTime();
+                    }
+                    resolve({
+                        docs,
+                        warnings: warnings.length > 0 ? warnings : undefined,
+                        version: version,
+                    });
                 })
                 .catch((err) => {
                     reject(err);
