@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { socket } from "@/socket";
+import { getSocket } from "@/socket";
 import { type BaseDocumentDto, type ChangeReqAckDto } from "@/types";
 import { db } from "@/db/baseDatabase";
 import { ref } from "vue";
@@ -9,6 +9,8 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
     const isConnected = ref(false);
 
     const bindEvents = () => {
+        const socket = getSocket();
+
         socket.on("connect", async () => {
             isConnected.value = true;
 

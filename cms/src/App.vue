@@ -4,24 +4,31 @@ import { RouterView } from "vue-router";
 import SideBar from "@/components/navigation/SideBar.vue";
 import TopBar from "@/components/navigation/TopBar.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
-import { ref } from "vue";
+import { onBeforeMount, ref } from "vue";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { useLocalChangeStore } from "@/stores/localChanges";
-import { socket } from "@/socket";
+import { getSocket, initSocket } from "@/socket";
 import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 
-const { isAuthenticated } = useAuth0();
+const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 const { appName } = useGlobalConfigStore();
 const socketConnectionStore = useSocketConnectionStore();
 const localChangeStore = useLocalChangeStore();
+const socket = getSocket();
 
 // remove any existing listeners (in case of hot reload)
-socket.off();
+if (socket) socket.off();
 
-socketConnectionStore.bindEvents();
-localChangeStore.watchForSyncableChanges();
+onBeforeMount(async () => {
+    const token = await getAccessTokenSilently();
+
+    initSocket(token);
+
+    socketConnectionStore.bindEvents();
+    localChangeStore.watchForSyncableChanges();
+});
 
 const sidebarOpen = ref(false);
 </script>

@@ -19,7 +19,7 @@ const socketMock = vi.hoisted(() => ({
 }));
 
 vi.mock("@/socket", () => ({
-    socket: socketMock,
+    getSocket: () => socketMock,
 }));
 
 describe("localChanges store", () => {
