@@ -3,6 +3,7 @@ import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
+import { useContentStore } from "@/stores/content";
 import { useTagStore } from "@/stores/tag";
 import { TagType, type Language } from "@/types";
 import { TagIcon } from "@heroicons/vue/24/solid";
@@ -27,15 +28,20 @@ const backLinkMap = {
 const route = useRoute();
 const router = useRouter();
 const tagStore = useTagStore();
+const contentStore = useContentStore();
 
 const tagId = route.params.id as string;
 const routeLanguage = route.params.language as string;
 
 const tag = computed(() => tagStore.tag(tagId));
-const isLoading = computed(() => tag.value == undefined);
 const content = computed(() => {
-    return tag.value?.content.find((c) => c.language.languageCode == selectedLanguage.value);
+    if (tag.value && tag.value.content.length > 0) {
+        return tag.value.content.find((c) => c.language.languageCode == selectedLanguage.value);
+    }
+
+    return contentStore.singleContent(tagId, selectedLanguage.value ?? "eng");
 });
+const isLoading = computed(() => tag.value == undefined);
 
 const backLink = computed(() => {
     if (!tag.value) {

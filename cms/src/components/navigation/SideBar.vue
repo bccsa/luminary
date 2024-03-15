@@ -119,7 +119,7 @@ watch(route, (newRoute) => {
                                             :as="RouterLink"
                                             :to="subItem.to"
                                             active-class="bg-zinc-200 text-zinc-900"
-                                            class="block rounded-md py-2 pl-9 pr-2 text-sm leading-6 text-zinc-700 hover:bg-zinc-200"
+                                            class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
                                         >
                                             {{ subItem.name }}
                                         </DisclosureButton>

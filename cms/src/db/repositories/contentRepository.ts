@@ -14,6 +14,12 @@ export class ContentRepository extends BaseRepository {
         this._languageRepository = new LanguageRepository();
     }
 
+    async getAll() {
+        return this.whereType(DocType.Content).toArray((dtos) =>
+            Promise.all(this.fromDtos(dtos as ContentDto[])),
+        );
+    }
+
     getContentWithParentId(id: Uuid) {
         return this.whereParentId(id).toArray((content) => {
             return Promise.all(this.fromDtos(content as ContentDto[]));

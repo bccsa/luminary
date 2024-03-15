@@ -1,5 +1,5 @@
 import type { DateTime } from "luxon";
-import type { BaseDocumentDto } from ".";
+import type { BaseDocumentDto, Uuid } from "./dto";
 
 export enum DocType {
     Change = "change",
@@ -73,6 +73,7 @@ export enum ContentStatus {
 
 export type Content = ContentBase & {
     type: DocType.Content;
+    parentId: Uuid;
     language: Language;
     status: ContentStatus;
     publishDate?: DateTime;

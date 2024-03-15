@@ -131,6 +131,7 @@ export const mockLanguageDtoFra: LanguageDto = {
 
 export const mockEnglishContent: Content = {
     _id: "content-post1-eng",
+    parentId: "post-post1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
@@ -149,6 +150,7 @@ export const mockEnglishContent: Content = {
 };
 export const mockFrenchContent: Content = {
     _id: "content-post1-fra",
+    parentId: "post-post1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
@@ -168,6 +170,7 @@ export const mockFrenchContent: Content = {
 
 export const mockUnpublishableContent: Content = {
     _id: "content-post1-eng",
+    parentId: "post-post1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
@@ -187,6 +190,7 @@ export const mockUnpublishableContent: Content = {
 
 export const mockEnglishCategoryContent: Content = {
     _id: "content-tag-category1",
+    parentId: "tag-category1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
@@ -200,6 +204,7 @@ export const mockEnglishCategoryContent: Content = {
 };
 export const mockFrenchCategoryContent: Content = {
     _id: "content-tag-category1-fra",
+    parentId: "tag-category1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
@@ -213,6 +218,7 @@ export const mockFrenchCategoryContent: Content = {
 };
 export const mockTopicContent: Content = {
     _id: "content-tag-topicA",
+    parentId: "tag-topicA",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],
@@ -226,6 +232,7 @@ export const mockTopicContent: Content = {
 };
 export const mockAudioPlaylistContent: Content = {
     _id: "content-tag-audioPlaylist-Faith",
+    parentId: "tag-audioPlaylist-Faith",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
     memberOf: [],

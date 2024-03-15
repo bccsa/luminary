@@ -12,7 +12,7 @@ const router = useRouter();
 const save = async (dto: CreateContentParentDto) => {
     const id = await postStore.createPost(dto);
 
-    return router.push({
+    return router.replace({
         name: "posts.edit",
         params: { id, language: dto.language.languageCode },
     });
