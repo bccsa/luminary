@@ -9,18 +9,27 @@ import { flushPromises } from "@vue/test-utils";
 
 const lastUpdatedTime = 42;
 
-const socketMocks = vi.hoisted(() => {
-    return {
-        on: vi.fn(),
-        emit: vi.fn(),
-    };
-});
+// const socketMocks = vi.hoisted(() => {
+//     return {
+//         on: vi.fn(),
+//         emit: vi.fn(),
+//     };
+// });
 
-vi.mock("socket.io-client", () => {
-    return {
-        io: vi.fn().mockImplementation(() => socketMocks),
-    };
-});
+// vi.mock("socket.io-client", () => {
+//     return {
+//         io: vi.fn().mockImplementation(() => socketMocks),
+//     };
+// });
+
+const socketMocks = vi.hoisted(() => ({
+    emit: vi.fn(),
+    on: vi.fn(),
+}));
+
+vi.mock("@/socket", () => ({
+    getSocket: () => socketMocks,
+}));
 
 // Invoke the callback for socket.on() only for the passed even
 function listenToSocketOnEvent(allowedEvent: string | string[], returnValue?: any) {
@@ -79,7 +88,6 @@ describe("socketConnection", () => {
 
         store.bindEvents();
 
-        expect(io).toHaveBeenCalledOnce();
         expect(socketMocks.on).toHaveBeenCalledWith("connect", expect.any(Function));
         expect(store.isConnected).toEqual(true);
     });

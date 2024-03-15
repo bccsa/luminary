@@ -6,7 +6,7 @@ import { watch, type Ref, computed } from "vue";
 import { LocalChangesRepository } from "@/db/repositories/localChangesRepository";
 import { type Observable } from "rxjs";
 import { useSocketConnectionStore } from "./socketConnection";
-import { socket } from "@/socket";
+import { getSocket } from "@/socket";
 import { db } from "@/db/baseDatabase";
 
 const ONE_MINUTE_IN_MS = 60000;
@@ -61,7 +61,7 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
             syncFirstLocalChangeToApi();
         }, ONE_MINUTE_IN_MS);
 
-        socket.emit("changeRequest", change);
+        getSocket().emit("changeRequest", change);
     };
 
     const handleAck = async (ack: ChangeReqAckDto) => {
