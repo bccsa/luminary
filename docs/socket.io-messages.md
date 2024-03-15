@@ -7,3 +7,4 @@
 | data             | Document transfer                 | API -> client / cms   | Array of document objects                                 |
 | changeRequest    | Document changes                  | client / cms -> API   | Array of change requests                                  |
 | changeRequestAck | Acknowledgement of change request | API -> client / cms   | Acknowledgement of individual change request with status  |
+| accessMap        | Map with user specific access     | API -> client / cms   | Object                                                    |
