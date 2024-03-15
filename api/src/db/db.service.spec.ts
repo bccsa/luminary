@@ -227,6 +227,7 @@ describe("DbService", () => {
         });
 
         expect(res.docs.length).toBe(1);
+        expect(res.version).toBe(updatedDoc.updatedTimeUtc); // Ensure that the version (timestamp) is returned with the result
     });
 
     it("can retrieve the group itself from the passed groups query property", async () => {
