@@ -65,6 +65,12 @@ describe("Socketio", () => {
             expect(Object.keys(res.accessMap).length).toBeGreaterThan(0);
             expect(res.accessMap["group-private-users"].post.view).toBe(true);
         });
+
+        it("can send the latest version number to the client after receiving a 'clientDataReq' message", async () => {
+            const res = await socketioTestClient({ cms: false, version: 0 });
+
+            expect(res.version).toBeGreaterThan(0);
+        });
     });
 
     describe("Change requests", () => {
