@@ -82,4 +82,5 @@ export enum PublishStatus {
 export enum TagType {
     Category = "category",
     Topic = "topic",
+    AudioPlaylist = "audioPlaylist",
 }
