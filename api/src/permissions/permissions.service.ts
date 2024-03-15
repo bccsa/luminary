@@ -54,12 +54,16 @@ export class PermissionSystem {
      */
     static getAccessMap(groupIds: Array<Uuid>): AccessMap {
         let resultMap: AccessMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
-        groupIds.forEach((id: Uuid) => {
-            const g = groupMap[id];
-            if (!g) return;
 
-            resultMap = { ...resultMap, ...g._groupTypePermissionMap };
-        });
+        if (groupIds) {
+            groupIds.forEach((id: Uuid) => {
+                const g = groupMap[id];
+                if (!g) return;
+
+                resultMap = { ...resultMap, ...g._groupTypePermissionMap };
+            });
+        }
+
         return resultMap;
     }
 
