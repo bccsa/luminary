@@ -31,7 +31,7 @@ describe("Socketio", () => {
     });
 
     afterAll(async () => {
-        await client.off();
+        client.off();
         await app.close();
     });
 
