@@ -25,7 +25,7 @@ withDefaults(defineProps<Props>(), {
         enter-from-class="opacity-0"
         enter-to-class="opacity-100"
     >
-        <div v-if="!loading">
+        <div v-if="!loading" class="mx-auto max-w-7xl">
             <RouterLink
                 v-if="backLinkLocation"
                 :to="backLinkLocation"
