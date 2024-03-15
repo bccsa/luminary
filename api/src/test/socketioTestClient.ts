@@ -24,8 +24,6 @@ export const socketioTestClient = (
     if (config.timeout === undefined) config.timeout = 500;
 
     return new Promise(async (resolve) => {
-        // TODO: Implement authentication in tests and update tests making use of this function
-
         const res = { data: [], ack: new ChangeReqAckDto(), accessMap: undefined };
 
         // Connect with new instance of socket.io client to avoid interference with other tests
