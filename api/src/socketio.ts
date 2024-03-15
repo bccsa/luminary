@@ -31,6 +31,7 @@ type EmitEvents = {
     data: (a: Array<any>) => void;
     changeRequestAck: (b: ChangeReqAckDto) => void;
     accessMap: (c: AccessMap) => void;
+    version: (d: number) => void;
 };
 
 /**
@@ -191,9 +192,8 @@ export class Socketio implements OnGatewayInit {
                 from: from,
             })
             .then((res: DbQueryResult) => {
-                if (res.docs) {
-                    socket.emit("data", res.docs);
-                }
+                if (res.docs) socket.emit("data", res.docs);
+                if (res.version) socket.emit("version", res.version);
             })
             .catch(console.error); // TODO: Add error logging provider
 

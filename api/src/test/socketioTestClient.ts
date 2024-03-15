@@ -20,11 +20,16 @@ export type socketioTestRequest = {
  */
 export const socketioTestClient = (
     config: socketioTestRequest,
-): Promise<{ data: any[]; ack: ChangeReqAckDto; accessMap?: AccessMap }> => {
+): Promise<{ data: any[]; ack: ChangeReqAckDto; accessMap?: AccessMap; version?: number }> => {
     if (config.timeout === undefined) config.timeout = 500;
 
     return new Promise(async (resolve) => {
-        const res = { data: [], ack: new ChangeReqAckDto(), accessMap: undefined };
+        const res = {
+            data: [],
+            ack: new ChangeReqAckDto(),
+            accessMap: undefined,
+            version: undefined,
+        };
 
         // Connect with new instance of socket.io client to avoid interference with other tests
         const testClient = io(`http://localhost:${process.env.PORT}`);
@@ -41,10 +46,15 @@ export const socketioTestClient = (
             res.accessMap = accessMap;
             testClient.off("accessMap", accessMapHandler);
         };
+        const versionHandler = (version) => {
+            res.version = version;
+            testClient.off("version", versionHandler);
+        };
 
         // Subscribe to events
         testClient.on("data", dataHandler);
         testClient.on("changeRequestAck", ackHandler);
+        testClient.on("version", versionHandler);
         if (config.getAccessMap) testClient.on("accessMap", accessMapHandler);
 
         // We need to send a clientDataReq event to the server to get the latest data and subscribe to updates
