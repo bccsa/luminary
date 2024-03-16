@@ -1,20 +1,27 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from "vue-router";
+import { useAuth0 } from "@auth0/auth0-vue";
+import { RouterView } from "vue-router";
+import TopBar from "./components/navigation/TopBar.vue";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import { useGlobalConfigStore } from "./stores/globalConfig";
+
+const { isAuthenticated } = useAuth0();
+const { appName } = useGlobalConfigStore();
 </script>
 
 <template>
-    <header class="flex flex-col items-center space-x-8 p-8 md:flex-row">
-        <img alt="logo" class="w-64" src="@/assets/logo.svg" />
+    <template v-if="isAuthenticated">
+        <TopBar />
 
-        <div>
-            <nav class="flex space-x-2">
-                <RouterLink to="/" class="underline">Home</RouterLink>
-                <RouterLink to="/about" class="underline">About</RouterLink>
-            </nav>
+        <main class="mx-auto max-w-7xl px-4">
+            <RouterView />
+        </main>
+    </template>
+
+    <div v-else class="absolute flex h-full w-full items-center justify-center">
+        <div class="flex flex-col items-center gap-4">
+            <img class="w-72" src="@/assets/logo.svg" :alt="appName" />
+            <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
         </div>
-    </header>
-
-    <main class="px-8">
-        <RouterView />
-    </main>
+    </div>
 </template>
