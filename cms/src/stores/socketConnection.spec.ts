@@ -1,26 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from "vitest";
 import { useSocketConnectionStore } from "./socketConnection";
 import { setActivePinia, createPinia } from "pinia";
-import { io } from "socket.io-client";
 import { mockEnglishContentDto, mockPostDto } from "@/tests/mockData";
 import { type ChangeReqAckDto, AckStatus } from "@/types";
 import { useLocalChangeStore } from "./localChanges";
 import { flushPromises } from "@vue/test-utils";
 
-const lastUpdatedTime = 42;
+const socketMocks = vi.hoisted(() => ({
+    emit: vi.fn(),
+    on: vi.fn(),
+}));
 
-const socketMocks = vi.hoisted(() => {
-    return {
-        on: vi.fn(),
-        emit: vi.fn(),
-    };
-});
-
-vi.mock("socket.io-client", () => {
-    return {
-        io: vi.fn().mockImplementation(() => socketMocks),
-    };
-});
+vi.mock("@/socket", () => ({
+    getSocket: () => socketMocks,
+}));
 
 // Invoke the callback for socket.on() only for the passed even
 function listenToSocketOnEvent(allowedEvent: string | string[], returnValue?: any) {
@@ -41,13 +34,6 @@ const docsDb = vi.hoisted(() => {
         where: vi.fn().mockReturnThis(),
         equals: vi.fn().mockReturnThis(),
         delete: vi.fn().mockReturnThis(),
-        last: vi.fn().mockImplementation(() => {
-            return new Promise((resolve) => {
-                resolve({
-                    updatedTimeUtc: lastUpdatedTime,
-                });
-            });
-        }),
     };
 });
 
@@ -79,7 +65,6 @@ describe("socketConnection", () => {
 
         store.bindEvents();
 
-        expect(io).toHaveBeenCalledOnce();
         expect(socketMocks.on).toHaveBeenCalledWith("connect", expect.any(Function));
         expect(store.isConnected).toEqual(true);
     });
@@ -92,9 +77,12 @@ describe("socketConnection", () => {
 
         await flushPromises();
 
+        let lastUpdatedTime = localStorage.getItem("syncVersion");
+        if (typeof lastUpdatedTime !== "string") lastUpdatedTime = "0";
+
         expect(socketMocks.emit).toHaveBeenCalledOnce();
         expect(socketMocks.emit).toHaveBeenCalledWith("clientDataReq", {
-            version: lastUpdatedTime,
+            version: Number.parseInt(lastUpdatedTime),
             cms: true,
         });
     });
@@ -111,11 +99,25 @@ describe("socketConnection", () => {
     it("saves data from the API", () => {
         const store = useSocketConnectionStore();
 
-        listenToSocketOnEvent("data", [mockPostDto, mockEnglishContentDto]);
+        listenToSocketOnEvent("data", { docs: [mockPostDto, mockEnglishContentDto] });
 
         store.bindEvents();
 
         expect(docsDb.bulkPut).toHaveBeenCalledWith([mockPostDto, mockEnglishContentDto]);
+    });
+
+    it("stores the sync version number to local storage after receiving data from the API", async () => {
+        const store = useSocketConnectionStore();
+
+        listenToSocketOnEvent("data", {
+            docs: [mockPostDto, mockEnglishContentDto],
+            version: 42,
+        });
+
+        store.bindEvents();
+        await flushPromises();
+
+        expect(localStorage.getItem("syncVersion")).toEqual("42");
     });
 
     it("handles acks for changes", () => {

@@ -7,20 +7,66 @@ import {
 } from "@nestjs/websockets";
 import { Injectable } from "@nestjs/common";
 import { DbQueryResult, DbService } from "./db/db.service";
-import { DocType, AclPermission, AckStatus } from "./enums";
+import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
-import { Socket } from "socket.io-client";
-import { Server } from "socket.io";
+import { Socket, Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { processChangeRequest } from "./changeRequests/processChangeRequest";
 import { AccessMap } from "./permissions/permissions.service";
+import * as JWT from "jsonwebtoken";
+import configuration, { Configuration } from "./configuration";
+import { PermissionMap, getJwtPermission, parsePermissionMap } from "./jwt/jwtPermissionMap";
 
+/**
+ * Data request from client type definition
+ */
 type ClientDataReq = {
     version?: number;
     cms?: boolean;
     accessMap?: AccessMap;
 };
+
+/**
+ * Data response to client type definition
+ */
+type ApiDataResponse = {
+    docs: Array<any>;
+    version?: number;
+};
+
+/**
+ * Socket.io emitted messages type definitions
+ */
+type EmitEvents = {
+    data: (a: ApiDataResponse) => void;
+    changeRequestAck: (b: ChangeReqAckDto) => void;
+    accessMap: (c: AccessMap) => void;
+    version: (d: number) => void;
+};
+
+/**
+ * Socket.io received messages type definitions
+ */
+interface ReceiveEvents {
+    clientDataReq: (a: ClientDataReq) => void;
+    changeRequest: (b: ChangeReqDto) => void;
+}
+
+/**
+ * Placeholder
+ */
+interface InterServerEvents {}
+
+/**
+ * Socket.io client socket.data type definition
+ */
+interface SocketData {
+    userId: Uuid;
+    memberOf: Array<Uuid>;
+}
+
+type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>;
 
 @WebSocketGateway({
     cors: {
@@ -31,10 +77,20 @@ type ClientDataReq = {
 export class Socketio implements OnGatewayInit {
     appDocTypes: Array<DocType> = [DocType.Post, DocType.Tag, DocType.Content, DocType.Language];
     cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
+    permissionMap: PermissionMap;
+    config: Configuration;
 
     constructor(private db: DbService) {}
 
-    afterInit(server: Server) {
+    afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
+        server.on("connection", (socket) => this.connection(socket));
+
+        // Create config object with environmental variables
+        this.config = configuration();
+
+        // Parse permission map
+        this.permissionMap = parsePermissionMap(this.config.permissionMap);
+
         // Subscribe to database changes and broadcast change to all group rooms to which the document belongs
         this.db.on("update", async (update: any) => {
             // Only include documents with a document type property
@@ -66,8 +122,42 @@ export class Socketio implements OnGatewayInit {
             if (update.type == "change") rooms = rooms.map((room) => `cms-${room}`);
 
             // Emit to rooms
-            if (rooms.length > 0) server.to(rooms).emit("data", [update]);
+            if (rooms.length > 0)
+                server.to(rooms).emit("data", {
+                    docs: [update],
+                    version: update.updatedTimeUtc ? update.updatedTimeUtc : undefined,
+                });
         });
+    }
+
+    /**
+     * Connection event handler
+     * @param socket
+     */
+    connection(socket: ClientSocket) {
+        let jwt: string | JWT.JwtPayload;
+        try {
+            jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret);
+        } catch {}
+
+        if (!jwt && socket.handshake.auth && socket.handshake.auth.token) {
+            // Assume that the user's token is expired.
+            // Prompt the user to re-authenticate instead of assigning public access to the user
+            return;
+        }
+
+        // Get group access
+        const permissions = getJwtPermission(jwt, this.permissionMap);
+        socket.data.memberOf = permissions.groups;
+
+        // Get user ID
+        if (permissions.userId) {
+            // Public or JWT assigned user ID.
+            socket.data.userId = permissions.userId;
+            return;
+        }
+
+        // TODO: Get or create user ID in database
     }
 
     /**
@@ -76,14 +166,11 @@ export class Socketio implements OnGatewayInit {
      * @param socket
      */
     @SubscribeMessage("clientDataReq")
-    onClientConnection(@MessageBody() reqData: ClientDataReq, @ConnectedSocket() socket: Socket) {
+    clientDataReq(@MessageBody() reqData: ClientDataReq, @ConnectedSocket() socket: ClientSocket) {
         // TODO: Do type validation on reqData
-        // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
-        const user = "user-private";
-        const memberOfGroups = ["group-super-admins"];
 
         // Get access map and send to client
-        const accessMap = PermissionSystem.getAccessMap(memberOfGroups);
+        const accessMap = PermissionSystem.getAccessMap(socket.data.memberOf);
         socket.emit("accessMap", accessMap);
 
         // Determine which doc types to get
@@ -104,12 +191,10 @@ export class Socketio implements OnGatewayInit {
         // Join user to group rooms
         for (const docType of Object.keys(userViewGroups)) {
             for (const group of userViewGroups[docType]) {
-                // @ts-expect-error Seems as if the Socket type definition does not include the join method
                 socket.join(`${docType}-${group}`);
 
                 // Subscribe to cms specific rooms
                 if (reqData.cms) {
-                    // @ts-expect-error Seems as if the Socket type definition does not include the join method
                     socket.join(`cms-${docType}-${group}`);
                 }
             }
@@ -117,20 +202,19 @@ export class Socketio implements OnGatewayInit {
 
         // Get updated data from database
         this.db
-            .getDocsPerGroup(user, {
+            .getDocsPerGroup(socket.data.userId, {
                 userAccess: userViewGroups,
                 from: from,
             })
             .then((res: DbQueryResult) => {
                 if (res.docs) {
-                    socket.emit("data", res.docs);
+                    const response: ApiDataResponse = { docs: res.docs };
+                    if (res.version) response.version = res.version;
+
+                    socket.emit("data", response);
                 }
             })
             .catch(console.error); // TODO: Add error logging provider
-
-        reqData.accessMap = JSON.parse(JSON.stringify(accessMap));
-        delete reqData.accessMap["group-super-admins"];
-        delete reqData.accessMap["group-private-users"][DocType.Tag];
 
         // Get diff between user submitted access map and actual access
         const diff = PermissionSystem.accessMapDiff(accessMap, reqData.accessMap);
@@ -143,13 +227,13 @@ export class Socketio implements OnGatewayInit {
         // Get historical data from database for newly accessible groups
         if (newAccessibleGroups.size > 0) {
             this.db
-                .getDocsPerGroup(user, {
+                .getDocsPerGroup(socket.data.userId, {
                     userAccess: newAccessibleGroups,
                     to: from,
                 })
                 .then((res: DbQueryResult) => {
                     if (res.docs) {
-                        socket.emit("data", res.docs);
+                        socket.emit("data", { docs: res.docs });
                     }
                 })
                 .catch(console.error); // TODO: Add error logging provider
@@ -162,13 +246,12 @@ export class Socketio implements OnGatewayInit {
      * @param socket
      */
     @SubscribeMessage("changeRequest")
-    async onChangeRequest(@MessageBody() changeRequest: any, @ConnectedSocket() socket: Socket) {
-        // TODO: Get userId from JWT or determine if public user and link to configurable "public" user doc
-        const user = "super-admin";
-        const groups = ["group-super-admins"];
-
+    async changeRequest(
+        @MessageBody() changeRequest: ChangeReqDto,
+        @ConnectedSocket() socket: ClientSocket,
+    ) {
         // Process change request
-        await processChangeRequest(user, changeRequest, groups, this.db)
+        await processChangeRequest(socket.data.userId, changeRequest, socket.data.memberOf, this.db)
             .then(() => {
                 this.emitAck(socket, AckStatus.Accepted, changeRequest);
             })
