@@ -1,12 +1,18 @@
-import configuration, { Configuration } from "../configuration";
 import { getJwtPermission, parsePermissionMap } from "./jwtPermissionMap";
 
 describe("jwtPremissionMap", () => {
-    let config: Configuration;
-    beforeAll(() => {
-        // This test relies on the .env.test file configured as per .env.test.example
-        config = configuration();
-    });
+    const config = {
+        permissionMap: `{
+            "jwt": {
+                "groups": {
+                    "group-super-admins": "() => true"
+                },
+                "userId": {
+                    "user-super-admin": "() => true"
+                }
+            }
+        }`,
+    };
 
     it("can parse a jwt permission map", async () => {
         const parsed = parsePermissionMap(config.permissionMap);

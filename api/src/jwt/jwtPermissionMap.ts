@@ -36,6 +36,7 @@ export function parsePermissionMap(permissionMap: string): PermissionMap {
     } catch (err) {
         // TODO: Add error logging provider
         console.log(err.message);
+        return { jwt: new Map() };
     }
 }
 

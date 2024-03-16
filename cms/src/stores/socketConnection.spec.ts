@@ -9,19 +9,6 @@ import { flushPromises } from "@vue/test-utils";
 const lastUpdatedTime = 42;
 localStorage.setItem("syncVersion", lastUpdatedTime.toString());
 
-// const socketMocks = vi.hoisted(() => {
-//     return {
-//         on: vi.fn(),
-//         emit: vi.fn(),
-//     };
-// });
-
-// vi.mock("socket.io-client", () => {
-//     return {
-//         io: vi.fn().mockImplementation(() => socketMocks),
-//     };
-// });
-
 const socketMocks = vi.hoisted(() => ({
     emit: vi.fn(),
     on: vi.fn(),

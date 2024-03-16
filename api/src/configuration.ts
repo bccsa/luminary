@@ -13,7 +13,7 @@ export type SyncConfig = {
 };
 
 export type Configuration = {
-    permissionMap: any;
+    permissionMap: string;
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
