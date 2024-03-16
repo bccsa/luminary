@@ -12,6 +12,27 @@ import {
 } from "./test/changeRequestDocuments";
 import { DocType } from "./enums";
 
+jest.mock("./configuration", () => {
+    const originalModule = jest.requireActual("./configuration");
+    const origConfig = originalModule.default();
+
+    return {
+        default: () => ({
+            ...origConfig,
+            permissionMap: `{
+                "jwt": {
+                    "groups": {
+                        "group-super-admins": "() => true"
+                    },
+                    "userId": {
+                        "user-super-admin": "() => true"
+                    }
+                }
+            }`,
+        }),
+    };
+});
+
 describe("Socketio", () => {
     let server: Socketio;
     let client: Socket;

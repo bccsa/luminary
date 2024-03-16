@@ -6,9 +6,6 @@ import { type ChangeReqAckDto, AckStatus } from "@/types";
 import { useLocalChangeStore } from "./localChanges";
 import { flushPromises } from "@vue/test-utils";
 
-const lastUpdatedTime = 42;
-localStorage.setItem("syncVersion", lastUpdatedTime.toString());
-
 const socketMocks = vi.hoisted(() => ({
     emit: vi.fn(),
     on: vi.fn(),
@@ -37,13 +34,6 @@ const docsDb = vi.hoisted(() => {
         where: vi.fn().mockReturnThis(),
         equals: vi.fn().mockReturnThis(),
         delete: vi.fn().mockReturnThis(),
-        last: vi.fn().mockImplementation(() => {
-            return new Promise((resolve) => {
-                resolve({
-                    updatedTimeUtc: lastUpdatedTime,
-                });
-            });
-        }),
     };
 });
 
@@ -87,9 +77,12 @@ describe("socketConnection", () => {
 
         await flushPromises();
 
+        let lastUpdatedTime = localStorage.getItem("syncVersion");
+        if (typeof lastUpdatedTime !== "string") lastUpdatedTime = "0";
+
         expect(socketMocks.emit).toHaveBeenCalledOnce();
         expect(socketMocks.emit).toHaveBeenCalledWith("clientDataReq", {
-            version: lastUpdatedTime,
+            version: Number.parseInt(lastUpdatedTime),
             cms: true,
         });
     });
@@ -111,6 +104,20 @@ describe("socketConnection", () => {
         store.bindEvents();
 
         expect(docsDb.bulkPut).toHaveBeenCalledWith([mockPostDto, mockEnglishContentDto]);
+    });
+
+    it("stores the sync version number to local storage after receiving data from the API", async () => {
+        const store = useSocketConnectionStore();
+
+        listenToSocketOnEvent("data", {
+            docs: [mockPostDto, mockEnglishContentDto],
+            version: 42,
+        });
+
+        store.bindEvents();
+        await flushPromises();
+
+        expect(localStorage.getItem("syncVersion")).toEqual("42");
     });
 
     it("handles acks for changes", () => {
