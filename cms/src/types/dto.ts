@@ -7,6 +7,11 @@ export enum AckStatus {
 
 export type Uuid = string;
 
+export type ApiDataResponseDto = {
+    docs: BaseDocumentDto[];
+    version?: number;
+};
+
 export type BaseDocumentDto = {
     _id: string;
     type: DocType;
