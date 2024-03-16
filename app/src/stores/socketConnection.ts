@@ -1,9 +1,8 @@
 import { defineStore } from "pinia";
 import { getSocket } from "@/socket";
-import { type ApiDataResponseDto, type ChangeReqAckDto } from "@/types";
+import { type ApiDataResponseDto } from "@/types";
 import { db } from "@/db/baseDatabase";
 import { ref } from "vue";
-import { useLocalChangeStore } from "./localChanges";
 
 export const useSocketConnectionStore = defineStore("socketConnection", () => {
     const isConnected = ref(false);
@@ -21,7 +20,6 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
 
             socket.emit("clientDataReq", {
                 version: syncVersion,
-                cms: true,
             });
         });
 
@@ -32,12 +30,6 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
         socket.on("data", async (data: ApiDataResponseDto) => {
             await db.docs.bulkPut(data.docs);
             if (data.version) localStorage.setItem("syncVersion", data.version.toString());
-        });
-
-        socket.on("changeRequestAck", async (ack: ChangeReqAckDto) => {
-            const localChangeStore = useLocalChangeStore();
-
-            await localChangeStore.handleAck(ack);
         });
     };
 
