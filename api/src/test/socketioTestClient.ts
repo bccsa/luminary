@@ -20,12 +20,12 @@ export type socketioTestRequest = {
  */
 export const socketioTestClient = (
     config: socketioTestRequest,
-): Promise<{ data: any[]; ack: ChangeReqAckDto; accessMap?: AccessMap; version?: number }> => {
+): Promise<{ docs: any[]; ack: ChangeReqAckDto; accessMap?: AccessMap; version?: number }> => {
     if (config.timeout === undefined) config.timeout = 500;
 
     return new Promise(async (resolve) => {
         const res = {
-            data: [],
+            docs: [],
             ack: new ChangeReqAckDto(),
             accessMap: undefined,
             version: undefined,
@@ -36,7 +36,8 @@ export const socketioTestClient = (
 
         // Event handlers
         const dataHandler = (data) => {
-            res.data.push(...data);
+            res.docs.push(...data.docs);
+            if (data.version) res.version = data.version;
         };
         const ackHandler = (ack) => {
             res.ack = ack;
