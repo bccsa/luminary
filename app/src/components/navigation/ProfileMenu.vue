@@ -8,7 +8,12 @@ const { user, logout } = useAuth0();
 const userNavigation: {
     name: string;
     action: Function;
-}[] = [{ name: "Sign out", action: logout }];
+}[] = [
+    {
+        name: "Sign out",
+        action: () => logout({ logoutParams: { returnTo: window.location.origin } }),
+    },
+];
 </script>
 
 <template>
