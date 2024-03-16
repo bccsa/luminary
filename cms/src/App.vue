@@ -27,7 +27,7 @@ const sidebarOpen = ref(false);
 </script>
 
 <template>
-    <div v-if="isAuthenticated">
+    <template v-if="isAuthenticated">
         <MobileSideBar v-model:open="sidebarOpen" />
 
         <!-- Static sidebar for desktop -->
@@ -61,7 +61,7 @@ const sidebarOpen = ref(false);
                 </div>
             </main>
         </div>
-    </div>
+    </template>
 
     <div v-else class="absolute flex h-full w-full items-center justify-center">
         <div class="flex flex-col items-center gap-4">

@@ -2,14 +2,26 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "./components/navigation/TopBar.vue";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import { useGlobalConfigStore } from "./stores/globalConfig";
 
 const { isAuthenticated } = useAuth0();
+const { appName } = useGlobalConfigStore();
 </script>
 
 <template>
-    <TopBar v-if="isAuthenticated" />
+    <template v-if="isAuthenticated">
+        <TopBar />
 
-    <main class="mx-auto max-w-7xl px-4">
-        <RouterView />
-    </main>
+        <main class="mx-auto max-w-7xl px-4">
+            <RouterView />
+        </main>
+    </template>
+
+    <div v-else class="absolute flex h-full w-full items-center justify-center">
+        <div class="flex flex-col items-center gap-4">
+            <img class="w-72" src="@/assets/logo.svg" :alt="appName" />
+            <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
+        </div>
+    </div>
 </template>
