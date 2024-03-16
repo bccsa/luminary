@@ -14,7 +14,10 @@ const userNavigation: {
     action: Function;
 }[] = [
     { name: "Settings", action: () => router.push({ name: "settings" }) },
-    { name: "Sign out", action: logout },
+    {
+        name: "Sign out",
+        action: () => logout({ logoutParams: { returnTo: window.location.origin } }),
+    },
 ];
 
 if (isDevMode) {
