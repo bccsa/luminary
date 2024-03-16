@@ -18,6 +18,9 @@ import * as JWT from "jsonwebtoken";
 import configuration, { Configuration } from "./configuration";
 import { PermissionMap, getJwtPermission, parsePermissionMap } from "./jwt/jwtPermissionMap";
 
+/**
+ * Data request from client type definition
+ */
 type ClientDataReq = {
     version?: number;
     cms?: boolean;
@@ -25,10 +28,18 @@ type ClientDataReq = {
 };
 
 /**
+ * Data response to client type definition
+ */
+type ApiDataResponse = {
+    docs: Array<any>;
+    version?: number;
+};
+
+/**
  * Socket.io emitted messages type definitions
  */
 type EmitEvents = {
-    data: (a: Array<any>) => void;
+    data: (a: ApiDataResponse) => void;
     changeRequestAck: (b: ChangeReqAckDto) => void;
     accessMap: (c: AccessMap) => void;
     version: (d: number) => void;
@@ -111,7 +122,11 @@ export class Socketio implements OnGatewayInit {
             if (update.type == "change") rooms = rooms.map((room) => `cms-${room}`);
 
             // Emit to rooms
-            if (rooms.length > 0) server.to(rooms).emit("data", [update]);
+            if (rooms.length > 0)
+                server.to(rooms).emit("data", {
+                    docs: [update],
+                    version: update.updatedTimeUtc ? update.updatedTimeUtc : undefined,
+                });
         });
     }
 
@@ -192,8 +207,12 @@ export class Socketio implements OnGatewayInit {
                 from: from,
             })
             .then((res: DbQueryResult) => {
-                if (res.docs) socket.emit("data", res.docs);
-                if (res.version) socket.emit("version", res.version);
+                if (res.docs) {
+                    const response: ApiDataResponse = { docs: res.docs };
+                    if (res.version) response.version = res.version;
+
+                    socket.emit("data", response);
+                }
             })
             .catch(console.error); // TODO: Add error logging provider
 
@@ -214,7 +233,7 @@ export class Socketio implements OnGatewayInit {
                 })
                 .then((res: DbQueryResult) => {
                     if (res.docs) {
-                        socket.emit("data", res.docs);
+                        socket.emit("data", { docs: res.docs });
                     }
                 })
                 .catch(console.error); // TODO: Add error logging provider

@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from "vitest";
 import { useSocketConnectionStore } from "./socketConnection";
 import { setActivePinia, createPinia } from "pinia";
-import { io } from "socket.io-client";
 import { mockEnglishContentDto, mockPostDto } from "@/tests/mockData";
 import { type ChangeReqAckDto, AckStatus } from "@/types";
 import { useLocalChangeStore } from "./localChanges";
 import { flushPromises } from "@vue/test-utils";
 
 const lastUpdatedTime = 42;
+localStorage.setItem("syncVersion", lastUpdatedTime.toString());
 
 // const socketMocks = vi.hoisted(() => {
 //     return {
@@ -119,7 +119,7 @@ describe("socketConnection", () => {
     it("saves data from the API", () => {
         const store = useSocketConnectionStore();
 
-        listenToSocketOnEvent("data", [mockPostDto, mockEnglishContentDto]);
+        listenToSocketOnEvent("data", { docs: [mockPostDto, mockEnglishContentDto] });
 
         store.bindEvents();
 
