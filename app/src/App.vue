@@ -1,20 +1,15 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from "vue-router";
+import { useAuth0 } from "@auth0/auth0-vue";
+import { RouterView } from "vue-router";
+import TopBar from "./components/navigation/TopBar.vue";
+
+const { isAuthenticated } = useAuth0();
 </script>
 
 <template>
-    <header class="flex flex-col items-center space-x-8 p-8 md:flex-row">
-        <img alt="logo" class="w-64" src="@/assets/logo.svg" />
+    <TopBar v-if="isAuthenticated" />
 
-        <div>
-            <nav class="flex space-x-2">
-                <RouterLink to="/" class="underline">Home</RouterLink>
-                <RouterLink to="/about" class="underline">About</RouterLink>
-            </nav>
-        </div>
-    </header>
-
-    <main class="px-8">
+    <main class="mx-auto max-w-7xl px-4">
         <RouterView />
     </main>
 </template>
