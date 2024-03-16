@@ -25,5 +25,6 @@ describe("purgeLocalDatabase", () => {
         await purgeLocalDatabase();
 
         expect(dbMock.clear).toHaveBeenCalledTimes(2);
+        expect(localStorage.getItem("syncVersion")).toEqual("0");
     });
 });
