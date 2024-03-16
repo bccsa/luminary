@@ -16,6 +16,7 @@ const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 const { appName } = useGlobalConfigStore();
 const socketConnectionStore = useSocketConnectionStore();
 const localChangeStore = useLocalChangeStore();
+
 const socket = getSocket();
 
 // remove any existing listeners (in case of hot reload)

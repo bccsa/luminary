@@ -14,12 +14,13 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
         socket.on("connect", async () => {
             isConnected.value = true;
 
+            // Get documents that are newer than the last received version
             const syncVersionString = localStorage.getItem("syncVersion");
             let syncVersion = 0;
             if (syncVersionString) syncVersion = Number.parseInt(syncVersionString);
 
             socket.emit("clientDataReq", {
-                version: syncVersion, // Get documents that are newer than the last received version
+                version: syncVersion,
                 cms: true,
             });
         });
