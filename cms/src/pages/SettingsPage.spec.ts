@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "./SettingsPage.vue";
-import { flushPromises, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
