@@ -285,43 +285,6 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Gets the update time of the oldest change document.
-     */
-    getOldestChangeTime(): Promise<number> {
-        return new Promise((resolve) => {
-            this.db
-                .view("sync", "changeUpdatedTimeUtc", {
-                    limit: 1,
-                })
-                .then((res) => {
-                    if (
-                        res.rows &&
-                        res.rows[0] &&
-                        res.rows[0].value &&
-                        typeof res.rows[0].value === "number"
-                    ) {
-                        resolve(res.rows[0].value);
-                    } else {
-                        resolve(0);
-                    }
-                });
-        });
-    }
-
-    /**
-     * Function used to clear a database
-     */
-    async destroyAllDocs() {
-        const res = await this.db.list();
-        const pList = [];
-        res.rows.forEach((doc) => {
-            pList.push(this.db.destroy(doc.id, doc.value.rev));
-        });
-
-        await Promise.all(pList);
-    }
-
-    /**
      * Get data to which a user has access to including the user document itself.
      * @param {string} userID - User document ID.
      * @param {GetDocsOptions} options - Query configuration object.
