@@ -150,8 +150,6 @@ export class Socketio implements OnGatewayInit {
         const permissions = getJwtPermission(jwt, this.permissionMap);
         socket.data.memberOf = permissions.groups;
 
-        console.log(permissions.groups); //TMP
-
         // Get user ID
         if (permissions.userId) {
             // Public or JWT assigned user ID.
