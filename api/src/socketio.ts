@@ -137,7 +137,9 @@ export class Socketio implements OnGatewayInit {
     connection(socket: ClientSocket) {
         let jwt: string | JWT.JwtPayload;
         try {
-            jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret);
+            jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret, {
+                algorithms: ["RS256"],
+            });
         } catch (err) {
             console.log(err.message); //TMP
         }
@@ -153,6 +155,8 @@ export class Socketio implements OnGatewayInit {
         // Get group access
         const permissions = getJwtPermission(jwt, this.permissionMap);
         socket.data.memberOf = permissions.groups;
+
+        console.log(permissions.groups); //TMP
 
         // Get user ID
         if (permissions.userId) {
