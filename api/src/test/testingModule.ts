@@ -13,7 +13,7 @@ import { PermissionSystem } from "../permissions/permissions.service";
  */
 export async function createTestingModule(dbName: string) {
     const connectionString = process.env.DB_CONNECTION_STRING;
-    const database = `${process.env.DB_DATABASE_PREFIX ?? "ac-test"}-${dbName}`;
+    const database = `${process.env.DB_DATABASE_PREFIX ?? "luminary-test"}-${dbName}`;
 
     const n = await nano(connectionString);
 

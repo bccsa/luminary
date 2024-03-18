@@ -37,8 +37,8 @@ npx cap sync
 The web version of the app can be deployed as a Docker container by building the `Dockerfile`:
 
 ```sh
-docker build -t ac-app .
-docker run --rm -it -p 8080:80 ac-app
+docker build -t luminary-app .
+docker run --rm -it -p 8080:80 luminary-app
 ```
 
 This will run the app on port 8080 on the host machine.
