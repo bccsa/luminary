@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { type Post, type Uuid } from "@/types";
+import { type Post } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { computed, type Ref } from "vue";

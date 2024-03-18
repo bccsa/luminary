@@ -3,7 +3,6 @@ import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { purgeLocalDatabase } from "@/util/purgeLocalDatabase";
-import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
 import { storeToRefs } from "pinia";
 
 const { isConnected } = storeToRefs(useSocketConnectionStore());

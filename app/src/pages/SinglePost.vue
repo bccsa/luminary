@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { usePostStore } from "@/stores/post";
-import { DateTime } from "luxon";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 
