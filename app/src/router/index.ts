@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
-import VideosPage from "../pages/VideosPage.vue";
 import NotFoundPage from "../pages/NotFoundPage.vue";
+import HomePage from "../pages/HomePage.vue";
+import { authGuard } from "@auth0/auth0-vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,17 +18,20 @@ const router = createRouter({
         {
             path: "/",
             beforeEnter: authGuard,
-            redirect: "videos",
             children: [
                 {
-                    path: "videos",
-                    name: "videos",
-                    component: VideosPage,
+                    path: "/",
+                    component: HomePage,
+                    name: "home",
                     meta: {
-                        title: "Videos",
+                        title: "Home",
                     },
                 },
-                { path: "/:pathMatch(.*)*", name: "404", component: NotFoundPage },
+                {
+                    path: "/:pathMatch(.*)*",
+                    name: "404",
+                    component: NotFoundPage,
+                },
             ],
         },
     ],

@@ -12,15 +12,6 @@ import ProfileMenu from "./ProfileMenu.vue";
             </RouterLink>
 
             <div>
-                <nav class="flex space-x-4 text-gray-800">
-                    <RouterLink :to="{ name: 'videos' }" active-class="font-medium">
-                        Videos
-                    </RouterLink>
-                    <div class="text-gray-400">Live</div>
-                </nav>
-            </div>
-
-            <div>
                 <ProfileMenu />
             </div>
         </div>
