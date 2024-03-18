@@ -2,7 +2,7 @@ name: "Build & Deploy API to Production"
 
 on:
   push:
-    branches: [main]
+    branches: [feat/deploy-api-with-permission-map-fix]
     paths:
       - api/**
       - .github/workflows/api-deploy-production.yml
@@ -35,7 +35,6 @@ jobs:
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}" >> .env
           echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
-          echo "PERMISSION_MAP='${{ secrets.PERMISSION_MAP }}'" >> .env
         working-directory: api
 
       - name: Build Docker container
@@ -50,4 +49,5 @@ jobs:
           docker run -d -p "${{ vars.DOCKER_PORT }}":"${{ vars.DOCKER_PORT }}" 
           --restart unless-stopped 
           --name=${{ vars.DOCKER_CONTAINER }} 
+          --env="PERMISSION_MAP='${{ secrets.PERMISSION_MAP }}'"
           ${{ vars.DOCKER_IMAGE }}
