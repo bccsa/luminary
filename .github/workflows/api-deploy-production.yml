@@ -29,12 +29,13 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Create .env file
+        # To support multiline secrets, we need to use echo and escape the secrets
         run: |
           touch .env
           echo PORT=${{ vars.DOCKER_PORT }} >> .env
-          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-          echo "DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}" >> .env
-          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
+          echo "JWT_SECRET='$( echo '${{ secrets.JWT_SECRET }}' )'" >> .env
+          echo "DB_CONNECTION_STRING='$( echo '${{ secrets.DB_CONNECTION_STRING }}' )'" >> .env
+          echo "DB_DATABASE='$( echo '${{ secrets.DB_DATABASE }}' )'" >> .env
           echo "PERMISSION_MAP='$( echo '${{ secrets.PERMISSION_MAP }}' )'" >> .env
 
         working-directory: api
