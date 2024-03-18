@@ -13,8 +13,8 @@ When running `npm run dev` the local reloading server of the app will start at h
 The CMS can be deployed as a Docker container by building the `Dockerfile`:
 
 ```sh
-docker build -t ac-cms .
-docker run --rm -it -p 8080:80 ac-cms
+docker build -t luminary-cms .
+docker run --rm -it -p 8080:80 luminary-cms
 ```
 
 This will run the CMS on port 8080 on the host machine.
