@@ -2,13 +2,16 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
 import { useAuth0 } from "@auth0/auth0-vue";
+import { useRouter } from "vue-router";
 
 const { user, logout } = useAuth0();
+const router = useRouter();
 
 const userNavigation: {
     name: string;
     action: Function;
 }[] = [
+    { name: "Settings", action: () => router.push({ name: "settings" }) },
     {
         name: "Sign out",
         action: () => logout({ logoutParams: { returnTo: window.location.origin } }),

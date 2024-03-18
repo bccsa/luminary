@@ -5,6 +5,7 @@ import NotFoundPage from "../pages/NotFoundPage.vue";
 import HomePage from "../pages/HomePage.vue";
 import { authGuard } from "@auth0/auth0-vue";
 import SinglePost from "@/pages/SinglePost.vue";
+import SettingsPage from "@/pages/SettingsPage.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,11 +29,22 @@ const router = createRouter({
                         title: "Home",
                     },
                 },
+
                 {
                     path: "/posts/:slug",
                     component: SinglePost,
                     name: "post",
                 },
+
+                {
+                    path: "/settings",
+                    component: SettingsPage,
+                    name: "settings",
+                    meta: {
+                        title: "Settings",
+                    },
+                },
+
                 {
                     path: "/:pathMatch(.*)*",
                     name: "404",
