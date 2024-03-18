@@ -28,9 +28,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Store permission map to file
-        run: echo '${{ secrets.PERMISSION_MAP }}' > permission-map.json
-
       - name: Create .env file
         run: |
           touch .env
