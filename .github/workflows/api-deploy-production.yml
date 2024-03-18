@@ -2,7 +2,7 @@ name: "Build & Deploy API to Production"
 
 on:
   push:
-    branches: [feat/deploy-api-with-permission-map-fix2]
+    branches: [main]
     paths:
       - api/**
       - .github/workflows/api-deploy-production.yml
@@ -16,11 +16,11 @@ env:
   CI: true
 
 jobs:
-  # test:
-  #   uses: ./.github/workflows/api-unit-tests.yml
+  test:
+    uses: ./.github/workflows/api-unit-tests.yml
 
   deploy:
-    # needs: test
+    needs: test
     runs-on: [self-hosted, ac]
     environment: api-production
 
