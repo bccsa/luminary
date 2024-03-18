@@ -137,20 +137,14 @@ export class Socketio implements OnGatewayInit {
     connection(socket: ClientSocket) {
         let jwt: string | JWT.JwtPayload;
         try {
-            jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret, {
-                // algorithms: ["RS256"],
-            });
-        } catch (err) {
-            console.log(err.message); //TMP
-        }
+            jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret);
+        } catch {}
 
         if (!jwt && socket.handshake.auth && socket.handshake.auth.token) {
             // Assume that the user's token is expired.
             // Prompt the user to re-authenticate instead of assigning public access to the user
             return;
         }
-
-        if (!jwt) console.log("JWT not verified"); //TMP
 
         // Get group access
         const permissions = getJwtPermission(jwt, this.permissionMap);
