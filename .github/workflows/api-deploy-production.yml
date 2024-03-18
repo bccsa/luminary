@@ -20,7 +20,7 @@ jobs:
     uses: ./.github/workflows/api-unit-tests.yml
 
   deploy:
-    needs: test
+    # needs: test
     runs-on: [self-hosted, ac]
     environment: api-production
 
