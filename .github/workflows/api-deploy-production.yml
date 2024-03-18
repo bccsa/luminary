@@ -28,6 +28,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Store permission map to file
+        run: echo '${{ secrets.PERMISSION_MAP }}' > permission-map.json
+
       - name: Create .env file
         run: |
           touch .env
@@ -35,6 +38,7 @@ jobs:
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}" >> .env
           echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
+          echo "PERMISSION_MAP=\"'$( echo ${{ secrets.PERMISSION_MAP }} )'\"" >> .env
         working-directory: api
 
       - name: Build Docker container
@@ -49,5 +53,4 @@ jobs:
           docker run -d -p "${{ vars.DOCKER_PORT }}":"${{ vars.DOCKER_PORT }}" 
           --restart unless-stopped 
           --name=${{ vars.DOCKER_CONTAINER }} 
-          --env="PERMISSION_MAP='${{ secrets.PERMISSION_MAP }}'"
           ${{ vars.DOCKER_IMAGE }}
