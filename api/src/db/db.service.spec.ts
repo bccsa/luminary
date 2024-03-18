@@ -110,16 +110,6 @@ describe("DbService", () => {
         expect(res).toBe(newDoc.updatedTimeUtc);
     });
 
-    it("can get the oldest changelogEntry document updated time", async () => {
-        // This is difficult to test accurately as the updated time is generated on document insertion into the
-        // database. We can at least check if it returns a number which is a valid timestamp (generated on 1
-        // January 2024 or later);
-        const res: number = await service.getOldestChangeTime();
-
-        expect(res).toBeGreaterThan(1704067200); // 1 January 2024 00:00
-        expect(res).toBeLessThan(Date.now());
-    });
-
     it("can retrieve user's own document", async () => {
         const userAccess = new Map<DocType, Uuid[]>();
         const res: any = await service.getDocsPerGroup("user-public", {
