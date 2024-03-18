@@ -138,7 +138,7 @@ export class Socketio implements OnGatewayInit {
         let jwt: string | JWT.JwtPayload;
         try {
             jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret, {
-                algorithms: ["HS256"],
+                algorithms: ["RS256"],
             });
         } catch (err) {
             console.log(err.message); //TMP
