@@ -14,8 +14,8 @@ export const usePostStore = defineStore("post", () => {
     );
 
     const post = computed(() => {
-        return (postId: Uuid) => {
-            return posts.value?.find((p) => p._id == postId);
+        return (slug: string) => {
+            return posts.value?.find((p) => p.content[0].slug == slug);
         };
     });
 

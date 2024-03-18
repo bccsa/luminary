@@ -4,6 +4,7 @@ import { useGlobalConfigStore } from "@/stores/globalConfig";
 import NotFoundPage from "../pages/NotFoundPage.vue";
 import HomePage from "../pages/HomePage.vue";
 import { authGuard } from "@auth0/auth0-vue";
+import SinglePost from "@/pages/SinglePost.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,6 +27,11 @@ const router = createRouter({
                     meta: {
                         title: "Home",
                     },
+                },
+                {
+                    path: "/posts/:slug",
+                    component: SinglePost,
+                    name: "post",
                 },
                 {
                     path: "/:pathMatch(.*)*",

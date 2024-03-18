@@ -5,7 +5,7 @@ import ProfileMenu from "./ProfileMenu.vue";
 <template>
     <header class="mb-6 bg-white shadow">
         <div
-            class="mx-auto flex max-w-7xl flex-col items-center justify-between space-x-8 px-4 py-5 md:flex-row"
+            class="mx-auto flex max-w-7xl flex-row items-center justify-between space-x-8 px-4 py-5"
         >
             <RouterLink to="/">
                 <img alt="logo" class="w-52" src="@/assets/logo.svg" />
