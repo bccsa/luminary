@@ -2,7 +2,7 @@ name: "Build & Deploy API to Production"
 
 on:
   push:
-    branches: [feat/deploy-api-with-permission-map-fix]
+    branches: [feat/deploy-api-with-permission-map-fix2]
     paths:
       - api/**
       - .github/workflows/api-deploy-production.yml
