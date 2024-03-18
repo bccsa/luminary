@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { type Post } from "@/types";
+import { ContentStatus, type Post } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { computed, type Ref } from "vue";
@@ -10,7 +10,12 @@ export const usePostStore = defineStore("post", () => {
     const postRepository = new PostRepository();
 
     const posts: Readonly<Ref<Post[] | undefined>> = useObservable(
-        liveQuery(async () => postRepository.getAll()) as unknown as Observable<Post[]>,
+        liveQuery(async () => {
+            const posts = await postRepository.getAll();
+            return posts.filter((post) => {
+                return post.content[0].status == ContentStatus.Published;
+            });
+        }) as unknown as Observable<Post[]>,
     );
 
     const post = computed(() => {

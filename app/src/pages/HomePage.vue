@@ -12,7 +12,7 @@ const { posts } = storeToRefs(postStore);
     <div>
         <h2 class="mb-4">Posts</h2>
 
-        <div class="grid grid-cols-4 gap-4">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <PostTile v-for="post in posts" :key="post._id" :post="post" />
         </div>
     </div>
