@@ -225,7 +225,7 @@ export class Socketio implements OnGatewayInit {
         );
 
         // Get historical data from database for newly accessible groups
-        if (newAccessibleGroups.size > 0) {
+        if (Object.keys(newAccessibleGroups).length > 0) {
             this.db
                 .getDocsPerGroup(socket.data.userId, {
                     userAccess: newAccessibleGroups,
