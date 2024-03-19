@@ -37,7 +37,7 @@ export class BaseRepository {
                 (group) =>
                     (group.type === DocType.Group ||
                         (group.type === DocType.Change && group.docType === DocType.Group)) &&
-                    group.acl &&
+                    group.acl! &&
                     !group.acl.some(
                         (acl) =>
                             acl.type === DocType.Group &&

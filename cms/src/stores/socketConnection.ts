@@ -31,7 +31,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             socket.emit("clientDataReq", {
                 version: syncVersion,
                 cms: true,
-                accessMap: JSON.parse(localStorage.getItem("accessMap")),
+                accessMap: JSON.parse(localStorage.getItem("accessMap")!),
             });
         });
 
@@ -52,7 +52,8 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
 
         socket.on("accessMap", (accessMap: AccessMap) => {
             // Delete revoked documents
-            // TODO: Only delete documents if the accessMap changed
+
+            // TODO: Only delete documents if the accessMap changed for improved performance
             const baseRepository = new BaseRepository();
             const groupsPerDocType = accessMapToGroups(accessMap, AclPermission.View);
 
@@ -79,8 +80,6 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
                     }
 
                     await revokedDocs.delete();
-
-                    // TODO: Delete revoked groups
                 });
 
             // Store the updated access map
@@ -94,7 +93,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
 /**
  * Convert an access map to a list of accessible groups per document type for a given permission
  */
-function accessMapToGroups(accessMap: AccessMap, permission: AclPermission): DocGroupAccess {
+export function accessMapToGroups(accessMap: AccessMap, permission: AclPermission): DocGroupAccess {
     const groups: DocGroupAccess = {};
 
     Object.keys(accessMap).forEach((groupId: Uuid) => {

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from "vitest";
-import { useSocketConnectionStore } from "./socketConnection";
+import { useSocketConnectionStore, accessMapToGroups } from "./socketConnection";
 import { setActivePinia, createPinia } from "pinia";
 import { mockEnglishContentDto, mockPostDto } from "@/tests/mockData";
-import { type ChangeReqAckDto, AckStatus } from "@/types";
+import { type ChangeReqAckDto, AckStatus, type AccessMap, DocType, AclPermission } from "@/types";
 import { useLocalChangeStore } from "./localChanges";
 import { flushPromises } from "@vue/test-utils";
 
@@ -84,6 +84,7 @@ describe("socketConnection", () => {
         expect(socketMocks.emit).toHaveBeenCalledWith("clientDataReq", {
             version: Number.parseInt(lastUpdatedTime),
             cms: true,
+            accessMap: JSON.parse(localStorage.getItem("accessMap")!),
         });
     });
 
@@ -135,5 +136,20 @@ describe("socketConnection", () => {
         store.bindEvents();
 
         expect(handleAckSpy).toHaveBeenCalledWith(ack);
+    });
+
+    it("can convert an access map to groups per docType for a given permission", () => {
+        const accessMap: AccessMap = {
+            group1: {
+                [DocType.Post]: {
+                    view: true,
+                    assign: true,
+                },
+            },
+        };
+
+        const groups = accessMapToGroups(accessMap, AclPermission.View);
+
+        expect(groups[DocType.Post]).toEqual(["group1"]);
     });
 });

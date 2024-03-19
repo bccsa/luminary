@@ -17,6 +17,14 @@ export type BaseDocumentDto = {
     type: DocType;
     updatedTimeUtc: number;
     memberOf?: Uuid[];
+    docType?: DocType;
+    acl?: GroupAclEntryDto[];
+};
+
+export type GroupAclEntryDto = {
+    type: DocType.Group;
+    groupId: Uuid;
+    permission: AclPermission[];
 };
 
 export type ContentBaseDto = BaseDocumentDto & {
