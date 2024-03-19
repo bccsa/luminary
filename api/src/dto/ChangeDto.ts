@@ -38,6 +38,11 @@ export class ChangeDto extends _baseDto {
     @Expose()
     acl?: GroupAclEntryDto[];
 
+    @IsOptional()
+    @IsString()
+    @Expose()
+    parentId?: Uuid;
+
     @IsObject()
     @Expose()
     changes: any;
