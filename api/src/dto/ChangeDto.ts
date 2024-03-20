@@ -43,6 +43,11 @@ export class ChangeDto extends _baseDto {
     @Expose()
     parentId?: Uuid;
 
+    @IsOptional()
+    @IsString()
+    @Expose()
+    language?: Uuid;
+
     @IsObject()
     @Expose()
     changes: any;

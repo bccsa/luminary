@@ -52,6 +52,11 @@ export async function processChangeRequest(
             changeDoc.parentId = upsertResult.changes.parentId;
         }
 
+        // Apply the language of the included document to the change document
+        if (upsertResult.changes.language) {
+            changeDoc.language = upsertResult.changes.language;
+        }
+
         return db.insertDoc(changeDoc);
     }
 
