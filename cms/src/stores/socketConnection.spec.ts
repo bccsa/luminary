@@ -15,7 +15,7 @@ vi.mock("@/socket", () => ({
     getSocket: () => socketMocks,
 }));
 
-// Invoke the callback for socket.on() only for the passed even
+// Invoke the callback for socket.on() only for the passed event
 function listenToSocketOnEvent(allowedEvent: string | string[], returnValue?: any) {
     if (typeof allowedEvent == "string") {
         allowedEvent = [allowedEvent];
