@@ -22,7 +22,7 @@ export type BaseDocumentDto = {
 };
 
 export type GroupAclEntryDto = {
-    type: DocType.Group;
+    type: DocType;
     groupId: Uuid;
     permission: AclPermission[];
 };
