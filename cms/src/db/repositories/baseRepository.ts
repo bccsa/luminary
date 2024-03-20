@@ -51,7 +51,8 @@ export class BaseRepository {
         return db.docs.filter(
             (doc) =>
                 doc.memberOf !== undefined &&
-                (doc.type === docType || (doc.type == DocType.Change && doc.docType == docType)) &&
+                (doc.type === docType ||
+                    (doc.type === DocType.Change && doc.docType === docType)) &&
                 !doc.memberOf.some((groupId) => groupIds.includes(groupId)),
         );
     }
