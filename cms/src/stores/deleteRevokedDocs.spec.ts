@@ -43,7 +43,6 @@ describe("deleteRevokedDocs", () => {
     });
 
     it("removes documents with memberOf field when access to a group is revoked", async () => {
-        // Insert documents into the local database with memberOf set to 'group-private-users'
         const docs = [
             {
                 _id: "doc1",
@@ -115,7 +114,6 @@ describe("deleteRevokedDocs", () => {
     });
 
     it("removes content documents when access to the language document is revoked", async () => {
-        // Insert documents into the local database with memberOf set to 'group-private-users'
         const docs = [
             {
                 _id: "doc1",
@@ -211,7 +209,6 @@ describe("deleteRevokedDocs", () => {
     });
 
     it("removes documents with acl field when access to a group is revoked", async () => {
-        // Insert documents into the local database with memberOf set to 'group-private-users'
         const docs = [
             {
                 _id: "group1", // Should be removed as it is not a member of 'group-public-users'
