@@ -33,28 +33,42 @@ export class BaseRepository {
     whereNotMemberOf(groupIds: Array<Uuid>, docType: DocType) {
         // Query groups and group changeDocs
         if (docType === DocType.Group) {
-            return db.docs.filter(
-                (group) =>
-                    (group.type === DocType.Group ||
-                        (group.type === DocType.Change && group.docType === DocType.Group)) &&
-                    group.acl! &&
-                    !group.acl.some(
-                        (acl) =>
-                            acl.type === DocType.Group &&
-                            groupIds.includes(acl.groupId) &&
-                            acl.permission.some((p) => p === "view"),
-                    ),
-            );
+            return db.docs.filter((group) => {
+                // Check if the ACL field exists
+                if (!group.acl) return false;
+
+                // Only include groups and group changes
+                if (
+                    !(
+                        group.type === DocType.Group ||
+                        (group.type === DocType.Change && group.docType === DocType.Group)
+                    )
+                ) {
+                    return false;
+                }
+
+                // Check if the group is NOT a member of the given groupIds
+                return !group.acl.some(
+                    (acl) =>
+                        acl.type === DocType.Group &&
+                        groupIds.includes(acl.groupId) &&
+                        acl.permission.some((p) => p === "view"),
+                );
+            });
         }
 
         // Query other documents
-        return db.docs.filter(
-            (doc) =>
-                doc.memberOf !== undefined &&
-                (doc.type === docType ||
-                    (doc.type === DocType.Change && doc.docType === docType)) &&
-                !doc.memberOf.some((groupId) => groupIds.includes(groupId)),
-        );
+        return db.docs.filter((doc) => {
+            // Check if the memberOf field exists
+            if (!doc.memberOf) return false;
+
+            // Only include documents and document changes of the passed DocType
+            if (!(doc.type === docType || (doc.type === DocType.Change && doc.docType === docType)))
+                return false;
+
+            // Check if the document is NOT a member of the given groupIds
+            return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
+        });
     }
 
     protected fromBaseDto<T extends BaseDocument>(dto: BaseDocumentDto) {

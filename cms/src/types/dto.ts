@@ -96,9 +96,8 @@ export enum AclPermission {
     Delete = "delete",
 }
 
-// export type AccessMap = Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
 export type AccessMap = {
-    [a: Uuid]: { [b in DocType]?: { [c in AclPermission]?: boolean | undefined } };
+    [T: Uuid]: { [U in DocType]?: { [V in AclPermission]?: boolean | undefined } };
 };
 
 export type DocGroupAccess = { [a in DocType]?: Uuid[] };
