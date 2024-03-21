@@ -43,9 +43,18 @@ export async function processChangeRequest(
         if (upsertResult.changes.memberOf) {
             changeDoc.memberOf = upsertResult.changes.memberOf;
         }
-
         if (upsertResult.changes.acl) {
             changeDoc.acl = upsertResult.changes.acl;
+        }
+
+        // Apply the parentId of the included document to the change document
+        if (upsertResult.changes.parentId) {
+            changeDoc.parentId = upsertResult.changes.parentId;
+        }
+
+        // Apply the language of the included document to the change document
+        if (upsertResult.changes.language) {
+            changeDoc.language = upsertResult.changes.language;
         }
 
         return db.insertDoc(changeDoc);

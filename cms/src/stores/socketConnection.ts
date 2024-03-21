@@ -1,9 +1,18 @@
 import { defineStore } from "pinia";
 import { getSocket } from "@/socket";
-import { type ApiDataResponseDto, type ChangeReqAckDto } from "@/types";
+import {
+    DocType,
+    type ApiDataResponseDto,
+    type ChangeReqAckDto,
+    AclPermission,
+    type Uuid,
+    type AccessMap,
+    type DocGroupAccess,
+} from "@/types";
 import { db } from "@/db/baseDatabase";
 import { ref } from "vue";
 import { useLocalChangeStore } from "./localChanges";
+import { BaseRepository } from "@/db/repositories/baseRepository";
 
 export const useSocketConnectionStore = defineStore("socketConnection", () => {
     const isConnected = ref(false);
@@ -22,6 +31,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             socket.emit("clientDataReq", {
                 version: syncVersion,
                 cms: true,
+                accessMap: JSON.parse(localStorage.getItem("accessMap")!),
             });
         });
 
@@ -39,7 +49,67 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
 
             await localChangeStore.handleAck(ack);
         });
+
+        socket.on("accessMap", (accessMap: AccessMap) => {
+            // Delete revoked documents
+
+            // TODO: Only delete documents if the accessMap changed for improved performance
+            const baseRepository = new BaseRepository();
+            const groupsPerDocType = accessMapToGroups(accessMap, AclPermission.View);
+
+            Object.values(DocType)
+                .filter((t) => !(t == DocType.Change || t == DocType.Content))
+                .forEach(async (docType) => {
+                    let groups = groupsPerDocType[docType as DocType];
+                    if (groups === undefined) groups = [];
+
+                    const revokedDocs = baseRepository.whereNotMemberOf(groups, docType as DocType);
+
+                    // Delete associated Post and Tag content documents
+                    if (docType === DocType.Post || docType === DocType.Tag) {
+                        const revokedParents = await revokedDocs.toArray();
+                        const revokedParentIds = revokedParents.map((p) => p._id);
+                        await baseRepository.whereParentIds(revokedParentIds).delete();
+                    }
+
+                    // Delete associated Language content documents
+                    if (docType === DocType.Language) {
+                        const revokedLanguages = await revokedDocs.toArray();
+                        const revokedlanguageIds = revokedLanguages.map((l) => l._id);
+                        await baseRepository.whereLanguageIds(revokedlanguageIds).delete();
+                    }
+
+                    await revokedDocs.delete();
+                });
+
+            // Store the updated access map
+            localStorage.setItem("accessMap", JSON.stringify(accessMap));
+        });
     };
 
     return { isConnected, bindEvents };
 });
+
+/**
+ * Convert an access map to a list of accessible groups per document type for a given permission
+ */
+export function accessMapToGroups(accessMap: AccessMap, permission: AclPermission): DocGroupAccess {
+    const groups: DocGroupAccess = {};
+
+    Object.keys(accessMap).forEach((groupId: Uuid) => {
+        Object.keys(accessMap[groupId as Uuid]).forEach((docType) => {
+            const docTypePermissions = accessMap[groupId as Uuid][docType as DocType];
+
+            if (!docTypePermissions) return;
+            Object.keys(docTypePermissions)
+                .filter((p) => p === permission)
+                .forEach((_permission) => {
+                    if (docTypePermissions[_permission as AclPermission]) {
+                        if (!groups[docType as DocType]) groups[docType as DocType] = [];
+                        groups[docType as DocType]?.push(groupId as Uuid);
+                    }
+                });
+        });
+    });
+    return groups;
+}

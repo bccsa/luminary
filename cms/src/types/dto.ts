@@ -16,6 +16,15 @@ export type BaseDocumentDto = {
     _id: string;
     type: DocType;
     updatedTimeUtc: number;
+    memberOf?: Uuid[];
+    docType?: DocType;
+    acl?: GroupAclEntryDto[];
+};
+
+export type GroupAclEntryDto = {
+    type: DocType;
+    groupId: Uuid;
+    permission: AclPermission[];
 };
 
 export type ContentBaseDto = BaseDocumentDto & {
@@ -77,3 +86,18 @@ export type ChangeReqAckDto = {
     message?: string;
     doc?: any;
 };
+
+export enum AclPermission {
+    View = "view",
+    Assign = "assign",
+    Edit = "edit",
+    Translate = "translate",
+    Publish = "publish",
+    Delete = "delete",
+}
+
+export type AccessMap = {
+    [T: Uuid]: { [U in DocType]?: { [V in AclPermission]?: boolean | undefined } };
+};
+
+export type DocGroupAccess = { [a in DocType]?: Uuid[] };
