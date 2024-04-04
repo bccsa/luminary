@@ -18,9 +18,17 @@ $ npm ci
 
 ## Running the app
 
+3. Seeding the database:
+
+Before running Luminary against a clean CouchDB database it is recommended to seed the database with the default document set. This document set is also used for unit tests, and should help you to get a functional setup to start with.
+
+```sh
+$ npm run seed
+```
+
 By default the app will run at http://localhost:3000.
 
-3. Run the server:
+4. Run the server:
 
 ```sh
 # development
