@@ -9,7 +9,14 @@
       "request": "launch",
       "type": "chrome",
       "url": "http://localhost:4175",
-      "webRoot": "${workspaceFolder}/api"
+      "webRoot": "${workspaceFolder}/cms"
+    },
+    {
+      "name": "Web-App",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:4174",
+      "webRoot": "${workspaceFolder}/app"
     },
     {
       "type": "node",
@@ -19,6 +26,17 @@
       //   "program": "${workspaceFolder}/api/src/main.ts",
       //   "outFiles": ["${workspaceFolder}/**/*.js"],
       "cwd": "${workspaceFolder}/cms",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "App webserver",
+      "skipFiles": ["<node_internals>/**"],
+      //   "program": "${workspaceFolder}/api/src/main.ts",
+      //   "outFiles": ["${workspaceFolder}/**/*.js"],
+      "cwd": "${workspaceFolder}/app",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"]
     },
