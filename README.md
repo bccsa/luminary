@@ -2,6 +2,13 @@
 
 Offline-first content platform consisting of an API, CMS, web app and native apps.
 
+## Name
+
+lu·​mi·​nary - ˈlü-mə-ˌner-ē
+
+1. a person of prominence or brilliant achievement
+2. a body that gives light
+
 ## Folder structure
 
 - `api`: API layer over CouchDB
@@ -17,9 +24,18 @@ We record our decisions in the `docs/adr` folder. See the [first ADR](./docs/adr
 adr new Branching strategy
 ```
 
-## Name
+## Running Luminary
 
-lu·​mi·​nary - ˈlü-mə-ˌner-ē
+For Visual Studio Code users, `./.vscode/launch.json` includes debug configurations for the API, CMS and reference App.
 
-1. a person of prominence or brilliant achievement
-2. a body that gives light
+### API
+
+See the [API readme](./api/README.md)
+
+### CMS
+
+See the [CMS readme](./cms/README.md)
+
+### App
+
+See the [App readme](./app/README.md)

@@ -12,9 +12,14 @@ async function bootstrap() {
     // Create or update database design docs on api startup
     await upsertDesignDocs(dbService);
 
-    // TMP: Seed database with demo / initial data
-    await upsertSeedingDocs(dbService);
+    // Seed database with default data if requested
+    if (process.argv.length >= 3 && process.argv[2] === "seed") {
+        await upsertSeedingDocs(dbService);
+        console.log("Database seeded with default data.");
+        process.exit(0);
+    }
 
+    // Initialize permission system
     const dbGroups = await dbService.getGroups();
     PermissionSystem.upsertGroups(dbGroups.docs);
 
