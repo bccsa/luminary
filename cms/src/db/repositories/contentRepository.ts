@@ -21,7 +21,7 @@ export class ContentRepository extends BaseRepository {
     }
 
     getContentWithParentId(id: Uuid) {
-        return this.whereParentId(id).toArray((content) => {
+        return this.whereParentId(id, DocType.Content).toArray((content) => {
             return Promise.all(this.fromDtos(content as ContentDto[]));
         });
     }

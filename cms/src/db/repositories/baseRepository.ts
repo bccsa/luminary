@@ -15,8 +15,8 @@ export class BaseRepository {
         return db.docs.where("_id").anyOf(ids);
     }
 
-    whereParentId(parentId: Uuid) {
-        return db.docs.where("parentId").equals(parentId);
+    whereParentId(parentId: Uuid, docType: DocType) {
+        return db.docs.where({ parentId, type: docType });
     }
 
     whereParentIds(parentIds: Uuid[]) {
