@@ -1,16 +1,23 @@
 <script setup lang="ts">
 import Quill from "quill";
-import { onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 
 type Props = {
     modelValue?: string;
 };
 
 const props = defineProps<Props>();
+
+const emit = defineEmits(["update:modelValue"]);
+
 const editorWrapper = ref<HTMLDivElement>();
 const editor = ref<HTMLDivElement>();
 
-const emit = defineEmits(["update:modelValue"]);
+let quill: Quill | undefined = undefined;
+
+const emitContents = () => {
+    emit("update:modelValue", JSON.stringify(quill!.getContents()));
+};
 
 onMounted(() => {
     const options = {
@@ -22,15 +29,17 @@ onMounted(() => {
         bounds: editorWrapper.value, // This lets tooltips overlap slightly outside the editor container
     };
 
-    const quill = new Quill(editor.value!, options);
+    quill = new Quill(editor.value!, options);
 
     if (props.modelValue) {
         quill.setContents(JSON.parse(props.modelValue));
     }
 
-    quill.on("text-change", () => {
-        emit("update:modelValue", JSON.stringify(quill.getContents()));
-    });
+    quill.on("text-change", emitContents);
+});
+
+onBeforeUnmount(() => {
+    quill?.off("text-change", emitContents);
 });
 </script>
 
