@@ -51,6 +51,12 @@ npm run build
 #### Unit tests
 
 ```sh
+npm run test:unit
+```
+
+or just:
+
+```sh
 npm run test
 ```
 
