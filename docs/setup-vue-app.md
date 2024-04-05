@@ -51,7 +51,7 @@ npm run build
 #### Unit tests
 
 ```sh
-npm run test:unit
+npm run test
 ```
 
 #### End-to-end tests

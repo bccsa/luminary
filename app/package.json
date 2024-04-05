@@ -8,6 +8,7 @@
         "preview": "vite preview",
         "test:unit": "vitest",
         "test:e2e": "playwright test",
+        "test": "vitest",
         "build-only": "vite build",
         "type-check": "vue-tsc --build --force",
         "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --ignore-path .gitignore",
