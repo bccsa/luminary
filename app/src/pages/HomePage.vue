@@ -1,19 +1,23 @@
 <script setup lang="ts">
-import PostTile from "@/components/posts/PostTile.vue";
-import { usePostStore } from "@/stores/post";
+import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
+import { useTagStore } from "@/stores/tag";
+import { TagType } from "@/types";
 import { storeToRefs } from "pinia";
+import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 
-const postStore = usePostStore();
+const tagStore = useTagStore();
 
-const { posts } = storeToRefs(postStore);
+const { tagsByTagType } = storeToRefs(tagStore);
 </script>
 
 <template>
-    <div>
-        <h2 class="mb-4">Posts</h2>
-
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <PostTile v-for="post in posts" :key="post._id" :post="post" />
-        </div>
-    </div>
+    <IgnorePagePadding
+        ><div class="">
+            <!-- Display category tags -->
+            <HorizontalScrollableTagViewer
+                v-for="tag in tagsByTagType(TagType.Category)"
+                :key="tag._id"
+                :tag="tag"
+            /></div
+    ></IgnorePagePadding>
 </template>
