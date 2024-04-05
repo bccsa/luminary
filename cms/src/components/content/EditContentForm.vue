@@ -25,6 +25,9 @@ import { Slug } from "@/util/slug";
 import TagSelector from "./TagSelector.vue";
 import { useTagStore } from "@/stores/tag";
 import { capitalizeFirstLetter } from "@/util/string";
+import RichTextEditor from "@/components/content/RichTextEditor.vue";
+
+const EMPTY_TEXT_DELTA = '{"ops":[{"insert":"\\n"}]}';
 
 type Props = {
     content: Content;
@@ -55,9 +58,11 @@ const selectedAudioPlaylists = computed(() => {
     return selectedTags.value.filter((t) => t.tagType == TagType.AudioPlaylist);
 });
 
-const hasText = ref(props.content.text != undefined && props.content.text.trim() != "");
+const hasText = computed(() => text.value && text.value.trim() !== "");
 const hasAudio = ref(props.content.audio != undefined && props.content.audio.trim() != "");
 const hasVideo = ref(props.content.video != undefined && props.content.video.trim() != "");
+
+const text = ref<string>();
 
 const validationSchema = toTypedSchema(
     yup.object({
@@ -81,7 +86,6 @@ const validationSchema = toTypedSchema(
                 return undefined;
             })
             .optional(),
-        text: yup.string().optional(),
         audio: yup.string().optional(),
         video: yup.string().optional(),
     }),
@@ -104,6 +108,8 @@ onBeforeMount(() => {
         ...onlyAllowedKeys(filteredContent, Object.keys(values)),
         parent: onlyAllowedKeys(toRaw(props.parent), Object.keys(values.parent as object)),
     });
+
+    text.value = filteredContent.text;
 });
 
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
@@ -120,6 +126,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...contentValues,
         publishDate,
         status,
+        text: text.value == EMPTY_TEXT_DELTA ? undefined : text.value,
         slug: await Slug.makeUnique(contentValues.slug!, props.content._id), // Ensure slug is still unique before saving
     };
 
@@ -156,7 +163,7 @@ const canPublish = computed(() => {
 });
 const hasOneContentField = computed(() => {
     return (
-        (values.text != undefined && values.text?.trim() != "") ||
+        (text.value != undefined && text.value.trim() != "" && text.value != EMPTY_TEXT_DELTA) ||
         (values.audio != undefined && values.audio?.trim() != "") ||
         (values.video != undefined && values.video?.trim() != "")
     );
@@ -214,6 +221,10 @@ const startEditingSlug = () => {
     nextTick(() => {
         slugInput.value?.focus();
     });
+};
+
+const initializeText = () => {
+    text.value = EMPTY_TEXT_DELTA;
 };
 </script>
 
@@ -278,14 +289,14 @@ const startEditingSlug = () => {
                 type="button"
                 variant="tertiary"
                 :icon="DocumentTextIcon"
-                @click="hasText = true"
+                @click="initializeText"
                 v-if="!hasText"
                 data-test="addText"
             >
                 Add text
             </LButton>
-            <LCard title="Text content" :icon="DocumentTextIcon" collapsible v-show="hasText">
-                <LInput name="text" />
+            <LCard title="Text content" :icon="DocumentTextIcon" collapsible v-if="hasText">
+                <RichTextEditor v-model="text" />
             </LCard>
 
             <LButton
