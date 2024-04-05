@@ -22,6 +22,7 @@
         "dexie": "^3.2.4",
         "luxon": "^3.4.4",
         "pinia": "^2.1.7",
+        "quill": "^2.0.0-rc.5",
         "socket.io-client": "^4.7.4",
         "transliteration": "^2.3.5",
         "uuid": "^9.0.1",
