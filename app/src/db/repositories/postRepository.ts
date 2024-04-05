@@ -1,4 +1,4 @@
-import { ContentStatus, DocType, type Post, type PostDto } from "@/types";
+import { DocType, type Post, type PostDto } from "@/types";
 import { ContentRepository } from "./contentRepository";
 import { BaseRepository } from "./baseRepository";
 import { TagRepository } from "./tagRepository";

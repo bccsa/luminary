@@ -12,8 +12,12 @@ export const usePostStore = defineStore("post", () => {
     const posts: Readonly<Ref<Post[] | undefined>> = useObservable(
         liveQuery(async () => {
             const posts = await postRepository.getAll();
-            return posts.filter((post) => {
-                return post.content[0].status == ContentStatus.Published;
+            return new Promise((resolve) => {
+                resolve(
+                    posts.filter((post) => {
+                        return post.content[0]?.status == ContentStatus.Published;
+                    }),
+                );
             });
         }) as unknown as Observable<Post[]>,
     );

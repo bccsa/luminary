@@ -54,6 +54,12 @@ npm run build
 npm run test:unit
 ```
 
+or just:
+
+```sh
+npm run test
+```
+
 #### End-to-end tests
 
 The end-to-end tests are run with [Playwright](https://playwright.dev).
