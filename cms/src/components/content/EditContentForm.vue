@@ -65,6 +65,7 @@ const hasAudio = ref(props.content.audio != undefined && props.content.audio.tri
 const hasVideo = ref(props.content.video != undefined && props.content.video.trim() != "");
 
 const text = ref<string>();
+// @ts-ignore Pinned property does not exist on Post, which is why we check if it exists
 const pinned = ref(props.parent.pinned ?? false);
 
 const validationSchema = toTypedSchema(
