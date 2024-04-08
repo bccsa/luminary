@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Tag } from "@/types";
 import PostTile from "@/components/posts/PostTile.vue";
-import { postSortOptions, usePostStore } from "@/stores/post";
+import { usePostStore } from "@/stores/post";
+import type { postSortOptions } from "@/stores/post";
 import { storeToRefs } from "pinia";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref } from "vue";
