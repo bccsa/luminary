@@ -29,7 +29,7 @@ import RichTextEditor from "@/components/content/RichTextEditor.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 
-const EMPTY_TEXT_DELTA = '{"ops":[{"insert":"\\n"}]}';
+const EMPTY_TEXT = "<p></p>";
 
 type Props = {
     content: Content;
@@ -130,7 +130,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...contentValues,
         publishDate,
         status,
-        text: text.value == EMPTY_TEXT_DELTA ? undefined : text.value,
+        text: text.value == EMPTY_TEXT ? undefined : text.value,
         slug: await Slug.makeUnique(contentValues.slug!, props.content._id), // Ensure slug is still unique before saving
     };
 
@@ -169,7 +169,7 @@ const canPublish = computed(() => {
 });
 const hasOneContentField = computed(() => {
     return (
-        (text.value != undefined && text.value.trim() != "" && text.value != EMPTY_TEXT_DELTA) ||
+        (text.value != undefined && text.value.trim() != "" && text.value != EMPTY_TEXT) ||
         (values.audio != undefined && values.audio?.trim() != "") ||
         (values.video != undefined && values.video?.trim() != "")
     );
@@ -230,7 +230,7 @@ const startEditingSlug = () => {
 };
 
 const initializeText = () => {
-    text.value = EMPTY_TEXT_DELTA;
+    text.value = EMPTY_TEXT;
 };
 </script>
 

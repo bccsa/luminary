@@ -16,7 +16,7 @@ const editor = ref<HTMLDivElement>();
 let quill: Quill | undefined = undefined;
 
 const emitContents = () => {
-    emit("update:modelValue", JSON.stringify(quill!.getContents()));
+    emit("update:modelValue", quill!.getSemanticHTML());
 };
 
 onMounted(() => {
@@ -32,7 +32,7 @@ onMounted(() => {
     quill = new Quill(editor.value!, options);
 
     if (props.modelValue) {
-        quill.setContents(JSON.parse(props.modelValue));
+        quill.clipboard.dangerouslyPasteHTML(props.modelValue);
     }
 
     quill.on("text-change", emitContents);
