@@ -46,7 +46,7 @@ export const mockEnglishContentDto: ContentDto = {
     title: "Post 1",
     summary: "This is an example post",
     author: "ChatGPT",
-    text: "In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily's eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community's beloved guardian.",
+    text: "<p>In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily's eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community's beloved guardian.</p>",
     localisedImage: "",
     audio: "",
     video: "",
@@ -65,7 +65,7 @@ export const mockFrenchContentDto: ContentDto = {
     title: "Post 1",
     summary: "Ceci est un exemple de publication.",
     author: "ChatGPT",
-    text: "Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l'aider. Lily s'accrocha à l'espoir alors qu'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté.",
+    text: "<p>Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l'aider. Lily s'accrocha à l'espoir alors qu'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté.</p>",
     localisedImage: "",
     audio: "",
     video: "",
@@ -83,7 +83,7 @@ export const mockCategoryContentDto: ContentDto = {
     slug: "content-tag-category1",
     title: "Category 1",
     summary: "Example tag",
-    text: "A category.",
+    text: "<p>A category.</p>",
     publishDate: 1704114000000,
 };
 
@@ -141,7 +141,7 @@ export const mockEnglishContent: Content = {
     title: "English translation title",
     summary: "This is an example post",
     author: "ChatGPT",
-    text: "In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily's eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community's beloved guardian.",
+    text: "<p>In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily's eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community's beloved guardian.</p>",
     localisedImage: undefined,
     audio: undefined,
     video: undefined,
@@ -160,7 +160,7 @@ export const mockFrenchContent: Content = {
     title: "French translation title",
     summary: "Ceci est un exemple de publication.",
     author: "ChatGPT",
-    text: "Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l'aider. Lily s'accrocha à l'espoir alors qu'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté.",
+    text: "<p>Dans la paisible ville de Willowdale, la petite Lily pleurait la disparition de son cher chat, Whiskers. Cherchant frénétiquement dans le quartier, elle tomba sur le pompier Jake, réputé pour son cœur généreux. Avec un sourire rassurant, il promit de l'aider. Lily s'accrocha à l'espoir alors qu'ils parcouraient les rues ensemble. Sous un porche poussiéreux, ils trouvèrent Whiskers, effrayé mais sain et sauf. Des larmes de gratitude remplirent les yeux de Lily lorsque le pompier Jake lui remit le félin sauvé. Leur petite ville résonna de joie tandis que Lily serrait son ami à fourrure dans ses bras, et dès ce jour, le pompier Jake devint un héros dans son cœur et le gardien bien-aimé de la communauté.</p>",
     localisedImage: undefined,
     audio: undefined,
     video: undefined,
@@ -199,7 +199,7 @@ export const mockEnglishCategoryContent: Content = {
     slug: "content-tag-category1",
     title: "Category 1",
     summary: "Example tag",
-    text: "A category.",
+    text: "<p>A category.</p>",
     publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
 };
 export const mockFrenchCategoryContent: Content = {
@@ -213,7 +213,7 @@ export const mockFrenchCategoryContent: Content = {
     slug: "content-tag-category1-fra",
     title: "Categorie 1",
     summary: "Tag example",
-    text: "Un categorie",
+    text: "<p>Un categorie.</p>",
     publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
 };
 export const mockTopicContent: Content = {
@@ -227,7 +227,7 @@ export const mockTopicContent: Content = {
     slug: "content-tag-topicA",
     title: "Topic A",
     summary: "Another example tag",
-    text: "A topic",
+    text: "<p>A topic.</p>",
     publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
 };
 export const mockAudioPlaylistContent: Content = {
@@ -241,7 +241,7 @@ export const mockAudioPlaylistContent: Content = {
     slug: "content-tag-audioPlaylist-Faith",
     title: "Faith",
     summary: "A playlist about faith",
-    text: "An audio playlist",
+    text: "<p>An audio playlist.</p>",
     publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
 };
 export const mockCategory: Tag = {

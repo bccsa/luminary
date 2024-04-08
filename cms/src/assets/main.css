@@ -1,3 +1,26 @@
+@import "quill/dist/quill.core.css";
+@import "quill/dist/quill.snow.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Quill editor customisations */
+.ql-snow .ql-editor {
+    @apply font-sans;
+}
+.ql-toolbar.ql-snow {
+    @apply rounded-t border-zinc-300;
+}
+.ql-container.ql-snow {
+    @apply rounded-b border-zinc-300 shadow-sm;
+}
+.ql-snow .ql-tooltip {
+    @apply rounded border-zinc-200 shadow;
+}
+.ql-snow .ql-picker-label {
+    @apply rounded-t font-sans;
+}
+.ql-snow .ql-picker-options {
+    @apply rounded-b rounded-tr font-sans;
+}

@@ -26,7 +26,7 @@ function collapse() {
 </script>
 
 <template>
-    <div class="overflow-hidden rounded-md border border-zinc-100 bg-white shadow">
+    <div class="rounded-md border border-zinc-100 bg-white shadow">
         <div
             v-if="title || icon"
             :class="[

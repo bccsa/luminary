@@ -12,6 +12,7 @@ import { ContentStatus, DocType } from "@/types";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
+import RichTextEditor from "./RichTextEditor.vue";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -150,10 +151,10 @@ describe("EditContentForm", () => {
             },
         });
 
-        const textInput = await wrapper.find("input[name='text']");
+        const textEditor = await wrapper.findComponent(RichTextEditor);
         const audioInput = await wrapper.find("input[name='audio']");
         const videoInput = await wrapper.find("input[name='video']");
-        expect(textInput.isVisible()).toBe(false);
+        expect(textEditor.exists()).toBe(false);
         expect(audioInput.isVisible()).toBe(false);
         expect(videoInput.isVisible()).toBe(false);
     });
@@ -174,10 +175,10 @@ describe("EditContentForm", () => {
         await wrapper.find("button[data-test='addAudio']").trigger("click");
         await wrapper.find("button[data-test='addVideo']").trigger("click");
 
-        const textInput = await wrapper.find("input[name='text']");
+        const textEditor = await wrapper.findComponent(RichTextEditor);
         const audioInput = await wrapper.find("input[name='audio']");
         const videoInput = await wrapper.find("input[name='video']");
-        expect(textInput.isVisible()).toBe(true);
+        expect(textEditor.isVisible()).toBe(true);
         expect(audioInput.isVisible()).toBe(true);
         expect(videoInput.isVisible()).toBe(true);
     });

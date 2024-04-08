@@ -25,6 +25,11 @@ import { Slug } from "@/util/slug";
 import TagSelector from "./TagSelector.vue";
 import { useTagStore } from "@/stores/tag";
 import { capitalizeFirstLetter } from "@/util/string";
+import RichTextEditor from "@/components/content/RichTextEditor.vue";
+import FormLabel from "@/components/forms/FormLabel.vue";
+import LToggle from "@/components/forms/LToggle.vue";
+
+const EMPTY_TEXT = "<p></p>";
 
 type Props = {
     content: Content;
@@ -55,9 +60,13 @@ const selectedAudioPlaylists = computed(() => {
     return selectedTags.value.filter((t) => t.tagType == TagType.AudioPlaylist);
 });
 
-const hasText = ref(props.content.text != undefined && props.content.text.trim() != "");
+const hasText = computed(() => text.value && text.value.trim() !== "");
 const hasAudio = ref(props.content.audio != undefined && props.content.audio.trim() != "");
 const hasVideo = ref(props.content.video != undefined && props.content.video.trim() != "");
+
+const text = ref<string>();
+// @ts-ignore Pinned property does not exist on Post, which is why we check if it exists
+const pinned = ref(props.parent.pinned ?? false);
 
 const validationSchema = toTypedSchema(
     yup.object({
@@ -81,7 +90,6 @@ const validationSchema = toTypedSchema(
                 return undefined;
             })
             .optional(),
-        text: yup.string().optional(),
         audio: yup.string().optional(),
         video: yup.string().optional(),
     }),
@@ -104,6 +112,8 @@ onBeforeMount(() => {
         ...onlyAllowedKeys(filteredContent, Object.keys(values)),
         parent: onlyAllowedKeys(toRaw(props.parent), Object.keys(values.parent as object)),
     });
+
+    text.value = filteredContent.text;
 });
 
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
@@ -120,18 +130,21 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...contentValues,
         publishDate,
         status,
+        text: text.value == EMPTY_TEXT ? undefined : text.value,
         slug: await Slug.makeUnique(contentValues.slug!, props.content._id), // Ensure slug is still unique before saving
     };
 
-    const post: Partial<Post | Tag> = {
+    const parent: Partial<Post | Tag> = {
         ...toRaw(props.parent),
         image: validatedFormValues.parent?.image,
         tags: toRaw(selectedTags.value),
+        // @ts-ignore We're only setting pinned for tags
+        pinned: props.ruleset == "tag" ? pinned.value : undefined,
     };
 
     isDirty.value = false;
 
-    return emit("save", content, post);
+    return emit("save", content, parent);
 };
 
 const saveAndPublish = handleSubmit(async (validatedFormValues) => {
@@ -156,7 +169,7 @@ const canPublish = computed(() => {
 });
 const hasOneContentField = computed(() => {
     return (
-        (values.text != undefined && values.text?.trim() != "") ||
+        (text.value != undefined && text.value.trim() != "" && text.value != EMPTY_TEXT) ||
         (values.audio != undefined && values.audio?.trim() != "") ||
         (values.video != undefined && values.video?.trim() != "")
     );
@@ -214,6 +227,10 @@ const startEditingSlug = () => {
     nextTick(() => {
         slugInput.value?.focus();
     });
+};
+
+const initializeText = () => {
+    text.value = EMPTY_TEXT;
 };
 </script>
 
@@ -278,14 +295,14 @@ const startEditingSlug = () => {
                 type="button"
                 variant="tertiary"
                 :icon="DocumentTextIcon"
-                @click="hasText = true"
+                @click="initializeText"
                 v-if="!hasText"
                 data-test="addText"
             >
                 Add text
             </LButton>
-            <LCard title="Text content" :icon="DocumentTextIcon" collapsible v-show="hasText">
-                <LInput name="text" />
+            <LCard title="Text content" :icon="DocumentTextIcon" collapsible v-if="hasText">
+                <RichTextEditor v-model="text" />
             </LCard>
 
             <LButton
@@ -456,6 +473,11 @@ const startEditingSlug = () => {
                     class="sticky top-20"
                     collapsible
                 >
+                    <div v-if="ruleset == 'tag'" class="mb-6 flex items-center justify-between">
+                        <FormLabel>Pinned</FormLabel>
+                        <LToggle v-model="pinned" />
+                    </div>
+
                     <LInput name="parent.image" label="Default image" leftAddOn="https://">
                         This image can be overridden in a translation
                     </LInput>
