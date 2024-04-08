@@ -18,6 +18,11 @@ const { tagsByTagType } = storeToRefs(tagStore);
                 v-for="tag in tagsByTagType(TagType.Category)"
                 :key="tag._id"
                 :tag="tag"
+                :sortOptions="{
+                    sortField: 'publishDate',
+                    sortType: 'number',
+                    sortOrder: 'asc',
+                }"
             /></div
     ></IgnorePagePadding>
 </template>
