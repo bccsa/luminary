@@ -6,6 +6,8 @@ import { usePostStore } from "@/stores/post";
 import { mockCategory, mockPost } from "@/tests/mockData";
 import { useTagStore } from "@/stores/tag";
 
+vi.mock("vue-router");
+
 describe("HorizontalScrollableTagViewer", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
