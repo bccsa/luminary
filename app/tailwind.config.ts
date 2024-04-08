@@ -11,6 +11,5 @@ export default {
             },
         },
     },
-    plugins: [twScrollbarHide],
-    plugins: [require("@tailwindcss/typography")],
+    plugins: [twScrollbarHide, require("@tailwindcss/typography")],
 } satisfies Config;
