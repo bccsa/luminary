@@ -13,6 +13,7 @@ import { useLocalChangeStore } from "@/stores/localChanges";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import RichTextEditor from "./RichTextEditor.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -284,7 +285,7 @@ describe("EditContentForm", () => {
             });
         });
 
-        it("displays why a tag cannot be published", async () => {
+        it("displays why a tag can't be published", async () => {
             const wrapper = mount(EditContentForm, {
                 props: {
                     parent: {
@@ -308,6 +309,57 @@ describe("EditContentForm", () => {
                     "At least one of text, audio or video content is required",
                 );
                 expect(wrapper.text()).not.toContain("At least one tag is required");
+            });
+        });
+
+        it("displays a notification after saving", async () => {
+            const notificationStore = useNotificationStore();
+            const wrapper = mount(EditContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: mockEnglishContent,
+                    ruleset: "post",
+                },
+            });
+
+            await wrapper.find(saveAsDraftButton).trigger("click");
+
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Post saved as draft",
+                        state: "success",
+                    }),
+                );
+            });
+        });
+
+        it("displays a notification when saving with validation errors", async () => {
+            const notificationStore = useNotificationStore();
+            const wrapper = mount(EditContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: mockEnglishContent,
+                    ruleset: "post",
+                },
+            });
+
+            await wrapper.find("input[name='title']").setValue(""); // Trigger validation error
+
+            await wrapper.find(saveAsDraftButton).trigger("click");
+
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        state: "error",
+                    }),
+                );
+            });
+
+            // Check that both draft and publish trigger an error notification
+            await wrapper.find(publishButton).trigger("click");
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalledTimes(2);
             });
         });
     });

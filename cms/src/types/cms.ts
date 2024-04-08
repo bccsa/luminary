@@ -120,3 +120,10 @@ export type LocalChange = {
     id: number;
     doc: BaseDocumentDto;
 };
+
+export type Notification = {
+    id?: number;
+    title: string;
+    description?: string;
+    state?: "success" | "error" | "info";
+};

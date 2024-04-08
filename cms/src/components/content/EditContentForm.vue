@@ -28,6 +28,7 @@ import { capitalizeFirstLetter } from "@/util/string";
 import RichTextEditor from "@/components/content/RichTextEditor.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 const EMPTY_TEXT = "<p></p>";
 
@@ -41,6 +42,7 @@ const props = defineProps<Props>();
 
 const { isLocalChange } = useLocalChangeStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
+const { addNotification } = useNotificationStore();
 const emit = defineEmits(["save"]);
 
 const {
@@ -144,15 +146,33 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
 
     isDirty.value = false;
 
+    addNotification({
+        title: `Post saved ${status == ContentStatus.Published ? "and published" : "as draft"}`,
+        description: `All changes are saved ${
+            isConnected.value
+                ? "online"
+                : "offline, and will be sent to the server when you go online"
+        }.`,
+        state: "success",
+    });
+
     return emit("save", content, parent);
+};
+
+const validationErrorCallback = () => {
+    addNotification({
+        title: "Changes not saved",
+        description: "There are validation errors that prevent saving.",
+        state: "error",
+    });
 };
 
 const saveAndPublish = handleSubmit(async (validatedFormValues) => {
     return save(validatedFormValues, ContentStatus.Published);
-});
+}, validationErrorCallback);
 const saveAsDraft = handleSubmit(async (validatedFormValues) => {
     return save(validatedFormValues, ContentStatus.Draft);
-});
+}, validationErrorCallback);
 
 const canPublish = computed(() => {
     if (props.ruleset == "tag") {
