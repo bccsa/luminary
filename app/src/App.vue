@@ -28,7 +28,7 @@ onBeforeMount(async () => {
 
 <template>
     <template v-if="isAuthenticated">
-        <TopBar />
+        <TopBar class="sticky top-0 z-40" />
 
         <main class="mx-auto max-w-7xl px-4">
             <RouterView />
