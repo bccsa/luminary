@@ -26,6 +26,8 @@ import TagSelector from "./TagSelector.vue";
 import { useTagStore } from "@/stores/tag";
 import { capitalizeFirstLetter } from "@/util/string";
 import RichTextEditor from "@/components/content/RichTextEditor.vue";
+import FormLabel from "@/components/forms/FormLabel.vue";
+import LToggle from "@/components/forms/LToggle.vue";
 
 const EMPTY_TEXT_DELTA = '{"ops":[{"insert":"\\n"}]}';
 
@@ -63,6 +65,8 @@ const hasAudio = ref(props.content.audio != undefined && props.content.audio.tri
 const hasVideo = ref(props.content.video != undefined && props.content.video.trim() != "");
 
 const text = ref<string>();
+// @ts-ignore Pinned property does not exist on Post, which is why we check if it exists
+const pinned = ref(props.parent.pinned ?? false);
 
 const validationSchema = toTypedSchema(
     yup.object({
@@ -130,15 +134,17 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         slug: await Slug.makeUnique(contentValues.slug!, props.content._id), // Ensure slug is still unique before saving
     };
 
-    const post: Partial<Post | Tag> = {
+    const parent: Partial<Post | Tag> = {
         ...toRaw(props.parent),
         image: validatedFormValues.parent?.image,
         tags: toRaw(selectedTags.value),
+        // @ts-ignore We're only setting pinned for tags
+        pinned: props.ruleset == "tag" ? pinned.value : undefined,
     };
 
     isDirty.value = false;
 
-    return emit("save", content, post);
+    return emit("save", content, parent);
 };
 
 const saveAndPublish = handleSubmit(async (validatedFormValues) => {
@@ -467,6 +473,11 @@ const initializeText = () => {
                     class="sticky top-20"
                     collapsible
                 >
+                    <div v-if="ruleset == 'tag'" class="mb-6 flex items-center justify-between">
+                        <FormLabel>Pinned</FormLabel>
+                        <LToggle v-model="pinned" />
+                    </div>
+
                     <LInput name="parent.image" label="Default image" leftAddOn="https://">
                         This image can be overridden in a translation
                     </LInput>
