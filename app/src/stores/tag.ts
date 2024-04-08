@@ -38,7 +38,7 @@ export const useTagStore = defineStore("category", () => {
         return (tagType: TagType) => {
             if (postStore) {
                 return tags.value?.filter((t) => {
-                    const posts = postStore.postsByTag(t._id);
+                    const posts = postStore.postsByTag(t._id, {});
                     return t.tagType == tagType && posts && posts.length > 0;
                 });
             }
