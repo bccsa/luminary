@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
-const defaultTheme = require("tailwindcss/defaultTheme");
+import defaultTheme from "tailwindcss/defaultTheme";
+import twScrollbarHide from "tailwind-scrollbar-hide";
 
 export default {
     content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
@@ -10,5 +11,5 @@ export default {
             },
         },
     },
-    plugins: [require("@tailwindcss/typography")],
+    plugins: [twScrollbarHide, require("@tailwindcss/typography")],
 } satisfies Config;

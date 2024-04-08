@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ContentStatus, type Post } from "@/types";
+import { ContentStatus, type Post, type Uuid } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { computed, type Ref } from "vue";
@@ -28,5 +28,11 @@ export const usePostStore = defineStore("post", () => {
         };
     });
 
-    return { post, posts };
+    const postsByTag = computed(() => {
+        return (tagId: Uuid) => {
+            return posts.value?.filter((p) => p.tags.some((t) => t._id == tagId));
+        };
+    });
+
+    return { post, posts, postsByTag };
 });
