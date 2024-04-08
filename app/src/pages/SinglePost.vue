@@ -24,9 +24,7 @@ const post = computed(() => postStore.post(slug));
             {{ post.content[0].summary }}
         </div>
 
-        <div v-if="post.content[0].text" class="mt-6">
-            {{ post.content[0].text }}
-        </div>
+        <div v-if="post.content[0].text" v-html="post.content[0].text" class="prose mt-6"></div>
 
         <div class="mt-6">
             <h3 class="mb-1 text-sm text-zinc-600">Tags</h3>
