@@ -47,8 +47,8 @@ export const usePostStore = defineStore("post", () => {
 
                 if (options.sortType == "string") {
                     const sorted = res?.sort((a, b) =>
-                        a.content[0][options.sortField].localeCompare(
-                            b.content[0][options.sortField],
+                        a.content[0]![options.sortField].localeCompare(
+                            b.content[0]![options.sortField],
                         ),
                     );
                     if (options.sortOrder == "desc") return sorted?.reverse();
@@ -59,10 +59,10 @@ export const usePostStore = defineStore("post", () => {
                     return res?.sort((a, b) => {
                         if (options.sortOrder == "desc") {
                             return (
-                                b.content[0][options.sortField] - a.content[0][options.sortField]
+                                b.content[0]![options.sortField] - a.content[0]![options.sortField]
                             );
                         }
-                        return a.content[0][options.sortField] - b.content[0][options.sortField];
+                        return a.content[0]![options.sortField] - b.content[0]![options.sortField];
                     });
                 }
             }
