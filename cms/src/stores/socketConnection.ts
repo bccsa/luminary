@@ -13,14 +13,26 @@ import { db } from "@/db/baseDatabase";
 import { ref } from "vue";
 import { useLocalChangeStore } from "./localChanges";
 import { BaseRepository } from "@/db/repositories/baseRepository";
+import { Socket } from "socket.io-client";
 
 export const useSocketConnectionStore = defineStore("socketConnection", () => {
     const isConnected = ref(false);
+    const socket = ref<Socket>();
+
+    const reloadClientData = () => {
+        if (!socket.value) {
+            throw "No socket connected, aborting";
+        }
+
+        socket.value!.emit("clientDataReq", {
+            cms: true,
+        });
+    };
 
     const bindEvents = () => {
-        const socket = getSocket();
+        socket.value = getSocket();
 
-        socket.on("connect", async () => {
+        socket.value.on("connect", async () => {
             isConnected.value = true;
 
             // Get documents that are newer than the last received version
@@ -28,29 +40,29 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             let syncVersion = 0;
             if (syncVersionString) syncVersion = Number.parseInt(syncVersionString);
 
-            socket.emit("clientDataReq", {
+            socket.value!.emit("clientDataReq", {
                 version: syncVersion,
                 cms: true,
                 accessMap: JSON.parse(localStorage.getItem("accessMap")!),
             });
         });
 
-        socket.on("disconnect", () => {
+        socket.value.on("disconnect", () => {
             isConnected.value = false;
         });
 
-        socket.on("data", async (data: ApiDataResponseDto) => {
+        socket.value.on("data", async (data: ApiDataResponseDto) => {
             await db.docs.bulkPut(data.docs);
             if (data.version) localStorage.setItem("syncVersion", data.version.toString());
         });
 
-        socket.on("changeRequestAck", async (ack: ChangeReqAckDto) => {
+        socket.value.on("changeRequestAck", async (ack: ChangeReqAckDto) => {
             const localChangeStore = useLocalChangeStore();
 
             await localChangeStore.handleAck(ack);
         });
 
-        socket.on("accessMap", (accessMap: AccessMap) => {
+        socket.value.on("accessMap", (accessMap: AccessMap) => {
             // Delete revoked documents
 
             // TODO: Only delete documents if the accessMap changed for improved performance
@@ -87,7 +99,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
         });
     };
 
-    return { isConnected, bindEvents };
+    return { isConnected, bindEvents, reloadClientData };
 });
 
 /**
