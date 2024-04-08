@@ -4,7 +4,8 @@ import PostTile from "@/components/posts/PostTile.vue";
 import { usePostStore } from "@/stores/post";
 import { storeToRefs } from "pinia";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
+import { useResizeObserver } from "@vueuse/core";
 
 const postStore = usePostStore();
 
@@ -26,6 +27,7 @@ const showLeftSpin = ref(false);
 const showRightSpin = ref(false);
 
 const scrollElement = ref<HTMLElement | null>(null);
+const scrollContent = ref<HTMLElement | null>(null);
 
 const setSpinBtnVisibility = () => {
     if (scrollElement.value === null) return;
@@ -55,9 +57,7 @@ const setSpinBtnVisibility = () => {
     if (scrollRight < 5) showRightSpin.value = false;
 };
 
-onMounted(() => {
-    setSpinBtnVisibility();
-});
+useResizeObserver(scrollContent, setSpinBtnVisibility);
 </script>
 
 <template>
@@ -79,7 +79,7 @@ onMounted(() => {
             class="flex overflow-x-scroll py-2 scrollbar-hide"
             @scroll="setSpinBtnVisibility"
         >
-            <div class="flex flex-row gap-4 px-4">
+            <div ref="scrollContent" class="flex flex-row gap-4 px-4">
                 <PostTile
                     v-for="post in postsByTag(tag._id)"
                     :key="post._id"
