@@ -12,7 +12,7 @@ describe("RichTextEditor", () => {
     it("mounts with content", async () => {
         const wrapper = mount(RichTextEditor, {
             props: {
-                modelValue: '{"ops":[{"insert":"Gandalf the Grey"}]}',
+                modelValue: "<p>Gandalf the Grey</p>",
             },
         });
 
