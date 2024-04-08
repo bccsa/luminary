@@ -48,7 +48,7 @@ const setSpinBtnVisibility = () => {
         scrollElement.value.clientWidth -
         scrollElement.value.scrollLeft;
     const scrollLeft = scrollElement.value.scrollLeft;
-    console.log(scrollRight);
+
     if (scrollLeft > 20) showLeftSpin.value = true;
     if (scrollLeft < 5) showLeftSpin.value = false;
     if (scrollRight > 20) showRightSpin.value = true;
@@ -56,10 +56,7 @@ const setSpinBtnVisibility = () => {
 };
 
 onMounted(() => {
-    // wait for child controls in the scroll element to be rendered
-    setTimeout(() => {
-        setSpinBtnVisibility();
-    }, 100);
+    setSpinBtnVisibility();
 });
 </script>
 
