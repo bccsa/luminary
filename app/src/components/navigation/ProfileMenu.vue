@@ -39,7 +39,7 @@ const userNavigation: {
                     >{{ user?.name }}</span
                 >
                 <ChevronDownIcon
-                    class="ml-2 h-5 w-5 text-zinc-100 dark:text-zinc-400"
+                    class="ml-2 h-5 w-5 text-zinc-400 dark:text-zinc-100"
                     aria-hidden="true"
                 />
             </span>
