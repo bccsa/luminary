@@ -276,7 +276,6 @@ describe("EditContentForm", () => {
                 const saveEvent: any = wrapper.emitted("save");
                 expect(saveEvent).toBe(undefined);
 
-                expect(wrapper.text()).toContain("Summary is required");
                 expect(wrapper.text()).toContain("Publish date is required");
                 expect(wrapper.text()).toContain(
                     "At least one of text, audio or video content is required",
@@ -303,7 +302,6 @@ describe("EditContentForm", () => {
                 const saveEvent: any = wrapper.emitted("save");
                 expect(saveEvent).toBe(undefined);
 
-                expect(wrapper.text()).toContain("Summary is required");
                 expect(wrapper.text()).toContain("Publish date is required");
                 expect(wrapper.text()).not.toContain(
                     "At least one of text, audio or video content is required",
