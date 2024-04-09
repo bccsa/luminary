@@ -12,7 +12,7 @@ const { tagsByTagType } = storeToRefs(tagStore);
 
 <template>
     <IgnorePagePadding>
-        <div class="space-y-2">
+        <div class="space-y-3">
             <!-- Display category tags -->
             <HorizontalScrollableTagViewer
                 v-for="tag in tagsByTagType(TagType.Category)"
