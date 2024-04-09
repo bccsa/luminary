@@ -31,12 +31,6 @@ const router = createRouter({
                 },
 
                 {
-                    path: "/posts/:slug",
-                    component: SinglePost,
-                    name: "post",
-                },
-
-                {
                     path: "/settings",
                     component: SettingsPage,
                     name: "settings",
@@ -44,7 +38,11 @@ const router = createRouter({
                         title: "Settings",
                     },
                 },
-
+                {
+                    path: "/:slug",
+                    component: SinglePost,
+                    name: "post",
+                },
                 {
                     path: "/:pathMatch(.*)*",
                     name: "404",
