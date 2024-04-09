@@ -63,31 +63,33 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 </script>
 
 <template>
-    <h2 class="px-4">{{ tag.content[0]?.title }}</h2>
-    <div class="relative">
-        <ArrowLeftCircleIcon
-            v-if="showLeftSpin"
-            class="absolute left-4 top-7 h-10 w-10 cursor-pointer text-zinc-100 opacity-60 hover:opacity-90 md:left-6 md:top-11 md:h-14 md:w-14"
-            @click="spinLeft()"
-        ></ArrowLeftCircleIcon>
-        <ArrowRightCircleIcon
-            v-if="showRightSpin"
-            class="absolute right-4 top-7 h-10 w-10 cursor-pointer text-zinc-100 opacity-60 hover:opacity-90 md:right-6 md:top-11 md:h-14 md:w-14"
-            @click="spinRight()"
-        ></ArrowRightCircleIcon>
+    <div>
+        <h2 class="px-4">{{ tag.content[0]?.title }}</h2>
+        <div class="relative">
+            <ArrowLeftCircleIcon
+                v-if="showLeftSpin"
+                class="absolute left-4 top-7 h-10 w-10 cursor-pointer text-zinc-100 opacity-60 hover:opacity-90 md:left-6 md:top-11 md:h-14 md:w-14"
+                @click="spinLeft()"
+            ></ArrowLeftCircleIcon>
+            <ArrowRightCircleIcon
+                v-if="showRightSpin"
+                class="absolute right-4 top-7 h-10 w-10 cursor-pointer text-zinc-100 opacity-60 hover:opacity-90 md:right-6 md:top-11 md:h-14 md:w-14"
+                @click="spinRight()"
+            ></ArrowRightCircleIcon>
 
-        <div
-            ref="scrollElement"
-            class="flex overflow-x-scroll py-2 scrollbar-hide"
-            @scroll="setSpinBtnVisibility"
-        >
-            <div ref="scrollContent" class="flex flex-row gap-4 px-4">
-                <PostTile
-                    v-for="post in postsByTag(tag._id, sortOptions)"
-                    :key="post._id"
-                    :post="post"
-                    class="w-40 overflow-clip md:w-60"
-                />
+            <div
+                ref="scrollElement"
+                class="flex overflow-x-scroll py-2 scrollbar-hide"
+                @scroll="setSpinBtnVisibility"
+            >
+                <div ref="scrollContent" class="flex flex-row gap-4 px-4">
+                    <PostTile
+                        v-for="post in postsByTag(tag._id, sortOptions)"
+                        :key="post._id"
+                        :post="post"
+                        class="w-40 overflow-clip md:w-60"
+                    />
+                </div>
             </div>
         </div>
     </div>

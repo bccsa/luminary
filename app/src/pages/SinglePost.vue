@@ -4,6 +4,8 @@ import VideoPlayer from "@/components/posts/VideoPlayer.vue";
 import { usePostStore } from "@/stores/post";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import { DateTime } from "luxon";
+import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 
 const route = useRoute();
 const postStore = usePostStore();
@@ -14,6 +16,14 @@ const post = computed(() => postStore.post(slug));
 </script>
 
 <template>
+    <div class="hidden lg:block">
+        <RouterLink
+            to="/"
+            class="-mx-2 mb-1 inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
+        >
+            <ArrowLeftIcon class="h-4 w-4" /> Back
+        </RouterLink>
+    </div>
     <div v-if="!post">
         <LoadingSpinner />
     </div>
@@ -22,6 +32,10 @@ const post = computed(() => postStore.post(slug));
         <img v-else :src="post.image" class="rounded shadow-md" />
 
         <h1 class="mt-4 text-center text-2xl text-zinc-800">{{ post.content[0].title }}</h1>
+
+        <div class="mt-1 text-center text-sm text-zinc-500" v-if="post.content[0].publishDate">
+            {{ post.content[0].publishDate?.toLocaleString(DateTime.DATE_FULL) }}
+        </div>
 
         <div class="mt-2 text-center text-gray-800" v-if="post.content[0].summary">
             {{ post.content[0].summary }}

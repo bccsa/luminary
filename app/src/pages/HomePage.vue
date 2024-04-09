@@ -11,8 +11,8 @@ const { tagsByTagType } = storeToRefs(tagStore);
 </script>
 
 <template>
-    <IgnorePagePadding
-        ><div class="">
+    <IgnorePagePadding>
+        <div class="space-y-2">
             <!-- Display category tags -->
             <HorizontalScrollableTagViewer
                 v-for="tag in tagsByTagType(TagType.Category)"
@@ -22,6 +22,7 @@ const { tagsByTagType } = storeToRefs(tagStore);
                     sortBy: 'publishDate',
                     sortOrder: 'asc',
                 }"
-            /></div
-    ></IgnorePagePadding>
+            />
+        </div>
+    </IgnorePagePadding>
 </template>
