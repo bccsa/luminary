@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { PlayCircleIcon, ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
+import { useRoute } from "vue-router";
+
+const route = useRoute();
 </script>
 
 <template>
@@ -7,8 +11,23 @@ import ProfileMenu from "./ProfileMenu.vue";
         <div
             class="mx-auto flex max-w-7xl flex-row items-center justify-between space-x-8 px-4 py-5"
         >
-            <RouterLink to="/">
-                <img alt="logo" class="w-52" src="@/assets/logo.svg" />
+            <RouterLink to="/" class="flex items-center">
+                <div
+                    class="mr-4 border-r border-zinc-400 pr-4"
+                    :class="{
+                        hidden: route.name == 'home',
+                        'lg:hidden': route.name != 'home',
+                    }"
+                >
+                    <ChevronLeftIcon class="h-6 w-6 text-zinc-600" />
+                </div>
+                <div class="flex items-center gap-2 text-xl hover:text-zinc-600">
+                    <PlayCircleIcon class="h-8 w-8 text-yellow-500" />
+                    <div class="hidden items-center gap-1 min-[340px]:flex">
+                        <span class="font-semibold">BCC Africa</span>
+                        <span>App</span>
+                    </div>
+                </div>
             </RouterLink>
 
             <div>
