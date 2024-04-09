@@ -7,8 +7,7 @@ import { PostRepository } from "@/db/repositories/postRepository";
 import type { Observable } from "rxjs";
 
 export type postSortOptions = {
-    sortField?: string;
-    sortType?: "string" | "number";
+    sortBy?: "publishDate" | "title";
     sortOrder?: "asc" | "desc";
 };
 
@@ -35,38 +34,29 @@ export const usePostStore = defineStore("post", () => {
     });
 
     /**
-     * Get all posts by tag.
-     * options: The sortField has to be set in order to user the sortOrder. The default sortOrder is "asc". The default sortType is "string"
-     * The sortField is a Content document field.
+     * Get all posts by tag with optional sorting.
      */
     const postsByTag = computed(() => {
         return (tagId: Uuid, options: postSortOptions | undefined) => {
             const res = posts.value?.filter((p) => p.tags.some((t) => t._id == tagId));
-            if (options && options.sortField) {
-                if (!options.sortType) options.sortType = "string";
-
-                if (options.sortType == "string") {
-                    const sorted = res?.sort((a, b) =>
-                        a.content[0]![options.sortField!]!.localeCompare(
-                            b.content[0]![options.sortField!]!,
-                        ),
-                    );
+            if (options && options.sortBy) {
+                if (options.sortBy == "publishDate") {
+                    const sorted = res?.sort((a, b) => {
+                        if (!a.content[0].publishDate || !b.content[0].publishDate) return 0;
+                        if (a.content[0].publishDate < b.content[0].publishDate) return -1;
+                        if (a.content[0].publishDate > b.content[0].publishDate) return 1;
+                        return 0;
+                    });
                     if (options.sortOrder == "desc") return sorted?.reverse();
                     return sorted;
                 }
 
-                if (options.sortType == "number") {
-                    return res?.sort((a, b) => {
-                        if (options.sortOrder == "desc") {
-                            return (
-                                b.content[0]![options.sortField!]! -
-                                a.content[0]![options.sortField!]!
-                            );
-                        }
-                        return (
-                            a.content[0]![options.sortField!]! - b.content[0]![options.sortField!]!
-                        );
-                    });
+                if (options.sortBy == "title") {
+                    const sorted = res?.sort((a, b) =>
+                        a.content[0].title.localeCompare(b.content[0].title),
+                    );
+                    if (options.sortOrder == "desc") return sorted?.reverse();
+                    return sorted;
                 }
             }
 

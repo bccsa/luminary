@@ -19,8 +19,7 @@ const { tagsByTagType } = storeToRefs(tagStore);
                 :key="tag._id"
                 :tag="tag"
                 :sortOptions="{
-                    sortField: 'publishDate',
-                    sortType: 'number',
+                    sortBy: 'publishDate',
                     sortOrder: 'asc',
                 }"
             /></div
