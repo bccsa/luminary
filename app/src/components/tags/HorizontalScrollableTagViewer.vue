@@ -16,7 +16,7 @@ type Props = {
     tag: Tag;
     sortOptions?: postSortOptions;
 };
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const spinLeft = () => {
     if (scrollElement.value) scrollElement.value.scrollLeft -= 100;
