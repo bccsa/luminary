@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import VideoPlayer from "@/components/posts/VideoPlayer.vue";
 import { usePostStore } from "@/stores/post";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
@@ -17,7 +18,9 @@ const post = computed(() => postStore.post(slug));
         <LoadingSpinner />
     </div>
     <article v-else class="mx-auto max-w-3xl">
-        <img :src="post.image" class="rounded shadow-md" />
+        <VideoPlayer v-if="post.content[0].video" :content-parent="post" />
+        <img v-else :src="post.image" class="rounded shadow-md" />
+
         <h1 class="mt-4 text-center text-2xl text-zinc-800">{{ post.content[0].title }}</h1>
 
         <div class="mt-2 text-center text-gray-800">

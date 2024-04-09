@@ -1,3 +1,10 @@
+@import "video.js/dist/video-js.min.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Video.js */
+.vjs-poster img {
+    object-fit: cover;
+}
