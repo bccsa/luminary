@@ -37,7 +37,6 @@ onBeforeMount(async () => {
 
     <div v-else class="absolute flex h-full w-full items-center justify-center">
         <div class="flex flex-col items-center gap-4">
-            <img class="w-72" src="@/assets/logo.svg" :alt="appName" />
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
         </div>
     </div>

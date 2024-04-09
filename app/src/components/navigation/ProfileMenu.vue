@@ -30,15 +30,18 @@ const userNavigation: {
                 alt=""
             />
             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300" v-else>
-                <UserIcon class="h-6 w-6 text-zinc-600" />
+                <UserIcon class="h-6 w-6 text-zinc-600 dark:text-zinc-100" />
             </div>
             <span class="hidden lg:flex lg:items-center">
                 <span
-                    class="ml-4 text-sm font-semibold leading-6 text-zinc-900"
+                    class="ml-4 text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
                     aria-hidden="true"
                     >{{ user?.name }}</span
                 >
-                <ChevronDownIcon class="ml-2 h-5 w-5 text-zinc-400" aria-hidden="true" />
+                <ChevronDownIcon
+                    class="ml-2 h-5 w-5 text-zinc-100 dark:text-zinc-400"
+                    aria-hidden="true"
+                />
             </span>
         </MenuButton>
         <transition
