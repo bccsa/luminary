@@ -23,7 +23,7 @@ const post = computed(() => postStore.post(slug));
 
         <h1 class="mt-4 text-center text-2xl text-zinc-800">{{ post.content[0].title }}</h1>
 
-        <div class="mt-2 text-center text-gray-800">
+        <div class="mt-2 text-center text-gray-800" v-if="post.content[0].summary">
             {{ post.content[0].summary }}
         </div>
 
