@@ -176,16 +176,10 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
 
 const canPublish = computed(() => {
     if (props.ruleset == "tag") {
-        return hasPublishDate.value && hasSummary.value && hasParentImage.value;
+        return hasPublishDate.value && hasParentImage.value;
     }
 
-    return (
-        hasOneContentField.value &&
-        hasPublishDate.value &&
-        hasSummary.value &&
-        hasParentImage.value &&
-        hasTag.value
-    );
+    return hasOneContentField.value && hasPublishDate.value && hasParentImage.value && hasTag.value;
 });
 const hasOneContentField = computed(() => {
     return (
@@ -193,9 +187,6 @@ const hasOneContentField = computed(() => {
         (values.audio != undefined && values.audio?.trim() != "") ||
         (values.video != undefined && values.video?.trim() != "")
     );
-});
-const hasSummary = computed(() => {
-    return values.summary != undefined && values.summary.trim() != "";
 });
 const hasPublishDate = computed(() => {
     // @ts-ignore The browser resets the date to empty string when clicking 'Clear'
@@ -463,12 +454,6 @@ const initializeText = () => {
                                             At least one of text, audio or video content is required
                                         </p>
                                     </div>
-                                    <div v-if="!hasSummary" class="flex gap-2">
-                                        <p>
-                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
-                                        </p>
-                                        <p>Summary is required</p>
-                                    </div>
                                     <div v-if="!hasPublishDate" class="flex gap-2">
                                         <p>
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
@@ -536,4 +521,3 @@ const initializeText = () => {
         </div>
     </form>
 </template>
-./LTag.vue
