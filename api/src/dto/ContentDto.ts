@@ -39,7 +39,7 @@ export class ContentDto extends _contentBaseDto {
     @Expose()
     title: string;
 
-    @IsOptionalIf((c: ContentDto) => c.status === PublishStatus.Draft)
+    @IsOptional()
     @IsString()
     @Expose()
     summary: string;
