@@ -6,7 +6,7 @@ import FormLabel from "@/components/forms/FormLabel.vue";
 import { useLanguageStore } from "@/stores/language";
 import type { CreateContentParentDto, Language } from "@/types";
 import { ref } from "vue";
-import { ArrowRightIcon } from "@heroicons/vue/20/solid";
+import { ArrowRightIcon, LinkIcon } from "@heroicons/vue/20/solid";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
 import { toTypedSchema } from "@vee-validate/yup";
@@ -59,12 +59,7 @@ const save = handleSubmit(async (values) => {
             'continue' the {{ entityName }} will be saved as a draft and you can continue editing.
         </p>
 
-        <LInput
-            name="image"
-            label="Default image"
-            placeholder="cdn.bcc.africa/img/image.png"
-            leftAddOn="https://"
-        />
+        <LInput name="image" label="Default image" placeholder="https://..." :icon="LinkIcon" />
 
         <LInput name="permissions" label="Permissions" placeholder="Not implemented yet" disabled />
 

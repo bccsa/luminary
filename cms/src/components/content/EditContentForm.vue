@@ -8,6 +8,7 @@ import {
     DocumentTextIcon,
     VideoCameraIcon,
     MusicalNoteIcon,
+    LinkIcon,
 } from "@heroicons/vue/20/solid";
 import { ExclamationCircleIcon, PencilIcon, XCircleIcon } from "@heroicons/vue/16/solid";
 import { ContentStatus, type Content, type Post, type Tag, TagType } from "@/types";
@@ -327,7 +328,7 @@ const initializeText = () => {
                 Add Video
             </LButton>
             <LCard title="Video" :icon="VideoCameraIcon" collapsible v-show="hasVideo">
-                <LInput name="video" leftAddOn="https://" />
+                <LInput name="video" :icon="LinkIcon" placeholder="https://..." />
             </LCard>
 
             <LButton
@@ -341,7 +342,7 @@ const initializeText = () => {
                 Add Audio
             </LButton>
             <LCard title="Audio" :icon="MusicalNoteIcon" collapsible v-show="hasAudio">
-                <LInput name="audio" leftAddOn="https://" />
+                <LInput name="audio" :icon="LinkIcon" placeholder="https://..." />
             </LCard>
         </div>
 
@@ -483,7 +484,12 @@ const initializeText = () => {
                         <LToggle v-model="pinned" />
                     </div>
 
-                    <LInput name="parent.image" label="Default image" leftAddOn="https://">
+                    <LInput
+                        name="parent.image"
+                        label="Default image"
+                        :icon="LinkIcon"
+                        placeholder="https://..."
+                    >
                         This image can be overridden in a translation
                     </LInput>
 
