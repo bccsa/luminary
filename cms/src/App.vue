@@ -11,6 +11,7 @@ import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { getSocket, initSocket } from "@/socket";
 import MobileSideBar from "./components/navigation/MobileSideBar.vue";
+import NotificationManager from "./components/notifications/NotificationManager.vue";
 
 const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 const { appName } = useGlobalConfigStore();
@@ -77,4 +78,8 @@ const sidebarOpen = ref(false);
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
         </div>
     </div>
+
+    <Teleport to="body">
+        <NotificationManager />
+    </Teleport>
 </template>

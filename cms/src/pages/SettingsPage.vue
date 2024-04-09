@@ -2,16 +2,33 @@
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
+import { useNotificationStore } from "@/stores/notification";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { purgeLocalDatabase } from "@/util/purgeLocalDatabase";
 import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
 import { storeToRefs } from "pinia";
 
-const { isConnected } = storeToRefs(useSocketConnectionStore());
+const socketConnectionStore = useSocketConnectionStore();
+const { isConnected } = storeToRefs(socketConnectionStore);
+const { addNotification } = useNotificationStore();
 
 const deleteLocalData = async () => {
+    if (!isConnected.value) {
+        return addNotification({
+            title: "Can't clear local cache",
+            description: "You are offline, new data can't be loaded. Wait until you are online.",
+            state: "error",
+        });
+    }
+
     await purgeLocalDatabase();
-    window.location.reload();
+    await socketConnectionStore.reloadClientData();
+
+    return addNotification({
+        title: "Local cache cleared",
+        description: "New data is loading from the server, it might take a minute.",
+        state: "success",
+    });
 };
 </script>
 
@@ -23,11 +40,7 @@ const deleteLocalData = async () => {
                 deleting all local data. Depending on the amount of available data, it can take some
                 time before all data is available again.
             </div>
-            <LButton
-                @click="deleteLocalData"
-                data-test="deleteLocalDatabase"
-                :disabled="!isConnected"
-            >
+            <LButton @click="deleteLocalData" data-test="deleteLocalDatabase">
                 Delete local cache
             </LButton>
         </LCard>

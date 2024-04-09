@@ -88,6 +88,20 @@ describe("socketConnection", () => {
         });
     });
 
+    it("can reload the client data", async () => {
+        const store = useSocketConnectionStore();
+
+        store.bindEvents();
+        store.reloadClientData();
+
+        await flushPromises();
+
+        expect(socketMocks.emit).toHaveBeenCalledTimes(2); // First time on connect
+        expect(socketMocks.emit).toHaveBeenCalledWith("clientDataReq", {
+            cms: true,
+        });
+    });
+
     it("sets the state after disconnecting", () => {
         const store = useSocketConnectionStore();
         listenToSocketOnEvent("disconnect");
