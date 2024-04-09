@@ -20,7 +20,7 @@ const openPost = () => {
         @click="openPost"
         class="-m-2 cursor-pointer rounded-md p-2 hover:bg-zinc-50 active:bg-zinc-100 active:shadow-inner dark:hover:bg-zinc-500 dark:active:bg-zinc-400"
     >
-        <img :src="post.image" class="aspect-video rounded object-cover shadow-md" />
+        <img :src="post.image" class="aspect-video rounded-lg object-cover shadow-md" />
         <h3 class="mt-2 text-sm text-zinc-800 dark:text-zinc-50">{{ post.content[0].title }}</h3>
         <div class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-200">
             {{ post.content[0].publishDate?.toLocaleString(DateTime.DATE_FULL) }}
