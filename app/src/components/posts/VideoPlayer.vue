@@ -36,7 +36,7 @@ onMounted(() => {
     <div class="aspect-video">
         <video
             ref="playerElement"
-            class="video-js h-full w-full rounded shadow-md"
+            class="video-js h-full w-full overflow-hidden rounded shadow-md"
             controls
             preload="auto"
             data-setup="{}"
