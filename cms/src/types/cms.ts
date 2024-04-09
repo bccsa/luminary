@@ -107,8 +107,6 @@ export type Post = ContentBase & {
     type: DocType.Post;
     content: Content[];
     image: string;
-    video: string;
-    audio: string;
     tags: Tag[];
 };
 
