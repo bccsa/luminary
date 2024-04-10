@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from "vitest";
-import { useSocketConnectionStore } from "./socketConnection";
+import { useSocketConnectionStore, accessMapToGroups } from "./socketConnection";
 import { setActivePinia, createPinia } from "pinia";
 import { mockEnglishContentDto, mockPostDto } from "@/tests/mockData";
+import { type AccessMap, DocType, AclPermission } from "@/types";
 import { flushPromises } from "@vue/test-utils";
 
 const socketMocks = vi.hoisted(() => ({
@@ -13,7 +14,7 @@ vi.mock("@/socket", () => ({
     getSocket: () => socketMocks,
 }));
 
-// Invoke the callback for socket.on() only for the passed even
+// Invoke the callback for socket.on() only for the passed event
 function listenToSocketOnEvent(allowedEvent: string | string[], returnValue?: any) {
     if (typeof allowedEvent == "string") {
         allowedEvent = [allowedEvent];
@@ -81,7 +82,20 @@ describe("socketConnection", () => {
         expect(socketMocks.emit).toHaveBeenCalledOnce();
         expect(socketMocks.emit).toHaveBeenCalledWith("clientDataReq", {
             version: Number.parseInt(lastUpdatedTime),
+            accessMap: JSON.parse(localStorage.getItem("accessMap")!),
         });
+    });
+
+    it("can reload the client data", async () => {
+        const store = useSocketConnectionStore();
+
+        store.bindEvents();
+        store.reloadClientData();
+
+        await flushPromises();
+
+        expect(socketMocks.emit).toHaveBeenCalledTimes(2); // First time on connect
+        expect(socketMocks.emit).toHaveBeenCalledWith("clientDataReq");
     });
 
     it("sets the state after disconnecting", () => {
@@ -115,5 +129,20 @@ describe("socketConnection", () => {
         await flushPromises();
 
         expect(localStorage.getItem("syncVersion")).toEqual("42");
+    });
+
+    it("can convert an access map to groups per docType for a given permission", () => {
+        const accessMap: AccessMap = {
+            group1: {
+                [DocType.Post]: {
+                    view: true,
+                    assign: true,
+                },
+            },
+        };
+
+        const groups = accessMapToGroups(accessMap, AclPermission.View);
+
+        expect(groups[DocType.Post]).toEqual(["group1"]);
     });
 });
