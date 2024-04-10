@@ -5,7 +5,7 @@ export const runAfterAuth0IsLoaded = async (callback: Function) => {
     const { isLoading } = useAuth0();
 
     const fn = async () => {
-        callback();
+        await callback();
     };
 
     if (!isLoading.value) {

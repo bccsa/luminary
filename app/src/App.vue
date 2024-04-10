@@ -5,7 +5,6 @@ import TopBar from "@/components/navigation/TopBar.vue";
 import { onBeforeMount } from "vue";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { getSocket, initSocket } from "@/socket";
-import { watchEffectOnceAsync } from "./util/watchEffectOnce";
 import { runAfterAuth0IsLoaded } from "./util/runAfterAuth0IsLoaded";
 
 const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();

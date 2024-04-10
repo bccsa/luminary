@@ -1,11 +1,11 @@
-import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
+import { runAfterAuth0IsLoaded } from "@/util/runAfterAuth0IsLoaded";
 import { useAuth0 } from "@auth0/auth0-vue";
 import type { NavigationGuard } from "vue-router";
 
 export const isNotAuthenticatedGuard: NavigationGuard = async (to, from, next) => {
-    const { isAuthenticated, isLoading } = useAuth0();
+    const { isAuthenticated } = useAuth0();
 
-    const fn = async () => {
+    const callback = async () => {
         if (isAuthenticated.value) {
             return next(from);
         }
@@ -13,11 +13,5 @@ export const isNotAuthenticatedGuard: NavigationGuard = async (to, from, next) =
         return next();
     };
 
-    if (!isLoading.value) {
-        return fn();
-    }
-
-    await watchEffectOnceAsync(() => !isLoading.value);
-
-    return fn();
+    await runAfterAuth0IsLoaded(callback);
 };
