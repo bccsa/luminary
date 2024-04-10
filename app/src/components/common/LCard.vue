@@ -26,7 +26,7 @@ function collapse() {
 </script>
 
 <template>
-    <div class="overflow-hidden rounded-md border border-zinc-100 bg-white shadow">
+    <div class="overflow-hidden rounded-lg border border-zinc-100 bg-white shadow">
         <div
             v-if="title || icon"
             :class="[
@@ -37,7 +37,7 @@ function collapse() {
         >
             <div class="flex items-center gap-2">
                 <component v-if="icon" :is="icon" class="h-4 w-4 text-zinc-600" />
-                <h3 class="text-sm font-semibold leading-6 text-zinc-900">{{ title }}</h3>
+                <h3 class="text-lg font-semibold leading-6 text-zinc-900">{{ title }}</h3>
             </div>
             <button v-if="collapsible">
                 <ChevronDownIcon

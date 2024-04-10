@@ -6,6 +6,8 @@ import HomePage from "../pages/HomePage.vue";
 import { authGuard } from "@auth0/auth0-vue";
 import SinglePost from "@/pages/SinglePost.vue";
 import SettingsPage from "@/pages/SettingsPage.vue";
+import LoginPage from "@/pages/LoginPage.vue";
+import { isNotAuthenticatedGuard } from "@/guards/isNotAuthenticatedGuard";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -19,36 +21,38 @@ const router = createRouter({
     routes: [
         {
             path: "/",
-            beforeEnter: authGuard,
-            children: [
-                {
-                    path: "/",
-                    component: HomePage,
-                    name: "home",
-                    meta: {
-                        title: "Home",
-                    },
-                },
-
-                {
-                    path: "/settings",
-                    component: SettingsPage,
-                    name: "settings",
-                    meta: {
-                        title: "Settings",
-                    },
-                },
-                {
-                    path: "/:slug",
-                    component: SinglePost,
-                    name: "post",
-                },
-                {
-                    path: "/:pathMatch(.*)*",
-                    name: "404",
-                    component: NotFoundPage,
-                },
-            ],
+            component: HomePage,
+            name: "home",
+            meta: {
+                title: "Home",
+            },
+        },
+        {
+            path: "/login",
+            component: LoginPage,
+            name: "login",
+            meta: {
+                title: "Log in",
+            },
+            beforeEnter: isNotAuthenticatedGuard,
+        },
+        {
+            path: "/settings",
+            component: SettingsPage,
+            name: "settings",
+            meta: {
+                title: "Settings",
+            },
+        },
+        {
+            path: "/:slug",
+            component: SinglePost,
+            name: "post",
+        },
+        {
+            path: "/:pathMatch(.*)*",
+            name: "404",
+            component: NotFoundPage,
         },
     ],
 });

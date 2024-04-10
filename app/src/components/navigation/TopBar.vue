@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { PlayCircleIcon, ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
-import { useRoute } from "vue-router";
+import { useRoute, RouterLink } from "vue-router";
+import { useAuth0 } from "@auth0/auth0-vue";
+import LButton from "@/components/button/LButton.vue";
 
 const route = useRoute();
+const { isAuthenticated } = useAuth0();
 </script>
 
 <template>
@@ -32,8 +35,13 @@ const route = useRoute();
                 </div>
             </RouterLink>
 
-            <div>
+            <div v-if="isAuthenticated">
                 <ProfileMenu />
+            </div>
+            <div v-else>
+                <LButton variant="primary" size="lg" :is="RouterLink" :to="{ name: 'login' }">
+                    Log in
+                </LButton>
             </div>
         </div>
     </header>

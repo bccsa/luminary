@@ -20,23 +20,26 @@ withDefaults(defineProps<Props>(), {
 
 const variants = {
     primary:
-        "bg-zinc-900 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-900/90 active:bg-zinc-900/80 disabled:bg-zinc-500 disabled:text-zinc-100 disabled:ring-zinc-500",
+        "bg-yellow-300 ring-1 shadow-sm text-yellow-900 ring-yellow-400/60 hover:bg-yellow-400/90 active:bg-yellow-500/80 disabled:bg-yellow-200 disabled:text-yellow-500 disabled:ring-yellow-200",
     secondary:
         "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100 disabled:bg-zinc-100 disabled:text-zinc-500",
     tertiary:
         "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
+    bcc: "bg-bcc-brand-600 ring-1 shadow-sm text-bcc-brand-50 ring-bcc-brand-700/60 hover:bg-bcc-brand-600/80 active:bg-bcc-brand-700/70 hover:ring-bcc-brand-500/90",
 };
 
 const iconVariants = {
     primary: "text-zinc-100 group-hover:text-zinc-50 group-active:text-white",
     secondary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
     tertiary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
+    bcc: "text-bcc-brand-100 group-hover:text-bcc-brand-50 group-active:text-white",
 };
 
 const sizes = {
-    sm: "px-2 py-1.5",
-    base: "px-3 py-2",
-    lg: "px-3.5 py-2.5",
+    sm: "px-2 py-1.5 text-sm",
+    base: "px-3 py-2 text-sm",
+    lg: "px-3.5 py-2.5 text-sm",
+    xl: "px-4 py-3",
 };
 </script>
 
@@ -47,14 +50,16 @@ const sizes = {
         :class="[
             variants[variant],
             sizes[size],
-            'group inline-flex items-center justify-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed',
+            'group inline-flex items-center justify-center gap-x-1.5 rounded-full  font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed',
         ]"
     >
         <component
             v-if="icon"
             :is="icon"
-            class="order-2 h-5 w-5"
+            class="order-2"
             :class="{
+                'h-5 w-5': size != 'xl',
+                'mr-0.5 h-6 w-6': size == 'xl',
                 [iconVariants[variant]]: $slots.default,
                 '-mr-0.5': iconRight && $slots.default,
                 '-ml-0.5': !iconRight && $slots.default,
