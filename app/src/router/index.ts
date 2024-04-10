@@ -3,7 +3,6 @@ import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import NotFoundPage from "../pages/NotFoundPage.vue";
 import HomePage from "../pages/HomePage.vue";
-import { authGuard } from "@auth0/auth0-vue";
 import SinglePost from "@/pages/SinglePost.vue";
 import SettingsPage from "@/pages/SettingsPage.vue";
 import LoginPage from "@/pages/LoginPage.vue";

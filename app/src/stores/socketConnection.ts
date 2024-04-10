@@ -3,7 +3,6 @@ import { getSocket } from "@/socket";
 import {
     DocType,
     type ApiDataResponseDto,
-    type ChangeReqAckDto,
     AclPermission,
     type Uuid,
     type AccessMap,
