@@ -54,6 +54,9 @@ const router = createRouter({
 });
 
 router.afterEach((to) => {
+    // We handle posts in their own component
+    if (to.name == "post") return;
+
     const { appName } = useGlobalConfigStore();
 
     nextTick(() => {
