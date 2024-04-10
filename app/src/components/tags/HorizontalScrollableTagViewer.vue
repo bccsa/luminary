@@ -64,7 +64,11 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 
 <template>
     <div>
-        <h2 class="px-4">{{ tag.content[0]?.title }}</h2>
+        <h2 class="truncate px-4">
+            {{ tag.content[0]?.title }}
+            <span class="ml-1 text-sm text-zinc-500">{{ tag.content[0]?.summary }}</span>
+        </h2>
+
         <div class="relative">
             <ArrowLeftCircleIcon
                 v-if="showLeftSpin"
