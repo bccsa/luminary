@@ -9,7 +9,6 @@ import { usePostStore } from "./post";
 
 export const useTagStore = defineStore("category", () => {
     const tagRepository = new TagRepository();
-    const postStore = usePostStore();
 
     const tags: Readonly<Ref<Tag[] | undefined>> = useObservable(
         liveQuery(async () => {
@@ -36,13 +35,12 @@ export const useTagStore = defineStore("category", () => {
      */
     const tagsByTagType = computed(() => {
         return (tagType: TagType) => {
-            if (postStore) {
-                return tags.value?.filter((t) => {
-                    const posts = postStore.postsByTag(t._id, {});
-                    return t.tagType == tagType && posts && posts.length > 0;
-                });
-            }
-            return [];
+            const postStore = usePostStore();
+
+            return tags.value?.filter((t) => {
+                const posts = postStore.postsByTag(t._id, {});
+                return t.tagType == tagType && posts && posts.length > 0;
+            });
         };
     });
 
