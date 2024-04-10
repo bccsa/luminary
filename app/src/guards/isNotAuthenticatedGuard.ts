@@ -1,4 +1,4 @@
-import { runAfterAuth0IsLoaded } from "@/util/runAfterAuth0IsLoaded";
+import { waitUntilAuth0IsLoaded } from "@/util/waitUntilAuth0IsLoaded";
 import { useAuth0 } from "@auth0/auth0-vue";
 import type { NavigationGuard } from "vue-router";
 
@@ -13,5 +13,5 @@ export const isNotAuthenticatedGuard: NavigationGuard = async (to, from, next) =
         return next();
     };
 
-    await runAfterAuth0IsLoaded(callback);
+    await waitUntilAuth0IsLoaded(callback);
 };

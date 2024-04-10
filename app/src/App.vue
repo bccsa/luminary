@@ -5,9 +5,9 @@ import TopBar from "@/components/navigation/TopBar.vue";
 import { onBeforeMount } from "vue";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { getSocket, initSocket } from "@/socket";
-import { runAfterAuth0IsLoaded } from "./util/runAfterAuth0IsLoaded";
+import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 
-const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
+const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 const socketConnectionStore = useSocketConnectionStore();
 
 const socket = getSocket();
@@ -28,7 +28,7 @@ const connectToSocket = async () => {
 };
 
 onBeforeMount(async () => {
-    await runAfterAuth0IsLoaded(connectToSocket);
+    await waitUntilAuth0IsLoaded(connectToSocket);
 });
 </script>
 
@@ -39,3 +39,4 @@ onBeforeMount(async () => {
         <RouterView />
     </main>
 </template>
+./util/waitUntilAuth0IsLoaded
