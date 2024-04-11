@@ -32,6 +32,7 @@ vi.mock("vue-router", () => ({
             language: routeLanguage,
         },
     })),
+    onBeforeRouteLeave: vi.fn(),
 }));
 
 const docsDb = vi.hoisted(() => {
