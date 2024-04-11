@@ -28,10 +28,21 @@ const loginAsGuest = async () => {
     <div class="mx-auto max-w-lg">
         <LCard title="Log in">
             <div class="flex flex-col gap-5">
-                <LButton @click="loginWithBcc" variant="bcc" size="xl" :icon="BccLogo">
+                <LButton
+                    @click="loginWithBcc"
+                    variant="bcc"
+                    size="xl"
+                    :icon="BccLogo"
+                    data-test="login-bcc"
+                >
                     Log in with BCC
                 </LButton>
-                <LButton @click="loginAsGuest" variant="secondary" size="xl">
+                <LButton
+                    @click="loginAsGuest"
+                    variant="secondary"
+                    size="xl"
+                    data-test="login-guest"
+                >
                     Log in as guest
                 </LButton>
             </div>

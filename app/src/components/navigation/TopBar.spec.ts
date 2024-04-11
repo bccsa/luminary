@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { RouterLinkStub, mount } from "@vue/test-utils";
 import TopBar from "./TopBar.vue";
 import * as auth0 from "@auth0/auth0-vue";
-import { setActivePinia, createPinia } from "pinia";
 import { ref } from "vue";
 import ProfileMenu from "./ProfileMenu.vue";
 
@@ -16,14 +15,6 @@ vi.mock("vue-router", () => ({
 }));
 
 describe("TopBar", () => {
-    beforeEach(() => {
-        setActivePinia(createPinia());
-    });
-
-    afterEach(() => {
-        vi.clearAllMocks();
-    });
-
     it("shows a login button when logged out", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
