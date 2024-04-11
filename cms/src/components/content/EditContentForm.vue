@@ -126,6 +126,9 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     let publishDate;
     if (contentValues.publishDate) {
         publishDate = DateTime.fromJSDate(contentValues.publishDate);
+    } else if (status == ContentStatus.Published) {
+        publishDate = DateTime.now();
+        setValues({ publishDate: publishDate.toISO()?.split(".")[0] as unknown as Date });
     }
 
     const content: Content = {
@@ -177,10 +180,10 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
 
 const canPublish = computed(() => {
     if (props.ruleset == "tag") {
-        return hasPublishDate.value && hasParentImage.value;
+        return hasParentImage.value;
     }
 
-    return hasOneContentField.value && hasPublishDate.value && hasParentImage.value && hasTag.value;
+    return hasOneContentField.value && hasParentImage.value && hasTag.value;
 });
 const hasOneContentField = computed(() => {
     return (
@@ -188,10 +191,6 @@ const hasOneContentField = computed(() => {
         (values.audio != undefined && values.audio?.trim() != "") ||
         (values.video != undefined && values.video?.trim() != "")
     );
-});
-const hasPublishDate = computed(() => {
-    // @ts-ignore The browser resets the date to empty string when clicking 'Clear'
-    return values.publishDate != undefined && values.publishDate != "";
 });
 const hasParentImage = computed(() => {
     return values.parent?.image != undefined;
@@ -454,12 +453,6 @@ const initializeText = () => {
                                         <p>
                                             At least one of text, audio or video content is required
                                         </p>
-                                    </div>
-                                    <div v-if="!hasPublishDate" class="flex gap-2">
-                                        <p>
-                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
-                                        </p>
-                                        <p>Publish date is required</p>
                                     </div>
                                     <div v-if="!hasTag && ruleset == 'post'" class="flex gap-2">
                                         <p>
