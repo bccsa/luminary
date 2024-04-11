@@ -44,7 +44,7 @@ const { isAuthenticated } = useAuth0();
                     size="lg"
                     :is="RouterLink"
                     :to="{ name: 'login' }"
-                    :rounded="false"
+                    rounding="less"
                 >
                     Log in
                 </LButton>

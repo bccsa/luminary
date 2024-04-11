@@ -8,7 +8,7 @@ type Props = {
     icon?: Component | Function;
     iconRight?: boolean;
     disabled?: boolean;
-    rounded?: boolean;
+    rounding?: "default" | "less";
 };
 
 withDefaults(defineProps<Props>(), {
@@ -17,7 +17,7 @@ withDefaults(defineProps<Props>(), {
     size: "base",
     iconRight: false,
     disabled: false,
-    rounded: true,
+    rounding: "default",
 });
 
 const variants = {
@@ -44,9 +44,9 @@ const sizes = {
     xl: "px-4.5 py-3",
 };
 
-const rounding = {
-    true: "rounded-full",
-    false: "rounded-lg",
+const roundingClasses = {
+    default: "rounded-full",
+    less: "rounded-lg",
 };
 </script>
 
@@ -57,7 +57,7 @@ const rounding = {
         :class="[
             variants[variant],
             sizes[size],
-            rounding[rounded],
+            roundingClasses[rounding],
             'group inline-flex items-center justify-center gap-x-1.5 font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed',
         ]"
     >
