@@ -39,7 +39,13 @@ const { isAuthenticated } = useAuth0();
                 <ProfileMenu />
             </div>
             <div v-else>
-                <LButton variant="primary" size="lg" :is="RouterLink" :to="{ name: 'login' }">
+                <LButton
+                    variant="primary"
+                    size="lg"
+                    :is="RouterLink"
+                    :to="{ name: 'login' }"
+                    :rounded="false"
+                >
                     Log in
                 </LButton>
             </div>
