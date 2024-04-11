@@ -14,6 +14,7 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import RichTextEditor from "./RichTextEditor.vue";
 import { useNotificationStore } from "@/stores/notification";
+import { DateTime, Settings } from "luxon";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -50,6 +51,7 @@ describe("EditContentForm", () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+        Settings.resetCaches();
     });
 
     it("can save as draft", async () => {
@@ -276,7 +278,6 @@ describe("EditContentForm", () => {
                 const saveEvent: any = wrapper.emitted("save");
                 expect(saveEvent).toBe(undefined);
 
-                expect(wrapper.text()).toContain("Publish date is required");
                 expect(wrapper.text()).toContain(
                     "At least one of text, audio or video content is required",
                 );
@@ -302,7 +303,6 @@ describe("EditContentForm", () => {
                 const saveEvent: any = wrapper.emitted("save");
                 expect(saveEvent).toBe(undefined);
 
-                expect(wrapper.text()).toContain("Publish date is required");
                 expect(wrapper.text()).not.toContain(
                     "At least one of text, audio or video content is required",
                 );
@@ -329,6 +329,61 @@ describe("EditContentForm", () => {
                         state: "success",
                     }),
                 );
+            });
+        });
+
+        it("sets a default for the publish date when publishing", async () => {
+            const currentTime = DateTime.fromISO("2024-04-22T10:42:00.00");
+            Settings.now = () => currentTime.toMillis();
+            const content = { ...mockEnglishContent };
+            content.publishDate = undefined;
+
+            const wrapper = mount(EditContentForm, {
+                props: {
+                    parent: {
+                        ...mockPost,
+                        content: [content],
+                    },
+                    content: content,
+                    ruleset: "post",
+                },
+            });
+
+            await wrapper.find(publishButton).trigger("click");
+
+            await waitForExpect(() => {
+                const saveEvent: any = wrapper.emitted("save");
+                expect(saveEvent).not.toBe(undefined);
+
+                expect(saveEvent![0][0].publishDate).toEqual(currentTime);
+            });
+        });
+
+        it("doesn't set the publish date if one is set already", async () => {
+            const currentTime = DateTime.fromISO("2024-04-22T10:42:00.00");
+            const publishDate = DateTime.fromISO("2024-01-31T00:00:00.00");
+            Settings.now = () => currentTime.toMillis();
+            const content = { ...mockEnglishContent };
+            content.publishDate = publishDate;
+
+            const wrapper = mount(EditContentForm, {
+                props: {
+                    parent: {
+                        ...mockPost,
+                        content: [content],
+                    },
+                    content: content,
+                    ruleset: "post",
+                },
+            });
+
+            await wrapper.find(publishButton).trigger("click");
+
+            await waitForExpect(() => {
+                const saveEvent: any = wrapper.emitted("save");
+                expect(saveEvent).not.toBe(undefined);
+
+                expect(saveEvent![0][0].publishDate).toEqual(publishDate);
             });
         });
 
