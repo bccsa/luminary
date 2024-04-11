@@ -22,7 +22,7 @@ const variants = {
     primary:
         "bg-zinc-900 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-900/90 active:bg-zinc-900/80 disabled:bg-zinc-500 disabled:text-zinc-100 disabled:ring-zinc-500",
     secondary:
-        "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100 disabled:bg-zinc-100 disabled:text-zinc-500",
+        "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-100 active:bg-zinc-200/70 disabled:bg-zinc-100 disabled:text-zinc-500",
     tertiary:
         "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
 };

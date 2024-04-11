@@ -18,7 +18,7 @@ const deleteLocalData = async () => {
         <h1 class="mb-4 text-xl font-medium">Settings</h1>
 
         <LCard title="Local cache">
-            <div class="mb-4 text-sm text-zinc-600">
+            <div class="mb-4 text-sm text-zinc-600 dark:text-zinc-100">
                 Most data is saved locally on your device. If you experience problems, try deleting
                 all local data. Depending on the amount of available data on the server, it can take
                 some time before all data is available again.

@@ -2,17 +2,29 @@
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import VideoPlayer from "@/components/posts/VideoPlayer.vue";
 import { usePostStore } from "@/stores/post";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { DateTime } from "luxon";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 const route = useRoute();
 const postStore = usePostStore();
+const { appName } = useGlobalConfigStore();
 
 const slug = route.params.slug as string;
 
 const post = computed(() => postStore.post(slug));
+
+watch(
+    post,
+    (newPost) => {
+        if (newPost) {
+            document.title = `${newPost.content[0].title} - ${appName}`;
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
