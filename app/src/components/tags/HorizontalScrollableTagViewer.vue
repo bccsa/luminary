@@ -2,7 +2,7 @@
 import type { Tag } from "@/types";
 import PostTile from "@/components/posts/PostTile.vue";
 import { usePostStore } from "@/stores/post";
-import type { postSortOptions } from "@/stores/post";
+import type { postQueryOptions } from "@/stores/post";
 import { storeToRefs } from "pinia";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref } from "vue";
@@ -14,7 +14,7 @@ const { postsByTag } = storeToRefs(postStore);
 
 type Props = {
     tag: Tag;
-    sortOptions?: postSortOptions;
+    queryOptions?: postQueryOptions;
 };
 defineProps<Props>();
 
@@ -90,7 +90,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-4">
                     <PostTile
-                        v-for="post in postsByTag(tag._id, sortOptions)"
+                        v-for="post in postsByTag(tag._id, queryOptions)"
                         :key="post._id"
                         :post="post"
                         class="w-40 overflow-clip md:w-60"
