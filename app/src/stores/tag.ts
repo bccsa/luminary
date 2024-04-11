@@ -82,84 +82,71 @@ function tagQuery(
     pinned?: "pinned" | "unpinned" | "any",
 ) {
     const postStore = usePostStore();
-    if (postStore) {
-        // query with optional filtering
-        let res = tags.value?.filter((t) => {
-            const posts = postStore.postsByTag(t._id, {});
+    // query with optional filtering
+    let res = tags.value?.filter((t) => {
+        const posts = postStore.postsByTag(t._id, {});
 
-            let filter1 = true;
-            if (
-                queryOptions &&
-                queryOptions.filterOptions &&
-                queryOptions.filterOptions.topLevelOnly
-            ) {
-                filter1 = !t.tags.some((t) => t.tagType == tagType);
-            }
-
-            let filter2 = true;
-            if (
-                !queryOptions ||
-                !queryOptions.filterOptions ||
-                !queryOptions.filterOptions.includeEmpty
-            ) {
-                filter2 = posts != undefined && posts.length > 0;
-            }
-
-            let filter3 = true;
-            if (pinned == "pinned") {
-                filter3 = t.pinned;
-            } else if (pinned == "unpinned") {
-                filter3 = !t.pinned;
-            }
-
-            return t.tagType == tagType && filter1 && filter2 && filter3;
-        });
-
-        // sorting
-        if (res && queryOptions && queryOptions.sortOptions) {
-            if (queryOptions.sortOptions.sortBy == "title") {
-                res = res.sort((a, b) => a.content[0].title.localeCompare(b.content[0].title));
-            }
-
-            if (queryOptions.sortOptions.sortBy == "publishDate") {
-                res = res.sort((a, b) => {
-                    const newestPostA = postStore.postsByTag(a._id, {
-                        sortOptions: { sortBy: "publishDate", sortOrder: "desc" },
-                        filterOptions: { top: 1 },
-                    });
-                    const newestPostB = postStore.postsByTag(b._id, {
-                        sortOptions: { sortBy: "publishDate", sortOrder: "desc" },
-                        filterOptions: { top: 1 },
-                    });
-                    if (
-                        !newestPostA ||
-                        !newestPostB ||
-                        !newestPostA[0] ||
-                        !newestPostB[0] ||
-                        !newestPostA[0].content[0] ||
-                        !newestPostB[0].content[0] ||
-                        !newestPostA[0].content[0].publishDate ||
-                        !newestPostB[0].content[0].publishDate
-                    )
-                        return 0;
-                    if (
-                        newestPostA[0].content[0].publishDate <
-                        newestPostB[0].content[0].publishDate
-                    )
-                        return -1;
-                    if (
-                        newestPostA[0].content[0].publishDate >
-                        newestPostB[0].content[0].publishDate
-                    )
-                        return 1;
-                    return 0;
-                });
-            }
-
-            if (queryOptions.sortOptions.sortOrder == "desc") res = res.reverse();
+        let filter1 = true;
+        if (queryOptions && queryOptions.filterOptions && queryOptions.filterOptions.topLevelOnly) {
+            filter1 = !t.tags.some((t) => t.tagType == tagType);
         }
 
-        return res || [];
+        let filter2 = true;
+        if (
+            !queryOptions ||
+            !queryOptions.filterOptions ||
+            !queryOptions.filterOptions.includeEmpty
+        ) {
+            filter2 = posts != undefined && posts.length > 0;
+        }
+
+        let filter3 = true;
+        if (pinned == "pinned") {
+            filter3 = t.pinned;
+        } else if (pinned == "unpinned") {
+            filter3 = !t.pinned;
+        }
+
+        return t.tagType == tagType && filter1 && filter2 && filter3;
+    });
+
+    // sorting
+    if (res && queryOptions && queryOptions.sortOptions) {
+        if (queryOptions.sortOptions.sortBy == "title") {
+            res = res.sort((a, b) => a.content[0].title.localeCompare(b.content[0].title));
+        }
+
+        if (queryOptions.sortOptions.sortBy == "publishDate") {
+            res = res.sort((a, b) => {
+                const newestPostA = postStore.postsByTag(a._id, {
+                    sortOptions: { sortBy: "publishDate", sortOrder: "desc" },
+                    filterOptions: { top: 1 },
+                });
+                const newestPostB = postStore.postsByTag(b._id, {
+                    sortOptions: { sortBy: "publishDate", sortOrder: "desc" },
+                    filterOptions: { top: 1 },
+                });
+                if (
+                    !newestPostA ||
+                    !newestPostB ||
+                    !newestPostA[0] ||
+                    !newestPostB[0] ||
+                    !newestPostA[0].content[0] ||
+                    !newestPostB[0].content[0] ||
+                    !newestPostA[0].content[0].publishDate ||
+                    !newestPostB[0].content[0].publishDate
+                )
+                    return 0;
+                if (newestPostA[0].content[0].publishDate < newestPostB[0].content[0].publishDate)
+                    return -1;
+                if (newestPostA[0].content[0].publishDate > newestPostB[0].content[0].publishDate)
+                    return 1;
+                return 0;
+            });
+        }
+
+        if (queryOptions.sortOptions.sortOrder == "desc") res = res.reverse();
     }
-    return [];
+
+    return res || [];
 }

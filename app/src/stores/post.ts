@@ -65,13 +65,10 @@ export const usePostStore = defineStore("post", () => {
                 return p.tags.some((t) => t._id == tagId);
             });
 
+            if (!res) return [];
+
             // optional sorting
-            if (
-                res &&
-                queryOptions &&
-                queryOptions.sortOptions &&
-                queryOptions.sortOptions.sortBy
-            ) {
+            if (queryOptions && queryOptions.sortOptions && queryOptions.sortOptions.sortBy) {
                 if (queryOptions.sortOptions.sortBy == "publishDate") {
                     res = res?.sort((a, b) => {
                         if (!a.content[0].publishDate || !b.content[0].publishDate) return 0;
@@ -89,22 +86,12 @@ export const usePostStore = defineStore("post", () => {
             }
 
             // Optional top filter
-            if (
-                res &&
-                queryOptions &&
-                queryOptions.filterOptions &&
-                queryOptions.filterOptions.top
-            ) {
+            if (queryOptions && queryOptions.filterOptions && queryOptions.filterOptions.top) {
                 res = res?.slice(0, queryOptions.filterOptions.top);
             }
 
             // Optional bottom filter
-            if (
-                res &&
-                queryOptions &&
-                queryOptions.filterOptions &&
-                queryOptions.filterOptions.bottom
-            ) {
+            if (queryOptions && queryOptions.filterOptions && queryOptions.filterOptions.bottom) {
                 res = res?.slice(-queryOptions.filterOptions.bottom);
             }
 
