@@ -31,7 +31,7 @@ import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import { useNotificationStore } from "@/stores/notification";
 import LModal from "@/components/common/LModal.vue";
-import { RouteLocationRaw, onBeforeRouteLeave, useRouter } from "vue-router";
+import { useConfirmBeforeLeaving } from "@/composables/confirmBeforeLeaving";
 
 const EMPTY_TEXT = "<p></p>";
 
@@ -45,7 +45,6 @@ const props = defineProps<Props>();
 
 const emit = defineEmits(["save"]);
 
-const router = useRouter();
 const { isLocalChange } = useLocalChangeStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
 const { addNotification } = useNotificationStore();
@@ -74,8 +73,9 @@ const text = ref<string>();
 // @ts-ignore Pinned property does not exist on Post, which is why we check if it exists
 const pinned = ref(props.parent.pinned ?? false);
 
-const openModal = ref(false);
-const leavingTo = ref<RouteLocationRaw>();
+const isDirty = ref(false);
+const { isModalOpen, closeModalWithoutLeaving, closeModalAndLeave } =
+    useConfirmBeforeLeaving(isDirty);
 
 const validationSchema = toTypedSchema(
     yup.object({
@@ -124,29 +124,6 @@ onBeforeMount(() => {
 
     text.value = filteredContent.text;
 });
-
-onBeforeRouteLeave((to) => {
-    if (isDirty.value && !leavingTo.value) {
-        openModal.value = true;
-        leavingTo.value = to;
-        return false;
-    }
-});
-
-const closeModal = () => {
-    openModal.value = false;
-    leavingTo.value = undefined;
-};
-
-const leaveTo = async () => {
-    openModal.value = false;
-
-    if (!leavingTo.value) {
-        return;
-    }
-
-    return await router.push(leavingTo.value);
-};
 
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
     // Make sure we don't accidentally add the 'parent' object to the content
@@ -228,7 +205,6 @@ const hasTag = computed(() => {
     return selectedTags.value.length > 0;
 });
 
-const isDirty = ref(false);
 const isEditingSlug = ref(false);
 const slugInput = ref<HTMLInputElement | undefined>(undefined);
 
@@ -549,17 +525,23 @@ const initializeText = () => {
         </div>
 
         <LModal
-            v-model:open="openModal"
+            v-model:open="isModalOpen"
             title="Are you sure you want to leave the page?"
             description="You have unsaved changes. If you leave now these changes are not saved."
         >
             <template #primaryAction>
-                <LButton @click="closeModal" variant="primary" class="inline-flex w-full sm:w-auto">
+                <LButton
+                    @click="closeModalWithoutLeaving"
+                    variant="primary"
+                    class="inline-flex w-full sm:w-auto"
+                >
                     Stay on page
                 </LButton>
             </template>
             <template #secondaryAction>
-                <LButton @click="leaveTo" class="inline-flex w-full sm:w-auto"> Leave </LButton>
+                <LButton @click="closeModalAndLeave" class="inline-flex w-full sm:w-auto">
+                    Leave
+                </LButton>
             </template>
         </LModal>
     </form>
