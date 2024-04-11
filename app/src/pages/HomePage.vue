@@ -13,7 +13,7 @@ const { isAuthenticated } = useAuth0();
 </script>
 
 <template>
-    <div v-if="posts && posts.length == 0" class="text-zinc-800">
+    <div v-if="posts && posts.length == 0" class="text-zinc-800 dark:text-zinc-100">
         <div v-if="isAuthenticated">
             <p>
                 You don't have access to any content. If you believe this is an error, send your
