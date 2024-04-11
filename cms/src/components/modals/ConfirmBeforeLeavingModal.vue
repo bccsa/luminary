@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, toRefs } from "vue";
-import { useConfirmBeforeLeaving } from "@/composables/confirmBeforeLeaving";
 import LModal from "@/components/common/LModal.vue";
 import { onBeforeRouteLeave, useRouter, type RouteLocationRaw } from "vue-router";
 
@@ -25,12 +24,12 @@ onBeforeRouteLeave((to) => {
     }
 });
 
-const closeModalWithoutLeaving = () => {
+const closeWithoutLeaving = () => {
     isModalOpen.value = false;
     leavingTo.value = undefined;
 };
 
-const closeModalAndLeave = async () => {
+const leave = async () => {
     isModalOpen.value = false;
 
     if (!leavingTo.value) {
@@ -46,20 +45,9 @@ const closeModalAndLeave = async () => {
         v-model:open="isModalOpen"
         title="Are you sure you want to leave the page?"
         description="You have unsaved changes. If you leave now these changes are not saved."
-    >
-        <template #primaryAction>
-            <LButton
-                @click="closeModalWithoutLeaving"
-                variant="primary"
-                class="inline-flex w-full sm:w-auto"
-            >
-                Stay on page
-            </LButton>
-        </template>
-        <template #secondaryAction>
-            <LButton @click="closeModalAndLeave" class="inline-flex w-full sm:w-auto">
-                Leave
-            </LButton>
-        </template>
-    </LModal>
+        primaryButtonText="Stay on page"
+        secondaryButtonText="Leave"
+        :primaryAction="closeWithoutLeaving"
+        :secondaryAction="leave"
+    />
 </template>

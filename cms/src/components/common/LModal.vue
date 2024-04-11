@@ -7,6 +7,10 @@ type Props = {
     open?: boolean;
     title: string;
     description?: string;
+    primaryAction: Function;
+    secondaryAction?: Function;
+    primaryButtonText: string;
+    secondaryButtonText?: string;
 };
 
 withDefaults(defineProps<Props>(), {
@@ -77,18 +81,21 @@ const close = () => {
                             </div>
                             <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                                 <span class="block sm:ml-3">
-                                    <slot name="primaryAction">
-                                        <LButton
-                                            @click="close"
-                                            class="inline-flex w-full sm:w-auto"
-                                        >
-                                            OK
-                                        </LButton>
-                                    </slot>
+                                    <LButton
+                                        @click="primaryAction()"
+                                        variant="primary"
+                                        class="inline-flex w-full sm:w-auto"
+                                    >
+                                        {{ primaryButtonText }}
+                                    </LButton>
                                 </span>
-                                <span class="mt-3 block sm:mt-0" v-if="$slots.secondaryAction">
-                                    <slot name="secondaryAction" />
-                                </span>
+                                <LButton
+                                    @click="secondaryAction()"
+                                    class="inline-flex w-full sm:w-auto"
+                                    v-if="secondaryAction && secondaryButtonText"
+                                >
+                                    {{ secondaryButtonText }}
+                                </LButton>
                             </div>
                         </DialogPanel>
                     </TransitionChild>

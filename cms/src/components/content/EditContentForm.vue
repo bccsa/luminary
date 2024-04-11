@@ -29,9 +29,8 @@ import { capitalizeFirstLetter } from "@/util/string";
 import RichTextEditor from "@/components/content/RichTextEditor.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
+import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import { useNotificationStore } from "@/stores/notification";
-import LModal from "@/components/common/LModal.vue";
-import { useConfirmBeforeLeaving } from "@/composables/confirmBeforeLeaving";
 
 const EMPTY_TEXT = "<p></p>";
 
@@ -74,8 +73,6 @@ const text = ref<string>();
 const pinned = ref(props.parent.pinned ?? false);
 
 const isDirty = ref(false);
-const { isModalOpen, closeModalWithoutLeaving, closeModalAndLeave } =
-    useConfirmBeforeLeaving(isDirty);
 
 const validationSchema = toTypedSchema(
     yup.object({
@@ -524,25 +521,6 @@ const initializeText = () => {
             </div>
         </div>
 
-        <LModal
-            v-model:open="isModalOpen"
-            title="Are you sure you want to leave the page?"
-            description="You have unsaved changes. If you leave now these changes are not saved."
-        >
-            <template #primaryAction>
-                <LButton
-                    @click="closeModalWithoutLeaving"
-                    variant="primary"
-                    class="inline-flex w-full sm:w-auto"
-                >
-                    Stay on page
-                </LButton>
-            </template>
-            <template #secondaryAction>
-                <LButton @click="closeModalAndLeave" class="inline-flex w-full sm:w-auto">
-                    Leave
-                </LButton>
-            </template>
-        </LModal>
+        <ConfirmBeforeLeavingModal :isDirty="isDirty" />
     </form>
 </template>
