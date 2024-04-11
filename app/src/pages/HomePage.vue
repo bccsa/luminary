@@ -15,12 +15,23 @@ const { tagsByTagType } = storeToRefs(tagStore);
         <div class="space-y-3">
             <!-- Display category tags -->
             <HorizontalScrollableTagViewer
-                v-for="tag in tagsByTagType(TagType.Category)"
+                v-for="tag in tagsByTagType(TagType.Category, {
+                    filterOptions: {
+                        topLevelOnly: true,
+                        includeEmpty: false,
+                    },
+                    sortOptions: {
+                        sortBy: 'publishDate',
+                        sortOrder: 'desc',
+                    },
+                })"
                 :key="tag._id"
                 :tag="tag"
-                :sortOptions="{
-                    sortBy: 'publishDate',
-                    sortOrder: 'asc',
+                :queryOptions="{
+                    sortOptions: {
+                        sortBy: 'publishDate',
+                        sortOrder: 'asc',
+                    },
                 }"
             />
         </div>
