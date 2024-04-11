@@ -43,11 +43,15 @@ const router = createRouter({
                 title: "Settings",
             },
         },
+
+        // Note that this route should always come after all defined routes,
+        // to prevent wrongly configured slugs from taking over pages
         {
             path: "/:slug",
             component: SinglePost,
             name: "post",
         },
+
         {
             path: "/:pathMatch(.*)*",
             name: "404",
