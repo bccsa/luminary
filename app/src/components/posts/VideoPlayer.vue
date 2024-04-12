@@ -82,7 +82,7 @@ onMounted(() => {
 }
 
 .vjs-control {
-    @apply !float-right !h-11 !w-11 !text-sm;
+    @apply !float-right !h-11 !w-11 !text-sm !outline-none;
 }
 
 .vjs-play-control {
@@ -119,7 +119,7 @@ onMounted(() => {
 }
 
 .vjs-menu {
-    @apply !left-11 !top-0;
+    @apply !left-11 !top-0 !outline-none;
 }
 
 .vjs-menu-content {
@@ -127,11 +127,18 @@ onMounted(() => {
 }
 
 .vjs-selected {
-    @apply !bg-zinc-300 font-bold;
+    @apply !bg-zinc-300 font-bold focus:!bg-zinc-300;
 }
 
+:not(.vjs-selected) {
+    @apply focus:!bg-transparent;
+}
+
+.vjs-menu-button {
+    @apply !outline-none;
+}
 .vjs-menu-item {
-    @apply !p-3 !text-sm;
+    @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
 }
 </style>
