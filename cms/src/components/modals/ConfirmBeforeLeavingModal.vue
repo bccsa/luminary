@@ -22,6 +22,7 @@ onBeforeRouteLeave((to) => {
         leavingTo.value = to;
         return false;
     }
+    return true;
 });
 
 const closeWithoutLeaving = () => {
