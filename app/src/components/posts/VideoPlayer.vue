@@ -2,7 +2,6 @@
 import type { Post, Tag } from "@/types";
 import videojs from "video.js";
 import "videojs-mobile-ui";
-import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
 import { onMounted, ref } from "vue";
 
 type Props = {
@@ -44,8 +43,9 @@ onMounted(() => {
 
 <style>
 @import "video.js/dist/video-js.min.css";
+@import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
 
-.vjs-tech {
+/* .vjs-tech {
     @apply !rounded-lg;
 }
 
@@ -130,7 +130,7 @@ onMounted(() => {
 .vjs-menu-item {
     @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
-}
+} */
 </style>
 
 <template>
