@@ -2,6 +2,7 @@
 import type { Post, Tag } from "@/types";
 import videojs from "video.js";
 import "videojs-mobile-ui";
+import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
 import { onMounted, ref } from "vue";
 
 type Props = {
