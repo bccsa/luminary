@@ -11,10 +11,12 @@ type Props = {
     secondaryAction?: Function;
     primaryButtonText: string;
     secondaryButtonText?: string;
+    context?: "default" | "danger";
 };
 
 withDefaults(defineProps<Props>(), {
     open: false,
+    context: "default",
 });
 
 const emit = defineEmits(["update:open"]);
@@ -58,13 +60,19 @@ const close = () => {
                             <div class="sm:flex sm:items-start">
                                 <div
                                     class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+                                    v-if="context == 'danger'"
                                 >
                                     <ExclamationTriangleIcon
                                         class="h-6 w-6 text-red-600"
                                         aria-hidden="true"
                                     />
                                 </div>
-                                <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                                <div
+                                    :class="[
+                                        'mt-3 text-center sm:mt-0 sm:text-left',
+                                        { 'sm:ml-4': context != 'default' },
+                                    ]"
+                                >
                                     <DialogTitle
                                         as="h3"
                                         class="text-base font-semibold leading-6 text-gray-900"
@@ -85,6 +93,7 @@ const close = () => {
                                         @click="primaryAction()"
                                         variant="primary"
                                         class="inline-flex w-full sm:w-auto"
+                                        :context="context"
                                     >
                                         {{ primaryButtonText }}
                                     </LButton>
