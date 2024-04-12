@@ -38,18 +38,7 @@ onMounted(() => {
     player.src({ type: "application/x-mpegURL", src: props.contentParent.content[0].video });
 
     //@ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
-    player.mobileUi({
-        fullscreen: {
-            enterOnRotate: true,
-            exitOnRotate: true,
-            lockOnRotate: true,
-            lockToLandscapeOnEnter: false,
-            disabled: false,
-        },
-        touchControls: {
-            disabled: true,
-        },
-    });
+    player.mobileUi();
 });
 </script>
 
