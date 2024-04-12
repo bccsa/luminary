@@ -2,8 +2,6 @@
 import type { Post, Tag } from "@/types";
 import videojs from "video.js";
 import "videojs-mobile-ui";
-// TODO: fix typings
-import type mobileUi from "videojs-mobile-ui";
 import { onMounted, ref } from "vue";
 
 type Props = {
@@ -15,7 +13,6 @@ const props = defineProps<Props>();
 const playerElement = ref<HTMLVideoElement>();
 
 onMounted(() => {
-    // TODO: Restrict startup bandwidth for live streaming
     let options = {
         fluid: false,
         html5: {
@@ -39,7 +36,7 @@ onMounted(() => {
     player.poster(props.contentParent.image);
     player.src({ type: "application/x-mpegURL", src: props.contentParent.content[0].video });
 
-    // @ts-ignore - videojs-mobile-ui
+    // @ts-ignore 2024-04-12 Typing of videojs-mobile-ui does not work
     player.mobileUi({
         fullscreen: {
             enterOnRotate: true,
@@ -99,6 +96,14 @@ onMounted(() => {
 .vjs-progress-control {
     @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
     width: calc(100% - 40px) !important;
+}
+
+.vjs-live-control {
+    @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
+}
+
+.vjs-live-display {
+    @apply p-3 pl-2;
 }
 
 .vjs-slider {
