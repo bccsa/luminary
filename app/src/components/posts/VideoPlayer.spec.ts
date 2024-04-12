@@ -14,6 +14,7 @@ vi.mock("video.js", () => {
             },
             poster: posterMock,
             src: srcMock,
+            mobileUi: () => {},
         };
     };
     defaultFunction.browser = {
