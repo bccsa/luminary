@@ -36,7 +36,7 @@ onMounted(() => {
     player.poster(props.contentParent.image);
     player.src({ type: "application/x-mpegURL", src: props.contentParent.content[0].video });
 
-    // @ts-ignore 2024-04-12 Typing of videojs-mobile-ui does not work
+    //@ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
     player.mobileUi({
         fullscreen: {
             enterOnRotate: true,
