@@ -56,7 +56,7 @@ onMounted(() => {
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
 
-/* .vjs-tech {
+.vjs-tech {
     @apply !rounded-lg;
 }
 
@@ -141,7 +141,7 @@ onMounted(() => {
 .vjs-menu-item {
     @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
-} */
+}
 </style>
 
 <template>
