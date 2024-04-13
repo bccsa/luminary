@@ -124,11 +124,15 @@ onMounted(() => {
 }
 
 .vjs-menu-content {
-    @apply !top-4 !h-fit rounded-md !bg-zinc-50 text-zinc-900 shadow-lg;
+    @apply !top-4 !h-fit rounded-md !bg-zinc-50  shadow-lg dark:!bg-zinc-600 dark:text-zinc-100;
 }
 
 .vjs-selected {
-    @apply !bg-zinc-300 font-bold focus:!bg-zinc-300;
+    @apply !bg-zinc-300 font-bold focus:!bg-zinc-300 dark:!bg-zinc-500 focus:dark:!bg-zinc-500;
+}
+
+.vjs-menu-item-text {
+    @apply text-zinc-900 dark:text-zinc-100;
 }
 
 :not(.vjs-selected) {
@@ -138,6 +142,7 @@ onMounted(() => {
 .vjs-menu-button {
     @apply !outline-none;
 }
+
 .vjs-menu-item {
     @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
