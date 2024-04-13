@@ -41,7 +41,7 @@ onMounted(() => {
         fullscreen: {
             enterOnRotate: true,
             exitOnRotate: true,
-            lockOnRotate: false,
+            lockOnRotate: true,
             lockToLandscapeOnEnter: true,
             disabled: false,
         },
