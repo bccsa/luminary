@@ -83,15 +83,15 @@ onMounted(() => {
 }
 
 .vjs-control {
-    @apply !float-right !h-11 !w-11 !text-sm !outline-none;
+    @apply !float-left !h-11 !w-11 !text-sm !outline-none;
+}
+
+.vjs-picture-in-picture-control {
+    @apply !float-right;
 }
 
 .vjs-play-control {
     @apply !absolute !inset-0 !m-auto !h-16 !w-16 !text-xl;
-}
-
-.vjs-audio-button {
-    @apply !float-left;
 }
 
 .vjs-progress-control {
