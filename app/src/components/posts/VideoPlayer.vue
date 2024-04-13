@@ -42,7 +42,7 @@ onMounted(() => {
             enterOnRotate: true,
             exitOnRotate: true,
             lockOnRotate: true,
-            lockToLandscapeOnEnter: false,
+            lockToLandscapeOnEnter: true,
             disabled: false,
         },
         touchControls: {
@@ -54,6 +54,7 @@ onMounted(() => {
 
 <style>
 @import "video.js/dist/video-js.min.css";
+@import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
 
 .vjs-tech {
     @apply !rounded-lg;
