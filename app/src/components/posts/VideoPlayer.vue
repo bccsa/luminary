@@ -39,8 +39,8 @@ onMounted(() => {
     //@ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
     player.mobileUi({
         fullscreen: {
-            enterOnRotate: false,
-            exitOnRotate: false,
+            enterOnRotate: true,
+            exitOnRotate: true,
             lockOnRotate: false,
             lockToLandscapeOnEnter: true,
             disabled: false,
