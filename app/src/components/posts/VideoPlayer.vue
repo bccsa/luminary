@@ -51,7 +51,7 @@ onMounted(() => {
         },
     });
 
-    // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover, we need to trigger the userActive method to hide the controls
+    // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
     player.on(["mousemove", "click"], hideControls);
 
     let timeout: any;
