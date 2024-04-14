@@ -46,7 +46,7 @@ const leave = async () => {
         v-model:open="isModalOpen"
         context="danger"
         title="Are you sure you want to leave the page?"
-        description="You have unsaved changes. If you leave now these changes are discarded."
+        description="You have unsaved changes. If you leave now these changes will be discarded."
         primaryButtonText="Discard changes"
         secondaryButtonText="Stay on page"
         :primaryAction="leave"

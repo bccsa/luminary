@@ -33,8 +33,6 @@ const selectedLanguage = ref<string>();
 onBeforeMount(() => {
     if (routeLanguage) {
         selectedLanguage.value = routeLanguage;
-
-        router.replace({ name: "posts.edit", params: { id: postId } });
     }
 });
 
@@ -61,10 +59,26 @@ watch(
     { immediate: true },
 );
 
+watch(
+    content,
+    () => {
+        router.replace({
+            name: "posts.edit",
+            params: { id: postId, language: selectedLanguage.value },
+        });
+    },
+    { immediate: true },
+);
+
 async function createTranslation(language: Language) {
     await postStore.createTranslation(post.value!, language);
 
     selectedLanguage.value = language.languageCode;
+
+    router.replace({
+        name: "posts.edit",
+        params: { id: postId, language: selectedLanguage.value },
+    });
 }
 </script>
 

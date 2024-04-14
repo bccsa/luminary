@@ -56,8 +56,6 @@ const selectedLanguage = ref<string>();
 onBeforeMount(() => {
     if (routeLanguage) {
         selectedLanguage.value = routeLanguage;
-
-        router.replace({ name: "tags.edit", params: { tagId } });
     }
 });
 
@@ -84,10 +82,26 @@ watch(
     { immediate: true },
 );
 
+watch(
+    content,
+    () => {
+        router.replace({
+            name: "tags.edit",
+            params: { id: tagId, language: selectedLanguage.value },
+        });
+    },
+    { immediate: true },
+);
+
 async function createTranslation(language: Language) {
     await tagStore.createTranslation(tag.value!, language);
 
     selectedLanguage.value = language.languageCode;
+
+    router.replace({
+        name: "tags.edit",
+        params: { id: tagId, language: selectedLanguage.value },
+    });
 }
 </script>
 
