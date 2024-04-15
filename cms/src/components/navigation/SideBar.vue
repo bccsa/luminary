@@ -11,7 +11,7 @@ import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { ref, watch } from "vue";
 
-const { appName } = useGlobalConfigStore();
+const { appName, isDevMode } = useGlobalConfigStore();
 const route = useRoute();
 
 const navigation = ref([
@@ -64,6 +64,11 @@ watch(route, (newRoute) => {
     >
         <div class="flex h-16 shrink-0 items-center">
             <img class="w-42" src="@/assets/logo.svg" :alt="appName" />
+            <span
+                v-if="isDevMode"
+                class="ml-2 rounded-lg bg-red-400 px-1 py-0.5 text-sm text-red-950"
+                >DEV</span
+            >
         </div>
         <nav class="flex flex-1 flex-col">
             <ul role="list" class="flex flex-1 flex-col gap-y-7">
