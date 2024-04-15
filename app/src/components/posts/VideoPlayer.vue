@@ -2,7 +2,7 @@
 import type { Post, Tag } from "@/types";
 import videojs from "video.js";
 import "videojs-mobile-ui";
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 
 type Props = {
     contentParent: Post | Tag;
@@ -36,7 +36,7 @@ onMounted(() => {
     player.poster(props.contentParent.image);
     player.src({ type: "application/x-mpegURL", src: props.contentParent.content[0].video });
 
-    //@ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
+    // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
     player.mobileUi({
         fullscreen: {
             enterOnRotate: true,
@@ -48,6 +48,21 @@ onMounted(() => {
         touchControls: {
             disabled: true,
         },
+    });
+
+    // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
+    player.on(["mousemove", "click"], hideControls);
+
+    let timeout: any;
+    function hideControls() {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            player.userActive(false);
+        }, 3000);
+    }
+
+    onUnmounted(() => {
+        player.off(["mousemove", "click"], hideControls);
     });
 });
 </script>
@@ -124,20 +139,25 @@ onMounted(() => {
 }
 
 .vjs-menu-content {
-    @apply !top-4 !h-fit rounded-md !bg-zinc-50 text-zinc-900 shadow-lg;
+    @apply !top-4 !h-fit rounded-md !bg-zinc-50  shadow-lg dark:!bg-zinc-600 dark:text-zinc-100;
 }
 
 .vjs-selected {
-    @apply !bg-zinc-300 font-bold focus:!bg-zinc-300;
+    @apply !bg-zinc-300 font-bold focus:!bg-zinc-300 dark:!bg-zinc-500 focus:dark:!bg-zinc-500;
 }
 
-:not(.vjs-selected) {
+.vjs-menu-item-text {
+    @apply text-zinc-900 dark:text-zinc-100;
+}
+
+.video-js :not(.vjs-selected) {
     @apply focus:!bg-transparent;
 }
 
 .vjs-menu-button {
     @apply !outline-none;
 }
+
 .vjs-menu-item {
     @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
