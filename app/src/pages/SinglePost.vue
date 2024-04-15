@@ -17,9 +17,7 @@ const slug = route.params.slug as string;
 const post = computed(() => postStore.post(slug));
 
 const showPublishDate = computed(
-    () =>
-        post.value?.content[0].publishDate &&
-        !(post.value?.tags.length == 1 && post.value.tags[0].pinned),
+    () => post.value?.content[0].publishDate && post.value?.tags.some((tag) => !tag.pinned),
 );
 
 watch(
