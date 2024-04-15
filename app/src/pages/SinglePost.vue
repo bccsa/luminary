@@ -16,6 +16,10 @@ const slug = route.params.slug as string;
 
 const post = computed(() => postStore.post(slug));
 
+const showPublishDate = computed(
+    () => post.value?.content[0].publishDate && post.value?.tags.some((tag) => !tag.pinned),
+);
+
 watch(
     post,
     (newPost) => {
@@ -49,7 +53,7 @@ watch(
 
         <div
             class="mt-1 text-center text-sm text-zinc-500 dark:text-zinc-300"
-            v-if="post.content[0].publishDate"
+            v-if="showPublishDate"
         >
             {{ post.content[0].publishDate?.toLocaleString(DateTime.DATE_FULL) }}
         </div>

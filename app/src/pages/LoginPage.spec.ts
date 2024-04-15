@@ -1,12 +1,7 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import LoginPage from "./LoginPage.vue";
-import { setActivePinia, createPinia } from "pinia";
-import { usePostStore } from "@/stores/post";
-import { mockCategory, mockPost } from "@/tests/mockData";
-import { useTagStore } from "@/stores/tag";
 import * as auth0 from "@auth0/auth0-vue";
-import { ref } from "vue";
 
 vi.mock("vue-router");
 vi.mock("@auth0/auth0-vue");

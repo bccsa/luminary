@@ -93,6 +93,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                         v-for="post in postsByTag(tag._id, queryOptions)"
                         :key="post._id"
                         :post="post"
+                        :pinned="tag.pinned"
                         class="w-40 overflow-clip md:w-60"
                     />
                 </div>

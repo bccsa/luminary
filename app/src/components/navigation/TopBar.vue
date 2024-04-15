@@ -28,7 +28,7 @@ const { isAuthenticated } = useAuth0();
                     class="flex items-center gap-2 text-xl hover:text-zinc-600 dark:hover:text-zinc-200"
                 >
                     <PlayCircleIcon class="h-8 w-8 text-yellow-500" />
-                    <div class="hidden items-center gap-1 min-[340px]:flex">
+                    <div class="hidden items-center gap-1 min-[380px]:flex">
                         <span class="font-semibold">BCC Africa</span>
                         <span>App</span>
                     </div>

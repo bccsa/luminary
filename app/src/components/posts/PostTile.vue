@@ -5,8 +5,11 @@ import { useRouter } from "vue-router";
 
 type Props = {
     post: Post;
+    pinned?: boolean;
 };
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    pinned: false,
+});
 
 const router = useRouter();
 
@@ -22,7 +25,7 @@ const openPost = () => {
     >
         <img :src="post.image" class="aspect-video rounded-lg object-cover shadow-md" />
         <h3 class="mt-2 text-sm text-zinc-800 dark:text-zinc-50">{{ post.content[0].title }}</h3>
-        <div class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-200">
+        <div class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-200" v-if="!pinned">
             {{ post.content[0].publishDate?.toLocaleString(DateTime.DATE_FULL) }}
         </div>
     </div>
