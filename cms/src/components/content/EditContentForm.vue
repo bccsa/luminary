@@ -29,6 +29,7 @@ import { capitalizeFirstLetter } from "@/util/string";
 import RichTextEditor from "@/components/content/RichTextEditor.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
+import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import { useNotificationStore } from "@/stores/notification";
 
 const EMPTY_TEXT = "<p></p>";
@@ -41,11 +42,11 @@ type Props = {
 
 const props = defineProps<Props>();
 
+const emit = defineEmits(["save"]);
+
 const { isLocalChange } = useLocalChangeStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
 const { addNotification } = useNotificationStore();
-const emit = defineEmits(["save"]);
-
 const {
     categories: availableCategories,
     topics: availableTopics,
@@ -70,6 +71,8 @@ const hasVideo = ref(props.content.video != undefined && props.content.video.tri
 const text = ref<string>();
 // @ts-ignore Pinned property does not exist on Post, which is why we check if it exists
 const pinned = ref(props.parent.pinned ?? false);
+
+const isDirty = ref(false);
 
 const validationSchema = toTypedSchema(
     yup.object({
@@ -151,7 +154,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     isDirty.value = false;
 
     addNotification({
-        title: `Post saved ${status == ContentStatus.Published ? "and published" : "as draft"}`,
+        title: `Changes saved ${status == ContentStatus.Published ? "and published" : "as draft"}`,
         description: `All changes are saved ${
             isConnected.value
                 ? "online"
@@ -199,7 +202,6 @@ const hasTag = computed(() => {
     return selectedTags.value.length > 0;
 });
 
-const isDirty = ref(false);
 const isEditingSlug = ref(false);
 const slugInput = ref<HTMLInputElement | undefined>(undefined);
 
@@ -518,5 +520,7 @@ const initializeText = () => {
                 </LCard>
             </div>
         </div>
+
+        <ConfirmBeforeLeavingModal :isDirty="isDirty" />
     </form>
 </template>

@@ -276,6 +276,14 @@ const items = [
                     <LButton disabled variant="tertiary">Edit post</LButton>
                 </div>
                 <div class="mt-6 space-x-4">
+                    <LButton context="danger">Delete</LButton>
+                    <LButton variant="primary" context="danger">Discard</LButton>
+                    <LButton variant="tertiary" context="danger">Delete</LButton>
+                    <LButton disabled context="danger">Delete</LButton>
+                    <LButton disabled variant="primary" context="danger">Delete</LButton>
+                    <LButton disabled variant="tertiary" context="danger">Delete</LButton>
+                </div>
+                <div class="mt-6 space-x-4">
                     <LButton :icon="PencilSquareIcon">Edit</LButton>
                     <LButton variant="primary" :icon="PencilSquareIcon">Edit</LButton>
                     <LButton variant="tertiary" :icon="PencilSquareIcon">Edit</LButton>

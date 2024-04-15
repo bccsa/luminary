@@ -1,10 +1,55 @@
 <script setup lang="ts">
 import type { Component } from "vue";
+import { cva, type VariantProps } from "cva";
+import { twMerge } from "tailwind-merge";
+
+const buttonClasses = cva({
+    base: "group inline-flex items-center justify-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed",
+    variants: {
+        variant: {
+            primary:
+                "bg-zinc-900 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-800/90 active:bg-zinc-800/80 active:text-zinc-50 disabled:bg-zinc-500 disabled:text-zinc-100 disabled:ring-zinc-500",
+            secondary:
+                "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500",
+            tertiary:
+                "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
+        },
+        size: {
+            sm: "px-2 py-1.5",
+            base: "px-3 py-2",
+            lg: "px-3.5 py-2.5",
+        },
+        context: {
+            default: "",
+            danger: "",
+        },
+    },
+    compoundVariants: [
+        {
+            variant: "primary",
+            context: "danger",
+            class: "bg-red-600 ring-red-700/60 hover:bg-red-600/80 active:text-white active:bg-red-600/70 disabled:bg-red-300 disabled:text-red-50 disabled:ring-red-300/90",
+        },
+        {
+            variant: "secondary",
+            context: "danger",
+            class: "text-red-600 active:text-red-700 disabled:text-red-300",
+        },
+        {
+            variant: "tertiary",
+            context: "danger",
+            class: "hover:text-red-600 active:text-red-700",
+        },
+    ],
+});
+
+type ButtonProps = VariantProps<typeof buttonClasses>;
 
 type Props = {
     is?: "button" | "a" | string | Component;
-    variant?: keyof typeof variants;
-    size?: keyof typeof sizes;
+    variant?: ButtonProps["variant"];
+    size?: ButtonProps["size"];
+    context?: ButtonProps["context"];
     icon?: Component | Function;
     iconRight?: boolean;
     disabled?: boolean;
@@ -13,30 +58,16 @@ type Props = {
 withDefaults(defineProps<Props>(), {
     is: "button",
     variant: "secondary",
+    context: "default",
     size: "base",
     iconRight: false,
     disabled: false,
 });
 
-const variants = {
-    primary:
-        "bg-zinc-900 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-900/90 active:bg-zinc-900/80 disabled:bg-zinc-500 disabled:text-zinc-100 disabled:ring-zinc-500",
-    secondary:
-        "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-100 active:bg-zinc-200/70 disabled:bg-zinc-100 disabled:text-zinc-500",
-    tertiary:
-        "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
-};
-
 const iconVariants = {
     primary: "text-zinc-100 group-hover:text-zinc-50 group-active:text-white",
     secondary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
     tertiary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
-};
-
-const sizes = {
-    sm: "px-2 py-1.5",
-    base: "px-3 py-2",
-    lg: "px-3.5 py-2.5",
 };
 </script>
 
@@ -44,11 +75,7 @@ const sizes = {
     <component
         :is="is"
         :disabled="disabled"
-        :class="[
-            variants[variant],
-            sizes[size],
-            'group inline-flex items-center justify-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed',
-        ]"
+        :class="twMerge(buttonClasses({ variant, size, context }))"
     >
         <component
             v-if="icon"

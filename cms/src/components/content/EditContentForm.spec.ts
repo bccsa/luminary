@@ -22,6 +22,7 @@ vi.mock("vue-router", () => ({
     useRouter: vi.fn().mockImplementation(() => ({
         push: routePushMock,
     })),
+    onBeforeRouteLeave: vi.fn(),
 }));
 
 const docsDb = vi.hoisted(() => {
@@ -285,7 +286,10 @@ describe("EditContentForm", () => {
             });
         });
 
-        it("displays why a tag can't be published", async () => {
+        it("can publish a tag", async () => {
+            const category = { ...mockCategory };
+            category.image = "";
+
             const wrapper = mount(EditContentForm, {
                 props: {
                     parent: {
@@ -325,7 +329,7 @@ describe("EditContentForm", () => {
             await waitForExpect(() => {
                 expect(notificationStore.addNotification).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        title: "Post saved as draft",
+                        title: "Changes saved as draft",
                         state: "success",
                     }),
                 );
