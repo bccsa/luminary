@@ -2,15 +2,42 @@
 import type { Post, Tag } from "@/types";
 import videojs from "video.js";
 import "videojs-mobile-ui";
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
+import AudioVideoToggle from "../form/AudioVideoToggle.vue";
+import type Player from "video.js/dist/types/player";
 
 type Props = {
     contentParent: Post | Tag;
 };
-
 const props = defineProps<Props>();
 
 const playerElement = ref<HTMLVideoElement>();
+const audioModeToggle = ref<typeof AudioVideoToggle>();
+let player: Player;
+
+const audioMode = ref<boolean>(false);
+const hasStarted = ref<boolean>(false);
+const showAudioModeToggle = ref<boolean>(true);
+
+let timeout: any;
+function autoHidePlayerControls() {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => {
+        player.userActive(false);
+    }, 3000);
+}
+
+function playerPlayEventHandler() {
+    hasStarted.value = true;
+}
+
+function playerUserActiveEventHandler() {
+    if (audioMode.value || player.userActive() || !hasStarted.value) {
+        showAudioModeToggle.value = true;
+    } else {
+        showAudioModeToggle.value = false;
+    }
+}
 
 onMounted(() => {
     let options = {
@@ -31,7 +58,7 @@ onMounted(() => {
         },
     };
 
-    const player = videojs(playerElement.value!, options);
+    player = videojs(playerElement.value!, options);
 
     player.poster(props.contentParent.image);
     player.src({ type: "application/x-mpegURL", src: props.contentParent.content[0].video });
@@ -51,19 +78,25 @@ onMounted(() => {
     });
 
     // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
-    player.on(["mousemove", "click"], hideControls);
+    player.on(["mousemove", "click"], autoHidePlayerControls);
 
-    let timeout: any;
-    function hideControls() {
-        if (timeout) clearTimeout(timeout);
-        timeout = setTimeout(() => {
-            player.userActive(false);
-        }, 3000);
-    }
+    // Get player playing state
+    player.on("play", playerPlayEventHandler);
 
-    onUnmounted(() => {
-        player.off(["mousemove", "click"], hideControls);
-    });
+    // Get player user active states
+    player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
+});
+
+onUnmounted(() => {
+    player?.off(["mousemove", "click"], autoHidePlayerControls);
+    player?.off("play", playerPlayEventHandler);
+    player?.off(["useractive", "userinactive"], playerUserActiveEventHandler);
+});
+
+// Set player audio only mode
+watch(audioMode, (newValue) => {
+    player?.audioOnlyMode(newValue);
+    playerUserActiveEventHandler();
 });
 </script>
 
@@ -71,107 +104,48 @@ onMounted(() => {
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
 
-.vjs-tech {
-    @apply !rounded-lg;
-}
-
-.vjs-poster img {
-    @apply !rounded-lg object-cover;
-}
-
-.vjs-big-play-button {
-    @apply !border-none !text-3xl;
-    background-color: rgba(0, 0, 0, 0.3) !important;
-}
-
-.vjs-big-play-button span {
-    @apply !text-5xl;
-}
-
-.vjs-control-bar {
-    @apply !relative !h-full !w-full rounded-md;
-    background-color: rgba(0, 0, 0, 0.3) !important;
-}
-
-:is(.vjs-has-started) .vjs-control-bar {
-    @apply block;
-}
-
-.vjs-control {
-    @apply !float-left !h-11 !w-11 !text-sm !outline-none;
-}
-
-.vjs-picture-in-picture-control {
-    @apply !float-right;
-}
-
-.vjs-play-control {
-    @apply !absolute !inset-0 !m-auto !h-16 !w-16 !text-xl;
-}
-
-.vjs-progress-control {
-    @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
-    width: calc(100% - 40px) !important;
-}
-
-.vjs-live-control {
-    @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
-}
-
-.vjs-live-display {
-    @apply p-3 pl-2;
-}
-
-.vjs-slider {
-    @apply !rounded-full;
-}
-
-.vjs-slider-bar {
-    @apply !rounded-full;
-}
-
-.vjs-fullscreen-control {
-    @apply !absolute !bottom-0 !right-0;
-}
-
-.vjs-menu {
-    @apply !left-11 !top-0 !outline-none;
-}
-
-.vjs-menu-content {
-    @apply !top-4 !h-fit rounded-md !bg-zinc-50  shadow-lg dark:!bg-zinc-600 dark:text-zinc-100;
-}
-
-.vjs-selected {
-    @apply !bg-zinc-300 font-bold focus:!bg-zinc-300 dark:!bg-zinc-500 focus:dark:!bg-zinc-500;
-}
-
-.vjs-menu-item-text {
-    @apply text-zinc-900 dark:text-zinc-100;
-}
-
-.video-js :not(.vjs-selected) {
-    @apply focus:!bg-transparent;
-}
-
-.vjs-menu-button {
-    @apply !outline-none;
-}
-
-.vjs-menu-item {
-    @apply !p-3 !text-sm !outline-none;
-    width: 100% !important;
-}
+@import "videoPlayerVideoMode.css";
+@import "videoPlayerAudioMode.css";
 </style>
 
 <template>
-    <div class="aspect-video">
-        <video
-            ref="playerElement"
-            class="video-js h-full w-full rounded-lg shadow-md"
-            controls
-            preload="auto"
-            data-setup="{}"
-        ></video>
+    <div class="relative mb-2 rounded-lg bg-zinc-100 shadow-md dark:bg-zinc-800">
+        <div class="relative">
+            <img
+                v-if="audioMode"
+                :src="props.contentParent.image"
+                class="mb-2 aspect-video w-full rounded-lg object-cover"
+            />
+        </div>
+
+        <div class="" :class="{ 'video-mode': !audioMode, 'audio-mode': audioMode }">
+            <video
+                ref="playerElement"
+                class="video-js h-full w-full rounded-lg"
+                controls
+                preload="auto"
+                data-setup="{}"
+            ></video>
+        </div>
+
+        <transition
+            leave-active-class="transition ease-in duration-500"
+            leave-from-class="opacity-100"
+            enter-to-class="opacity-100"
+            enter-active-class="transition ease-out duration-100"
+            leave-to-class="opacity-0"
+            enter-from-class="opacity-0"
+        >
+            <AudioVideoToggle
+                v-if="showAudioModeToggle"
+                v-model="audioMode"
+                ref="audioModeToggle"
+                :class="{
+                    'audio-mode-toggle-audio': audioMode,
+                    'audio-mode-toggle-video-init': !audioMode && !hasStarted,
+                    'audio-mode-toggle-video': !audioMode && hasStarted,
+                }"
+            ></AudioVideoToggle>
+        </transition>
     </div>
 </template>
