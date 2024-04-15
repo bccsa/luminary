@@ -12,7 +12,6 @@
 
 .video-mode .vjs-big-play-button {
     @apply !border-none bg-zinc-800/60 !text-3xl;
-    /* background-color: rgba(0, 0, 0, 0.3) !important; */
 }
 
 .video-mode .vjs-big-play-button span {
