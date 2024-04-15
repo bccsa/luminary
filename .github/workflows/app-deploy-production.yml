@@ -2,7 +2,7 @@ name: "Build & Deploy App to Production"
 
 on:
   push:
-    branches: [maim]
+    branches: [main]
     paths:
       - app/**
       - .github/workflows/app-deploy-production.yml
