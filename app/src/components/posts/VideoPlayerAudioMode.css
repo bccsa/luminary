@@ -14,6 +14,10 @@
     @apply !aspect-square !h-full !text-sm text-zinc-600 !outline-none dark:text-zinc-100;
 }
 
+.audio-mode .vjs-live-display {
+    @apply h-full !content-center;
+}
+
 .audio-mode .vjs-slider {
     @apply !rounded-full;
 }
