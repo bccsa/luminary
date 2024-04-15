@@ -329,7 +329,7 @@ describe("EditContentForm", () => {
             await waitForExpect(() => {
                 expect(notificationStore.addNotification).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        title: "Post saved as draft",
+                        title: "Changes saved as draft",
                         state: "success",
                     }),
                 );
