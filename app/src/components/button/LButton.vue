@@ -27,7 +27,7 @@ const variants = {
         "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-100 active:bg-zinc-200/70 disabled:bg-zinc-100 disabled:text-zinc-500",
     tertiary:
         "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
-    bcc: "bg-bcc-brand-600 ring-1 shadow-sm text-bcc-brand-50 ring-bcc-brand-700/60 hover:bg-bcc-brand-600/80 active:bg-bcc-brand-700/70 hover:ring-bcc-brand-500/90",
+    bcc: "bg-bcc-brand-600 ring-1 shadow-sm text-bcc-brand-50 ring-bcc-brand-700/60 hover:bg-bcc-brand-600/80 active:bg-bcc-brand-900/90 hover:ring-bcc-brand-700/40",
 };
 
 const iconVariants = {
