@@ -151,7 +151,7 @@ onMounted(() => {
     @apply text-zinc-900 dark:text-zinc-100;
 }
 
-:not(.vjs-selected) {
+.video-js :not(.vjs-selected) {
     @apply focus:!bg-transparent;
 }
 
