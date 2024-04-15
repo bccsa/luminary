@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import SinglePost from "./SinglePost.vue";
 import { setActivePinia, createPinia } from "pinia";
 import { usePostStore } from "@/stores/post";
-import { mockEnglishContent, mockPost } from "@/tests/mockData";
+import { mockCategory, mockEnglishContent, mockPost } from "@/tests/mockData";
 
 vi.mock("vue-router", () => ({
     resolve: vi.fn(),
@@ -60,5 +60,26 @@ describe("SinglePost", () => {
 
         expect(wrapper.html()).not.toContain("video-player-stub");
         expect(wrapper.text()).toContain("Test content");
+    });
+
+    it("hides the publish date for a pinned post", async () => {
+        const postStore = usePostStore();
+        postStore.posts = [
+            {
+                ...mockPost,
+                tags: [
+                    {
+                        ...mockCategory,
+                        pinned: true,
+                    },
+                ],
+            },
+        ];
+
+        const wrapper = mount(SinglePost, {
+            shallow: true,
+        });
+
+        expect(wrapper.html()).not.toContain("January 1, 2024");
     });
 });
