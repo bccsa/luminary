@@ -154,7 +154,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     isDirty.value = false;
 
     addNotification({
-        title: `Post saved ${status == ContentStatus.Published ? "and published" : "as draft"}`,
+        title: `Changes saved ${status == ContentStatus.Published ? "and published" : "as draft"}`,
         description: `All changes are saved ${
             isConnected.value
                 ? "online"
