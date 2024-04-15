@@ -12,6 +12,7 @@ import { useLocalChangeStore } from "@/stores/localChanges";
 import { getSocket, initSocket } from "@/socket";
 import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
+import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 
 const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 const { appName } = useGlobalConfigStore();
@@ -23,13 +24,17 @@ const socket = getSocket();
 // remove any existing listeners (in case of hot reload)
 if (socket) socket.off();
 
-onBeforeMount(async () => {
+const connectToSocket = async () => {
     const token = await getAccessTokenSilently();
 
     initSocket(token);
 
     socketConnectionStore.bindEvents();
     localChangeStore.watchForSyncableChanges();
+};
+
+onBeforeMount(async () => {
+    await waitUntilAuth0IsLoaded(connectToSocket);
 });
 
 const sidebarOpen = ref(false);
