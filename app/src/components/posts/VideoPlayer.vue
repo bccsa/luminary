@@ -106,6 +106,14 @@ watch(audioMode, (newValue) => {
 
 @import "videoPlayerVideoMode.css";
 @import "videoPlayerAudioMode.css";
+
+.audio-mode-toggle-video-init {
+    @apply !absolute bottom-2 right-2;
+}
+
+.audio-mode-toggle-video {
+    @apply !absolute bottom-12 right-2;
+}
 </style>
 
 <template>
@@ -114,11 +122,11 @@ watch(audioMode, (newValue) => {
             <img
                 v-if="audioMode"
                 :src="props.contentParent.image"
-                class="mb-2 aspect-video w-full rounded-lg object-cover"
+                class="mb-2 aspect-video w-full rounded-t-lg object-cover"
             />
         </div>
 
-        <div class="" :class="{ 'video-mode': !audioMode, 'audio-mode': audioMode }">
+        <div :class="{ 'video-mode': !audioMode, 'audio-mode': audioMode }">
             <video
                 ref="playerElement"
                 class="video-js h-full w-full rounded-lg"

@@ -100,11 +100,3 @@
     @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
 }
-
-.audio-mode-toggle-video-init {
-    @apply !absolute bottom-2 right-2;
-}
-
-.audio-mode-toggle-video {
-    @apply !absolute bottom-12 right-2;
-}
