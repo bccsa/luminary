@@ -29,6 +29,7 @@ function autoHidePlayerControls() {
 
 function playerPlayEventHandler() {
     hasStarted.value = true;
+    console.log(playerElement.value);
 }
 
 function playerUserActiveEventHandler() {
@@ -95,6 +96,12 @@ onUnmounted(() => {
 
 // Set player audio only mode
 watch(audioMode, (newValue) => {
+    // if (newValue) {
+    //     playerElement.value.setAttribute("playsinline", "true");
+    // } else {
+    //     playerElement.value.removeAttribute("playsinline");
+    // }
+
     player?.audioOnlyMode(newValue);
     playerUserActiveEventHandler();
 });
@@ -128,6 +135,7 @@ watch(audioMode, (newValue) => {
 
         <div :class="{ 'video-mode': !audioMode, 'audio-mode': audioMode }">
             <video
+                playsinline
                 ref="playerElement"
                 class="video-js h-full w-full rounded-lg"
                 controls

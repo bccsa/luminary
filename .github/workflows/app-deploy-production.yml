@@ -2,7 +2,7 @@ name: "Build & Deploy App to Production"
 
 on:
   push:
-    branches: [main]
+    branches: [hotfix/ios-audioonly-mode]
     paths:
       - app/**
       - .github/workflows/app-deploy-production.yml
