@@ -7,11 +7,11 @@
 }
 
 .audio-mode .vjs-control-bar {
-    @apply !relative flex !h-full !w-full content-center !bg-transparent;
+    @apply !relative flex !h-full !w-full content-center !bg-transparent pl-1 pr-1;
 }
 
 .audio-mode .vjs-control {
-    @apply !aspect-square !h-full !text-sm text-zinc-600 !outline-none dark:text-zinc-100;
+    @apply !h-full !w-10 !text-sm text-zinc-600 !outline-none dark:text-zinc-100;
 }
 
 .audio-mode .vjs-live-display {
@@ -65,8 +65,4 @@
 .audio-mode .vjs-menu-item {
     @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
-}
-
-.audio-mode-toggle-audio {
-    @apply !absolute bottom-[64px] right-2;
 }
