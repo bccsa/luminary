@@ -4,11 +4,20 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 
 import { createAuth0 } from "@auth0/auth0-vue";
+import * as Sentry from "@sentry/vue";
 
 import App from "./App.vue";
 import router from "./router";
 
 const app = createApp(App);
+
+if (import.meta.env.PROD) {
+    Sentry.init({
+        app,
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        integrations: [],
+    });
+}
 
 app.use(createPinia());
 
