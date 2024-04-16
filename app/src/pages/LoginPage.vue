@@ -7,6 +7,9 @@ import { useAuth0 } from "@auth0/auth0-vue";
 const { loginWithRedirect } = useAuth0();
 
 const loginWithBcc = async () => {
+    // Set the used connection so we can use it again when trying to reauthenticate
+    localStorage.setItem("usedAuth0Connection", "bcc-login");
+
     await loginWithRedirect({
         authorizationParams: {
             connection: "bcc-login",

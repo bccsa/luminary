@@ -13,8 +13,9 @@ import { getSocket, initSocket } from "@/socket";
 import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
+import * as Sentry from "@sentry/vue";
 
-const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const { appName } = useGlobalConfigStore();
 const socketConnectionStore = useSocketConnectionStore();
 const localChangeStore = useLocalChangeStore();
@@ -25,7 +26,21 @@ const socket = getSocket();
 if (socket) socket.off();
 
 const connectToSocket = async () => {
-    const token = await getAccessTokenSilently();
+    let token;
+
+    try {
+        token = await getAccessTokenSilently();
+    } catch (err) {
+        Sentry.captureException(err);
+
+        // If we get an error while getting the token, the refresh token might have expired. Try to reauthenticate
+        await loginWithRedirect({
+            authorizationParams: {
+                redirect_uri: window.location.origin,
+            },
+        });
+        return;
+    }
 
     initSocket(token);
 
