@@ -104,8 +104,8 @@ watch(audioMode, (newValue) => {
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
 
-@import "videoPlayerVideoMode.css";
-@import "videoPlayerAudioMode.css";
+@import "VideoPlayerVideoMode.css";
+@import "VideoPlayerAudioMode.css";
 
 .audio-mode-toggle-video-init {
     @apply !absolute bottom-2 right-2;
