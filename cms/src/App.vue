@@ -14,7 +14,7 @@ import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 
-const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const { appName } = useGlobalConfigStore();
 const socketConnectionStore = useSocketConnectionStore();
 const localChangeStore = useLocalChangeStore();
@@ -25,7 +25,22 @@ const socket = getSocket();
 if (socket) socket.off();
 
 const connectToSocket = async () => {
-    const token = await getAccessTokenSilently();
+    let token;
+
+    try {
+        token = await getAccessTokenSilently();
+    } catch (e) {
+        // If we get an error while getting the token, the refresh token might have expired.
+        const error = e as Error;
+        console.error(error.message); // TODO add error logging to service
+
+        await loginWithRedirect({
+            authorizationParams: {
+                redirect_uri: window.location.origin,
+            },
+        });
+        return;
+    }
 
     initSocket(token);
 

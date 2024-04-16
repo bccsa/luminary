@@ -14,7 +14,10 @@ const userNavigation: {
     { name: "Settings", action: () => router.push({ name: "settings" }) },
     {
         name: "Sign out",
-        action: () => logout({ logoutParams: { returnTo: window.location.origin } }),
+        action: async () => {
+            localStorage.removeItem("usedAuth0Connection");
+            await logout({ logoutParams: { returnTo: window.location.origin } });
+        },
     },
 ];
 </script>

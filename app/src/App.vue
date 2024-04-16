@@ -7,7 +7,7 @@ import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { getSocket, initSocket } from "@/socket";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 
-const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const socketConnectionStore = useSocketConnectionStore();
 
 const socket = getSocket();
@@ -19,7 +19,22 @@ const connectToSocket = async () => {
     let token;
 
     if (isAuthenticated.value) {
-        token = await getAccessTokenSilently();
+        try {
+            token = await getAccessTokenSilently();
+        } catch (e) {
+            // If we get an error while getting the token, the refresh token might have expired.
+            const error = e as Error;
+            console.error(error.message); // TODO add error logging to service
+
+            const usedConnection = localStorage.getItem("usedAuth0Connection");
+            await loginWithRedirect({
+                authorizationParams: {
+                    connection: usedConnection ? usedConnection : undefined,
+                    redirect_uri: window.location.origin,
+                },
+            });
+            return;
+        }
     }
 
     initSocket(token);
