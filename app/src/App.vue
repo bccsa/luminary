@@ -6,6 +6,7 @@ import { onBeforeMount } from "vue";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { getSocket, initSocket } from "@/socket";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
+import * as Sentry from "@sentry/vue";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const socketConnectionStore = useSocketConnectionStore();
@@ -21,11 +22,10 @@ const connectToSocket = async () => {
     if (isAuthenticated.value) {
         try {
             token = await getAccessTokenSilently();
-        } catch (e) {
-            // If we get an error while getting the token, the refresh token might have expired.
-            const error = e as Error;
-            console.error(error.message); // TODO add error logging to service
+        } catch (err) {
+            Sentry.captureException(err);
 
+            // If we get an error while getting the token, the refresh token might have expired. Try to reauthenticate
             const usedConnection = localStorage.getItem("usedAuth0Connection");
             await loginWithRedirect({
                 authorizationParams: {
