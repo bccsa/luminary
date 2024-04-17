@@ -6,6 +6,7 @@ import {
     HomeIcon,
     UsersIcon,
     ChevronRightIcon,
+    RectangleStackIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -41,6 +42,7 @@ const navigation = ref([
         ],
     },
     { name: "Users", to: { name: "users" }, icon: UsersIcon },
+    { name: "Groups", to: { name: "groups" }, icon: RectangleStackIcon },
 ]);
 
 watch(route, (newRoute) => {

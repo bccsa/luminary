@@ -126,6 +126,21 @@ const router = createRouter({
                     ],
                 },
                 {
+                    path: "groups",
+                    name: "groups",
+                    redirect: { name: "groups.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "groups.index",
+                            component: () => import("../pages/GroupsPage.vue"),
+                            meta: {
+                                title: "Groups",
+                            },
+                        },
+                    ],
+                },
+                {
                     path: "users",
                     name: "users",
                     redirect: { name: "users.index" },

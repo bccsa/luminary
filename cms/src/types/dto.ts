@@ -89,11 +89,12 @@ export type ChangeReqAckDto = {
 
 export enum AclPermission {
     View = "view",
-    Assign = "assign",
+    Create = "create",
     Edit = "edit",
+    Delete = "delete",
+    Assign = "assign",
     Translate = "translate",
     Publish = "publish",
-    Delete = "delete",
 }
 
 export type AccessMap = {

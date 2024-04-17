@@ -1,9 +1,9 @@
-import { capitalizeFirstLetter } from "./string";
+import { capitaliseFirstLetter } from "./string";
 
 export function renderErrorMessage(errorMessage: string | undefined) {
     if (!errorMessage) {
         return "";
     }
 
-    return capitalizeFirstLetter(errorMessage.replace(/^[^.]*\./, ""));
+    return capitaliseFirstLetter(errorMessage.replace(/^[^.]*\./, ""));
 }
