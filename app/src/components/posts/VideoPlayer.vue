@@ -29,10 +29,11 @@ function autoHidePlayerControls() {
 
 function playerPlayEventHandler() {
     hasStarted.value = true;
+    playerUserActiveEventHandler();
 }
 
 function playerUserActiveEventHandler() {
-    if (audioMode.value || player.userActive() || !hasStarted.value) {
+    if (audioMode.value || player.userActive() || !hasStarted.value || player.paused()) {
         showAudioModeToggle.value = true;
     } else {
         showAudioModeToggle.value = false;
@@ -94,8 +95,13 @@ onUnmounted(() => {
 });
 
 // Set player audio only mode
-watch(audioMode, (newValue) => {
-    player?.audioOnlyMode(newValue);
+watch(audioMode, (mode) => {
+    player?.audioOnlyMode(mode);
+    player?.audioPosterMode(mode);
+
+    // Set player's user active state to true as a workaround to show audio track selection button on iOS
+    player.userActive(true);
+
     playerUserActiveEventHandler();
 });
 </script>
@@ -103,31 +109,18 @@ watch(audioMode, (newValue) => {
 <style>
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
+@import "VideoPlayer.css";
 
-@import "VideoPlayerVideoMode.css";
-@import "VideoPlayerAudioMode.css";
-
-.audio-mode-toggle-video-init {
-    @apply !absolute bottom-2 right-2;
-}
-
-.audio-mode-toggle-video {
-    @apply !absolute bottom-12 right-2;
+.audio-mode-toggle {
+    @apply !absolute right-2 top-2;
 }
 </style>
 
 <template>
     <div class="relative mb-2 rounded-lg bg-zinc-100 shadow-md dark:bg-zinc-800">
-        <div class="relative">
-            <img
-                v-if="audioMode"
-                :src="props.contentParent.image"
-                class="mb-2 aspect-video w-full rounded-t-lg object-cover"
-            />
-        </div>
-
-        <div :class="{ 'video-mode': !audioMode, 'audio-mode': audioMode }">
+        <div class="video-player">
             <video
+                playsinline
                 ref="playerElement"
                 class="video-js h-full w-full rounded-lg"
                 controls
@@ -148,11 +141,7 @@ watch(audioMode, (newValue) => {
                 v-if="showAudioModeToggle"
                 v-model="audioMode"
                 ref="audioModeToggle"
-                :class="{
-                    'audio-mode-toggle-audio': audioMode,
-                    'audio-mode-toggle-video-init': !audioMode && !hasStarted,
-                    'audio-mode-toggle-video': !audioMode && hasStarted,
-                }"
+                class="audio-mode-toggle"
             ></AudioVideoToggle>
         </transition>
     </div>
