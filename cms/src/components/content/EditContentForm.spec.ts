@@ -305,7 +305,7 @@ describe("EditContentForm", () => {
 
             await waitForExpect(() => {
                 const saveEvent: any = wrapper.emitted("save");
-                expect(saveEvent).toBe(undefined);
+                expect(saveEvent).not.toBe(undefined);
 
                 expect(wrapper.text()).not.toContain(
                     "At least one of text, audio or video content is required",
