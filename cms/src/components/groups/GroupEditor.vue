@@ -7,7 +7,7 @@ import { CheckCircleIcon, MinusCircleIcon } from "@heroicons/vue/16/solid";
 import { ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
 import { computed } from "vue";
 
-const availableAclsPerDocType = {
+const availablePermissionsPerDocType = {
     [DocType.Group]: [
         AclPermission.View,
         AclPermission.Create,
@@ -78,8 +78,8 @@ const hasAssignedPermission = computed(() => {
 
 const isPermissionAvailabe = computed(() => {
     return (docType: DocType, aclPermission: AclPermission) => {
-        // @ts-expect-error Not alle DocTypes are in the array but we only call it with ones that are
-        return availableAclsPerDocType[docType].includes(aclPermission);
+        // @ts-expect-error Not all DocTypes are in the array but we only call it with ones that are
+        return availablePermissionsPerDocType[docType].includes(aclPermission);
     };
 });
 </script>
@@ -129,7 +129,7 @@ const isPermissionAvailabe = computed(() => {
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="docType in Object.keys(availableAclsPerDocType)"
+                                    v-for="docType in Object.keys(availablePermissionsPerDocType)"
                                     :key="docType"
                                     class="border-b border-zinc-200 last:border-none"
                                 >
