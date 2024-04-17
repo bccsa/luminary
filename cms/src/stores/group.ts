@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { DocType, type Group, type Uuid } from "@/types";
+import { DocType, type Group, type GroupDto, type Uuid } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { computed, type Ref } from "vue";
@@ -17,5 +17,12 @@ export const useGroupStore = defineStore("group", () => {
         return (groupId: Uuid) => groups.value?.find((g) => g._id == groupId);
     });
 
-    return { groups, group };
+    const updateGroup = async (group: GroupDto) => {
+        await db.docs.put(group);
+        await db.localChanges.put({
+            doc: group,
+        });
+    };
+
+    return { groups, group, updateGroup };
 });

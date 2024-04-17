@@ -1,11 +1,25 @@
 <script setup lang="ts">
+import { computed, ref, toRaw, type Ref } from "vue";
 import { useGroupStore } from "@/stores/group";
-import { AclPermission, DocType, type Group } from "@/types";
+import {
+    AclPermission,
+    DocType,
+    type Group,
+    type GroupAclEntry,
+    type GroupAclEntryDto,
+    type GroupDto,
+    type Uuid,
+} from "@/types";
 import { capitaliseFirstLetter } from "@/util/string";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
-import { CheckCircleIcon, MinusCircleIcon } from "@heroicons/vue/16/solid";
+import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import { ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
-import { computed } from "vue";
+import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
+import LButton from "@/components/button/LButton.vue";
+import { useNotificationStore } from "@/stores/notification";
+import { useSocketConnectionStore } from "@/stores/socketConnection";
+import { storeToRefs } from "pinia";
+import LBadge from "../common/LBadge.vue";
 
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
@@ -48,7 +62,12 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const { group: getGroup } = useGroupStore();
+const { group: getGroup, updateGroup } = useGroupStore();
+const { addNotification } = useNotificationStore();
+const { isConnected } = storeToRefs(useSocketConnectionStore());
+
+const isDirty = ref(false);
+const changedPermissions: Ref<GroupAclEntry[]> = ref([]);
 
 const uniqueGroups = computed(() => {
     const groups: string[] = [];
@@ -62,9 +81,76 @@ const uniqueGroups = computed(() => {
     return groups.map((groupId) => getGroup(groupId));
 });
 
+const changePermission = (subGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+    if (!isPermissionAvailabe.value(docType, aclPermission)) {
+        return;
+    }
+
+    isDirty.value = true;
+
+    const existingEntry = changedPermissions.value.find(
+        (p) => p.groupId == subGroup._id && p.type == docType,
+    );
+
+    // Update the existing entry if it exists
+    if (existingEntry) {
+        const existingEntryIndex = changedPermissions.value.indexOf(existingEntry);
+        const alreadyChangedPermissionIndex = existingEntry.permission.indexOf(aclPermission);
+
+        if (alreadyChangedPermissionIndex > -1 && existingEntry.permission.length == 1) {
+            // Remove the entry if the only changed permission was changed back to the original value
+            changedPermissions.value.splice(existingEntryIndex, 1);
+
+            // Reset dirty state if there are no changes now
+            if (changedPermissions.value.length == 0) {
+                isDirty.value = false;
+            }
+            return;
+        } else if (alreadyChangedPermissionIndex > -1) {
+            // Remove this permission from the list of changed permissions for this entry
+            let newPermissionsForGroup = existingEntry.permission;
+            newPermissionsForGroup.splice(alreadyChangedPermissionIndex, 1);
+
+            changedPermissions.value[existingEntryIndex].permission = newPermissionsForGroup;
+            return;
+        } else {
+            // Add the newly changed permission to the existing entry in the changes array
+            changedPermissions.value[existingEntryIndex].permission.push(aclPermission);
+            return;
+        }
+    }
+
+    // No existing entry, push a new item to the changes array
+    changedPermissions.value.push({
+        groupId: subGroup._id,
+        type: docType,
+        permission: [aclPermission],
+    });
+};
+
 const hasAssignedPermission = computed(() => {
     return (subGroup: Group, docType: DocType, aclPermission: AclPermission) => {
         const permissionForDocType = props.group.acl.find((acl) => {
+            return acl.groupId == subGroup._id && acl.type == docType;
+        });
+
+        const isCurrentlyAssigned = permissionForDocType?.permission.includes(aclPermission);
+
+        const hasChanged = hasChangedPermission.value(subGroup, docType, aclPermission);
+
+        if (!hasChanged) {
+            return isCurrentlyAssigned;
+        }
+        if (isCurrentlyAssigned) {
+            return false;
+        }
+        return true;
+    };
+});
+
+const hasChangedPermission = computed(() => {
+    return (subGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+        const permissionForDocType = changedPermissions.value.find((acl) => {
             return acl.groupId == subGroup._id && acl.type == docType;
         });
 
@@ -82,6 +168,70 @@ const isPermissionAvailabe = computed(() => {
         return availablePermissionsPerDocType[docType].includes(aclPermission);
     };
 });
+
+const discardChanges = () => {
+    changedPermissions.value = [];
+    isDirty.value = false;
+};
+
+const saveChanges = async () => {
+    const updatedGroup = { ...(toRaw(props.group) as unknown as GroupDto) };
+    updatedGroup.acl = updatedGroup.acl.map((acl) => {
+        const changedAclEntry = changedPermissions.value.find(
+            (p) => p.groupId == acl.groupId && p.type == acl.type,
+        );
+
+        if (!changedAclEntry) {
+            return acl;
+        }
+
+        const newPermissions = [];
+
+        for (const [_, permission] of Object.entries(AclPermission)) {
+            const originalAclHasPermission = acl.permission.includes(permission);
+            const changedHasPermission = changedAclEntry.permission.includes(permission);
+
+            if (
+                (originalAclHasPermission && !changedHasPermission) ||
+                (!originalAclHasPermission && changedHasPermission)
+            ) {
+                newPermissions.push(permission);
+            }
+        }
+
+        return {
+            ...acl,
+            permission: newPermissions,
+        } as GroupAclEntryDto;
+    });
+
+    toRaw(changedPermissions.value).forEach((changedAclEntry) => {
+        const entryIsInGroup = updatedGroup.acl.find(
+            (a) => a.groupId == changedAclEntry.groupId && a.type == changedAclEntry.type,
+        );
+
+        if (!entryIsInGroup) {
+            updatedGroup.acl.push(changedAclEntry);
+        }
+    });
+
+    console.log(updatedGroup);
+
+    await updateGroup(updatedGroup);
+
+    changedPermissions.value = [];
+    isDirty.value = false;
+
+    addNotification({
+        title: `${props.group.name} changes saved`,
+        description: `All changes are saved ${
+            isConnected.value
+                ? "online"
+                : "offline, and will be sent to the server when you go online"
+        }.`,
+        state: "success",
+    });
+};
 </script>
 
 <template>
@@ -92,7 +242,18 @@ const isPermissionAvailabe = computed(() => {
                     <RectangleStackIcon class="h-5 w-5 text-zinc-400" />
                     <h2 class="font-medium text-zinc-800">{{ group.name }}</h2>
                 </div>
-                <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
+                <div class="flex items-center gap-4">
+                    <div v-if="isDirty && open" class="-my-2 flex items-center gap-2">
+                        <LButton variant="tertiary" size="sm" @click.prevent="discardChanges">
+                            Discard changes
+                        </LButton>
+                        <LButton size="sm" @click.prevent="saveChanges"> Save changes </LButton>
+                    </div>
+
+                    <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>
+
+                    <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
+                </div>
             </DisclosureButton>
             <transition
                 enter-active-class="transition duration-100 ease-out"
@@ -108,9 +269,11 @@ const isPermissionAvailabe = computed(() => {
                     <div
                         v-for="subGroup in uniqueGroups"
                         :key="subGroup?._id"
-                        class="inline-block rounded-xl border border-zinc-100/50 bg-zinc-50 shadow-sm"
+                        class="inline-block rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm"
                     >
-                        <h3 class="border-b border-zinc-200 px-6 py-4 font-medium text-zinc-700">
+                        <h3
+                            class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700"
+                        >
                             {{ subGroup?.name }}
                         </h3>
 
@@ -139,7 +302,33 @@ const isPermissionAvailabe = computed(() => {
                                     <td
                                         v-for="aclPermission in AclPermission"
                                         :key="aclPermission"
-                                        class="text-center"
+                                        :class="[
+                                            'text-center',
+                                            {
+                                                'cursor-pointer': isPermissionAvailabe(
+                                                    docType as DocType,
+                                                    aclPermission,
+                                                ),
+                                            },
+                                            {
+                                                'bg-yellow-200':
+                                                    subGroup &&
+                                                    hasChangedPermission(
+                                                        subGroup,
+                                                        docType as DocType,
+                                                        aclPermission,
+                                                    ),
+                                            },
+                                        ]"
+                                        @click="
+                                            subGroup
+                                                ? changePermission(
+                                                      subGroup,
+                                                      docType as DocType,
+                                                      aclPermission,
+                                                  )
+                                                : ''
+                                        "
                                     >
                                         <template
                                             v-if="
@@ -151,18 +340,35 @@ const isPermissionAvailabe = computed(() => {
                                                 )
                                             "
                                         >
-                                            <CheckCircleIcon class="inline h-4 w-4 text-zinc-500" />
-                                        </template>
-                                        <template v-else>
-                                            <MinusCircleIcon
+                                            <CheckCircleIcon
                                                 :class="[
-                                                    'inline h-4 w-4',
+                                                    'inline h-5 w-5',
                                                     isPermissionAvailabe(
                                                         docType as DocType,
                                                         aclPermission,
                                                     )
-                                                        ? 'text-zinc-300'
-                                                        : 'text-zinc-100',
+                                                        ? 'text-zinc-500'
+                                                        : 'text-zinc-200',
+                                                ]"
+                                            />
+                                        </template>
+                                        <template v-else>
+                                            <XCircleIcon
+                                                :class="[
+                                                    'inline h-5 w-5',
+                                                    subGroup &&
+                                                    isPermissionAvailabe(
+                                                        docType as DocType,
+                                                        aclPermission,
+                                                    )
+                                                        ? hasChangedPermission(
+                                                              subGroup,
+                                                              docType as DocType,
+                                                              aclPermission,
+                                                          )
+                                                            ? 'text-zinc-400'
+                                                            : 'text-zinc-300'
+                                                        : 'text-zinc-200',
                                                 ]"
                                             />
                                         </template>
@@ -174,5 +380,7 @@ const isPermissionAvailabe = computed(() => {
                 </DisclosurePanel>
             </transition>
         </Disclosure>
+
+        <ConfirmBeforeLeavingModal :isDirty="isDirty" />
     </div>
 </template>
