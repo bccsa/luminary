@@ -87,7 +87,7 @@ const isPermissionAvailabe = computed(() => {
 <template>
     <div class="w-full rounded-lg bg-white shadow">
         <Disclosure v-slot="{ open }">
-            <DisclosureButton class="flex w-full justify-between px-4 py-3">
+            <DisclosureButton class="flex w-full justify-between px-6 py-4">
                 <div class="flex items-center gap-2">
                     <RectangleStackIcon class="h-5 w-5 text-zinc-400" />
                     <h2 class="font-medium text-zinc-800">{{ group.name }}</h2>
@@ -102,15 +102,27 @@ const isPermissionAvailabe = computed(() => {
                 leave-from-class="transform scale-100 opacity-100"
                 leave-to-class="transform scale-95 opacity-0"
             >
-                <DisclosurePanel class="p-4">
-                    <div v-for="subGroup in uniqueGroups" :key="subGroup?._id">
-                        <h3>{{ subGroup?.name }}</h3>
+                <DisclosurePanel
+                    class="space-y-6 overflow-x-scroll px-6 pb-10 pt-2 lg:overflow-hidden"
+                >
+                    <div
+                        v-for="subGroup in uniqueGroups"
+                        :key="subGroup?._id"
+                        class="inline-block rounded-xl border border-zinc-100/50 bg-zinc-50 shadow-sm"
+                    >
+                        <h3 class="border-b border-zinc-200 px-6 py-4 font-medium text-zinc-700">
+                            {{ subGroup?.name }}
+                        </h3>
 
                         <table>
-                            <thead>
+                            <thead class="border-b border-zinc-200 bg-zinc-100 last:border-none">
                                 <tr>
                                     <th></th>
-                                    <th v-for="aclPermission in AclPermission" :key="aclPermission">
+                                    <th
+                                        v-for="aclPermission in AclPermission"
+                                        :key="aclPermission"
+                                        class="p-4 text-center text-sm font-medium uppercase tracking-wider text-zinc-600 last:pr-6"
+                                    >
                                         {{ capitaliseFirstLetter(aclPermission) }}
                                     </th>
                                 </tr>
@@ -119,11 +131,16 @@ const isPermissionAvailabe = computed(() => {
                                 <tr
                                     v-for="docType in Object.keys(availableAclsPerDocType)"
                                     :key="docType"
+                                    class="border-b border-zinc-200 last:border-none"
                                 >
-                                    <th scope="row" class="pr-10 text-left">
+                                    <th scope="row" class="py-3 pl-6 pr-10 text-left font-medium">
                                         {{ capitaliseFirstLetter(docType) }}
                                     </th>
-                                    <td v-for="aclPermission in AclPermission" :key="aclPermission">
+                                    <td
+                                        v-for="aclPermission in AclPermission"
+                                        :key="aclPermission"
+                                        class="text-center"
+                                    >
                                         <template
                                             v-if="
                                                 subGroup &&
@@ -134,12 +151,12 @@ const isPermissionAvailabe = computed(() => {
                                                 )
                                             "
                                         >
-                                            <CheckCircleIcon class="h-4 w-4 text-zinc-500" />
+                                            <CheckCircleIcon class="inline h-4 w-4 text-zinc-500" />
                                         </template>
                                         <template v-else>
                                             <MinusCircleIcon
                                                 :class="[
-                                                    'h-4 w-4',
+                                                    'inline h-4 w-4',
                                                     isPermissionAvailabe(
                                                         docType as DocType,
                                                         aclPermission,
