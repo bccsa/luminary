@@ -28,13 +28,13 @@ const toggled = computed({
         <div class="rounded-lg p-1" :class="[!toggled ? 'bg-zinc-900/60' : 'bg-transparent']">
             <FilmIcon
                 class="h-6 w-6"
-                :class="[!toggled ? 'text-zinc-200' : 'text-zinc-800']"
+                :class="[!toggled ? 'text-white' : 'text-zinc-800']"
             ></FilmIcon>
         </div>
         <div class="rounded-lg p-1" :class="[toggled ? 'bg-zinc-900/60' : 'bg-transparent']">
             <MusicalNoteIcon
                 class="h-6 w-6"
-                :class="[toggled ? 'text-zinc-200' : 'text-zinc-800']"
+                :class="[toggled ? 'text-white' : 'text-zinc-800']"
             ></MusicalNoteIcon>
         </div>
     </div>
