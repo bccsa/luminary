@@ -86,8 +86,6 @@ onMounted(() => {
 
     // Get player user active states
     player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
-
-    console.log(player);
 });
 
 onUnmounted(() => {
@@ -111,9 +109,7 @@ watch(audioMode, (mode) => {
 <style>
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
-
-@import "VideoPlayerVideoMode.css";
-@import "VideoPlayerAudioMode.css";
+@import "VideoPlayer.css";
 
 .audio-mode-toggle {
     @apply !absolute right-2 top-2;
@@ -122,7 +118,7 @@ watch(audioMode, (mode) => {
 
 <template>
     <div class="relative mb-2 rounded-lg bg-zinc-100 shadow-md dark:bg-zinc-800">
-        <div class="video-mode">
+        <div class="video-player">
             <video
                 playsinline
                 ref="playerElement"

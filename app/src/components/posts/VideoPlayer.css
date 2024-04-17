@@ -1,58 +1,58 @@
-.video-mode {
+.video-player {
     @apply aspect-video;
 }
 
-.video-mode .vjs-tech {
+.video-player .vjs-tech {
     @apply !rounded-lg;
 }
 
-.video-mode .vjs-poster img {
+.video-player .vjs-poster img {
     @apply !rounded-lg object-cover;
 }
 
-.video-mode .vjs-big-play-button {
+.video-player .vjs-big-play-button {
     @apply !border-none bg-zinc-800/60 !text-3xl;
 }
 
-.video-mode .vjs-big-play-button span {
+.video-player .vjs-big-play-button span {
     @apply !text-5xl;
 }
 
-.video-mode .vjs-control-bar {
+.video-player .vjs-control-bar {
     @apply !relative !h-full !w-full rounded-lg;
     background-color: rgba(0, 0, 0, 0.3) !important;
 }
 
-.video-mode :is(.vjs-has-started) .vjs-control-bar {
+.video-player :is(.vjs-has-started) .vjs-control-bar {
     @apply block;
 }
 
-.video-mode .vjs-control {
+.video-player .vjs-control {
     @apply !float-left !h-11 !w-11 !text-sm !outline-none;
 }
 
-.video-mode .vjs-play-control {
+.video-player .vjs-play-control {
     @apply !absolute !inset-0 !m-auto !h-24 !w-24 !text-3xl;
 }
 
-.video-mode .vjs-progress-control {
+.video-player .vjs-progress-control {
     @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
     width: calc(100% - 40px) !important;
 }
 
-.video-mode .vjs-live-control {
+.video-player .vjs-live-control {
     @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
 }
 
-.video-mode .vjs-live-display {
+.video-player .vjs-live-display {
     @apply p-3 pl-2;
 }
 
-.video-mode .vjs-slider {
+.video-player .vjs-slider {
     @apply !rounded-full;
 }
 
-.video-mode .vjs-slider-bar {
+.video-player .vjs-slider-bar {
     @apply !rounded-full;
 }
 
@@ -64,35 +64,35 @@
     @apply !rounded-full;
 }
 
-.video-mode .vjs-fullscreen-control {
+.video-player .vjs-fullscreen-control {
     @apply !absolute !bottom-0 !right-0;
 }
 
-.video-mode .vjs-menu {
+.video-player .vjs-menu {
     @apply !left-11 !top-0 !outline-none;
 }
 
-.video-mode .vjs-menu-content {
+.video-player .vjs-menu-content {
     @apply !top-4 z-10 !h-fit rounded-md  !bg-zinc-50 shadow-lg dark:!bg-zinc-600 dark:text-zinc-100;
 }
 
-.video-mode .vjs-selected {
+.video-player .vjs-selected {
     @apply !bg-zinc-300 font-bold focus:!bg-zinc-300 dark:!bg-zinc-500 focus:dark:!bg-zinc-500;
 }
 
-.video-mode .vjs-menu-item-text {
+.video-player .vjs-menu-item-text {
     @apply text-zinc-900 dark:text-zinc-100;
 }
 
-.video-mode .video-js :not(.vjs-selected) {
+.video-player .video-js :not(.vjs-selected) {
     @apply focus:!bg-transparent;
 }
 
-.video-mode .vjs-menu-button {
+.video-player .vjs-menu-button {
     @apply !outline-none;
 }
 
-.video-mode .vjs-menu-item {
+.video-player .vjs-menu-item {
     @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
 }
