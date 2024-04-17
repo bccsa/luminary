@@ -25,7 +25,7 @@ import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { Slug } from "@/util/slug";
 import TagSelector from "./TagSelector.vue";
 import { useTagStore } from "@/stores/tag";
-import { capitalizeFirstLetter } from "@/util/string";
+import { capitaliseFirstLetter } from "@/util/string";
 import RichTextEditor from "@/components/content/RichTextEditor.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
@@ -469,7 +469,7 @@ const initializeText = () => {
                 </LCard>
 
                 <LCard
-                    :title="`${capitalizeFirstLetter(ruleset)} settings`"
+                    :title="`${capitaliseFirstLetter(ruleset)} settings`"
                     :icon="Cog6ToothIcon"
                     class="sticky top-20"
                     collapsible

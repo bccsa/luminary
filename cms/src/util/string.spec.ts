@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { capitalizeFirstLetter } from "./string";
+import { capitaliseFirstLetter } from "./string";
 
 describe("string utils", () => {
-    test("capitalizeFirstLetter works", () => {
+    test("capitaliseFirstLetter works", () => {
         const lowerCaseString = "string With VARIOUS capitalization";
 
-        const result = capitalizeFirstLetter(lowerCaseString);
+        const result = capitaliseFirstLetter(lowerCaseString);
 
         expect(result).toBe("String With VARIOUS capitalization");
     });
