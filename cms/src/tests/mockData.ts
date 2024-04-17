@@ -11,6 +11,8 @@ import {
     TagType,
     type Tag,
     type TagDto,
+    type Group,
+    AclPermission,
 } from "@/types";
 import { DateTime } from "luxon";
 
@@ -295,4 +297,237 @@ export const mockLocalChange1: LocalChange = {
 export const mockLocalChange2: LocalChange = {
     id: 43,
     doc: mockEnglishContentDto,
+};
+
+export const mockGroupPublicContent: Group = {
+    _id: "group-public-content",
+    type: DocType.Group,
+    name: "Public Content",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Post,
+            groupId: "group-public-editors",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Translate, AclPermission.Assign],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Assign],
+        },
+    ],
+};
+export const mockGroupPublicUsers: Group = {
+    _id: "group-public-users",
+    type: DocType.Group,
+    name: "Public Users",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.User,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+    ],
+};
+export const mockGroupPublicEditors: Group = {
+    _id: "group-public-editors",
+    type: DocType.Group,
+    name: "Public Editors",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.User,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+    ],
+};
+export const mockGroupSuperAdmins: Group = {
+    _id: "group-super-admins",
+    type: DocType.Group,
+    name: "Super Admins",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.User,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+    ],
 };
