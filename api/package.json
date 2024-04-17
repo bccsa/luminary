@@ -34,7 +34,8 @@
         "nano": "^10.1.3",
         "reflect-metadata": "^0.1.13",
         "rxjs": "^7.8.1",
-        "transliteration": "^2.3.5"
+        "transliteration": "^2.3.5",
+        "wait-for-expect": "^3.0.2"
     },
     "devDependencies": {
         "@nestjs/cli": "^10.0.0",
