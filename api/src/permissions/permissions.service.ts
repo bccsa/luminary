@@ -1,6 +1,9 @@
 import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
+import { DbService } from "src/db/db.service";
+
+let dbService: DbService;
 
 /**
  * Acl map entry used internally in Group objects
@@ -38,6 +41,40 @@ export class PermissionSystem {
 
     private constructor(id: string) {
         this._id = id;
+    }
+
+    /**
+     * Initialize the permission system
+     * @param db - Database service
+     */
+    static async init(db: DbService) {
+        // Prevent initialization if already initialized
+        if (dbService) {
+            return;
+        }
+
+        dbService = db;
+
+        let initialized = false;
+        let updateQueue: any[] = [];
+
+        // Read group changes from the database change feed and update the permission system
+        dbService.on("groupUpdate", async (update: DocType.Group) => {
+            updateQueue.push(update);
+            if (initialized) {
+                PermissionSystem.upsertGroups(updateQueue);
+                updateQueue = [];
+            }
+        });
+
+        // Add existing groups to permission system
+        const dbGroups = await dbService.getGroups();
+        this.upsertGroups(dbGroups.docs);
+
+        // Add changes that might have occured while the permission system was being initialized
+        this.upsertGroups(updateQueue);
+        updateQueue = [];
+        initialized = true;
     }
 
     /**

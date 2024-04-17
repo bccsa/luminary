@@ -1,10 +1,13 @@
 import { PermissionSystem } from "./permissions.service";
 import { DocType, AclPermission } from "../enums";
 import { createTestingModule } from "../test/testingModule";
+import waitForExpect from "wait-for-expect";
 
 describe("PermissionService", () => {
+    let testingModule: any;
+
     beforeAll(async () => {
-        await createTestingModule("permission-service");
+        testingModule = await createTestingModule("permission-service");
 
         // Wait a little bit for the permission system to update
         function timeout() {
@@ -397,6 +400,33 @@ describe("PermissionService", () => {
                     ["group-public-users"],
                 ),
             ).toBe(true);
+        });
+    });
+
+    describe("Database integration tests", () => {
+        it("can upsert a group from the db change feed", async () => {
+            await testingModule.dbService.upsertDoc({
+                _id: "test-group",
+                type: "group",
+                name: "Test Group",
+                acl: [
+                    {
+                        type: "language",
+                        groupId: "group-public-content",
+                        permission: ["view"],
+                    },
+                ],
+            });
+
+            await waitForExpect(() => {
+                const res = PermissionSystem.getAccessibleGroups(
+                    [DocType.Language],
+                    AclPermission.View,
+                    ["group-public-content"],
+                );
+
+                expect(res[DocType.Language].includes("test-group")).toBe(true);
+            });
         });
     });
 });

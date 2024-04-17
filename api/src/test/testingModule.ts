@@ -54,8 +54,7 @@ export async function createTestingModule(dbName: string) {
     await upsertDesignDocs(dbService);
     await upsertSeedingDocs(dbService);
 
-    const dbGroups = await dbService.getGroups();
-    PermissionSystem.upsertGroups(dbGroups.docs);
+    await PermissionSystem.init(dbService);
 
     return {
         dbService,

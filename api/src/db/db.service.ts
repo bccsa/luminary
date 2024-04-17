@@ -84,10 +84,10 @@ export class DbService extends EventEmitter {
                     // emit update event for all valid documents
                     this.emit("update", update.doc);
 
-                    // TODO: emit specific group document update event (used by permission system to update access maps)
-                    // if (update.doc.type === "group") {
-                    //     this.emit("groupUpdate", update.doc);
-                    // }
+                    // Emit specific group document update event (used by permission system to update access maps)
+                    if (update.doc.type === "group") {
+                        this.emit("groupUpdate", update.doc);
+                    }
                 }
             })
             .on("error", (err) => {

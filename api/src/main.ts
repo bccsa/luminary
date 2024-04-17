@@ -20,8 +20,7 @@ async function bootstrap() {
     }
 
     // Initialize permission system
-    const dbGroups = await dbService.getGroups();
-    PermissionSystem.upsertGroups(dbGroups.docs);
+    await PermissionSystem.init(dbService);
 
     app.enableCors({
         origin: [
