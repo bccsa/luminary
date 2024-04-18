@@ -20,6 +20,7 @@ import { useNotificationStore } from "@/stores/notification";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { storeToRefs } from "pinia";
 import LBadge from "../common/LBadge.vue";
+import { useLocalChangeStore } from "@/stores/localChanges";
 
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
@@ -65,6 +66,7 @@ const props = defineProps<Props>();
 const { group: getGroup, updateGroup } = useGroupStore();
 const { addNotification } = useNotificationStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
+const { isLocalChange } = useLocalChangeStore();
 
 const isDirty = ref(false);
 const changedAclEntries: Ref<GroupAclEntry[]> = ref([]);
@@ -264,6 +266,9 @@ const saveChanges = async () => {
                     </div>
 
                     <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>
+                    <LBadge v-if="isLocalChange(group._id) && !isConnected" variant="warning">
+                        Offline changes
+                    </LBadge>
 
                     <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
                 </div>
