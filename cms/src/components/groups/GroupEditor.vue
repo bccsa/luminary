@@ -252,7 +252,12 @@ const saveChanges = async () => {
                 </div>
                 <div class="flex items-center gap-4">
                     <div v-if="isDirty && open" class="-my-2 flex items-center gap-2">
-                        <LButton variant="tertiary" size="sm" @click.prevent="discardChanges">
+                        <LButton
+                            variant="tertiary"
+                            size="sm"
+                            context="danger"
+                            @click.prevent="discardChanges"
+                        >
                             Discard changes
                         </LButton>
                         <LButton size="sm" @click.prevent="saveChanges"> Save changes </LButton>
