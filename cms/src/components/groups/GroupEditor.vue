@@ -67,7 +67,7 @@ const { addNotification } = useNotificationStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
 
 const isDirty = ref(false);
-const changedPermissions: Ref<GroupAclEntry[]> = ref([]);
+const changedAclEntries: Ref<GroupAclEntry[]> = ref([]);
 
 const uniqueGroups = computed(() => {
     const groups: string[] = [];
@@ -81,28 +81,28 @@ const uniqueGroups = computed(() => {
     return groups.map((groupId) => getGroup(groupId));
 });
 
-const changePermission = (subGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+const changePermission = (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
     if (!isPermissionAvailabe.value(docType, aclPermission)) {
         return;
     }
 
     isDirty.value = true;
 
-    const existingEntry = changedPermissions.value.find(
-        (p) => p.groupId == subGroup._id && p.type == docType,
+    const existingEntry = changedAclEntries.value.find(
+        (a) => a.groupId == aclGroup._id && a.type == docType,
     );
 
     // Update the existing entry if it exists
     if (existingEntry) {
-        const existingEntryIndex = changedPermissions.value.indexOf(existingEntry);
+        const existingEntryIndex = changedAclEntries.value.indexOf(existingEntry);
         const alreadyChangedPermissionIndex = existingEntry.permission.indexOf(aclPermission);
 
         if (alreadyChangedPermissionIndex > -1 && existingEntry.permission.length == 1) {
             // Remove the entry if the only changed permission was changed back to the original value
-            changedPermissions.value.splice(existingEntryIndex, 1);
+            changedAclEntries.value.splice(existingEntryIndex, 1);
 
             // Reset dirty state if there are no changes now
-            if (changedPermissions.value.length == 0) {
+            if (changedAclEntries.value.length == 0) {
                 isDirty.value = false;
             }
             return;
@@ -111,47 +111,49 @@ const changePermission = (subGroup: Group, docType: DocType, aclPermission: AclP
             let newPermissionsForGroup = existingEntry.permission;
             newPermissionsForGroup.splice(alreadyChangedPermissionIndex, 1);
 
-            changedPermissions.value[existingEntryIndex].permission = newPermissionsForGroup;
+            changedAclEntries.value[existingEntryIndex].permission = newPermissionsForGroup;
             return;
         } else {
             // Add the newly changed permission to the existing entry in the changes array
-            changedPermissions.value[existingEntryIndex].permission.push(aclPermission);
+            changedAclEntries.value[existingEntryIndex].permission.push(aclPermission);
             return;
         }
     }
 
     // No existing entry, push a new item to the changes array
-    changedPermissions.value.push({
-        groupId: subGroup._id,
+    changedAclEntries.value.push({
+        groupId: aclGroup._id,
         type: docType,
         permission: [aclPermission],
     });
 };
 
 const hasAssignedPermission = computed(() => {
-    return (subGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+    return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
         const permissionForDocType = props.group.acl.find((acl) => {
-            return acl.groupId == subGroup._id && acl.type == docType;
+            return acl.groupId == aclGroup._id && acl.type == docType;
         });
 
         const isCurrentlyAssigned = permissionForDocType?.permission.includes(aclPermission);
 
-        const hasChanged = hasChangedPermission.value(subGroup, docType, aclPermission);
+        const hasChanged = hasChangedAclEntry.value(aclGroup, docType, aclPermission);
 
         if (!hasChanged) {
             return isCurrentlyAssigned;
         }
+
         if (isCurrentlyAssigned) {
             return false;
         }
+
         return true;
     };
 });
 
-const hasChangedPermission = computed(() => {
-    return (subGroup: Group, docType: DocType, aclPermission: AclPermission) => {
-        const permissionForDocType = changedPermissions.value.find((acl) => {
-            return acl.groupId == subGroup._id && acl.type == docType;
+const hasChangedAclEntry = computed(() => {
+    return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+        const permissionForDocType = changedAclEntries.value.find((acl) => {
+            return acl.groupId == aclGroup._id && acl.type == docType;
         });
 
         if (!permissionForDocType) {
@@ -162,6 +164,9 @@ const hasChangedPermission = computed(() => {
     };
 });
 
+/**
+ * Check if the permission can be clicked and changed
+ */
 const isPermissionAvailabe = computed(() => {
     return (docType: DocType, aclPermission: AclPermission) => {
         // @ts-expect-error Not all DocTypes are in the array but we only call it with ones that are
@@ -170,25 +175,25 @@ const isPermissionAvailabe = computed(() => {
 });
 
 const discardChanges = () => {
-    changedPermissions.value = [];
+    changedAclEntries.value = [];
     isDirty.value = false;
 };
 
 const saveChanges = async () => {
     const updatedGroup = { ...(toRaw(props.group) as unknown as GroupDto) };
-    updatedGroup.acl = updatedGroup.acl.map((acl) => {
-        const changedAclEntry = changedPermissions.value.find(
-            (p) => p.groupId == acl.groupId && p.type == acl.type,
+    updatedGroup.acl = updatedGroup.acl.map((currentAcl) => {
+        const changedAclEntry = changedAclEntries.value.find(
+            (a) => a.groupId == currentAcl.groupId && a.type == currentAcl.type,
         );
 
         if (!changedAclEntry) {
-            return acl;
+            return currentAcl;
         }
 
         const newPermissions = [];
 
         for (const [_, permission] of Object.entries(AclPermission)) {
-            const originalAclHasPermission = acl.permission.includes(permission);
+            const originalAclHasPermission = currentAcl.permission.includes(permission);
             const changedHasPermission = changedAclEntry.permission.includes(permission);
 
             if (
@@ -200,12 +205,12 @@ const saveChanges = async () => {
         }
 
         return {
-            ...acl,
+            ...currentAcl,
             permission: newPermissions,
         } as GroupAclEntryDto;
     });
 
-    toRaw(changedPermissions.value).forEach((changedAclEntry) => {
+    toRaw(changedAclEntries.value).forEach((changedAclEntry) => {
         const entryIsInGroup = updatedGroup.acl.find(
             (a) => a.groupId == changedAclEntry.groupId && a.type == changedAclEntry.type,
         );
@@ -215,11 +220,9 @@ const saveChanges = async () => {
         }
     });
 
-    console.log(updatedGroup);
-
     await updateGroup(updatedGroup);
 
-    changedPermissions.value = [];
+    changedAclEntries.value = [];
     isDirty.value = false;
 
     addNotification({
@@ -237,7 +240,12 @@ const saveChanges = async () => {
 <template>
     <div class="w-full rounded-lg bg-white shadow">
         <Disclosure v-slot="{ open }">
-            <DisclosureButton class="flex w-full justify-between px-6 py-4">
+            <DisclosureButton
+                :class="[
+                    'flex w-full justify-between rounded-lg bg-white px-6 py-4',
+                    { 'sticky top-16': open },
+                ]"
+            >
                 <div class="flex items-center gap-2">
                     <RectangleStackIcon class="h-5 w-5 text-zinc-400" />
                     <h2 class="font-medium text-zinc-800">{{ group.name }}</h2>
@@ -284,7 +292,7 @@ const saveChanges = async () => {
                                     <th
                                         v-for="aclPermission in AclPermission"
                                         :key="aclPermission"
-                                        class="p-4 text-center text-sm font-medium uppercase tracking-wider text-zinc-600 last:pr-6"
+                                        class="min-w-24 p-4 text-center text-sm font-medium uppercase tracking-wider text-zinc-600 last:pr-6"
                                     >
                                         {{ capitaliseFirstLetter(aclPermission) }}
                                     </th>
@@ -313,7 +321,7 @@ const saveChanges = async () => {
                                             {
                                                 'bg-yellow-200':
                                                     subGroup &&
-                                                    hasChangedPermission(
+                                                    hasChangedAclEntry(
                                                         subGroup,
                                                         docType as DocType,
                                                         aclPermission,
@@ -361,7 +369,7 @@ const saveChanges = async () => {
                                                         docType as DocType,
                                                         aclPermission,
                                                     )
-                                                        ? hasChangedPermission(
+                                                        ? hasChangedAclEntry(
                                                               subGroup,
                                                               docType as DocType,
                                                               aclPermission,
