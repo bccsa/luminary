@@ -8,7 +8,6 @@ import {
     type GroupAclEntry,
     type GroupAclEntryDto,
     type GroupDto,
-    type Uuid,
 } from "@/types";
 import { capitaliseFirstLetter } from "@/util/string";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
@@ -143,7 +142,7 @@ const changePermission = (
     // View permission is required for any other permission to be selected
     if (aclPermission == AclPermission.View) {
         // View was deselected, make sure no other permissions are selected
-        for (const [_, permission] of Object.entries(AclPermission)) {
+        for (const [, permission] of Object.entries(AclPermission)) {
             if (
                 permission != AclPermission.View &&
                 hasAssignedPermission.value(aclGroup, docType, permission)
@@ -232,7 +231,7 @@ const saveChanges = async () => {
         // Otherwise, rebuild the permission map based on the changed permissions
         const newPermissions = [];
 
-        for (const [_, permission] of Object.entries(AclPermission)) {
+        for (const [, permission] of Object.entries(AclPermission)) {
             const originalAclHasPermission = currentAcl.permission.includes(permission);
             const changedHasPermission = changedAclEntry.permission.includes(permission);
 
@@ -282,11 +281,11 @@ const saveChanges = async () => {
 </script>
 
 <template>
-    <div class="w-full rounded-lg bg-white shadow">
+    <div class="w-full rounded bg-white shadow">
         <Disclosure v-slot="{ open }">
             <DisclosureButton
                 :class="[
-                    'flex w-full justify-between rounded-lg bg-white px-6 py-4',
+                    'flex w-full justify-between rounded bg-white px-6 py-4',
                     { 'sticky top-16': open },
                 ]"
             >
@@ -386,6 +385,7 @@ const saveChanges = async () => {
                                                   )
                                                 : ''
                                         "
+                                        data-test="permissionCell"
                                     >
                                         <template
                                             v-if="

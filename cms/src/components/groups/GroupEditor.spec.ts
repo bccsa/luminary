@@ -13,18 +13,16 @@ import {
 
 vi.mock("@auth0/auth0-vue");
 
-vi.mock("vue-router");
+vi.mock("vue-router", () => ({
+    useRouter: vi.fn().mockImplementation(() => ({
+        push: vi.fn(),
+    })),
+    onBeforeRouteLeave: vi.fn(),
+}));
 
 describe("GroupEditor", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
-    });
-
-    afterEach(() => {
-        vi.clearAllMocks();
-    });
-
-    it("displays all ACL groups under the given group", async () => {
         const groupStore = useGroupStore();
         groupStore.groups = [
             mockGroupPublicContent,
@@ -32,7 +30,13 @@ describe("GroupEditor", () => {
             mockGroupPublicEditors,
             mockGroupSuperAdmins,
         ];
+    });
 
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("displays all ACL groups under the given group", async () => {
         const wrapper = mount(GroupEditor, {
             props: {
                 group: mockGroupPublicContent,
@@ -45,5 +49,21 @@ describe("GroupEditor", () => {
         expect(wrapper.text()).toContain("Public Content");
         expect(wrapper.text()).toContain("Public Users");
         expect(wrapper.text()).toContain("Public Editors");
+    });
+
+    it("displays buttons when changing a value", async () => {
+        const wrapper = mount(GroupEditor, {
+            props: {
+                group: mockGroupPublicContent,
+            },
+        });
+
+        // Open up the accordion
+        await wrapper.find("button").trigger("click");
+
+        await wrapper.find('[data-test="permissionCell"]').trigger("click");
+
+        expect(wrapper.text()).toContain("Discard changes");
+        expect(wrapper.text()).toContain("Save changes");
     });
 });
