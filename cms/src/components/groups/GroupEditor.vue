@@ -83,7 +83,12 @@ const uniqueGroups = computed(() => {
     return groups.map((groupId) => getGroup(groupId));
 });
 
-const changePermission = (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+const changePermission = (
+    aclGroup: Group,
+    docType: DocType,
+    aclPermission: AclPermission,
+    ignoreViewPermissionCheck = false,
+) => {
     if (!isPermissionAvailabe.value(docType, aclPermission)) {
         return;
     }
@@ -100,45 +105,84 @@ const changePermission = (aclGroup: Group, docType: DocType, aclPermission: AclP
         const alreadyChangedPermissionIndex = existingAclEntry.permission.indexOf(aclPermission);
 
         if (alreadyChangedPermissionIndex > -1 && existingAclEntry.permission.length == 1) {
-            // Remove the entry if the only changed permission was changed back to the original value
+            // Remove the entry if the only changed permission was changed back to the original value,
+            // OR the view permission was removed
             changedAclEntries.value.splice(existingAclEntryIndex, 1);
 
             // Reset dirty state if there are no changes now
             if (changedAclEntries.value.length == 0) {
                 isDirty.value = false;
             }
-            return;
         } else if (alreadyChangedPermissionIndex > -1) {
             // Remove this permission from the list of changed permissions for this entry
             let newPermissionsForGroup = existingAclEntry.permission;
             newPermissionsForGroup.splice(alreadyChangedPermissionIndex, 1);
 
             changedAclEntries.value[existingAclEntryIndex].permission = newPermissionsForGroup;
-            return;
         } else {
             // Add the newly changed permission to the existing entry in the changes array
             changedAclEntries.value[existingAclEntryIndex].permission.push(aclPermission);
-            return;
         }
+    } else {
+        // No existing entry, push a new item to the changes array
+        changedAclEntries.value.push({
+            groupId: aclGroup._id,
+            type: docType,
+            permission: [aclPermission],
+        });
     }
 
-    // No existing entry, push a new item to the changes array
-    changedAclEntries.value.push({
-        groupId: aclGroup._id,
-        type: docType,
-        permission: [aclPermission],
-    });
+    if (
+        ignoreViewPermissionCheck ||
+        hasAssignedPermission.value(aclGroup, docType, AclPermission.View)
+    ) {
+        // End here if we're ignoring the view permission, or if the view permission is selected
+        return;
+    }
+
+    // View permission is required for any other permission to be selected
+    if (aclPermission == AclPermission.View) {
+        // View was deselected, make sure no other permissions are selected
+        for (const [_, permission] of Object.entries(AclPermission)) {
+            if (
+                permission != AclPermission.View &&
+                hasAssignedPermission.value(aclGroup, docType, permission)
+            ) {
+                changePermission(aclGroup, docType, permission, true);
+            }
+        }
+    } else {
+        // View is not selected, select it
+        changePermission(aclGroup, docType, AclPermission.View, true);
+    }
 };
 
-const hasAssignedPermission = computed(() => {
+/**
+ * Whether the given permission is assigned in the current saved DB version of the group
+ */
+const hasCurrentlyAssignedPermission = computed(() => {
     return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
         const permissionForDocType = props.group.acl.find((acl) => {
             return acl.groupId == aclGroup._id && acl.type == docType;
         });
 
-        const isCurrentlyAssigned = permissionForDocType?.permission.includes(aclPermission);
+        return permissionForDocType?.permission.includes(aclPermission);
+    };
+});
 
-        const hasChanged = hasChangedAclEntry.value(aclGroup, docType, aclPermission);
+/**
+ * Whether the given permission is assigned, either in the current saved DB version
+ * or because it has been changed
+ */
+const hasAssignedPermission = computed(() => {
+    return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+        const isCurrentlyAssigned = hasCurrentlyAssignedPermission.value(
+            aclGroup,
+            docType,
+            aclPermission,
+        );
+
+        const hasChanged = hasChangedPermission.value(aclGroup, docType, aclPermission);
 
         if (!hasChanged) {
             return isCurrentlyAssigned;
@@ -152,7 +196,10 @@ const hasAssignedPermission = computed(() => {
     };
 });
 
-const hasChangedAclEntry = computed(() => {
+/**
+ * Whether the given permission has been changed by the user, but not yet saved to the DB
+ */
+const hasChangedPermission = computed(() => {
     return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
         const permissionForDocType = changedAclEntries.value.find((acl) => {
             return acl.groupId == aclGroup._id && acl.type == docType;
@@ -336,7 +383,7 @@ const saveChanges = async () => {
                                             {
                                                 'bg-yellow-200':
                                                     subGroup &&
-                                                    hasChangedAclEntry(
+                                                    hasChangedPermission(
                                                         subGroup,
                                                         docType as DocType,
                                                         aclPermission,
@@ -384,7 +431,7 @@ const saveChanges = async () => {
                                                         docType as DocType,
                                                         aclPermission,
                                                     )
-                                                        ? hasChangedAclEntry(
+                                                        ? hasChangedPermission(
                                                               subGroup,
                                                               docType as DocType,
                                                               aclPermission,
