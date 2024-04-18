@@ -201,7 +201,7 @@ const hasChangedPermission = computed(() => {
 });
 
 /**
- * Check if the permission can be clicked and changed
+ * Check if the permission is available to be changed by the user
  */
 const isPermissionAvailabe = computed(() => {
     return (docType: DocType, aclPermission: AclPermission) => {
