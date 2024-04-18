@@ -327,14 +327,14 @@ const saveChanges = async () => {
                     class="space-y-6 overflow-x-scroll px-6 pb-10 pt-2 lg:overflow-hidden"
                 >
                     <div
-                        v-for="subGroup in uniqueGroups"
-                        :key="subGroup?._id"
+                        v-for="aclGroup in uniqueGroups"
+                        :key="aclGroup?._id"
                         class="inline-block rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm"
                     >
                         <h3
                             class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700"
                         >
-                            {{ subGroup?.name }}
+                            {{ aclGroup?.name }}
                         </h3>
 
                         <table>
@@ -369,18 +369,18 @@ const saveChanges = async () => {
                                                 : 'cursor-not-allowed',
                                             {
                                                 'bg-yellow-200':
-                                                    subGroup &&
+                                                    aclGroup &&
                                                     hasChangedPermission(
-                                                        subGroup,
+                                                        aclGroup,
                                                         docType as DocType,
                                                         aclPermission,
                                                     ),
                                             },
                                         ]"
                                         @click="
-                                            subGroup
+                                            aclGroup
                                                 ? changePermission(
-                                                      subGroup,
+                                                      aclGroup,
                                                       docType as DocType,
                                                       aclPermission,
                                                   )
@@ -389,9 +389,9 @@ const saveChanges = async () => {
                                     >
                                         <template
                                             v-if="
-                                                subGroup &&
+                                                aclGroup &&
                                                 hasAssignedPermission(
-                                                    subGroup,
+                                                    aclGroup,
                                                     docType as DocType,
                                                     aclPermission,
                                                 )
@@ -413,13 +413,13 @@ const saveChanges = async () => {
                                             <XCircleIcon
                                                 :class="[
                                                     'inline h-5 w-5',
-                                                    subGroup &&
+                                                    aclGroup &&
                                                     isPermissionAvailable(
                                                         docType as DocType,
                                                         aclPermission,
                                                     )
                                                         ? hasChangedPermission(
-                                                              subGroup,
+                                                              aclGroup,
                                                               docType as DocType,
                                                               aclPermission,
                                                           )
