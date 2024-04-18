@@ -1,6 +1,11 @@
-name: "Build & Deploy API to Production"
+name: "Build & Deploy API to staging"
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - api/**
+      - .github/workflows/api-deploy-staging.yml
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +22,7 @@ jobs:
   deploy:
     needs: test
     runs-on: [self-hosted, ac]
-    environment: api-production
+    environment: api-staging
 
     steps:
       - name: Checkout repository

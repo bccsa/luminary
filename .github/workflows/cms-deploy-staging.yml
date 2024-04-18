@@ -1,6 +1,11 @@
-name: "Build & Deploy App to Production"
+name: "Build & Deploy CMS to staging"
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - cms/**
+      - .github/workflows/cms-deploy-staging.yml
   workflow_dispatch:
 
 concurrency:
@@ -12,12 +17,12 @@ env:
 
 jobs:
   test:
-    uses: ./.github/workflows/app-unit-tests.yml
+    uses: ./.github/workflows/cms-unit-tests.yml
 
   deploy:
     needs: test
     runs-on: [self-hosted, ac]
-    environment: app-production
+    environment: cms-staging
 
     steps:
       - name: Checkout repository
@@ -31,11 +36,11 @@ jobs:
           echo VITE_AUTH0_AUDIENCE=${{ vars.VITE_AUTH0_AUDIENCE }} >> .env
           echo VITE_APP_NAME=${{ vars.VITE_APP_NAME }} >> .env
           echo VITE_API_URL=${{ vars.VITE_API_URL }} >> .env
-        working-directory: app
+        working-directory: cms
 
       - name: Build Docker container
         run: docker build . -t ${{ vars.DOCKER_IMAGE }}
-        working-directory: app
+        working-directory: cms
 
       - name: Stop and remove old Docker container
         run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
