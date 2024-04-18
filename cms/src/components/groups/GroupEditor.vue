@@ -90,18 +90,18 @@ const changePermission = (aclGroup: Group, docType: DocType, aclPermission: AclP
 
     isDirty.value = true;
 
-    const existingEntry = changedAclEntries.value.find(
+    const existingAclEntry = changedAclEntries.value.find(
         (a) => a.groupId == aclGroup._id && a.type == docType,
     );
 
     // Update the existing entry if it exists
-    if (existingEntry) {
-        const existingEntryIndex = changedAclEntries.value.indexOf(existingEntry);
-        const alreadyChangedPermissionIndex = existingEntry.permission.indexOf(aclPermission);
+    if (existingAclEntry) {
+        const existingAclEntryIndex = changedAclEntries.value.indexOf(existingAclEntry);
+        const alreadyChangedPermissionIndex = existingAclEntry.permission.indexOf(aclPermission);
 
-        if (alreadyChangedPermissionIndex > -1 && existingEntry.permission.length == 1) {
+        if (alreadyChangedPermissionIndex > -1 && existingAclEntry.permission.length == 1) {
             // Remove the entry if the only changed permission was changed back to the original value
-            changedAclEntries.value.splice(existingEntryIndex, 1);
+            changedAclEntries.value.splice(existingAclEntryIndex, 1);
 
             // Reset dirty state if there are no changes now
             if (changedAclEntries.value.length == 0) {
@@ -110,14 +110,14 @@ const changePermission = (aclGroup: Group, docType: DocType, aclPermission: AclP
             return;
         } else if (alreadyChangedPermissionIndex > -1) {
             // Remove this permission from the list of changed permissions for this entry
-            let newPermissionsForGroup = existingEntry.permission;
+            let newPermissionsForGroup = existingAclEntry.permission;
             newPermissionsForGroup.splice(alreadyChangedPermissionIndex, 1);
 
-            changedAclEntries.value[existingEntryIndex].permission = newPermissionsForGroup;
+            changedAclEntries.value[existingAclEntryIndex].permission = newPermissionsForGroup;
             return;
         } else {
             // Add the newly changed permission to the existing entry in the changes array
-            changedAclEntries.value[existingEntryIndex].permission.push(aclPermission);
+            changedAclEntries.value[existingAclEntryIndex].permission.push(aclPermission);
             return;
         }
     }
@@ -330,12 +330,9 @@ const saveChanges = async () => {
                                         :key="aclPermission"
                                         :class="[
                                             'text-center',
-                                            {
-                                                'cursor-pointer': isPermissionAvailabe(
-                                                    docType as DocType,
-                                                    aclPermission,
-                                                ),
-                                            },
+                                            isPermissionAvailabe(docType as DocType, aclPermission)
+                                                ? 'cursor-pointer'
+                                                : 'cursor-not-allowed',
                                             {
                                                 'bg-yellow-200':
                                                     subGroup &&
