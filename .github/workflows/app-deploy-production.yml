@@ -26,11 +26,11 @@ jobs:
       - name: Create .env file
         run: |
           touch .env
-          echo VITE_AUTH0_CLIENT_ID=${{ secrets.VITE_AUTH0_CLIENT_ID }} >> .env
-          echo VITE_AUTH0_DOMAIN=${{ vars.VITE_AUTH0_DOMAIN }} >> .env
-          echo VITE_AUTH0_AUDIENCE=${{ vars.VITE_AUTH0_AUDIENCE }} >> .env
-          echo VITE_APP_NAME=${{ vars.VITE_APP_NAME }} >> .env
-          echo VITE_API_URL=${{ vars.VITE_API_URL }} >> .env
+          echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
+          echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
+          echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
+          echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
+          echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
         working-directory: app
 
       - name: Build Docker container
