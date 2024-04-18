@@ -300,10 +300,13 @@ const saveChanges = async () => {
                             size="sm"
                             context="danger"
                             @click.prevent="discardChanges"
+                            data-test="discardChanges"
                         >
                             Discard changes
                         </LButton>
-                        <LButton size="sm" @click.prevent="saveChanges"> Save changes </LButton>
+                        <LButton size="sm" @click.prevent="saveChanges" data-test="saveChanges">
+                            Save changes
+                        </LButton>
                     </div>
 
                     <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>

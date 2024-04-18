@@ -84,7 +84,7 @@ describe("ContentTable", () => {
         // Assert there is a badge that indicates a post has unsynced local changes
         const badge = wrapper.findComponent(LBadge);
         expect(badge.props().variant).toBe("warning");
-        expect(wrapper.text()).toContain("Offline changes");
+        expect(badge.text()).toContain("Offline changes");
     });
 
     it("can handle empty content", async () => {
