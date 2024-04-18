@@ -1,4 +1,4 @@
-import type { DocType, Language, TagType } from "./cms";
+import type { DocType, GroupAclEntry, Language, TagType } from "./cms";
 
 export enum AckStatus {
     Accepted = "accepted",
@@ -63,6 +63,12 @@ export type TagDto = ContentBaseDto & {
 export type PostDto = ContentBaseDto & {
     image: string;
     tags: Uuid[];
+};
+
+export type GroupDto = BaseDocumentDto & {
+    type: DocType.Group;
+    name: string;
+    acl: GroupAclEntry[];
 };
 
 export type CreateContentParentDto = {
