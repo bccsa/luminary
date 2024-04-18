@@ -158,29 +158,16 @@ const changePermission = (
 };
 
 /**
- * Whether the given permission is assigned in the current saved DB version of the group
- */
-const hasCurrentlyAssignedPermission = computed(() => {
-    return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
-        const permissionForDocType = props.group.acl.find((acl) => {
-            return acl.groupId == aclGroup._id && acl.type == docType;
-        });
-
-        return permissionForDocType?.permission.includes(aclPermission);
-    };
-});
-
-/**
  * Whether the given permission is assigned, either in the current saved DB version
  * or because it has been changed
  */
 const hasAssignedPermission = computed(() => {
     return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
-        const isCurrentlyAssigned = hasCurrentlyAssignedPermission.value(
-            aclGroup,
-            docType,
-            aclPermission,
-        );
+        const permissionForDocType = props.group.acl.find((acl) => {
+            return acl.groupId == aclGroup._id && acl.type == docType;
+        });
+
+        const isCurrentlyAssigned = permissionForDocType?.permission.includes(aclPermission);
 
         const hasChanged = hasChangedPermission.value(aclGroup, docType, aclPermission);
 
