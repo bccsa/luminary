@@ -302,7 +302,7 @@ const saveChanges = async () => {
                                     <th
                                         v-for="aclPermission in AclPermission"
                                         :key="aclPermission"
-                                        class="min-w-24 p-4 text-center text-sm font-medium uppercase tracking-wider text-zinc-600 last:pr-6"
+                                        class="p-4 text-center text-sm font-medium uppercase tracking-wider text-zinc-600 last:pr-6 lg:min-w-24"
                                     >
                                         {{ capitaliseFirstLetter(aclPermission) }}
                                     </th>
