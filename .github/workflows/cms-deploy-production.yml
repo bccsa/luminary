@@ -1,11 +1,6 @@
 name: "Build & Deploy CMS to Production"
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - cms/**
-      - .github/workflows/cms-deploy-production.yml
   workflow_dispatch:
 
 concurrency:

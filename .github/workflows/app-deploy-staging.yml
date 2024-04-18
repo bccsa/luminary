@@ -1,6 +1,11 @@
-name: "Build & Deploy App to Production"
+name: "Build & Deploy App to staging"
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - app/**
+      - .github/workflows/app-deploy-staging.yml
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +22,7 @@ jobs:
   deploy:
     needs: test
     runs-on: [self-hosted, ac]
-    environment: app-production
+    environment: app-staging
 
     steps:
       - name: Checkout repository
