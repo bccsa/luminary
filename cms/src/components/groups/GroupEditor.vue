@@ -183,15 +183,19 @@ const discardChanges = () => {
 
 const saveChanges = async () => {
     const updatedGroup = { ...(toRaw(props.group) as unknown as GroupDto) };
+
+    // Update existing entries with changed permissions, if there are any
     updatedGroup.acl = updatedGroup.acl.map((currentAcl) => {
         const changedAclEntry = changedAclEntries.value.find(
             (a) => a.groupId == currentAcl.groupId && a.type == currentAcl.type,
         );
 
+        // If the entry wasn't changed, return the current entry
         if (!changedAclEntry) {
             return currentAcl;
         }
 
+        // Otherwise, rebuild the permission map based on the changed permissions
         const newPermissions = [];
 
         for (const [_, permission] of Object.entries(AclPermission)) {
@@ -212,6 +216,7 @@ const saveChanges = async () => {
         } as GroupAclEntryDto;
     });
 
+    // Add any entries to the group that were not present before
     toRaw(changedAclEntries.value).forEach((changedAclEntry) => {
         const entryIsInGroup = updatedGroup.acl.find(
             (a) => a.groupId == changedAclEntry.groupId && a.type == changedAclEntry.type,
@@ -221,6 +226,9 @@ const saveChanges = async () => {
             updatedGroup.acl.push(changedAclEntry);
         }
     });
+
+    // Filter out any entries that have no permissions, to prevent clutter in the DB
+    updatedGroup.acl = updatedGroup.acl.filter((a) => a.permission.length > 0);
 
     await updateGroup(updatedGroup);
 

@@ -13,6 +13,8 @@ import {
 
 vi.mock("@auth0/auth0-vue");
 
+vi.mock("vue-router");
+
 describe("GroupEditor", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
