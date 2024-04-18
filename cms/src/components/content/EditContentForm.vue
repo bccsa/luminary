@@ -267,7 +267,7 @@ const initializeText = () => {
                     <span
                         v-show="!isEditingSlug"
                         data-test="slugSpan"
-                        class="inline-block rounded bg-zinc-200 px-1.5 py-0.5"
+                        class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
                         >{{ values.slug }}</span
                     >
                     <LInput
@@ -283,7 +283,7 @@ const initializeText = () => {
                         data-test="editSlugButton"
                         v-if="!isEditingSlug"
                         @click="startEditingSlug"
-                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded py-0.5 hover:bg-zinc-200"
+                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200"
                         title="Edit slug"
                     >
                         <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />

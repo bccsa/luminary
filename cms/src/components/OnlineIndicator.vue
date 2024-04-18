@@ -31,7 +31,7 @@ const store = useSocketConnectionStore();
                 class="absolute z-10 w-screen max-w-40 -translate-x-1/2 lg:left-0 lg:max-w-72 lg:translate-x-0"
             >
                 <div
-                    class="mt-2 rounded bg-white px-4 py-3 text-xs shadow-lg ring-1 ring-inset ring-zinc-900/5"
+                    class="mt-2 rounded-md bg-white px-4 py-3 text-xs shadow-lg ring-1 ring-inset ring-zinc-900/5"
                 >
                     {{
                         store.isConnected

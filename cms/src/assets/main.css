@@ -10,17 +10,17 @@
     @apply font-sans;
 }
 .ql-toolbar.ql-snow {
-    @apply rounded-t border-zinc-300;
+    @apply rounded-t-md border-zinc-300;
 }
 .ql-container.ql-snow {
-    @apply rounded-b border-zinc-300 shadow-sm;
+    @apply rounded-b-md border-zinc-300 shadow-sm;
 }
 .ql-snow .ql-tooltip {
-    @apply rounded border-zinc-200 shadow;
+    @apply rounded-md border-zinc-200 shadow;
 }
 .ql-snow .ql-picker-label {
-    @apply rounded-t font-sans;
+    @apply rounded-t-md font-sans;
 }
 .ql-snow .ql-picker-options {
-    @apply rounded-b rounded-tr font-sans;
+    @apply rounded-b-md rounded-tr-md font-sans;
 }

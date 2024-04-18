@@ -281,11 +281,11 @@ const saveChanges = async () => {
 </script>
 
 <template>
-    <div class="w-full rounded bg-white shadow">
+    <div class="w-full rounded-md bg-white shadow">
         <Disclosure v-slot="{ open }">
             <DisclosureButton
                 :class="[
-                    'flex w-full justify-between rounded bg-white px-6 py-4',
+                    'flex w-full justify-between rounded-md bg-white px-6 py-4',
                     { 'sticky top-16': open },
                 ]"
             >
@@ -328,7 +328,7 @@ const saveChanges = async () => {
                     <div
                         v-for="aclGroup in uniqueGroups"
                         :key="aclGroup?._id"
-                        class="inline-block rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm"
+                        class="inline-block rounded-md border border-zinc-200 bg-zinc-50 shadow-sm"
                     >
                         <h3
                             class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700"

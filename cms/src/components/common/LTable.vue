@@ -199,7 +199,7 @@ function sort(column: Column) {
                                         v-for="page in pages"
                                         :key="page"
                                         @click="setCurrentPage(page)"
-                                        class="page mx-0.5 cursor-pointer rounded px-2.5 py-1 text-zinc-800 hover:bg-zinc-200 active:bg-zinc-300"
+                                        class="page mx-0.5 cursor-pointer rounded-md px-2.5 py-1 text-zinc-800 hover:bg-zinc-200 active:bg-zinc-300"
                                         :class="{
                                             'bg-zinc-200 font-medium text-zinc-900 ring-1 ring-inset ring-zinc-300/80':
                                                 page == currentPage,

@@ -16,7 +16,7 @@ defineProps<{
 </script>
 
 <template>
-    <div class="rounded border-2 border-dashed border-zinc-200 py-12 text-center">
+    <div class="rounded-md border-2 border-dashed border-zinc-200 py-12 text-center">
         <component
             :is="icon ?? DocumentPlusIcon"
             class="mx-auto h-10 w-10 text-zinc-400"
