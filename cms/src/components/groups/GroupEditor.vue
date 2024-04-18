@@ -89,7 +89,7 @@ const changePermission = (
     aclPermission: AclPermission,
     ignoreViewPermissionCheck = false,
 ) => {
-    if (!isPermissionAvailabe.value(docType, aclPermission)) {
+    if (!isPermissionAvailable.value(docType, aclPermission)) {
         return;
     }
 
@@ -203,7 +203,7 @@ const hasChangedPermission = computed(() => {
 /**
  * Check if the permission is available to be changed by the user
  */
-const isPermissionAvailabe = computed(() => {
+const isPermissionAvailable = computed(() => {
     return (docType: DocType, aclPermission: AclPermission) => {
         // @ts-expect-error Not all DocTypes are in the array but we only call it with ones that are
         return availablePermissionsPerDocType[docType].includes(aclPermission);
@@ -364,7 +364,7 @@ const saveChanges = async () => {
                                         :key="aclPermission"
                                         :class="[
                                             'text-center',
-                                            isPermissionAvailabe(docType as DocType, aclPermission)
+                                            isPermissionAvailable(docType as DocType, aclPermission)
                                                 ? 'cursor-pointer'
                                                 : 'cursor-not-allowed',
                                             {
@@ -400,7 +400,7 @@ const saveChanges = async () => {
                                             <CheckCircleIcon
                                                 :class="[
                                                     'inline h-5 w-5',
-                                                    isPermissionAvailabe(
+                                                    isPermissionAvailable(
                                                         docType as DocType,
                                                         aclPermission,
                                                     )
@@ -414,7 +414,7 @@ const saveChanges = async () => {
                                                 :class="[
                                                     'inline h-5 w-5',
                                                     subGroup &&
-                                                    isPermissionAvailabe(
+                                                    isPermissionAvailable(
                                                         docType as DocType,
                                                         aclPermission,
                                                     )
