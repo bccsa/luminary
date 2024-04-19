@@ -41,8 +41,6 @@ onMounted(async () => {
 
     await loadDocumentNameOrRedirect();
 });
-
-watchEffect(() => {});
 </script>
 
 <template>
