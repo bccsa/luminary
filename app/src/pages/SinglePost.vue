@@ -2,15 +2,19 @@
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import VideoPlayer from "@/components/posts/VideoPlayer.vue";
 import { usePostStore } from "@/stores/post";
-import { computed, watch } from "vue";
-import { useRoute } from "vue-router";
+import { computed, onMounted, watchEffect } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { DateTime } from "luxon";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
+import { storeToRefs } from "pinia";
 
 const route = useRoute();
 const postStore = usePostStore();
+const { posts } = storeToRefs(postStore);
 const { appName } = useGlobalConfigStore();
+const router = useRouter();
 
 const slug = route.params.slug as string;
 
@@ -20,15 +24,25 @@ const showPublishDate = computed(
     () => post.value?.content[0].publishDate && post.value?.tags.some((tag) => !tag.pinned),
 );
 
-watch(
-    post,
-    (newPost) => {
-        if (newPost) {
-            document.title = `${newPost.content[0].title} - ${appName}`;
-        }
-    },
-    { immediate: true },
-);
+const loadDocumentNameOrRedirect = async () => {
+    if (post.value) {
+        document.title = `${post.value.content[0].title} - ${appName}`;
+    } else {
+        await router.push({ name: "home" });
+    }
+};
+
+onMounted(async () => {
+    if (posts.value != undefined) {
+        return await loadDocumentNameOrRedirect();
+    }
+
+    await watchEffectOnceAsync(() => posts.value != undefined);
+
+    await loadDocumentNameOrRedirect();
+});
+
+watchEffect(() => {});
 </script>
 
 <template>

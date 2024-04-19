@@ -5,10 +5,12 @@ import { setActivePinia, createPinia } from "pinia";
 import { usePostStore } from "@/stores/post";
 import { mockCategory, mockEnglishContent, mockPost } from "@/tests/mockData";
 
+const routePushMock = vi.hoisted(() => vi.fn());
+
 vi.mock("vue-router", () => ({
     resolve: vi.fn(),
     useRouter: vi.fn().mockImplementation(() => ({
-        replace: vi.fn(),
+        push: routePushMock,
     })),
     useRoute: vi.fn().mockImplementation(() => ({
         params: {
@@ -81,5 +83,16 @@ describe("SinglePost", () => {
         });
 
         expect(wrapper.html()).not.toContain("January 1, 2024");
+    });
+
+    it("redirects away if the slug cannot be found", async () => {
+        const postStore = usePostStore();
+        postStore.posts = [];
+
+        mount(SinglePost, {
+            shallow: true,
+        });
+
+        expect(routePushMock).toHaveBeenCalledWith({ name: "home" });
     });
 });
