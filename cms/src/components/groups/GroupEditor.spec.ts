@@ -15,8 +15,6 @@ import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { AclPermission, DocType } from "@/types";
 
-vi.mock("@auth0/auth0-vue");
-
 vi.mock("vue-router", () => ({
     useRouter: vi.fn().mockImplementation(() => ({
         push: vi.fn(),
@@ -114,6 +112,17 @@ describe("GroupEditor", () => {
 
         expect(wrapper.find(saveChangesButton).exists()).toBe(false);
         expect(wrapper.find(discardChangesButton).exists()).toBe(false);
+    });
+
+    it("can add a new group", async () => {
+        const wrapper = await createWrapper();
+
+        expect(wrapper.text()).not.toContain("Super Admins");
+
+        await wrapper.find('button[data-test="addGroupButton"]').trigger("click");
+        await wrapper.find('button[data-test="selectGroupButton"]').trigger("click");
+
+        expect(wrapper.text()).toContain("Super Admins");
     });
 
     describe("update ACLs", () => {

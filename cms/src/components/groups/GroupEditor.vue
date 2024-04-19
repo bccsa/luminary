@@ -18,8 +18,9 @@ import LButton from "@/components/button/LButton.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { storeToRefs } from "pinia";
-import LBadge from "../common/LBadge.vue";
+import LBadge from "@/components/common/LBadge.vue";
 import { useLocalChangeStore } from "@/stores/localChanges";
+import AddGroupAclButton from "./AddGroupAclButton.vue";
 
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
@@ -62,13 +63,16 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const { group: getGroup, updateGroup } = useGroupStore();
+const groupStore = useGroupStore();
+const { group: getGroup, updateGroup } = groupStore;
+const { groups } = storeToRefs(groupStore);
 const { addNotification } = useNotificationStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
 const { isLocalChange } = useLocalChangeStore();
 
 const isDirty = ref(false);
 const changedAclEntries: Ref<GroupAclEntry[]> = ref([]);
+const addedGroups: Ref<Group[]> = ref([]);
 
 const uniqueGroups = computed(() => {
     const groups: string[] = [];
@@ -79,8 +83,25 @@ const uniqueGroups = computed(() => {
         }
     });
 
-    return groups.map((groupId) => getGroup(groupId));
+    const mappedGroups = groups.map((groupId) => getGroup(groupId)).filter((g) => g) as Group[];
+
+    return mappedGroups.concat(addedGroups.value);
 });
+const availableGroups = computed(() => {
+    if (!groups.value) {
+        return [];
+    }
+
+    const selectedGroupIds = uniqueGroups.value.filter((g) => g).map((g) => g?._id);
+
+    return groups.value.filter(
+        (g) => g._id != props.group._id && !selectedGroupIds.includes(g._id),
+    );
+});
+
+const addGroup = (group: Group) => {
+    addedGroups.value.push(group);
+};
 
 const changePermission = (
     aclGroup: Group,
@@ -281,7 +302,7 @@ const saveChanges = async () => {
 </script>
 
 <template>
-    <div class="w-full rounded-md bg-white shadow">
+    <div class="w-full overflow-visible rounded-md bg-white shadow">
         <Disclosure v-slot="{ open }">
             <DisclosureButton
                 :class="[
@@ -325,9 +346,7 @@ const saveChanges = async () => {
                 leave-from-class="transform scale-100 opacity-100"
                 leave-to-class="transform scale-95 opacity-0"
             >
-                <DisclosurePanel
-                    class="space-y-6 overflow-x-scroll px-6 pb-10 pt-2 lg:overflow-hidden"
-                >
+                <DisclosurePanel class="space-y-6 px-6 pb-10 pt-2">
                     <div
                         v-for="aclGroup in uniqueGroups"
                         :key="aclGroup?._id"
@@ -370,29 +389,24 @@ const saveChanges = async () => {
                                                 ? 'cursor-pointer'
                                                 : 'cursor-not-allowed',
                                             {
-                                                'bg-yellow-200':
-                                                    aclGroup &&
-                                                    hasChangedPermission(
-                                                        aclGroup,
-                                                        docType as DocType,
-                                                        aclPermission,
-                                                    ),
+                                                'bg-yellow-200': hasChangedPermission(
+                                                    aclGroup,
+                                                    docType as DocType,
+                                                    aclPermission,
+                                                ),
                                             },
                                         ]"
                                         @click="
-                                            aclGroup
-                                                ? changePermission(
-                                                      aclGroup,
-                                                      docType as DocType,
-                                                      aclPermission,
-                                                  )
-                                                : ''
+                                            changePermission(
+                                                aclGroup,
+                                                docType as DocType,
+                                                aclPermission,
+                                            )
                                         "
                                         data-test="permissionCell"
                                     >
                                         <template
                                             v-if="
-                                                aclGroup &&
                                                 hasAssignedPermission(
                                                     aclGroup,
                                                     docType as DocType,
@@ -416,7 +430,6 @@ const saveChanges = async () => {
                                             <XCircleIcon
                                                 :class="[
                                                     'inline h-5 w-5',
-                                                    aclGroup &&
                                                     isPermissionAvailable(
                                                         docType as DocType,
                                                         aclPermission,
@@ -436,6 +449,10 @@ const saveChanges = async () => {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="mt-6">
+                        <AddGroupAclButton :groups="availableGroups" @select="addGroup" />
                     </div>
                 </DisclosurePanel>
             </transition>
