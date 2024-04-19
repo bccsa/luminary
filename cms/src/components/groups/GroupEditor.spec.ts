@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach, afterAll } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import GroupEditor from "./GroupEditor.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
@@ -123,6 +123,31 @@ describe("GroupEditor", () => {
         await wrapper.find('button[data-test="selectGroupButton"]').trigger("click");
 
         expect(wrapper.text()).toContain("Super Admins");
+    });
+
+    it("can edit the group name", async () => {
+        const groupNameInput = 'input[data-test="groupNameInput"]';
+        const groupName = '[data-test="groupName"]';
+        const wrapper = await createWrapper();
+
+        await wrapper.find(groupName).trigger("click");
+
+        expect(wrapper.find(groupNameInput).isVisible()).toBe(true);
+        expect(wrapper.find(groupName).exists()).toBe(false);
+
+        await wrapper.find(groupNameInput).setValue("New group name");
+        await wrapper.find(groupNameInput).trigger("blur");
+
+        expect(wrapper.find(groupNameInput).exists()).toBe(false);
+        expect(wrapper.find(groupName).text()).toBe("New group name");
+        expect(wrapper.find(saveChangesButton).exists()).toBe(true);
+
+        // Reset back to old value, save changes button should vanish
+        await wrapper.find(groupName).trigger("click");
+        await wrapper.find(groupNameInput).setValue("Public Content");
+        await wrapper.find(groupNameInput).trigger("blur");
+
+        expect(wrapper.find(saveChangesButton).exists()).toBe(false);
     });
 
     describe("update ACLs", () => {

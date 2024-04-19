@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, toRaw, type Ref } from "vue";
+import { computed, nextTick, ref, toRaw, type Ref } from "vue";
 import { useGroupStore } from "@/stores/group";
 import {
     AclPermission,
@@ -21,6 +21,7 @@ import { storeToRefs } from "pinia";
 import LBadge from "@/components/common/LBadge.vue";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
+import LInput from "../forms/LInput.vue";
 
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
@@ -71,6 +72,9 @@ const { isConnected } = storeToRefs(useSocketConnectionStore());
 const { isLocalChange } = useLocalChangeStore();
 
 const isDirty = ref(false);
+const isEditingGroupName = ref(false);
+const newGroupName = ref(props.group.name);
+const groupNameInput = ref<HTMLInputElement>();
 const changedAclEntries: Ref<GroupAclEntry[]> = ref([]);
 const addedGroups: Ref<Group[]> = ref([]);
 
@@ -130,7 +134,7 @@ const changePermission = (
             changedAclEntries.value.splice(existingAclEntryIndex, 1);
 
             // Reset dirty state if there are no changes now
-            if (changedAclEntries.value.length == 0) {
+            if (changedAclEntries.value.length == 0 && !hasChangedGroupName.value) {
                 isDirty.value = false;
             }
         } else if (alreadyChangedPermissionIndex > -1) {
@@ -230,13 +234,40 @@ const isPermissionAvailable = computed(() => {
     };
 });
 
+const hasChangedGroupName = computed(() => newGroupName.value != props.group.name);
+
+const startEditingGroupName = (e: Event, open: boolean) => {
+    if (!open) return;
+
+    e.preventDefault();
+
+    isEditingGroupName.value = true;
+    nextTick(() => {
+        groupNameInput.value?.focus();
+    });
+};
+
+const finishEditingGroupName = () => {
+    isEditingGroupName.value = false;
+
+    if (hasChangedGroupName.value) {
+        isDirty.value = true;
+    } else if (changedAclEntries.value.length == 0) {
+        isDirty.value = false;
+    }
+};
+
 const discardChanges = () => {
     changedAclEntries.value = [];
     isDirty.value = false;
+    newGroupName.value = props.group.name;
 };
 
 const saveChanges = async () => {
-    const updatedGroup = { ...(toRaw(props.group) as unknown as GroupDto) };
+    const updatedGroup = {
+        ...(toRaw(props.group) as unknown as GroupDto),
+        name: newGroupName.value,
+    };
 
     // Update existing entries with changed permissions, if there are any
     updatedGroup.acl = updatedGroup.acl.map((currentAcl) => {
@@ -290,7 +321,7 @@ const saveChanges = async () => {
     isDirty.value = false;
 
     addNotification({
-        title: `${props.group.name} changes saved`,
+        title: `${newGroupName.value} changes saved`,
         description: `All changes are saved ${
             isConnected.value
                 ? "online"
@@ -310,10 +341,34 @@ const saveChanges = async () => {
                     { 'sticky top-16': open },
                 ]"
             >
-                <div class="flex items-center gap-2">
+                <div
+                    v-if="!isEditingGroupName"
+                    :class="[
+                        '-mx-2 flex items-center gap-2 rounded px-2 py-1',
+                        {
+                            'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
+                                hasChangedGroupName && open,
+                        },
+                        { 'hover:bg-zinc-100 active:bg-zinc-200': !hasChangedGroupName && open },
+                    ]"
+                    @click="(e) => startEditingGroupName(e, open)"
+                    :title="open ? 'Edit group name' : ''"
+                    data-test="groupName"
+                >
                     <RectangleStackIcon class="h-5 w-5 text-zinc-400" />
-                    <h2 class="font-medium text-zinc-800">{{ group.name }}</h2>
+                    <h2 class="font-medium text-zinc-800">{{ newGroupName }}</h2>
                 </div>
+                <LInput
+                    v-else
+                    size="sm"
+                    ref="groupNameInput"
+                    name="groupName"
+                    v-model="newGroupName"
+                    @blur="finishEditingGroupName"
+                    @keyup.enter="finishEditingGroupName"
+                    class="mr-4 grow"
+                    data-test="groupNameInput"
+                />
                 <div class="flex items-center gap-4">
                     <div v-if="isDirty && open" class="-my-2 flex items-center gap-2">
                         <LButton
