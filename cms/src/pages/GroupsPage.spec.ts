@@ -11,7 +11,7 @@ import {
     mockGroupSuperAdmins,
 } from "@/tests/mockData";
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("vue-router");
 
 describe("GroupsPage", () => {
     beforeEach(() => {
