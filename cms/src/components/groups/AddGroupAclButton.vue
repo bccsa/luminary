@@ -30,7 +30,7 @@ const selectGroup = (group: Group) => {
                     iconRight
                     data-test="addGroupButton"
                 >
-                    Add group
+                    Add access
                 </MenuButton>
             </div>
 
