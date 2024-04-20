@@ -4,6 +4,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useContentStore } from "@/stores/content";
+import { useNotificationStore } from "@/stores/notification";
 import { usePostStore } from "@/stores/post";
 import type { Language } from "@/types";
 import { DocumentIcon } from "@heroicons/vue/24/solid";
@@ -14,6 +15,7 @@ const route = useRoute();
 const router = useRouter();
 const postStore = usePostStore();
 const contentStore = useContentStore();
+const { addNotification } = useNotificationStore();
 
 const postId = route.params.id as string;
 const routeLanguage = route.params.language as string;
@@ -74,6 +76,12 @@ async function createTranslation(language: Language) {
     await postStore.createTranslation(post.value!, language);
 
     selectedLanguage.value = language.languageCode;
+
+    addNotification({
+        title: `Translation created for ${language.name}`,
+        description: `Saved as a draft with a default title.`,
+        state: "success",
+    });
 
     router.replace({
         name: "posts.edit",

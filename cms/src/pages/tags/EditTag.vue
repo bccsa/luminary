@@ -4,6 +4,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useContentStore } from "@/stores/content";
+import { useNotificationStore } from "@/stores/notification";
 import { useTagStore } from "@/stores/tag";
 import { TagType, type Language } from "@/types";
 import { TagIcon } from "@heroicons/vue/24/solid";
@@ -29,6 +30,7 @@ const route = useRoute();
 const router = useRouter();
 const tagStore = useTagStore();
 const contentStore = useContentStore();
+const { addNotification } = useNotificationStore();
 
 const tagId = route.params.id as string;
 const routeLanguage = route.params.language as string;
@@ -97,6 +99,12 @@ async function createTranslation(language: Language) {
     await tagStore.createTranslation(tag.value!, language);
 
     selectedLanguage.value = language.languageCode;
+
+    addNotification({
+        title: `Translation created for ${language.name}`,
+        description: `Saved as a draft with a default title.`,
+        state: "success",
+    });
 
     router.replace({
         name: "tags.edit",
