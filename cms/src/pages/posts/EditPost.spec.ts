@@ -17,6 +17,7 @@ import { usePostStore } from "@/stores/post";
 import waitForExpect from "wait-for-expect";
 import EmptyState from "@/components/EmptyState.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 let routeLanguage: string;
 
@@ -144,12 +145,14 @@ describe("EditPost", () => {
 
     it("can create a translation", async () => {
         const postStore = usePostStore();
+        const notificationStore = useNotificationStore();
         const wrapper = mount(EditPost);
 
         await wrapper.find("button[data-test='language-selector']").trigger("click");
         await wrapper.find("button[data-test='select-language-swa']").trigger("click");
 
         expect(postStore.createTranslation).toHaveBeenCalledWith(mockPost, mockLanguageSwa);
+        expect(notificationStore.addNotification).toHaveBeenCalled();
         // Test that it switched the current language
         expect(wrapper.text()).toContain("Swahili");
         expect(wrapper.text()).not.toContain("Français");

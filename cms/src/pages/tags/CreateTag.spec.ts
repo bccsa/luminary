@@ -9,6 +9,7 @@ import { useTagStore } from "@/stores/tag";
 import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
 import { TagType } from "@/types";
+import { useNotificationStore } from "@/stores/notification";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -43,6 +44,7 @@ describe("CreateTag", () => {
 
     it("can submit the form", async () => {
         const tagStore = useTagStore();
+        const notificationStore = useNotificationStore();
 
         const wrapper = mount(CreateTag);
 
@@ -55,6 +57,7 @@ describe("CreateTag", () => {
         await flushPromises();
         await waitForExpect(() => {
             expect(tagStore.createTag).toHaveBeenCalled();
+            expect(notificationStore.addNotification).toHaveBeenCalled();
             expect(routePushMock).toHaveBeenCalled();
         });
     });

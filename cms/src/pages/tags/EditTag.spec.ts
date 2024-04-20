@@ -18,6 +18,7 @@ import waitForExpect from "wait-for-expect";
 import EmptyState from "@/components/EmptyState.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useTagStore } from "@/stores/tag";
+import { useNotificationStore } from "@/stores/notification";
 
 let routeLanguage: string;
 
@@ -147,12 +148,14 @@ describe("EditTag", () => {
 
     it("can create a translation", async () => {
         const tagStore = useTagStore();
+        const notificationStore = useNotificationStore();
         const wrapper = mount(EditTag);
 
         await wrapper.find("button[data-test='language-selector']").trigger("click");
         await wrapper.find("button[data-test='select-language-swa']").trigger("click");
 
         expect(tagStore.createTranslation).toHaveBeenCalledWith(mockCategory, mockLanguageSwa);
+        expect(notificationStore.addNotification).toHaveBeenCalled();
         // Test that it switched the current language
         expect(wrapper.text()).toContain("Swahili");
         expect(wrapper.text()).not.toContain("Français");

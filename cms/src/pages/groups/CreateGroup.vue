@@ -11,7 +11,7 @@ import * as yup from "yup";
 import { ArrowRightIcon } from "@heroicons/vue/20/solid";
 import { useNotificationStore } from "@/stores/notification";
 
-const groupStore = useGroupStore();
+const { createGroup } = useGroupStore();
 const { addNotification } = useNotificationStore();
 const router = useRouter();
 
@@ -26,7 +26,7 @@ const { handleSubmit } = useForm({
 });
 
 const save = handleSubmit(async ({ name }) => {
-    await groupStore.createGroup({ name: name });
+    await createGroup({ name: name });
 
     addNotification({
         title: `Group "${name}" created`,

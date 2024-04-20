@@ -8,6 +8,7 @@ import { mockLanguageEng, mockLanguageFra } from "@/tests/mockData";
 import { usePostStore } from "@/stores/post";
 import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
+import { useNotificationStore } from "@/stores/notification";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -31,6 +32,7 @@ describe("CreatePost", () => {
 
     it("can submit the form", async () => {
         const postStore = usePostStore();
+        const notificationStore = useNotificationStore();
 
         const wrapper = mount(CreatePost);
 
@@ -43,6 +45,7 @@ describe("CreatePost", () => {
         await flushPromises();
         await waitForExpect(() => {
             expect(postStore.createPost).toHaveBeenCalled();
+            expect(notificationStore.addNotification).toHaveBeenCalled();
             expect(routePushMock).toHaveBeenCalled();
         });
     });
