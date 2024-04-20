@@ -26,11 +26,6 @@ const router = createRouter({
                     component: () => import("../pages/internal/ComponentSandbox.vue"),
                 },
                 {
-                    path: "api-example",
-                    name: "api-example",
-                    component: () => import("../pages/internal/ApiExample.vue"),
-                },
-                {
                     path: "dashboard",
                     name: "dashboard",
                     component: Dashboard,
