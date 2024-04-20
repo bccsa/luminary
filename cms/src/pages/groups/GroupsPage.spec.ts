@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import GroupsPage from "./GroupsPage.vue";
+import GroupOverview from "./GroupOverview.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useGroupStore } from "@/stores/group";
@@ -13,7 +13,7 @@ import {
 
 vi.mock("vue-router");
 
-describe("GroupsPage", () => {
+describe("GroupOverview", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
     });
@@ -31,7 +31,7 @@ describe("GroupsPage", () => {
             mockGroupSuperAdmins,
         ];
 
-        const wrapper = mount(GroupsPage);
+        const wrapper = mount(GroupOverview);
 
         expect(wrapper.text()).toContain("Public Content");
         expect(wrapper.text()).toContain("Public Users");

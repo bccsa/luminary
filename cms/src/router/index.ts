@@ -128,9 +128,17 @@ const router = createRouter({
                         {
                             path: "",
                             name: "groups.index",
-                            component: () => import("../pages/GroupsPage.vue"),
+                            component: () => import("../pages/groups/GroupOverview.vue"),
                             meta: {
                                 title: "Groups",
+                            },
+                        },
+                        {
+                            path: "create",
+                            name: "groups.create",
+                            component: () => import("../pages/groups/CreateGroup.vue"),
+                            meta: {
+                                title: "Create group",
                             },
                         },
                     ],
