@@ -407,118 +407,120 @@ const saveChanges = async () => {
                         enter-from-class="opacity-0 scale-90"
                         enter-to-class="opacity-100 scale-100"
                     >
-                        <div
-                            v-for="aclGroup in uniqueGroups"
-                            :key="aclGroup?._id"
-                            class="inline-block rounded-md border border-zinc-200 bg-zinc-50 shadow-sm"
-                        >
-                            <h3
-                                class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700"
+                        <div class="overflow-x-auto">
+                            <div
+                                v-for="aclGroup in uniqueGroups"
+                                :key="aclGroup?._id"
+                                class="inline-block rounded-md border border-zinc-200 bg-zinc-50 shadow-sm"
                             >
-                                {{ aclGroup?.name }}
-                            </h3>
-
-                            <table>
-                                <thead
-                                    class="border-b border-zinc-200 bg-zinc-100 last:border-none"
+                                <h3
+                                    class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700"
                                 >
-                                    <tr>
-                                        <th></th>
-                                        <th
-                                            v-for="aclPermission in AclPermission"
-                                            :key="aclPermission"
-                                            class="p-4 text-center text-sm font-medium uppercase tracking-wider text-zinc-600 last:pr-6 lg:min-w-24"
-                                        >
-                                            {{ capitaliseFirstLetter(aclPermission) }}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr
-                                        v-for="docType in Object.keys(
-                                            availablePermissionsPerDocType,
-                                        )"
-                                        :key="docType"
-                                        class="border-b border-zinc-200 last:border-none"
+                                    {{ aclGroup?.name }}
+                                </h3>
+
+                                <table>
+                                    <thead
+                                        class="border-b border-zinc-200 bg-zinc-100 last:border-none"
                                     >
-                                        <th
-                                            scope="row"
-                                            class="py-3 pl-6 pr-10 text-left font-medium"
+                                        <tr>
+                                            <th></th>
+                                            <th
+                                                v-for="aclPermission in AclPermission"
+                                                :key="aclPermission"
+                                                class="p-4 text-center text-sm font-medium uppercase tracking-wider text-zinc-600 last:pr-6 lg:min-w-24"
+                                            >
+                                                {{ capitaliseFirstLetter(aclPermission) }}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="docType in Object.keys(
+                                                availablePermissionsPerDocType,
+                                            )"
+                                            :key="docType"
+                                            class="border-b border-zinc-200 last:border-none"
                                         >
-                                            {{ capitaliseFirstLetter(docType) }}
-                                        </th>
-                                        <td
-                                            v-for="aclPermission in AclPermission"
-                                            :key="aclPermission"
-                                            :class="[
-                                                'text-center',
-                                                isPermissionAvailable(
-                                                    docType as DocType,
-                                                    aclPermission,
-                                                )
-                                                    ? 'cursor-pointer'
-                                                    : 'cursor-not-allowed',
-                                                {
-                                                    'bg-yellow-200': hasChangedPermission(
-                                                        aclGroup,
+                                            <th
+                                                scope="row"
+                                                class="py-3 pl-6 pr-10 text-left font-medium"
+                                            >
+                                                {{ capitaliseFirstLetter(docType) }}
+                                            </th>
+                                            <td
+                                                v-for="aclPermission in AclPermission"
+                                                :key="aclPermission"
+                                                :class="[
+                                                    'text-center',
+                                                    isPermissionAvailable(
                                                         docType as DocType,
                                                         aclPermission,
-                                                    ),
-                                                },
-                                            ]"
-                                            @click="
-                                                changePermission(
-                                                    aclGroup,
-                                                    docType as DocType,
-                                                    aclPermission,
-                                                )
-                                            "
-                                            data-test="permissionCell"
-                                        >
-                                            <template
-                                                v-if="
-                                                    hasAssignedPermission(
+                                                    )
+                                                        ? 'cursor-pointer'
+                                                        : 'cursor-not-allowed',
+                                                    {
+                                                        'bg-yellow-200': hasChangedPermission(
+                                                            aclGroup,
+                                                            docType as DocType,
+                                                            aclPermission,
+                                                        ),
+                                                    },
+                                                ]"
+                                                @click="
+                                                    changePermission(
                                                         aclGroup,
                                                         docType as DocType,
                                                         aclPermission,
                                                     )
                                                 "
+                                                data-test="permissionCell"
                                             >
-                                                <CheckCircleIcon
-                                                    :class="[
-                                                        'inline h-5 w-5',
-                                                        isPermissionAvailable(
+                                                <template
+                                                    v-if="
+                                                        hasAssignedPermission(
+                                                            aclGroup,
                                                             docType as DocType,
                                                             aclPermission,
                                                         )
-                                                            ? 'text-zinc-500'
-                                                            : 'text-zinc-200',
-                                                    ]"
-                                                />
-                                            </template>
-                                            <template v-else>
-                                                <XCircleIcon
-                                                    :class="[
-                                                        'inline h-5 w-5',
-                                                        isPermissionAvailable(
-                                                            docType as DocType,
-                                                            aclPermission,
-                                                        )
-                                                            ? hasChangedPermission(
-                                                                  aclGroup,
-                                                                  docType as DocType,
-                                                                  aclPermission,
-                                                              )
-                                                                ? 'text-zinc-400'
-                                                                : 'text-zinc-300'
-                                                            : 'text-zinc-200',
-                                                    ]"
-                                                />
-                                            </template>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                                    "
+                                                >
+                                                    <CheckCircleIcon
+                                                        :class="[
+                                                            'inline h-5 w-5',
+                                                            isPermissionAvailable(
+                                                                docType as DocType,
+                                                                aclPermission,
+                                                            )
+                                                                ? 'text-zinc-500'
+                                                                : 'text-zinc-200',
+                                                        ]"
+                                                    />
+                                                </template>
+                                                <template v-else>
+                                                    <XCircleIcon
+                                                        :class="[
+                                                            'inline h-5 w-5',
+                                                            isPermissionAvailable(
+                                                                docType as DocType,
+                                                                aclPermission,
+                                                            )
+                                                                ? hasChangedPermission(
+                                                                      aclGroup,
+                                                                      docType as DocType,
+                                                                      aclPermission,
+                                                                  )
+                                                                    ? 'text-zinc-400'
+                                                                    : 'text-zinc-300'
+                                                                : 'text-zinc-200',
+                                                        ]"
+                                                    />
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </TransitionGroup>
 
