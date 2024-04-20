@@ -2,6 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import GroupEditor from "@/components/groups/GroupEditor.vue";
 import { useGroupStore } from "@/stores/group";
+import { sortByName } from "@/util/sortByName";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
 
@@ -14,11 +15,7 @@ const sortedGroups = computed(() => {
         return sortedGroups;
     }
 
-    return sortedGroups.sort((a, b) => {
-        if (a.name > b.name) return 1;
-        if (a.name < b.name) return -1;
-        return 0;
-    });
+    return sortedGroups.sort(sortByName);
 });
 </script>
 
