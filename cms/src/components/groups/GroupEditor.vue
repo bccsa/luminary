@@ -407,10 +407,12 @@ const saveChanges = async () => {
                         enter-from-class="opacity-0 scale-90"
                         enter-to-class="opacity-100 scale-100"
                     >
-                        <div class="overflow-x-auto">
+                        <div
+                            v-for="aclGroup in uniqueGroups"
+                            :key="aclGroup?._id"
+                            class="overflow-x-auto"
+                        >
                             <div
-                                v-for="aclGroup in uniqueGroups"
-                                :key="aclGroup?._id"
                                 class="inline-block rounded-md border border-zinc-200 bg-zinc-50 shadow-sm"
                             >
                                 <h3
