@@ -72,16 +72,22 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
         </h2>
 
         <div class="relative">
-            <ArrowLeftCircleIcon
-                v-if="showLeftSpin"
-                class="absolute left-4 top-7 h-10 w-10 cursor-pointer text-zinc-100 opacity-60 hover:opacity-90 md:left-6 md:top-11 md:h-14 md:w-14"
-                @click="spinLeft()"
-            ></ArrowLeftCircleIcon>
-            <ArrowRightCircleIcon
-                v-if="showRightSpin"
-                class="absolute right-4 top-7 h-10 w-10 cursor-pointer text-zinc-100 opacity-60 hover:opacity-90 md:right-6 md:top-11 md:h-14 md:w-14"
+            <div class="group absolute left-0 top-0 h-full cursor-pointer px-4" @click="spinLeft()">
+                <ArrowLeftCircleIcon
+                    v-if="showLeftSpin"
+                    class="mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14"
+                    @click="spinLeft()"
+                />
+            </div>
+            <div
+                class="group absolute right-0 top-0 h-full cursor-pointer px-4"
                 @click="spinRight()"
-            ></ArrowRightCircleIcon>
+            >
+                <ArrowRightCircleIcon
+                    v-if="showRightSpin"
+                    class="mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14"
+                />
+            </div>
 
             <div
                 ref="scrollElement"
