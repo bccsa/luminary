@@ -63,8 +63,8 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 </script>
 
 <template>
-    <div>
-        <h2 class="truncate px-4">
+    <div :class="{ 'bg-zinc-100 py-6': tag.pinned }">
+        <h2 class="truncate px-6">
             {{ tag.content[0]?.title }}
             <span class="ml-1 text-sm text-zinc-500 dark:text-zinc-200">
                 {{ tag.content[0]?.summary }}
@@ -72,7 +72,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
         </h2>
 
         <div class="relative">
-            <div class="group absolute left-0 top-0 h-full cursor-pointer px-4" @click="spinLeft()">
+            <div class="group absolute left-0 top-0 h-full cursor-pointer px-6" @click="spinLeft()">
                 <ArrowLeftCircleIcon
                     v-if="showLeftSpin"
                     class="mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14"
@@ -80,7 +80,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                 />
             </div>
             <div
-                class="group absolute right-0 top-0 h-full cursor-pointer px-4"
+                class="group absolute right-0 top-0 h-full cursor-pointer px-6"
                 @click="spinRight()"
             >
                 <ArrowRightCircleIcon
@@ -94,7 +94,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                 class="flex overflow-x-scroll py-2 scrollbar-hide"
                 @scroll="setSpinBtnVisibility"
             >
-                <div ref="scrollContent" class="flex flex-row gap-4 px-4">
+                <div ref="scrollContent" class="flex flex-row gap-4 px-6">
                     <PostTile
                         v-for="post in postsByTag(tag._id, queryOptions)"
                         :key="post._id"
