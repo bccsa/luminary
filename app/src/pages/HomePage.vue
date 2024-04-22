@@ -35,7 +35,7 @@ const { isAuthenticated } = useAuth0();
         </div>
     </div>
     <IgnorePagePadding v-else>
-        <div class="space-y-3">
+        <div class="space-y-4">
             <!-- Display category tags -->
             <HorizontalScrollableTagViewer
                 v-for="tag in tagsByTagType(TagType.Category, {

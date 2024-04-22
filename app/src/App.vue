@@ -50,7 +50,7 @@ onBeforeMount(async () => {
 <template>
     <TopBar class="sticky top-0 z-40" />
 
-    <main class="mx-auto max-w-7xl px-4">
+    <main class="px-6">
         <RouterView />
     </main>
 </template>
