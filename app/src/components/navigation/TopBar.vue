@@ -11,9 +11,7 @@ const { isAuthenticated } = useAuth0();
 
 <template>
     <header class="mb-6 bg-white shadow dark:bg-zinc-600">
-        <div
-            class="mx-auto flex max-w-7xl flex-row items-center justify-between space-x-8 px-4 py-5"
-        >
+        <div class="flex flex-row items-center justify-between space-x-8 px-6 py-5">
             <RouterLink to="/" class="flex items-center">
                 <div
                     class="mr-4 border-r border-zinc-400 pr-4"
