@@ -32,7 +32,7 @@ export type GroupAclEntry = {
 };
 
 export type ContentBase = BaseDocument & {
-    memberOf: Group[];
+    memberOf: Uuid[];
 };
 
 export type Language = ContentBase & {

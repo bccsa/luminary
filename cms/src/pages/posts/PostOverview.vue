@@ -7,6 +7,7 @@ import LButton from "@/components/button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import { storeToRefs } from "pinia";
+import { DocType } from "@/types";
 
 const { posts } = storeToRefs(usePostStore());
 </script>
@@ -33,6 +34,6 @@ const { posts } = storeToRefs(usePostStore());
             :buttonLink="{ name: 'posts.create' }"
         />
 
-        <ContentTable v-else :items="posts" editLinkName="posts.edit" />
+        <ContentTable v-else :items="posts" :docType="DocType.Post" editLinkName="posts.edit" />
     </BasePage>
 </template>

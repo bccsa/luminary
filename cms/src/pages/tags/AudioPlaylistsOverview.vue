@@ -8,9 +8,11 @@ import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useTagStore } from "@/stores/tag";
-import { TagType } from "@/types";
+import { DocType, TagType } from "@/types";
+import { useUserAccessStore } from "@/stores/userAccess";
 
 const { tags, audioPlaylists } = storeToRefs(useTagStore());
+const { verifyAccess } = useUserAccessStore();
 </script>
 
 <template>
@@ -36,6 +38,11 @@ const { tags, audioPlaylists } = storeToRefs(useTagStore());
             :buttonLink="{ name: 'tags.create', params: { tagType: TagType.AudioPlaylist } }"
         />
 
-        <ContentTable v-else :items="audioPlaylists" editLinkName="tags.edit" />
+        <ContentTable
+            v-else
+            :items="audioPlaylists"
+            :docType="DocType.Tag"
+            editLinkName="tags.edit"
+        />
     </BasePage>
 </template>

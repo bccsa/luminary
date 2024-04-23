@@ -5,15 +5,25 @@ import { PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LCard from "@/components/common/LCard.vue";
 import LTable, { type SortDirection } from "@/components/common/LTable.vue";
 import { computed, ref } from "vue";
-import { ContentStatus, type Content, type Post, type Language, type BaseDocument } from "@/types";
+import {
+    ContentStatus,
+    type Content,
+    type Post,
+    type Language,
+    type BaseDocument,
+    AclPermission,
+    DocType,
+} from "@/types";
 import { useLanguageStore } from "@/stores/language";
 import LBadge from "@/components/common/LBadge.vue";
 import { storeToRefs } from "pinia";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { DateTime } from "luxon";
+import { useUserAccessStore } from "@/stores/userAccess";
 
 type Props = {
     items: BaseDocument[];
+    docType: DocType;
     editLinkName: string;
 };
 
@@ -21,6 +31,7 @@ defineProps<Props>();
 
 const { languages } = storeToRefs(useLanguageStore());
 const { isLocalChange } = useLocalChangeStore();
+const { verifyAccess } = useUserAccessStore();
 
 const sortBy = ref("updatedTime");
 const sortDirection = ref<SortDirection>("descending");
@@ -157,6 +168,7 @@ const postTitle = computed(() => {
             </template>
             <template #item.actions="item">
                 <LButton
+                    v-if="verifyAccess(item.memberOf, docType, AclPermission.Edit)"
                     variant="tertiary"
                     :icon="PencilSquareIcon"
                     :is="RouterLink"

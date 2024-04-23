@@ -8,7 +8,7 @@ import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useTagStore } from "@/stores/tag";
-import { TagType } from "@/types";
+import { DocType, TagType } from "@/types";
 
 const { tags, topics } = storeToRefs(useTagStore());
 </script>
@@ -36,6 +36,6 @@ const { tags, topics } = storeToRefs(useTagStore());
             :buttonLink="{ name: 'tags.create', params: { tagType: TagType.Topic } }"
         />
 
-        <ContentTable v-else :items="topics" editLinkName="tags.edit" />
+        <ContentTable v-else :items="topics" :docType="DocType.Tag" editLinkName="tags.edit" />
     </BasePage>
 </template>
