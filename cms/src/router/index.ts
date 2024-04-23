@@ -4,6 +4,16 @@ import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
+import { AclPermission, DocType } from "@/types";
+import { useUserAccessStore } from "@/stores/userAccess";
+import { useNotificationStore } from "@/stores/notification";
+
+declare module "vue-router" {
+    interface RouteMeta {
+        title?: string;
+        canAccess?: { docType: DocType; permission: AclPermission };
+    }
+}
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -52,6 +62,10 @@ const router = createRouter({
                             component: () => import("../pages/posts/PostOverview.vue"),
                             meta: {
                                 title: "Posts",
+                                canAccess: {
+                                    docType: DocType.Post,
+                                    permission: AclPermission.View,
+                                },
                             },
                         },
                         {
@@ -60,6 +74,10 @@ const router = createRouter({
                             component: () => import("../pages/posts/CreatePost.vue"),
                             meta: {
                                 title: "Create Post",
+                                canAccess: {
+                                    docType: DocType.Post,
+                                    permission: AclPermission.Create,
+                                },
                             },
                         },
                         {
@@ -68,6 +86,10 @@ const router = createRouter({
                             component: () => import("../pages/posts/EditPost.vue"),
                             meta: {
                                 title: "Edit Post",
+                                canAccess: {
+                                    docType: DocType.Post,
+                                    permission: AclPermission.View,
+                                },
                             },
                         },
                     ],
@@ -83,6 +105,10 @@ const router = createRouter({
                             component: () => import("../pages/tags/CreateTag.vue"),
                             meta: {
                                 title: "Create tag",
+                                canAccess: {
+                                    docType: DocType.Tag,
+                                    permission: AclPermission.Create,
+                                },
                             },
                         },
                         {
@@ -91,6 +117,10 @@ const router = createRouter({
                             component: () => import("../pages/tags/EditTag.vue"),
                             meta: {
                                 title: "Edit tag",
+                                canAccess: {
+                                    docType: DocType.Tag,
+                                    permission: AclPermission.View,
+                                },
                             },
                         },
 
@@ -100,6 +130,10 @@ const router = createRouter({
                             component: () => import("../pages/tags/CategoriesOverview.vue"),
                             meta: {
                                 title: "Categories",
+                                canAccess: {
+                                    docType: DocType.Tag,
+                                    permission: AclPermission.View,
+                                },
                             },
                         },
                         {
@@ -108,6 +142,10 @@ const router = createRouter({
                             component: () => import("../pages/tags/TopicsOverview.vue"),
                             meta: {
                                 title: "Topics",
+                                canAccess: {
+                                    docType: DocType.Tag,
+                                    permission: AclPermission.View,
+                                },
                             },
                         },
                         {
@@ -116,6 +154,10 @@ const router = createRouter({
                             component: () => import("../pages/tags/AudioPlaylistsOverview.vue"),
                             meta: {
                                 title: "AudioPlaylists",
+                                canAccess: {
+                                    docType: DocType.Tag,
+                                    permission: AclPermission.View,
+                                },
                             },
                         },
                     ],
@@ -131,6 +173,10 @@ const router = createRouter({
                             component: () => import("../pages/groups/GroupOverview.vue"),
                             meta: {
                                 title: "Groups",
+                                canAccess: {
+                                    docType: DocType.Group,
+                                    permission: AclPermission.View,
+                                },
                             },
                         },
                         {
@@ -139,6 +185,10 @@ const router = createRouter({
                             component: () => import("../pages/groups/CreateGroup.vue"),
                             meta: {
                                 title: "Create group",
+                                canAccess: {
+                                    docType: DocType.Group,
+                                    permission: AclPermission.Create,
+                                },
                             },
                         },
                     ],
@@ -154,6 +204,10 @@ const router = createRouter({
                             component: () => import("../pages/UsersPage.vue"),
                             meta: {
                                 title: "Users",
+                                canAccess: {
+                                    docType: DocType.User,
+                                    permission: AclPermission.View,
+                                },
                             },
                         },
                     ],
@@ -164,7 +218,26 @@ const router = createRouter({
     ],
 });
 
-router.afterEach((to) => {
+router.beforeEach((to, from) => {
+    const { hasAnyPermission } = useUserAccessStore();
+    const { addNotification } = useNotificationStore();
+    if (
+        to.meta.canAccess &&
+        !hasAnyPermission(to.meta.canAccess.docType, to.meta.canAccess.permission)
+    ) {
+        addNotification({
+            title: "Access denied",
+            description: "You don't have access to this page",
+            state: "error",
+        });
+
+        return from;
+    }
+});
+
+router.afterEach((to, from, failure) => {
+    if (failure) return;
+
     const { appName } = useGlobalConfigStore();
 
     nextTick(() => {

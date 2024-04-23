@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import LButton from "@/components/button/LButton.vue";
-import { PencilSquareIcon } from "@heroicons/vue/20/solid";
+import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LCard from "@/components/common/LCard.vue";
 import LTable, { type SortDirection } from "@/components/common/LTable.vue";
 import { computed, ref } from "vue";
@@ -168,9 +168,13 @@ const postTitle = computed(() => {
             </template>
             <template #item.actions="item">
                 <LButton
-                    v-if="verifyAccess(item.memberOf, docType, AclPermission.Edit)"
+                    v-if="verifyAccess(item.memberOf, docType, AclPermission.View)"
                     variant="tertiary"
-                    :icon="PencilSquareIcon"
+                    :icon="
+                        verifyAccess(item.memberOf, docType, AclPermission.Edit)
+                            ? PencilSquareIcon
+                            : EyeIcon
+                    "
                     :is="RouterLink"
                     :to="{
                         name: editLinkName,
