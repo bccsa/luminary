@@ -46,7 +46,7 @@ const EMPTY_TEXT = "<p></p>";
 type Props = {
     content: Content;
     parent: Post | Tag;
-    ruleset: "post" | "tag";
+    docType: DocType;
 };
 
 const props = defineProps<Props>();
@@ -63,9 +63,9 @@ const {
 } = storeToRefs(useTagStore());
 const { verifyAccess } = useUserAccessStore();
 
-const docType = props.ruleset == "post" ? DocType.Post : DocType.Tag;
 const can = computed(
-    () => (permission: AclPermission) => verifyAccess(props.parent.memberOf, docType, permission),
+    () => (permission: AclPermission) =>
+        verifyAccess(props.parent.memberOf, props.docType, permission),
 );
 
 const selectedTags = ref<Tag[]>([]);
@@ -163,7 +163,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         image: validatedFormValues.parent?.image,
         tags: toRaw(selectedTags.value),
         // @ts-ignore We're only setting pinned for tags
-        pinned: props.ruleset == "tag" ? pinned.value : undefined,
+        pinned: props.docType == DocType.Tag ? pinned.value : undefined,
     };
 
     isDirty.value = false;
@@ -197,7 +197,7 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
 }, validationErrorCallback);
 
 const canPublish = computed(() => {
-    if (props.ruleset == "tag") {
+    if (props.docType == DocType.Tag) {
         return hasParentImage.value;
     }
 
@@ -489,7 +489,7 @@ const initializeText = () => {
                                     tag="div"
                                 >
                                     <div
-                                        v-if="!hasOneContentField && ruleset == 'post'"
+                                        v-if="!hasOneContentField && docType == DocType.Post"
                                         class="flex gap-2"
                                     >
                                         <p>
@@ -499,7 +499,10 @@ const initializeText = () => {
                                             At least one of text, audio or video content is required
                                         </p>
                                     </div>
-                                    <div v-if="!hasTag && ruleset == 'post'" class="flex gap-2">
+                                    <div
+                                        v-if="!hasTag && docType == DocType.Post"
+                                        class="flex gap-2"
+                                    >
                                         <p>
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
@@ -512,12 +515,15 @@ const initializeText = () => {
                 </LCard>
 
                 <LCard
-                    :title="`${capitaliseFirstLetter(ruleset)} settings`"
+                    :title="`${capitaliseFirstLetter(docType.toString())} settings`"
                     :icon="Cog6ToothIcon"
                     class="sticky top-20"
                     collapsible
                 >
-                    <div v-if="ruleset == 'tag'" class="mb-6 flex items-center justify-between">
+                    <div
+                        v-if="docType == DocType.Tag"
+                        class="mb-6 flex items-center justify-between"
+                    >
                         <FormLabel>Pinned</FormLabel>
                         <LToggle v-model="pinned" :disabled="!can(AclPermission.Edit)" />
                     </div>

@@ -65,7 +65,7 @@ describe("EditContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -86,7 +86,7 @@ describe("EditContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -107,7 +107,7 @@ describe("EditContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -131,7 +131,7 @@ describe("EditContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -156,7 +156,7 @@ describe("EditContentForm", () => {
                     ...mockEnglishContent,
                     text: undefined,
                 },
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -176,7 +176,7 @@ describe("EditContentForm", () => {
                     ...mockEnglishContent,
                     text: undefined,
                 },
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -197,7 +197,7 @@ describe("EditContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -216,7 +216,7 @@ describe("EditContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -228,7 +228,7 @@ describe("EditContentForm", () => {
             props: {
                 parent: mockPost,
                 content: mockEnglishContent,
-                ruleset: "post",
+                docType: DocType.Post,
             },
         });
 
@@ -252,7 +252,7 @@ describe("EditContentForm", () => {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 
@@ -274,7 +274,7 @@ describe("EditContentForm", () => {
                         tags: [],
                     },
                     content: mockUnpublishableContent,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 
@@ -302,7 +302,7 @@ describe("EditContentForm", () => {
                         tags: [],
                     },
                     content: mockUnpublishableContent,
-                    ruleset: "tag",
+                    docType: DocType.Tag,
                 },
             });
 
@@ -325,7 +325,7 @@ describe("EditContentForm", () => {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 
@@ -354,7 +354,7 @@ describe("EditContentForm", () => {
                         content: [content],
                     },
                     content: content,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 
@@ -382,7 +382,7 @@ describe("EditContentForm", () => {
                         content: [content],
                     },
                     content: content,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 
@@ -402,7 +402,7 @@ describe("EditContentForm", () => {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 
@@ -437,7 +437,7 @@ describe("EditContentForm", () => {
                         slug: "test-title",
                         status: ContentStatus.Draft,
                     },
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 
@@ -459,7 +459,7 @@ describe("EditContentForm", () => {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 
@@ -474,7 +474,7 @@ describe("EditContentForm", () => {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
             const input = wrapper.find("input[name='slug']");
@@ -494,7 +494,7 @@ describe("EditContentForm", () => {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
             const input = wrapper.find("input[name='slug']");
@@ -514,7 +514,7 @@ describe("EditContentForm", () => {
                 props: {
                     parent: mockPost,
                     content: mockEnglishContent,
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
             const input = wrapper.find("input[name='slug']");
@@ -540,7 +540,7 @@ describe("EditContentForm", () => {
                         slug: "test-title",
                         status: ContentStatus.Published,
                     },
-                    ruleset: "post",
+                    docType: DocType.Post,
                 },
             });
 

@@ -6,7 +6,7 @@ import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useContentStore } from "@/stores/content";
 import { useNotificationStore } from "@/stores/notification";
 import { useTagStore } from "@/stores/tag";
-import { TagType, type Language } from "@/types";
+import { TagType, DocType, type Language } from "@/types";
 import { TagIcon } from "@heroicons/vue/24/solid";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -152,7 +152,7 @@ async function createTranslation(language: Language) {
                 :key="content._id"
                 :parent="tag"
                 :content="content"
-                ruleset="tag"
+                :docType="DocType.Tag"
                 @save="tagStore.updateTag"
             />
         </transition>

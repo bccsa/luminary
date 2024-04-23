@@ -6,7 +6,7 @@ import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useContentStore } from "@/stores/content";
 import { useNotificationStore } from "@/stores/notification";
 import { usePostStore } from "@/stores/post";
-import type { Language } from "@/types";
+import { DocType, type Language } from "@/types";
 import { DocumentIcon } from "@heroicons/vue/24/solid";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -129,7 +129,7 @@ async function createTranslation(language: Language) {
                 :key="content._id"
                 :parent="post"
                 :content="content"
-                ruleset="post"
+                :docType="DocType.Post"
                 @save="postStore.updatePost"
             />
         </transition>
