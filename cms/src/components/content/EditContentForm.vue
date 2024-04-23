@@ -11,7 +11,15 @@ import {
     LinkIcon,
 } from "@heroicons/vue/20/solid";
 import { ExclamationCircleIcon, PencilIcon, XCircleIcon } from "@heroicons/vue/16/solid";
-import { ContentStatus, type Content, type Post, type Tag, TagType } from "@/types";
+import {
+    ContentStatus,
+    type Content,
+    type Post,
+    type Tag,
+    TagType,
+    DocType,
+    AclPermission,
+} from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
@@ -31,6 +39,7 @@ import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import { useNotificationStore } from "@/stores/notification";
+import { useUserAccessStore } from "@/stores/userAccess";
 
 const EMPTY_TEXT = "<p></p>";
 
@@ -52,6 +61,12 @@ const {
     topics: availableTopics,
     audioPlaylists: availableAudioPlaylists,
 } = storeToRefs(useTagStore());
+const { verifyAccess } = useUserAccessStore();
+
+const docType = props.ruleset == "post" ? DocType.Post : DocType.Tag;
+const can = computed(
+    () => (permission: AclPermission) => verifyAccess(props.parent.memberOf, docType, permission),
+);
 
 const selectedTags = ref<Tag[]>([]);
 const selectedCategories = computed(() => {
@@ -261,6 +276,7 @@ const initializeText = () => {
                     name="title"
                     label="Title"
                     required
+                    :disabled="!can(AclPermission.Edit)"
                 />
                 <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
                     <span class="py-0.5">Slug:</span>
@@ -281,16 +297,21 @@ const initializeText = () => {
                     />
                     <button
                         data-test="editSlugButton"
-                        v-if="!isEditingSlug"
+                        v-if="!isEditingSlug && can(AclPermission.Edit)"
                         @click="startEditingSlug"
-                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200"
+                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
                         title="Edit slug"
                     >
                         <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
                     </button>
                 </div>
 
-                <LInput name="summary" label="Summary" class="mt-4" />
+                <LInput
+                    name="summary"
+                    label="Summary"
+                    class="mt-4"
+                    :disabled="!can(AclPermission.Edit)"
+                />
 
                 <div class="mt-4 flex gap-4">
                     <LInput
@@ -298,6 +319,7 @@ const initializeText = () => {
                         label="Publish date"
                         class="w-1/2"
                         type="datetime-local"
+                        :disabled="!can(AclPermission.Edit)"
                     >
                         Only used for display, does not automatically publish at this date
                     </LInput>
@@ -309,13 +331,19 @@ const initializeText = () => {
                 variant="tertiary"
                 :icon="DocumentTextIcon"
                 @click="initializeText"
-                v-if="!hasText"
+                v-if="!hasText && can(AclPermission.Edit)"
                 data-test="addText"
             >
                 Add text
             </LButton>
-            <LCard title="Text content" :icon="DocumentTextIcon" collapsible v-if="hasText">
-                <RichTextEditor v-model="text" />
+            <LCard
+                title="Text content"
+                :icon="DocumentTextIcon"
+                collapsible
+                v-if="hasText"
+                :disabled="!can(AclPermission.Edit)"
+            >
+                <RichTextEditor v-model="text" :disabled="!can(AclPermission.Edit)" />
             </LCard>
 
             <LButton
@@ -323,13 +351,18 @@ const initializeText = () => {
                 variant="tertiary"
                 :icon="VideoCameraIcon"
                 @click="hasVideo = true"
-                v-if="!hasVideo"
+                v-if="!hasVideo && can(AclPermission.Edit)"
                 data-test="addVideo"
             >
                 Add Video
             </LButton>
             <LCard title="Video" :icon="VideoCameraIcon" collapsible v-show="hasVideo">
-                <LInput name="video" :icon="LinkIcon" placeholder="https://..." />
+                <LInput
+                    name="video"
+                    :icon="LinkIcon"
+                    placeholder="https://..."
+                    :disabled="!can(AclPermission.Edit)"
+                />
             </LCard>
 
             <LButton
@@ -337,13 +370,18 @@ const initializeText = () => {
                 variant="tertiary"
                 :icon="MusicalNoteIcon"
                 @click="hasAudio = true"
-                v-if="!hasAudio"
+                v-if="!hasAudio && can(AclPermission.Edit)"
                 data-test="addAudio"
             >
                 Add Audio
             </LButton>
             <LCard title="Audio" :icon="MusicalNoteIcon" collapsible v-show="hasAudio">
-                <LInput name="audio" :icon="LinkIcon" placeholder="https://..." />
+                <LInput
+                    name="audio"
+                    :icon="LinkIcon"
+                    placeholder="https://..."
+                    :disabled="!can(AclPermission.Edit)"
+                />
             </LCard>
         </div>
 
@@ -351,14 +389,19 @@ const initializeText = () => {
             <div class="sticky top-20 space-y-6">
                 <LCard>
                     <div class="flex gap-4">
-                        <LButton type="button" @click="saveAsDraft" data-test="draft">
+                        <LButton
+                            type="button"
+                            @click="saveAsDraft"
+                            data-test="draft"
+                            :disabled="!can(AclPermission.Edit)"
+                        >
                             Save as draft
                         </LButton>
                         <LButton
                             type="button"
                             variant="primary"
                             @click="saveAndPublish"
-                            :disabled="!canPublish"
+                            :disabled="!canPublish || !can(AclPermission.Publish)"
                             data-test="publish"
                         >
                             Save & publish
@@ -476,7 +519,7 @@ const initializeText = () => {
                 >
                     <div v-if="ruleset == 'tag'" class="mb-6 flex items-center justify-between">
                         <FormLabel>Pinned</FormLabel>
-                        <LToggle v-model="pinned" />
+                        <LToggle v-model="pinned" :disabled="!can(AclPermission.Edit)" />
                     </div>
 
                     <LInput
@@ -484,6 +527,7 @@ const initializeText = () => {
                         label="Default image"
                         :icon="LinkIcon"
                         placeholder="https://..."
+                        :disabled="!can(AclPermission.Edit)"
                     >
                         This image can be overridden in a translation
                     </LInput>
@@ -496,6 +540,7 @@ const initializeText = () => {
                         :language="content.language"
                         @select="addTag"
                         @remove="removeTag"
+                        :disabled="!can(AclPermission.Edit)"
                     />
 
                     <TagSelector
@@ -506,6 +551,7 @@ const initializeText = () => {
                         :language="content.language"
                         @select="addTag"
                         @remove="removeTag"
+                        :disabled="!can(AclPermission.Edit)"
                     />
 
                     <TagSelector
@@ -516,6 +562,7 @@ const initializeText = () => {
                         :language="content.language"
                         @select="addTag"
                         @remove="removeTag"
+                        :disabled="!can(AclPermission.Edit)"
                     />
                 </LCard>
             </div>

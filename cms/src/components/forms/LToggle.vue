@@ -4,9 +4,12 @@ import { computed, toRefs } from "vue";
 
 type Props = {
     modelValue: boolean;
+    disabled?: boolean;
 };
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    disabled: false,
+});
 
 const { modelValue } = toRefs(props);
 
@@ -25,9 +28,16 @@ const toggled = computed({
 <template>
     <Switch
         v-model="toggled"
+        :disabled="disabled"
         :class="[
-            toggled ? 'bg-zinc-600' : 'bg-zinc-200',
-            'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2',
+            'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2',
+            {
+                'cursor-pointer': !disabled,
+                'bg-zinc-500': disabled && toggled,
+                'bg-zinc-100': disabled && !toggled,
+                'bg-zinc-600': !disabled && toggled,
+                'bg-zinc-200': !disabled && !toggled,
+            },
         ]"
     >
         <span class="sr-only">Toggle</span>
@@ -46,7 +56,11 @@ const toggled = computed({
                 ]"
                 aria-hidden="true"
             >
-                <svg class="h-3 w-3 text-zinc-400" fill="none" viewBox="0 0 12 12">
+                <svg
+                    fill="none"
+                    viewBox="0 0 12 12"
+                    :class="['h-3 w-3 ', disabled ? 'text-zinc-300' : 'text-zinc-400']"
+                >
                     <path
                         d="M4 8l2-2m0 0l2-2M6 6L4 4m2 2l2 2"
                         stroke="currentColor"
