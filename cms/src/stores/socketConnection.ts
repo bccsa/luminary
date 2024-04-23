@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, storeToRefs } from "pinia";
 import { getSocket } from "@/socket";
 import {
     DocType,
@@ -14,6 +14,7 @@ import { ref } from "vue";
 import { useLocalChangeStore } from "./localChanges";
 import { BaseRepository } from "@/db/repositories/baseRepository";
 import { Socket } from "socket.io-client";
+import { useUserAccessStore } from "./userAccess";
 
 export const useSocketConnectionStore = defineStore("socketConnection", () => {
     const isConnected = ref(false);
@@ -30,6 +31,8 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
     };
 
     const bindEvents = () => {
+        const userAccessStore = useUserAccessStore();
+        const { accessMap: existingAccessMap } = storeToRefs(userAccessStore);
         socket.value = getSocket();
 
         socket.value.on("connect", async () => {
@@ -43,7 +46,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             socket.value!.emit("clientDataReq", {
                 version: syncVersion,
                 cms: true,
-                accessMap: JSON.parse(localStorage.getItem("accessMap")!),
+                accessMap: existingAccessMap.value,
             });
         });
 
@@ -95,7 +98,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
                 });
 
             // Store the updated access map
-            localStorage.setItem("accessMap", JSON.stringify(accessMap));
+            userAccessStore.updateAccessMap(accessMap);
         });
     };
 
