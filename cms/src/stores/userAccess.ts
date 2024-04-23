@@ -26,5 +26,9 @@ export const useUserAccessStore = defineStore("userAccess", () => {
         },
     );
 
-    return { accessMap, updateAccessMap, verifyAccess };
+    const hasAnyPermission = computed(() => (docType: DocType, permission: AclPermission) => {
+        return verifyAccess.value(Object.keys(accessMap.value), docType, permission);
+    });
+
+    return { accessMap, updateAccessMap, verifyAccess, hasAnyPermission };
 });

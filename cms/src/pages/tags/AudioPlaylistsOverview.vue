@@ -8,18 +8,21 @@ import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useTagStore } from "@/stores/tag";
-import { DocType, TagType } from "@/types";
+import { AclPermission, DocType, TagType } from "@/types";
 import { useUserAccessStore } from "@/stores/userAccess";
+import { computed } from "vue";
 
 const { tags, audioPlaylists } = storeToRefs(useTagStore());
-const { verifyAccess } = useUserAccessStore();
+const { hasAnyPermission } = useUserAccessStore();
+
+const canCreateNew = computed(() => hasAnyPermission(DocType.Tag, AclPermission.Create));
 </script>
 
 <template>
     <BasePage title="Audio playlists" :loading="tags === undefined">
         <template #actions>
             <LButton
-                v-if="audioPlaylists && audioPlaylists.length > 0"
+                v-if="audioPlaylists && audioPlaylists.length > 0 && canCreateNew"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
@@ -33,9 +36,14 @@ const { verifyAccess } = useUserAccessStore();
             v-if="!audioPlaylists || audioPlaylists.length == 0"
             :icon="TagIcon"
             title="No audio playlists yet"
-            description="Get started by creating a new audio playlist."
+            :description="
+                canCreateNew
+                    ? 'Get started by creating a new audio playlist.'
+                    : 'You do not have permission to create new audio playlists.'
+            "
             buttonText="Create audio playlist"
             :buttonLink="{ name: 'tags.create', params: { tagType: TagType.AudioPlaylist } }"
+            :buttonPermission="canCreateNew"
         />
 
         <ContentTable

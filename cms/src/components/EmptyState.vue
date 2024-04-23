@@ -5,14 +5,20 @@ import type { Component } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import { RouterLink, type RouteLocationRaw } from "vue-router";
 
-defineProps<{
-    title: string;
-    description: string;
-    icon?: string | Component | Function;
-    buttonText?: string;
-    buttonAction?: Function;
-    buttonLink?: RouteLocationRaw;
-}>();
+withDefaults(
+    defineProps<{
+        title: string;
+        description: string;
+        icon?: string | Component | Function;
+        buttonText?: string;
+        buttonAction?: Function;
+        buttonLink?: RouteLocationRaw;
+        buttonPermission?: boolean;
+    }>(),
+    {
+        buttonPermission: true,
+    },
+);
 </script>
 
 <template>
@@ -26,7 +32,7 @@ defineProps<{
         <p class="mt-1 text-sm text-zinc-500">{{ description }}</p>
         <div class="mt-6">
             <LButton
-                v-if="buttonText && (buttonAction || buttonLink)"
+                v-if="buttonText && (buttonAction || buttonLink) && buttonPermission"
                 @click="buttonAction ? buttonAction() : ''"
                 :is="buttonLink ? RouterLink : 'button'"
                 :to="buttonLink"

@@ -40,14 +40,19 @@ export enum AclPermission {
     Create = "create",
 
     /**
-     * Access to assign tags to documents
-     */
-    Assign = "assign",
-
-    /**
      * Access to edit documents
      */
     Edit = "edit",
+
+    /**
+     * Access to delete documents
+     */
+    Delete = "delete",
+
+    /**
+     * Access to assign tags to documents
+     */
+    Assign = "assign",
 
     /**
      * Access to translate documents
@@ -58,11 +63,6 @@ export enum AclPermission {
      * Access to publish documents
      */
     Publish = "publish",
-
-    /**
-     * Access to delete documents
-     */
-    Delete = "delete",
 }
 
 /**
