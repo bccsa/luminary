@@ -6,6 +6,7 @@ import {
     mockEnglishContent,
     mockPost,
     mockUnpublishableContent,
+    privateContentAllAccessMap,
 } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType } from "@/types";
@@ -15,6 +16,7 @@ import { createTestingPinia } from "@pinia/testing";
 import RichTextEditor from "./RichTextEditor.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { DateTime, Settings } from "luxon";
+import { useUserAccessStore } from "@/stores/userAccess";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -48,6 +50,9 @@ describe("EditContentForm", () => {
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+
+        const userAccessStore = useUserAccessStore();
+        userAccessStore.accessMap = privateContentAllAccessMap;
     });
 
     afterEach(() => {

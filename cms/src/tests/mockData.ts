@@ -250,7 +250,7 @@ export const mockCategory: Tag = {
     _id: "tag-category1",
     type: DocType.Tag,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-public-content"],
     tagType: TagType.Category,
     pinned: false,
     image: "image.jpg",
@@ -285,7 +285,7 @@ export const mockPost: Post = {
     _id: "post-post1",
     image: "test.jpg",
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-private-content"],
     content: [mockEnglishContent, mockFrenchContent],
     tags: [mockCategory],
 };
@@ -530,4 +530,17 @@ export const mockGroupSuperAdmins: Group = {
             ],
         },
     ],
+};
+
+export const privateContentAllAccessMap = {
+    "group-private-content": {
+        post: { view: true, create: true, edit: true, translate: true, publish: true },
+        tag: { view: true, create: true, edit: true, translate: true, publish: true },
+        language: { view: true, create: true, edit: true, translate: true, publish: true },
+    },
+    "group-public-content": {
+        post: { view: true, create: true, edit: true, translate: true, publish: true },
+        tag: { view: true, create: true, edit: true, translate: true, publish: true },
+        language: { view: true, create: true, edit: true, translate: true, publish: true },
+    },
 };

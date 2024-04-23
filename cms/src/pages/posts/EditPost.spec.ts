@@ -11,6 +11,7 @@ import {
     mockLanguageFra,
     mockLanguageSwa,
     mockPost,
+    privateContentAllAccessMap,
 } from "@/tests/mockData";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import { usePostStore } from "@/stores/post";
@@ -18,6 +19,7 @@ import waitForExpect from "wait-for-expect";
 import EmptyState from "@/components/EmptyState.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
+import { useUserAccessStore } from "@/stores/userAccess";
 
 let routeLanguage: string;
 
@@ -58,8 +60,10 @@ describe("EditPost", () => {
 
         const languageStore = useLanguageStore();
         const postStore = usePostStore();
+        const userAccessStore = useUserAccessStore();
         languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
         postStore.posts = [mockPost];
+        userAccessStore.accessMap = privateContentAllAccessMap;
     });
 
     afterEach(() => {
