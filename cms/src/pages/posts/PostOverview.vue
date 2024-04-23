@@ -14,7 +14,7 @@ import { computed } from "vue";
 const { posts } = storeToRefs(usePostStore());
 const { hasAnyPermission } = useUserAccessStore();
 
-const canCreateNew = computed(() => hasAnyPermission(DocType.Tag, AclPermission.Create));
+const canCreateNew = computed(() => hasAnyPermission(DocType.Post, AclPermission.Create));
 </script>
 
 <template>

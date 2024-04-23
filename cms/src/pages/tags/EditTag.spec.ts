@@ -12,7 +12,7 @@ import {
     mockLanguageFra,
     mockLanguageSwa,
     mockTopic,
-    privateContentAllAccessMap,
+    accessToAllContentMap,
 } from "@/tests/mockData";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import waitForExpect from "wait-for-expect";
@@ -64,7 +64,7 @@ describe("EditTag", () => {
         const userAccessStore = useUserAccessStore();
         languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
         tagStore.tags = [mockCategory, mockTopic];
-        userAccessStore.accessMap = privateContentAllAccessMap;
+        userAccessStore.accessMap = accessToAllContentMap;
     });
 
     afterEach(() => {

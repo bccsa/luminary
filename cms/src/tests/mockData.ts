@@ -532,7 +532,7 @@ export const mockGroupSuperAdmins: Group = {
     ],
 };
 
-export const privateContentAllAccessMap = {
+export const accessToAllContentMap = {
     "group-private-content": {
         post: { view: true, create: true, edit: true, translate: true, publish: true },
         tag: { view: true, create: true, edit: true, translate: true, publish: true },

@@ -11,7 +11,7 @@ import {
     mockLanguageFra,
     mockLanguageSwa,
     mockPost,
-    privateContentAllAccessMap,
+    accessToAllContentMap,
 } from "@/tests/mockData";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import { usePostStore } from "@/stores/post";
@@ -63,7 +63,7 @@ describe("EditPost", () => {
         const userAccessStore = useUserAccessStore();
         languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
         postStore.posts = [mockPost];
-        userAccessStore.accessMap = privateContentAllAccessMap;
+        userAccessStore.accessMap = accessToAllContentMap;
     });
 
     afterEach(() => {

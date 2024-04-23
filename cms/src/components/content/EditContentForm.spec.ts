@@ -6,7 +6,7 @@ import {
     mockEnglishContent,
     mockPost,
     mockUnpublishableContent,
-    privateContentAllAccessMap,
+    accessToAllContentMap,
 } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType } from "@/types";
@@ -52,7 +52,7 @@ describe("EditContentForm", () => {
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = privateContentAllAccessMap;
+        userAccessStore.accessMap = accessToAllContentMap;
     });
 
     afterEach(() => {

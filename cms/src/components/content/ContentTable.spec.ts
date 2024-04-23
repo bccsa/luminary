@@ -7,6 +7,7 @@ import LBadge from "@/components/common/LBadge.vue";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useLocalChangeStore } from "@/stores/localChanges";
+import { DocType } from "@/types";
 
 describe("ContentTable", () => {
     beforeEach(() => {
@@ -26,6 +27,7 @@ describe("ContentTable", () => {
             props: {
                 items: [mockPost],
                 editLinkName: "posts.edit",
+                docType: DocType.Post,
             },
         });
 
@@ -60,6 +62,7 @@ describe("ContentTable", () => {
                     },
                 ],
                 editLinkName: "posts.edit",
+                docType: DocType.Post,
             },
         });
 
@@ -78,6 +81,7 @@ describe("ContentTable", () => {
             props: {
                 items: [mockPost],
                 editLinkName: "posts.edit",
+                docType: DocType.Post,
             },
         });
 
@@ -97,6 +101,7 @@ describe("ContentTable", () => {
             props: {
                 items: [post],
                 editLinkName: "posts.edit",
+                docType: DocType.Post,
             },
         });
 
