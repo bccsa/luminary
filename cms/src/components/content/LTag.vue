@@ -3,7 +3,7 @@ import { XMarkIcon } from "@heroicons/vue/16/solid";
 
 withDefaults(
     defineProps<{
-        disabled: boolean;
+        disabled?: boolean;
     }>(),
     {
         disabled: false,

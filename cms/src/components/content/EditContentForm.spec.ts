@@ -3,13 +3,14 @@ import { flushPromises, mount } from "@vue/test-utils";
 import EditContentForm from "./EditContentForm.vue";
 import {
     mockCategory,
+    mockEnglishCategoryContent,
     mockEnglishContent,
     mockPost,
     mockUnpublishableContent,
     accessToAllContentMap,
 } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
-import { ContentStatus, DocType } from "@/types";
+import { ContentStatus, DocType, type Content } from "@/types";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -17,6 +18,9 @@ import RichTextEditor from "./RichTextEditor.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { DateTime, Settings } from "luxon";
 import { useUserAccessStore } from "@/stores/userAccess";
+import TagSelector from "./TagSelector.vue";
+import LToggle from "../forms/LToggle.vue";
+import LTag from "./LTag.vue";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -550,6 +554,56 @@ describe("EditContentForm", () => {
             await title.setValue("New Title 123");
 
             expect(slug.text()).toBe("test-title");
+        });
+    });
+
+    describe("permissions", () => {
+        const createWrapperWithoutPermissions = (content?: Content, docType?: DocType) => {
+            const userAccessStore = useUserAccessStore();
+            userAccessStore.accessMap = {};
+            const wrapper = mount(EditContentForm, {
+                props: {
+                    parent: mockPost,
+                    content: content ?? mockEnglishContent,
+                    docType: docType ?? DocType.Post,
+                },
+            });
+
+            return wrapper;
+        };
+
+        it("hides the slug button when the user doesn't have permission to edit", async () => {
+            const wrapper = createWrapperWithoutPermissions();
+
+            expect(wrapper.find("button[data-test='editSlugButton']").exists()).toBe(false);
+        });
+
+        it("disables both save buttons when the user doesn't have permission to edit", async () => {
+            const wrapper = createWrapperWithoutPermissions();
+
+            expect(wrapper.find(saveAsDraftButton).attributes().disabled).toBeDefined();
+            expect(wrapper.find(publishButton).attributes().disabled).toBeDefined();
+        });
+
+        it("disables all content fields when the user doesn't have permission to edit", async () => {
+            const wrapper = createWrapperWithoutPermissions(
+                {
+                    ...mockEnglishCategoryContent,
+                    audio: "abc",
+                    video: "def",
+                },
+                DocType.Tag,
+            );
+
+            expect(wrapper.find("input[name='title']").attributes().disabled).toBeDefined();
+            expect(wrapper.find("input[name='summary']").attributes().disabled).toBeDefined();
+            expect(wrapper.find("input[name='publishDate']").attributes().disabled).toBeDefined();
+            expect(wrapper.find("input[name='audio']").attributes().disabled).toBeDefined();
+            expect(wrapper.find("input[name='video']").attributes().disabled).toBeDefined();
+            expect(wrapper.findComponent(RichTextEditor).props().disabled).toBe(true);
+            expect(wrapper.findComponent(TagSelector).props().disabled).toBe(true);
+            expect(wrapper.findComponent(LToggle).props().disabled).toBe(true);
+            expect(wrapper.findComponent(LTag).props().disabled).toBe(true);
         });
     });
 });
