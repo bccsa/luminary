@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Quill from "quill";
-import { onBeforeUnmount, onMounted, ref, watchEffect } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 
 type Props = {
     modelValue?: string;

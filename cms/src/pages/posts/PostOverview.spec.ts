@@ -8,7 +8,6 @@ import { mockLanguageEng, mockPost, fullAccessToAllContentMap } from "@/tests/mo
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
-import LButton from "@/components/button/LButton.vue";
 import { nextTick } from "vue";
 
 describe("PostOverview", () => {
