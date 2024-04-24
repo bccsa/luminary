@@ -361,7 +361,7 @@ const checkIfDirty = () => {
                 title="Text content"
                 :icon="DocumentTextIcon"
                 collapsible
-                v-if="hasText"
+                v-if="text && hasText"
                 :disabled="!canTranslateContent"
             >
                 <RichTextEditor v-model="text" :disabled="!canTranslateContent" />
