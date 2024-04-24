@@ -123,7 +123,7 @@ const validationSchema = toTypedSchema(
     }),
 );
 
-const { handleSubmit, values, setValues, errors } = useForm({
+const { handleSubmit, values, setValues, errors, meta } = useForm({
     validationSchema,
 });
 
@@ -251,10 +251,13 @@ const addTag = (tag: Tag) => {
     if (!existing) {
         selectedTags.value.push(tag);
     }
+
+    checkIfDirty();
 };
 
 const removeTag = (tag: Tag) => {
     selectedTags.value = selectedTags.value.filter((t) => t._id != tag._id);
+    checkIfDirty();
 };
 
 const startEditingSlug = () => {
@@ -267,15 +270,26 @@ const startEditingSlug = () => {
 const initializeText = () => {
     text.value = EMPTY_TEXT;
 };
+
+const checkIfDirty = () => {
+    const selectedTagIds = selectedTags.value.map((t) => t?._id).sort();
+    const originalTagIds = props.parent.tags.map((t) => t._id).sort();
+
+    const hasSelectedSameTags =
+        selectedTagIds.length == originalTagIds.length &&
+        selectedTagIds.every((selectedTagId, i) => selectedTagId == originalTagIds[i]);
+
+    if (!hasSelectedSameTags) {
+        isDirty.value = true;
+        return;
+    }
+
+    isDirty.value = meta.value.dirty;
+};
 </script>
 
 <template>
-    <form
-        type="post"
-        class="relative grid grid-cols-3 gap-8"
-        @submit.prevent
-        @input="isDirty = true"
-    >
+    <form type="post" class="relative grid grid-cols-3 gap-8" @submit.prevent @input="checkIfDirty">
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
                 <LInput
