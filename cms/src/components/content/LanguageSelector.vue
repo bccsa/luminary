@@ -4,10 +4,11 @@ import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import LBadge from "@/components/common/LBadge.vue";
 import { storeToRefs } from "pinia";
 import { useLanguageStore } from "@/stores/language";
-import { ContentStatus, type Content, type Post, type Tag } from "@/types";
+import { AclPermission, ContentStatus, DocType, type Content, type Post, type Tag } from "@/types";
 import { computed, toRefs } from "vue";
 import { ArrowRightIcon, CheckCircleIcon } from "@heroicons/vue/16/solid";
 import { sortByName } from "@/util/sortByName";
+import { useUserAccessStore } from "@/stores/userAccess";
 
 const props = defineProps<{
     parent?: Post | Tag;
@@ -20,6 +21,7 @@ const emit = defineEmits(["createTranslation"]);
 const selectedLanguage = defineModel<string>();
 
 const { languages } = storeToRefs(useLanguageStore());
+const { verifyAccess } = useUserAccessStore();
 
 const selectedLanguageName = computed(() => {
     return languages.value?.find((l) => l.languageCode == selectedLanguage.value)?.name;
@@ -41,7 +43,9 @@ const untranslatedLanguages = computed(() => {
     }
 
     const list = languages.value.filter(
-        (language) => translatedLanguages.value.findIndex((t) => t._id == language._id) < 0,
+        (language) =>
+            translatedLanguages.value.findIndex((t) => t._id == language._id) < 0 &&
+            verifyAccess(language.memberOf, DocType.Language, AclPermission.Translate),
     );
 
     return list.sort(sortByName);
