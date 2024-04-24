@@ -80,7 +80,7 @@ onMounted(async () => {
         <div
             v-if="post.content[0].text"
             v-html="post.content[0].text"
-            class="prose mt-6 dark:text-zinc-50"
+            class="prose prose-zinc mt-6 dark:prose-invert"
         ></div>
 
         <div class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500">

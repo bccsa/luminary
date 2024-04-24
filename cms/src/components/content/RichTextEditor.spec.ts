@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import RichTextEditor from "./RichTextEditor.vue";
+import waitForExpect from "wait-for-expect";
 
 describe("RichTextEditor", () => {
     it("mounts with no content", async () => {
@@ -16,6 +17,8 @@ describe("RichTextEditor", () => {
             },
         });
 
-        expect(wrapper.text()).toContain("Gandalf the Grey");
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Gandalf the Grey");
+        });
     });
 });
