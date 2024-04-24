@@ -19,6 +19,7 @@
         "@auth0/auth0-vue": "^2.3.3",
         "@sentry/vue": "^7.110.1",
         "@vee-validate/yup": "^4.12.5",
+        "@vueuse/core": "^10.9.0",
         "@vueuse/rxjs": "^10.7.2",
         "dexie": "^3.2.4",
         "luxon": "^3.4.4",

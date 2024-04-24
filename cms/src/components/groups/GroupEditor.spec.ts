@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach, afterAll } from "vitest";
-import { flushPromises, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import GroupEditor from "./GroupEditor.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";

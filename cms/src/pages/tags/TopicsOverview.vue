@@ -8,16 +8,21 @@ import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useTagStore } from "@/stores/tag";
-import { TagType } from "@/types";
+import { AclPermission, DocType, TagType } from "@/types";
+import { useUserAccessStore } from "@/stores/userAccess";
+import { computed } from "vue";
 
 const { tags, topics } = storeToRefs(useTagStore());
+const { hasAnyPermission } = useUserAccessStore();
+
+const canCreateNew = computed(() => hasAnyPermission(DocType.Tag, AclPermission.Create));
 </script>
 
 <template>
     <BasePage title="Topics" :loading="tags === undefined">
         <template #actions>
             <LButton
-                v-if="topics && topics.length > 0"
+                v-if="topics && topics.length > 0 && canCreateNew"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
@@ -31,11 +36,16 @@ const { tags, topics } = storeToRefs(useTagStore());
             v-if="!topics || topics.length == 0"
             :icon="TagIcon"
             title="No topics yet"
-            description="Get started by creating a new topic."
+            :description="
+                canCreateNew
+                    ? 'Get started by creating a new topic.'
+                    : 'You do not have permission to create new topics.'
+            "
             buttonText="Create topic"
             :buttonLink="{ name: 'tags.create', params: { tagType: TagType.Topic } }"
+            :buttonPermission="canCreateNew"
         />
 
-        <ContentTable v-else :items="topics" editLinkName="tags.edit" />
+        <ContentTable v-else :items="topics" :docType="DocType.Tag" editLinkName="tags.edit" />
     </BasePage>
 </template>

@@ -4,23 +4,3 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Quill editor customisations */
-.ql-snow .ql-editor {
-    @apply font-sans;
-}
-.ql-toolbar.ql-snow {
-    @apply rounded-t-md border-zinc-300;
-}
-.ql-container.ql-snow {
-    @apply rounded-b-md border-zinc-300 shadow-sm;
-}
-.ql-snow .ql-tooltip {
-    @apply rounded-md border-zinc-200 shadow;
-}
-.ql-snow .ql-picker-label {
-    @apply rounded-t-md font-sans;
-}
-.ql-snow .ql-picker-options {
-    @apply rounded-b-md rounded-tr-md font-sans;
-}

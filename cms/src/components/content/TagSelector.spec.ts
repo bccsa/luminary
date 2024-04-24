@@ -5,6 +5,8 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { useTagStore } from "@/stores/tag";
 import TagSelector from "./TagSelector.vue";
+import { Combobox } from "@headlessui/vue";
+import LTag from "./LTag.vue";
 
 describe("TagSelector", () => {
     beforeEach(() => {
@@ -92,5 +94,19 @@ describe("TagSelector", () => {
         const removeEvent: any = wrapper.emitted("remove");
         expect(removeEvent).not.toBe(undefined);
         expect(removeEvent![0][0]).toEqual(mockCategory);
+    });
+
+    it("disables the box and tags when it's disabled", async () => {
+        const wrapper = mount(TagSelector, {
+            props: {
+                tags: [mockCategory, mockTopic],
+                selectedTags: [mockCategory],
+                language: mockLanguageEng,
+                disabled: true,
+            },
+        });
+
+        expect(wrapper.findComponent(Combobox).props().disabled).toBe(true);
+        expect(wrapper.findComponent(LTag).props().disabled).toBe(true);
     });
 });

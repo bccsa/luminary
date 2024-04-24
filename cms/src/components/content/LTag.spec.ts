@@ -21,4 +21,13 @@ describe("LTag", () => {
         const removeEvent = wrapper.emitted("remove");
         expect(removeEvent).not.toBe(undefined);
     });
+
+    it("doesn't display the button when the tag is disabled", async () => {
+        const wrapper = mount(LTag, {
+            props: { disabled: true },
+            slots: { default: "Tag content" },
+        });
+
+        expect(wrapper.find("button").exists()).toBe(false);
+    });
 });

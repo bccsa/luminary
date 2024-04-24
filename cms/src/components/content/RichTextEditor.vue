@@ -4,9 +4,12 @@ import { onBeforeUnmount, onMounted, ref } from "vue";
 
 type Props = {
     modelValue?: string;
+    disabled?: boolean;
 };
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    disabled: false,
+});
 
 const emit = defineEmits(["update:modelValue"]);
 
@@ -35,6 +38,10 @@ onMounted(() => {
         quill.clipboard.dangerouslyPasteHTML(props.modelValue);
     }
 
+    if (props.disabled) {
+        quill.disable();
+    }
+
     quill.on("text-change", emitContents);
 });
 
@@ -48,3 +55,29 @@ onBeforeUnmount(() => {
         <div ref="editor"></div>
     </div>
 </template>
+
+<style>
+/* Quill editor customisations */
+.ql-snow .ql-editor {
+    @apply font-sans;
+}
+.ql-toolbar.ql-snow {
+    @apply rounded-t-md border-zinc-300;
+}
+.ql-container.ql-snow {
+    @apply rounded-b-md border-zinc-300 shadow-sm;
+}
+.ql-snow .ql-tooltip {
+    @apply rounded-md border-zinc-200 shadow;
+}
+.ql-snow .ql-picker-label {
+    @apply rounded-t-md font-sans;
+}
+.ql-snow .ql-picker-options {
+    @apply rounded-b-md rounded-tr-md font-sans;
+}
+
+.ql-snow.ql-disabled {
+    @apply bg-zinc-100 text-zinc-500;
+}
+</style>

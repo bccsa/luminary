@@ -12,6 +12,7 @@ import {
     mockLanguageFra,
     mockLanguageSwa,
     mockTopic,
+    fullAccessToAllContentMap,
 } from "@/tests/mockData";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import waitForExpect from "wait-for-expect";
@@ -19,6 +20,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useTagStore } from "@/stores/tag";
 import { useNotificationStore } from "@/stores/notification";
+import { useUserAccessStore } from "@/stores/userAccess";
 
 let routeLanguage: string;
 
@@ -59,8 +61,10 @@ describe("EditTag", () => {
 
         const languageStore = useLanguageStore();
         const tagStore = useTagStore();
+        const userAccessStore = useUserAccessStore();
         languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
         tagStore.tags = [mockCategory, mockTopic];
+        userAccessStore.accessMap = fullAccessToAllContentMap;
     });
 
     afterEach(() => {

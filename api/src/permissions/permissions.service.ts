@@ -193,7 +193,7 @@ export class PermissionSystem {
 
     /**
      * Verify access for the passed target group ID
-     * @param targetGroup - Group ID for which user access should be verified for given document type and permission
+     * @param targetGroups - Group IDs for which user access should be verified for given document type and permission
      * @param type - Document type for which access should be verified
      * @param permission - Permission for which access should be verified
      * @param memberOfGroups - User group membership
@@ -210,7 +210,7 @@ export class PermissionSystem {
         for (const memberGroup of memberOfGroups) {
             let memberGroupValidated = true;
             for (const targetGroup of targetGroups) {
-                const g = groupMap[memberGroup];
+                const g: PermissionSystem = groupMap[memberGroup];
                 if (
                     g &&
                     g._groupTypePermissionMap[targetGroup] &&

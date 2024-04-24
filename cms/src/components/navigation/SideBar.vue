@@ -11,21 +11,26 @@ import {
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { ref, watch } from "vue";
+import { useUserAccessStore } from "@/stores/userAccess";
+import { AclPermission, DocType } from "@/types";
 
 const { appName, isDevMode } = useGlobalConfigStore();
+const { hasAnyPermission } = useUserAccessStore();
 const route = useRoute();
 
 const navigation = ref([
-    { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon },
+    { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
     {
         name: "Posts",
         to: { name: "posts" },
         icon: DocumentDuplicateIcon,
+        visible: hasAnyPermission(DocType.Post, AclPermission.View),
     },
     {
         name: "Tags",
         icon: TagIcon,
         open: false,
+        visible: hasAnyPermission(DocType.Tag, AclPermission.View),
         children: [
             {
                 name: "Categories",
@@ -41,8 +46,18 @@ const navigation = ref([
             },
         ],
     },
-    { name: "Users", to: { name: "users" }, icon: UsersIcon },
-    { name: "Groups", to: { name: "groups" }, icon: RectangleStackIcon },
+    {
+        name: "Users",
+        to: { name: "users" },
+        icon: UsersIcon,
+        visible: hasAnyPermission(DocType.User, AclPermission.View),
+    },
+    {
+        name: "Groups",
+        to: { name: "groups" },
+        icon: RectangleStackIcon,
+        visible: hasAnyPermission(DocType.Group, AclPermission.View),
+    },
 ]);
 
 watch(route, (newRoute) => {
@@ -69,8 +84,9 @@ watch(route, (newRoute) => {
             <span
                 v-if="isDevMode"
                 class="ml-2 rounded-lg bg-red-400 px-1 py-0.5 text-sm text-red-950"
-                >DEV</span
             >
+                DEV
+            </span>
         </div>
         <nav class="flex flex-1 flex-col">
             <ul role="list" class="flex flex-1 flex-col gap-y-7">
@@ -78,7 +94,7 @@ watch(route, (newRoute) => {
                     <ul role="list" class="-mx-2 space-y-1">
                         <li v-for="item in navigation" :key="item.name">
                             <RouterLink
-                                v-if="!item.children"
+                                v-if="item.visible && !item.children"
                                 :to="item.to"
                                 active-class="bg-zinc-200 text-zinc-950"
                                 class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
@@ -92,7 +108,7 @@ watch(route, (newRoute) => {
                                 />
                                 {{ item.name }}
                             </RouterLink>
-                            <Disclosure as="div" v-else v-slot="{ open }">
+                            <Disclosure as="div" v-else-if="item.visible" v-slot="{ open }">
                                 <DisclosureButton
                                     :class="[
                                         'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700',

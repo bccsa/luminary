@@ -60,6 +60,20 @@ describe("EmptyState", () => {
         expect(buttonAction).toHaveBeenCalled();
     });
 
+    it("doesn't render the button when the permission for it is false", async () => {
+        const wrapper = mount(EmptyState, {
+            props: {
+                title: "Empty state title",
+                description: "Empty state description",
+                buttonText: "Button text",
+                buttonAction: vi.fn(),
+                buttonPermission: false,
+            },
+        });
+
+        expect(wrapper.find("button").exists()).toBe(false);
+    });
+
     it("renders the default slot", async () => {
         const wrapper = mount(EmptyState, {
             props: {

@@ -3,10 +3,12 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import CategoriesOverview from "./CategoriesOverview.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { mockCategory, mockLanguageEng } from "@/tests/mockData";
+import { fullAccessToAllContentMap, mockCategory, mockLanguageEng } from "@/tests/mockData";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useTagStore } from "@/stores/tag";
+import { useUserAccessStore } from "@/stores/userAccess";
+import { nextTick } from "vue";
 
 describe("CategoriesOverview", () => {
     beforeEach(() => {
@@ -17,7 +19,7 @@ describe("CategoriesOverview", () => {
         vi.clearAllMocks();
     });
 
-    it("displays posts from the store", async () => {
+    it("displays tags from the store", async () => {
         const tagStore = useTagStore();
         const languageStore = useLanguageStore();
 
@@ -49,5 +51,21 @@ describe("CategoriesOverview", () => {
 
         expect(wrapper.find("button").exists()).toBe(false);
         expect(wrapper.findComponent(EmptyState).exists()).toBe(false);
+    });
+
+    describe("permissions", () => {
+        it("doesn't display Create button if the user has no permission to create tags", async () => {
+            const postStore = useTagStore();
+            const userAccessStore = useUserAccessStore();
+            postStore.tags = [mockCategory];
+
+            const wrapper = mount(CategoriesOverview);
+
+            expect(wrapper.text()).not.toContain("Create category");
+
+            userAccessStore.accessMap = fullAccessToAllContentMap;
+            await nextTick();
+            expect(wrapper.text()).toContain("Create category");
+        });
     });
 });

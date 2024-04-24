@@ -11,7 +11,15 @@ import {
     LinkIcon,
 } from "@heroicons/vue/20/solid";
 import { ExclamationCircleIcon, PencilIcon, XCircleIcon } from "@heroicons/vue/16/solid";
-import { ContentStatus, type Content, type Post, type Tag, TagType } from "@/types";
+import {
+    ContentStatus,
+    type Content,
+    type Post,
+    type Tag,
+    TagType,
+    DocType,
+    AclPermission,
+} from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
 import * as yup from "yup";
@@ -31,13 +39,14 @@ import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import { useNotificationStore } from "@/stores/notification";
+import { useUserAccessStore } from "@/stores/userAccess";
 
 const EMPTY_TEXT = "<p></p>";
 
 type Props = {
     content: Content;
     parent: Post | Tag;
-    ruleset: "post" | "tag";
+    docType: DocType;
 };
 
 const props = defineProps<Props>();
@@ -52,6 +61,19 @@ const {
     topics: availableTopics,
     audioPlaylists: availableAudioPlaylists,
 } = storeToRefs(useTagStore());
+const { verifyAccess } = useUserAccessStore();
+
+const canPublish = computed(() =>
+    verifyAccess(props.content.memberOf, props.docType, AclPermission.Publish),
+);
+const canEditParent = computed(() =>
+    verifyAccess(props.parent.memberOf, props.docType, AclPermission.Edit),
+);
+const canTranslateContent = computed(
+    () =>
+        verifyAccess(props.content.memberOf, props.docType, AclPermission.Translate) &&
+        verifyAccess(props.content.language.memberOf, DocType.Language, AclPermission.Translate),
+);
 
 const selectedTags = ref<Tag[]>([]);
 const selectedCategories = computed(() => {
@@ -148,7 +170,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         image: validatedFormValues.parent?.image,
         tags: toRaw(selectedTags.value),
         // @ts-ignore We're only setting pinned for tags
-        pinned: props.ruleset == "tag" ? pinned.value : undefined,
+        pinned: props.docType == DocType.Tag ? pinned.value : undefined,
     };
 
     isDirty.value = false;
@@ -181,8 +203,8 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
     return save(validatedFormValues, ContentStatus.Draft);
 }, validationErrorCallback);
 
-const canPublish = computed(() => {
-    if (props.ruleset == "tag") {
+const hasNoPublishErrors = computed(() => {
+    if (props.docType == DocType.Tag) {
         return hasParentImage.value;
     }
 
@@ -261,6 +283,7 @@ const initializeText = () => {
                     name="title"
                     label="Title"
                     required
+                    :disabled="!canTranslateContent"
                 />
                 <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
                     <span class="py-0.5">Slug:</span>
@@ -281,16 +304,21 @@ const initializeText = () => {
                     />
                     <button
                         data-test="editSlugButton"
-                        v-if="!isEditingSlug"
+                        v-if="!isEditingSlug && canTranslateContent"
                         @click="startEditingSlug"
-                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200"
+                        class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
                         title="Edit slug"
                     >
                         <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
                     </button>
                 </div>
 
-                <LInput name="summary" label="Summary" class="mt-4" />
+                <LInput
+                    name="summary"
+                    label="Summary"
+                    class="mt-4"
+                    :disabled="!canTranslateContent"
+                />
 
                 <div class="mt-4 flex gap-4">
                     <LInput
@@ -298,6 +326,7 @@ const initializeText = () => {
                         label="Publish date"
                         class="w-1/2"
                         type="datetime-local"
+                        :disabled="!canTranslateContent"
                     >
                         Only used for display, does not automatically publish at this date
                     </LInput>
@@ -309,13 +338,19 @@ const initializeText = () => {
                 variant="tertiary"
                 :icon="DocumentTextIcon"
                 @click="initializeText"
-                v-if="!hasText"
+                v-if="!hasText && canTranslateContent"
                 data-test="addText"
             >
                 Add text
             </LButton>
-            <LCard title="Text content" :icon="DocumentTextIcon" collapsible v-if="hasText">
-                <RichTextEditor v-model="text" />
+            <LCard
+                title="Text content"
+                :icon="DocumentTextIcon"
+                collapsible
+                v-if="hasText"
+                :disabled="!canTranslateContent"
+            >
+                <RichTextEditor v-model="text" :disabled="!canTranslateContent" />
             </LCard>
 
             <LButton
@@ -323,13 +358,18 @@ const initializeText = () => {
                 variant="tertiary"
                 :icon="VideoCameraIcon"
                 @click="hasVideo = true"
-                v-if="!hasVideo"
+                v-if="!hasVideo && canTranslateContent"
                 data-test="addVideo"
             >
                 Add Video
             </LButton>
             <LCard title="Video" :icon="VideoCameraIcon" collapsible v-show="hasVideo">
-                <LInput name="video" :icon="LinkIcon" placeholder="https://..." />
+                <LInput
+                    name="video"
+                    :icon="LinkIcon"
+                    placeholder="https://..."
+                    :disabled="!canTranslateContent"
+                />
             </LCard>
 
             <LButton
@@ -337,13 +377,18 @@ const initializeText = () => {
                 variant="tertiary"
                 :icon="MusicalNoteIcon"
                 @click="hasAudio = true"
-                v-if="!hasAudio"
+                v-if="!hasAudio && canTranslateContent"
                 data-test="addAudio"
             >
                 Add Audio
             </LButton>
             <LCard title="Audio" :icon="MusicalNoteIcon" collapsible v-show="hasAudio">
-                <LInput name="audio" :icon="LinkIcon" placeholder="https://..." />
+                <LInput
+                    name="audio"
+                    :icon="LinkIcon"
+                    placeholder="https://..."
+                    :disabled="!canTranslateContent"
+                />
             </LCard>
         </div>
 
@@ -351,14 +396,19 @@ const initializeText = () => {
             <div class="sticky top-20 space-y-6">
                 <LCard>
                     <div class="flex gap-4">
-                        <LButton type="button" @click="saveAsDraft" data-test="draft">
+                        <LButton
+                            type="button"
+                            @click="saveAsDraft"
+                            data-test="draft"
+                            :disabled="!canTranslateContent"
+                        >
                             Save as draft
                         </LButton>
                         <LButton
                             type="button"
                             variant="primary"
                             @click="saveAndPublish"
-                            :disabled="!canPublish"
+                            :disabled="!hasNoPublishErrors || !canPublish"
                             data-test="publish"
                         >
                             Save & publish
@@ -431,7 +481,7 @@ const initializeText = () => {
                             leave-active-class="transition ease-out duration-300 absolute"
                             leave-to-class="opacity-0 -translate-y-8 scale-y-[.1]"
                         >
-                            <div v-if="!canPublish">
+                            <div v-if="!hasNoPublishErrors">
                                 <p class="mt-6 text-xs text-zinc-700">
                                     These fields prevent <strong>publishing</strong>:
                                 </p>
@@ -446,7 +496,7 @@ const initializeText = () => {
                                     tag="div"
                                 >
                                     <div
-                                        v-if="!hasOneContentField && ruleset == 'post'"
+                                        v-if="!hasOneContentField && docType == DocType.Post"
                                         class="flex gap-2"
                                     >
                                         <p>
@@ -456,7 +506,10 @@ const initializeText = () => {
                                             At least one of text, audio or video content is required
                                         </p>
                                     </div>
-                                    <div v-if="!hasTag && ruleset == 'post'" class="flex gap-2">
+                                    <div
+                                        v-if="!hasTag && docType == DocType.Post"
+                                        class="flex gap-2"
+                                    >
                                         <p>
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
@@ -469,14 +522,17 @@ const initializeText = () => {
                 </LCard>
 
                 <LCard
-                    :title="`${capitaliseFirstLetter(ruleset)} settings`"
+                    :title="`${capitaliseFirstLetter(docType.toString())} settings`"
                     :icon="Cog6ToothIcon"
                     class="sticky top-20"
                     collapsible
                 >
-                    <div v-if="ruleset == 'tag'" class="mb-6 flex items-center justify-between">
+                    <div
+                        v-if="docType == DocType.Tag"
+                        class="mb-6 flex items-center justify-between"
+                    >
                         <FormLabel>Pinned</FormLabel>
-                        <LToggle v-model="pinned" />
+                        <LToggle v-model="pinned" :disabled="!canEditParent" />
                     </div>
 
                     <LInput
@@ -484,6 +540,7 @@ const initializeText = () => {
                         label="Default image"
                         :icon="LinkIcon"
                         placeholder="https://..."
+                        :disabled="!canEditParent"
                     >
                         This image can be overridden in a translation
                     </LInput>
@@ -496,6 +553,7 @@ const initializeText = () => {
                         :language="content.language"
                         @select="addTag"
                         @remove="removeTag"
+                        :disabled="!canEditParent"
                     />
 
                     <TagSelector
@@ -506,6 +564,7 @@ const initializeText = () => {
                         :language="content.language"
                         @select="addTag"
                         @remove="removeTag"
+                        :disabled="!canEditParent"
                     />
 
                     <TagSelector
@@ -516,6 +575,7 @@ const initializeText = () => {
                         :language="content.language"
                         @select="addTag"
                         @remove="removeTag"
+                        :disabled="!canEditParent"
                     />
                 </LCard>
             </div>

@@ -17,10 +17,12 @@ type Props = {
     selectedTags: Tag[];
     language: Language;
     label?: string;
+    disabled?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     label: "Tags",
+    disabled: false,
 });
 
 const { tags, selectedTags } = toRefs(props);
@@ -65,13 +67,21 @@ const contentTitle = computed(() => {
 
 <template>
     <div>
-        <Combobox as="div" @update:modelValue="(tag: Tag) => selectTag(tag)" nullable>
+        <Combobox
+            as="div"
+            @update:modelValue="(tag: Tag) => selectTag(tag)"
+            nullable
+            :disabled="disabled"
+        >
             <ComboboxLabel class="block text-sm font-medium leading-6 text-zinc-900">
                 {{ label }}
             </ComboboxLabel>
             <div class="relative mt-2">
                 <ComboboxInput
-                    class="w-full rounded-md border-0 bg-white py-1.5 pl-3 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6"
+                    :class="[
+                        'w-full rounded-md border-0 bg-white py-1.5 pl-3 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400  focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6',
+                        { 'hover:ring-zinc-400': !disabled, 'bg-zinc-100': disabled },
+                    ]"
                     @change="query = $event.target.value"
                     placeholder="Type to select..."
                 />
@@ -128,7 +138,12 @@ const contentTitle = computed(() => {
                 leave-from-class="transform scale-100 opacity-100"
                 leave-to-class="transform scale-90 opacity-0"
             >
-                <Ltag v-for="tag in selectedTags" :key="tag._id" @remove="emit('remove', tag)">
+                <Ltag
+                    v-for="tag in selectedTags"
+                    :key="tag._id"
+                    @remove="emit('remove', tag)"
+                    :disabled="disabled"
+                >
                     {{ contentTitle(tag) }}
                 </Ltag>
             </TransitionGroup>

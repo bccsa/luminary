@@ -7,15 +7,21 @@ import LButton from "@/components/button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import { usePostStore } from "@/stores/post";
 import { storeToRefs } from "pinia";
+import { AclPermission, DocType } from "@/types";
+import { useUserAccessStore } from "@/stores/userAccess";
+import { computed } from "vue";
 
 const { posts } = storeToRefs(usePostStore());
+const { hasAnyPermission } = useUserAccessStore();
+
+const canCreateNew = computed(() => hasAnyPermission(DocType.Post, AclPermission.Create));
 </script>
 
 <template>
     <BasePage title="Posts" :loading="posts === undefined">
         <template #actions>
             <LButton
-                v-if="posts && posts.length > 0"
+                v-if="posts && posts.length > 0 && canCreateNew"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
@@ -28,11 +34,16 @@ const { posts } = storeToRefs(usePostStore());
         <EmptyState
             v-if="!posts || posts.length == 0"
             title="No posts yet"
-            description="Get started by creating a new post."
+            :description="
+                canCreateNew
+                    ? 'Get started by creating a new post.'
+                    : 'You do not have permission to create new posts.'
+            "
             buttonText="Create post"
             :buttonLink="{ name: 'posts.create' }"
+            :buttonPermission="canCreateNew"
         />
 
-        <ContentTable v-else :items="posts" editLinkName="posts.edit" />
+        <ContentTable v-else :items="posts" :docType="DocType.Post" editLinkName="posts.edit" />
     </BasePage>
 </template>

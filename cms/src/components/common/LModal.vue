@@ -38,7 +38,7 @@ const close = () => {
                 leave-from="opacity-100"
                 leave-to="opacity-0"
             >
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+                <div class="fixed inset-0 bg-zinc-500 bg-opacity-75 transition-opacity" />
             </TransitionChild>
 
             <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
@@ -75,13 +75,13 @@ const close = () => {
                                 >
                                     <DialogTitle
                                         as="h3"
-                                        class="text-base font-semibold leading-6 text-gray-900"
+                                        class="text-base font-semibold leading-6 text-zinc-900"
                                     >
                                         {{ title }}
                                     </DialogTitle>
 
                                     <div class="mt-2" v-if="description">
-                                        <p class="text-sm text-gray-500">
+                                        <p class="text-sm text-zinc-500">
                                             {{ description }}
                                         </p>
                                     </div>

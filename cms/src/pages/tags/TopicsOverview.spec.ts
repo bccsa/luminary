@@ -3,10 +3,12 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import TopicsOverview from "./TopicsOverview.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { mockTopic, mockLanguageEng } from "@/tests/mockData";
+import { mockTopic, mockLanguageEng, fullAccessToAllContentMap } from "@/tests/mockData";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useTagStore } from "@/stores/tag";
+import { useUserAccessStore } from "@/stores/userAccess";
+import { nextTick } from "vue";
 
 describe("TopicsOverview", () => {
     beforeEach(() => {
@@ -49,5 +51,21 @@ describe("TopicsOverview", () => {
 
         expect(wrapper.find("button").exists()).toBe(false);
         expect(wrapper.findComponent(EmptyState).exists()).toBe(false);
+    });
+
+    describe("permissions", () => {
+        it("doesn't display Create button if the user has no permission to create tags", async () => {
+            const postStore = useTagStore();
+            const userAccessStore = useUserAccessStore();
+            postStore.tags = [mockTopic];
+
+            const wrapper = mount(TopicsOverview);
+
+            expect(wrapper.text()).not.toContain("Create topic");
+
+            userAccessStore.accessMap = fullAccessToAllContentMap;
+            await nextTick();
+            expect(wrapper.text()).toContain("Create topic");
+        });
     });
 });
