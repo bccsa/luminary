@@ -338,7 +338,7 @@ const saveChanges = async () => {
             <DisclosureButton
                 :class="[
                     'flex w-full items-center justify-between rounded-md bg-white px-6 py-4',
-                    { 'sticky top-16 mb-4 rounded-b-none border-b border-zinc-200': open },
+                    { 'sticky top-16 z-10 mb-4 rounded-b-none border-b border-zinc-200': open },
                 ]"
             >
                 <div
