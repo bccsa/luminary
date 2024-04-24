@@ -41,7 +41,7 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
 
-const EMPTY_TEXT = "<p></p>";
+const EMPTY_TEXT = '{"type":"doc","content":[{"type":"paragraph"}]}';
 
 type Props = {
     content: Content;

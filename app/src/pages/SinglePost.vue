@@ -2,13 +2,15 @@
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import VideoPlayer from "@/components/posts/VideoPlayer.vue";
 import { usePostStore } from "@/stores/post";
-import { computed, onMounted, watchEffect } from "vue";
+import { computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { DateTime } from "luxon";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
 import { storeToRefs } from "pinia";
+import { generateHTML } from "@tiptap/html";
+import StarterKit from "@tiptap/starter-kit";
 
 const route = useRoute();
 const postStore = usePostStore();
@@ -19,6 +21,23 @@ const router = useRouter();
 const slug = route.params.slug as string;
 
 const post = computed(() => postStore.post(slug));
+
+const text = computed(() => {
+    if (!post.value?.content[0].text) {
+        return undefined;
+    }
+
+    let text;
+
+    // Only parse text with TipTap if it's JSON, otherwise we render it out as HTML
+    try {
+        text = JSON.parse(post.value?.content[0].text);
+    } catch {
+        return post.value?.content[0].text;
+    }
+
+    return generateHTML(text, [StarterKit]);
+});
 
 const showPublishDate = computed(
     () => post.value?.content[0].publishDate && post.value?.tags.some((tag) => !tag.pinned),
@@ -77,11 +96,7 @@ onMounted(async () => {
             {{ post.content[0].summary }}
         </div>
 
-        <div
-            v-if="post.content[0].text"
-            v-html="post.content[0].text"
-            class="prose prose-zinc mt-6 dark:prose-invert"
-        ></div>
+        <div v-if="text" v-html="text" class="prose prose-zinc mt-6 dark:prose-invert"></div>
 
         <div class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500">
             <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3>
