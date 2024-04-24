@@ -4,7 +4,7 @@ import { createTestingPinia } from "@pinia/testing";
 import PostOverview from "./PostOverview.vue";
 import { usePostStore } from "@/stores/post";
 import EmptyState from "@/components/EmptyState.vue";
-import { mockLanguageEng, mockPost, accessToAllContentMap } from "@/tests/mockData";
+import { mockLanguageEng, mockPost, fullAccessToAllContentMap } from "@/tests/mockData";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
@@ -58,7 +58,7 @@ describe("PostOverview", () => {
 
             expect(wrapper.text()).not.toContain("Create post");
 
-            userAccessStore.accessMap = accessToAllContentMap;
+            userAccessStore.accessMap = fullAccessToAllContentMap;
             await nextTick();
             expect(wrapper.text()).toContain("Create post");
         });

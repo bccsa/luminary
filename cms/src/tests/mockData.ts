@@ -93,7 +93,7 @@ export const mockLanguageEng: Language = {
     _id: "lang-eng",
     type: DocType.Language,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-languages"],
     languageCode: "eng",
     name: "English",
 };
@@ -101,7 +101,7 @@ export const mockLanguageFra: Language = {
     _id: "lang-fra",
     type: DocType.Language,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-languages"],
     languageCode: "fra",
     name: "Français",
 };
@@ -109,7 +109,7 @@ export const mockLanguageSwa: Language = {
     _id: "lang-swa",
     type: DocType.Language,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-languages"],
     languageCode: "swa",
     name: "Swahili",
 };
@@ -136,7 +136,7 @@ export const mockEnglishContent: Content = {
     parentId: "post-post1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-private-content"],
     language: mockLanguageEng,
     status: ContentStatus.Published,
     slug: "post1-eng",
@@ -155,7 +155,7 @@ export const mockFrenchContent: Content = {
     parentId: "post-post1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-private-content"],
     language: mockLanguageFra,
     status: ContentStatus.Draft,
     slug: "post1-fra",
@@ -175,7 +175,7 @@ export const mockUnpublishableContent: Content = {
     parentId: "post-post1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-private-content"],
     language: mockLanguageEng,
     status: ContentStatus.Draft,
     slug: "post1-eng",
@@ -195,7 +195,7 @@ export const mockEnglishCategoryContent: Content = {
     parentId: "tag-category1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-public-content"],
     language: mockLanguageEng,
     status: ContentStatus.Published,
     slug: "content-tag-category1",
@@ -209,7 +209,7 @@ export const mockFrenchCategoryContent: Content = {
     parentId: "tag-category1",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-public-content"],
     language: mockLanguageFra,
     status: ContentStatus.Published,
     slug: "content-tag-category1-fra",
@@ -223,7 +223,7 @@ export const mockTopicContent: Content = {
     parentId: "tag-topicA",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-private-content"],
     language: mockLanguageEng,
     status: ContentStatus.Published,
     slug: "content-tag-topicA",
@@ -237,7 +237,7 @@ export const mockAudioPlaylistContent: Content = {
     parentId: "tag-audioPlaylist-Faith",
     type: DocType.Content,
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
+    memberOf: ["group-private-content"],
     language: mockLanguageEng,
     status: ContentStatus.Published,
     slug: "content-tag-audioPlaylist-Faith",
@@ -532,7 +532,7 @@ export const mockGroupSuperAdmins: Group = {
     ],
 };
 
-export const accessToAllContentMap = {
+export const fullAccessToAllContentMap = {
     "group-private-content": {
         post: { view: true, create: true, edit: true, translate: true, publish: true },
         tag: { view: true, create: true, edit: true, translate: true, publish: true },
@@ -542,5 +542,27 @@ export const accessToAllContentMap = {
         post: { view: true, create: true, edit: true, translate: true, publish: true },
         tag: { view: true, create: true, edit: true, translate: true, publish: true },
         language: { view: true, create: true, edit: true, translate: true, publish: true },
+    },
+    "group-languages": {
+        post: { view: true, create: true, edit: true, translate: true, publish: true },
+        tag: { view: true, create: true, edit: true, translate: true, publish: true },
+        language: { view: true, create: true, edit: true, translate: true, publish: true },
+    },
+};
+export const translateAccessToAllContent = {
+    "group-private-content": {
+        post: { view: true, translate: true },
+        tag: { view: true, translate: true },
+        language: { view: true, translate: true },
+    },
+    "group-public-content": {
+        post: { view: true, translate: true },
+        tag: { view: true, translate: true },
+        language: { view: true, translate: true },
+    },
+    "group-languages": {
+        post: { view: true, translate: true },
+        tag: { view: true, translate: true },
+        language: { view: true, translate: true },
     },
 };

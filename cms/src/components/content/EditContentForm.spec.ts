@@ -7,7 +7,8 @@ import {
     mockEnglishContent,
     mockPost,
     mockUnpublishableContent,
-    accessToAllContentMap,
+    fullAccessToAllContentMap,
+    translateAccessToAllContent,
 } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType, type Content } from "@/types";
@@ -21,6 +22,7 @@ import { useUserAccessStore } from "@/stores/userAccess";
 import TagSelector from "./TagSelector.vue";
 import LToggle from "../forms/LToggle.vue";
 import LTag from "./LTag.vue";
+import { nextTick } from "vue";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -56,7 +58,7 @@ describe("EditContentForm", () => {
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = accessToAllContentMap;
+        userAccessStore.accessMap = fullAccessToAllContentMap;
     });
 
     afterEach(() => {
@@ -585,6 +587,16 @@ describe("EditContentForm", () => {
             expect(wrapper.find(publishButton).attributes().disabled).toBeDefined();
         });
 
+        it("disables the publish button when the user can't publish but can translate", async () => {
+            const userAccessStore = useUserAccessStore();
+            const wrapper = createWrapperWithoutPermissions();
+            userAccessStore.accessMap = translateAccessToAllContent;
+            await nextTick();
+
+            expect(wrapper.find(saveAsDraftButton).attributes().disabled).toBeUndefined();
+            expect(wrapper.find(publishButton).attributes().disabled).toBeDefined();
+        });
+
         it("disables all content fields when the user doesn't have permission to edit", async () => {
             const wrapper = createWrapperWithoutPermissions(
                 {
@@ -595,13 +607,43 @@ describe("EditContentForm", () => {
                 DocType.Tag,
             );
 
+            // Content fields
             expect(wrapper.find("input[name='title']").attributes().disabled).toBeDefined();
             expect(wrapper.find("input[name='summary']").attributes().disabled).toBeDefined();
             expect(wrapper.find("input[name='publishDate']").attributes().disabled).toBeDefined();
             expect(wrapper.find("input[name='audio']").attributes().disabled).toBeDefined();
             expect(wrapper.find("input[name='video']").attributes().disabled).toBeDefined();
             expect(wrapper.findComponent(RichTextEditor).props().disabled).toBe(true);
+            // Parent fields
+            expect(wrapper.find("input[name='parent.image']").attributes().disabled).toBeDefined();
             expect(wrapper.findComponent(TagSelector).props().disabled).toBe(true);
+            expect(wrapper.findComponent(LToggle).props().disabled).toBe(true);
+            expect(wrapper.findComponent(LTag).props().disabled).toBe(true);
+        });
+
+        it("only disables parent fields when the user can translate but not edit", async () => {
+            const userAccessStore = useUserAccessStore();
+            const wrapper = createWrapperWithoutPermissions(
+                {
+                    ...mockEnglishCategoryContent,
+                    audio: "abc",
+                    video: "def",
+                },
+                DocType.Tag,
+            );
+            userAccessStore.accessMap = translateAccessToAllContent;
+            await nextTick();
+
+            // Content fields
+            expect(wrapper.find("input[name='title']").attributes().disabled).toBeUndefined();
+            expect(wrapper.find("input[name='summary']").attributes().disabled).toBeUndefined();
+            expect(wrapper.find("input[name='publishDate']").attributes().disabled).toBeUndefined();
+            expect(wrapper.find("input[name='audio']").attributes().disabled).toBeUndefined();
+            expect(wrapper.find("input[name='video']").attributes().disabled).toBeUndefined();
+            expect(wrapper.findComponent(RichTextEditor).props().disabled).toBe(false);
+            // Parent fields
+            expect(wrapper.findComponent(TagSelector).props().disabled).toBe(true);
+            expect(wrapper.find("input[name='parent.image']").attributes().disabled).toBeDefined();
             expect(wrapper.findComponent(LToggle).props().disabled).toBe(true);
             expect(wrapper.findComponent(LTag).props().disabled).toBe(true);
         });

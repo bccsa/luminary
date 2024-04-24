@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import TopicsOverview from "./TopicsOverview.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { mockTopic, mockLanguageEng, accessToAllContentMap } from "@/tests/mockData";
+import { mockTopic, mockLanguageEng, fullAccessToAllContentMap } from "@/tests/mockData";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useTagStore } from "@/stores/tag";
@@ -63,7 +63,7 @@ describe("TopicsOverview", () => {
 
             expect(wrapper.text()).not.toContain("Create topic");
 
-            userAccessStore.accessMap = accessToAllContentMap;
+            userAccessStore.accessMap = fullAccessToAllContentMap;
             await nextTick();
             expect(wrapper.text()).toContain("Create topic");
         });

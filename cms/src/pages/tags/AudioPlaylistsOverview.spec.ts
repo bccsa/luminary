@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import AudioPlaylistsOverview from "./AudioPlaylistsOverview.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { accessToAllContentMap, mockAudioPlaylist, mockLanguageEng } from "@/tests/mockData";
+import { fullAccessToAllContentMap, mockAudioPlaylist, mockLanguageEng } from "@/tests/mockData";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useTagStore } from "@/stores/tag";
@@ -63,7 +63,7 @@ describe("AudioPlaylistsOverview", () => {
 
             expect(wrapper.text()).not.toContain("Create audio playlist");
 
-            userAccessStore.accessMap = accessToAllContentMap;
+            userAccessStore.accessMap = fullAccessToAllContentMap;
             await nextTick();
             expect(wrapper.text()).toContain("Create audio playlist");
         });

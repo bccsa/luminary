@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import CategoriesOverview from "./CategoriesOverview.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { accessToAllContentMap, mockCategory, mockLanguageEng } from "@/tests/mockData";
+import { fullAccessToAllContentMap, mockCategory, mockLanguageEng } from "@/tests/mockData";
 import { useLanguageStore } from "@/stores/language";
 import { setActivePinia } from "pinia";
 import { useTagStore } from "@/stores/tag";
@@ -63,7 +63,7 @@ describe("CategoriesOverview", () => {
 
             expect(wrapper.text()).not.toContain("Create category");
 
-            userAccessStore.accessMap = accessToAllContentMap;
+            userAccessStore.accessMap = fullAccessToAllContentMap;
             await nextTick();
             expect(wrapper.text()).toContain("Create category");
         });
