@@ -34,7 +34,7 @@ import { Slug } from "@/util/slug";
 import TagSelector from "./TagSelector.vue";
 import { useTagStore } from "@/stores/tag";
 import { capitaliseFirstLetter } from "@/util/string";
-import RichTextEditor from "@/components/content/RichTextEditor.vue";
+import RichTextEditor from "@/components/editor/RichTextEditor.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
