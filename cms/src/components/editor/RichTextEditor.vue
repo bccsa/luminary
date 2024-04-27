@@ -2,6 +2,11 @@
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import { onMounted } from "vue";
+import BoldIcon from "./icons/BoldIcon.vue";
+import ItalicIcon from "./icons/ItalicIcon.vue";
+import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
+import UnorderedListIcon from "./icons/UnorderedListIcon.vue";
+import NumberedListIcon from "./icons/NumberedListIcon.vue";
 
 type Props = {
     modelValue: string;
@@ -44,6 +49,63 @@ onMounted(() => {
 
 <template>
     <div class="-mx-4 px-4">
+        <div class="flex gap-4" v-if="!disabled">
+            <div class="flex pb-2">
+                <button
+                    :class="[
+                        'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
+                        { 'bg-zinc-300': editor?.isActive('bold') },
+                    ]"
+                    @click="editor?.chain().focus().toggleBold().run()"
+                    type="button"
+                >
+                    <BoldIcon class="h-5 w-5" />
+                </button>
+                <button
+                    :class="[
+                        'bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
+                        { 'bg-zinc-300': editor?.isActive('italic') },
+                    ]"
+                    @click="editor?.chain().focus().toggleItalic().run()"
+                    type="button"
+                >
+                    <ItalicIcon class="h-5 w-5" />
+                </button>
+                <button
+                    :class="[
+                        'rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
+                        { 'bg-zinc-300': editor?.isActive('strike') },
+                    ]"
+                    @click="editor?.chain().focus().toggleStrike().run()"
+                    type="button"
+                >
+                    <StrikethroughIcon class="h-5 w-5" />
+                </button>
+            </div>
+            <div class="flex pb-2">
+                <button
+                    :class="[
+                        'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
+                        { 'bg-zinc-300': editor?.isActive('bulletList') },
+                    ]"
+                    @click="editor?.chain().focus().toggleBulletList().run()"
+                    type="button"
+                >
+                    <UnorderedListIcon class="h-5 w-5" />
+                </button>
+
+                <button
+                    :class="[
+                        'rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
+                        { 'bg-zinc-300': editor?.isActive('orderedList') },
+                    ]"
+                    @click="editor?.chain().focus().toggleOrderedList().run()"
+                    type="button"
+                >
+                    <NumberedListIcon class="h-5 w-5" />
+                </button>
+            </div>
+        </div>
         <EditorContent :editor="editor" />
     </div>
 </template>
