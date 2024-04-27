@@ -15,7 +15,7 @@ import { ContentStatus, DocType, type Content } from "@/types";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import RichTextEditor from "./RichTextEditor.vue";
+import RichTextEditor from "@/components/editor/RichTextEditor.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { DateTime, Settings } from "luxon";
 import { useUserAccessStore } from "@/stores/userAccess";

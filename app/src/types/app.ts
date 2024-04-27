@@ -1,5 +1,5 @@
 import type { DateTime } from "luxon";
-import type { BaseDocumentDto, Uuid } from "./dto";
+import type { AclPermission, BaseDocumentDto, Uuid } from "./dto";
 
 export enum DocType {
     Change = "change",
@@ -22,10 +22,17 @@ export type BaseDocument = {
 export type Group = BaseDocument & {
     type: DocType.Group;
     name: string;
+    acl: GroupAclEntry[];
+};
+
+export type GroupAclEntry = {
+    type: DocType;
+    groupId: Uuid;
+    permission: AclPermission[];
 };
 
 export type ContentBase = BaseDocument & {
-    memberOf: Group[];
+    memberOf: Uuid[];
 };
 
 export type Language = ContentBase & {

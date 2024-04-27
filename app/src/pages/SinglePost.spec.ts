@@ -30,7 +30,17 @@ describe("SinglePost", () => {
 
     it("displays a video post", async () => {
         const postStore = usePostStore();
-        postStore.posts = [mockPost];
+        postStore.posts = [
+            {
+                ...mockPost,
+                content: [
+                    {
+                        ...mockEnglishContent,
+                        video: "video_url",
+                    },
+                ],
+            },
+        ];
 
         const wrapper = mount(SinglePost, {
             shallow: true,

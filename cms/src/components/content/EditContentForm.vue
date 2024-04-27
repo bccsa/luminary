@@ -34,14 +34,14 @@ import { Slug } from "@/util/slug";
 import TagSelector from "./TagSelector.vue";
 import { useTagStore } from "@/stores/tag";
 import { capitaliseFirstLetter } from "@/util/string";
-import RichTextEditor from "@/components/content/RichTextEditor.vue";
+import RichTextEditor from "@/components/editor/RichTextEditor.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
 
-const EMPTY_TEXT = "<p></p>";
+const EMPTY_TEXT = '{"type":"doc","content":[{"type":"paragraph"}]}';
 
 type Props = {
     content: Content;
@@ -361,7 +361,7 @@ const checkIfDirty = () => {
                 title="Text content"
                 :icon="DocumentTextIcon"
                 collapsible
-                v-if="hasText"
+                v-if="text && hasText"
                 :disabled="!canTranslateContent"
             >
                 <RichTextEditor v-model="text" :disabled="!canTranslateContent" />
