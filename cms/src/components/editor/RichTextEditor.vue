@@ -5,7 +5,7 @@ import { onMounted } from "vue";
 import BoldIcon from "./icons/BoldIcon.vue";
 import ItalicIcon from "./icons/ItalicIcon.vue";
 import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
-import UnorderedListIcon from "./icons/UnorderedListIcon.vue";
+import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
 
 type Props = {
@@ -57,6 +57,7 @@ onMounted(() => {
                         { 'bg-zinc-300': editor?.isActive('bold') },
                     ]"
                     @click="editor?.chain().focus().toggleBold().run()"
+                    title="Bold"
                     type="button"
                 >
                     <BoldIcon class="h-5 w-5" />
@@ -67,6 +68,7 @@ onMounted(() => {
                         { 'bg-zinc-300': editor?.isActive('italic') },
                     ]"
                     @click="editor?.chain().focus().toggleItalic().run()"
+                    title="Italic"
                     type="button"
                 >
                     <ItalicIcon class="h-5 w-5" />
@@ -77,6 +79,7 @@ onMounted(() => {
                         { 'bg-zinc-300': editor?.isActive('strike') },
                     ]"
                     @click="editor?.chain().focus().toggleStrike().run()"
+                    title="Strikethrough"
                     type="button"
                 >
                     <StrikethroughIcon class="h-5 w-5" />
@@ -89,9 +92,10 @@ onMounted(() => {
                         { 'bg-zinc-300': editor?.isActive('bulletList') },
                     ]"
                     @click="editor?.chain().focus().toggleBulletList().run()"
+                    title="Bullet list"
                     type="button"
                 >
-                    <UnorderedListIcon class="h-5 w-5" />
+                    <BulletlistIcon class="h-5 w-5" />
                 </button>
 
                 <button
@@ -100,6 +104,7 @@ onMounted(() => {
                         { 'bg-zinc-300': editor?.isActive('orderedList') },
                     ]"
                     @click="editor?.chain().focus().toggleOrderedList().run()"
+                    title="Numbered list"
                     type="button"
                 >
                     <NumberedListIcon class="h-5 w-5" />
