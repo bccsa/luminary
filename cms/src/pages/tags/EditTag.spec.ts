@@ -21,6 +21,7 @@ import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useTagStore } from "@/stores/tag";
 import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 let routeLanguage: string;
 
@@ -62,9 +63,11 @@ describe("EditTag", () => {
         const languageStore = useLanguageStore();
         const tagStore = useTagStore();
         const userAccessStore = useUserAccessStore();
+        const globalConfigStore = useGlobalConfigStore();
         languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
         tagStore.tags = [mockCategory, mockTopic];
         userAccessStore.accessMap = fullAccessToAllContentMap;
+        globalConfigStore.clientAppUrl = "http://localhost:4174";
     });
 
     afterEach(() => {

@@ -20,6 +20,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 let routeLanguage: string;
 
@@ -61,9 +62,11 @@ describe("EditPost", () => {
         const languageStore = useLanguageStore();
         const postStore = usePostStore();
         const userAccessStore = useUserAccessStore();
+        const globalConfigStore = useGlobalConfigStore();
         languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
         postStore.posts = [mockPost];
         userAccessStore.accessMap = fullAccessToAllContentMap;
+        globalConfigStore.clientAppUrl = "http://localhost:4174";
     });
 
     afterEach(() => {
