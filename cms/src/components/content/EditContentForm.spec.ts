@@ -23,6 +23,7 @@ import TagSelector from "./TagSelector.vue";
 import LToggle from "../forms/LToggle.vue";
 import LTag from "./LTag.vue";
 import { nextTick } from "vue";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -58,7 +59,9 @@ describe("EditContentForm", () => {
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
+        const globalConfigStore = useGlobalConfigStore();
         userAccessStore.accessMap = fullAccessToAllContentMap;
+        globalConfigStore.clientAppUrl = "http://localhost:4174";
     });
 
     afterEach(() => {
@@ -250,6 +253,21 @@ describe("EditContentForm", () => {
 
             expect(saveEvent![0][1].tags).toEqual([]);
         });
+    });
+
+    it("shows a view link", async () => {
+        const wrapper = mount(EditContentForm, {
+            props: {
+                parent: mockPost,
+                content: mockEnglishContent,
+                docType: DocType.Post,
+            },
+        });
+
+        const viewLink = wrapper.find("a");
+
+        expect(viewLink.text()).toBe("View live version");
+        expect(viewLink.attributes().href).toContain(mockEnglishContent.slug);
     });
 
     describe("validation", () => {

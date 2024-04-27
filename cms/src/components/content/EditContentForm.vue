@@ -9,6 +9,8 @@ import {
     VideoCameraIcon,
     MusicalNoteIcon,
     LinkIcon,
+    EyeIcon,
+    ArrowTopRightOnSquareIcon,
 } from "@heroicons/vue/20/solid";
 import { ExclamationCircleIcon, PencilIcon, XCircleIcon } from "@heroicons/vue/16/solid";
 import {
@@ -40,6 +42,7 @@ import LToggle from "@/components/forms/LToggle.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 const EMPTY_TEXT = '{"type":"doc","content":[{"type":"paragraph"}]}';
 
@@ -62,6 +65,7 @@ const {
     audioPlaylists: availableAudioPlaylists,
 } = storeToRefs(useTagStore());
 const { verifyAccess } = useUserAccessStore();
+const { clientAppUrl } = useGlobalConfigStore();
 
 const canPublish = computed(() =>
     verifyAccess(props.content.memberOf, props.docType, AclPermission.Publish),
@@ -95,6 +99,8 @@ const text = ref<string>();
 const pinned = ref(props.parent.pinned ?? false);
 
 const isDirty = ref(false);
+
+const liveUrl = computed(() => new URL(props.content.slug, clientAppUrl));
 
 const validationSchema = toTypedSchema(
     yup.object({
@@ -533,6 +539,21 @@ const checkIfDirty = () => {
                             </div>
                         </Transition>
                     </template>
+                </LCard>
+
+                <LCard
+                    title="View"
+                    :icon="EyeIcon"
+                    v-if="content.status == ContentStatus.Published"
+                >
+                    <LButton
+                        :icon="ArrowTopRightOnSquareIcon"
+                        iconRight
+                        is="a"
+                        :href="liveUrl"
+                        target="_blank"
+                        >View live version</LButton
+                    >
                 </LCard>
 
                 <LCard
