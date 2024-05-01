@@ -11,8 +11,13 @@ import {
 } from "@/types";
 import { capitaliseFirstLetter } from "@/util/string";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
-import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
-import { ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
+import {
+    CheckCircleIcon,
+    XCircleIcon,
+    DocumentDuplicateIcon,
+    ChevronUpIcon,
+    RectangleStackIcon,
+} from "@heroicons/vue/20/solid";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import { useNotificationStore } from "@/stores/notification";
@@ -65,7 +70,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const groupStore = useGroupStore();
-const { group: getGroup, updateGroup } = groupStore;
+const { group: getGroup, createGroup, updateGroup } = groupStore;
 const { groups } = storeToRefs(groupStore);
 const { addNotification } = useNotificationStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
@@ -263,6 +268,19 @@ const discardChanges = () => {
     newGroupName.value = props.group.name;
 };
 
+const duplicateGroup = async () => {
+    const duplicatedGroup = { ...toRaw(props.group) };
+    duplicatedGroup._id = "";
+    duplicatedGroup.name = `Copy of ${duplicatedGroup.name}`;
+    await createGroup(duplicatedGroup);
+
+    addNotification({
+        title: `Group "${duplicatedGroup.name}" created successfully`,
+        description: "You can now add access lists to this group.",
+        state: "success",
+    });
+};
+
 const saveChanges = async () => {
     const updatedGroup = {
         ...(toRaw(props.group) as unknown as GroupDto),
@@ -317,6 +335,7 @@ const saveChanges = async () => {
 
     await updateGroup(updatedGroup);
 
+    addedGroups.value = [];
     changedAclEntries.value = [];
     isDirty.value = false;
 
@@ -389,7 +408,14 @@ const saveChanges = async () => {
                     <LBadge v-if="isLocalChange(group._id) && !isConnected" variant="warning">
                         Offline changes
                     </LBadge>
-
+                    <LButton
+                        v-if="groups && groups.length > 0 && open"
+                        variant="tertiary"
+                        size="sm"
+                        title="Duplicate"
+                        :icon="DocumentDuplicateIcon"
+                        @click="duplicateGroup"
+                    />
                     <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
                 </div>
             </DisclosureButton>
@@ -418,7 +444,12 @@ const saveChanges = async () => {
                                 <h3
                                     class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700"
                                 >
-                                    {{ aclGroup?.name }}
+                                    <!-- Add the duplicate button of ACL  -->
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            {{ aclGroup?.name }}
+                                        </div>
+                                    </div>
                                 </h3>
 
                                 <table>
