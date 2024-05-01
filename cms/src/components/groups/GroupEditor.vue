@@ -415,6 +415,7 @@ const saveChanges = async () => {
                         title="Duplicate"
                         :icon="DocumentDuplicateIcon"
                         @click="duplicateGroup"
+                        data-test="duplicateGroup"
                     />
                     <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
                 </div>
