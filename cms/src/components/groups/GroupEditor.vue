@@ -65,7 +65,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const groupStore = useGroupStore();
-const { group: getGroup, updateGroup } = groupStore;
+const { group: getGroup, createGroup, updateGroup } = groupStore;
 const { groups } = storeToRefs(groupStore);
 const { addNotification } = useNotificationStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
@@ -263,6 +263,19 @@ const discardChanges = () => {
     newGroupName.value = props.group.name;
 };
 
+const duplicateGroup = async () => {
+    const duplicatedGroup = { ...toRaw(props.group) };
+    duplicatedGroup._id = "";
+    duplicatedGroup.name = `Copy of ${duplicatedGroup.name}`;
+    await createGroup(duplicatedGroup);
+
+    addNotification({
+        title: `Group "${duplicatedGroup.name}" duplicated successfully`,
+        description: "You can now add access lists to this group.",
+        state: "success",
+    });
+};
+
 const saveChanges = async () => {
     const updatedGroup = {
         ...(toRaw(props.group) as unknown as GroupDto),
@@ -389,7 +402,13 @@ const saveChanges = async () => {
                     <LBadge v-if="isLocalChange(group._id) && !isConnected" variant="warning">
                         Offline changes
                     </LBadge>
-
+                    <LButton
+                        v-if="groups && groups.length > 0"
+                        variant="secondary"
+                        @click="duplicateGroup"
+                    >
+                        Duplicate
+                    </LButton>
                     <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
                 </div>
             </DisclosureButton>
@@ -418,7 +437,12 @@ const saveChanges = async () => {
                                 <h3
                                     class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700"
                                 >
-                                    {{ aclGroup?.name }}
+                                    <!-- Add the duplicate button of ACL  -->
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            {{ aclGroup?.name }}
+                                        </div>
+                                    </div>
                                 </h3>
 
                                 <table>
