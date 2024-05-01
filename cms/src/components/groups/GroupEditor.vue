@@ -412,6 +412,7 @@ const saveChanges = async () => {
                         v-if="groups && groups.length > 0 && open"
                         variant="tertiary"
                         size="sm"
+                        title="Duplicate"
                         :icon="DocumentDuplicateIcon"
                         @click="duplicateGroup"
                     />
