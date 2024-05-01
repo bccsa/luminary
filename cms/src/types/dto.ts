@@ -73,6 +73,7 @@ export type GroupDto = BaseDocumentDto & {
 
 export type CreateGroupDto = {
     name: string;
+    acl?: GroupAclEntry[];
 };
 
 export type CreateContentParentDto = {

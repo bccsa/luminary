@@ -150,6 +150,18 @@ describe("GroupEditor", () => {
         expect(wrapper.find(saveChangesButton).exists()).toBe(false);
     });
 
+    it("duplicate the whole group", async () => {
+        const { createGroup } = useGroupStore();
+        const wrapper = await createWrapper();
+
+        await wrapper.find("button[data-test='duplicateGroup']").trigger("click");
+
+        // @ts-ignore
+        const createGroupCall = createGroup.mock.calls[0][0];
+        expect(createGroupCall.acl).toEqual(mockGroupPublicContent.acl);
+        expect(createGroupCall.name).toBe("Copy of Public Content");
+    });
+
     describe("update ACLs", () => {
         it("correctly adds a new group ACL", async () => {
             const { updateGroup } = useGroupStore();

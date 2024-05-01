@@ -270,8 +270,8 @@ const discardChanges = () => {
 
 const duplicateGroup = async () => {
     const duplicatedGroup = { ...toRaw(props.group) };
-    duplicatedGroup._id = "";
     duplicatedGroup.name = `Copy of ${duplicatedGroup.name}`;
+
     await createGroup(duplicatedGroup);
 
     addNotification({
@@ -409,12 +409,13 @@ const saveChanges = async () => {
                         Offline changes
                     </LBadge>
                     <LButton
-                        v-if="groups && groups.length > 0 && open"
+                        v-if="groups && groups.length > 0 && open && !isDirty"
                         variant="tertiary"
                         size="sm"
                         title="Duplicate"
                         :icon="DocumentDuplicateIcon"
                         @click="duplicateGroup"
+                        data-test="duplicateGroup"
                     />
                     <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
                 </div>
