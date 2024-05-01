@@ -270,8 +270,8 @@ const discardChanges = () => {
 
 const duplicateGroup = async () => {
     const duplicatedGroup = { ...toRaw(props.group) };
-    duplicatedGroup._id = "";
     duplicatedGroup.name = `Copy of ${duplicatedGroup.name}`;
+
     await createGroup(duplicatedGroup);
 
     addNotification({

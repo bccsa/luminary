@@ -33,7 +33,7 @@ export const useGroupStore = defineStore("group", () => {
             name: dto.name,
             type: DocType.Group,
             updatedTimeUtc: Date.now(),
-            acl: [
+            acl: dto.acl ?? [
                 // TODO: Don't hardcode access to super admin
                 {
                     groupId: "group-super-admins",
