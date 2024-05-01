@@ -409,7 +409,7 @@ const saveChanges = async () => {
                         Offline changes
                     </LBadge>
                     <LButton
-                        v-if="groups && groups.length > 0 && open"
+                        v-if="groups && groups.length > 0 && open && !isDirty"
                         variant="tertiary"
                         size="sm"
                         title="Duplicate"
