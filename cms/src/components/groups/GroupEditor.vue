@@ -11,8 +11,13 @@ import {
 } from "@/types";
 import { capitaliseFirstLetter } from "@/util/string";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
-import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
-import { ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
+import {
+    CheckCircleIcon,
+    XCircleIcon,
+    DocumentDuplicateIcon,
+    ChevronUpIcon,
+    RectangleStackIcon,
+} from "@heroicons/vue/20/solid";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import { useNotificationStore } from "@/stores/notification";
@@ -270,7 +275,7 @@ const duplicateGroup = async () => {
     await createGroup(duplicatedGroup);
 
     addNotification({
-        title: `Group "${duplicatedGroup.name}" duplicated successfully`,
+        title: `Group "${duplicatedGroup.name}" created successfully`,
         description: "You can now add access lists to this group.",
         state: "success",
     });
@@ -330,6 +335,7 @@ const saveChanges = async () => {
 
     await updateGroup(updatedGroup);
 
+    addedGroups.value = [];
     changedAclEntries.value = [];
     isDirty.value = false;
 
@@ -403,12 +409,12 @@ const saveChanges = async () => {
                         Offline changes
                     </LBadge>
                     <LButton
-                        v-if="groups && groups.length > 0"
-                        variant="secondary"
+                        v-if="groups && groups.length > 0 && open"
+                        variant="tertiary"
+                        size="sm"
+                        :icon="DocumentDuplicateIcon"
                         @click="duplicateGroup"
-                    >
-                        Duplicate
-                    </LButton>
+                    />
                     <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
                 </div>
             </DisclosureButton>
