@@ -49,7 +49,7 @@ const buttonClasses = cva({
         {
             variant: "muted",
             size: "base",
-            class: "-mx-3 -py-2",
+            class: "-mx-3 -my-2",
         },
         {
             variant: "muted",
