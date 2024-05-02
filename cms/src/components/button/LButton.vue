@@ -13,6 +13,7 @@ const buttonClasses = cva({
                 "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500",
             tertiary:
                 "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
+            muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-400 disabled:hover:bg-transparent",
         },
         size: {
             sm: "px-2 py-1.5",
@@ -39,6 +40,21 @@ const buttonClasses = cva({
             variant: "tertiary",
             context: "danger",
             class: "hover:text-red-600 active:text-red-700",
+        },
+        {
+            variant: "muted",
+            size: "sm",
+            class: "-mx-2 -my-1.5",
+        },
+        {
+            variant: "muted",
+            size: "base",
+            class: "-mx-3 -py-2",
+        },
+        {
+            variant: "muted",
+            size: "lg",
+            class: "-mx-3.5 -my-2.5",
         },
     ],
 });
@@ -68,6 +84,7 @@ const iconVariants = {
     primary: "text-zinc-100 group-hover:text-zinc-50 group-active:text-white",
     secondary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
     tertiary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
+    muted: "",
 };
 </script>
 
