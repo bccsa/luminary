@@ -281,6 +281,23 @@ const duplicateGroup = async () => {
     });
 };
 
+const copyGroupId = (group: Group) => {
+    if (!group?._id) {
+        console.error("Group ID is missing or invalid.");
+        return;
+    }
+
+    const groupId = group._id;
+    navigator.clipboard
+        .writeText(groupId)
+        .then(() => {
+            console.log("Group ID copied to clipboard:", groupId);
+        })
+        .catch((error) => {
+            console.error("Failed to copy Group ID:", error);
+        });
+};
+
 const saveChanges = async () => {
     const updatedGroup = {
         ...(toRaw(props.group) as unknown as GroupDto),
@@ -558,8 +575,19 @@ const saveChanges = async () => {
                         </div>
                     </TransitionGroup>
 
-                    <div class="mt-6">
-                        <AddGroupAclButton :groups="availableGroups" @select="addGroup" />
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <AddGroupAclButton :groups="availableGroups" @select="addGroup" />
+                        </div>
+                        <LButton
+                            variant="tertiary"
+                            size="sm"
+                            context="default"
+                            @click.prevent="() => copyGroupId(group)"
+                            data-test="copyGroupId"
+                        >
+                            Copy ID
+                        </LButton>
                     </div>
                 </DisclosurePanel>
             </transition>
