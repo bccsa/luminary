@@ -282,17 +282,12 @@ const duplicateGroup = async () => {
 };
 
 const copyGroupId = (group: Group) => {
-    if (!group?._id) {
-        console.error("Group ID is missing or invalid.");
-        return;
-    }
-
     const groupId = group._id;
     navigator.clipboard.writeText(groupId);
 
     addNotification({
         title: `Group ID Copied`,
-        description: "The ID's group has been copied to the clipboard",
+        description: "The ID of the group has been copied to the clipboard",
         state: "success",
     });
 };
