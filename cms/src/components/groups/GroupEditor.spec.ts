@@ -162,6 +162,25 @@ describe("GroupEditor", () => {
         expect(createGroupCall.name).toBe("Copy of Public Content");
     });
 
+    it("can copy a group's ID", async () => {
+        const wrapper = await createWrapper();
+        let clipboardContents = "";
+        // @ts-ignore
+        window.__defineGetter__("navigator", function () {
+            return {
+                clipboard: {
+                    writeText: (text: string) => {
+                        clipboardContents = text;
+                    },
+                },
+            };
+        });
+
+        await wrapper.find("button[data-test='copyGroupId']").trigger("click");
+
+        expect(clipboardContents).toBe(mockGroupPublicContent._id);
+    });
+
     describe("update ACLs", () => {
         it("correctly adds a new group ACL", async () => {
             const { updateGroup } = useGroupStore();

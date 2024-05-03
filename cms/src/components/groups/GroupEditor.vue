@@ -281,6 +281,17 @@ const duplicateGroup = async () => {
     });
 };
 
+const copyGroupId = (group: Group) => {
+    const groupId = group._id;
+    navigator.clipboard.writeText(groupId);
+
+    addNotification({
+        title: `Group ID Copied`,
+        description: "The ID of the group has been copied to the clipboard",
+        state: "success",
+    });
+};
+
 const saveChanges = async () => {
     const updatedGroup = {
         ...(toRaw(props.group) as unknown as GroupDto),
@@ -558,8 +569,19 @@ const saveChanges = async () => {
                         </div>
                     </TransitionGroup>
 
-                    <div class="mt-6">
-                        <AddGroupAclButton :groups="availableGroups" @select="addGroup" />
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <AddGroupAclButton :groups="availableGroups" @select="addGroup" />
+                        </div>
+                        <LButton
+                            variant="tertiary"
+                            size="sm"
+                            context="default"
+                            @click.prevent="() => copyGroupId(group)"
+                            data-test="copyGroupId"
+                        >
+                            Copy ID
+                        </LButton>
                     </div>
                 </DisclosurePanel>
             </transition>
