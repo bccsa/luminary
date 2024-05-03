@@ -288,14 +288,8 @@ const copyGroupId = (group: Group) => {
     }
 
     const groupId = group._id;
-    navigator.clipboard
-        .writeText(groupId)
-        .then(() => {
-            console.log("Group ID copied");
-        })
-        .catch(() => {
-            console.error("Failed to copy Group ID");
-        });
+    navigator.clipboard.writeText(groupId);
+
     addNotification({
         title: `Group ID Copied`,
         description: "The ID's group has been copied to the clipboard",
