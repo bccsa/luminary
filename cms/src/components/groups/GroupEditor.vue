@@ -291,11 +291,16 @@ const copyGroupId = (group: Group) => {
     navigator.clipboard
         .writeText(groupId)
         .then(() => {
-            console.log("Group ID copied to clipboard:", groupId);
+            console.log("Group ID copied");
         })
-        .catch((error) => {
-            console.error("Failed to copy Group ID:", error);
+        .catch(() => {
+            console.error("Failed to copy Group ID");
         });
+    addNotification({
+        title: `Group ID Copied`,
+        description: "The ID's group has been copied to the clipboard",
+        state: "success",
+    });
 };
 
 const saveChanges = async () => {
