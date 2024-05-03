@@ -27,6 +27,7 @@ const selectGroup = (group: Group) => {
                 <MenuButton
                     :as="LButton"
                     :icon="DocumentDuplicateIcon"
+                    class="gap-x-0"
                     variant="tertiary"
                     size="sm"
                     title="Duplicate"
