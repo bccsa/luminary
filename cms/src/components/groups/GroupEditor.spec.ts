@@ -14,6 +14,7 @@ import LBadge from "../common/LBadge.vue";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { AclPermission, DocType } from "@/types";
+import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 
 vi.mock("vue-router", () => ({
     useRouter: vi.fn().mockImplementation(() => ({
@@ -179,6 +180,33 @@ describe("GroupEditor", () => {
                 groupId: "group-public-users",
                 permission: [AclPermission.View],
             });
+        });
+
+        it("correctly duplicates an ACL group", async () => {
+            const duplicateAclIcon = 'button[data-test="duplicateAclIcon"]';
+            const selectGroupIcon = 'button[data-test="selectGroupIcon"]';
+
+            const wrapper = mount(DuplicateGroupAclButton, {
+                props: {
+                    groups: [mockGroupPublicContent, mockGroupPublicEditors, mockGroupPublicUsers],
+                },
+            });
+
+            // Simulate clicking on the duplicate ACL icon
+            await wrapper.find(duplicateAclIcon).trigger("click");
+
+            // Assert that all group names are present in the wrapper's text
+            expect(wrapper.text()).toContain("Public Content");
+            expect(wrapper.text()).toContain("Public Editors");
+            expect(wrapper.text()).toContain("Public Users");
+
+            // Simulate clicking on the select group icon
+            await wrapper.find(selectGroupIcon).trigger("click");
+
+            // Assert that the event is emitted when clicking a group
+            expect(wrapper.emitted("select")?.length).toBe(1);
+            // @ts-ignore
+            expect(wrapper.emitted("select")![0][0].name).toEqual("Public Content");
         });
 
         it("correctly updates an existing group ACL", async () => {
