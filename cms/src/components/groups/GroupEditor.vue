@@ -282,6 +282,7 @@ const duplicateGroup = async () => {
     });
 };
 
+
 const duplicateAcl = async (newGroup: Group, existingGroup: Group) => {
     addGroup(newGroup);
 
@@ -293,6 +294,14 @@ const duplicateAcl = async (newGroup: Group, existingGroup: Group) => {
     addNotification({
         title: `ACL "${newGroup.name}" duplicated successfully`,
         description: "You can now have access permissions of this ACL.",
+        
+const copyGroupId = (group: Group) => {
+    const groupId = group._id;
+    navigator.clipboard.writeText(groupId);
+
+    addNotification({
+        title: `Group ID Copied`,
+        description: "The ID of the group has been copied to the clipboard",
         state: "success",
     });
 };
@@ -426,7 +435,7 @@ const saveChanges = async () => {
                     </LBadge>
                     <LButton
                         v-if="groups && groups.length > 0 && open && !isDirty"
-                        variant="tertiary"
+                        variant="muted"
                         size="sm"
                         title="Duplicate"
                         :icon="DocumentDuplicateIcon"
@@ -582,8 +591,19 @@ const saveChanges = async () => {
                         </div>
                     </TransitionGroup>
 
-                    <div class="mt-6">
-                        <AddGroupAclButton :groups="availableGroups" @select="addGroup" />
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <AddGroupAclButton :groups="availableGroups" @select="addGroup" />
+                        </div>
+                        <LButton
+                            variant="tertiary"
+                            size="sm"
+                            context="default"
+                            @click.prevent="() => copyGroupId(group)"
+                            data-test="copyGroupId"
+                        >
+                            Copy ID
+                        </LButton>
                     </div>
                 </DisclosurePanel>
             </transition>

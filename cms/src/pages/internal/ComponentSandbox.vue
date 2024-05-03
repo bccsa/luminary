@@ -5,7 +5,12 @@ import LButton from "@/components/button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LTextarea from "@/components/forms/LTextarea.vue";
 import LSelect from "@/components/forms/LSelect.vue";
-import { EnvelopeIcon, PencilSquareIcon, PlusIcon } from "@heroicons/vue/20/solid";
+import {
+    DocumentDuplicateIcon,
+    EnvelopeIcon,
+    PencilSquareIcon,
+    PlusIcon,
+} from "@heroicons/vue/20/solid";
 import LCard from "@/components/common/LCard.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import LTable from "@/components/common/LTable.vue";
@@ -288,6 +293,14 @@ const items = [
                     <LButton variant="primary" :icon="PencilSquareIcon">Edit</LButton>
                     <LButton variant="tertiary" :icon="PencilSquareIcon">Edit</LButton>
                     <LButton variant="tertiary" :icon="PencilSquareIcon"></LButton>
+                </div>
+                <div class="mt-6 space-x-4">
+                    <LButton size="sm">Save as draft</LButton>
+                    <LButton size="base">Save as draft</LButton>
+                    <LButton size="lg">Save as draft</LButton>
+                    <LButton variant="muted" :icon="DocumentDuplicateIcon" size="sm"></LButton>
+                    <LButton variant="muted" :icon="DocumentDuplicateIcon"></LButton>
+                    <LButton variant="muted" :icon="DocumentDuplicateIcon" size="lg"></LButton>
                 </div>
             </LCard>
         </div>
