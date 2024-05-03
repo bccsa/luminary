@@ -282,7 +282,6 @@ const duplicateGroup = async () => {
     });
 };
 
-
 const duplicateAcl = async (newGroup: Group, existingGroup: Group) => {
     addGroup(newGroup);
 
@@ -294,7 +293,8 @@ const duplicateAcl = async (newGroup: Group, existingGroup: Group) => {
     addNotification({
         title: `ACL "${newGroup.name}" duplicated successfully`,
         description: "You can now have access permissions of this ACL.",
-        
+    });
+};
 const copyGroupId = (group: Group) => {
     const groupId = group._id;
     navigator.clipboard.writeText(groupId);
