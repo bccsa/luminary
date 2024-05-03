@@ -410,7 +410,7 @@ const saveChanges = async () => {
                     </LBadge>
                     <LButton
                         v-if="groups && groups.length > 0 && open && !isDirty"
-                        variant="tertiary"
+                        variant="muted"
                         size="sm"
                         title="Duplicate"
                         :icon="DocumentDuplicateIcon"
