@@ -165,6 +165,7 @@ describe("GroupEditor", () => {
     it("can copy a group's ID", async () => {
         const wrapper = await createWrapper();
         let clipboardContents = "";
+        // @ts-ignore
         window.__defineGetter__("navigator", function () {
             return {
                 clipboard: {
