@@ -5,7 +5,7 @@ import {
     ConnectedSocket,
     OnGatewayInit,
 } from "@nestjs/websockets";
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { DbQueryResult, DbService } from "./db/db.service";
 import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
@@ -17,6 +17,8 @@ import { AccessMap } from "./permissions/permissions.service";
 import * as JWT from "jsonwebtoken";
 import configuration, { Configuration } from "./configuration";
 import { PermissionMap, getJwtPermission, parsePermissionMap } from "./jwt/jwtPermissionMap";
+import { WINSTON_MODULE_PROVIDER } from "nest-winston";
+import { Logger } from "winston";
 
 /**
  * Data request from client type definition
@@ -80,7 +82,11 @@ export class Socketio implements OnGatewayInit {
     permissionMap: PermissionMap;
     config: Configuration;
 
-    constructor(private db: DbService) {}
+    constructor(
+        @Inject(WINSTON_MODULE_PROVIDER)
+        private readonly logger: Logger,
+        private db: DbService,
+    ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
         server.on("connection", (socket) => this.connection(socket));
@@ -89,13 +95,16 @@ export class Socketio implements OnGatewayInit {
         this.config = configuration();
 
         // Parse permission map
-        this.permissionMap = parsePermissionMap(this.config.permissionMap);
+        this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
 
         // Subscribe to database changes and broadcast change to all group rooms to which the document belongs
         this.db.on("update", async (update: any) => {
             // Only include documents with a document type property
             if (!update.type) {
-                return; // TODO: Add error logging provider
+                this.logger.warning(
+                    `Document type not found in database update object: ${update._id}`,
+                );
+                return;
             }
 
             // We are using a socket.io room per document type per group. Change documents are broadcasted to the document-group rooms of the documents they reference.
@@ -108,7 +117,12 @@ export class Socketio implements OnGatewayInit {
             // Get parent document as reference document for content documents
             if (refDoc.type == "content") {
                 const res = await this.db.getDoc(refDoc.parentId);
-                if (!(res.docs && Array.isArray(res.docs) && res.docs.length > 0)) return; // TODO: Add error logging provider
+                if (!(res.docs && Array.isArray(res.docs) && res.docs.length > 0)) {
+                    this.logger.warning(
+                        `Parent document not found for content document: ${refDoc._id}`,
+                    );
+                    return;
+                }
                 refDoc = res.docs[0];
             }
 
@@ -136,18 +150,22 @@ export class Socketio implements OnGatewayInit {
      */
     connection(socket: ClientSocket) {
         let jwt: string | JWT.JwtPayload;
-        try {
-            jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret);
-        } catch {}
+        if (socket.handshake.auth && socket.handshake.auth.token) {
+            try {
+                jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret);
+            } catch (err) {
+                this.logger.error(`Error verifying JWT`, err);
+            }
 
-        if (!jwt && socket.handshake.auth && socket.handshake.auth.token) {
-            // Assume that the user's token is expired.
-            // Prompt the user to re-authenticate instead of assigning public access to the user
-            return;
+            if (!jwt) {
+                // Assume that the user's token is expired.
+                // TODO: Prompt the user to re-authenticate instead of assigning public access to the user
+                return;
+            }
         }
 
         // Get group access
-        const permissions = getJwtPermission(jwt, this.permissionMap);
+        const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
         socket.data.memberOf = permissions.groups;
 
         // Get user ID
@@ -214,7 +232,9 @@ export class Socketio implements OnGatewayInit {
                     socket.emit("data", response);
                 }
             })
-            .catch(console.error); // TODO: Add error logging provider
+            .catch((err) => {
+                this.logger.error(`Error getting data for client: ${socket.data.userId}`, err);
+            });
 
         // Get diff between user submitted access map and actual access
         const diff = PermissionSystem.accessMapDiff(accessMap, reqData.accessMap);
@@ -236,7 +256,12 @@ export class Socketio implements OnGatewayInit {
                         socket.emit("data", { docs: res.docs });
                     }
                 })
-                .catch(console.error); // TODO: Add error logging provider
+                .catch((err) => {
+                    this.logger.error(
+                        `Error getting historical data for client: ${socket.data.userId}`,
+                        err,
+                    );
+                });
         }
     }
 
