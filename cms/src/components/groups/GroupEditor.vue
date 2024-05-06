@@ -27,6 +27,7 @@ import LBadge from "@/components/common/LBadge.vue";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
+import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
@@ -281,6 +282,20 @@ const duplicateGroup = async () => {
     });
 };
 
+const duplicateAcl = async (newGroup: Group, existingGroup: Group) => {
+    addGroup(newGroup);
+
+    existingGroup.acl.forEach((acl) => {
+        acl.permission.forEach((permission) => {
+            changePermission(newGroup, acl.type, permission);
+        });
+    });
+    addNotification({
+        title: `ACL entry ${newGroup.name} duplicated successfully`,
+        description: "You can now edit the permissions for the new ACL entry.",
+        state: "success",
+    });
+};
 const copyGroupId = (group: Group) => {
     const groupId = group._id;
     navigator.clipboard.writeText(groupId);
@@ -458,8 +473,18 @@ const saveChanges = async () => {
                                 >
                                     <!-- Add the duplicate button of ACL  -->
                                     <div class="flex items-center justify-between">
-                                        <div>
+                                        <div></div>
+                                        <div class="py-1">
                                             {{ aclGroup?.name }}
+                                        </div>
+                                        <div>
+                                            <DuplicateGroupAclButton
+                                                :groups="availableGroups"
+                                                @select="
+                                                    (group: Group) => duplicateAcl(group, aclGroup)
+                                                "
+                                                data-test="duplicateAcl"
+                                            />
                                         </div>
                                     </div>
                                 </h3>
