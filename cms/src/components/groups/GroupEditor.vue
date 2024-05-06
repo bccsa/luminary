@@ -291,8 +291,9 @@ const duplicateAcl = async (newGroup: Group, existingGroup: Group) => {
         });
     });
     addNotification({
-        title: `ACL "${newGroup.name}" duplicated successfully`,
-        description: "You can now have access permissions of this ACL.",
+        title: `ACL entry ${newGroup.name} duplicated successfully`,
+        description: "You can now edit the permissions for the new ACL entry.",
+        state: "success",
     });
 };
 const copyGroupId = (group: Group) => {
@@ -479,7 +480,9 @@ const saveChanges = async () => {
                                         <div>
                                             <DuplicateGroupAclButton
                                                 :groups="availableGroups"
-                                                @select="(group) => duplicateAcl(group, aclGroup)"
+                                                @select="
+                                                    (group: Group) => duplicateAcl(group, aclGroup)
+                                                "
                                                 data-test="duplicateAcl"
                                             />
                                         </div>
