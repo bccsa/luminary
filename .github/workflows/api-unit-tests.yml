@@ -1,9 +1,6 @@
 name: Run API Tests
 
 on:
-  push:
-    branches:
-      - S3-storage-provider
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
@@ -56,29 +53,29 @@ jobs:
         run: npm run test
         working-directory: api
 
-  # lint:
-  #   runs-on: ubuntu-latest
+  lint:
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v3
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version-file: api/.node-version
-  #         registry-url: "https://registry.npmjs.org"
-  #         cache: "npm"
-  #         cache-dependency-path: api/package-lock.json
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: api/.node-version
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
 
-  #     - name: Install dependencies
-  #       run: npm ci
-  #       working-directory: api
+      - name: Install dependencies
+        run: npm ci
+        working-directory: api
 
-  #     - name: Lint
-  #       run: npm run lint
-  #       working-directory: api
+      - name: Lint
+        run: npm run lint
+        working-directory: api
 
-  #     - name: Type Check
-  #       run: tsc
-  #       working-directory: api
+      - name: Type Check
+        run: tsc
+        working-directory: api
