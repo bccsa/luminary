@@ -1,6 +1,9 @@
 name: Run API Tests
 
 on:
+  push:
+    branches:
+      - S3-storage-provider
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
