@@ -108,6 +108,7 @@ export type Tag = ContentBase & {
     content: Content[];
     pinned: boolean;
     tags: Tag[];
+    groups: Group[];
 };
 
 export type Post = ContentBase & {
@@ -115,6 +116,7 @@ export type Post = ContentBase & {
     content: Content[];
     image: string;
     tags: Tag[];
+    groups: Group[];
 };
 
 export type User = ContentBase & {

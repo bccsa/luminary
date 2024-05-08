@@ -21,6 +21,7 @@ import {
     TagType,
     DocType,
     AclPermission,
+    type Group,
 } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
@@ -43,6 +44,8 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { useGroupStore } from "@/stores/group";
+import GroupSelector from "./GroupSelector.vue";
 
 const EMPTY_TEXT = '{"type":"doc","content":[{"type":"paragraph"}]}';
 
@@ -55,6 +58,16 @@ type Props = {
 const props = defineProps<Props>();
 
 const emit = defineEmits(["save"]);
+
+const { groups } = storeToRefs(useGroupStore());
+
+const availableGroups = computed(() => {
+    if (!groups.value) {
+        return [];
+    }
+
+    return groups.value;
+});
 
 const { isLocalChange } = useLocalChangeStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
@@ -80,6 +93,8 @@ const canTranslateContent = computed(
 );
 
 const selectedTags = ref<Tag[]>([]);
+const selectedGroups = ref<Group[]>([]);
+
 const selectedCategories = computed(() => {
     return selectedTags.value.filter((t) => t.tagType == TagType.Category);
 });
@@ -99,6 +114,7 @@ const text = ref<string>();
 const pinned = ref(props.parent.pinned ?? false);
 
 const isDirty = ref(false);
+const isDirtyGroup = ref(false);
 
 const liveUrl = computed(() => new URL(props.content.slug, clientAppUrl));
 
@@ -258,12 +274,27 @@ const addTag = (tag: Tag) => {
         selectedTags.value.push(tag);
     }
 
-    checkIfDirty();
+    checkIfDirtyTags();
 };
 
 const removeTag = (tag: Tag) => {
     selectedTags.value = selectedTags.value.filter((t) => t._id != tag._id);
-    checkIfDirty();
+    checkIfDirtyTags();
+};
+
+const addGroup = (group: Group) => {
+    const existing = selectedGroups.value.find((c) => c._id == group._id);
+
+    if (!existing) {
+        selectedGroups.value.push(group);
+    }
+
+    // checkIfDirtyGroup();
+};
+
+const removeGroup = (group: Group) => {
+    selectedGroups.value = selectedGroups.value.filter((t) => t._id != group._id);
+    // checkIfDirtyGroup();
 };
 
 const startEditingSlug = () => {
@@ -277,7 +308,7 @@ const initializeText = () => {
     text.value = EMPTY_TEXT;
 };
 
-const checkIfDirty = () => {
+const checkIfDirtyTags = () => {
     const selectedTagIds = selectedTags.value.map((t) => t?._id).sort();
     const originalTagIds = props.parent.tags.map((t) => t._id).sort();
 
@@ -292,10 +323,33 @@ const checkIfDirty = () => {
 
     isDirty.value = meta.value.dirty;
 };
+
+// TODO: Implement checkIfDirtyGroup function
+
+// const checkIfDirtyGroup = () => {
+//     const selectedGroupsIds = selectedGroups.value.map((t) => t?._id).sort();
+//     const originalGroupsIds = props.parent.groups.map((t) => t._id).sort();
+
+//     const hasSelectedSameGroups =
+//         selectedGroupsIds.length == originalGroupsIds.length &&
+//         selectedGroupsIds.every((selectedGroupId, i) => selectedGroupId == originalGroupsIds[i]);
+
+//     if (!hasSelectedSameGroups) {
+//         isDirtyGroup.value = true;
+//         return;
+//     }
+
+//     isDirtyGroup.value = meta.value.dirty;
+// };
 </script>
 
 <template>
-    <form type="post" class="relative grid grid-cols-3 gap-8" @submit.prevent @input="checkIfDirty">
+    <form
+        type="post"
+        class="relative grid grid-cols-3 gap-8"
+        @submit.prevent
+        @input="checkIfDirtyTags"
+    >
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
                 <LInput
@@ -579,6 +633,15 @@ const checkIfDirty = () => {
                     >
                         This image can be overridden in a translation
                     </LInput>
+
+                    <GroupSelector
+                        class="mt-6"
+                        :groups="availableGroups"
+                        :selected-groups="selectedGroups"
+                        @select="addGroup"
+                        @remove="removeGroup"
+                        :disabled="!canEditParent"
+                    />
 
                     <TagSelector
                         label="Categories"
