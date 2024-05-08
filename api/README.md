@@ -2,6 +2,35 @@
 
 API for Luminary, built with [Nest](https://github.com/nestjs/nest) and [CouchDB](https://couchdb.apache.org/).
 
+## Prerequisites
+
+The following software is needed to run and/or test the Luminary API:
+
+-   CouchDB (document database) - see https://couchdb.apache.org
+-   S3 (compatible) storage, e.g. MinIO - see https://min.io
+
+### CouchDB installation
+
+For development purposes, CouchDB can be installed as a docker:
+
+```shell
+docker run -p 5984:5984 -d couchdb
+```
+
+### S3 storage (MinIO)
+
+For development purposes, MinIO can be installed as a docker for S3 compatible storage:
+
+```shell
+docker run -d \
+   -p 9000:9000 \
+   -p 9001:9001 \
+   --name your-container-name \
+   -e "MINIO_ROOT_USER=rootuser" \
+   -e "MINIO_ROOT_PASSWORD=password" \
+   quay.io/minio/minio server /data --console-address ":9001"
+```
+
 ## Installation
 
 1. Copy the environment variable file and fill in required fields, such as the database connection string:

@@ -68,8 +68,6 @@ export class DbService extends EventEmitter {
 
     /**
      * Connect to the database
-     * @param {string} connectionString - CouchDB URL including username and password (http://user:password@hostname_or_ip)
-     * @param {string} database - Database name.
      */
     private connect(dbConfig: DatabaseConfig) {
         this.db = nano({
