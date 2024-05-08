@@ -150,8 +150,9 @@ const { handleSubmit, values, setValues, errors, meta } = useForm({
 });
 
 onBeforeMount(() => {
-    if (props.parent.tags) {
+    if (props.parent.tags && props.parent.groups) {
         selectedTags.value = [...props.parent.tags];
+        selectedGroups.value = [...props.parent.groups];
     }
 
     // Convert dates to format VeeValidate understands
@@ -191,6 +192,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...toRaw(props.parent),
         image: validatedFormValues.parent?.image,
         tags: toRaw(selectedTags.value),
+        groups: toRaw(selectedGroups.value),
         // @ts-ignore We're only setting pinned for tags
         pinned: props.docType == DocType.Tag ? pinned.value : undefined,
     };
@@ -230,7 +232,12 @@ const hasNoPublishErrors = computed(() => {
         return hasParentImage.value;
     }
 
-    return hasOneContentField.value && hasParentImage.value && hasTag.value;
+    return (
+        hasOneContentField.value && hasParentImage.value && hasTag.value && hasNoDraftErrors.value
+    );
+});
+const hasNoDraftErrors = computed(() => {
+    return hasGroup.value;
 });
 const hasOneContentField = computed(() => {
     return (
@@ -244,6 +251,9 @@ const hasParentImage = computed(() => {
 });
 const hasTag = computed(() => {
     return selectedTags.value.length > 0;
+});
+const hasGroup = computed(() => {
+    return selectedGroups.value.length > 0;
 });
 
 const isEditingSlug = ref(false);
@@ -588,6 +598,15 @@ const checkIfDirtyTags = () => {
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
                                         <p>At least one tag is required</p>
+                                    </div>
+                                    <div
+                                        v-if="!hasGroup && docType == DocType.Post"
+                                        class="flex gap-2"
+                                    >
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
+                                        </p>
+                                        <p>At least one group is required</p>
                                     </div>
                                 </TransitionGroup>
                             </div>
