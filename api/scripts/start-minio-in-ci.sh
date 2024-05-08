@@ -10,7 +10,7 @@ sh -c "docker run -d \
 wait_for_minio() {
   echo "Waiting for MinIO..."
 
-    until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:5984); do
+    until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:9000); do
         printf '.'
         sleep 1
     done
