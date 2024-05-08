@@ -114,7 +114,7 @@ const text = ref<string>();
 const pinned = ref(props.parent.pinned ?? false);
 
 const isDirty = ref(false);
-const isDirtyGroup = ref(false);
+// const isDirtyGroup = ref(false);
 
 const liveUrl = computed(() => new URL(props.content.slug, clientAppUrl));
 
