@@ -6,17 +6,39 @@ import { S3Config } from "../configuration";
 @Injectable()
 export class S3Service {
     client: Minio.Client;
+    s3Config: S3Config;
 
     constructor(private configService: ConfigService) {
-        const s3Config = this.configService.get<S3Config>("s3");
+        this.s3Config = this.configService.get<S3Config>("s3");
 
         this.client = new Minio.Client({
-            endPoint: s3Config.endpoint,
-            port: s3Config.port,
-            useSSL: s3Config.useSSL,
-            accessKey: s3Config.accessKey,
-            secretKey: s3Config.secretKey,
+            endPoint: this.s3Config.endpoint,
+            port: this.s3Config.port,
+            useSSL: this.s3Config.useSSL,
+            accessKey: this.s3Config.accessKey,
+            secretKey: this.s3Config.secretKey,
         });
+    }
+
+    /**
+     * Get the configured image bucket name
+     */
+    public get imageBucket() {
+        return this.s3Config.imageBucket;
+    }
+
+    /**
+     * Override the configured image bucket name
+     */
+    public set imageBucket(bucket: string) {
+        this.s3Config.imageBucket = bucket;
+    }
+
+    /**
+     * Get the configured image quality
+     */
+    public get imageQuality() {
+        return this.s3Config.imageQuality;
     }
 
     /**
@@ -62,5 +84,12 @@ export class S3Service {
      */
     public async removeBucket(bucket: string) {
         return this.client.removeBucket(bucket);
+    }
+
+    /**
+     * Lists objects in a bucket
+     */
+    public async listObjects(bucket: string) {
+        return this.client.listObjects(bucket);
     }
 }

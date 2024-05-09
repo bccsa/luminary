@@ -10,8 +10,9 @@ import { TagDto } from "../dto/TagDto";
 import { UserDto } from "../dto/UserDto";
 import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
-import { DbService } from "src/db/db.service";
+import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
+import { ImageDto } from "../dto/ImageDto";
 
 /**
  * DocType to DTO map
@@ -24,6 +25,7 @@ const DocTypeMap = {
     post: PostDto,
     tag: TagDto,
     user: UserDto,
+    image: ImageDto,
 };
 
 /**

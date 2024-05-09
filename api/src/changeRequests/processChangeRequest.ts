@@ -5,12 +5,15 @@ import { ChangeDto } from "../dto/ChangeDto";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { DocType, Uuid } from "../enums";
 import { validateSlug } from "./validateSlug";
+import { processImageUpload } from "../s3/s3.imagehandling";
+import { S3Service } from "../s3/s3.service";
 
 export async function processChangeRequest(
     userId: string,
     changeRequest: ChangeReqDto,
     groupMembership: Array<Uuid>,
     db: DbService,
+    s3: S3Service,
 ) {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
@@ -18,11 +21,16 @@ export async function processChangeRequest(
         throw new Error(validationResult.error);
     }
 
-    const doc = validationResult.validatedData;
+    let doc = validationResult.validatedData;
 
     // Validate slug
     if (doc.type == DocType.Content) {
         doc.slug = await validateSlug(doc.slug, doc._id, db);
+    }
+
+    // Process image uploads
+    if (doc.type == DocType.Image) {
+        doc = await processImageUpload(doc, s3);
     }
 
     // Insert / update the document in the database

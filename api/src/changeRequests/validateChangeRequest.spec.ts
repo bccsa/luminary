@@ -2,6 +2,8 @@ import "reflect-metadata";
 import { validateChangeRequest } from "./validateChangeRequest";
 import { DbService } from "../db/db.service";
 import { createDbTestingModule } from "../test/testingModule";
+import * as fs from "fs";
+import * as path from "path";
 
 describe("validateChangeRequest", () => {
     let db: DbService;
@@ -155,5 +157,51 @@ describe("validateChangeRequest", () => {
 
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
         expect(result.validatedData.invalidField).toBe(undefined);
+    });
+
+    it("fails validation on an invalid uploaded image document", async () => {
+        const changeRequest = {
+            id: 42,
+            doc: {
+                _id: "image-test",
+                type: "image",
+                name: "Test Image",
+                uploadData: [
+                    {
+                        fileData: Buffer.from("some invalid data"),
+                        preset: "default",
+                    },
+                ],
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(false);
+        expect(result.error).toBeDefined();
+    });
+
+    it("validates a valid uploaded image document", async () => {
+        const changeRequest = {
+            id: 42,
+            doc: {
+                _id: "image-test",
+                type: "image",
+                name: "Test Image",
+                uploadData: [
+                    {
+                        fileData: fs.readFileSync(
+                            path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                        ),
+                        preset: "default",
+                    },
+                ],
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(false);
+        expect(result.error).toBeDefined();
     });
 });

@@ -27,6 +27,7 @@ export type S3Config = {
     accessKey: string;
     secretKey: string;
     imageBucket: string;
+    imageQuality: number;
 };
 
 export default () =>
@@ -50,5 +51,6 @@ export default () =>
             accessKey: process.env.S3_ACCESS_KEY,
             secretKey: process.env.S3_SECRET_KEY,
             imageBucket: process.env.S3_IMG_BUCKET,
+            imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as S3Config,
     }) as Configuration;
