@@ -3,13 +3,13 @@ import { PermissionSystem } from "../permissions/permissions.service";
 import { plainToClass } from "class-transformer";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
-import { createDbTestingModule } from "../test/testingModule";
+import { createTestingModule } from "../test/testingModule";
 
 describe("validateChangeRequestAccess", () => {
     let db: DbService;
 
     beforeAll(async () => {
-        db = (await createDbTestingModule("validate-change-request-access")).dbService;
+        db = (await createTestingModule("validate-change-request-access")).dbService;
 
         const res: any = await db.getGroups();
         PermissionSystem.upsertGroups(res.docs);

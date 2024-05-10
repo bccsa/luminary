@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { validateChangeRequest } from "./validateChangeRequest";
 import { DbService } from "../db/db.service";
-import { createDbTestingModule } from "../test/testingModule";
+import { createTestingModule } from "../test/testingModule";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -9,7 +9,7 @@ describe("validateChangeRequest", () => {
     let db: DbService;
 
     beforeAll(async () => {
-        db = (await createDbTestingModule("validate-change-request")).dbService;
+        db = (await createTestingModule("validate-change-request")).dbService;
     });
 
     afterEach(() => {

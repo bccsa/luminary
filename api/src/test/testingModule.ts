@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { DbService } from "../db/db.service";
 import { S3Service } from "../s3/s3.service";
 import { ConfigService } from "@nestjs/config";
-import { DatabaseConfig, SyncConfig } from "../configuration";
+import { DatabaseConfig, S3Config, SyncConfig } from "../configuration";
 import * as nano from "nano";
 import { upsertDesignDocs, upsertSeedingDocs } from "../db/db.seedingFunctions";
 import { Socketio } from "../socketio";
@@ -11,12 +11,19 @@ import { PermissionSystem } from "../permissions/permissions.service";
 import { WinstonModule } from "nest-winston";
 import * as winston from "winston";
 
+export type testingModuleOptions = {
+    dbName?: string;
+    s3ImageBucket?: string;
+};
+
 /**
- * Creates a Nest TestingModule and a specific database and seeds it
+ * Creates a Nest TestingModule and seeds the associated CouchDB database with testing data
  */
-export async function createDbTestingModule(dbName: string) {
+export async function createTestingModule(testName: string) {
+    // Create a unique database name for the test
     const connectionString = process.env.DB_CONNECTION_STRING;
-    const database = `${process.env.DB_DATABASE_PREFIX ?? "luminary-test"}-${dbName}`;
+
+    const database = `${process.env.DB_DATABASE_PREFIX ?? "luminary-test"}-${testName}`;
 
     const n = nano(connectionString);
 
@@ -40,6 +47,7 @@ export async function createDbTestingModule(dbName: string) {
         providers: [
             DbService,
             Socketio,
+            S3Service,
             {
                 provide: ConfigService,
                 useValue: {
@@ -56,36 +64,7 @@ export async function createDbTestingModule(dbName: string) {
                                 database,
                             } as DatabaseConfig;
                         }
-                    }),
-                },
-            },
-        ],
-    }).compile();
 
-    const dbService = testingModule.get<DbService>(DbService);
-
-    await upsertDesignDocs(dbService);
-    await upsertSeedingDocs(dbService);
-
-    await PermissionSystem.init(dbService);
-
-    return {
-        dbService,
-        testingModule,
-    };
-}
-
-/**
- * Creates a Nest TestingModule with a S3 storage service
- */
-export async function createS3TestingModule() {
-    const testingModule = await Test.createTestingModule({
-        providers: [
-            S3Service,
-            {
-                provide: ConfigService,
-                useValue: {
-                    get: jest.fn((key: string) => {
                         if (key == "s3") {
                             return {
                                 endpoint: process.env.S3_ENDPOINT ?? "localhost",
@@ -93,8 +72,7 @@ export async function createS3TestingModule() {
                                 useSSL: process.env.S3_USE_SSL === "true" ?? false,
                                 accessKey: process.env.S3_ACCESS_KEY,
                                 secretKey: process.env.S3_SECRET_KEY,
-                                imageBucket: process.env.S3_IMG_BUCKET,
-                            };
+                            } as S3Config;
                         }
                     }),
                 },
@@ -102,10 +80,20 @@ export async function createS3TestingModule() {
         ],
     }).compile();
 
+    // Create DB Service and seed it
+    const dbService = testingModule.get<DbService>(DbService);
+
+    await upsertDesignDocs(dbService);
+    await upsertSeedingDocs(dbService);
+
+    await PermissionSystem.init(dbService);
+
+    // Create S3 Service
     const s3Service = testingModule.get<S3Service>(S3Service);
 
     return {
-        s3Service,
+        dbService,
         testingModule,
+        s3Service,
     };
 }

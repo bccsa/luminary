@@ -28,7 +28,7 @@ export class S3Service {
     }
 
     /**
-     * Override the configured image bucket name
+     * Override the configured image bucket name. This is useful for testing
      */
     public set imageBucket(bucket: string) {
         this.s3Config.imageBucket = bucket;

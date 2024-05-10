@@ -1,7 +1,7 @@
 import { ImageDto } from "../dto/ImageDto";
 import { processImageUpload } from "./s3.imagehandling";
 import { S3Service } from "./s3.service";
-import { createS3TestingModule } from "../test/testingModule";
+import { createTestingModule } from "../test/testingModule";
 import * as fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import * as path from "path";
@@ -11,7 +11,7 @@ describe("S3ImageHandler", () => {
     let resImage: ImageDto;
 
     beforeAll(async () => {
-        service = (await createS3TestingModule()).s3Service;
+        service = (await createTestingModule("imagehandling")).s3Service;
         service.imageBucket = uuidv4();
         await service.makeBucket(service.imageBucket);
     });

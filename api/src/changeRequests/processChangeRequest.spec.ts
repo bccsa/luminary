@@ -1,16 +1,20 @@
 import "reflect-metadata";
 import { DbService } from "../db/db.service";
-import { createDbTestingModule } from "../test/testingModule";
+import { createTestingModule } from "../test/testingModule";
 import { processChangeRequest } from "./processChangeRequest";
 import { isDeepStrictEqual } from "util";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { changeRequest_content } from "../test/changeRequestDocuments";
+import { S3Service } from "../s3/s3.service";
 
 describe("processChangeRequest", () => {
     let db: DbService;
+    let s3: S3Service;
 
     beforeAll(async () => {
-        db = (await createDbTestingModule("process-change-request")).dbService;
+        const testingModule = await createTestingModule("process-change-request");
+        db = testingModule.dbService;
+        s3 = testingModule.s3Service;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
@@ -20,11 +24,13 @@ describe("processChangeRequest", () => {
             doc: {},
         };
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db).catch((err) => {
-            expect(err.message).toBe(
-                `Submitted "undefined" document validation failed:\nInvalid document type`,
-            );
-        });
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3).catch(
+            (err) => {
+                expect(err.message).toBe(
+                    `Submitted "undefined" document validation failed:\nInvalid document type`,
+                );
+            },
+        );
     });
 
     it("can insert a change document into the database for a correctly submitted new document with group membership", async () => {
@@ -44,6 +50,7 @@ describe("processChangeRequest", () => {
             changeRequest,
             ["group-super-admins"],
             db,
+            s3,
         );
         const res = await db.getDoc(processResult.id);
 
@@ -77,6 +84,7 @@ describe("processChangeRequest", () => {
             changeRequest,
             ["group-super-admins"],
             db,
+            s3,
         );
         const res = await db.getDoc(processResult.id);
 
@@ -109,12 +117,13 @@ describe("processChangeRequest", () => {
                 name: "Xhoza",
             },
         };
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
         const processResult = await processChangeRequest(
             "",
             changeRequest2,
             ["group-super-admins"],
             db,
+            s3,
         );
         expect(processResult.message).toBe("Document is identical to the one in the database");
         expect(processResult.changes).toBeUndefined();
@@ -126,7 +135,7 @@ describe("processChangeRequest", () => {
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = "this-is-a-test-slug";
 
-        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(res.ok).toBe(true);
@@ -139,8 +148,8 @@ describe("processChangeRequest", () => {
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = "this-is-a-test-slug";
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db); // ensure that the slug is already in use
-        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3); // ensure that the slug is already in use
+        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(res.ok).toBe(true);
@@ -153,7 +162,7 @@ describe("processChangeRequest", () => {
         changeRequest1.doc.parentId = "post-post1";
         changeRequest1.doc._id = "test-slug-1";
         changeRequest1.doc.slug = "this-is-a-test-slug";
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
 
         // Create a new change request with the same slug
         const changeRequest2 = changeRequest_content();
@@ -161,7 +170,7 @@ describe("processChangeRequest", () => {
         changeRequest2.doc._id = "test-slug-2";
         changeRequest2.doc.slug = "this-is-a-test-slug";
 
-        const res = await processChangeRequest("", changeRequest2, ["group-super-admins"], db);
+        const res = await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest2.doc._id);
 
         expect(res.ok).toBe(true);
@@ -174,7 +183,7 @@ describe("processChangeRequest", () => {
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = 'Invalid Slug! 123 無效的 Bør ikke være tilladt "#$%&/()=?`';
 
-        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(res.ok).toBe(true);

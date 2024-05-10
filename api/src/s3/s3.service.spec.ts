@@ -1,5 +1,5 @@
 import { S3Service } from "./s3.service";
-import { createS3TestingModule } from "../test/testingModule";
+import { createTestingModule } from "../test/testingModule";
 import { v4 as UUID } from "uuid";
 
 describe("S3Service", () => {
@@ -8,7 +8,7 @@ describe("S3Service", () => {
     const testBucket = UUID();
 
     beforeAll(async () => {
-        service = (await createS3TestingModule()).s3Service;
+        service = (await createTestingModule("s3-testing")).s3Service;
     });
 
     beforeEach(async () => {});
@@ -18,7 +18,7 @@ describe("S3Service", () => {
     });
 
     it("can create a bucket", async () => {
-        const bucket = testBucket; // TODO: Change to dynamically created bucket
+        const bucket = testBucket;
         await service.makeBucket(bucket);
         const result = await service.bucketExists(bucket);
 
@@ -26,7 +26,7 @@ describe("S3Service", () => {
     });
 
     it("can upload and get an object", async () => {
-        const bucket = testBucket; // TODO: Change to dynamically created bucket
+        const bucket = testBucket;
         const key = "testFilename";
         const file = Buffer.from("testFile");
         const mimetype = "testMimetype";
@@ -39,7 +39,7 @@ describe("S3Service", () => {
     });
 
     it("can remove objects", async () => {
-        const bucket = testBucket; // TODO: Change to dynamically created bucket
+        const bucket = testBucket;
         const keys = ["testFilename"];
 
         const result = await service.removeObjects(bucket, keys);
