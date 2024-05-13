@@ -21,6 +21,20 @@ docker run -p 5984:5984 -d couchdb
 
 For development purposes, MinIO can be installed as a docker for S3 compatible storage:
 
+This command will create an instance with a pre-configured access key / secret combination:
+
+```shell
+docker run -d \
+   -p 9000:9000 \
+   -p 9001:9001 \
+   --name luminary-storage \
+   -e "MINIO_ACCESS_KEY=minio" \
+   -e "MINIO_SECRET_KEY=minio123" \
+   quay.io/minio/minio server /data --console-address ":9001"
+```
+
+If you need to log into the MinIO web console, the root user and password can be passed instead. Note that you manually will have to create an access key / secret combination and update your .env file accordingly. The web console is available on http://localhost:9001
+
 ```shell
 docker run -d \
    -p 9000:9000 \
