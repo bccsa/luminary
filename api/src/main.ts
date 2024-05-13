@@ -5,7 +5,9 @@ import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule, {
+        bufferLogs: true,
+    });
 
     const dbService = app.get(DbService);
 

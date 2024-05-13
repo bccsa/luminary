@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import * as nano from "nano";
 import { isDeepStrictEqual } from "util";
 import { DocType, Uuid } from "../enums";
@@ -7,6 +7,8 @@ import { DatabaseConfig, SyncConfig } from "../configuration";
 import * as http from "http";
 import { EventEmitter } from "stream";
 import { instanceToPlain } from "class-transformer";
+import { WINSTON_MODULE_PROVIDER } from "nest-winston";
+import { Logger } from "winston";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -51,7 +53,11 @@ export class DbService extends EventEmitter {
     protected syncVersion: number;
     protected syncTolerance: number;
 
-    constructor(private configService: ConfigService) {
+    constructor(
+        @Inject(WINSTON_MODULE_PROVIDER)
+        private readonly logger: Logger,
+        private configService: ConfigService,
+    ) {
         super();
         const dbConfig = this.configService.get<DatabaseConfig>("database");
         const syncConfig = this.configService.get<SyncConfig>("sync");
@@ -75,6 +81,8 @@ export class DbService extends EventEmitter {
             },
         }).use(dbConfig.database);
 
+        this.logger.info("Connected to database");
+
         // Subscribe to database changes feed
         this.db.changesReader
             .start({ includeDocs: true })
@@ -91,9 +99,9 @@ export class DbService extends EventEmitter {
                 }
             })
             .on("error", (err) => {
-                // TODO: Implement error logging. The changes reader stops on error, so it should be restarted.
+                // The changes reader stops on error, so it should be restarted.
                 // At this point clients will get out of sync, so it will be better to restart the server.
-                console.log("error", err.message);
+                this.logger.error("Database changes feed error", err);
                 throw err;
             });
     }

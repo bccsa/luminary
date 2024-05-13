@@ -38,6 +38,7 @@ $ npm run start
 $ npm run start:dev # or just 'dev'
 
 # production mode
+$ npm run build
 $ npm run start:prod
 ```
 
@@ -68,3 +69,7 @@ $ npm run lint
 # lint code and fix auto-fixable errors
 $ npm run lint:fix
 ```
+
+## Logging
+
+In production mode (`npm run start:prod`) the API logs are stored in a tailable api.log file. The log files are rotated when the size exceeds 1MB and only the latest 5 files are being kept. In development mode logs are printed to the console.

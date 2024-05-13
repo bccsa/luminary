@@ -1,3 +1,4 @@
+import { Logger } from "winston";
 import { Uuid } from "../enums";
 import * as JWT from "jsonwebtoken";
 
@@ -15,7 +16,7 @@ export type jwtPermissions = {
  * @param permissionMap - Configuration instance
  * @returns - Parsed permissions map
  */
-export function parsePermissionMap(permissionMap: string): PermissionMap {
+export function parsePermissionMap(permissionMap: string, logger?: Logger): PermissionMap {
     // Parse permission map
     try {
         const map = JSON.parse(permissionMap);
@@ -34,8 +35,7 @@ export function parsePermissionMap(permissionMap: string): PermissionMap {
 
         return map as PermissionMap;
     } catch (err) {
-        // TODO: Add error logging provider
-        console.log(err.message);
+        logger?.error(`Unable to parse permission map`, err);
         return { jwt: new Map() };
     }
 }
@@ -49,6 +49,7 @@ export function parsePermissionMap(permissionMap: string): PermissionMap {
 export function getJwtPermission(
     jwt: string | JWT.JwtPayload,
     permissionMap: PermissionMap,
+    logger?: Logger,
 ): jwtPermissions {
     try {
         const groups = new Array<Uuid>();
@@ -68,8 +69,7 @@ export function getJwtPermission(
 
         return { userId, groups };
     } catch (err) {
-        // TODO: Add error logging provider
-        console.log(err.message);
+        logger?.error(`Unable to get JWT permissions`, err);
         return { groups: [] };
     }
 }
