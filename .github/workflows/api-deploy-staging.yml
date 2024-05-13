@@ -37,6 +37,12 @@ jobs:
           echo "DB_CONNECTION_STRING='$( echo '${{ secrets.DB_CONNECTION_STRING }}' )'" >> .env
           echo "DB_DATABASE='$( echo '${{ secrets.DB_DATABASE }}' )'" >> .env
           echo "PERMISSION_MAP='$( echo '${{ secrets.PERMISSION_MAP }}' )'" >> .env
+          echo "S3_ENDPOINT='$( echo '${{ secrets.S3_ENDPOINT }}' )'" >> .env
+          echo "S3_PORT='$( echo '${{ secrets.S3_PORT }}' )'" >> .env
+          echo "S3_USE_SSL='$( echo '${{ secrets.S3_USE_SSL }}' )'" >> .env
+          echo "S3_ACCESS_KEY='$( echo '${{ secrets.S3_ACCESS_KEY }}' )'" >> .env
+          echo "S3_SECRET_KEY='$( echo '${{ secrets.S3_SECRET_KEY }}' )'" >> .env
+          echo "S3_IMG_BUCKET='$( echo '${{ secrets.S3_IMG_BUCKET }}' )'" >> .env
 
         working-directory: api
 
