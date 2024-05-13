@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { DbService } from "../db/db.service";
-import { createTestingModule } from "../test/testingModule";
+import { createDbTestingModule } from "../test/testingModule";
 import { processChangeRequest } from "./processChangeRequest";
 import { isDeepStrictEqual } from "util";
 import { PermissionSystem } from "../permissions/permissions.service";
@@ -10,7 +10,7 @@ describe("processChangeRequest", () => {
     let db: DbService;
 
     beforeAll(async () => {
-        db = (await createTestingModule("process-change-request")).dbService;
+        db = (await createDbTestingModule("process-change-request")).dbService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
