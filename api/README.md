@@ -25,7 +25,7 @@ For development purposes, MinIO can be installed as a docker for S3 compatible s
 docker run -d \
    -p 9000:9000 \
    -p 9001:9001 \
-   --name your-container-name \
+   --name luminary-storage \
    -e "MINIO_ROOT_USER=rootuser" \
    -e "MINIO_ROOT_PASSWORD=password" \
    quay.io/minio/minio server /data --console-address ":9001"
