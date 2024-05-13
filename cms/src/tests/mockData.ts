@@ -246,58 +246,6 @@ export const mockAudioPlaylistContent: Content = {
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"An audio playlist"}]}]}',
     publishDate: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
 };
-export const mockCategory: Tag = {
-    _id: "tag-category1",
-    type: DocType.Tag,
-    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: ["group-public-content"],
-    tagType: TagType.Category,
-    pinned: false,
-    image: "image.jpg",
-    tags: [],
-    content: [mockEnglishCategoryContent, mockFrenchCategoryContent],
-};
-export const mockTopic: Tag = {
-    _id: "tag-topicA",
-    type: DocType.Tag,
-    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
-    tagType: TagType.Topic,
-    pinned: false,
-    image: "image.jpg",
-    tags: [],
-    content: [mockTopicContent],
-};
-export const mockAudioPlaylist: Tag = {
-    _id: "tag-audioPlaylist-Faith",
-    type: DocType.Tag,
-    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: [],
-    tagType: TagType.AudioPlaylist,
-    pinned: false,
-    image: "image.jpg",
-    tags: [],
-    content: [mockAudioPlaylistContent],
-};
-
-export const mockPost: Post = {
-    type: DocType.Post,
-    _id: "post-post1",
-    image: "test.jpg",
-    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: ["group-private-content"],
-    content: [mockEnglishContent, mockFrenchContent],
-    tags: [mockCategory],
-};
-
-export const mockLocalChange1: LocalChange = {
-    id: 42,
-    doc: mockPostDto,
-};
-export const mockLocalChange2: LocalChange = {
-    id: 43,
-    doc: mockEnglishContentDto,
-};
 
 export const mockGroupPublicContent: Group = {
     _id: "group-public-content",
@@ -530,6 +478,67 @@ export const mockGroupSuperAdmins: Group = {
             ],
         },
     ],
+};
+export const mockCategory: Tag = {
+    _id: "tag-category1",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: ["group-public-content"],
+    tagType: TagType.Category,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockEnglishCategoryContent, mockFrenchCategoryContent],
+    groups: [],
+};
+export const mockTopic: Tag = {
+    _id: "tag-topicA",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    tagType: TagType.Topic,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockTopicContent],
+    groups: [],
+};
+export const mockAudioPlaylist: Tag = {
+    _id: "tag-audioPlaylist-Faith",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    tagType: TagType.AudioPlaylist,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockAudioPlaylistContent],
+    groups: [],
+};
+
+export const mockPost: Post = {
+    type: DocType.Post,
+    _id: "post-post1",
+    image: "test.jpg",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: ["group-private-content"],
+    content: [mockEnglishContent, mockFrenchContent],
+    tags: [mockCategory],
+    groups: [
+        mockGroupPublicContent,
+        mockGroupPublicEditors,
+        mockGroupPublicUsers,
+        mockGroupSuperAdmins,
+    ],
+};
+
+export const mockLocalChange1: LocalChange = {
+    id: 42,
+    doc: mockPostDto,
+};
+export const mockLocalChange2: LocalChange = {
+    id: 43,
+    doc: mockEnglishContentDto,
 };
 
 export const fullAccessToAllContentMap = {

@@ -671,6 +671,7 @@ const checkIfDirtyTags = () => {
                         @select="addTag"
                         @remove="removeTag"
                         :disabled="!canEditParent"
+                        data-test="categories"
                     />
 
                     <TagSelector

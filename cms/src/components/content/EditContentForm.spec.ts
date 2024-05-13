@@ -243,7 +243,10 @@ describe("EditContentForm", () => {
 
         expect(wrapper.text()).toContain("Category 1");
 
-        await wrapper.find("button[data-test='removeTag']").trigger("click");
+        await wrapper
+            .find("div[data-test='categories']")
+            .find("button[data-test='removeTag']")
+            .trigger("click");
         expect(wrapper.text()).not.toContain("Category 1");
 
         await wrapper.find(saveAsDraftButton).trigger("click");
