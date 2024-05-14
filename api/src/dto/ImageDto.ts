@@ -3,7 +3,7 @@ import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose, Type } from "class-transformer";
 import { ImageFileDto } from "./ImageFileDto";
-import { ImageUploadDataDto } from "./ImageUploadDataDto";
+import { ImageUploadDto } from "./ImageUploadDto";
 
 /**
  * Database structured Image object
@@ -27,7 +27,7 @@ export class ImageDto extends _contentBaseDto {
 
     @IsOptional()
     @ValidateNested({ each: true })
-    @Type(() => ImageUploadDataDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
+    @Type(() => ImageUploadDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
     @Expose()
-    uploadData?: ImageUploadDataDto[];
+    uploadData?: ImageUploadDto[];
 }

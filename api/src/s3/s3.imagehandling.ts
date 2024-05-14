@@ -3,7 +3,7 @@ import { ImageDto } from "../dto/ImageDto";
 import * as sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";
 import { S3Service } from "./s3.service";
-import { ImageUploadDataDto } from "../dto/ImageUploadDataDto";
+import { ImageUploadDto } from "../dto/ImageUploadDto";
 
 const imageSizes = [180, 360, 640, 1280, 2560];
 
@@ -36,7 +36,7 @@ export async function processImageUpload(image: ImageDto, s3: S3Service): Promis
     return resultImage;
 }
 
-async function processImage(uploadData: ImageUploadDataDto, s3: S3Service, resultImage: ImageDto) {
+async function processImage(uploadData: ImageUploadDto, s3: S3Service, resultImage: ImageDto) {
     let preset = uploadData?.preset || "default";
     if (
         preset != "default" &&
@@ -62,7 +62,7 @@ async function processImage(uploadData: ImageUploadDataDto, s3: S3Service, resul
 }
 
 async function processQuality(
-    uploadData: ImageUploadDataDto,
+    uploadData: ImageUploadDto,
     size: number,
     s3: S3Service,
     preset: keyof sharp.PresetEnum,

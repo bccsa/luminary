@@ -71,6 +71,25 @@ export type GroupDto = BaseDocumentDto & {
     acl: GroupAclEntry[];
 };
 
+export type ImageDto = ContentBaseDto & {
+    name: string;
+    description: string;
+    files: ImageFileDto[];
+    uploadData?: ImageUploadDto;
+};
+
+export type ImageFileDto = {
+    width: number;
+    height: number;
+    aspectRatio: number;
+    filename: string;
+};
+
+export type ImageUploadDto = {
+    fileData: Buffer;
+    preset: string;
+};
+
 export type CreateGroupDto = {
     name: string;
     acl?: GroupAclEntry[];
