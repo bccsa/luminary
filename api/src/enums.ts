@@ -14,8 +14,8 @@ export enum DocType {
     Post = "post",
     Content = "content",
     Tag = "tag",
+    Image = "image",
     // TODO: Implement media DocTypes and DTO's for media docs
-    // Image = "image",
     // Video = "video",
     // Audio = "Audio",
     // MediaDownload = "mediaDownload",
