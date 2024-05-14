@@ -2,6 +2,49 @@
 
 API for Luminary, built with [Nest](https://github.com/nestjs/nest) and [CouchDB](https://couchdb.apache.org/).
 
+## Prerequisites
+
+The following software is needed to run and/or test the Luminary API:
+
+-   CouchDB (document database) - see https://couchdb.apache.org
+-   S3 (compatible) storage, e.g. MinIO - see https://min.io
+
+### CouchDB installation
+
+For development purposes, CouchDB can be installed as a docker:
+
+```shell
+docker run -p 5984:5984 -d couchdb
+```
+
+### S3 storage (MinIO)
+
+For development purposes, MinIO can be installed as a docker for S3 compatible storage:
+
+This command will create an instance with a pre-configured access key / secret combination:
+
+```shell
+docker run -d \
+   -p 9000:9000 \
+   -p 9001:9001 \
+   --name luminary-storage \
+   -e "MINIO_ACCESS_KEY=minio" \
+   -e "MINIO_SECRET_KEY=minio123" \
+   quay.io/minio/minio server /data --console-address ":9001"
+```
+
+If you need to log into the MinIO web console, the root user and password can be passed instead. Note that you manually will have to create an access key / secret combination and update your .env file accordingly. The web console is available on http://localhost:9001
+
+```shell
+docker run -d \
+   -p 9000:9000 \
+   -p 9001:9001 \
+   --name luminary-storage \
+   -e "MINIO_ROOT_USER=rootuser" \
+   -e "MINIO_ROOT_PASSWORD=password" \
+   quay.io/minio/minio server /data --console-address ":9001"
+```
+
 ## Installation
 
 1. Copy the environment variable file and fill in required fields, such as the database connection string:
@@ -38,6 +81,7 @@ $ npm run start
 $ npm run start:dev # or just 'dev'
 
 # production mode
+$ npm run build
 $ npm run start:prod
 ```
 
@@ -68,3 +112,7 @@ $ npm run lint
 # lint code and fix auto-fixable errors
 $ npm run lint:fix
 ```
+
+## Logging
+
+In production mode (`npm run start:prod`) the API logs are stored in a tailable api.log file. The log files are rotated when the size exceeds 1MB and only the latest 5 files are being kept. In development mode logs are printed to the console.

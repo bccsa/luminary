@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "Starting Docker..."
+echo "Starting CouchDB Docker..."
 sh -c "docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password -d couchdb:3.3.3"
 
 wait_for_couchdb() {
