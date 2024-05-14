@@ -9,8 +9,8 @@ import {
     ComboboxOption,
     ComboboxOptions,
 } from "@headlessui/vue";
-import type { Group } from "@/types"; // Assuming you have a Group type defined
-import LTag from "./LTag.vue"; // Assuming you have a component for rendering groups
+import type { Group } from "@/types";
+import LTag from "./LTag.vue";
 
 type Props = {
     groups: Group[];

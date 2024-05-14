@@ -291,12 +291,12 @@ const addTag = (tag: Tag) => {
         selectedTags.value.push(tag);
     }
 
-    checkIfDirtyTags();
+    checkIfDirty();
 };
 
 const removeTag = (tag: Tag) => {
     selectedTags.value = selectedTags.value.filter((t) => t._id != tag._id);
-    checkIfDirtyTags();
+    checkIfDirty();
 };
 
 const addGroup = (group: Group) => {
@@ -325,7 +325,7 @@ const initializeText = () => {
     text.value = EMPTY_TEXT;
 };
 
-const checkIfDirtyTags = () => {
+const checkIfDirty = () => {
     const selectedTagIds = selectedTags.value.map((t) => t?._id).sort();
     const originalTagIds = props.parent.tags.map((t) => t._id).sort();
 
@@ -340,33 +340,10 @@ const checkIfDirtyTags = () => {
 
     isDirty.value = meta.value.dirty;
 };
-
-// TODO: Implement checkIfDirtyGroup function
-
-// const checkIfDirtyGroup = () => {
-//     const selectedGroupsIds = selectedGroups.value.map((t) => t?._id).sort();
-//     const originalGroupsIds = props.parent.groups.map((t) => t._id).sort();
-
-//     const hasSelectedSameGroups =
-//         selectedGroupsIds.length == originalGroupsIds.length &&
-//         selectedGroupsIds.every((selectedGroupId, i) => selectedGroupId == originalGroupsIds[i]);
-
-//     if (!hasSelectedSameGroups) {
-//         isDirtyGroup.value = true;
-//         return;
-//     }
-
-//     isDirtyGroup.value = meta.value.dirty;
-// };
 </script>
 
 <template>
-    <form
-        type="post"
-        class="relative grid grid-cols-3 gap-8"
-        @submit.prevent
-        @input="checkIfDirtyTags"
-    >
+    <form type="post" class="relative grid grid-cols-3 gap-8" @submit.prevent @input="checkIfDirty">
         <div class="col-span-3 space-y-6 md:col-span-2">
             <LCard title="Basic translation settings" collapsible>
                 <LInput
@@ -597,19 +574,13 @@ const checkIfDirtyTags = () => {
                                             At least one of text, audio or video content is required
                                         </p>
                                     </div>
-                                    <div
-                                        v-if="!hasTag && docType == DocType.Post"
-                                        class="flex gap-2"
-                                    >
+                                    <div v-if="!hasTag" class="flex gap-2">
                                         <p>
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
                                         <p>At least one tag is required</p>
                                     </div>
-                                    <div
-                                        v-if="!hasGroup && docType == DocType.Post"
-                                        class="flex gap-2"
-                                    >
+                                    <div v-if="!hasGroup" class="flex gap-2">
                                         <p>
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
