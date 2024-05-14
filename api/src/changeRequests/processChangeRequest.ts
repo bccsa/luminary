@@ -29,7 +29,7 @@ export async function processChangeRequest(
     }
 
     // Process image uploads
-    if (doc.type == DocType.Image) {
+    if (doc.type == DocType.Image && doc.uploadData) {
         doc = await processImageUpload(doc, s3);
     }
 
