@@ -166,6 +166,8 @@ describe("validateChangeRequest", () => {
                 _id: "image-test",
                 type: "image",
                 name: "Test Image",
+                memberOf: ["group-public-content"],
+                files: [],
                 uploadData: [
                     {
                         fileData: Buffer.from("some invalid data"),
@@ -188,6 +190,15 @@ describe("validateChangeRequest", () => {
                 _id: "image-test",
                 type: "image",
                 name: "Test Image",
+                memberOf: ["group-public-content"],
+                files: [
+                    {
+                        fileName: "unique-file-name",
+                        aspectRatio: 1,
+                        width: 1000,
+                        height: 1000,
+                    },
+                ],
                 uploadData: [
                     {
                         fileData: fs.readFileSync(
@@ -201,7 +212,7 @@ describe("validateChangeRequest", () => {
 
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
 
-        expect(result.validated).toBe(false);
-        expect(result.error).toBeDefined();
+        expect(result.validated).toBe(true);
+        expect(result.error).toBeUndefined();
     });
 });

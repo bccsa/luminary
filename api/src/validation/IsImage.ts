@@ -8,19 +8,14 @@ export function IsImage() {
             target: object.constructor,
             propertyName: propertyName,
             validator: {
-                validate(value: any) {
-                    sharp(value).metadata((err, metadata) => {
-                        if (err) {
-                            return false;
-                        }
-                        return (
-                            metadata.format === "jpeg" ||
-                            metadata.format === "png" ||
-                            metadata.format === "webp"
-                        );
-                    });
+                async validate(value: any) {
+                    const metadata = await sharp(value).metadata();
 
-                    return value !== null && value !== undefined;
+                    return (
+                        metadata.format === "jpeg" ||
+                        metadata.format === "png" ||
+                        metadata.format === "webp"
+                    );
                 },
             },
         });

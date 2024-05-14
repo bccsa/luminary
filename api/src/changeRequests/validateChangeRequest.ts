@@ -83,7 +83,11 @@ async function dtoValidate(data: any, message: string): Promise<ValidationResult
         });
         if (changeReqValidation.length > 0) {
             changeReqValidation.forEach((c) => {
-                message += Object.values(c.constraints).join("\n") + "\n";
+                if (c.constraints) {
+                    message += Object.values(c.constraints).join("\n") + "\n";
+                } else {
+                    message += c.toString() + "\n";
+                }
             });
             return {
                 validated: false,
