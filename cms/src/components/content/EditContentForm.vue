@@ -22,7 +22,6 @@ import {
     DocType,
     AclPermission,
     type Group,
-    type Uuid,
 } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
@@ -61,16 +60,6 @@ const props = defineProps<Props>();
 
 const emit = defineEmits(["save"]);
 
-const { groups } = storeToRefs(useGroupStore());
-
-const availableGroups = computed(() => {
-    if (!groups.value) {
-        return [];
-    }
-
-    return groups.value;
-});
-
 const { isLocalChange } = useLocalChangeStore();
 const { isConnected } = storeToRefs(useSocketConnectionStore());
 const { addNotification } = useNotificationStore();
@@ -81,6 +70,7 @@ const {
 } = storeToRefs(useTagStore());
 const { verifyAccess } = useUserAccessStore();
 const { clientAppUrl } = useGlobalConfigStore();
+const { groups } = storeToRefs(useGroupStore());
 
 const canPublish = computed(() =>
     verifyAccess(props.content.memberOf, props.docType, AclPermission.Publish),
@@ -95,8 +85,6 @@ const canTranslateContent = computed(
 );
 
 const selectedTags = ref<Tag[]>([]);
-const selectedGroups = ref<Group[]>([]);
-
 const selectedCategories = computed(() => {
     return selectedTags.value.filter((t) => t.tagType == TagType.Category);
 });
@@ -105,6 +93,15 @@ const selectedTopics = computed(() => {
 });
 const selectedAudioPlaylists = computed(() => {
     return selectedTags.value.filter((t) => t.tagType == TagType.AudioPlaylist);
+});
+
+const selectedGroups = ref<Group[]>([]);
+const availableGroups = computed(() => {
+    if (!groups.value) {
+        return [];
+    }
+
+    return groups.value;
 });
 
 const hasText = computed(() => text.value && text.value.trim() !== "");
@@ -151,7 +148,7 @@ const { handleSubmit, values, setValues, errors, meta } = useForm({
     validationSchema,
 });
 
-onBeforeMount(async () => {
+onBeforeMount(() => {
     if (props.parent.tags) {
         selectedTags.value = [...props.parent.tags];
     }
@@ -159,7 +156,9 @@ onBeforeMount(async () => {
     if (props.parent.memberOf && props.parent.memberOf.length > 0) {
         const groupRepository = new GroupRepository();
 
-        selectedGroups.value = await groupRepository.getGroupsWithIds(props.parent.memberOf);
+        groupRepository.getGroupsWithIds(props.parent.memberOf).then((groups) => {
+            selectedGroups.value = groups;
+        });
     }
 
     // Convert dates to format VeeValidate understands
@@ -236,15 +235,10 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
 
 const hasNoPublishErrors = computed(() => {
     if (props.docType == DocType.Tag) {
-        return hasParentImage.value;
+        return hasParentImage.value && hasGroup.value;
     }
 
-    return (
-        hasOneContentField.value && hasParentImage.value && hasTag.value && hasNoDraftErrors.value
-    );
-});
-const hasNoDraftErrors = computed(() => {
-    return hasGroup.value;
+    return hasOneContentField.value && hasParentImage.value && hasTag.value && hasGroup.value;
 });
 const hasOneContentField = computed(() => {
     return (
