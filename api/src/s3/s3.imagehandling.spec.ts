@@ -20,7 +20,7 @@ describe("S3ImageHandler", () => {
         // Remove files and bucket
         await service.removeObjects(
             service.imageBucket,
-            resImage.files.map((f) => f.fileName),
+            resImage.files.map((f) => f.filename),
         );
         await service.removeBucket(service.imageBucket);
     });
@@ -44,9 +44,9 @@ describe("S3ImageHandler", () => {
 
         // Check if all files are uploaded
         for (const file of resImage.files) {
-            expect(file.fileName).toBeDefined();
+            expect(file.filename).toBeDefined();
 
-            await service.getObject(service.imageBucket, file.fileName).then((f) => {
+            await service.getObject(service.imageBucket, file.filename).then((f) => {
                 expect(f).toBeDefined();
             });
         }

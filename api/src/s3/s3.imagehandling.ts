@@ -25,8 +25,8 @@ export async function processImageUpload(image: ImageDto, s3: S3Service): Promis
     await Promise.all(promises).catch(async (err) => {
         // Attempt to clear uploaded files before throwing error
         const keys = resultImage.files
-            .filter((file) => !image.files.some((f) => f.fileName === file.fileName))
-            .map((file) => file.fileName);
+            .filter((file) => !image.files.some((f) => f.filename === file.filename))
+            .map((file) => file.filename);
         await s3.removeObjects(s3.imageBucket, keys);
         throw err;
     });
@@ -80,10 +80,10 @@ async function processQuality(
     imageFile.width = resized.info.width;
     imageFile.height = resized.info.height;
     imageFile.aspectRatio = resized.info.width / resized.info.height;
-    imageFile.fileName = uuidv4();
+    imageFile.filename = uuidv4();
 
     // Save resized image to S3
-    await s3.uploadFile(s3.imageBucket, imageFile.fileName, resized.data, "image/webp");
+    await s3.uploadFile(s3.imageBucket, imageFile.filename, resized.data, "image/webp");
 
     resultImage.files.push(imageFile);
 }

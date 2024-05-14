@@ -23,5 +23,5 @@ export class ImageFileDto {
     @IsOptional()
     @IsString()
     @Expose()
-    fileName: string;
+    filename: string;
 }
