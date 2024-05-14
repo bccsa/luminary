@@ -1,13 +1,13 @@
 import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
 import { DocType, Uuid } from "../enums";
-import { createDbTestingModule } from "../test/testingModule";
+import { createTestingModule } from "../test/testingModule";
 
 describe("DbService", () => {
     let service: DbService;
 
     beforeAll(async () => {
-        service = (await createDbTestingModule("db-service")).dbService;
+        service = (await createTestingModule("db-service")).dbService;
     });
 
     it("can be instantiated", () => {

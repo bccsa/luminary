@@ -1,13 +1,13 @@
 import { PermissionSystem } from "./permissions.service";
 import { DocType, AclPermission } from "../enums";
-import { createDbTestingModule } from "../test/testingModule";
+import { createTestingModule } from "../test/testingModule";
 import waitForExpect from "wait-for-expect";
 
 describe("PermissionService", () => {
     let testingModule: any;
 
     beforeAll(async () => {
-        testingModule = await createDbTestingModule("permission-service");
+        testingModule = await createTestingModule("permission-service");
 
         // Wait a little bit for the permission system to update
         function timeout() {

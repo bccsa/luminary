@@ -27,6 +27,11 @@
             "type": "language",
             "groupId": "group-super-admins",
             "permission": ["view", "create", "edit", "delete", "assign", "translate"]
+        },
+        {
+            "type": "image",
+            "groupId": "group-super-admins",
+            "permission": ["view", "create", "edit", "delete", "assign"]
         }
     ]
 }
