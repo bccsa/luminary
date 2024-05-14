@@ -1,7 +1,7 @@
 import { Socket, io } from "socket.io-client";
 import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
-import { createTestingModule } from "./test/testingModule";
+import { createDbTestingModule } from "./test/testingModule";
 import { socketioTestClient } from "./test/socketioTestClient";
 import {
     changeRequest_content,
@@ -39,7 +39,7 @@ describe("Socketio", () => {
     let app: INestApplication;
 
     async function createNestApp(): Promise<INestApplication> {
-        const { testingModule } = await createTestingModule("socketio");
+        const { testingModule } = await createDbTestingModule("socketio");
         return testingModule.createNestApplication();
     }
 

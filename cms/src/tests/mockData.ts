@@ -13,6 +13,7 @@ import {
     type TagDto,
     type Group,
     AclPermission,
+    type GroupDto,
 } from "@/types";
 import { DateTime } from "luxon";
 
@@ -333,6 +334,8 @@ export const mockGroupPrivateContent: Group = {
         },
     ],
 };
+export const mockGroupDtoPrivateContent: GroupDto = mockGroupPrivateContent as unknown as GroupDto;
+
 export const mockGroupPublicUsers: Group = {
     _id: "group-public-users",
     type: DocType.Group,

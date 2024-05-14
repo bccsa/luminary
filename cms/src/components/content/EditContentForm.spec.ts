@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import EditContentForm from "./EditContentForm.vue";
@@ -9,7 +10,9 @@ import {
     mockUnpublishableContent,
     fullAccessToAllContentMap,
     translateAccessToAllContent,
-    mockGroupPrivateContent,
+    mockPostDto,
+    mockGroupDtoPrivateContent,
+    mockCategoryDto,
 } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType, type Content } from "@/types";
@@ -25,6 +28,7 @@ import LToggle from "../forms/LToggle.vue";
 import LTag from "./LTag.vue";
 import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { db } from "@/db/baseDatabase";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -35,38 +39,14 @@ vi.mock("vue-router", () => ({
     onBeforeRouteLeave: vi.fn(),
 }));
 
-const docsDb = vi.hoisted(() => {
-    return {
-        where: vi.fn().mockReturnThis(),
-        equals: vi.fn().mockReturnThis(),
-        anyOf: vi.fn().mockReturnThis(),
-        first: vi.fn().mockImplementation(() => ({ _id: "content-post1-eng" })),
-        toArray: vi.fn().mockImplementation(() => [mockGroupPrivateContent]),
-    };
-});
-
-const localChangesDb = vi.hoisted(() => {
-    return {
-        where: vi.fn().mockReturnThis(),
-        equals: vi.fn().mockReturnThis(),
-    };
-});
-
-vi.mock("@/db/baseDatabase", () => {
-    return {
-        db: {
-            docs: docsDb,
-            localChanges: localChangesDb,
-        },
-    };
-});
-
-describe.only("EditContentForm", () => {
+describe("EditContentForm", () => {
     const saveAsDraftButton = "button[data-test='draft']";
     const publishButton = "button[data-test='publish']";
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+
+        db.docs.bulkPut([mockPostDto, mockGroupDtoPrivateContent, mockCategoryDto]);
 
         const userAccessStore = useUserAccessStore();
         const globalConfigStore = useGlobalConfigStore();
@@ -77,6 +57,7 @@ describe.only("EditContentForm", () => {
     afterEach(() => {
         vi.clearAllMocks();
         Settings.resetCaches();
+        db.docs.clear();
     });
 
     it("can save as draft", async () => {
@@ -109,9 +90,8 @@ describe.only("EditContentForm", () => {
             },
         });
 
-        await wrapper.find(publishButton).trigger("click");
-
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
+            await wrapper.find(publishButton).trigger("click");
             const saveEvent: any = wrapper.emitted("save");
             expect(saveEvent).not.toBe(undefined);
             expect(saveEvent).toHaveLength(1);
@@ -242,7 +222,7 @@ describe.only("EditContentForm", () => {
         expect(wrapper.text()).toContain("Offline changes");
     });
 
-    it("shows and saves the selected groups", async () => {
+    it.only("shows and saves the selected groups", async () => {
         const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
