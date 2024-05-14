@@ -290,6 +290,49 @@ export const mockGroupPublicContent: Group = {
         },
     ],
 };
+export const mockGroupPrivateContent: Group = {
+    _id: "group-private-content",
+    type: DocType.Group,
+    name: "Private Content",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Post,
+            groupId: "group-public-editors",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Translate, AclPermission.Assign],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Assign],
+        },
+    ],
+};
 export const mockGroupPublicUsers: Group = {
     _id: "group-public-users",
     type: DocType.Group,
@@ -489,7 +532,6 @@ export const mockCategory: Tag = {
     image: "image.jpg",
     tags: [],
     content: [mockEnglishCategoryContent, mockFrenchCategoryContent],
-    groups: [],
 };
 export const mockTopic: Tag = {
     _id: "tag-topicA",
@@ -501,7 +543,6 @@ export const mockTopic: Tag = {
     image: "image.jpg",
     tags: [],
     content: [mockTopicContent],
-    groups: [],
 };
 export const mockAudioPlaylist: Tag = {
     _id: "tag-audioPlaylist-Faith",
@@ -513,7 +554,6 @@ export const mockAudioPlaylist: Tag = {
     image: "image.jpg",
     tags: [],
     content: [mockAudioPlaylistContent],
-    groups: [],
 };
 
 export const mockPost: Post = {
@@ -524,12 +564,6 @@ export const mockPost: Post = {
     memberOf: ["group-private-content"],
     content: [mockEnglishContent, mockFrenchContent],
     tags: [mockCategory],
-    groups: [
-        mockGroupPublicContent,
-        mockGroupPublicEditors,
-        mockGroupPublicUsers,
-        mockGroupSuperAdmins,
-    ],
 };
 
 export const mockLocalChange1: LocalChange = {

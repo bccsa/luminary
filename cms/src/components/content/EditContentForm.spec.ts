@@ -9,6 +9,7 @@ import {
     mockUnpublishableContent,
     fullAccessToAllContentMap,
     translateAccessToAllContent,
+    mockGroupPrivateContent,
 } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType, type Content } from "@/types";
@@ -38,7 +39,16 @@ const docsDb = vi.hoisted(() => {
     return {
         where: vi.fn().mockReturnThis(),
         equals: vi.fn().mockReturnThis(),
+        anyOf: vi.fn().mockReturnThis(),
         first: vi.fn().mockImplementation(() => ({ _id: "content-post1-eng" })),
+        toArray: vi.fn().mockImplementation(() => [mockGroupPrivateContent]),
+    };
+});
+
+const localChangesDb = vi.hoisted(() => {
+    return {
+        where: vi.fn().mockReturnThis(),
+        equals: vi.fn().mockReturnThis(),
     };
 });
 
@@ -46,12 +56,12 @@ vi.mock("@/db/baseDatabase", () => {
     return {
         db: {
             docs: docsDb,
-            localChanges: docsDb,
+            localChanges: localChangesDb,
         },
     };
 });
 
-describe("EditContentForm", () => {
+describe.only("EditContentForm", () => {
     const saveAsDraftButton = "button[data-test='draft']";
     const publishButton = "button[data-test='publish']";
 
@@ -230,6 +240,32 @@ describe("EditContentForm", () => {
         });
 
         expect(wrapper.text()).toContain("Offline changes");
+    });
+
+    it("shows and saves the selected groups", async () => {
+        const wrapper = mount(EditContentForm, {
+            props: {
+                parent: mockPost,
+                content: mockEnglishContent,
+                docType: DocType.Post,
+            },
+        });
+
+        expect(wrapper.text()).toContain("Private Content");
+
+        await wrapper
+            .find("div[data-test='groups']")
+            .find("button[data-test='removeTag']")
+            .trigger("click");
+        expect(wrapper.text()).not.toContain("Private Content");
+
+        await wrapper.find(saveAsDraftButton).trigger("click");
+        await waitForExpect(() => {
+            const saveEvent: any = wrapper.emitted("save");
+            expect(saveEvent).not.toBe(undefined);
+
+            expect(saveEvent![0][1].tags).toEqual([]);
+        });
     });
 
     it("shows and saves the selected tags", async () => {

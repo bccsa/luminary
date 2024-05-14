@@ -22,6 +22,7 @@ import {
     DocType,
     AclPermission,
     type Group,
+    type Uuid,
 } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
@@ -46,6 +47,7 @@ import { useUserAccessStore } from "@/stores/userAccess";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useGroupStore } from "@/stores/group";
 import GroupSelector from "./GroupSelector.vue";
+import { GroupRepository } from "@/db/repositories/groupRepository";
 
 const EMPTY_TEXT = '{"type":"doc","content":[{"type":"paragraph"}]}';
 
@@ -149,10 +151,15 @@ const { handleSubmit, values, setValues, errors, meta } = useForm({
     validationSchema,
 });
 
-onBeforeMount(() => {
-    if (props.parent.tags && props.parent.groups) {
+onBeforeMount(async () => {
+    if (props.parent.tags) {
         selectedTags.value = [...props.parent.tags];
-        selectedGroups.value = [...props.parent.groups];
+    }
+
+    if (props.parent.memberOf && props.parent.memberOf.length > 0) {
+        const groupRepository = new GroupRepository();
+
+        selectedGroups.value = await groupRepository.getGroupsWithIds(props.parent.memberOf);
     }
 
     // Convert dates to format VeeValidate understands
@@ -192,7 +199,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...toRaw(props.parent),
         image: validatedFormValues.parent?.image,
         tags: toRaw(selectedTags.value),
-        groups: toRaw(selectedGroups.value),
+        memberOf: toRaw(selectedGroups.value.map((g) => g._id)),
         // @ts-ignore We're only setting pinned for tags
         pinned: props.docType == DocType.Tag ? pinned.value : undefined,
     };
@@ -660,6 +667,7 @@ const checkIfDirtyTags = () => {
                         @select="addGroup"
                         @remove="removeGroup"
                         :disabled="!canEditParent"
+                        data-test="groups"
                     />
 
                     <TagSelector
