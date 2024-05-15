@@ -33,7 +33,7 @@ export async function processImage(
     }
 
     const promises: Promise<any>[] = [];
-    image.uploadData.forEach((uploadData) => {
+    image.uploadData?.forEach((uploadData) => {
         promises.push(processImageUpload(uploadData, s3, resultImage));
     });
 
