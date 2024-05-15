@@ -10,16 +10,31 @@ const imageSizes = [180, 360, 640, 1280, 2560];
 /**
  * Processes an image upload by resizing the image and uploading it to S3
  */
-export async function processImageUpload(image: ImageDto, s3: S3Service): Promise<ImageDto> {
-    if (!image.uploadData) throw new Error("No image data provided");
-
+export async function processImage(
+    image: ImageDto,
+    prevDoc: ImageDto,
+    s3: S3Service,
+): Promise<ImageDto> {
     const resultImage = { ...image };
     delete resultImage.uploadData;
 
-    const promises: Promise<any>[] = [];
+    // Remove files that were removed from the image
+    if (prevDoc) {
+        const removedFiles = prevDoc?.files.filter(
+            (file) => !image.files.some((f) => f.filename === file.filename),
+        );
 
+        if (removedFiles.length > 0) {
+            await s3.removeObjects(
+                s3.imageBucket,
+                removedFiles.map((file) => file.filename),
+            );
+        }
+    }
+
+    const promises: Promise<any>[] = [];
     image.uploadData.forEach((uploadData) => {
-        promises.push(processImage(uploadData, s3, resultImage));
+        promises.push(processImageUpload(uploadData, s3, resultImage));
     });
 
     await Promise.all(promises).catch(async (err) => {
@@ -31,12 +46,14 @@ export async function processImageUpload(image: ImageDto, s3: S3Service): Promis
         throw err;
     });
 
-    // TODO: delete removed image files from S3
-
     return resultImage;
 }
 
-async function processImage(uploadData: ImageUploadDto, s3: S3Service, resultImage: ImageDto) {
+async function processImageUpload(
+    uploadData: ImageUploadDto,
+    s3: S3Service,
+    resultImage: ImageDto,
+) {
     let preset = uploadData?.preset || "default";
     if (
         preset != "default" &&
