@@ -18,6 +18,7 @@ export type Configuration = {
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
+    socketIo?: SocketIoConfig;
 };
 
 export type S3Config = {
@@ -28,6 +29,10 @@ export type S3Config = {
     secretKey: string;
     imageBucket: string;
     imageQuality: number;
+};
+
+export type SocketIoConfig = {
+    maxHttpBufferSize: number;
 };
 
 export default () =>
@@ -53,4 +58,7 @@ export default () =>
             imageBucket: process.env.S3_IMG_BUCKET,
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as S3Config,
+        socketIo: {
+            maxHttpBufferSize: parseInt(process.env.SOCKETIO_MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
+        } as SocketIoConfig,
     }) as Configuration;
