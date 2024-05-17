@@ -88,6 +88,7 @@ export type ImageFileDto = {
 export type ImageUploadDto = {
     fileData: Buffer;
     preset: string;
+    filename?: string;
 };
 
 export type CreateGroupDto = {

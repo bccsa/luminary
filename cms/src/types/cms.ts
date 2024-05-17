@@ -46,7 +46,7 @@ export type Image = ContentBase & {
     name: string;
     description: string;
     files: ImageFileDto[];
-    uploadData?: ImageUploadDto;
+    uploadData?: ImageUploadDto[];
 };
 
 export enum MediaType {

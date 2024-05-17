@@ -15,6 +15,15 @@ import { useLocalChangeStore } from "./localChanges";
 import { BaseRepository } from "@/db/repositories/baseRepository";
 import { Socket } from "socket.io-client";
 import { useUserAccessStore } from "./userAccess";
+import { useGlobalConfigStore } from "./globalConfig";
+
+/**
+ * Client configuration type definition
+ */
+type ClientConfig = {
+    accessMap: AccessMap;
+    maxUploadFileSize: number;
+};
 
 export const useSocketConnectionStore = defineStore("socketConnection", () => {
     const isConnected = ref(false);
@@ -32,6 +41,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
 
     const bindEvents = () => {
         const userAccessStore = useUserAccessStore();
+        const globalConfigStore = useGlobalConfigStore();
         const { accessMap: existingAccessMap } = storeToRefs(userAccessStore);
         socket.value = getSocket();
 
@@ -65,45 +75,55 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             await localChangeStore.handleAck(ack);
         });
 
-        socket.value.on("accessMap", (accessMap: AccessMap) => {
-            // Delete revoked documents
-
-            // TODO: Only delete documents if the accessMap changed for improved performance
-            const baseRepository = new BaseRepository();
-            const groupsPerDocType = accessMapToGroups(accessMap, AclPermission.View);
-
-            Object.values(DocType)
-                .filter((t) => !(t == DocType.Change || t == DocType.Content))
-                .forEach(async (docType) => {
-                    let groups = groupsPerDocType[docType as DocType];
-                    if (groups === undefined) groups = [];
-
-                    const revokedDocs = baseRepository.whereNotMemberOf(groups, docType as DocType);
-
-                    // Delete associated Post and Tag content documents
-                    if (docType === DocType.Post || docType === DocType.Tag) {
-                        const revokedParents = await revokedDocs.toArray();
-                        const revokedParentIds = revokedParents.map((p) => p._id);
-                        await baseRepository.whereParentIds(revokedParentIds).delete();
-                    }
-
-                    // Delete associated Language content documents
-                    if (docType === DocType.Language) {
-                        const revokedLanguages = await revokedDocs.toArray();
-                        const revokedlanguageIds = revokedLanguages.map((l) => l._id);
-                        await baseRepository.whereLanguageIds(revokedlanguageIds).delete();
-                    }
-
-                    await revokedDocs.delete();
-                });
-
-            // Store the updated access map
-            userAccessStore.updateAccessMap(accessMap);
+        socket.value.on("clientConfig", (config: ClientConfig) => {
+            deleteRevoked(userAccessStore, config.accessMap);
+            globalConfigStore.maxUploadFileSize = config.maxUploadFileSize;
         });
     };
 
     return { isConnected, bindEvents, reloadClientData };
 });
+
+/**
+ * Delete revoked documents
+ */
+function deleteRevoked(
+    userAccessStore: { updateAccessMap: (arg0: AccessMap) => void },
+    accessMap: AccessMap,
+) {
+    // TODO: Only delete documents if the accessMap changed for improved performance
+
+    const baseRepository = new BaseRepository();
+    const groupsPerDocType = accessMapToGroups(accessMap, AclPermission.View);
+
+    Object.values(DocType)
+        .filter((t) => !(t == DocType.Change || t == DocType.Content))
+        .forEach(async (docType) => {
+            let groups = groupsPerDocType[docType as DocType];
+            if (groups === undefined) groups = [];
+
+            const revokedDocs = baseRepository.whereNotMemberOf(groups, docType as DocType);
+
+            // Delete associated Post and Tag content documents
+            if (docType === DocType.Post || docType === DocType.Tag) {
+                const revokedParents = await revokedDocs.toArray();
+                const revokedParentIds = revokedParents.map((p) => p._id);
+                await baseRepository.whereParentIds(revokedParentIds).delete();
+            }
+
+            // Delete associated Language content documents
+            if (docType === DocType.Language) {
+                const revokedLanguages = await revokedDocs.toArray();
+                const revokedlanguageIds = revokedLanguages.map((l) => l._id);
+                await baseRepository.whereLanguageIds(revokedlanguageIds).delete();
+            }
+
+            await revokedDocs.delete();
+        });
+
+    // Store the updated access map
+    userAccessStore.updateAccessMap(accessMap);
+}
 
 /**
  * Convert an access map to a list of accessible groups per document type for a given permission

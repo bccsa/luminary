@@ -2,48 +2,51 @@
 import { TrashIcon } from "@heroicons/vue/24/solid";
 import { ref } from "vue";
 import LModal from "@/components/common/LModal.vue";
+import type { ImageFileDto } from "@/types";
 
 type Props = {
-    filename: string;
-    fileWidth?: number;
-    fileHeight?: number;
+    imageFile: ImageFileDto;
 };
 const props = defineProps<Props>();
+
+const imageUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
 const emit = defineEmits<{
     (e: "delete", filename: string): void;
 }>();
 
 const hover = ref(false);
-const open = ref(false);
+const showModal = ref(false);
 
 const deleteFile = () => {
-    emit("delete", props.filename);
-    open.value = false;
+    emit("delete", props.imageFile.filename);
+    showModal.value = false;
 };
 
 const cancelDelete = () => {
-    open.value = false;
+    showModal.value = false;
 };
 
-const deleteMessage = `Are you sure you want to delete the ${props.fileWidth} x ${props.fileHeight} file version?`;
+const deleteMessage = `Are you sure you want to delete the ${props.imageFile.width} x ${props.imageFile.height} file version?`;
 </script>
 
 <template>
     <div>
-        <div class="relative" @mouseover="hover = true" @mouseleave="hover = false">
-            <label class="text-xs text-zinc-900">{{ fileWidth }} x {{ fileHeight }}</label>
-            <img :src="filename" class="max-h-36 rounded shadow" />
+        <div class="group relative" @mouseover="hover = true" @mouseleave="hover = false">
+            <label class="text-xs text-zinc-900"
+                >{{ imageFile.width }} x {{ imageFile.height }}</label
+            >
+            <img :src="imageUrl + '/' + imageFile.filename" class="h-36 rounded shadow" />
             <TrashIcon
                 class="absolute -right-2 top-2 h-5 w-5 cursor-pointer text-red-500"
                 v-show="hover"
                 title="Delete file version"
-                @click="open = true"
+                @click="showModal = true"
             />
         </div>
     </div>
     <LModal
-        v-model:open="open"
+        v-model:open="showModal"
         title="Delete file version"
         :description="deleteMessage"
         :primaryAction="deleteFile"
