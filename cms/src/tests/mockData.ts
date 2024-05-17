@@ -299,22 +299,22 @@ export const mockGroupPrivateContent: Group = {
     acl: [
         {
             type: DocType.Post,
-            groupId: "group-public-users",
+            groupId: "group-private-users",
             permission: [AclPermission.View],
         },
         {
             type: DocType.Tag,
-            groupId: "group-public-users",
+            groupId: "group-private-users",
             permission: [AclPermission.View],
         },
         {
             type: DocType.Language,
-            groupId: "group-public-users",
+            groupId: "group-private-users",
             permission: [AclPermission.View],
         },
         {
             type: DocType.Post,
-            groupId: "group-public-editors",
+            groupId: "group-private-editors",
             permission: [
                 AclPermission.View,
                 AclPermission.Edit,
@@ -324,12 +324,12 @@ export const mockGroupPrivateContent: Group = {
         },
         {
             type: DocType.Tag,
-            groupId: "group-public-editors",
+            groupId: "group-private-editors",
             permission: [AclPermission.View, AclPermission.Translate, AclPermission.Assign],
         },
         {
             type: DocType.Group,
-            groupId: "group-public-editors",
+            groupId: "group-private-editors",
             permission: [AclPermission.View, AclPermission.Assign],
         },
     ],
@@ -564,7 +564,7 @@ export const mockPost: Post = {
     _id: "post-post1",
     image: "test.jpg",
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
-    memberOf: ["group-private-content"],
+    memberOf: ["group-public-content"],
     content: [mockEnglishContent, mockFrenchContent],
     tags: [mockCategory],
 };

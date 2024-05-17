@@ -222,7 +222,7 @@ describe("EditContentForm", () => {
         expect(wrapper.text()).toContain("Offline changes");
     });
 
-    it.only("shows and saves the selected groups", async () => {
+    it("shows and saves the selected groups", async () => {
         const wrapper = mount(EditContentForm, {
             props: {
                 parent: mockPost,
@@ -231,13 +231,14 @@ describe("EditContentForm", () => {
             },
         });
 
-        expect(wrapper.text()).toContain("Private Content");
+        console.log(wrapper.text());
+        expect(wrapper.text()).toContain("Public Content");
 
         await wrapper
             .find("div[data-test='groups']")
             .find("button[data-test='removeTag']")
             .trigger("click");
-        expect(wrapper.text()).not.toContain("Private Content");
+        expect(wrapper.text()).not.toContain("Public Content");
 
         await wrapper.find(saveAsDraftButton).trigger("click");
         await waitForExpect(() => {
