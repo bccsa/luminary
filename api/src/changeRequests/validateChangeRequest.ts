@@ -10,8 +10,9 @@ import { TagDto } from "../dto/TagDto";
 import { UserDto } from "../dto/UserDto";
 import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
-import { DbService } from "src/db/db.service";
+import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
+import { ImageDto } from "../dto/ImageDto";
 
 /**
  * DocType to DTO map
@@ -24,6 +25,7 @@ const DocTypeMap = {
     post: PostDto,
     tag: TagDto,
     user: UserDto,
+    image: ImageDto,
 };
 
 /**
@@ -81,7 +83,11 @@ async function dtoValidate(data: any, message: string): Promise<ValidationResult
         });
         if (changeReqValidation.length > 0) {
             changeReqValidation.forEach((c) => {
-                message += Object.values(c.constraints).join("\n") + "\n";
+                if (c.constraints) {
+                    message += Object.values(c.constraints).join("\n") + "\n";
+                } else {
+                    message += c.toString() + "\n";
+                }
             });
             return {
                 validated: false,

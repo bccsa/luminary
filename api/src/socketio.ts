@@ -17,6 +17,7 @@ import { AccessMap } from "./permissions/permissions.service";
 import * as JWT from "jsonwebtoken";
 import configuration, { Configuration } from "./configuration";
 import { PermissionMap, getJwtPermission, parsePermissionMap } from "./jwt/jwtPermissionMap";
+import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 
@@ -86,6 +87,7 @@ export class Socketio implements OnGatewayInit {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
+        private s3: S3Service,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
@@ -276,7 +278,13 @@ export class Socketio implements OnGatewayInit {
         @ConnectedSocket() socket: ClientSocket,
     ) {
         // Process change request
-        await processChangeRequest(socket.data.userId, changeRequest, socket.data.memberOf, this.db)
+        await processChangeRequest(
+            socket.data.userId,
+            changeRequest,
+            socket.data.memberOf,
+            this.db,
+            this.s3,
+        )
             .then(() => {
                 this.emitAck(socket, AckStatus.Accepted, changeRequest);
             })
