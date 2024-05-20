@@ -445,6 +445,7 @@ describe("EditContentForm", () => {
                 console.log(saveEvent![0][0].expiryDate);
 
                 expect(saveEvent![0][0].expiryDate).not.toBe(undefined);
+                expect(saveEvent![0][0].expiryDate).toEqual(content.expiryDate);
             });
         });
 
