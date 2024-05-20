@@ -125,7 +125,17 @@ const validationSchema = toTypedSchema(
                 return undefined;
             })
             .optional(),
-        expiryDate: yup.date().optional(),
+        expiryDate: yup.date().transform((value, _, context) => {
+            // Check to see if the previous transform already parsed the date
+            if (context.isType(value)) {
+                return value;
+            }
+
+            // Default validation failed, clear the field
+            // This happens when the 'clear' button in the browser datepicker is used,
+            // which sets the value to an empty string
+            return undefined;
+        }),
         audio: yup.string().optional(),
         video: yup.string().optional(),
     }),
@@ -143,6 +153,7 @@ onBeforeMount(() => {
     // Convert dates to format VeeValidate understands
     const filteredContent: any = { ...toRaw(props.content) };
     filteredContent.publishDate = props.content.publishDate?.toISO()?.split(".")[0];
+    filteredContent.expiryDate = props.content.expiryDate?.toISO()?.split(".")[0];
 
     setValues({
         ...onlyAllowedKeys(filteredContent, Object.keys(values)),
@@ -187,6 +198,10 @@ const calculateExpirationDate = (duration: string) => {
     setValues({ expiryDate: expirationDate.toISO()?.split(".")[0] as unknown as Date });
 };
 
+const clearExpirationDate = () => {
+    setValues({ expiryDate: undefined as unknown as Date });
+};
+
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
     // Make sure we don't accidentally add the 'parent' object to the content
     const contentValues = { ...validatedFormValues };
@@ -198,6 +213,26 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     } else if (status == ContentStatus.Published) {
         publishDate = DateTime.now();
         setValues({ publishDate: publishDate.toISO()?.split(".")[0] as unknown as Date });
+    }
+
+    if (contentValues.expiryDate) {
+        expiryDate = DateTime.fromJSDate(contentValues.expiryDate);
+    }
+
+    console.log(contentValues.expiryDate);
+
+    // Ensure publishDate is not greater than expiryDate
+    if (
+        contentValues.publishDate &&
+        contentValues.expiryDate &&
+        contentValues.publishDate >= contentValues.expiryDate
+    ) {
+        addNotification({
+            title: "Invalid Dates",
+            description: "Expiry date must be greater than the publish date.",
+            state: "error",
+        });
+        return;
     }
 
     const content: Content = {
@@ -399,6 +434,7 @@ const checkIfDirty = () => {
                         <LButton
                             type="button"
                             variant="secondary"
+                            data-test="1 Week"
                             @click="() => calculateExpirationDate('1 Week')"
                         >
                             1W
@@ -455,8 +491,8 @@ const checkIfDirty = () => {
                             type="button"
                             variant="secondary"
                             :icon="BackspaceIcon"
-                            class="ml-1 pt-2"
-                            @click="() => calculateExpirationDate('')"
+                            class="inset-x-100 bottom-0.2 absolute ml-1"
+                            @click="clearExpirationDate()"
                         ></LButton>
                     </LInput>
                 </div>
