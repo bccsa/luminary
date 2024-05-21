@@ -435,6 +435,7 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
+                                class="mt-1"
                                 data-test="1 Week"
                                 @click="() => calculateExpirationDate('1 Week')"
                             >
@@ -443,7 +444,6 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1"
                                 @click="() => calculateExpirationDate('2 Weeks')"
                             >
                                 2W
@@ -451,7 +451,6 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1"
                                 @click="() => calculateExpirationDate('1 Month')"
                             >
                                 1M
@@ -459,7 +458,6 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1"
                                 @click="() => calculateExpirationDate('2 Months')"
                             >
                                 2M
@@ -467,7 +465,6 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1"
                                 @click="() => calculateExpirationDate('3 Months')"
                             >
                                 3M
@@ -475,7 +472,6 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1"
                                 @click="() => calculateExpirationDate('6 Months')"
                             >
                                 6M
@@ -483,7 +479,6 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1"
                                 @click="() => calculateExpirationDate('1 Year')"
                             >
                                 1Y
@@ -492,7 +487,6 @@ const checkIfDirty = () => {
                                 type="button"
                                 variant="secondary"
                                 :icon="BackspaceIcon"
-                                class="ml-1"
                                 @click="clearExpirationDate()"
                             ></LButton>
                         </div>
