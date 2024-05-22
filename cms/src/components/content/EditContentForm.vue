@@ -228,7 +228,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     delete contentValues["parent"];
     let publishDate;
     let expiryDate;
-    let expiryDate;
+
     if (contentValues.publishDate) {
         publishDate = DateTime.fromJSDate(contentValues.publishDate);
     } else if (status == ContentStatus.Published) {
@@ -450,11 +450,11 @@ const checkIfDirty = () => {
                         type="datetime-local"
                         :disabled="!canTranslateContent"
                     >
-                        <div class="flex w-full cursor-pointer flex-wrap space-x-1 space-y-1">
+                        <div class="flex w-full cursor-pointer flex-wrap gap-1">
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="mt-1 flex-1"
+                                class="flex-1"
                                 @click="selectNumber(1)"
                             >
                                 1
@@ -462,7 +462,7 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1 flex-1"
+                                class="flex-1"
                                 @click="selectNumber(2)"
                             >
                                 2
@@ -470,7 +470,7 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1 flex-1"
+                                class="flex-1"
                                 @click="selectNumber(3)"
                             >
                                 3
@@ -478,7 +478,7 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1 flex-1"
+                                class="flex-1"
                                 size="lg"
                                 @click="selectNumber(6)"
                             >
@@ -487,7 +487,7 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1 flex-1"
+                                class="flex-1"
                                 @click="selectUnit('Week')"
                             >
                                 W
@@ -495,7 +495,7 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1 flex-1"
+                                class="flex-1"
                                 @click="selectUnit('Month')"
                             >
                                 M
@@ -503,7 +503,7 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="ml-1 flex-1"
+                                class="flex-1"
                                 @click="selectUnit('Year')"
                             >
                                 Y
@@ -512,7 +512,7 @@ const checkIfDirty = () => {
                                 type="button"
                                 variant="secondary"
                                 :icon="ChevronLeftIcon"
-                                class="ml-1 flex-1"
+                                class="flex-1"
                                 @click="clearExpirationDate()"
                             >
                             </LButton>
