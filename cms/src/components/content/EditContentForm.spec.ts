@@ -420,6 +420,35 @@ describe("EditContentForm", () => {
             });
         });
 
+        it("checks if the post has an expiring date", async () => {
+            const currentTime = DateTime.fromISO("2024-04-22T10:42:00.00");
+            Settings.now = () => currentTime.toMillis();
+            const content = { ...mockEnglishContent };
+            content.expiryDate = DateTime.now();
+
+            const wrapper = mount(EditContentForm, {
+                props: {
+                    parent: {
+                        ...mockPost,
+                        content: [content],
+                    },
+                    content: content,
+                    docType: DocType.Post,
+                },
+            });
+
+            await wrapper.find(publishButton).trigger("click");
+
+            await waitForExpect(() => {
+                const saveEvent: any = wrapper.emitted("save");
+                expect(saveEvent).not.toBe(undefined);
+                console.log(saveEvent![0][0].expiryDate);
+
+                expect(saveEvent![0][0].expiryDate).not.toBe(undefined);
+                expect(saveEvent![0][0].expiryDate).toEqual(content.expiryDate);
+            });
+        });
+
         it("displays a notification when saving with validation errors", async () => {
             const notificationStore = useNotificationStore();
             const wrapper = mount(EditContentForm, {
