@@ -364,6 +364,51 @@ export const mockGroupPublicContent: Group = {
         },
     ],
 };
+export const mockGroupPrivateContent: Group = {
+    _id: "group-private-content",
+    type: DocType.Group,
+    name: "Private Content",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Post,
+            groupId: "group-private-editors",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-private-editors",
+            permission: [AclPermission.View, AclPermission.Translate, AclPermission.Assign],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-private-editors",
+            permission: [AclPermission.View, AclPermission.Assign],
+        },
+    ],
+};
+export const mockGroupDtoPrivateContent: GroupDto = mockGroupPrivateContent as unknown as GroupDto;
+
 export const mockGroupPublicUsers: Group = {
     _id: "group-public-users",
     type: DocType.Group,
@@ -552,6 +597,58 @@ export const mockGroupSuperAdmins: Group = {
             ],
         },
     ],
+};
+export const mockCategory: Tag = {
+    _id: "tag-category1",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: ["group-public-content"],
+    tagType: TagType.Category,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockEnglishCategoryContent, mockFrenchCategoryContent],
+};
+export const mockTopic: Tag = {
+    _id: "tag-topicA",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    tagType: TagType.Topic,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockTopicContent],
+};
+export const mockAudioPlaylist: Tag = {
+    _id: "tag-audioPlaylist-Faith",
+    type: DocType.Tag,
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: [],
+    tagType: TagType.AudioPlaylist,
+    pinned: false,
+    image: "image.jpg",
+    tags: [],
+    content: [mockAudioPlaylistContent],
+};
+
+export const mockPost: Post = {
+    type: DocType.Post,
+    _id: "post-post1",
+    image: "test.jpg",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }),
+    memberOf: ["group-public-content"],
+    content: [mockEnglishContent, mockFrenchContent],
+    tags: [mockCategory],
+};
+
+export const mockLocalChange1: LocalChange = {
+    id: 42,
+    doc: mockPostDto,
+};
+export const mockLocalChange2: LocalChange = {
+    id: 43,
+    doc: mockEnglishContentDto,
 };
 
 export const fullAccessToAllContentMap = {

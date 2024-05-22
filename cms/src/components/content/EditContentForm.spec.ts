@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import EditContentForm from "./EditContentForm.vue";
@@ -9,6 +10,9 @@ import {
     mockUnpublishableContent,
     fullAccessToAllContentMap,
     translateAccessToAllContent,
+    mockPostDto,
+    mockGroupDtoPrivateContent,
+    mockCategoryDto,
 } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { ContentStatus, DocType, type Content } from "@/types";
@@ -24,6 +28,7 @@ import LToggle from "../forms/LToggle.vue";
 import LTag from "./LTag.vue";
 import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { db } from "@/db/baseDatabase";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -34,29 +39,14 @@ vi.mock("vue-router", () => ({
     onBeforeRouteLeave: vi.fn(),
 }));
 
-const docsDb = vi.hoisted(() => {
-    return {
-        where: vi.fn().mockReturnThis(),
-        equals: vi.fn().mockReturnThis(),
-        first: vi.fn().mockImplementation(() => ({ _id: "content-post1-eng" })),
-    };
-});
-
-vi.mock("@/db/baseDatabase", () => {
-    return {
-        db: {
-            docs: docsDb,
-            localChanges: docsDb,
-        },
-    };
-});
-
 describe("EditContentForm", () => {
     const saveAsDraftButton = "button[data-test='draft']";
     const publishButton = "button[data-test='publish']";
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+
+        db.docs.bulkPut([mockPostDto, mockGroupDtoPrivateContent, mockCategoryDto]);
 
         const userAccessStore = useUserAccessStore();
         const globalConfigStore = useGlobalConfigStore();
@@ -67,6 +57,7 @@ describe("EditContentForm", () => {
     afterEach(() => {
         vi.clearAllMocks();
         Settings.resetCaches();
+        db.docs.clear();
     });
 
     it("can save as draft", async () => {
@@ -99,9 +90,8 @@ describe("EditContentForm", () => {
             },
         });
 
-        await wrapper.find(publishButton).trigger("click");
-
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
+            await wrapper.find(publishButton).trigger("click");
             const saveEvent: any = wrapper.emitted("save");
             expect(saveEvent).not.toBe(undefined);
             expect(saveEvent).toHaveLength(1);
@@ -232,6 +222,33 @@ describe("EditContentForm", () => {
         expect(wrapper.text()).toContain("Offline changes");
     });
 
+    it("shows and saves the selected groups", async () => {
+        const wrapper = mount(EditContentForm, {
+            props: {
+                parent: mockPost,
+                content: mockEnglishContent,
+                docType: DocType.Post,
+            },
+        });
+
+        console.log(wrapper.text());
+        expect(wrapper.text()).toContain("Public Content");
+
+        await wrapper
+            .find("div[data-test='groups']")
+            .find("button[data-test='removeTag']")
+            .trigger("click");
+        expect(wrapper.text()).not.toContain("Public Content");
+
+        await wrapper.find(saveAsDraftButton).trigger("click");
+        await waitForExpect(() => {
+            const saveEvent: any = wrapper.emitted("save");
+            expect(saveEvent).not.toBe(undefined);
+
+            expect(saveEvent![0][1].tags).toEqual([]);
+        });
+    });
+
     it("shows and saves the selected tags", async () => {
         const wrapper = mount(EditContentForm, {
             props: {
@@ -243,7 +260,10 @@ describe("EditContentForm", () => {
 
         expect(wrapper.text()).toContain("Category 1");
 
-        await wrapper.find("button[data-test='removeTag']").trigger("click");
+        await wrapper
+            .find("div[data-test='categories']")
+            .find("button[data-test='removeTag']")
+            .trigger("click");
         expect(wrapper.text()).not.toContain("Category 1");
 
         await wrapper.find(saveAsDraftButton).trigger("click");
