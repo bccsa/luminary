@@ -13,6 +13,7 @@ import {
     ArrowTopRightOnSquareIcon,
 } from "@heroicons/vue/20/solid";
 import { ExclamationCircleIcon, PencilIcon, XCircleIcon } from "@heroicons/vue/16/solid";
+import { BackspaceIcon } from "@heroicons/vue/16/solid";
 import {
     ContentStatus,
     type Content,
@@ -124,6 +125,17 @@ const validationSchema = toTypedSchema(
                 return undefined;
             })
             .optional(),
+        expiryDate: yup.date().transform((value, _, context) => {
+            // Check to see if the previous transform already parsed the date
+            if (context.isType(value)) {
+                return value;
+            }
+
+            // Default validation failed, clear the field
+            // This happens when the 'clear' button in the browser datepicker is used,
+            // which sets the value to an empty string
+            return undefined;
+        }),
         audio: yup.string().optional(),
         video: yup.string().optional(),
     }),
@@ -141,6 +153,7 @@ onBeforeMount(() => {
     // Convert dates to format VeeValidate understands
     const filteredContent: any = { ...toRaw(props.content) };
     filteredContent.publishDate = props.content.publishDate?.toISO()?.split(".")[0];
+    filteredContent.expiryDate = props.content.expiryDate?.toISO()?.split(".")[0];
 
     setValues({
         ...onlyAllowedKeys(filteredContent, Object.keys(values)),
@@ -150,11 +163,51 @@ onBeforeMount(() => {
     text.value = filteredContent.text;
 });
 
+const calculateExpirationDate = (duration: string) => {
+    const publishDate = values.publishDate
+        ? DateTime.fromJSDate(new Date(values.publishDate))
+        : DateTime.now();
+    let expirationDate: DateTime = publishDate;
+
+    switch (duration) {
+        case "1 Week":
+            expirationDate = publishDate.plus({ weeks: 1 });
+            break;
+        case "2 Weeks":
+            expirationDate = publishDate.plus({ weeks: 2 });
+            break;
+        case "1 Month":
+            expirationDate = publishDate.plus({ month: 1 });
+            break;
+        case "2 Months":
+            expirationDate = publishDate.plus({ months: 2 });
+            break;
+        case "3 Months":
+            expirationDate = publishDate.plus({ months: 3 });
+            break;
+        case "6 Months":
+            expirationDate = publishDate.plus({ months: 6 });
+            break;
+        case "1 Year":
+            expirationDate = publishDate.plus({ year: 1 });
+            break;
+        default:
+            console.warn(`Unknown duration: ${duration}`);
+    }
+
+    setValues({ expiryDate: expirationDate.toISO()?.split(".")[0] as unknown as Date });
+};
+
+const clearExpirationDate = () => {
+    setValues({ expiryDate: undefined as unknown as Date });
+};
+
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
     // Make sure we don't accidentally add the 'parent' object to the content
     const contentValues = { ...validatedFormValues };
     delete contentValues["parent"];
     let publishDate;
+    let expiryDate;
     if (contentValues.publishDate) {
         publishDate = DateTime.fromJSDate(contentValues.publishDate);
     } else if (status == ContentStatus.Published) {
@@ -162,10 +215,31 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         setValues({ publishDate: publishDate.toISO()?.split(".")[0] as unknown as Date });
     }
 
+    if (contentValues.expiryDate) {
+        expiryDate = DateTime.fromJSDate(contentValues.expiryDate);
+    }
+
+    console.log(contentValues.expiryDate);
+
+    // Ensure publishDate is not greater than expiryDate
+    if (
+        contentValues.publishDate &&
+        contentValues.expiryDate &&
+        contentValues.publishDate >= contentValues.expiryDate
+    ) {
+        addNotification({
+            title: "Invalid Dates",
+            description: "Expiry date must be greater than the publish date.",
+            state: "error",
+        });
+        return;
+    }
+
     const content: Content = {
         ...toRaw(props.content),
         ...contentValues,
         publishDate,
+        expiryDate,
         status,
         text: text.value == EMPTY_TEXT ? undefined : text.value,
         slug: await Slug.makeUnique(contentValues.slug!, props.content._id), // Ensure slug is still unique before saving
@@ -349,6 +423,73 @@ const checkIfDirty = () => {
                         :disabled="!canTranslateContent"
                     >
                         Only used for display, does not automatically publish at this date
+                    </LInput>
+                    <LInput
+                        name="expiryDate"
+                        label="Expiry date"
+                        class="w-1/2"
+                        type="datetime-local"
+                        :disabled="!canTranslateContent"
+                    >
+                        <div class="flex flex-wrap space-x-1 space-y-1">
+                            <LButton
+                                type="button"
+                                variant="secondary"
+                                class="mt-1"
+                                data-test="1 Week"
+                                @click="() => calculateExpirationDate('1 Week')"
+                            >
+                                1W
+                            </LButton>
+                            <LButton
+                                type="button"
+                                variant="secondary"
+                                @click="() => calculateExpirationDate('2 Weeks')"
+                            >
+                                2W
+                            </LButton>
+                            <LButton
+                                type="button"
+                                variant="secondary"
+                                @click="() => calculateExpirationDate('1 Month')"
+                            >
+                                1M
+                            </LButton>
+                            <LButton
+                                type="button"
+                                variant="secondary"
+                                @click="() => calculateExpirationDate('2 Months')"
+                            >
+                                2M
+                            </LButton>
+                            <LButton
+                                type="button"
+                                variant="secondary"
+                                @click="() => calculateExpirationDate('3 Months')"
+                            >
+                                3M
+                            </LButton>
+                            <LButton
+                                type="button"
+                                variant="secondary"
+                                @click="() => calculateExpirationDate('6 Months')"
+                            >
+                                6M
+                            </LButton>
+                            <LButton
+                                type="button"
+                                variant="secondary"
+                                @click="() => calculateExpirationDate('1 Year')"
+                            >
+                                1Y
+                            </LButton>
+                            <LButton
+                                type="button"
+                                variant="secondary"
+                                :icon="BackspaceIcon"
+                                @click="clearExpirationDate()"
+                            ></LButton>
+                        </div>
                     </LInput>
                 </div>
             </LCard>
