@@ -129,17 +129,20 @@ const validationSchema = toTypedSchema(
                 return undefined;
             })
             .optional(),
-        expiryDate: yup.date().transform((value, _, context) => {
-            // Check to see if the previous transform already parsed the date
-            if (context.isType(value)) {
-                return value;
-            }
+        expiryDate: yup
+            .date()
+            .transform((value, _, context) => {
+                // Check to see if the previous transform already parsed the date
+                if (context.isType(value)) {
+                    return value;
+                }
 
-            // Default validation failed, clear the field
-            // This happens when the 'clear' button in the browser datepicker is used,
-            // which sets the value to an empty string
-            return undefined;
-        }),
+                // Default validation failed, clear the field
+                // This happens when the 'clear' button in the browser datepicker is used,
+                // which sets the value to an empty string
+                return undefined;
+            })
+            .optional(),
         audio: yup.string().optional(),
         video: yup.string().optional(),
     }),
@@ -228,6 +231,8 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     delete contentValues["parent"];
     let publishDate;
     let expiryDate;
+
+    console.log(publishDate);
 
     if (contentValues.publishDate) {
         publishDate = DateTime.fromJSDate(contentValues.publishDate);
@@ -446,7 +451,7 @@ const checkIfDirty = () => {
                     <LInput
                         name="expiryDate"
                         label="Expiry date"
-                        class="w-1/2"
+                        class="group w-1/2"
                         type="datetime-local"
                         :disabled="!canTranslateContent"
                     >
@@ -454,8 +459,10 @@ const checkIfDirty = () => {
                             <LButton
                                 type="button"
                                 variant="secondary"
-                                class="flex-1"
+                                radio
+                                class="flex-1 hover:bg-black hover:text-white"
                                 @click="selectNumber(1)"
+                                data-test="1"
                             >
                                 1
                             </LButton>
@@ -489,6 +496,7 @@ const checkIfDirty = () => {
                                 variant="secondary"
                                 class="flex-1"
                                 @click="selectUnit('Week')"
+                                data-test="W"
                             >
                                 W
                             </LButton>
@@ -787,3 +795,10 @@ const checkIfDirty = () => {
         <ConfirmBeforeLeavingModal :isDirty="isDirty" />
     </form>
 </template>
+
+<style scoped>
+.active {
+    background-color: #000000; /* or any other color to indicate selection */
+    color: white;
+}
+</style>
