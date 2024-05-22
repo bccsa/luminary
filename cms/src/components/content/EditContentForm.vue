@@ -167,8 +167,8 @@ onBeforeMount(() => {
     text.value = filteredContent.text;
 });
 
-const selectedNumber = ref(null);
-const selectedUnit = ref(null);
+const selectedNumber = ref<number | null>(null);
+const selectedUnit = ref<string | null>(null);
 
 const calculateExpirationDate = () => {
     const publishDate = values.publishDate
@@ -198,14 +198,14 @@ const calculateExpirationDate = () => {
     clearSelection();
 };
 
-const selectNumber = (number) => {
+const selectNumber = (number: number | null) => {
     selectedNumber.value = number;
     if (selectedUnit.value) {
         calculateExpirationDate();
     }
 };
 
-const selectUnit = (unit) => {
+const selectUnit = (unit: string | null) => {
     selectedUnit.value = unit;
     if (selectedNumber.value) {
         calculateExpirationDate();
@@ -218,7 +218,7 @@ const clearSelection = () => {
 };
 
 const clearExpirationDate = () => {
-    setValues({ expiryDate: null });
+    setValues({ expiryDate: undefined as unknown as Date });
     clearSelection();
 };
 
@@ -227,6 +227,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     const contentValues = { ...validatedFormValues };
     delete contentValues["parent"];
     let publishDate;
+    let expiryDate;
     if (contentValues.publishDate) {
         publishDate = DateTime.fromJSDate(contentValues.publishDate);
     } else if (status == ContentStatus.Published) {
@@ -234,10 +235,29 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         setValues({ publishDate: publishDate.toISO()?.split(".")[0] as unknown as Date });
     }
 
+    if (contentValues.expiryDate) {
+        expiryDate = DateTime.fromJSDate(contentValues.expiryDate);
+    }
+    console.log(contentValues.expiryDate);
+    // Ensure publishDate is not greater than expiryDate
+    if (
+        contentValues.publishDate &&
+        contentValues.expiryDate &&
+        contentValues.publishDate >= contentValues.expiryDate
+    ) {
+        addNotification({
+            title: "Invalid Dates",
+            description: "Expiry date must be greater than the publish date.",
+            state: "error",
+        });
+        return;
+    }
+
     const content: Content = {
         ...toRaw(props.content),
         ...contentValues,
         publishDate,
+        expiryDate,
         status,
         text: text.value == EMPTY_TEXT ? undefined : text.value,
         slug: await Slug.makeUnique(contentValues.slug!, props.content._id), // Ensure slug is still unique before saving
