@@ -86,7 +86,7 @@ export type ImageFileDto = {
 };
 
 export type ImageUploadDto = {
-    fileData: Buffer;
+    fileData: ArrayBuffer;
     preset: string;
     filename?: string;
 };
