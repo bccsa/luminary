@@ -32,6 +32,16 @@ export async function processImage(
         }
     }
 
+    // Remove file objects that were added to the image: Only the API can add image files. A client may submit "new" image files,
+    // but this usually will happen if an offline client saved changes to an image which had file objects removed by onother client.
+    // When the offline client comes online, it's change request will then contain file objects that were previously removed, and
+    // as such need to be ignored.
+    if (prevDoc) {
+        resultImage.files = prevDoc.files.filter((file) =>
+            image.files.some((f) => f.filename === file.filename),
+        );
+    }
+
     const promises: Promise<any>[] = [];
     image.uploadData?.forEach((uploadData) => {
         promises.push(processImageUpload(uploadData, s3, resultImage));

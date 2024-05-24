@@ -8,8 +8,7 @@ import * as path from "path";
 
 describe("S3ImageHandler", () => {
     let service: S3Service;
-    let resImage: ImageDto;
-    let resImage2: ImageDto;
+    const resImages: ImageDto[] = [];
 
     beforeAll(async () => {
         service = (await createTestingModule("imagehandling")).s3Service;
@@ -18,10 +17,7 @@ describe("S3ImageHandler", () => {
     });
 
     afterAll(async () => {
-        // Remove files and bucket
-        const removeFiles = resImage.files
-            .map((f) => f.filename)
-            .concat(resImage2.files.map((f) => f.filename));
+        const removeFiles = resImages.flatMap((r) => r.files.map((f) => f.filename));
         await service.removeObjects(service.imageBucket, removeFiles);
         await service.removeBucket(service.imageBucket);
     });
@@ -39,8 +35,7 @@ describe("S3ImageHandler", () => {
                 preset: "default",
             },
         ];
-        resImage = await processImage(image, undefined, service);
-
+        const resImage = await processImage(image, undefined, service);
         expect(resImage).toBeDefined();
 
         // Check if all files are uploaded
@@ -51,6 +46,8 @@ describe("S3ImageHandler", () => {
         }
         const res = await Promise.all(pList);
         expect(res.some((r) => r == undefined)).toBeFalsy();
+
+        resImages.push(resImage);
     });
 
     it("can delete a removed image version from S3", async () => {
@@ -62,19 +59,43 @@ describe("S3ImageHandler", () => {
                 preset: "default",
             },
         ];
-        resImage2 = await processImage(image, undefined, service);
+        let resImage = await processImage(image, undefined, service);
 
         // Remove the first file
         const prevDoc = new ImageDto();
-        prevDoc.files.push(...resImage2.files);
-        prevDoc.files.shift();
-        resImage2 = await processImage(image, prevDoc, service);
+        prevDoc.files.push(...resImage.files);
+        image.files.shift();
+        resImage = await processImage(image, prevDoc, service);
 
         // Check if the first file is removed
         let error;
         await service
             .getObject(service.imageBucket, prevDoc.files[0].filename)
             .catch((e) => (error = e));
-        expect(error).toBeUndefined();
+        expect(error).toBeDefined();
+
+        resImages.push(resImage);
+    });
+
+    it("Discards user-added file objects", async () => {
+        const image = new ImageDto();
+        image.name = "testImage3";
+        image.uploadData = [
+            {
+                fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
+                preset: "default",
+            },
+        ];
+        const res = await processImage(image, undefined, service);
+
+        const image2 = JSON.parse(JSON.stringify(res)) as ImageDto;
+        image2.files.push({ filename: "invalid", aspectRatio: 1, height: 1, width: 1 });
+
+        const resImage = await processImage(image2, res, service);
+
+        // Check if the client-added file data is removed
+        expect(resImage.files.some((f) => f.filename == "invalid")).toBeFalsy();
+
+        resImages.push(resImage);
     });
 });
