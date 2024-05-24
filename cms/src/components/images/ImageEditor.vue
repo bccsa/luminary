@@ -111,6 +111,7 @@ const removeFile = (filename: string) => {
             label="Image name"
             class="mb-2 flex-1"
             @change="save"
+            data-test="image-name"
         />
         <div class="mb-2 flex items-end gap-4">
             <LSelect
@@ -133,6 +134,7 @@ const removeFile = (filename: string) => {
                     class="hidden"
                     accept="image/jpeg, image/png, image/webp"
                     @change="upload"
+                    data-test="image-upload"
                 />
             </div>
         </div>
@@ -153,6 +155,7 @@ const removeFile = (filename: string) => {
         label="Notes"
         v-model="image.description"
         @change="save"
+        data-test="image-description"
     />
     <div>
         <!-- Group selector here -->
@@ -160,7 +163,7 @@ const removeFile = (filename: string) => {
 
     <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">File versions</h3>
 
-    <div class="flex flex-wrap gap-4">
+    <div class="flex flex-wrap gap-4" data-test="thumbnail-area">
         <!-- eslint-disable-next-line -->
         <ImageEditorThumbnail v-for="i in image!.files" v-bind:imageFile="i" @delete="removeFile" />
     </div>

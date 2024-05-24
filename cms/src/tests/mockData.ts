@@ -13,6 +13,7 @@ import {
     type TagDto,
     type Group,
     AclPermission,
+    type ImageDto,
 } from "@/types";
 import { DateTime } from "luxon";
 
@@ -288,6 +289,23 @@ export const mockPost: Post = {
     memberOf: ["group-private-content"],
     content: [mockEnglishContent, mockFrenchContent],
     tags: [mockCategory],
+};
+
+export const mockImage: ImageDto = {
+    _id: "image-image1",
+    type: DocType.Image,
+    name: "Image 1",
+    description: "An image",
+    updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }).toMillis(),
+    memberOf: ["group-private-content"],
+    files: [
+        {
+            aspectRatio: 1,
+            width: 1,
+            height: 2,
+            filename: "testfile",
+        },
+    ],
 };
 
 export const mockLocalChange1: LocalChange = {
