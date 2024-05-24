@@ -75,7 +75,7 @@ export type ImageDto = ContentBaseDto & {
     name: string;
     description: string;
     files: ImageFileDto[];
-    uploadData?: ImageUploadDto;
+    uploadData?: ImageUploadDto[];
 };
 
 export type ImageFileDto = {

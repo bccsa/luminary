@@ -306,9 +306,7 @@ const items = [
             </LCard>
 
             <LCard title="Image editor">
-                <Suspense>
-                    <ImageEditor imageId="0a329b75-a2ca-4bad-b544-bb4d163bf462" />
-                </Suspense>
+                <ImageEditor imageId="0a329b75-a2ca-4bad-b544-bb4d163bf462" />
             </LCard>
         </div>
     </BasePage>

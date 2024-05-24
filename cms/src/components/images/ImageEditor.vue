@@ -3,38 +3,32 @@ import LInput from "../forms/LInput.vue";
 import { computed, defineProps, ref, toRaw } from "vue";
 import LTextarea from "../forms/LTextarea.vue";
 import LButton from "../button/LButton.vue";
-import { ArrowUpOnSquareIcon, ArrowDownOnSquareIcon } from "@heroicons/vue/24/outline";
-import { TrashIcon } from "@heroicons/vue/24/solid";
+import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import LSelect from "../forms/LSelect.vue";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
-import type { Image, Uuid, ImageUploadDto } from "@/types";
-import { ImageRepository } from "@/db/repositories/imageRepository";
+import type { Uuid, ImageUploadDto, ImageDto } from "@/types";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
+import { db } from "@/db/baseDatabase";
+
+// Note: This control is used in a fully reactive mode as we want to show rendered images as soon as they are uploaded. Mixing non-reactive and reactive modes is difficult to implement.
 
 type Props = {
-    imageId?: Uuid;
+    imageId: Uuid;
 };
 const props = defineProps<Props>();
-const imageRepo = new ImageRepository();
-const globalConfigStore = useGlobalConfigStore();
+const image = db.getAsRef<ImageDto>(props.imageId);
+
 const { addNotification } = useNotificationStore();
 
 // Computed
+const globalConfigStore = useGlobalConfigStore();
 const maxUploadFileSize = computed(() => globalConfigStore.maxUploadFileSize / 1000000);
 
-// Create image object if it doesn't exist
-const image = ref<Image | undefined>(undefined);
-if (props.imageId) {
-    image.value = await imageRepo.find(props.imageId);
-} else {
-    image.value = imageRepo.new();
-}
-
 // Child component refs
-const fileName = ref<typeof LInput | undefined>(undefined);
-const description = ref<typeof LInput | undefined>(undefined);
-const upload = ref<typeof HTMLInputElement | undefined>(undefined);
+const nameInput = ref<typeof LInput | undefined>(undefined);
+const descriptionInput = ref<typeof LInput | undefined>(undefined);
+const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 
 const presets = [
     { label: "default", value: "default" },
@@ -44,31 +38,31 @@ const presets = [
     { label: "icon", value: "icon" },
     { label: "text", value: "text" },
 ];
-const selectedPreset = ref(presets[0].value);
+const selectedPreset = ref(presets[1].value);
 
 // Methods
 const save = () => {
-    if (image.value) {
-        imageRepo.upsert(toRaw(image.value));
-    }
+    const raw = toRaw(image.value);
+    delete raw.uploadData; // do not re-save upload data as this will trigger a re-render of the image in the API.
+    db.upsert<ImageDto>(toRaw(image.value));
 };
 
 const showFilePicker = () => {
     // @ts-ignore
-    upload.value!.showPicker();
+    uploadInput.value!.showPicker();
 };
 
 // Read files into Buffer
-const selectFiles = () => {
+const upload = () => {
     // @ts-ignore
-    if (!upload.value!.files || upload.value!.files.length == 0) return;
+    if (!uploadInput.value!.files || uploadInput.value!.files.length == 0) return;
 
     const reader = new FileReader();
     // @ts-ignore
-    const file = upload.value!.files[0];
+    const file = uploadInput.value!.files[0];
 
     reader.onload = (e) => {
-        if (!image.value!.uploadData) image.value!.uploadData = [] as ImageUploadDto[];
+        if (!image.value.uploadData) image.value.uploadData = [] as ImageUploadDto[];
         const fileData = e.target!.result as ArrayBuffer;
 
         if (fileData.byteLength > globalConfigStore.maxUploadFileSize) {
@@ -80,45 +74,43 @@ const selectFiles = () => {
             return;
         }
 
-        image.value!.uploadData.push({
-            fileData,
-            preset: selectedPreset.value,
-            filename: file.name,
-        });
+        // Save the file data
+        const raw = toRaw(image.value);
+        raw.uploadData = [
+            {
+                fileData,
+                preset: selectedPreset.value,
+                filename: file.name,
+            },
+        ]; // do not re-save previous upload data as this will trigger a re-render of the image in the API.
+        db.upsert<ImageDto>(toRaw(image.value));
     };
 
     reader.readAsArrayBuffer(file);
 
     // Reset the file input
     // @ts-ignore
-    upload.value!.value = "";
+    uploadInput.value!.value = "";
 };
 
-const deleteFile = (filename: string) => {
-    if (image.value) {
-        image.value.files = image.value.files
-            .filter((f) => f.filename !== filename)
-            .map((f) => toRaw(f));
-    }
-};
-
-const removeUpload = (filename: string) => {
-    if (image.value && image.value.uploadData) {
-        image.value.uploadData = image.value.uploadData
-            .filter((f) => f.filename !== filename)
-            .map((f) => toRaw(f));
-    }
+const removeFile = (filename: string) => {
+    image.value.files = image.value.files
+        .filter((f) => f.filename !== filename)
+        .map((f) => toRaw(f));
+    save();
 };
 </script>
 
 <template>
+    <label class="text-xs italic text-zinc-500">Changes are applied immediately</label>
     <div class="items-end gap-4 sm:flex">
         <LInput
-            ref="fileName"
-            v-model="image!.name"
+            ref="nameInput"
+            v-model="image.name"
             name="fileName"
             label="Image name"
             class="mb-2 flex-1"
+            @change="save"
         />
         <div class="mb-2 flex items-end gap-4">
             <LSelect
@@ -136,36 +128,31 @@ const removeUpload = (filename: string) => {
                     >Upload</LButton
                 >
                 <input
-                    ref="upload"
+                    ref="uploadInput"
                     type="file"
                     class="hidden"
                     accept="image/jpeg, image/png, image/webp"
-                    @change="selectFiles"
+                    @change="upload"
                 />
             </div>
-            <LButton :icon="ArrowDownOnSquareIcon" class="h-9" @click="save">Save</LButton>
         </div>
     </div>
     <!-- Selected upload files display area -->
-    <div v-if="image!.uploadData" class="mb-2 mt-2 flex gap-2">
+    <div v-if="image.uploadData" class="mb-2 mt-2 flex gap-2">
         <div
-            v-for="f in image!.uploadData"
+            v-for="f in image.uploadData"
             :key="f.filename"
             class="group relative flex items-center gap-4 rounded-full border border-zinc-200 bg-zinc-100 pl-1 pr-1 text-xs text-zinc-900"
         >
             <span>{{ f.preset }}: {{ f.filename }}</span>
-            <TrashIcon
-                class="absolute -right-2 -top-2 hidden h-5 w-5 cursor-pointer text-red-500 group-hover:block"
-                title="Remove file"
-                @click="removeUpload(f.filename!)"
-            />
         </div>
     </div>
     <LTextarea
-        ref="description"
+        ref="descriptionInput"
         name="description"
-        label="Description"
-        v-model="image!.description"
+        label="Notes"
+        v-model="image.description"
+        @change="save"
     />
     <div>
         <!-- Group selector here -->
@@ -175,6 +162,6 @@ const removeUpload = (filename: string) => {
 
     <div class="flex flex-wrap gap-4">
         <!-- eslint-disable-next-line -->
-        <ImageEditorThumbnail v-for="i in image!.files" v-bind:imageFile="i" @delete="deleteFile" />
+        <ImageEditorThumbnail v-for="i in image!.files" v-bind:imageFile="i" @delete="removeFile" />
     </div>
 </template>
