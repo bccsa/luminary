@@ -43,22 +43,22 @@ export const usePostStore = defineStore("post", () => {
             return new Promise((resolve) => {
                 resolve(
                     posts.filter((post) => {
-                        const isPublished = post.content[0]?.status == ContentStatus.Published;
-                        const publishDate = post.content[0]?.publishDate
-                            ? post.content[0]?.publishDate
-                            : undefined;
-                        const expiryDate = post.content[0]?.expiryDate
-                            ? post.content[0]?.expiryDate
-                            : undefined;
+                        if (post.content.length == 0) {
+                            return false;
+                        }
+
+                        if (post.content[0]?.status !== ContentStatus.Published) {
+                            return false;
+                        }
                         const isNotExpired =
-                            !post.content[0]?.expiryDate ||
-                            post.content[0]?.expiryDate > DateTime.now();
+                            !post.content[0].expiryDate ||
+                            post.content[0].expiryDate > DateTime.now();
 
-                        const isAvailable =
-                            (publishDate ? publishDate <= DateTime.now() : true) &&
-                            (expiryDate ? expiryDate > DateTime.now() : true);
+                        const hasBeenPublished =
+                            post.content[0].publishDate &&
+                            post.content[0].publishDate <= DateTime.now();
 
-                        return isPublished && isNotExpired && isAvailable;
+                        return isNotExpired && hasBeenPublished;
                     }),
                 );
             });
