@@ -12,8 +12,12 @@ import {
     EyeIcon,
     ArrowTopRightOnSquareIcon,
 } from "@heroicons/vue/20/solid";
-import { ExclamationCircleIcon, PencilIcon, XCircleIcon } from "@heroicons/vue/16/solid";
-import { BackspaceIcon } from "@heroicons/vue/16/solid";
+import {
+    ExclamationCircleIcon,
+    PencilIcon,
+    XCircleIcon,
+    ChevronLeftIcon,
+} from "@heroicons/vue/16/solid";
 import {
     ContentStatus,
     type Content,
@@ -125,17 +129,20 @@ const validationSchema = toTypedSchema(
                 return undefined;
             })
             .optional(),
-        expiryDate: yup.date().transform((value, _, context) => {
-            // Check to see if the previous transform already parsed the date
-            if (context.isType(value)) {
-                return value;
-            }
+        expiryDate: yup
+            .date()
+            .transform((value, _, context) => {
+                // Check to see if the previous transform already parsed the date
+                if (context.isType(value)) {
+                    return value;
+                }
 
-            // Default validation failed, clear the field
-            // This happens when the 'clear' button in the browser datepicker is used,
-            // which sets the value to an empty string
-            return undefined;
-        }),
+                // Default validation failed, clear the field
+                // This happens when the 'clear' button in the browser datepicker is used,
+                // which sets the value to an empty string
+                return undefined;
+            })
+            .optional(),
         audio: yup.string().optional(),
         video: yup.string().optional(),
     }),
@@ -163,43 +170,66 @@ onBeforeMount(() => {
     text.value = filteredContent.text;
 });
 
-const calculateExpirationDate = (duration: string) => {
+const selectedNumber = ref<number | null>(null);
+const selectedUnit = ref<string | null>(null);
+
+const activeNumber = ref<number | null>(null);
+const activeUnit = ref<string | null>(null);
+
+const calculateExpirationDate = () => {
     const publishDate = values.publishDate
         ? DateTime.fromJSDate(new Date(values.publishDate))
         : DateTime.now();
-    let expirationDate: DateTime = publishDate;
+    let expirationDate = publishDate;
 
-    switch (duration) {
-        case "1 Week":
-            expirationDate = publishDate.plus({ weeks: 1 });
-            break;
-        case "2 Weeks":
-            expirationDate = publishDate.plus({ weeks: 2 });
-            break;
-        case "1 Month":
-            expirationDate = publishDate.plus({ month: 1 });
-            break;
-        case "2 Months":
-            expirationDate = publishDate.plus({ months: 2 });
-            break;
-        case "3 Months":
-            expirationDate = publishDate.plus({ months: 3 });
-            break;
-        case "6 Months":
-            expirationDate = publishDate.plus({ months: 6 });
-            break;
-        case "1 Year":
-            expirationDate = publishDate.plus({ year: 1 });
-            break;
-        default:
-            console.warn(`Unknown duration: ${duration}`);
+    if (selectedNumber.value && selectedUnit.value) {
+        switch (selectedUnit.value) {
+            case "Week":
+                expirationDate = publishDate.plus({ weeks: selectedNumber.value });
+                break;
+            case "Month":
+                expirationDate = publishDate.plus({ months: selectedNumber.value });
+                break;
+            case "Year":
+                expirationDate = publishDate.plus({ years: selectedNumber.value });
+                break;
+            default:
+                console.warn(`Unknown unit: ${selectedUnit.value}`);
+        }
+        clearSelection();
+    } else {
+        console.warn(`Number or unit not selected.`);
     }
 
     setValues({ expiryDate: expirationDate.toISO()?.split(".")[0] as unknown as Date });
 };
 
+const selectNumber = (number: number | null) => {
+    selectedNumber.value = number;
+    activeNumber.value = number;
+    if (selectedUnit.value) {
+        calculateExpirationDate();
+    }
+};
+
+const selectUnit = (unit: string | null) => {
+    selectedUnit.value = unit;
+    activeUnit.value = unit;
+    if (selectedNumber.value) {
+        calculateExpirationDate();
+    }
+};
+
+const clearSelection = () => {
+    activeNumber.value = null;
+    activeUnit.value = null;
+    selectedNumber.value = null;
+    selectedUnit.value = null;
+};
+
 const clearExpirationDate = () => {
     setValues({ expiryDate: undefined as unknown as Date });
+    clearSelection();
 };
 
 const save = async (validatedFormValues: typeof values, status: ContentStatus) => {
@@ -208,6 +238,9 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     delete contentValues["parent"];
     let publishDate;
     let expiryDate;
+
+    console.log(publishDate);
+
     if (contentValues.publishDate) {
         publishDate = DateTime.fromJSDate(contentValues.publishDate);
     } else if (status == ContentStatus.Published) {
@@ -219,9 +252,6 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         expiryDate = DateTime.fromJSDate(contentValues.expiryDate);
     }
 
-    console.log(contentValues.expiryDate);
-
-    // Ensure publishDate is not greater than expiryDate
     if (
         contentValues.publishDate &&
         contentValues.expiryDate &&
@@ -427,68 +457,87 @@ const checkIfDirty = () => {
                     <LInput
                         name="expiryDate"
                         label="Expiry date"
-                        class="w-1/2"
+                        class="group w-1/2"
                         type="datetime-local"
                         :disabled="!canTranslateContent"
                     >
-                        <div class="flex flex-wrap space-x-1 space-y-1">
+                        <div class="flex w-full cursor-pointer flex-wrap gap-1">
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                class="mt-1"
-                                data-test="1 Week"
-                                @click="() => calculateExpirationDate('1 Week')"
+                                variant="custom"
+                                class="flex-1"
+                                :class="{
+                                    ' bg-black text-white': activeNumber === 1,
+                                }"
+                                @click="selectNumber(1)"
+                                data-test="1"
                             >
-                                1W
+                                1
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                @click="() => calculateExpirationDate('2 Weeks')"
+                                variant="custom"
+                                class="flex-1"
+                                :class="{ 'bg-black text-white': activeNumber === 2 }"
+                                @click="selectNumber(2)"
                             >
-                                2W
+                                2
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                @click="() => calculateExpirationDate('1 Month')"
+                                variant="custom"
+                                class="flex-1"
+                                :class="{ 'bg-black text-white': activeNumber === 3 }"
+                                @click="selectNumber(3)"
                             >
-                                1M
+                                3
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                @click="() => calculateExpirationDate('2 Months')"
+                                variant="custom"
+                                class="flex-1"
+                                size="lg"
+                                :class="{ 'bg-black text-white': activeNumber === 6 }"
+                                @click="selectNumber(6)"
                             >
-                                2M
+                                6
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                @click="() => calculateExpirationDate('3 Months')"
+                                variant="custom"
+                                class="flex-1"
+                                :class="{ 'bg-black text-white': activeUnit === 'Week' }"
+                                @click="selectUnit('Week')"
+                                data-test="W"
                             >
-                                3M
+                                W
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                @click="() => calculateExpirationDate('6 Months')"
+                                variant="custom"
+                                class="flex-1"
+                                :class="{ 'bg-black text-white': activeUnit === 'Month' }"
+                                @click="selectUnit('Month')"
                             >
-                                6M
+                                M
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                @click="() => calculateExpirationDate('1 Year')"
+                                variant="custom"
+                                class="flex-1"
+                                :class="{ 'bg-black text-white': activeUnit === 'Year' }"
+                                @click="selectUnit('Year')"
                             >
-                                1Y
+                                Y
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                :icon="BackspaceIcon"
+                                variant="custom"
+                                :icon="ChevronLeftIcon"
+                                class="flex-1"
                                 @click="clearExpirationDate()"
-                            ></LButton>
+                            >
+                            </LButton>
                         </div>
                     </LInput>
                 </div>

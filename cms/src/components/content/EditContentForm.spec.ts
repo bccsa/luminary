@@ -420,11 +420,11 @@ describe("EditContentForm", () => {
             });
         });
 
-        it("checks if the post has an expiring date", async () => {
+        it("sets expiry date when shorcut buttons are clicked", async () => {
             const currentTime = DateTime.fromISO("2024-04-22T10:42:00.00");
             Settings.now = () => currentTime.toMillis();
             const content = { ...mockEnglishContent };
-            content.expiryDate = DateTime.now();
+            content.publishDate = currentTime;
 
             const wrapper = mount(EditContentForm, {
                 props: {
@@ -437,15 +437,26 @@ describe("EditContentForm", () => {
                 },
             });
 
+            // Simulate clicking the buttons
+            await wrapper.find("[data-test='1']").trigger("click");
+            await wrapper.find("[data-test='W']").trigger("click");
             await wrapper.find(publishButton).trigger("click");
 
             await waitForExpect(() => {
                 const saveEvent: any = wrapper.emitted("save");
                 expect(saveEvent).not.toBe(undefined);
-                console.log(saveEvent![0][0].expiryDate);
-
                 expect(saveEvent![0][0].expiryDate).not.toBe(undefined);
-                expect(saveEvent![0][0].expiryDate).toEqual(content.expiryDate);
+
+                const oneWeekLater = currentTime.plus({ weeks: 1 });
+                const expectedExpiryDate = oneWeekLater.toISO()?.split(".")[0];
+
+                const actualExpiryDate = DateTime.fromISO(saveEvent![0][0].expiryDate);
+
+                // Check if the expiry date is one week away from the publish date
+                expect(actualExpiryDate.diff(currentTime, "weeks").weeks).toBe(1);
+
+                // Check if the expiry date matches the expected expiry date
+                expect(actualExpiryDate.toISO()?.split(".")[0]).toEqual(expectedExpiryDate);
             });
         });
 
