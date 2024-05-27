@@ -14,7 +14,7 @@ const buttonClasses = cva({
             tertiary:
                 "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
             muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-400 disabled:hover:bg-transparent",
-            custom: "bg-white ring-1 shadow-sm ring-zinc-300 hover:bg-black hover:text-white active:bg-black active:text-white disabled:bg-zinc-100 disabled:text-zinc-500",
+            custom: "bg-white ring-1 shadow-sm ring-zinc-300 active:bg-black active:text-white disabled:bg-zinc-100 disabled:text-zinc-500",
         },
         size: {
             sm: "px-2 py-1.5",
