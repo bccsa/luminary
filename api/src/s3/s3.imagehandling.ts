@@ -79,10 +79,11 @@ async function processImageUpload(
     const promises: Promise<any>[] = [];
 
     const metadata = await sharp(uploadData.fileData).metadata();
+    const aspectRatio = Math.round((metadata.width / metadata.height) * 100) / 100;
 
     imageSizes.forEach(async (size) => {
         if (metadata.width < size / 1.1) return; // allow slight upscaling
-        promises.push(processQuality(uploadData, size, s3, preset, resultImage));
+        promises.push(processQuality(uploadData, size, s3, preset, resultImage, aspectRatio));
     });
 
     await Promise.all(promises);
@@ -94,6 +95,7 @@ async function processQuality(
     s3: S3Service,
     preset: keyof sharp.PresetEnum,
     resultImage: ImageDto,
+    aspectRatio: number,
 ) {
     const resized = await sharp(uploadData.fileData)
         .resize(size)
@@ -106,7 +108,7 @@ async function processQuality(
     const imageFile = new ImageFileDto();
     imageFile.width = resized.info.width;
     imageFile.height = resized.info.height;
-    imageFile.aspectRatio = resized.info.width / resized.info.height;
+    imageFile.aspectRatio = aspectRatio;
     imageFile.filename = uuidv4();
 
     // Save resized image to S3
