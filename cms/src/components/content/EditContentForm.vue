@@ -173,6 +173,9 @@ onBeforeMount(() => {
 const selectedNumber = ref<number | null>(null);
 const selectedUnit = ref<string | null>(null);
 
+const activeNumber = ref<number | null>(null);
+const activeUnit = ref<string | null>(null);
+
 const calculateExpirationDate = () => {
     const publishDate = values.publishDate
         ? DateTime.fromJSDate(new Date(values.publishDate))
@@ -193,16 +196,17 @@ const calculateExpirationDate = () => {
             default:
                 console.warn(`Unknown unit: ${selectedUnit.value}`);
         }
+        clearSelection();
     } else {
         console.warn(`Number or unit not selected.`);
     }
 
     setValues({ expiryDate: expirationDate.toISO()?.split(".")[0] as unknown as Date });
-    clearSelection();
 };
 
 const selectNumber = (number: number | null) => {
     selectedNumber.value = number;
+    activeNumber.value = number;
     if (selectedUnit.value) {
         calculateExpirationDate();
     }
@@ -210,12 +214,15 @@ const selectNumber = (number: number | null) => {
 
 const selectUnit = (unit: string | null) => {
     selectedUnit.value = unit;
+    activeUnit.value = unit;
     if (selectedNumber.value) {
         calculateExpirationDate();
     }
 };
 
 const clearSelection = () => {
+    activeNumber.value = null;
+    activeUnit.value = null;
     selectedNumber.value = null;
     selectedUnit.value = null;
 };
@@ -244,8 +251,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     if (contentValues.expiryDate) {
         expiryDate = DateTime.fromJSDate(contentValues.expiryDate);
     }
-    console.log(contentValues.expiryDate);
-    // Ensure publishDate is not greater than expiryDate
+
     if (
         contentValues.publishDate &&
         contentValues.expiryDate &&
@@ -458,9 +464,11 @@ const checkIfDirty = () => {
                         <div class="flex w-full cursor-pointer flex-wrap gap-1">
                             <LButton
                                 type="button"
-                                variant="secondary"
-                                radio
-                                class="flex-1 hover:bg-black hover:text-white"
+                                variant="custom"
+                                class="flex-1"
+                                :class="{
+                                    ' bg-black text-white': activeNumber === 1,
+                                }"
                                 @click="selectNumber(1)"
                                 data-test="1"
                             >
@@ -468,33 +476,37 @@ const checkIfDirty = () => {
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
+                                variant="custom"
                                 class="flex-1"
+                                :class="{ 'bg-black text-white': activeNumber === 2 }"
                                 @click="selectNumber(2)"
                             >
                                 2
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
+                                variant="custom"
                                 class="flex-1"
+                                :class="{ 'bg-black text-white': activeNumber === 3 }"
                                 @click="selectNumber(3)"
                             >
                                 3
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
+                                variant="custom"
                                 class="flex-1"
                                 size="lg"
+                                :class="{ 'bg-black text-white': activeNumber === 6 }"
                                 @click="selectNumber(6)"
                             >
                                 6
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
+                                variant="custom"
                                 class="flex-1"
+                                :class="{ 'bg-black text-white': activeUnit === 'Week' }"
                                 @click="selectUnit('Week')"
                                 data-test="W"
                             >
@@ -502,23 +514,25 @@ const checkIfDirty = () => {
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
+                                variant="custom"
                                 class="flex-1"
+                                :class="{ 'bg-black text-white': activeUnit === 'Month' }"
                                 @click="selectUnit('Month')"
                             >
                                 M
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
+                                variant="custom"
                                 class="flex-1"
+                                :class="{ 'bg-black text-white': activeUnit === 'Year' }"
                                 @click="selectUnit('Year')"
                             >
                                 Y
                             </LButton>
                             <LButton
                                 type="button"
-                                variant="secondary"
+                                variant="custom"
                                 :icon="ChevronLeftIcon"
                                 class="flex-1"
                                 @click="clearExpirationDate()"
@@ -796,9 +810,9 @@ const checkIfDirty = () => {
     </form>
 </template>
 
-<style scoped>
+<!-- <style scoped>
 .active {
     background-color: #000000; /* or any other color to indicate selection */
     color: white;
 }
-</style>
+</style> -->
