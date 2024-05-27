@@ -46,10 +46,10 @@ export const usePostStore = defineStore("post", () => {
                         const isPublished = post.content[0]?.status == ContentStatus.Published;
                         const publishDate = post.content[0]?.publishDate
                             ? post.content[0]?.publishDate
-                            : null;
+                            : undefined;
                         const expiryDate = post.content[0]?.expiryDate
                             ? post.content[0]?.expiryDate
-                            : null;
+                            : undefined;
                         const isNotExpired =
                             !post.content[0]?.expiryDate ||
                             post.content[0]?.expiryDate > DateTime.now();
