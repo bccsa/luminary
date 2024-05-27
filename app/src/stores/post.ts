@@ -5,6 +5,7 @@ import { useObservable } from "@vueuse/rxjs";
 import { computed, type Ref } from "vue";
 import { PostRepository } from "@/db/repositories/postRepository";
 import type { Observable } from "rxjs";
+import { DateTime } from "luxon";
 
 /**
  * Post sort options.
@@ -42,7 +43,22 @@ export const usePostStore = defineStore("post", () => {
             return new Promise((resolve) => {
                 resolve(
                     posts.filter((post) => {
-                        return post.content[0]?.status == ContentStatus.Published;
+                        const isPublished = post.content[0]?.status == ContentStatus.Published;
+                        const publishDate = post.content[0]?.publishDate
+                            ? post.content[0]?.publishDate
+                            : null;
+                        const expiryDate = post.content[0]?.expiryDate
+                            ? post.content[0]?.expiryDate
+                            : null;
+                        const isNotExpired =
+                            !post.content[0]?.expiryDate ||
+                            post.content[0]?.expiryDate > DateTime.now();
+
+                        const isAvailable =
+                            (publishDate ? publishDate <= DateTime.now() : true) &&
+                            (expiryDate ? expiryDate > DateTime.now() : true);
+
+                        return isPublished && isNotExpired && isAvailable;
                     }),
                 );
             });
