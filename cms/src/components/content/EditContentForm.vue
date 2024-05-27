@@ -809,10 +809,3 @@ const checkIfDirty = () => {
         <ConfirmBeforeLeavingModal :isDirty="isDirty" />
     </form>
 </template>
-
-<!-- <style scoped>
-.active {
-    background-color: #000000; /* or any other color to indicate selection */
-    color: white;
-}
-</style> -->
