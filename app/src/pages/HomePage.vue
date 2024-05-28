@@ -38,11 +38,7 @@ const { isAuthenticated } = useAuth0();
     <IgnorePagePadding v-else>
         <div class="space-y-4">
             <!-- Display latest episodes -->
-            <HorizontalScrollableLastPostViewer
-                v-for="post in posts"
-                :key="post._id"
-                :post="post"
-            />
+            <HorizontalScrollableLastPostViewer />
             <!-- Display category tags -->
             <HorizontalScrollableTagViewer
                 v-for="tag in tagsByTagType(TagType.Category, {

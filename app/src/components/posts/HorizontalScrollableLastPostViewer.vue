@@ -1,21 +1,19 @@
 <script setup lang="ts">
-import type { Post } from "@/types";
 import PostTile from "@/components/posts/PostTile.vue";
 import { usePostStore } from "@/stores/post";
-// import type { postQueryOptions } from "@/stores/post";
 import { storeToRefs } from "pinia";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useResizeObserver } from "@vueuse/core";
 
-const postStore = usePostStore();
+const { posts } = storeToRefs(usePostStore());
 
-const { posts } = storeToRefs(postStore);
-
-type Props = {
-    post: Post;
-};
-defineProps<Props>();
+const lastPosts = computed(() => {
+    if (posts.value) {
+        return posts.value.slice(-15);
+    }
+    return [];
+});
 
 const spinLeft = () => {
     if (scrollElement.value) scrollElement.value.scrollLeft -= 100;
@@ -95,7 +93,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-6">
                     <PostTile
-                        v-for="post in posts"
+                        v-for="post in lastPosts"
                         :key="post._id"
                         :post="post"
                         class="w-40 overflow-clip md:w-60"
