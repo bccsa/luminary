@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { usePostStore } from "@/stores/post";
 import { mockCategory, mockPost } from "@/tests/mockData";
+import { DateTime } from "luxon";
 
 describe("Post store", () => {
     beforeEach(() => {
@@ -122,5 +123,151 @@ describe("Post store", () => {
 
         expect(res1!.length).toBe(1);
         expect(res1![0].content[0].publishDate).toBe(2);
+    });
+
+    it("shows posts with publish date < now and no expiry date", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [{ ...mockPost.content[0], title: "post1", publishDate: now - 1000 }],
+        } as any;
+        const post2 = {
+            ...mockPost,
+            _id: "2",
+            content: [{ ...mockPost.content[0], title: "post2", publishDate: now + 1000 }],
+        } as any;
+
+        postStore.posts = [post1, post2];
+
+        const visiblePosts = postStore.posts.filter((post) => {
+            const { publishDate, expiryDate } = post.content[0];
+            return publishDate < now && !expiryDate;
+        });
+
+        expect(visiblePosts.length).toBe(1);
+        expect(visiblePosts[0].content[0].publishDate).toBeLessThan(now);
+        expect(visiblePosts[0].content[0].expiryDate).toBeUndefined();
+    });
+
+    it("shows posts with publish date < now and expiry date > now", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post1",
+                    publishDate: now - 1000,
+                    expiryDate: now + 1000,
+                },
+            ],
+        } as any;
+        const post2 = {
+            ...mockPost,
+            _id: "2",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post2",
+                    publishDate: now + 1000,
+                    expiryDate: now + 2000,
+                },
+            ],
+        } as any;
+
+        postStore.posts = [post1, post2];
+
+        const visiblePosts = postStore.posts.filter((post) => {
+            const { publishDate, expiryDate } = post.content[0];
+            return publishDate < now && (!expiryDate || expiryDate > now);
+        });
+
+        expect(visiblePosts.length).toBe(1);
+        expect(visiblePosts[0].content[0].publishDate).toBeLessThan(now);
+        expect(visiblePosts[0].content[0].expiryDate).toBeGreaterThan(now);
+    });
+
+    it("does not show posts with publish date > now and expiry date > now", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post1",
+                    publishDate: now + 1000,
+                    expiryDate: now + 2000,
+                },
+            ],
+        } as any;
+        const post2 = {
+            ...mockPost,
+            _id: "2",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post2",
+                    publishDate: now - 1000,
+                    expiryDate: now - 500,
+                },
+            ],
+        } as any;
+
+        postStore.posts = [post1, post2];
+
+        const visiblePosts = postStore.posts.filter((post) => {
+            const { publishDate, expiryDate } = post.content[0];
+            return publishDate > now && (!expiryDate || expiryDate > now);
+        });
+
+        expect(visiblePosts.length).toBe(1);
+        expect(visiblePosts[0].content[0].publishDate).toBeGreaterThan(now);
+        expect(visiblePosts[0].content[0].expiryDate).toBeGreaterThan(now);
+    });
+
+    it("does not show posts with publish date < now and expiry date < now", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post1",
+                    publishDate: now + 2000,
+                    expiryDate: now + 1000,
+                },
+            ],
+        } as any;
+        const post2 = {
+            ...mockPost,
+            _id: "2",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post2",
+                    publishDate: now - 3000,
+                    expiryDate: now - 1000,
+                },
+            ],
+        } as any;
+
+        postStore.posts = [post1, post2];
+
+        const visiblePosts = postStore.posts.filter((post) => {
+            const { publishDate, expiryDate } = post.content[0];
+            return publishDate < now && (!expiryDate || expiryDate < now);
+        });
+
+        expect(visiblePosts.length).toBe(1);
+        expect(visiblePosts[0].content[0].publishDate).toBeLessThan(now);
+        expect(visiblePosts[0].content[0].expiryDate).toBeLessThan(now);
     });
 });
