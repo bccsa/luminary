@@ -300,10 +300,10 @@ export const mockImage: ImageDto = {
     memberOf: ["group-private-content"],
     files: [
         {
-            aspectRatio: 1,
-            width: 1,
-            height: 2,
-            filename: "testfile",
+            aspectRatio: 1.5,
+            width: 180,
+            height: 120,
+            filename: "test-image.webp",
         },
     ],
 };

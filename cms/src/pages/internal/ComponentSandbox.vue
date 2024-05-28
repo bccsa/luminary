@@ -311,7 +311,7 @@ const items = [
                     imageId="0a329b75-a2ca-4bad-b544-bb4d163bf462"
                     aspectRatio="vertical"
                     size="thumbnail"
-                    imageUrl="http://localhost:9000/ac-images"
+                    baseUrl="http://localhost:9000/ac-images"
                     fallbackImg="https://cdn.activechristianity.org/image/upload/c_thumb,w_600,g_center/v1666007697/en_ke/f7bcwvet6axzmih97pv8.jpg"
                 />
                 <ImageEditor imageId="0a329b75-a2ca-4bad-b544-bb4d163bf462" />
