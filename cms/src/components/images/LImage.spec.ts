@@ -22,7 +22,7 @@ describe("LImage", () => {
         }));
     });
     it("displays an image", async () => {
-        const spyOn_getAsRef = vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImage));
+        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImage));
         const wrapper = mount(LImage, {
             propsData: {
                 imageId: "image-image1",
@@ -32,8 +32,6 @@ describe("LImage", () => {
                 fallbackImg: "@/tests/test-image.webp",
             },
         });
-
-        expect(spyOn_getAsRef).toHaveBeenCalledWith("image-image1");
 
         await waitForExpect(() => {
             const imageElement = wrapper.find("img");

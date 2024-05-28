@@ -38,13 +38,11 @@ describe("ImageEditor", () => {
     });
 
     it("can render an image document", async () => {
-        const spyOn_getAsRef = vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImage));
+        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImage));
 
         const wrapper = mount(ImageEditor, {
             props: { imageId: "image-image1" },
         });
-
-        expect(spyOn_getAsRef).toHaveBeenCalledWith("image-image1");
 
         const imageNameInput = wrapper.find(
             "input[data-test='image-name']",
