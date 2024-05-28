@@ -1,9 +1,10 @@
 import Dexie, { liveQuery, type Table } from "dexie";
-import type { BaseDocumentDto, LocalChange, Uuid } from "@/types";
+import type { BaseDocumentDto, DocType, LocalChange, Uuid } from "@/types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { toRaw, type Ref } from "vue";
 import { DateTime } from "luxon";
+import { v4 as uuidv4 } from "uuid";
 
 export class BaseDatabase extends Dexie {
     docs!: Table<BaseDocumentDto>;
@@ -20,16 +21,27 @@ export class BaseDatabase extends Dexie {
     }
 
     /**
+     * Generate a UUID
+     */
+    uuid() {
+        return uuidv4();
+    }
+
+    /**
      * Convert a Dexie query to a Vue ref by making use of Dexie's liveQuery and @vueuse/rxjs' useObservable
      * @param query - The query to convert to a ref. The query should be passed as a function as it only gets executed by the liveQuery.
+     * @param initialValue - The initial value of the ref while waiting for the query to complete
      * @returns Vue Ref
      */
-    toRef<T extends BaseDocumentDto>(query: () => Promise<T>) {
+    toRef<T extends BaseDocumentDto | BaseDocumentDto[]>(
+        query: () => Promise<T>,
+        initialValue?: T,
+    ) {
         return useObservable(
             liveQuery(async () => {
                 return await query();
             }) as unknown as Observable<T>,
-            { initialValue: query() },
+            { initialValue },
         ) as Ref<T>;
     }
 
@@ -42,9 +54,22 @@ export class BaseDatabase extends Dexie {
 
     /**
      * Get an IndexedDB document as Vue Ref by its id
+     * @param initialValue - The initial value of the ref while waiting for the query to complete
      */
-    getAsRef<T extends BaseDocumentDto>(id: Uuid) {
-        return this.toRef<T>(() => this.docs.get(id) as unknown as Promise<T>);
+    getAsRef<T extends BaseDocumentDto>(id: Uuid, initialValue?: T) {
+        return this.toRef<T>(() => this.docs.get(id) as unknown as Promise<T>, initialValue);
+    }
+
+    /**
+     * Get all IndexedDB documents of a certain type as Vue Ref
+     * @param initialValue - The initial value of the ref while waiting for the query to complete
+     * TODO: Add pagination
+     */
+    whereTypeAsRef<T extends BaseDocumentDto[]>(docType: DocType, initialValue?: T) {
+        return this.toRef<T>(
+            () => this.docs.where("type").equals(docType).toArray() as unknown as Promise<T>,
+            initialValue,
+        );
     }
 
     /**

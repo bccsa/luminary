@@ -3,7 +3,7 @@
 
 import { ref, watch } from "vue";
 import { db } from "@/db/baseDatabase";
-import { type ImageDto, type Uuid } from "@/types";
+import { DocType, type ImageDto, type Uuid } from "@/types";
 
 const props = defineProps<{
     imageId: Uuid;
@@ -26,12 +26,22 @@ const aspectRatioNumbers = {
     vertical: 0.56,
 };
 
+const thumbnailSize: string = props.aspectRatio == "vertical" ? "w-40 md:w-60" : "h-40 md:h-60";
 const sizes = {
-    thumbnail: "w-40 overflow-clip md:w-60",
+    thumbnail: thumbnailSize,
     post: "w-full",
 };
 
-const image = db.getAsRef<ImageDto>(props.imageId);
+// We need to pass a default document to db.getAsRef to avoid a null reference error when the document is not yet loaded.
+const image = db.getAsRef<ImageDto>(props.imageId, {
+    _id: props.imageId,
+    type: DocType.Image,
+    name: "",
+    description: "",
+    files: [],
+    memberOf: [],
+    updatedTimeUtc: 0,
+});
 const imgElement = ref<HTMLImageElement | undefined>(undefined);
 const imgElement2 = ref<HTMLImageElement | undefined>(undefined); // imgElement2 serves as a fallback image element should the preferred aspect ratio not be available / cached
 
@@ -148,7 +158,7 @@ const onError2 = () => {
         :class="[
             aspectRatios[aspectRatio],
             sizes[size],
-            'bg-cover bg-center object-cover object-center',
+            'overflow-clip bg-cover bg-center object-cover object-center',
         ]"
     >
         <img

@@ -9,7 +9,7 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const imageUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
+const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
 const emit = defineEmits<{
     (e: "delete", filename: string): void;
@@ -36,7 +36,7 @@ const deleteMessage = `Are you sure you want to delete the ${props.imageFile.wid
             <label class="text-xs text-zinc-900"
                 >{{ imageFile.width }} x {{ imageFile.height }}</label
             >
-            <img :src="imageUrl + '/' + imageFile.filename" class="h-36 rounded shadow" />
+            <img :src="baseUrl + '/' + imageFile.filename" class="h-36 rounded shadow" />
             <TrashIcon
                 class="absolute -right-2 top-2 h-5 w-5 cursor-pointer text-red-500"
                 v-show="hover"

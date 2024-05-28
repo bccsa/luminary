@@ -6,7 +6,7 @@ import LButton from "../button/LButton.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import LSelect from "../forms/LSelect.vue";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
-import type { Uuid, ImageUploadDto, ImageDto } from "@/types";
+import { type Uuid, type ImageUploadDto, type ImageDto, DocType } from "@/types";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { db } from "@/db/baseDatabase";
@@ -17,7 +17,17 @@ type Props = {
     imageId: Uuid;
 };
 const props = defineProps<Props>();
-const image = db.getAsRef<ImageDto>(props.imageId);
+
+// We need to pass a default document to db.getAsRef to avoid a null reference error when the document is not yet loaded.
+const image = db.getAsRef<ImageDto>(props.imageId, {
+    _id: props.imageId,
+    type: DocType.Image,
+    name: "",
+    description: "",
+    files: [],
+    memberOf: [],
+    updatedTimeUtc: 0,
+});
 
 const { addNotification } = useNotificationStore();
 
@@ -102,69 +112,75 @@ const removeFile = (filename: string) => {
 </script>
 
 <template>
-    <label class="text-xs italic text-zinc-500">Changes are applied immediately</label>
-    <div class="items-end gap-4 sm:flex">
-        <LInput
-            ref="nameInput"
-            v-model="image.name"
-            name="fileName"
-            label="Image name"
-            class="mb-2 flex-1"
-            @change="save"
-            data-test="image-name"
-        />
-        <div class="mb-2 flex items-end gap-4">
-            <LSelect
-                name="preset"
-                label="Upload preset"
-                class="w-fit"
-                :options="presets"
-                v-model="selectedPreset"
-            ></LSelect>
-            <div class="flex flex-col">
-                <label class="mb-3 w-full text-right text-xs text-zinc-900"
-                    >Max size: {{ maxUploadFileSize }}MB</label
-                >
-                <LButton :icon="ArrowUpOnSquareIcon" class="h-9" @click="showFilePicker"
-                    >Upload</LButton
-                >
-                <input
-                    ref="uploadInput"
-                    type="file"
-                    class="hidden"
-                    accept="image/jpeg, image/png, image/webp"
-                    @change="upload"
-                    data-test="image-upload"
-                />
+    <div class="flex-col">
+        <label class="text-xs italic text-zinc-500">Changes are applied immediately</label>
+        <div>
+            <LInput
+                ref="nameInput"
+                v-model="image.name"
+                name="fileName"
+                label="Image name"
+                class="mb-2 flex-1"
+                @change="save"
+                data-test="image-name"
+            />
+            <div class="mb-2 flex items-end gap-4">
+                <LSelect
+                    name="preset"
+                    label="Upload preset"
+                    class="flex-1"
+                    :options="presets"
+                    v-model="selectedPreset"
+                ></LSelect>
+                <div class="flex flex-col">
+                    <label class="mb-3 w-full text-right text-xs text-zinc-900"
+                        >Max size: {{ maxUploadFileSize }}MB</label
+                    >
+                    <LButton :icon="ArrowUpOnSquareIcon" class="h-9" @click="showFilePicker"
+                        >Upload</LButton
+                    >
+                    <input
+                        ref="uploadInput"
+                        type="file"
+                        class="hidden"
+                        accept="image/jpeg, image/png, image/webp"
+                        @change="upload"
+                        data-test="image-upload"
+                    />
+                </div>
             </div>
         </div>
-    </div>
-    <!-- Selected upload files display area -->
-    <div v-if="image.uploadData" class="mb-2 mt-2 flex gap-2">
-        <div
-            v-for="f in image.uploadData"
-            :key="f.filename"
-            class="group relative flex items-center gap-4 rounded-full border border-zinc-200 bg-zinc-100 pl-1 pr-1 text-xs text-zinc-900"
-        >
-            <span>{{ f.preset }}: {{ f.filename }}</span>
+        <!-- Selected upload files display area -->
+        <div v-if="image.uploadData" class="mb-2 mt-2 flex gap-2">
+            <div
+                v-for="f in image.uploadData"
+                :key="f.filename"
+                class="group relative flex items-center gap-4 rounded-full border border-zinc-200 bg-zinc-100 pl-1 pr-1 text-xs text-zinc-900"
+            >
+                <span>{{ f.preset }}: {{ f.filename }}</span>
+            </div>
         </div>
-    </div>
-    <LTextarea
-        ref="descriptionInput"
-        name="description"
-        label="Notes"
-        v-model="image.description"
-        @change="save"
-        data-test="image-description"
-    />
-    <div>
-        <!-- Group selector here -->
-    </div>
+        <LTextarea
+            ref="descriptionInput"
+            name="description"
+            label="Notes"
+            v-model="image.description"
+            @change="save"
+            data-test="image-description"
+        />
+        <div>
+            <!-- Group selector here -->
+        </div>
 
-    <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">File versions</h3>
+        <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">File versions</h3>
 
-    <div class="flex flex-wrap gap-4" data-test="thumbnail-area">
-        <!-- eslint-disable-next-line -->
-        <ImageEditorThumbnail v-for="i in image!.files" v-bind:imageFile="i" @delete="removeFile" />
+        <div class="flex flex-1 flex-wrap gap-4 overflow-x-scroll" data-test="thumbnail-area">
+            <!-- eslint-disable-next-line -->
+            <ImageEditorThumbnail
+                v-for="i in image!.files"
+                v-bind:imageFile="i"
+                @delete="removeFile"
+            />
+        </div>
     </div>
 </template>
