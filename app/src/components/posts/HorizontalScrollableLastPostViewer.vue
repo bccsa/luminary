@@ -9,7 +9,7 @@ import type { Post } from "@/types";
 
 const { posts } = storeToRefs(usePostStore());
 
-const getLastPosts = (allPosts: Post[]): Post[] => {
+const getLastPosts = (allPosts: Post[]) => {
     return allPosts
         .sort((a, b) => {
             const aDate = a.content[0]?.publishDate ?? (0 as any);
