@@ -5,14 +5,22 @@ import { storeToRefs } from "pinia";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import { useResizeObserver } from "@vueuse/core";
+import type { Post } from "@/types";
 
 const { posts } = storeToRefs(usePostStore());
 
+const getLastPosts = (allPosts: Post[]): Post[] => {
+    return allPosts
+        .sort((a, b) => {
+            const aDate = a.content[0]?.publishDate ?? (0 as any);
+            const bDate = b.content[0]?.publishDate ?? (0 as any);
+            return bDate - aDate;
+        })
+        .slice(0, 15);
+};
+
 const lastPosts = computed(() => {
-    if (posts.value) {
-        return posts.value.slice(-15);
-    }
-    return [];
+    return posts.value ? getLastPosts(posts.value) : [];
 });
 
 const spinLeft = () => {
@@ -61,7 +69,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 
 <template>
     <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': posts }]">
-        <h2 class="truncate px-6">
+        <h2 class="truncate px-6 text-lg">
             Latest Posts
             <span class="ml-1 text-sm text-zinc-500 dark:text-zinc-200">
                 These are the last posts
