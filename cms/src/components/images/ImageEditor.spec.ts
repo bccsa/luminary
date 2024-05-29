@@ -1,4 +1,3 @@
-// import "fake-indexeddb/auto";
 import { DOMWrapper, mount } from "@vue/test-utils";
 import ImageEditor from "./ImageEditor.vue";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
