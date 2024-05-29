@@ -38,7 +38,9 @@ const selectedImageId = ref<Uuid | undefined>(undefined);
     <div class="flex h-full flex-1 flex-col">
         <div class="mb-4 flex">
             <div class="flex-1"></div>
-            <LButton variant="primary" :icon="PlusIcon" @click="newImage">New Image</LButton>
+            <LButton variant="primary" :icon="PlusIcon" @click="newImage" data-test="new-image"
+                >New Image</LButton
+            >
         </div>
         <div class="flex gap-4">
             <LCard class="flex-grow overflow-y-scroll">
