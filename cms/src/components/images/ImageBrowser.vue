@@ -7,14 +7,11 @@ import { PlusIcon } from "@heroicons/vue/20/solid";
 import LCard from "../common/LCard.vue";
 import ImageEditor from "./ImageEditor.vue";
 import { ref } from "vue";
+import fallbackImg from "../../assets/fallback-image-cms.webp";
 
 // TODO: Implement select event
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
-// TODO: Replace with a generic fallback image included in project source code
-const fallbackImg: string =
-    "https://cdn.activechristianity.org/image/upload/c_thumb,w_600,g_center/v1666007697/en_ke/f7bcwvet6axzmih97pv8.jpg";
-
 const images = db.whereTypeAsRef<ImageDto[]>(DocType.Image, []);
 
 const newImage = async () => {
