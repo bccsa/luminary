@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
-import HorizontalScrollableLastPostViewer from "@/components/posts/HorizontalScrollableLastPostViewer.vue";
 import { useTagStore } from "@/stores/tag";
 import { usePostStore } from "@/stores/post";
 import { TagType } from "@/types";
@@ -36,9 +35,21 @@ const { isAuthenticated } = useAuth0();
         </div>
     </div>
     <IgnorePagePadding v-else>
-        <div class="space-y-4">
-            <!-- Display latest episodes -->
-            <HorizontalScrollableLastPostViewer />
+        <div class="space-y-4 pt-4">
+            <!-- Display latest posts -->
+            <HorizontalScrollableTagViewer
+                title="Newest Content"
+                :queryOptions="{
+                    sortOptions: {
+                        sortBy: 'publishDate',
+                        sortOrder: 'desc',
+                    },
+                    filterOptions: {
+                        top: 10,
+                    },
+                }"
+            />
+
             <!-- Display category tags -->
             <HorizontalScrollableTagViewer
                 v-for="tag in tagsByTagType(TagType.Category, {
