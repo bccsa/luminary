@@ -1,5 +1,5 @@
 import Dexie, { liveQuery, type Table } from "dexie";
-import type { BaseDocumentDto, DocType, LocalChange, Uuid } from "@/types";
+import type { BaseDocumentDto, DocType, LocalChangeDto, Uuid } from "@/types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { toRaw, type Ref } from "vue";
@@ -8,14 +8,14 @@ import { v4 as uuidv4 } from "uuid";
 
 export class BaseDatabase extends Dexie {
     docs!: Table<BaseDocumentDto>;
-    localChanges!: Table<Partial<LocalChange>>; // Partial because it includes id which is only set after saving
+    localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
 
     constructor() {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(4).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type]",
+        this.version(5).stores({
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType]",
             localChanges: "++id, reqId, docId, status",
         });
     }
@@ -33,7 +33,7 @@ export class BaseDatabase extends Dexie {
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      * @returns Vue Ref
      */
-    toRef<T extends BaseDocumentDto | BaseDocumentDto[]>(
+    toRef<T extends BaseDocumentDto | BaseDocumentDto[] | boolean>(
         query: () => Promise<T>,
         initialValue?: T,
     ) {
@@ -73,6 +73,28 @@ export class BaseDatabase extends Dexie {
     }
 
     /**
+     * Get IndexedDB documents by their parentId as Vue Ref
+     * @param initialValue - The initial value of the ref while waiting for the query to complete
+     */
+    whereParentAsRef<T extends BaseDocumentDto[]>(
+        parentId: Uuid,
+        parentType: DocType.Post | DocType.Tag,
+        initialValue?: T,
+    ) {
+        return this.toRef<T>(
+            () => this.docs.where({ parentId, parentType }).toArray() as unknown as Promise<T>,
+            initialValue,
+        );
+    }
+
+    /**
+     * Get IndexedDB documents by their parentId
+     */
+    whereParent<T extends BaseDocumentDto[]>(parentId: Uuid) {
+        return this.docs.where("parentId").equals(parentId).toArray() as unknown as Promise<T>;
+    }
+
+    /**
      * Update or insert a document into the database and queue the change to be sent to the API
      */
     async upsert<T extends BaseDocumentDto>(doc: T) {
@@ -92,6 +114,7 @@ export class BaseDatabase extends Dexie {
         // Queue the change to be sent to the API
         await this.localChanges.put({
             doc: raw,
+            docId: raw._id,
         });
     }
 
@@ -111,6 +134,22 @@ export class BaseDatabase extends Dexie {
      */
     fromDateTime(date: DateTime) {
         return date.toMillis();
+    }
+
+    /**
+     * Check if a document is queued in the localChanges table
+     */
+    isLocalChange(docId: Uuid) {
+        return this.toRef<boolean>(
+            () =>
+                this.localChanges
+                    .where({ docId })
+                    .first()
+                    .then((res) => {
+                        return res ? true : false;
+                    }) as unknown as Promise<boolean>,
+            false,
+        );
     }
 }
 

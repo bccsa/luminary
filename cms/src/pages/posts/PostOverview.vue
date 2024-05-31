@@ -10,6 +10,7 @@ import { storeToRefs } from "pinia";
 import { AclPermission, DocType } from "@/types";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { computed } from "vue";
+import ContentTable2 from "@/components/content/ContentTable2.vue";
 
 const { posts } = storeToRefs(usePostStore());
 const { hasAnyPermission } = useUserAccessStore();
@@ -45,5 +46,6 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.Post, AclPermission
         />
 
         <ContentTable v-else :items="posts" :docType="DocType.Post" editLinkName="posts.edit" />
+        <ContentTable2 :docType="DocType.Post" editLinkName="posts.edit" />
     </BasePage>
 </template>

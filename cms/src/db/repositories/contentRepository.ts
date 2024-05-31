@@ -42,6 +42,7 @@ export class ContentRepository extends BaseRepository {
 
         await db.localChanges.put({
             doc: content,
+            docId: content._id,
         });
 
         return contentId;
