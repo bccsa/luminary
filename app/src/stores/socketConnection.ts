@@ -65,22 +65,32 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
                     if (groups === undefined) groups = [];
 
                     const revokedDocs = baseRepository.whereNotMemberOf(groups, docType as DocType);
+                    const expiredDocs = baseRepository.whereExpired();
+
+                    // Convert both to arrays
+                    const revokedDocsArray = await revokedDocs.toArray();
+                    const expiredDocsArray = await expiredDocs.toArray();
+
+                    // Combine the arrays
+                    const toDelete = revokedDocsArray.concat(expiredDocsArray);
+                    console.log(toDelete);
 
                     // Delete associated Post and Tag content documents
                     if (docType === DocType.Post || docType === DocType.Tag) {
-                        const revokedParents = await revokedDocs.toArray();
-                        const revokedParentIds = revokedParents.map((p) => p._id);
+                        const revokedParentIds = revokedDocsArray.map((p) => p._id);
                         await baseRepository.whereParentIds(revokedParentIds).delete();
                     }
 
                     // Delete associated Language content documents
                     if (docType === DocType.Language) {
-                        const revokedLanguages = await revokedDocs.toArray();
-                        const revokedlanguageIds = revokedLanguages.map((l) => l._id);
+                        const revokedlanguageIds = revokedDocsArray.map((l) => l._id);
                         await baseRepository.whereLanguageIds(revokedlanguageIds).delete();
                     }
 
-                    await revokedDocs.delete();
+                    // Delete documents in the combined array
+                    for (const doc of toDelete) {
+                        await baseRepository.whereId(doc._id).delete();
+                    }
                 });
 
             // Store the updated access map
