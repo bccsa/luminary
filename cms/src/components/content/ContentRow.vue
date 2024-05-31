@@ -69,15 +69,16 @@ const translationStatus = computed(() => {
 <template>
     <tr>
         <!-- title -->
-        <td>
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
             {{ title }}
         </td>
+
         <!-- status -->
-        <td>
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
         </td>
         <!-- translations -->
-        <td>
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
             <div class="flex gap-2" v-if="content.length > 0">
                 <RouterLink
                     custom
@@ -107,11 +108,13 @@ const translationStatus = computed(() => {
             </div>
         </td>
         <!-- updated -->
-        <td>
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             {{ db.toDateTime(parent.updatedTimeUtc).toLocaleString(DateTime.DATETIME_MED) }}
         </td>
         <!-- actions -->
-        <td>
+        <td
+            class="flex justify-end whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+        >
             <LButton
                 v-if="verifyAccess(parent.memberOf, parentType, AclPermission.View)"
                 variant="tertiary"
@@ -127,6 +130,7 @@ const translationStatus = computed(() => {
                         id: parent._id,
                     },
                 }"
+                class="flex justify-end"
             ></LButton>
         </td>
     </tr>
