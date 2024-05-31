@@ -9,13 +9,10 @@ type Props = {
     editLinkName: string;
     docType: DocType.Post | DocType.Tag;
 };
+
 const props = defineProps<Props>();
 
 const contentParents = db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, []);
-
-const sort = (column: string) => {
-    console.log("sort", column);
-};
 </script>
 
 <template>
@@ -27,8 +24,8 @@ const sort = (column: string) => {
                         <tr>
                             <!-- title -->
                             <th
-                                class="group cursor-pointer py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
-                                @click="sort('title')"
+                                class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6"
+                                @click="false"
                             >
                                 <div class="flex items-center gap-2">
                                     Title
@@ -43,16 +40,39 @@ const sort = (column: string) => {
                                 </div>
                             </th>
                             <!-- status -->
-                            <th></th>
+                            <th
+                                class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                            ></th>
                             <!-- translations -->
-                            <th>Translations</th>
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                            >
+                                Translations
+                            </th>
                             <!-- updated -->
-                            <th>Last updated</th>
+                            <th
+                                class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6"
+                                @click="false"
+                            >
+                                <div class="flex items-center gap-2">
+                                    Last updated
+                                    <button aria-label="Sort column">
+                                        <ArrowsUpDownIcon
+                                            class="h-5 w-5 text-transparent group-hover:text-zinc-600"
+                                            v-if="true"
+                                        />
+                                        <ArrowUpIcon class="h-5 w-5 text-zinc-600" v-if="false" />
+                                        <ArrowDownIcon class="h-5 w-5 text-zinc-600" v-if="false" />
+                                    </button>
+                                </div>
+                            </th>
                             <!-- actions -->
-                            <th></th>
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                            ></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-zinc-200 bg-white">
                         <ContentRow
                             v-for="contentParent in contentParents"
                             :key="contentParent._id"
