@@ -69,7 +69,7 @@ const translationStatus = computed(() => {
 <template>
     <tr>
         <!-- title -->
-        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             {{ title }}
         </td>
 
