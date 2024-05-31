@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import BasePage from "@/components/BasePage.vue";
-import ContentTable from "@/components/content/ContentTable.vue";
+// import ContentTable from "@/components/content/ContentTable.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import LButton from "@/components/button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
@@ -45,7 +45,7 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.Post, AclPermission
             :buttonPermission="canCreateNew"
         />
 
-        <ContentTable v-else :items="posts" :docType="DocType.Post" editLinkName="posts.edit" />
+        <!-- <ContentTable v-else :items="posts" :docType="DocType.Post" editLinkName="posts.edit" /> -->
         <ContentTable2 :docType="DocType.Post" editLinkName="posts.edit" />
     </BasePage>
 </template>
