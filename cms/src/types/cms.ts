@@ -131,11 +131,6 @@ export type User = ContentBase & {
     email: string;
 };
 
-export type LocalChange = {
-    id: number;
-    doc: BaseDocumentDto;
-};
-
 export type Notification = {
     id?: number;
     title: string;

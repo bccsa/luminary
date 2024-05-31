@@ -122,6 +122,12 @@ export type ChangeReqAckDto = {
     doc?: any;
 };
 
+export type LocalChangeDto = {
+    id: number;
+    doc: BaseDocumentDto;
+    docId: Uuid;
+};
+
 export enum AclPermission {
     View = "view",
     Create = "create",
