@@ -46,6 +46,6 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.Post, AclPermission
         />
 
         <!-- <ContentTable v-else :items="posts" :docType="DocType.Post" editLinkName="posts.edit" /> -->
-        <ContentTable2 :docType="DocType.Post" editLinkName="posts.edit" />
+        <ContentTable2 v-else :docType="DocType.Post" editLinkName="posts.edit" />
     </BasePage>
 </template>
