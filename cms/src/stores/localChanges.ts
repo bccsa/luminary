@@ -1,5 +1,5 @@
 import { defineStore, storeToRefs } from "pinia";
-import { AckStatus, type LocalChange, type ChangeReqAckDto } from "@/types";
+import { AckStatus, type LocalChangeDto, type ChangeReqAckDto } from "@/types";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { watch, type Ref, computed } from "vue";
@@ -15,9 +15,9 @@ export const useLocalChangeStore = defineStore("localChanges", () => {
     let retryApiSubmissionTimeout: number;
     const localChangesRepository = new LocalChangesRepository();
 
-    const localChanges: Readonly<Ref<LocalChange[] | undefined>> = useObservable(
+    const localChanges: Readonly<Ref<LocalChangeDto[] | undefined>> = useObservable(
         liveQuery(async () => localChangesRepository.getAll()) as unknown as Observable<
-            LocalChange[]
+            LocalChangeDto[]
         >,
     );
 
