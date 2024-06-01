@@ -15,11 +15,6 @@ export class ImageFileDto {
     @Expose()
     height: number;
 
-    @IsNotEmpty()
-    @IsNumber()
-    @Expose()
-    aspectRatio: number;
-
     @IsOptional()
     @IsString()
     @Expose()

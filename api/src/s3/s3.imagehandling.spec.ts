@@ -17,7 +17,9 @@ describe("S3ImageHandler", () => {
     });
 
     afterAll(async () => {
-        const removeFiles = resImages.flatMap((r) => r.files.map((f) => f.filename));
+        const removeFiles = resImages.flatMap((r) =>
+            r.fileCollections.flatMap((c) => c.imageFiles.map((f) => f.filename)),
+        );
         await service.removeObjects(service.imageBucket, removeFiles);
         await service.removeBucket(service.imageBucket);
     });
@@ -40,7 +42,7 @@ describe("S3ImageHandler", () => {
 
         // Check if all files are uploaded
         const pList = [];
-        for (const file of resImage.files) {
+        for (const file of resImage.fileCollections.flatMap((c) => c.imageFiles)) {
             expect(file.filename).toBeDefined();
             pList.push(service.getObject(service.imageBucket, file.filename));
         }
@@ -52,7 +54,7 @@ describe("S3ImageHandler", () => {
 
     it("can delete a removed image version from S3", async () => {
         const image = new ImageDto();
-        image.name = "testImage";
+        image.name = "testImage2";
         image.uploadData = [
             {
                 fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
@@ -61,23 +63,23 @@ describe("S3ImageHandler", () => {
         ];
         let resImage = await processImage(image, undefined, service);
 
-        // Remove the first file
+        // Remove the first file collection
         const prevDoc = new ImageDto();
-        prevDoc.files.push(...resImage.files);
-        image.files.shift();
+        prevDoc.fileCollections = JSON.parse(JSON.stringify(resImage.fileCollections));
+        image.fileCollections.shift();
         resImage = await processImage(image, prevDoc, service);
 
-        // Check if the first file is removed
-        let error;
-        await service
-            .getObject(service.imageBucket, prevDoc.files[0].filename)
-            .catch((e) => (error = e));
-        expect(error).toBeDefined();
+        // Check if the first fileCollection's files are removed from S3
+        for (const file of prevDoc.fileCollections[0].imageFiles) {
+            let error;
+            await service.getObject(service.imageBucket, file.filename).catch((e) => (error = e));
+            expect(error).toBeDefined();
+        }
 
         resImages.push(resImage);
     });
 
-    it("Discards user-added file objects", async () => {
+    it("discards user-added file objects", async () => {
         const image = new ImageDto();
         image.name = "testImage3";
         image.uploadData = [
@@ -89,12 +91,39 @@ describe("S3ImageHandler", () => {
         const res = await processImage(image, undefined, service);
 
         const image2 = JSON.parse(JSON.stringify(res)) as ImageDto;
-        image2.files.push({ filename: "invalid", aspectRatio: 1, height: 1, width: 1 });
+        image2.fileCollections[0].imageFiles.push({ filename: "invalid", height: 1, width: 1 });
 
         const resImage = await processImage(image2, res, service);
 
         // Check if the client-added file data is removed
-        expect(resImage.files.some((f) => f.filename == "invalid")).toBeFalsy();
+        expect(
+            resImage.fileCollections[0].imageFiles.some((f) => f.filename == "invalid"),
+        ).toBeFalsy();
+
+        resImages.push(resImage);
+    });
+
+    it("discards user-added file collection objects", async () => {
+        const image = new ImageDto();
+        image.name = "testImage4";
+        image.uploadData = [
+            {
+                fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
+                preset: "default",
+            },
+        ];
+        const res = await processImage(image, undefined, service);
+
+        const image2 = JSON.parse(JSON.stringify(res)) as ImageDto;
+        image2.fileCollections.push({
+            aspectRatio: 1,
+            imageFiles: [{ filename: "invalid", height: 1, width: 1 }],
+        });
+
+        const resImage = await processImage(image2, res, service);
+
+        // Check if the client-added file collection is removed
+        expect(resImage.fileCollections.length).toBe(1);
 
         resImages.push(resImage);
     });

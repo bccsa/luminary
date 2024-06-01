@@ -191,12 +191,10 @@ describe("validateChangeRequest", () => {
                 type: "image",
                 name: "Test Image",
                 memberOf: ["group-public-content"],
-                files: [
+                fileCollections: [
                     {
-                        fileName: "unique-file-name",
                         aspectRatio: 1,
-                        width: 1000,
-                        height: 1000,
+                        imageFiles: [{ fileName: "unique-file-name", width: 1000, height: 1000 }],
                     },
                 ],
                 uploadData: [

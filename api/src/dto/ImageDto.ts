@@ -2,8 +2,8 @@ import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typee
 import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose, Type } from "class-transformer";
-import { ImageFileDto } from "./ImageFileDto";
 import { ImageUploadDto } from "./ImageUploadDto";
+import { ImageFileCollectionDto } from "./ImageFileCollectionDto";
 
 /**
  * Database structured Image object
@@ -21,9 +21,9 @@ export class ImageDto extends _contentBaseDto {
 
     @IsArray()
     @ValidateNested({ each: true })
-    @Type(() => ImageFileDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
+    @Type(() => ImageFileCollectionDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
     @Expose()
-    files: ImageFileDto[] = [];
+    fileCollections: ImageFileCollectionDto[] = [];
 
     @IsOptional()
     @ValidateNested({ each: true })
