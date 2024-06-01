@@ -78,7 +78,11 @@ export const usePostStore = defineStore("post", () => {
         return (tagId: Uuid, queryOptions?: postQueryOptions) => {
             // query
             let res = posts.value?.filter((p) => {
-                return p.tags.some((t) => t._id == tagId);
+                if (tagId) {
+                    return p.tags.some((t) => t._id == tagId);
+                } else {
+                    return p.tags.some((t) => t);
+                }
             });
 
             if (!res) return [];
