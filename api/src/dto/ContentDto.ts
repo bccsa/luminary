@@ -4,8 +4,6 @@ import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
 import { Expose } from "class-transformer";
 
-const JANUARY_FIRST_2024_TIMESTAMP = 1704114000000;
-
 /**
  * Database structured Content object
  */
@@ -71,13 +69,13 @@ export class ContentDto extends _contentBaseDto {
 
     @IsOptionalIf((c: ContentDto) => c.status === PublishStatus.Draft)
     @IsNumber()
-    @Min(JANUARY_FIRST_2024_TIMESTAMP)
+    @Min(0)
     @Expose()
     publishDate: number;
 
     @IsOptional()
     @IsNumber()
-    @Min(JANUARY_FIRST_2024_TIMESTAMP)
+    @Min(0)
     @Expose()
     expiryDate?: number;
 }
