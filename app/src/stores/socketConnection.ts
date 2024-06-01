@@ -51,7 +51,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             if (data.version) localStorage.setItem("syncVersion", data.version.toString());
         });
 
-        socket.value.on("accessMap", (accessMap: AccessMap) => {
+        socket.value.on("accessMap", async (accessMap: AccessMap) => {
             // Delete revoked documents
 
             // TODO: Only delete documents if the accessMap changed for improved performance
