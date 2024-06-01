@@ -40,16 +40,6 @@ const nameInput = ref<typeof LInput | undefined>(undefined);
 const descriptionInput = ref<typeof LInput | undefined>(undefined);
 const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 
-const presets = [
-    { label: "default", value: "default" },
-    { label: "photo", value: "photo" },
-    { label: "picture", value: "picture" },
-    { label: "drawing", value: "drawing" },
-    { label: "icon", value: "icon" },
-    { label: "text", value: "text" },
-];
-const selectedPreset = ref(presets[1].value);
-
 // Methods
 const save = () => {
     const raw = toRaw(image.value);
@@ -89,7 +79,7 @@ const upload = () => {
         raw.uploadData = [
             {
                 fileData,
-                preset: selectedPreset.value,
+                preset: "photo",
                 filename: file.name,
             },
         ]; // do not re-save previous upload data as this will trigger a re-render of the image in the API.
@@ -125,13 +115,6 @@ const removeFile = (filename: string) => {
                 data-test="image-name"
             />
             <div class="mb-2 flex items-end gap-4">
-                <LSelect
-                    name="preset"
-                    label="Upload preset"
-                    class="flex-1"
-                    :options="presets"
-                    v-model="selectedPreset"
-                ></LSelect>
                 <div class="flex flex-col">
                     <label class="mb-3 w-full text-right text-xs text-zinc-900"
                         >Max size: {{ maxUploadFileSize }}MB</label
