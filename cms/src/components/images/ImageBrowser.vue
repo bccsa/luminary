@@ -49,7 +49,8 @@ const selectedImageId = ref<Uuid | undefined>(undefined);
                         @click="selectedImageId = image._id"
                     >
                         <LImage
-                            :imageId="image._id"
+                            :image="image"
+                            :key="image._id"
                             aspect-ratio="square"
                             size="thumbnail"
                             class="rounded shadow"

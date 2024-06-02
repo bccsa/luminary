@@ -2,13 +2,10 @@
 // Image component with automatic aspect ratio selection and fallback image
 
 import { computed, ref } from "vue";
-import { db } from "@/db/baseDatabase";
-import { DocType, type ImageDto, type Uuid } from "@/types";
-
-// TODO: Pass image as prop instead of (re)loading it from the database
+import { type ImageDto } from "@/types";
 
 const props = defineProps<{
-    imageId: Uuid;
+    image: ImageDto;
     aspectRatio: keyof typeof aspectRatios;
     size: keyof typeof sizes;
     baseUrl: string;
@@ -34,25 +31,14 @@ const sizes = {
     post: "w-full",
 };
 
-// We need to pass a default document to db.getAsRef to avoid a null reference error when the document is not yet loaded.
-const image = db.getAsRef<ImageDto>(props.imageId, {
-    _id: props.imageId,
-    type: DocType.Image,
-    name: "",
-    description: "",
-    fileCollections: [],
-    memberOf: [],
-    updatedTimeUtc: 0,
-});
-
 let closestAspectRatio = 0;
 
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
-    if (!image.value.fileCollections || image.value.fileCollections?.length == 0) return "";
+    if (!props.image.fileCollections || props.image.fileCollections?.length == 0) return "";
 
     // Get the available aspect ratios
-    const aspectRatios = image.value.fileCollections
+    const aspectRatios = props.image.fileCollections
         .map((collection) => collection.aspectRatio)
         .reduce((acc, cur) => {
             if (!acc.includes(cur)) acc.push(cur);
@@ -66,7 +52,7 @@ const srcset1 = computed(() => {
         return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
     }, aspectRatios[0]);
 
-    return image.value.fileCollections
+    return props.image.fileCollections
         .filter((collection) => collection.aspectRatio == closestAspectRatio)
         .map((collection) => {
             return collection.imageFiles
@@ -78,9 +64,9 @@ const srcset1 = computed(() => {
 
 // Source set for the secondary image element (used if the primary image element fails to load) with the non-preferred aspect ratios
 const srcset2 = computed(() => {
-    if (!image.value.fileCollections || image.value.fileCollections?.length == 0) return "";
+    if (!props.image.fileCollections || props.image.fileCollections?.length == 0) return "";
 
-    return image.value.fileCollections
+    return props.image.fileCollections
         .filter((collection) => collection.aspectRatio != closestAspectRatio)
         .map((collection) => {
             return collection.imageFiles
