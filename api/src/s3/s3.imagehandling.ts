@@ -16,8 +16,7 @@ export async function processImage(
     prevDoc: ImageDto,
     s3: S3Service,
 ): Promise<ImageDto> {
-    const resultImage = { ...image };
-    delete resultImage.uploadData;
+    const resultImage = JSON.parse(JSON.stringify({ ...image, uploadData: undefined })) as ImageDto;
 
     // Remove files that were removed from the image
     if (prevDoc) {
