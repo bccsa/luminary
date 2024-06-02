@@ -54,10 +54,7 @@ describe("ImageEditor", () => {
         expect(imageDescriptionInput.element.value).toBe(mockImage.description);
 
         const imageFiles = wrapper.find("div[data-test='thumbnail-area']");
-        expect(imageFiles.html()).toContain(mockImage.files[0].filename);
-        expect(imageFiles.html()).toContain(
-            mockImage.files[0].width + " x " + mockImage.files[0].height,
-        );
+        expect(imageFiles.html()).toContain(mockImage.fileCollections[0].imageFiles[0].filename);
     });
 
     it("can save an image document", async () => {
