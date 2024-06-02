@@ -194,7 +194,7 @@ describe("validateChangeRequest", () => {
                 fileCollections: [
                     {
                         aspectRatio: 1,
-                        imageFiles: [{ fileName: "unique-file-name", width: 1000, height: 1000 }],
+                        imageFiles: [{ filename: "unique-file-name", width: 1000, height: 1000 }],
                     },
                 ],
                 uploadData: [
