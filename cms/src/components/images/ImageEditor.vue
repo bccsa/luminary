@@ -53,17 +53,17 @@ const save = () => {
 };
 
 const showFilePicker = () => {
-    // @ts-ignore
+    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
     uploadInput.value!.showPicker();
 };
 
 // Read files into Buffer
 const upload = () => {
-    // @ts-ignore
+    // @ts-ignore - it seems as if the type definition for files is missing in the file input element.
     if (!uploadInput.value!.files || uploadInput.value!.files.length == 0) return;
 
     const reader = new FileReader();
-    // @ts-ignore
+    // @ts-ignore - it seems as if the type definition for files is missing in the file input element.
     const file = uploadInput.value!.files[0];
 
     reader.onload = (e) => {
@@ -94,7 +94,7 @@ const upload = () => {
     reader.readAsArrayBuffer(file);
 
     // Reset the file input
-    // @ts-ignore
+    // @ts-ignore - it seems as if the type definition for value is missing in the file input element.
     uploadInput.value!.value = "";
 };
 
@@ -163,11 +163,11 @@ const removeFileCollection = (collection: ImageFileCollectionDto) => {
         <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">File versions</h3>
 
         <div class="flex flex-1 flex-wrap gap-4 overflow-x-scroll pt-2" data-test="thumbnail-area">
-            <!-- eslint-disable-next-line -->
             <ImageEditorThumbnail
-                v-for="c in image!.fileCollections"
+                v-for="c in image.fileCollections"
                 :imageFileCollection="c"
                 @delete="removeFileCollection"
+                :key="c.aspectRatio"
             />
         </div>
     </div>
