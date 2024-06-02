@@ -92,17 +92,19 @@ describe("deleteRevokedDocs", () => {
         await db.docs.bulkPut(docs);
 
         // Simulate receiving an accessMap update that only gives access to 'group-public-users'
-        const accessMap = {
-            "group-public-users": {
-                [DocType.Post]: {
-                    view: true,
-                    assign: true,
+        const clientConfig = {
+            accessMap: {
+                "group-public-users": {
+                    [DocType.Post]: {
+                        view: true,
+                        assign: true,
+                    },
                 },
             },
         };
 
         const store = useSocketConnectionStore();
-        listenToSocketOnEvent("accessMap", accessMap);
+        listenToSocketOnEvent("clientConfig", clientConfig);
         store.bindEvents();
 
         await waitForExpect(async () => {
@@ -178,23 +180,25 @@ describe("deleteRevokedDocs", () => {
         await db.docs.bulkPut(docs);
 
         // Simulate receiving an accessMap update that only gives access to 'group-public-users'
-        const accessMap = {
-            "group-public-users": {
-                [DocType.Post]: {
-                    view: true,
-                    assign: true,
-                },
-                [DocType.Tag]: {
-                    view: true,
-                },
-                [DocType.Language]: {
-                    view: true,
+        const clientConfig = {
+            accessMap: {
+                "group-public-users": {
+                    [DocType.Post]: {
+                        view: true,
+                        assign: true,
+                    },
+                    [DocType.Tag]: {
+                        view: true,
+                    },
+                    [DocType.Language]: {
+                        view: true,
+                    },
                 },
             },
         };
 
         const store = useSocketConnectionStore();
-        listenToSocketOnEvent("accessMap", accessMap);
+        listenToSocketOnEvent("clientConfig", clientConfig);
         store.bindEvents();
 
         await waitForExpect(async () => {
@@ -251,17 +255,19 @@ describe("deleteRevokedDocs", () => {
         await db.docs.bulkPut(docs);
 
         // Simulate receiving an accessMap update that only gives access to 'group-public-users'
-        const accessMap = {
-            "group-public-users": {
-                [DocType.Group]: {
-                    view: true,
-                    assign: true,
+        const clientConfig = {
+            accessMap: {
+                "group-public-users": {
+                    [DocType.Group]: {
+                        view: true,
+                        assign: true,
+                    },
                 },
             },
         };
 
         const store = useSocketConnectionStore();
-        listenToSocketOnEvent("accessMap", accessMap);
+        listenToSocketOnEvent("clientConfig", clientConfig);
         store.bindEvents();
 
         await waitForExpect(async () => {

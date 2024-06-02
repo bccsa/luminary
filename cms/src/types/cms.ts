@@ -1,11 +1,12 @@
 import type { DateTime } from "luxon";
-import type { AclPermission, BaseDocumentDto, Uuid } from "./dto";
+import type { AclPermission, BaseDocumentDto, ImageFileDto, ImageUploadDto, Uuid } from "./dto";
 
 export enum DocType {
     Change = "change",
     Content = "content",
     Group = "group",
     Language = "language",
+    Image = "image",
     Media = "media",
     MediaDownload = "mediaDownload",
     Post = "post",
@@ -41,9 +42,16 @@ export type Language = ContentBase & {
     name: string;
 };
 
+export type Image = ContentBase & {
+    name: string;
+    description: string;
+    files: ImageFileDto[];
+    uploadData?: ImageUploadDto[];
+};
+
 export enum MediaType {
     Audio = "audio",
-    Image = "image",
+    // Image = "image",
     Video = "video",
 }
 
@@ -64,9 +72,9 @@ export type Audio = Media & {
     downloads: MediaDownload[];
 };
 
-export type Image = Media & {
-    mediaType: MediaType.Image;
-};
+// export type Image = Media & {
+//     mediaType: MediaType.Image;
+// };
 
 export type Video = Media & {
     mediaType: MediaType.Video;

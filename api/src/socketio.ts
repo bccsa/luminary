@@ -31,6 +31,14 @@ type ClientDataReq = {
 };
 
 /**
+ * Client configuration type definition
+ */
+type ClientConfig = {
+    accessMap: AccessMap;
+    maxUploadFileSize: number;
+};
+
+/**
  * Data response to client type definition
  */
 type ApiDataResponse = {
@@ -46,6 +54,7 @@ type EmitEvents = {
     changeRequestAck: (b: ChangeReqAckDto) => void;
     accessMap: (c: AccessMap) => void;
     version: (d: number) => void;
+    clientConfig: (e: ClientConfig) => void;
 };
 
 /**
@@ -75,10 +84,17 @@ type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketD
     cors: {
         origin: "*",
     },
+    maxHttpBufferSize: configuration().socketIo.maxHttpBufferSize,
 })
 @Injectable()
 export class Socketio implements OnGatewayInit {
-    appDocTypes: Array<DocType> = [DocType.Post, DocType.Tag, DocType.Content, DocType.Language];
+    appDocTypes: Array<DocType> = [
+        DocType.Post,
+        DocType.Tag,
+        DocType.Content,
+        DocType.Language,
+        DocType.Image,
+    ];
     cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
     permissionMap: PermissionMap;
     config: Configuration;
@@ -189,9 +205,14 @@ export class Socketio implements OnGatewayInit {
     clientDataReq(@MessageBody() reqData: ClientDataReq, @ConnectedSocket() socket: ClientSocket) {
         // TODO: Do type validation on reqData
 
+        // Send client configuration data
         // Get access map and send to client
-        const accessMap = PermissionSystem.getAccessMap(socket.data.memberOf);
-        socket.emit("accessMap", accessMap);
+        const clientConfig = {
+            accessMap: PermissionSystem.getAccessMap(socket.data.memberOf),
+            maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
+        } as ClientConfig;
+        socket.emit("clientConfig", clientConfig);
+        socket.emit("accessMap", clientConfig.accessMap); // Included for backwards compatibility
 
         // Determine which doc types to get
         const docTypes = reqData.cms
@@ -203,7 +224,7 @@ export class Socketio implements OnGatewayInit {
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
-            accessMap,
+            clientConfig.accessMap,
             AclPermission.View,
             docTypes,
         );
@@ -239,7 +260,7 @@ export class Socketio implements OnGatewayInit {
             });
 
         // Get diff between user submitted access map and actual access
-        const diff = PermissionSystem.accessMapDiff(accessMap, reqData.accessMap);
+        const diff = PermissionSystem.accessMapDiff(clientConfig.accessMap, reqData.accessMap);
         const newAccessibleGroups = PermissionSystem.accessMapToGroups(
             diff,
             AclPermission.View,

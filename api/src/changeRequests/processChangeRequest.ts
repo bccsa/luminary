@@ -5,7 +5,7 @@ import { ChangeDto } from "../dto/ChangeDto";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { DocType, Uuid } from "../enums";
 import { validateSlug } from "./validateSlug";
-import { processImageUpload } from "../s3/s3.imagehandling";
+import { processImage } from "../s3/s3.imagehandling";
 import { S3Service } from "../s3/s3.service";
 
 export async function processChangeRequest(
@@ -30,7 +30,8 @@ export async function processChangeRequest(
 
     // Process image uploads
     if (doc.type == DocType.Image) {
-        doc = await processImageUpload(doc, s3);
+        const prevDoc = await db.getDoc(doc._id);
+        doc = await processImage(doc, prevDoc.docs.length > 0 ? prevDoc.docs[0] : undefined, s3);
     }
 
     // Insert / update the document in the database
