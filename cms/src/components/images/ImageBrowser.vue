@@ -21,7 +21,7 @@ const newImage = async () => {
         type: DocType.Image,
         name: "New Image",
         description: "",
-        files: [],
+        fileCollections: [],
         memberOf: ["group-private-content"],
         updatedTimeUtc: Date.now(),
     });

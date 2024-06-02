@@ -4,9 +4,14 @@ import { computed, defineProps, ref, toRaw } from "vue";
 import LTextarea from "../forms/LTextarea.vue";
 import LButton from "../button/LButton.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
-import LSelect from "../forms/LSelect.vue";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
-import { type Uuid, type ImageUploadDto, type ImageDto, DocType } from "@/types";
+import {
+    type Uuid,
+    type ImageUploadDto,
+    type ImageDto,
+    DocType,
+    type ImageFileCollectionDto,
+} from "@/types";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { db } from "@/db/baseDatabase";
@@ -24,7 +29,7 @@ const image = db.getAsRef<ImageDto>(props.imageId, {
     type: DocType.Image,
     name: "",
     description: "",
-    files: [],
+    fileCollections: [],
     memberOf: [],
     updatedTimeUtc: 0,
 });
@@ -93,9 +98,9 @@ const upload = () => {
     uploadInput.value!.value = "";
 };
 
-const removeFile = (filename: string) => {
-    image.value.files = image.value.files
-        .filter((f) => f.filename !== filename)
+const removeFileCollection = (collection: ImageFileCollectionDto) => {
+    image.value.fileCollections = image.value.fileCollections
+        .filter((f) => f !== collection)
         .map((f) => toRaw(f));
     save();
 };
@@ -157,12 +162,12 @@ const removeFile = (filename: string) => {
 
         <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">File versions</h3>
 
-        <div class="flex flex-1 flex-wrap gap-4 overflow-x-scroll" data-test="thumbnail-area">
+        <div class="flex flex-1 flex-wrap gap-4 overflow-x-scroll pt-2" data-test="thumbnail-area">
             <!-- eslint-disable-next-line -->
             <ImageEditorThumbnail
-                v-for="i in image!.files"
-                v-bind:imageFile="i"
-                @delete="removeFile"
+                v-for="c in image!.fileCollections"
+                :imageFileCollection="c"
+                @delete="removeFileCollection"
             />
         </div>
     </div>

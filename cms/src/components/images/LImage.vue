@@ -1,9 +1,11 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
 
-import { ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { db } from "@/db/baseDatabase";
 import { DocType, type ImageDto, type Uuid } from "@/types";
+
+// TODO: Pass image as prop instead of (re)loading it from the database
 
 const props = defineProps<{
     imageId: Uuid;
@@ -38,118 +40,61 @@ const image = db.getAsRef<ImageDto>(props.imageId, {
     type: DocType.Image,
     name: "",
     description: "",
-    files: [],
+    fileCollections: [],
     memberOf: [],
     updatedTimeUtc: 0,
 });
-const imgElement = ref<HTMLImageElement | undefined>(undefined);
-const imgElement2 = ref<HTMLImageElement | undefined>(undefined); // imgElement2 serves as a fallback image element should the preferred aspect ratio not be available / cached
 
 let closestAspectRatio = 0;
-// Start watching for image object changes once the image elements are loaded
-watch(
-    imgElement2,
-    () => {
-        // We are determining which image to display in a watch function as the image document loaded from IndexedDB is not available immediately
-        watch(
-            image,
-            (img) => {
-                if (!img) return;
 
-                // Set the image source to the uploaded file
-                if (img.uploadData && img.uploadData[0]) {
-                    const blobUrl = URL.createObjectURL(new Blob([img.uploadData[0].fileData]));
-                    imgElement.value!.src = blobUrl;
-                    imgElement.value!.hidden = false;
-                    imgElement2.value!.hidden = true;
-                    imgElement2.value!.src = "";
-                    imgElement2.value!.srcset = "";
-                    return;
-                }
+// Source set for the primary image element with the closest aspect ratio
+const srcset1 = computed(() => {
+    if (!image.value.fileCollections || image.value.fileCollections?.length == 0) return "";
 
-                if (!img || !img.files || img.files.length == 0) {
-                    imgElement.value!.hidden = true;
-                    imgElement.value!.src = "";
-                    imgElement.value!.srcset = "";
-                    imgElement2.value!.hidden = true;
-                    imgElement2.value!.src = "";
-                    imgElement2.value!.srcset = "";
-                    return;
-                }
+    // Get the available aspect ratios
+    const aspectRatios = image.value.fileCollections
+        .map((collection) => collection.aspectRatio)
+        .reduce((acc, cur) => {
+            if (!acc.includes(cur)) acc.push(cur);
+            return acc;
+        }, [] as number[])
+        .sort((a, b) => a - b);
 
-                // Set image source
-                if (img.files[0]) {
-                    // Get the available aspect ratios
-                    const aspectRatios = img.files
-                        .map((file) => file.aspectRatio)
-                        .reduce((acc, cur) => {
-                            if (!acc.includes(cur)) acc.push(cur);
-                            return acc;
-                        }, [] as number[])
-                        .sort((a, b) => a - b);
+    // Get the aspect ratio closest to the desired aspect ratio
+    const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
+    closestAspectRatio = aspectRatios.reduce((acc, cur) => {
+        return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
+    }, aspectRatios[0]);
 
-                    // Get the aspect ratio closest to the desired aspect ratio
-                    const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
-                    closestAspectRatio = aspectRatios.reduce((acc, cur) => {
-                        return Math.abs(cur - desiredAspectRatio) <
-                            Math.abs(acc - desiredAspectRatio)
-                            ? cur
-                            : acc;
-                    }, aspectRatios[0]);
+    return image.value.fileCollections
+        .filter((collection) => collection.aspectRatio == closestAspectRatio)
+        .map((collection) => {
+            return collection.imageFiles
+                .map((f) => `${props.baseUrl}/${f.filename} ${f.width}w`)
+                .join(", ");
+        })
+        .join(", ");
+});
 
-                    // Get the images with the closest aspect ratio
-                    const sorted = img.files
-                        .filter((file) => file.aspectRatio == closestAspectRatio)
-                        .sort((a, b) => a.width - b.width);
+// Source set for the secondary image element (used if the primary image element fails to load) with the non-preferred aspect ratios
+const srcset2 = computed(() => {
+    if (!image.value.fileCollections || image.value.fileCollections?.length == 0) return "";
 
-                    if (!imgElement.value?.onerror) imgElement.value!.onerror = onError; // only set onerror when the source is set to prevent premature triggering
-                    imgElement.value!.src = props.baseUrl + "/" + sorted[0].filename;
+    return image.value.fileCollections
+        .filter((collection) => collection.aspectRatio != closestAspectRatio)
+        .map((collection) => {
+            return collection.imageFiles
+                .map((f) => `${props.baseUrl}/${f.filename} ${f.width}w`)
+                .join(", ");
+        })
+        .join(", ");
+});
 
-                    let srcset = "";
-                    for (const file of sorted) {
-                        srcset += `${props.baseUrl}/${file.filename} ${file.width}w, `;
-                    }
-                    imgElement.value!.srcset = srcset;
-                    imgElement.value!.hidden = false;
+const imageElement1Error = ref(false);
+const imageElement2Error = ref(false);
 
-                    return;
-                }
-            },
-            { immediate: true },
-        );
-    },
-    { once: true },
-);
-
-const onError = () => {
-    imgElement.value!.hidden = true; // Hide the image element if the image fails to load
-
-    // Include the other aspect ratios as fallbacks
-    const sorted2 = image.value.files
-        .filter((file) => file.aspectRatio != closestAspectRatio)
-        .sort((a, b) => a.width - b.width);
-
-    if (sorted2.length > 0) {
-        if (!imgElement2.value?.onerror) imgElement2.value!.onerror = onError2; // only set onerror when the source is set to prevent premature triggering
-        imgElement2.value!.src = props.baseUrl + "/" + sorted2[0].filename;
-        let srcset2 = "";
-        for (const file of sorted2) {
-            srcset2 += `${props.baseUrl}/${file.filename} ${file.width}w, `;
-        }
-        imgElement2.value!.srcset = srcset2;
-        imgElement2.value!.hidden = false;
-
-        return;
-    }
-
-    imgElement2.value!.hidden = true;
-    imgElement2.value!.src = "";
-    imgElement2.value!.srcset = "";
-};
-
-const onError2 = () => {
-    imgElement2.value!.hidden = true; // Hide the image element if the image fails to load. The fallback image should now show (set as the CSS background image)
-};
+const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.value != "");
+const showImageElement2 = computed(() => !imageElement2Error.value && srcset2.value != "");
 </script>
 
 <template>
@@ -162,9 +107,9 @@ const onError2 = () => {
         ]"
     >
         <img
-            ref="imgElement"
+            v-if="showImageElement1"
             src=""
-            hidden
+            :srcset="srcset1"
             :class="[
                 aspectRatios[aspectRatio],
                 sizes[size],
@@ -173,11 +118,12 @@ const onError2 = () => {
             alt=""
             data-test="image-element1"
             loading="lazy"
+            @onerror="imageElement1Error = true"
         />
         <img
-            ref="imgElement2"
+            v-if="showImageElement2"
             src=""
-            hidden
+            :srcset="srcset2"
             :class="[
                 aspectRatios[aspectRatio],
                 sizes[size],
@@ -186,6 +132,7 @@ const onError2 = () => {
             alt=""
             data-test="image-element2"
             loading="lazy"
+            @onerror="imageElement2Error = true"
         />
     </div>
 </template>

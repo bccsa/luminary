@@ -298,12 +298,16 @@ export const mockImage: ImageDto = {
     description: "An image",
     updatedTimeUtc: DateTime.fromObject({ year: 2024, month: 1, day: 1 }).toMillis(),
     memberOf: ["group-private-content"],
-    files: [
+    fileCollections: [
         {
             aspectRatio: 1.5,
-            width: 180,
-            height: 120,
-            filename: "test-image.webp",
+            imageFiles: [
+                {
+                    width: 180,
+                    height: 120,
+                    filename: "test-image.webp",
+                },
+            ],
         },
     ],
 };

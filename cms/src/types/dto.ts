@@ -74,14 +74,18 @@ export type GroupDto = BaseDocumentDto & {
 export type ImageDto = ContentBaseDto & {
     name: string;
     description: string;
-    files: ImageFileDto[];
+    fileCollections: ImageFileCollectionDto[];
     uploadData?: ImageUploadDto[];
+};
+
+export type ImageFileCollectionDto = {
+    aspectRatio: number;
+    imageFiles: ImageFileDto[];
 };
 
 export type ImageFileDto = {
     width: number;
     height: number;
-    aspectRatio: number;
     filename: string;
 };
 

@@ -1,25 +1,30 @@
 <script setup lang="ts">
 import { TrashIcon } from "@heroicons/vue/24/solid";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import LModal from "@/components/common/LModal.vue";
-import type { ImageFileDto } from "@/types";
+import type { ImageFileCollectionDto, ImageFileDto } from "@/types";
 
 type Props = {
-    imageFile: ImageFileDto;
+    imageFileCollection: ImageFileCollectionDto;
 };
 const props = defineProps<Props>();
-
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
+const srcset = computed(() => {
+    return props.imageFileCollection.imageFiles
+        .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+        .join(", ");
+});
+
 const emit = defineEmits<{
-    (e: "delete", filename: string): void;
+    (e: "delete", imageFileCollection: ImageFileCollectionDto): void;
 }>();
 
 const hover = ref(false);
 const showModal = ref(false);
 
 const deleteFile = () => {
-    emit("delete", props.imageFile.filename);
+    emit("delete", props.imageFileCollection);
     showModal.value = false;
 };
 
@@ -27,18 +32,15 @@ const cancelDelete = () => {
     showModal.value = false;
 };
 
-const deleteMessage = `Are you sure you want to delete the ${props.imageFile.width} x ${props.imageFile.height} file version?`;
+const deleteMessage = `Are you sure you want to delete this file version?`;
 </script>
 
 <template>
     <div>
         <div class="group relative" @mouseover="hover = true" @mouseleave="hover = false">
-            <label class="text-xs text-zinc-900"
-                >{{ imageFile.width }} x {{ imageFile.height }}</label
-            >
-            <img :src="baseUrl + '/' + imageFile.filename" class="h-36 rounded shadow" />
+            <img :srcset="srcset" class="h-36 rounded shadow" />
             <TrashIcon
-                class="absolute -right-2 top-2 h-5 w-5 cursor-pointer text-red-500"
+                class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
                 v-show="hover"
                 title="Delete file version"
                 @click="showModal = true"
