@@ -27,6 +27,10 @@ export class BaseRepository {
         return db.docs.where("language").anyOf(languageIds);
     }
 
+    whereExpired() {
+        return db.docs.where("expiryDate").below(Date.now());
+    }
+
     /**
      * Return a list of documents and change documents of specified DocType that are NOT members of the given groupIds
      */
