@@ -44,13 +44,13 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
         <EmptyState
             v-if="!contentParents || contentParents.length == 0"
             :icon="TagIcon"
-            title="`No ${postOrTag}s yet`"
+            :title="`No ${titleSingular}s yet`"
             :description="
                 canCreateNew
                     ? `Get started by creating a new ${titleSingular}.`
                     : `You do not have permission to create new ${titlePlural}.`
             "
-            buttonText="Create category"
+            buttonText="Create"
             :buttonLink="{ name: `${docType}s.create`, params: createRouteParams }"
             :buttonPermission="canCreateNew"
         />
