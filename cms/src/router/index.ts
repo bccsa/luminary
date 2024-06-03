@@ -91,6 +91,13 @@ const router = createRouter({
                                     permission: AclPermission.View,
                                 },
                             },
+                            beforeEnter: () => {
+                                // Solution 1:
+                                // get the post
+                                // get all groups with groupRepository.getGroupsWithIds
+                                // set the groups on the store
+                                // Solution 2: or add a loading state?
+                            },
                         },
                     ],
                 },
