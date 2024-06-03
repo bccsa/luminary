@@ -15,7 +15,7 @@ defineProps<Props>();
 
 <template>
     <LCard padding="none">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto rounded-md">
             <div class="inline-block min-w-full align-middle">
                 <table class="min-w-full divide-y divide-zinc-200">
                     <thead class="bg-zinc-50">
