@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DocType, type PostDto, type TagDto } from "@/types";
+import { DocType, type PostDto, type TagDto, type Uuid } from "@/types";
 import ContentRow from "./ContentRow.vue";
 import { ArrowsUpDownIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/vue/20/solid";
 import LCard from "../common/LCard.vue";
@@ -8,6 +8,7 @@ type Props = {
     contentParents: PostDto[] | TagDto[];
     editLinkName: string;
     docType: DocType.Post | DocType.Tag;
+    language: Uuid;
 };
 defineProps<Props>();
 </script>
@@ -75,7 +76,7 @@ defineProps<Props>();
                             :key="contentParent._id"
                             :parent="contentParent"
                             :parentType="docType"
-                            language="lang-eng"
+                            :language="language"
                             :editLinkName="editLinkName"
                         />
                     </tbody>
