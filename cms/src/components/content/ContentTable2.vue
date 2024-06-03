@@ -78,7 +78,7 @@ const contentParents = db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, []
                             :key="contentParent._id"
                             :parent="contentParent"
                             :parentType="DocType.Post"
-                            language="lang-swa"
+                            language="lang-eng"
                             :editLinkName="editLinkName"
                         />
                     </tbody>
