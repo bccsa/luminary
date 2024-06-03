@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { db } from "@/db/baseDatabase";
 import { DocType, type PostDto, type TagDto } from "@/types";
 import ContentRow from "./ContentRow.vue";
 import { ArrowsUpDownIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/vue/20/solid";
 import LCard from "../common/LCard.vue";
 
 type Props = {
+    contentParents: PostDto[] | TagDto[];
     editLinkName: string;
     docType: DocType.Post | DocType.Tag;
 };
-
-const props = defineProps<Props>();
-
-const contentParents = db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, []);
+defineProps<Props>();
 </script>
 
 <template>
@@ -77,7 +74,7 @@ const contentParents = db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, []
                             v-for="contentParent in contentParents"
                             :key="contentParent._id"
                             :parent="contentParent"
-                            :parentType="DocType.Post"
+                            :parentType="docType"
                             language="lang-eng"
                             :editLinkName="editLinkName"
                         />
