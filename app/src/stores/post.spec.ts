@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { usePostStore } from "@/stores/post";
 import { mockCategory, mockPost } from "@/tests/mockData";
+import { DateTime } from "luxon";
 
 describe("Post store", () => {
     beforeEach(() => {
@@ -122,5 +123,119 @@ describe("Post store", () => {
 
         expect(res1!.length).toBe(1);
         expect(res1![0].content[0].publishDate).toBe(2);
+    });
+
+    // TODO: Fix this test when underlying issues with queries from indexedDb are resolved
+    it.skip("does not show posts with status set to draft", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post1",
+                    publishDate: now - 1000,
+                    status: "draft",
+                },
+            ],
+        } as any;
+
+        postStore.posts = [post1];
+
+        const visiblePosts = postStore.postsByTag(mockCategory._id);
+
+        expect(visiblePosts[0].content[0].status).toBe("draft");
+        expect(visiblePosts.length).toBe(0);
+    });
+
+    // TODO: Verify this test when underlying issues with queries from indexedDb are resolved
+    it("shows posts with publish date < now and no expiry date", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [{ ...mockPost.content[0], title: "post1", publishDate: now - 1000 }],
+        } as any;
+
+        postStore.posts = [post1];
+
+        const visiblePosts = postStore.postsByTag(mockCategory._id);
+
+        expect(visiblePosts.length).toBe(1);
+    });
+
+    // TODO: Verify this test when underlying issues with queries from indexedDb are resolved
+    it("shows posts with publish date < now and expiry date > now", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post1",
+                    publishDate: now - 1000,
+                    expiryDate: now + 1000,
+                },
+            ],
+        } as any;
+
+        postStore.posts = [post1];
+
+        const visiblePosts = postStore.postsByTag(mockCategory._id);
+
+        expect(visiblePosts.length).toBe(1);
+    });
+
+    // TODO: Fix this test when underlying issues with queries from indexedDb are resolved
+    it.skip("does not show posts with publish date > now and expiry date > now", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post1",
+                    publishDate: now + 1000,
+                    expiryDate: now + 2000,
+                },
+            ],
+        } as any;
+
+        postStore.posts = [post1];
+
+        const visiblePosts = postStore.postsByTag(mockCategory._id);
+
+        expect(visiblePosts.length).toBe(0);
+    });
+
+    // TODO: Fix this test when underlying issues with queries from indexedDb are resolved
+    it.skip("does not show posts with publish date < now and expiry date < now", async () => {
+        const now = DateTime.now().toMillis();
+        const postStore = usePostStore();
+        const post1 = {
+            ...mockPost,
+            _id: "1",
+            content: [
+                {
+                    ...mockPost.content[0],
+                    title: "post1",
+                    publishDate: now - 2000,
+                    expiryDate: now - 1000,
+                },
+            ],
+        } as any;
+
+        postStore.posts = [post1];
+
+        const visiblePosts = postStore.postsByTag(mockCategory._id);
+
+        expect(visiblePosts.length).toBe(0);
     });
 });

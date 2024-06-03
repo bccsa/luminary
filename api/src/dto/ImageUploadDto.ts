@@ -6,11 +6,11 @@ import * as sharp from "sharp";
 /**
  * Data for uploading an image
  */
-export class ImageUploadDataDto {
+export class ImageUploadDto {
     @IsNotEmpty()
     @IsImage()
     @Expose()
-    fileData?: Buffer;
+    fileData?: ArrayBuffer;
 
     @IsString()
     @IsNotEmpty()

@@ -440,6 +440,46 @@ describe("EditContentForm", () => {
             });
         });
 
+        it("sets expiry date when shorcut buttons are clicked", async () => {
+            const currentTime = DateTime.fromISO("2024-04-22T10:42:00.00");
+            Settings.now = () => currentTime.toMillis();
+            const content = { ...mockEnglishContent };
+            content.publishDate = currentTime;
+
+            const wrapper = mount(EditContentForm, {
+                props: {
+                    parent: {
+                        ...mockPost,
+                        content: [content],
+                    },
+                    content: content,
+                    docType: DocType.Post,
+                },
+            });
+
+            // Simulate clicking the buttons
+            await wrapper.find("[data-test='1']").trigger("click");
+            await wrapper.find("[data-test='W']").trigger("click");
+            await wrapper.find(publishButton).trigger("click");
+
+            await waitForExpect(() => {
+                const saveEvent: any = wrapper.emitted("save");
+                expect(saveEvent).not.toBe(undefined);
+                expect(saveEvent![0][0].expiryDate).not.toBe(undefined);
+
+                const oneWeekLater = currentTime.plus({ weeks: 1 });
+                const expectedExpiryDate = oneWeekLater.toISO()?.split(".")[0];
+
+                const actualExpiryDate = DateTime.fromISO(saveEvent![0][0].expiryDate);
+
+                // Check if the expiry date is one week away from the publish date
+                expect(actualExpiryDate.diff(currentTime, "weeks").weeks).toBe(1);
+
+                // Check if the expiry date matches the expected expiry date
+                expect(actualExpiryDate.toISO()?.split(".")[0]).toEqual(expectedExpiryDate);
+            });
+        });
+
         it("displays a notification when saving with validation errors", async () => {
             const notificationStore = useNotificationStore();
             const wrapper = mount(EditContentForm, {

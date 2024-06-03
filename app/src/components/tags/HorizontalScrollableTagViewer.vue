@@ -13,7 +13,8 @@ const postStore = usePostStore();
 const { postsByTag } = storeToRefs(postStore);
 
 type Props = {
-    tag: Tag;
+    tag?: Tag;
+    title?: string;
     queryOptions?: postQueryOptions;
 };
 defineProps<Props>();
@@ -63,11 +64,11 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 </script>
 
 <template>
-    <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag.pinned }]">
+    <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
         <h2 class="truncate px-6">
-            {{ tag.content[0]?.title }}
+            {{ tag?.content[0]?.title || title }}
             <span class="ml-1 text-sm text-zinc-500 dark:text-zinc-200">
-                {{ tag.content[0]?.summary }}
+                {{ tag?.content[0]?.summary }}
             </span>
         </h2>
 
@@ -96,10 +97,10 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-6">
                     <PostTile
-                        v-for="post in postsByTag(tag._id, queryOptions)"
+                        v-for="post in postsByTag(tag ? tag._id : '', queryOptions)"
                         :key="post._id"
                         :post="post"
-                        :pinned="tag.pinned"
+                        :pinned="tag?.pinned"
                         class="w-40 overflow-clip md:w-60"
                     />
                 </div>
