@@ -26,6 +26,7 @@ import {
     TagType,
     DocType,
     AclPermission,
+    type Group,
 } from "@/types";
 import { toTypedSchema } from "@vee-validate/yup";
 import { useForm } from "vee-validate";
@@ -48,6 +49,9 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { useGroupStore } from "@/stores/group";
+import GroupSelector from "./GroupSelector.vue";
+import { GroupRepository } from "@/db/repositories/groupRepository";
 
 const EMPTY_TEXT = '{"type":"doc","content":[{"type":"paragraph"}]}';
 
@@ -71,6 +75,7 @@ const {
 } = storeToRefs(useTagStore());
 const { verifyAccess } = useUserAccessStore();
 const { clientAppUrl } = useGlobalConfigStore();
+const { groups } = storeToRefs(useGroupStore());
 
 const canPublish = computed(() =>
     verifyAccess(props.content.memberOf, props.docType, AclPermission.Publish),
@@ -95,6 +100,15 @@ const selectedAudioPlaylists = computed(() => {
     return selectedTags.value.filter((t) => t.tagType == TagType.AudioPlaylist);
 });
 
+const selectedGroups = ref<Group[]>([]);
+const availableGroups = computed(() => {
+    if (!groups.value) {
+        return [];
+    }
+
+    return groups.value;
+});
+
 const hasText = computed(() => text.value && text.value.trim() !== "");
 const hasAudio = ref(props.content.audio != undefined && props.content.audio.trim() != "");
 const hasVideo = ref(props.content.video != undefined && props.content.video.trim() != "");
@@ -104,6 +118,7 @@ const text = ref<string>();
 const pinned = ref(props.parent.pinned ?? false);
 
 const isDirty = ref(false);
+// const isDirtyGroup = ref(false);
 
 const liveUrl = computed(() => new URL(props.content.slug, clientAppUrl));
 
@@ -155,6 +170,14 @@ const { handleSubmit, values, setValues, errors, meta } = useForm({
 onBeforeMount(() => {
     if (props.parent.tags) {
         selectedTags.value = [...props.parent.tags];
+    }
+
+    if (props.parent.memberOf && props.parent.memberOf.length > 0) {
+        const groupRepository = new GroupRepository();
+
+        groupRepository.getGroupsWithIds(props.parent.memberOf).then((groups) => {
+            selectedGroups.value = groups;
+        });
     }
 
     // Convert dates to format VeeValidate understands
@@ -279,6 +302,7 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
         ...toRaw(props.parent),
         image: validatedFormValues.parent?.image,
         tags: toRaw(selectedTags.value),
+        memberOf: toRaw(selectedGroups.value.map((g) => g._id)),
         // @ts-ignore We're only setting pinned for tags
         pinned: props.docType == DocType.Tag ? pinned.value : undefined,
     };
@@ -315,10 +339,10 @@ const saveAsDraft = handleSubmit(async (validatedFormValues) => {
 
 const hasNoPublishErrors = computed(() => {
     if (props.docType == DocType.Tag) {
-        return hasParentImage.value;
+        return hasParentImage.value && hasGroup.value;
     }
 
-    return hasOneContentField.value && hasParentImage.value && hasTag.value;
+    return hasOneContentField.value && hasParentImage.value && hasTag.value && hasGroup.value;
 });
 const hasOneContentField = computed(() => {
     return (
@@ -332,6 +356,9 @@ const hasParentImage = computed(() => {
 });
 const hasTag = computed(() => {
     return selectedTags.value.length > 0;
+});
+const hasGroup = computed(() => {
+    return selectedGroups.value.length > 0;
 });
 
 const isEditingSlug = ref(false);
@@ -368,6 +395,21 @@ const addTag = (tag: Tag) => {
 const removeTag = (tag: Tag) => {
     selectedTags.value = selectedTags.value.filter((t) => t._id != tag._id);
     checkIfDirty();
+};
+
+const addGroup = (group: Group) => {
+    const existing = selectedGroups.value.find((c) => c._id == group._id);
+
+    if (!existing) {
+        selectedGroups.value.push(group);
+    }
+
+    // checkIfDirtyGroup();
+};
+
+const removeGroup = (group: Group) => {
+    selectedGroups.value = selectedGroups.value.filter((t) => t._id != group._id);
+    // checkIfDirtyGroup();
 };
 
 const startEditingSlug = () => {
@@ -716,14 +758,17 @@ const checkIfDirty = () => {
                                             At least one of text, audio or video content is required
                                         </p>
                                     </div>
-                                    <div
-                                        v-if="!hasTag && docType == DocType.Post"
-                                        class="flex gap-2"
-                                    >
+                                    <div v-if="!hasTag" class="flex gap-2">
                                         <p>
                                             <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
                                         </p>
                                         <p>At least one tag is required</p>
+                                    </div>
+                                    <div v-if="!hasGroup" class="flex gap-2">
+                                        <p>
+                                            <XCircleIcon class="mt-0.5 h-4 w-4 text-zinc-400" />
+                                        </p>
+                                        <p>At least one group is required</p>
                                     </div>
                                 </TransitionGroup>
                             </div>
@@ -770,6 +815,16 @@ const checkIfDirty = () => {
                         This image can be overridden in a translation
                     </LInput>
 
+                    <GroupSelector
+                        class="mt-6"
+                        :groups="availableGroups"
+                        :selected-groups="selectedGroups"
+                        @select="addGroup"
+                        @remove="removeGroup"
+                        :disabled="!canEditParent"
+                        data-test="groups"
+                    />
+
                     <TagSelector
                         label="Categories"
                         class="mt-6"
@@ -779,6 +834,7 @@ const checkIfDirty = () => {
                         @select="addTag"
                         @remove="removeTag"
                         :disabled="!canEditParent"
+                        data-test="categories"
                     />
 
                     <TagSelector
