@@ -26,7 +26,7 @@ type Props = {
 };
 const props = defineProps<Props>();
 const content = db.whereParentAsRef<ContentDto[]>(props.parent._id, props.parentType, []);
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []); // TODO: Move this to ContentTable and pass ref to ContentRow
 const isLocalChange = db.isLocalChange(props.parent._id);
 
 const { verifyAccess } = useUserAccessStore();
