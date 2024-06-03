@@ -1,5 +1,5 @@
 import Dexie, { liveQuery, type Table } from "dexie";
-import type { BaseDocumentDto, DocType, LocalChangeDto, Uuid } from "@/types";
+import type { BaseDocumentDto, DocType, LocalChangeDto, TagType, Uuid } from "@/types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { toRaw, type Ref } from "vue";
@@ -63,9 +63,22 @@ export class BaseDatabase extends Dexie {
     /**
      * Get all IndexedDB documents of a certain type as Vue Ref
      * @param initialValue - The initial value of the ref while waiting for the query to complete
+     * @param tagType - Optional: The tag type to filter by (only used for tags)
      * TODO: Add pagination
      */
-    whereTypeAsRef<T extends BaseDocumentDto[]>(docType: DocType, initialValue?: T) {
+    whereTypeAsRef<T extends BaseDocumentDto[]>(
+        docType: DocType,
+        initialValue?: T,
+        tagType?: TagType,
+    ) {
+        if (tagType) {
+            return this.toRef<T>(
+                () =>
+                    this.docs.where({ type: docType, tagType }).toArray() as unknown as Promise<T>,
+                initialValue,
+            );
+        }
+
         return this.toRef<T>(
             () => this.docs.where("type").equals(docType).toArray() as unknown as Promise<T>,
             initialValue,
