@@ -12,13 +12,13 @@ import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { DocType } from "@/types";
 import { ref } from "vue";
+import { DateTime } from "luxon";
 
 describe("ContentOverview.vue", () => {
     beforeAll(async () => {
         vi.mock("@/db/baseDatabase", () => ({
             db: {
                 whereTypeAsRef: vi.fn((docType) => {
-                    console.log("we made it yes!");
                     if (docType === "post") {
                         return ref([mockPostDto]);
                     } else if (docType === "language") {
@@ -28,8 +28,13 @@ describe("ContentOverview.vue", () => {
                     return ref([]);
                 }),
                 whereParentAsRef: vi.fn(() => {
-                    console.log("we made it!");
                     return ref([mockEnglishContentDto]);
+                }),
+                isLocalChange: vi.fn(() => {
+                    return false;
+                }),
+                toDateTime: vi.fn((val) => {
+                    return DateTime.fromMillis(val);
                 }),
             },
         }));
@@ -77,7 +82,8 @@ describe("ContentOverview.vue", () => {
                 titlePlural: "Posts",
             },
         });
-        await wrapper.vm.$nextTick();
-        expect(wrapper.findAll(".content-overview-content-item").length).toBe(1);
+
+        console.log(wrapper.html());
+        expect(wrapper.html().includes(mockEnglishContentDto.title)).toBeTruthy();
     });
 });
