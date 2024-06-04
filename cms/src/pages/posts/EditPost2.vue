@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import EditContentCommon from "@/components/content/EditContentCommon.vue";
+import EditContentParent from "@/components/content/EditContentParent.vue";
 import EditContentForm from "@/components/content/EditContentForm.vue";
 import EditContentForm2 from "@/components/content/EditContentForm2.vue";
 import LanguageSelector2 from "@/components/content/LanguageSelector2.vue";
@@ -20,6 +20,7 @@ import {
 import { DocumentIcon } from "@heroicons/vue/24/solid";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import EditContentBasic from "@/components/content/EditContentBasic.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -90,12 +91,29 @@ const isLoading = computed(() => parent.value == undefined);
                 v-model="selectedLanguageId"
             />
         </template>
-        {{ selectedContent?.title }}
-        <EditContentCommon
-            v-if="parent"
-            :docType="DocType.Post"
-            :language="selectedLanguage"
-            v-model="parent"
-        />
+        <form type="post" class="relative grid grid-cols-3 gap-8" @submit.prevent>
+            <!-- Main area -->
+            <div class="col-span-3 space-y-6 md:col-span-2">
+                <!-- Basic content settings -->
+                <EditContentBasic
+                    :docType="DocType.Post"
+                    :language="selectedLanguage"
+                    v-model:parent="parent"
+                    v-model:content="selectedContent"
+                />
+            </div>
+            <!-- Sidebar -->
+            <div class="col-span-3 md:col-span-1">
+                <div class="sticky top-20 space-y-6">
+                    <!-- Parent settings -->
+                    <EditContentParent
+                        v-if="parent"
+                        :docType="DocType.Post"
+                        :language="selectedLanguage"
+                        v-model="parent"
+                    />
+                </div>
+            </div>
+        </form>
     </BasePage>
 </template>
