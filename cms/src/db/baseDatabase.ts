@@ -86,6 +86,16 @@ export class BaseDatabase extends Dexie {
     }
 
     /**
+     * Get IndexedDB documents by their parentId
+     */
+    whereParent<T extends BaseDocumentDto[]>(
+        parentId: Uuid,
+        parentType: DocType.Post | DocType.Tag,
+    ) {
+        return this.docs.where({ parentId, parentType }).toArray() as unknown as Promise<T>;
+    }
+
+    /**
      * Get IndexedDB documents by their parentId as Vue Ref
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      */
@@ -94,17 +104,7 @@ export class BaseDatabase extends Dexie {
         parentType: DocType.Post | DocType.Tag,
         initialValue?: T,
     ) {
-        return this.toRef<T>(
-            () => this.docs.where({ parentId, parentType }).toArray() as unknown as Promise<T>,
-            initialValue,
-        );
-    }
-
-    /**
-     * Get IndexedDB documents by their parentId
-     */
-    whereParent<T extends BaseDocumentDto[]>(parentId: Uuid) {
-        return this.docs.where("parentId").equals(parentId).toArray() as unknown as Promise<T>;
+        return this.toRef<T>(() => this.whereParent<T>(parentId, parentType), initialValue);
     }
 
     /**
