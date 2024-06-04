@@ -14,8 +14,8 @@ export class BaseDatabase extends Dexie {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(5).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType]",
+        this.version(6).stores({
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType]",
             localChanges: "++id, reqId, docId, status",
         });
     }
