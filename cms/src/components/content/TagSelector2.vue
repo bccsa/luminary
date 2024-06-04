@@ -16,7 +16,6 @@ import {
     type LanguageDto,
     type PostDto,
     type TagDto,
-    type Uuid,
 } from "@/types";
 import Ltag from "./LTag.vue";
 import { db } from "@/db/baseDatabase";
@@ -84,12 +83,6 @@ const isTagSelected = computed(() => {
         return parent.value?.tags.some((t) => t == tagId);
     };
 });
-
-const selectTag = (tagId: Uuid) => {
-    if (!tagId) return;
-    if (!parent) return;
-    parent.value?.tags.push(tagId);
-};
 </script>
 
 <template>
