@@ -1,28 +1,8 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import LButton from "@/components/button/LButton.vue";
-import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
+import { Cog6ToothIcon, LinkIcon } from "@heroicons/vue/20/solid";
 import {
-    Cog6ToothIcon,
-    DocumentTextIcon,
-    VideoCameraIcon,
-    MusicalNoteIcon,
-    LinkIcon,
-    EyeIcon,
-    ArrowTopRightOnSquareIcon,
-} from "@heroicons/vue/20/solid";
-import {
-    ExclamationCircleIcon,
-    PencilIcon,
-    XCircleIcon,
-    ChevronLeftIcon,
-} from "@heroicons/vue/16/solid";
-import {
-    ContentStatus,
-    type Content,
-    type Post,
-    type Tag,
     TagType,
     DocType,
     AclPermission,
@@ -30,28 +10,12 @@ import {
     type TagDto,
     type LanguageDto,
 } from "@/types";
-import { toTypedSchema } from "@vee-validate/yup";
-import { useForm } from "vee-validate";
-import * as yup from "yup";
-import { computed, nextTick, onBeforeMount, ref, toRaw } from "vue";
-import { onlyAllowedKeys } from "@/util/onlyAllowedKeys";
-import { DateTime } from "luxon";
-import { renderErrorMessage } from "@/util/renderErrorMessage";
-import { useLocalChangeStore } from "@/stores/localChanges";
-import { storeToRefs } from "pinia";
-import { useSocketConnectionStore } from "@/stores/socketConnection";
-import { Slug } from "@/util/slug";
+import { computed } from "vue";
 import TagSelector2 from "./TagSelector2.vue";
-import { useTagStore } from "@/stores/tag";
 import { capitaliseFirstLetter } from "@/util/string";
-import RichTextEditor from "@/components/editor/RichTextEditor.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
-import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
-import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { db } from "@/db/baseDatabase";
 
 const { verifyAccess } = useUserAccessStore();
 
