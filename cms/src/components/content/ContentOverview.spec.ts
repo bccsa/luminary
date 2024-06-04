@@ -10,9 +10,11 @@ import {
 } from "@/tests/mockData";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
-import { DocType } from "@/types";
+import { AclPermission, DocType } from "@/types";
 import { ref } from "vue";
 import { DateTime } from "luxon";
+import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
+import router from "@/router";
 
 describe("ContentOverview.vue", () => {
     beforeAll(async () => {
@@ -49,28 +51,6 @@ describe("ContentOverview.vue", () => {
         vi.clearAllMocks();
     });
 
-    // it("should display content", async () => {
-    //     const wrapper = mount(ContentOverview, {
-    //         global: {
-    //             mocks: {
-    //                 $db: {
-    //                     docs: {
-    //                         get: vi.fn().mockResolvedValueOnce({
-    //                             id: "1",
-    //                             entityName: "post",
-    //                             title: "Title",
-    //                             content: "Content",
-    //                         }),
-    //                         getAsRef: vi.fn(),
-    //                     },
-    //                 },
-    //             },
-    //             plugins: [createTestingPinia()],
-    //         },
-    //     });
-    //     await wrapper.vm.$nextTick();
-    //     expect(wrapper.findAll(".content-overview-content-item").length).toBe(1);
-    // });
     it("should display content", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
@@ -83,7 +63,34 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        console.log(wrapper.html());
         expect(wrapper.html().includes(mockEnglishContentDto.title)).toBeTruthy();
     });
+
+    it("should show edit button with correct router link", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+                titleSingular: "Post",
+                titlePlural: "Posts",
+            },
+        });
+
+        await wrapper.vm.$nextTick();
+
+        const editButton = wrapper.find('[data-test="edit-button"]');
+
+        expect(editButton.exists()).toBe(true);
+        const routerLink = editButton.findComponent(RouterLink);
+
+        expect(routerLink.exists()).toBe(true);
+        const linkProps = routerLink.props().to as RouteLocationNamedRaw;
+
+        expect(linkProps.name).toBe("posts.edit");
+        expect(linkProps.params?.id).toBe(mockPostDto._id);
+    });
+
+    it.skip("should show view button with correct router link", async () => {});
 });
