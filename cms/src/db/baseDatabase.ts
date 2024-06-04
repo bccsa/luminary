@@ -133,20 +133,37 @@ export class BaseDatabase extends Dexie {
 
     /**
      * Convert a numeric (UNIX) date to a DateTime object
-     * @param date
-     * @returns
      */
     toDateTime(date: number) {
         return DateTime.fromMillis(date);
     }
 
     /**
-     * Convert a DateTime object to a numeric (UNIX) date
+     * Convert a numeric (UNIX) date to an ISO date string
      * @param date
      * @returns
      */
+    toIsoDateTime(date: number) {
+        return DateTime.fromMillis(date).toISO({
+            includeOffset: false,
+            suppressSeconds: true,
+        });
+    }
+
+    /**
+     * Convert a DateTime object to a numeric (UNIX) date
+     */
     fromDateTime(date: DateTime) {
         return date.toMillis();
+    }
+
+    /**
+     * Convert an ISO date string to a numeric (UNIX) date
+     * @param date
+     * @returns
+     */
+    fromIsoDateTime(date: string) {
+        return DateTime.fromISO(date).toMillis();
     }
 
     /**
