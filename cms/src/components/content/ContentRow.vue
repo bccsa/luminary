@@ -131,6 +131,7 @@ const translationStatus = computed(() => {
                     },
                 }"
                 class="flex justify-end"
+                data-test="edit-button"
             ></LButton>
         </td>
     </tr>
