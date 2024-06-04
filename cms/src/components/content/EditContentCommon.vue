@@ -102,28 +102,29 @@ const canEdit = computed(() => {
             label="Categories"
             class="mt-6"
             :disabled="!canEdit"
-        />
-
-        <!-- <TagSelector2
-            label="Topics"
-            class="mt-6"
-            :tags="availableTopics.filter((t) => t._id != parent?._id)"
-            :selected-tags="selectedTopics"
-            :language="language"
-            @select="addTag"
-            @remove="removeTag"
-            :disabled="!canEdit"
+            :key="language?._id"
         />
 
         <TagSelector2
-            label="Audio playlists"
-            class="mt-6"
-            :tags="availableAudioPlaylists.filter((t) => t._id != parent?._id)"
-            :selected-tags="selectedAudioPlaylists"
+            v-model="parent"
+            :docType="docType"
             :language="language"
-            @select="addTag"
-            @remove="removeTag"
+            :tagType="TagType.Topic"
+            label="Topics"
+            class="mt-6"
             :disabled="!canEdit"
-        /> -->
+            :key="language?._id"
+        />
+
+        <TagSelector2
+            v-model="parent"
+            :docType="docType"
+            :language="language"
+            :tagType="TagType.AudioPlaylist"
+            label="Audio Playlists"
+            class="mt-6"
+            :disabled="!canEdit"
+            :key="language?._id"
+        />
     </LCard>
 </template>
