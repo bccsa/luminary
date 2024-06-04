@@ -83,7 +83,7 @@ const router = createRouter({
                         {
                             path: "edit/:id/:language?",
                             name: "posts.edit",
-                            component: () => import("../pages/posts/EditPost.vue"),
+                            component: () => import("../pages/posts/EditPost2.vue"),
                             meta: {
                                 title: "Edit Post",
                                 canAccess: {
