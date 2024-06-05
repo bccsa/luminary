@@ -10,6 +10,7 @@ import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { useId } from "@/util/useId";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
+import LBadge from "../common/LBadge.vue";
 
 type Option = { label: string; value: string; disabled?: boolean };
 
@@ -48,7 +49,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
         </FormLabel>
         <select
             v-model="model"
-            class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 ring-1 ring-inset focus:ring-2 disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
+            class="block w-full justify-items-center rounded-md border-0 px-3 py-2 pr-10 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-inset hover:bg-zinc-50 focus:ring-2 disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
             :class="states[state]"
             :id="id"
             :disabled="disabled"
@@ -60,6 +61,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :key="key"
                 :value="option.value"
                 :disabled="option.disabled"
+                class="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm text-zinc-700"
             >
                 {{ option.label }}
             </option>
