@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
-import EmptyState from "@/components/EmptyState.vue";
 import {
     fullAccessToAllContentMap,
     mockEnglishContentDto,
@@ -119,6 +118,8 @@ describe("ContentOverview.vue", () => {
         expect(routerLink.exists()).toBe(true);
 
         const linkProps = routerLink.props().to as RouteLocationNamedRaw;
+        console.log("View button linkProps:", linkProps);
+
         expect(linkProps.name).toBe("posts.edit");
         expect(linkProps.params?.id).toBe(mockPostDto._id);
 
@@ -141,7 +142,7 @@ describe("ContentOverview.vue", () => {
 
         await wrapper.vm.$nextTick();
 
-        const createButton = wrapper.find('[data-test="create-button"]');
+        const createButton = wrapper.find('[data-test="create-button"]')
         expect(createButton.exists()).toBe(true);
         expect(createButton.text()).toBe("Create Post");
 
