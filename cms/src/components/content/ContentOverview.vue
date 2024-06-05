@@ -56,7 +56,12 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
     <BasePage :title="titlePlural" :loading="contentParents === undefined">
         <template #actions>
             <div class="flex gap-4">
-                <LSelect v-model="selectedLanguage" :options="languageOptions" :required="true" />
+                <LSelect
+                    v-model="selectedLanguage"
+                    :options="languageOptions"
+                    :required="true"
+                    size="lg"
+                />
                 <LButton
                     v-if="contentParents && contentParents.length > 0 && canCreateNew"
                     variant="primary"
