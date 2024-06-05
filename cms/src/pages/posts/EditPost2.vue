@@ -2,17 +2,13 @@
 import BasePage from "@/components/BasePage.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
-import EditContentForm from "@/components/content/EditContentForm.vue";
-import EditContentForm2 from "@/components/content/EditContentForm2.vue";
 import LanguageSelector2 from "@/components/content/LanguageSelector2.vue";
 import { db } from "@/db/baseDatabase";
-import { useContentStore } from "@/stores/content";
 import { useNotificationStore } from "@/stores/notification";
-import { usePostStore } from "@/stores/post";
 import {
+    AclPermission,
     DocType,
     type ContentDto,
-    type Language,
     type LanguageDto,
     type PostDto,
     type Uuid,
@@ -21,13 +17,18 @@ import { DocumentIcon } from "@heroicons/vue/24/solid";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
+import { useUserAccessStore } from "@/stores/userAccess";
+import EditContentText from "@/components/content/EditContentText.vue";
+import EditContentVideo from "@/components/content/EditContentVideo.vue";
 
 const route = useRoute();
 const router = useRouter();
 const { addNotification } = useNotificationStore();
+const { verifyAccess } = useUserAccessStore();
 
 const postId = route.params.id as Uuid;
 const routeLanguage = route.params.language as string;
+const docType = DocType.Post;
 
 const parent = db.getAsRef<PostDto>(postId, {
     _id: postId,
@@ -72,6 +73,15 @@ const selectedContent = computed(() => {
 });
 
 const isLoading = computed(() => parent.value == undefined);
+
+// Access control
+const canTranslate = computed(() => {
+    if (!parent || !parent.value || !selectedLanguage.value) return false;
+    return (
+        verifyAccess(parent.value.memberOf, docType, AclPermission.Translate) &&
+        verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)
+    );
+});
 </script>
 
 <template>
@@ -95,12 +105,9 @@ const isLoading = computed(() => parent.value == undefined);
             <!-- Main area -->
             <div class="col-span-3 space-y-6 md:col-span-2">
                 <!-- Basic content settings -->
-                <EditContentBasic
-                    :docType="DocType.Post"
-                    :language="selectedLanguage"
-                    v-model:parent="parent"
-                    v-model:content="selectedContent"
-                />
+                <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
+                <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
+                <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
             </div>
             <!-- Sidebar -->
             <div class="col-span-3 md:col-span-1">

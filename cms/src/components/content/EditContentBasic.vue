@@ -3,40 +3,18 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { PencilIcon, ChevronLeftIcon } from "@heroicons/vue/16/solid";
-import {
-    ContentStatus,
-    DocType,
-    AclPermission,
-    type LanguageDto,
-    type PostDto,
-    type TagDto,
-    type ContentDto,
-} from "@/types";
-import { computed, nextTick, ref, watch } from "vue";
+import { ContentStatus, type ContentDto } from "@/types";
+import { nextTick, ref, watch } from "vue";
 import { DateTime } from "luxon";
 import { Slug } from "@/util/slug";
-import { useUserAccessStore } from "@/stores/userAccess";
 import { db } from "@/db/baseDatabase";
 import { watchDeep } from "@vueuse/core";
 
-const { verifyAccess } = useUserAccessStore();
-
 type Props = {
-    docType: DocType;
-    language?: LanguageDto;
+    disabled: boolean;
 };
-const props = defineProps<Props>();
-const parent = defineModel<PostDto | TagDto>("parent");
+defineProps<Props>();
 const content = defineModel<ContentDto>("content");
-
-// Access control
-const canTranslate = computed(() => {
-    if (!parent || !parent.value || !props.language) return false;
-    return (
-        verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) &&
-        verifyAccess(props.language.memberOf, DocType.Language, AclPermission.Translate)
-    );
-});
 
 // Slug generation
 const isEditingSlug = ref(false);
@@ -164,7 +142,7 @@ const clearExpiryDate = () => {
             name="title"
             label="Title"
             required
-            :disabled="!canTranslate"
+            :disabled="disabled"
             v-model="content.title"
             @change="(e) => autoUpdateSlug(e.target.value)"
         />
@@ -188,7 +166,7 @@ const clearExpiryDate = () => {
             />
             <button
                 data-test="editSlugButton"
-                v-if="!isEditingSlug && canTranslate"
+                v-if="!isEditingSlug && !disabled"
                 @click="startEditingSlug"
                 class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
                 title="Edit slug"
@@ -201,7 +179,7 @@ const clearExpiryDate = () => {
             name="summary"
             label="Summary"
             class="mt-4"
-            :disabled="!canTranslate"
+            :disabled="disabled"
             v-model="content.summary"
         />
 
@@ -211,7 +189,7 @@ const clearExpiryDate = () => {
                 label="Publish date"
                 class="sm:w-1/2"
                 type="datetime-local"
-                :disabled="!canTranslate"
+                :disabled="disabled"
                 v-model="publishDateString"
                 @change="
                     (e) => {
@@ -225,7 +203,7 @@ const clearExpiryDate = () => {
                 label="Expiry date"
                 class="group sm:w-1/2"
                 type="datetime-local"
-                :disabled="!canTranslate"
+                :disabled="disabled"
                 v-model="expiryDateString"
                 @change="
                     (e) => {
@@ -244,6 +222,7 @@ const clearExpiryDate = () => {
                         }"
                         @click="setExpiryNumber(1)"
                         data-test="1"
+                        :disabled="disabled"
                     >
                         1
                     </LButton>
@@ -253,6 +232,7 @@ const clearExpiryDate = () => {
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryNumber === 2 }"
                         @click="setExpiryNumber(2)"
+                        :disabled="disabled"
                     >
                         2
                     </LButton>
@@ -262,6 +242,7 @@ const clearExpiryDate = () => {
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryNumber === 3 }"
                         @click="setExpiryNumber(3)"
+                        :disabled="disabled"
                     >
                         3
                     </LButton>
@@ -272,6 +253,7 @@ const clearExpiryDate = () => {
                         size="lg"
                         :class="{ 'bg-black text-white': selectedExpiryNumber === 6 }"
                         @click="setExpiryNumber(6)"
+                        :disabled="disabled"
                     >
                         6
                     </LButton>
@@ -282,6 +264,7 @@ const clearExpiryDate = () => {
                         :class="{ 'bg-black text-white': selectedExpiryUnit === 'Week' }"
                         @click="setExpiryUnit('Week')"
                         data-test="W"
+                        :disabled="disabled"
                     >
                         W
                     </LButton>
@@ -291,6 +274,7 @@ const clearExpiryDate = () => {
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryUnit === 'Month' }"
                         @click="setExpiryUnit('Month')"
+                        :disabled="disabled"
                     >
                         M
                     </LButton>
@@ -300,6 +284,7 @@ const clearExpiryDate = () => {
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryUnit === 'Year' }"
                         @click="setExpiryUnit('Year')"
+                        :disabled="disabled"
                     >
                         Y
                     </LButton>
@@ -309,6 +294,7 @@ const clearExpiryDate = () => {
                         :icon="ChevronLeftIcon"
                         class="flex-1"
                         @click="clearExpiryDate()"
+                        :disabled="disabled"
                     >
                     </LButton>
                 </div>
