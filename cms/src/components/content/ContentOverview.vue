@@ -71,7 +71,7 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
         </template>
 
         <EmptyState
-            v-if="contentParents"
+            v-if="!contentParents || contentParents.length == 0"
             :icon="TagIcon"
             :title="`No ${titleSingular}s yet`"
             :description="
