@@ -21,6 +21,7 @@ import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import { useUserAccessStore } from "@/stores/userAccess";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
+import EditContentPreview from "@/components/content/EditContentPreview.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -129,6 +130,8 @@ const canTranslate = computed(() => {
             <!-- Sidebar -->
             <div class="col-span-3 md:col-span-1">
                 <div class="sticky top-20 space-y-6">
+                    <!-- Live View -->
+                    <EditContentPreview v-if="selectedContent" :content="selectedContent" />
                     <!-- Parent settings -->
                     <EditContentParent
                         v-if="parent"
