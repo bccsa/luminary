@@ -19,6 +19,7 @@ import { useRoute, useRouter } from "vue-router";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import { useUserAccessStore } from "@/stores/userAccess";
 import EditContentText from "@/components/content/EditContentText.vue";
+import EditContentVideo from "@/components/content/EditContentVideo.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -106,6 +107,7 @@ const canTranslate = computed(() => {
                 <!-- Basic content settings -->
                 <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
                 <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
+                <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
             </div>
             <!-- Sidebar -->
             <div class="col-span-3 md:col-span-1">
