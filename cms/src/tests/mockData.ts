@@ -571,6 +571,25 @@ export const fullAccessToAllContentMap = {
         language: { view: true, create: true, edit: true, translate: true, publish: true },
     },
 };
+
+export const viewAccessToAllContentMap = {
+    "group-private-content": {
+        post: { view: true, create: false, edit: false, translate: false, publish: false },
+        tag: { view: true, create: false, edit: false, translate: false, publish: false },
+        language: { view: true, create: false, edit: false, translate: false, publish: false },
+    },
+    "group-public-content": {
+        post: { view: true, create: false, edit: false, translate: false, publish: false },
+        tag: { view: true, create: false, edit: false, translate: false, publish: false },
+        language: { view: true, create: false, edit: false, translate: false, publish: false },
+    },
+    "group-languages": {
+        post: { view: true, create: false, edit: false, translate: false, publish: false },
+        tag: { view: true, create: false, edit: false, translate: false, publish: false },
+        language: { view: true, create: false, edit: false, translate: false, publish: false },
+    },
+};
+
 export const translateAccessToAllContent = {
     "group-private-content": {
         post: { view: true, translate: true },
