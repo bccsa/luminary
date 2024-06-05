@@ -63,6 +63,7 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
                     :icon="PlusIcon"
                     :is="RouterLink"
                     :to="{ name: `${docType}s.create`, params: createRouteParams }"
+                    data-test="create-button"
                 >
                     Create {{ titleSingular }}
                 </LButton>
@@ -70,7 +71,7 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
         </template>
 
         <EmptyState
-            v-if="!contentParents || contentParents.length == 0"
+            v-if="contentParents"
             :icon="TagIcon"
             :title="`No ${titleSingular}s yet`"
             :description="
@@ -78,9 +79,10 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
                     ? `Get started by creating a new ${titleSingular}.`
                     : `You do not have permission to create new ${titlePlural}.`
             "
-            buttonText="Create"
+            :buttonText="`Create ${titleSingular.charAt(0).toUpperCase()}${titleSingular.slice(1)}`"
             :buttonLink="{ name: `${docType}s.create`, params: createRouteParams }"
             :buttonPermission="canCreateNew"
+            data-test="no-content"
         />
 
         <ContentTable2
