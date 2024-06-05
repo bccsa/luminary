@@ -7,6 +7,7 @@ import { db } from "@/db/baseDatabase";
 import { useNotificationStore } from "@/stores/notification";
 import {
     AclPermission,
+    ContentStatus,
     DocType,
     type ContentDto,
     type LanguageDto,
@@ -42,6 +43,7 @@ const parent = db.getAsRef<PostDto>(postId, {
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const contentDocs = db.whereParentAsRef<ContentDto[]>(postId, DocType.Post, []);
 const selectedLanguageId = ref<Uuid>();
+const isLoading = computed(() => parent.value == undefined);
 
 watch(
     languages,
@@ -63,6 +65,7 @@ watch(
     { once: true },
 );
 
+// Language and content selection
 const selectedLanguage = computed(() => {
     return languages.value.find((l) => l._id == selectedLanguageId.value);
 });
@@ -72,7 +75,20 @@ const selectedContent = computed(() => {
     return contentDocs.value.find((c) => c.language == selectedLanguageId.value);
 });
 
-const isLoading = computed(() => parent.value == undefined);
+const createTranslation = (language: LanguageDto) => {
+    contentDocs.value.push({
+        _id: db.uuid(),
+        type: DocType.Content,
+        updatedTimeUtc: Date.now(),
+        memberOf: [],
+        parentId: parent.value._id,
+        language: language._id,
+        status: ContentStatus.Draft,
+        title: `Translation for ${language.name}`,
+        slug: "",
+    });
+    selectedLanguageId.value = language._id;
+};
 
 // Access control
 const canTranslate = computed(() => {
@@ -99,6 +115,7 @@ const canTranslate = computed(() => {
                 :content="contentDocs"
                 :languages="languages"
                 v-model="selectedLanguageId"
+                @createTranslation="createTranslation"
             />
         </template>
         <form type="post" class="relative grid grid-cols-3 gap-8" @submit.prevent>
