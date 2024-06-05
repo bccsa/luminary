@@ -36,7 +36,7 @@ withDefaults(defineProps<Props>(), {
             <header
                 v-if="title || $slots.actions"
                 :class="[
-                    'flex flex-col gap-4 pb-6 sm:flex-row sm:items-center',
+                    'flex justify-between gap-4 pb-6 sm:flex-row sm:items-center',
                     {
                         'sm:justify-center': centered,
                         'sm:justify-between': !centered,
