@@ -37,6 +37,12 @@ const autoUpdateSlug = async (title: string) => {
     if (!content || !content.value) return;
     if (!previousTitle) previousTitle = content.value.title;
 
+    if (!content.value.slug) await updateSlug(title);
+
+    if (content.value.status == ContentStatus.Draft && !content.value.title) {
+        content.value.slug = "";
+    }
+
     // Only auto-update if in draft mode
     // Check if the slug is still the default value
     if (
@@ -62,7 +68,6 @@ watch(
     () => {
         if (!content.value) return;
         autoUpdateSlug(content.value.title);
-        console.log(content.value.title);
     },
     { deep: true },
 );
