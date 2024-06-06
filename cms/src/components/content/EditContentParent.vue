@@ -41,6 +41,7 @@ const canEdit = computed(() => {
         :icon="Cog6ToothIcon"
         class="sticky top-20"
         collapsible
+        v-if="parent"
     >
         <div v-if="docType == DocType.Tag" class="mb-6 flex items-center justify-between">
             <FormLabel>Pinned</FormLabel>
@@ -54,6 +55,7 @@ const canEdit = computed(() => {
             :icon="LinkIcon"
             placeholder="https://..."
             :disabled="!canEdit"
+            v-model="parent.image"
         >
             This image can be overridden in a translation
         </LInput>
