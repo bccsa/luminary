@@ -2,6 +2,8 @@
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
+import LToggle from "@/components/forms/LToggle.vue";
+import FormLabel from "@/components/forms/FormLabel.vue";
 import { PencilIcon, ChevronLeftIcon } from "@heroicons/vue/16/solid";
 import { ContentStatus, type ContentDto } from "@/types";
 import { nextTick, ref, watch } from "vue";
@@ -12,6 +14,7 @@ import { watchDeep } from "@vueuse/core";
 
 type Props = {
     disabled: boolean;
+    validated: boolean;
 };
 defineProps<Props>();
 const content = defineModel<ContentDto>("content");
@@ -22,7 +25,6 @@ const slugInput = ref<HTMLInputElement | undefined>(undefined);
 const updateSlug = async (text: string) => {
     if (!content || !content.value) return;
 
-    console.log("updateSlug", text);
     text = text.trim();
     if (!text) text = content.value.title || "";
     if (!text) return "invalid-slug";
@@ -42,7 +44,6 @@ const autoUpdateSlug = async (title: string) => {
         content.value.slug.replace(/-[0-9]*$/g, "") ==
             Slug.generateNonUnique(previousTitle).replace(/-[0-9]*$/g, "")
     ) {
-        console.log("autoUpdateSlug", title);
         await updateSlug(title);
     }
 
@@ -55,6 +56,16 @@ const startEditingSlug = () => {
         slugInput.value?.focus();
     });
 };
+
+watch(
+    content,
+    () => {
+        if (!content.value) return;
+        autoUpdateSlug(content.value.title);
+        console.log(content.value.title);
+    },
+    { deep: true },
+);
 
 // Publish and expiry dates
 const publishDateString = ref<string | undefined>(undefined);
@@ -134,18 +145,28 @@ const clearExpiryDate = () => {
     if (content.value) content.value.expiryDate = undefined;
     clearExpirySelection();
 };
+
+// Linked publish and expiry dates
+const linkedDates = ref<boolean>(false);
+
+// Publish status
+const publishStatus = ref<boolean>(false);
+watch(content, () => {
+    if (!content.value) return;
+    publishStatus.value = content.value.status == ContentStatus.Published;
+});
+watch(publishStatus, () => {
+    if (!content.value) return;
+    content.value.status = publishStatus.value ? ContentStatus.Published : ContentStatus.Draft;
+});
 </script>
 
 <template>
     <LCard title="Basic translation settings" collapsible v-if="content">
-        <LInput
-            name="title"
-            label="Title"
-            required
-            :disabled="disabled"
-            v-model="content.title"
-            @change="(e) => autoUpdateSlug(e.target.value)"
-        />
+        <!-- Title -->
+        <LInput name="title" label="Title" required :disabled="disabled" v-model="content.title" />
+
+        <!-- Slug -->
         <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
             <span class="py-0.5">Slug:</span>
             <span
@@ -175,6 +196,7 @@ const clearExpiryDate = () => {
             </button>
         </div>
 
+        <!-- Summary -->
         <LInput
             name="summary"
             label="Summary"
@@ -183,7 +205,9 @@ const clearExpiryDate = () => {
             v-model="content.summary"
         />
 
+        <!-- Publish settings -->
         <div class="mt-4 flex flex-col gap-4 sm:flex-row">
+            <!-- Publish date -->
             <LInput
                 name="publishDate"
                 label="Publish date"
@@ -197,7 +221,21 @@ const clearExpiryDate = () => {
                         content.publishDate = db.fromIsoDateTime(e.target.value);
                     }
                 "
-            />
+            >
+                <!-- Link publish & expiry dates toggle -->
+                <div class="flex items-center justify-between">
+                    <FormLabel>Link dates (not implemented yet)</FormLabel>
+                    <LToggle v-model="linkedDates" :disabled="disabled || true" />
+                </div>
+
+                <!-- Publish / draft toggle -->
+                <div class="mt-2 flex items-center justify-between">
+                    <FormLabel>Status: Draft / Published</FormLabel>
+                    <LToggle v-model="publishStatus" :disabled="disabled" />
+                </div>
+            </LInput>
+
+            <!-- Expiry date -->
             <LInput
                 name="expiryDate"
                 label="Expiry date"
@@ -212,6 +250,7 @@ const clearExpiryDate = () => {
                     }
                 "
             >
+                <!-- Expiry date shortcut buttons -->
                 <div class="flex w-full cursor-pointer flex-wrap gap-1">
                     <LButton
                         type="button"
