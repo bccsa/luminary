@@ -5,6 +5,7 @@ import ContentOverview from "@/components/content/ContentOverview.vue";
 import {
     fullAccessToAllContentMap,
     mockEnglishContentDto,
+    mockFrenchContentDto,
     mockLanguageDtoEng,
     mockPostDto,
     viewAccessToAllContentMap,
@@ -142,7 +143,7 @@ describe("ContentOverview.vue", () => {
 
         await wrapper.vm.$nextTick();
 
-        const createButton = wrapper.find('[data-test="create-button"]')
+        const createButton = wrapper.find('[data-test="create-button"]');
         expect(createButton.exists()).toBe(true);
         expect(createButton.text()).toBe("Create Post");
 
@@ -152,5 +153,30 @@ describe("ContentOverview.vue", () => {
         const linkProps = routerLink.props().to as RouteLocationNamedRaw;
         expect(linkProps.name).toBe("posts.create");
         expect(linkProps.params?.id).toBe(undefined);
+    });
+
+    it("should handle language switching correctly", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+                titleSingular: "Post",
+                titlePlural: "Posts",
+            },
+        });
+
+        await wrapper.vm.$nextTick();
+
+        const languageSelect = wrapper.findComponent({ name: "LSelect" });
+        expect(languageSelect.exists()).toBe(true);
+
+        // Switch to French
+        await languageSelect.vm.$emit("update:modelValue", mockFrenchContentDto._id);
+        await wrapper.vm.$nextTick();
+
+        // Mocked French content should be displayed
+        expect(wrapper.html().includes(mockFrenchContentDto.title)).toBeTruthy();
     });
 });
