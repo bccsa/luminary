@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
-import EmptyState from "@/components/EmptyState.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
 import LanguageSelector2 from "@/components/content/LanguageSelector2.vue";
 import { db } from "@/db/baseDatabase";
@@ -15,13 +14,14 @@ import {
     type Uuid,
 } from "@/types";
 import { DocumentIcon } from "@heroicons/vue/24/solid";
-import { computed, onBeforeMount, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import { useUserAccessStore } from "@/stores/userAccess";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
+import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -123,13 +123,24 @@ const canTranslate = computed(() => {
             <!-- Main area -->
             <div class="col-span-3 space-y-6 md:col-span-2">
                 <!-- Basic content settings -->
-                <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
+                <EditContentBasic
+                    v-model:content="selectedContent"
+                    :disabled="!canTranslate"
+                    :validated="true"
+                />
                 <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
                 <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
             </div>
             <!-- Sidebar -->
             <div class="col-span-3 md:col-span-1">
                 <div class="sticky top-20 space-y-6">
+                    <!-- Validation -->
+                    <EditContentParentValidation
+                        v-if="contentDocs"
+                        v-model:parent="parent"
+                        v-model:contentDocs="contentDocs"
+                        :languages="languages"
+                    />
                     <!-- Live View -->
                     <EditContentPreview v-if="selectedContent" :content="selectedContent" />
                     <!-- Parent settings -->
