@@ -15,16 +15,16 @@ import {
 } from "@/types";
 import { DocumentIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import { useUserAccessStore } from "@/stores/userAccess";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
+import * as _ from "lodash";
 
 const route = useRoute();
-const router = useRouter();
 const { addNotification } = useNotificationStore();
 const { verifyAccess } = useUserAccessStore();
 
@@ -32,7 +32,10 @@ const postId = route.params.id as Uuid;
 const routeLanguage = route.params.language as string;
 const docType = DocType.Post;
 
-const parent = db.getAsRef<PostDto>(postId, {
+// Get a copy of the parent document from IndexedDB, and host it as a local ref.
+// The initial ref is populated with an empty object and thereafter filled with the actual
+// data retrieved from the database.
+const parent = ref<PostDto>({
     _id: postId,
     type: DocType.Post,
     updatedTimeUtc: 0,
@@ -40,9 +43,21 @@ const parent = db.getAsRef<PostDto>(postId, {
     image: "",
     tags: [],
 });
+let parentPrev = ref<PostDto>(); // Previous version of the parent document for dirty check
+db.get<PostDto>(postId).then((p) => {
+    parent.value = p;
+    parentPrev.value = _.cloneDeep(p);
+});
+
+// In the same way as the parent document, get a copy of the content documents
+const contentDocs = ref<ContentDto[]>([]);
+let contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+db.whereParent<ContentDto[]>(postId, docType).then((doc) => {
+    contentDocs.value.push(...doc);
+    contentDocsPrev.value = _.cloneDeep(doc);
+});
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const contentDocs = db.whereParentAsRef<ContentDto[]>(postId, DocType.Post, []);
 const selectedLanguageId = ref<Uuid>();
 const isLoading = computed(() => parent.value == undefined);
 
@@ -93,12 +108,43 @@ const createTranslation = (language: LanguageDto) => {
 
 // Access control
 const canTranslate = computed(() => {
-    if (!parent || !parent.value || !selectedLanguage.value) return false;
+    if (!parent.value || !selectedLanguage.value) return false;
     return (
         verifyAccess(parent.value.memberOf, docType, AclPermission.Translate) &&
         verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)
     );
 });
+
+// Dirty check and save
+const isDirty = computed(
+    () =>
+        !_.isEqual(parent.value, parentPrev.value) ||
+        !_.isEqual(contentDocs.value, contentDocsPrev.value),
+);
+
+const save = async () => {
+    // Save the parent document
+    await db.upsert(parent.value);
+
+    // Save the content documents that changed
+    const pList: Promise<any>[] = [];
+    contentDocs.value.forEach((c) => {
+        const prevContentDoc = contentDocsPrev.value?.find((d) => d._id == c._id);
+        if (_.isEqual(c, prevContentDoc)) return;
+        pList.push(db.upsert(c));
+    });
+
+    await Promise.all(pList);
+
+    addNotification({
+        title: "Post Saved",
+        description: "The post was saved successfully",
+        state: "success",
+    });
+
+    parentPrev.value = _.cloneDeep(parent.value);
+    contentDocsPrev.value = _.cloneDeep(contentDocs.value);
+};
 </script>
 
 <template>
@@ -140,6 +186,8 @@ const canTranslate = computed(() => {
                         v-model:parent="parent"
                         v-model:contentDocs="contentDocs"
                         :languages="languages"
+                        @save="save"
+                        :dirty="isDirty"
                     />
                     <!-- Live View -->
                     <EditContentPreview v-if="selectedContent" :content="selectedContent" />

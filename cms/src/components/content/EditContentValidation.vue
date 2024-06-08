@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ContentDto, LanguageDto } from "@/types";
+import { ContentStatus, type ContentDto, type LanguageDto } from "@/types";
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { XCircleIcon } from "@heroicons/vue/20/solid";
@@ -54,6 +54,11 @@ watch(
                 return content.expiryDate > content.publishDate;
             },
         );
+
+        validate("A publish date is required", "publishDate", validations.value, content, () => {
+            if (content.status == ContentStatus.Draft) return true;
+            return content.publishDate != undefined && content.publishDate != null;
+        });
 
         isValid.value = validations.value.every((v) => v.isValid);
         emit("isValid", isValid.value);
