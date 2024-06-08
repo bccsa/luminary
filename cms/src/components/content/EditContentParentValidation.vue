@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LButton from "@/components/button/LButton.vue";
+import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
 import EditContentValidation from "./EditContentValidation.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
@@ -10,6 +11,7 @@ import { validate, type Validation } from "./ContentValidator";
 
 type Props = {
     languages: LanguageDto[];
+    dirty: boolean;
 };
 const props = defineProps<Props>();
 const parent = defineModel<PostDto | TagDto>("parent");
@@ -77,12 +79,13 @@ watch(
 <template>
     <LCard :showFooter="!overallIsValid">
         <div class="flex gap-4">
+            <LBadge v-if="dirty">Unsaved changes</LBadge>
             <div class="flex-1"></div>
             <LButton
                 type="button"
                 @click="emit('save')"
                 data-test="draft"
-                :disabled="!overallIsValid"
+                :disabled="!overallIsValid || !dirty"
                 :icon="ArrowUpOnSquareIcon"
             >
                 Save
