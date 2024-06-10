@@ -43,10 +43,12 @@ const canEdit = computed(() => {
         collapsible
         v-if="parent"
     >
-        <div v-if="docType == DocType.Tag" class="mb-6 flex items-center justify-between">
+        <div
+            v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
+            class="mb-6 flex items-center justify-between"
+        >
             <FormLabel>Pinned</FormLabel>
-            <!-- @vue-expect-error We are checking the DocType above, so pinned should only be called on Tag documents -->
-            <LToggle v-model="parent!.pinned" :disabled="!canEdit" />
+            <LToggle v-model="(parent as TagDto).pinned" :disabled="!canEdit" />
         </div>
 
         <LInput
