@@ -41,7 +41,6 @@ withDefaults(defineProps<Props>(), {
                         'sm:justify-center': centered,
                         'sm:justify-between': !centered,
                     },
-                    'capitalize',
                 ]"
             >
                 <h1 class="flex items-center gap-2 text-lg font-semibold leading-7">
