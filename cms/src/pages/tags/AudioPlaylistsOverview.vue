@@ -7,7 +7,7 @@ import { DocType, TagType } from "@/types";
     <ContentOverview
         :docType="DocType.Tag"
         :tagType="TagType.AudioPlaylist"
-        titleSingular="audio playlist"
-        titlePlural="audio playlists"
+        titleSingular="Audio Playlist"
+        titlePlural="Audio Playlists"
     />
 </template>
