@@ -87,6 +87,7 @@ watch(
                 data-test="draft"
                 :disabled="!overallIsValid || !dirty"
                 :icon="ArrowUpOnSquareIcon"
+                variant="primary"
             >
                 Save
             </LButton>
