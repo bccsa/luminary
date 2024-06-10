@@ -7,7 +7,7 @@ import { DocType, TagType } from "@/types";
     <ContentOverview
         :docType="DocType.Tag"
         :tagType="TagType.Topic"
-        titleSingular="topic"
-        titlePlural="topics"
+        titleSingular="Topic"
+        titlePlural="Topics"
     />
 </template>
