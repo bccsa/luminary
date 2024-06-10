@@ -13,19 +13,13 @@ import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
 import { DateTime } from "luxon";
-import EditContent from "./EditContent.vue";
-import { DocType } from "@/types";
+import LanguageSelector2 from "./LanguageSelector2.vue";
+import EditContentBasic from "./EditContentBasic.vue";
 
-describe("EditContent.vue", () => {
+describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
         vi.mock("@/db/baseDatabase", () => ({
             db: {
-                get: vi.fn(async (postId) => {
-                    return { _id: postId };
-                }),
-                whereParent: vi.fn(async (parentId, parentType) => {
-                    return [{ ...mockEnglishContentDto, parentType, parentId }];
-                }),
                 whereTypeAsRef: vi.fn((docType) => {
                     if (docType === "post") {
                         return ref([mockPostDto]);
@@ -46,8 +40,6 @@ describe("EditContent.vue", () => {
                 toDateTime: vi.fn((val) => {
                     return DateTime.fromMillis(val);
                 }),
-                uuid: vi.fn(() => "new-uuid"),
-                upsert: vi.fn(),
             },
         }));
 
@@ -61,38 +53,36 @@ describe("EditContent.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("save the content", async () => {
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
-
-        const wrapper = mount(EditContent, {
+    it("edit title", async () => {
+        const wrapper = mount(EditContentBasic, {
             props: {
-                docType: DocType.Post,
-                parentId: mockPostDto._id,
-                routerBackLink: "posts.index",
-                backLinkText: "Posts",
-                languageCode: "eng",
+                disabled: false,
+                validated: false,
+                content: mockEnglishContentDto,
             },
             global: {
                 plugins: [createTestingPinia()],
             },
         });
 
-        // Wait for the component to fetch data
+        // Wait for the component to update
         await wrapper.vm.$nextTick();
 
-        // Trigger save event
-        const saveButton = wrapper.find('[data-test="draft"]');
-        expect(saveButton.exists()).toBe(true);
+        // Find and update the title input field
+        const titleInput = wrapper.find('[name="title"]');
+        await titleInput.setValue("Updated Title");
 
-        // // Simulate enabling dirty state
-        // console.log(wrapper.setProps({ parentId: "new-uuid" }));
+        // Check if the content's title was updated
+        expect(wrapper.props().content?.title).toBe("Updated Title");
 
-        // wrapper.setProps({ languageCode: "fra" });
+        // // Check if the slug is updated correctly
         // await wrapper.vm.$nextTick();
+        // const slugSpan = wrapper.find('[data-test="slugSpan"]');
 
-        // expect(saveButton.attributes().disabled).toBe("");
+        // await wrapper.vm.$nextTick();
+        // expect(slugSpan.text()).toBe("updated-title");
 
-        // console.log(wrapper.html());
+        // Check if the save event is emitted
+        expect(wrapper.emitted().save).toBeTruthy();
     });
 });
