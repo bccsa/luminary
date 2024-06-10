@@ -4,5 +4,5 @@ import { DocType } from "@/types";
 </script>
 
 <template>
-    <ContentOverview :docType="DocType.Post" titleSingular="post" titlePlural="posts" />
+    <ContentOverview :docType="DocType.Post" titleSingular="Post" titlePlural="Posts" />
 </template>
