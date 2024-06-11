@@ -14,7 +14,6 @@ import { watchDeep } from "@vueuse/core";
 
 type Props = {
     disabled: boolean;
-    validated: boolean;
 };
 defineProps<Props>();
 const content = defineModel<ContentDto>("content");
