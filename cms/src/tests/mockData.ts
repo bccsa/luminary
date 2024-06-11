@@ -122,7 +122,7 @@ export const mockLanguageDtoEng: LanguageDto = {
     _id: "lang-eng",
     type: DocType.Language,
     updatedTimeUtc: 1704114000000,
-    memberOf: [],
+    memberOf: ["group-languages"],
     languageCode: "eng",
     name: "English",
 };
@@ -130,7 +130,7 @@ export const mockLanguageDtoFra: LanguageDto = {
     _id: "lang-fra",
     type: DocType.Language,
     updatedTimeUtc: 1704114000000,
-    memberOf: [],
+    memberOf: ["group-languages"],
     languageCode: "fra",
     name: "Français",
 };
