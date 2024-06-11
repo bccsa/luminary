@@ -6,7 +6,7 @@ import {
     ContentStatus,
     type Post,
     type Language,
-    type LocalChange,
+    type LocalChangeDto,
     type LanguageDto,
     TagType,
     type Tag,
@@ -24,7 +24,7 @@ export const mockCategoryDto: TagDto = {
     memberOf: ["group-public-content"],
     tagType: TagType.Category,
     pinned: false,
-    image: "",
+    image: "test-image.jpg",
     tags: [],
 };
 
@@ -33,7 +33,7 @@ export const mockPostDto: PostDto = {
     type: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
-    image: "",
+    image: "test-image.jpg",
     tags: ["tag-category1"],
 };
 
@@ -41,6 +41,7 @@ export const mockEnglishContentDto: ContentDto = {
     _id: "content-post1-eng",
     type: DocType.Content,
     parentId: "post-post1",
+    parentType: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     language: "lang-eng",
@@ -60,6 +61,7 @@ export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
     type: DocType.Content,
     parentId: "post-post1",
+    parentType: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     language: "lang-fra",
@@ -79,6 +81,7 @@ export const mockCategoryContentDto: ContentDto = {
     _id: "content-tag-category1",
     type: DocType.Content,
     parentId: "tag-category1",
+    parentType: DocType.Tag,
     updatedTimeUtc: 1704114000000,
     memberOf: [],
     language: "lang-eng",
@@ -312,13 +315,15 @@ export const mockImage: ImageDto = {
     ],
 };
 
-export const mockLocalChange1: LocalChange = {
+export const mockLocalChange1: LocalChangeDto = {
     id: 42,
     doc: mockPostDto,
+    docId: "post-post1",
 };
-export const mockLocalChange2: LocalChange = {
+export const mockLocalChange2: LocalChangeDto = {
     id: 43,
     doc: mockEnglishContentDto,
+    docId: "content-post1-eng",
 };
 
 export const mockGroupPublicContent: Group = {

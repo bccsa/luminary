@@ -84,7 +84,7 @@ watch(
             <LButton
                 type="button"
                 @click="emit('save')"
-                data-test="draft"
+                data-test="save-button"
                 :disabled="!overallIsValid || !dirty"
                 :icon="ArrowUpOnSquareIcon"
                 variant="primary"
