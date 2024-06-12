@@ -17,7 +17,12 @@ const liveUrl = computed(() => new URL(props.content.slug, clientAppUrl));
 </script>
 
 <template>
-    <LCard title="View" :icon="EyeIcon" v-if="content.status == ContentStatus.Published">
+    <LCard
+        title="View"
+        :icon="EyeIcon"
+        v-if="content.status == ContentStatus.Published"
+        data-test="livePreview"
+    >
         <LButton :icon="ArrowTopRightOnSquareIcon" iconRight is="a" :href="liveUrl" target="_blank"
             >View live version</LButton
         >

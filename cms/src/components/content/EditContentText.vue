@@ -36,6 +36,7 @@ const initializeText = () => {
         collapsible
         v-if="content?.text"
         :disabled="disabled"
+        data-test="textContent"
     >
         <RichTextEditor2 v-model="content.text" :disabled="disabled" :key="content._id" />
     </LCard>
