@@ -1,22 +1,12 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    fullAccessToAllContentMap,
-    mockEnglishContentDto,
-    mockFrenchContentDto,
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-    mockPostDto,
-} from "@/tests/mockData";
+import { fullAccessToAllContentMap, mockEnglishContentDto } from "@/tests/mockData";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
-import { DateTime } from "luxon";
-import LanguageSelector2 from "./LanguageSelector2.vue";
 import EditContentBasic from "./EditContentBasic.vue";
 import type { ContentDto } from "@/types";
-import type WrapperLike from "node_modules/@vue/test-utils/dist/interfaces/wrapperLike";
 
 describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
@@ -62,5 +52,26 @@ describe("EditContentBasic.vue", () => {
 
         // Check if the content's summary was updated
         expect(content.value.summary).toBe("Updated Summary");
+    });
+
+    it("sets expiry date when shortcut buttons are clicked", async () => {
+        const content = ref<ContentDto>(mockEnglishContentDto);
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Click the expiry shortcut button
+        const oneButton = wrapper.find('[data-test="1"]');
+        await oneButton.trigger("click");
+        const weekButton = wrapper.find('[data-test="W"]');
+        await weekButton.trigger("click");
+
+        // Wait for Vue to process the state change
+        expect(content.value.expiryDate).toBeGreaterThan(
+            content.value.publishDate as unknown as number,
+        );
     });
 });

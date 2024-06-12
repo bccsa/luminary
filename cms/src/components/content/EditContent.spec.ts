@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
-import { describe, it, beforeAll, afterEach, beforeEach, expect } from "vitest";
-import { flushPromises, mount } from "@vue/test-utils";
+import { describe, it, afterEach, beforeEach, expect } from "vitest";
+import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import {
     fullAccessToAllContentMap,
@@ -17,8 +17,6 @@ import EditContent from "./EditContent.vue";
 import { DocType, type ContentDto } from "@/types";
 import { db } from "@/db/baseDatabase";
 import waitForExpect from "wait-for-expect";
-import { DateTime, Settings } from "luxon";
-import { set } from "@vueuse/core";
 
 describe("EditContent.vue", () => {
     beforeEach(async () => {
@@ -110,17 +108,15 @@ describe("EditContent.vue", () => {
         await waitForExpect(async () => {
             expect(wrapper.find("button[data-test='language-selector']").exists()).toBe(true);
             await wrapper.find("button[data-test='language-selector']").trigger("click");
+            expect(wrapper.find("button[data-test='select-language-swa']").exists()).toBe(true);
             await wrapper.find("button[data-test='select-language-swa']").trigger("click");
         });
         await wait();
-        console.log(wrapper.html());
-
-        // TODO: Johan to finish this test
 
         // Wait for the new language to load
-        // await waitForExpect(() => {
-        //     expect(wrapper.html()).toContain("Translation for Swahlili");
-        // });
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Translation for Swahili");
+        });
     });
 
     it.skip("renders an initial loading state", async () => {
@@ -145,10 +141,10 @@ describe("EditContent.vue", () => {
 
         // Wait for the component to fetch data
         await waitForExpect(() => {
+            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true); // LanguageSelector is rendered
             expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
-            // TODO: Johan to finish this test
-            // expect(wrapper.find('input[name="image"]').exists()).toBe(true); // EditContentParent is rendered
-            // expect(wrapper.find('input[name="content"]').exists()).toBe(true);
+            expect(wrapper.html()).toContain("Text content"); // EditContentText is rendered
+            expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
         });
     });
 
@@ -200,92 +196,6 @@ describe("EditContent.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.title);
-        });
-    });
-
-    // This test should be in EditContentBasic.spec.ts
-    it.skip("edit the summary", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                parentId: mockPostDto._id,
-                languageCode: "eng",
-                routerBackLink: "",
-                backLinkText: "",
-            },
-            global: {
-                plugins: [createTestingPinia()],
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.find('input[name="summary"]').exists()).toBe(true);
-        });
-
-        const summaryInput = wrapper.find("input[name='summary']");
-        await summaryInput.setValue("Updated Summary");
-
-        // Check if the save button is enabled
-        const saveButton = wrapper.find('[data-test="save-button"]');
-        expect(saveButton.exists()).toBe(true);
-        expect(saveButton.attributes().disabled).toBeUndefined();
-
-        await saveButton.trigger("click");
-
-        // Wait for the save to complete
-        await waitForExpect(async () => {
-            const savedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
-            expect(savedDoc.summary).toBe("Updated Summary");
-        });
-    });
-
-    // Move to EditContentBasic.spec.ts
-    it.skip("sets expiry date when shortcut buttons are clicked", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                parentId: mockPostDto._id,
-                languageCode: "eng",
-                routerBackLink: "",
-                backLinkText: "",
-            },
-            global: {
-                plugins: [createTestingPinia()],
-            },
-        });
-
-        // Wait for the component to fetch data
-        // await waitForExpect(() => {
-        //     expect(wrapper.find('input[name="expiryDate"]').exists()).toBe(true);
-        // });
-
-        // Simulate setting publish date first
-        const publishDate = Date.now();
-        await db.docs.update(mockEnglishContentDto._id, { publishDate });
-
-        // Force update to pick up the publish date change
-        await wrapper.vm.$nextTick();
-
-        // Click the expiry shortcut button
-        const oneButton = wrapper.find('[data-test="1"]');
-        const weekButton = wrapper.find('[data-test="W"]');
-        await oneButton.trigger("click");
-        await weekButton.trigger("click");
-
-        // Check if the save button is enabled
-        const saveButton = wrapper.find('[data-test="save-button"]');
-        expect(saveButton.exists()).toBe(true);
-
-        await saveButton.trigger("click");
-
-        // Wait for Vue to process the state change
-        await wrapper.vm.$nextTick();
-
-        await waitForExpect(async () => {
-            const savedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
-            // console.log(savedDoc);
-            expect(savedDoc.expiryDate).not.toBe(undefined);
-            expect(savedDoc.expiryDate).toBeGreaterThan(publishDate);
         });
     });
 });
