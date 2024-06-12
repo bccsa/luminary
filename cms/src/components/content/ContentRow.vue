@@ -22,7 +22,6 @@ type Props = {
     parent: PostDto | TagDto;
     parentType: DocType.Post | DocType.Tag;
     language: Uuid;
-    editLinkName: string;
 };
 const props = defineProps<Props>();
 const content = db.whereParentAsRef<ContentDto[]>(props.parent._id, props.parentType, []);
@@ -86,10 +85,13 @@ const translationStatus = computed(() => {
                     :key="language.languageCode"
                     v-slot="{ navigate }"
                     :to="{
-                        name: editLinkName,
+                        name: 'edit',
                         params: {
-                            id: parent._id,
-                            language: language.languageCode,
+                            docType: parentType,
+                            tagType: parentType == DocType.Tag ? DocType.Tag : undefined,
+                            parentId: parent._id,
+                            languageCode: languages.find((l) => l._id == language._id)
+                                ?.languageCode,
                         },
                     }"
                 >
@@ -125,9 +127,12 @@ const translationStatus = computed(() => {
                 "
                 :is="RouterLink"
                 :to="{
-                    name: editLinkName,
+                    name: 'edit',
                     params: {
-                        id: parent._id,
+                        docType: parentType,
+                        tagType: parentType == DocType.Tag ? (parent as TagDto).tagType : undefined,
+                        parentId: parent._id,
+                        languageCode: languages.find((l) => l._id == props.language)?.languageCode,
                     },
                 }"
                 class="flex justify-end"

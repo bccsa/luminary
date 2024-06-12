@@ -86,7 +86,8 @@ const sidebarOpen = ref(false);
 
             <main class="py-10">
                 <div class="px-4 sm:px-6 lg:px-8">
-                    <RouterView />
+                    <!-- Do not reuse components when routing as this prevents dynamic routes to load / reload the correct data -->
+                    <RouterView :key="$route.fullPath" />
                 </div>
             </main>
         </div>

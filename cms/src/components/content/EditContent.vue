@@ -8,9 +8,11 @@ import {
     AclPermission,
     ContentStatus,
     DocType,
+    TagType,
     type ContentDto,
     type LanguageDto,
     type PostDto,
+    type TagDto,
     type Uuid,
 } from "@/types";
 import { DocumentIcon } from "@heroicons/vue/24/solid";
@@ -22,23 +24,24 @@ import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import _ from "lodash";
+import router from "@/router";
+import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
     parentId: Uuid;
     languageCode?: string;
     docType: DocType.Post | DocType.Tag;
-    routerBackLink: string;
-    backLinkText: string;
+    tagType?: keyof TagType;
 };
 const props = defineProps<Props>();
 
 const { addNotification } = useNotificationStore();
 const { verifyAccess } = useUserAccessStore();
 
-// Get a copy of the parent document from IndexedDB, and host it as a local ref.
+// Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
-const parent = ref<PostDto>({
+const parent = ref<PostDto | TagDto>({
     _id: props.parentId,
     type: props.docType,
     updatedTimeUtc: 0,
@@ -46,23 +49,33 @@ const parent = ref<PostDto>({
     image: "",
     tags: [],
 });
-let parentPrev = ref<PostDto>(); // Previous version of the parent document for dirty check
-db.get<PostDto>(props.parentId).then((p) => {
+const isLoading = computed(() => parent.value == undefined);
+const selectedLanguageId = ref<Uuid>();
+const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent document for dirty check
+const contentDocs = ref<ContentDto[]>([]);
+const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+
+// Set the title
+let tagTypeString: string = props.tagType as string;
+if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString = "";
+
+const titleType = tagTypeString ? tagTypeString : props.docType;
+router.currentRoute.value.meta.title = `Edit ${titleType}`;
+
+// Get a copy of the parent document from IndexedDB, and host it as a local ref.
+db.get<PostDto | TagDto>(props.parentId).then((p) => {
     parent.value = p;
     parentPrev.value = _.cloneDeep(p);
 });
 
 // In the same way as the parent document, get a copy of the content documents
-const contentDocs = ref<ContentDto[]>([]);
-let contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 db.whereParent<ContentDto[]>(props.parentId, props.docType).then((doc) => {
     contentDocs.value.push(...doc);
     contentDocsPrev.value = _.cloneDeep(doc);
 });
 
+// Languages and language selection
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const selectedLanguageId = ref<Uuid>();
-const isLoading = computed(() => parent.value == undefined);
 
 watch(
     languages,
@@ -101,6 +114,7 @@ const createTranslation = (language: LanguageDto) => {
         updatedTimeUtc: Date.now(),
         memberOf: [],
         parentId: parent.value._id,
+        parentType: props.docType,
         language: language._id,
         status: ContentStatus.Draft,
         title: `Translation for ${language.name}`,
@@ -140,8 +154,8 @@ const save = async () => {
     await Promise.all(pList);
 
     addNotification({
-        title: "Post Saved",
-        description: "The post was saved successfully",
+        title: `${capitaliseFirstLetter(titleType)} saved`,
+        description: `The ${titleType} was saved successfully`,
         state: "success",
     });
 
@@ -152,15 +166,21 @@ const save = async () => {
 
 <template>
     <BasePage
-        :title="selectedContent ? selectedContent.title : 'Edit post'"
+        :title="selectedContent ? selectedContent.title : `Edit ${titleType}`"
         :icon="DocumentIcon"
         :loading="isLoading"
-        :back-link-location="{ name: routerBackLink }"
-        :back-link-text="backLinkText"
+        :backLinkLocation="{ name: 'overview' }"
+        :backLinkText="`${capitaliseFirstLetter(titleType)} overview`"
+        :backLinkParams="{
+            docType: docType,
+            tagType: tagType ? tagType.toString() : undefined,
+            parentId: parent._id,
+            languageCode: languageCode,
+        }"
+        v-if="parent"
     >
         <template #actions>
             <LanguageSelector2
-                v-if="parent"
                 :parent="parent"
                 :content="contentDocs"
                 :languages="languages"
@@ -168,15 +188,11 @@ const save = async () => {
                 @createTranslation="createTranslation"
             />
         </template>
-        <form type="post" class="relative grid grid-cols-3 gap-8" @submit.prevent>
+        <div class="relative grid grid-cols-3 gap-8">
             <!-- Main area -->
-            <div class="col-span-3 space-y-6 md:col-span-2">
+            <div class="col-span-3 space-y-6 md:col-span-2" v-if="selectedContent">
                 <!-- Basic content settings -->
-                <EditContentBasic
-                    v-model:content="selectedContent"
-                    :disabled="!canTranslate"
-                    :validated="true"
-                />
+                <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
                 <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
                 <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
             </div>
@@ -203,6 +219,6 @@ const save = async () => {
                     />
                 </div>
             </div>
-        </form>
+        </div>
     </BasePage>
 </template>
