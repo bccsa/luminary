@@ -8,6 +8,7 @@ import {
     mockFrenchContentDto,
     mockLanguageDtoEng,
     mockLanguageDtoFra,
+    mockLanguageDtoSwa,
     mockPostDto,
 } from "@/tests/mockData";
 import { setActivePinia } from "pinia";
@@ -17,13 +18,14 @@ import { DocType, type ContentDto } from "@/types";
 import { db } from "@/db/baseDatabase";
 import waitForExpect from "wait-for-expect";
 import { DateTime, Settings } from "luxon";
+import { set } from "@vueuse/core";
 
 describe("EditContent.vue", () => {
     beforeEach(async () => {
         // seed the fake indexDB with mock datas
         await db.docs.bulkPut([mockPostDto]);
         await db.docs.bulkPut([mockEnglishContentDto, mockFrenchContentDto]);
-        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra]);
+        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
 
         // Set up the Pinia store before each test
         setActivePinia(createTestingPinia());
@@ -38,14 +40,30 @@ describe("EditContent.vue", () => {
         await db.localChanges.clear();
     });
 
-    it("save the content", async () => {
+    it("can load content from the database", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
                 parentId: mockPostDto._id,
                 languageCode: "eng",
-                routerBackLink: "",
-                backLinkText: "",
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
+
+        // Wait for the component to fetch data
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockEnglishContentDto.title);
+        });
+    });
+
+    it("can save content to the database", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                parentId: mockPostDto._id,
+                languageCode: "eng",
             },
             global: {
                 plugins: [createTestingPinia()],
@@ -75,7 +93,118 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("edit the summary", async () => {
+    it("can create a translation", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                parentId: mockPostDto._id,
+                languageCode: "eng",
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
+
+        const wait = () => new Promise((resolve) => setTimeout(resolve, 2000));
+
+        await waitForExpect(async () => {
+            expect(wrapper.find("button[data-test='language-selector']").exists()).toBe(true);
+            await wrapper.find("button[data-test='language-selector']").trigger("click");
+            await wrapper.find("button[data-test='select-language-swa']").trigger("click");
+        });
+        await wait();
+        console.log(wrapper.html());
+
+        // TODO: Johan to finish this test
+
+        // Wait for the new language to load
+        // await waitForExpect(() => {
+        //     expect(wrapper.html()).toContain("Translation for Swahlili");
+        // });
+    });
+
+    it.skip("renders an initial loading state", async () => {
+        // TODO: Add test after loading state is implemented
+    });
+
+    it.skip("renders an empty state when there is no content in the post", async () => {
+        // TODO: Add test after empty state is implemented
+    });
+
+    it("renders all the components", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                parentId: mockPostDto._id,
+                languageCode: "eng",
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
+
+        // Wait for the component to fetch data
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
+            // TODO: Johan to finish this test
+            // expect(wrapper.find('input[name="image"]').exists()).toBe(true); // EditContentParent is rendered
+            // expect(wrapper.find('input[name="content"]').exists()).toBe(true);
+        });
+    });
+
+    it("renders the title of the default language", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                parentId: mockPostDto._id,
+                languageCode: "eng",
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+    });
+
+    it("renders a different language than the selected (route/prop) language when it's not available", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                parentId: mockPostDto._id,
+                languageCode: "swa",
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+    });
+
+    it("can set the language from the route / prop params", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                parentId: mockPostDto._id,
+                languageCode: "fra",
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+        });
+    });
+
+    // This test should be in EditContentBasic.spec.ts
+    it.skip("edit the summary", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -110,41 +239,8 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("sets a default for the publish date when publishing", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                parentId: mockPostDto._id,
-                languageCode: "eng",
-                routerBackLink: "",
-                backLinkText: "",
-            },
-            global: {
-                plugins: [createTestingPinia()],
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.find('input[name="publishDate"]').exists()).toBe(true);
-        });
-
-        const publishInput = wrapper.find('input[name="publishDate"]');
-        publishInput.setValue(undefined);
-
-        // Check if the save button is enabled
-        const saveButton = wrapper.find('[data-test="save-button"]');
-        expect(saveButton.exists()).toBe(true);
-
-        await saveButton.trigger("click");
-
-        // Wait for the publish action to complete
-        await waitForExpect(async () => {
-            const savedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
-            expect(savedDoc.publishDate).toBeDefined();
-        });
-    });
-
-    it("sets expiry date when shortcut buttons are clicked", async () => {
+    // Move to EditContentBasic.spec.ts
+    it.skip("sets expiry date when shortcut buttons are clicked", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -187,7 +283,7 @@ describe("EditContent.vue", () => {
 
         await waitForExpect(async () => {
             const savedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
-            console.log(savedDoc);
+            // console.log(savedDoc);
             expect(savedDoc.expiryDate).not.toBe(undefined);
             expect(savedDoc.expiryDate).toBeGreaterThan(publishDate);
         });

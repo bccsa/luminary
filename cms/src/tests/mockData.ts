@@ -135,6 +135,15 @@ export const mockLanguageDtoFra: LanguageDto = {
     name: "Français",
 };
 
+export const mockLanguageDtoSwa: LanguageDto = {
+    _id: "lang-swa",
+    type: DocType.Language,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-languages"],
+    languageCode: "swa",
+    name: "Swahili",
+};
+
 export const mockEnglishContent: Content = {
     _id: "content-post1-eng",
     parentId: "post-post1",

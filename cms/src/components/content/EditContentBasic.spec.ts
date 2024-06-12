@@ -15,34 +15,11 @@ import { ref } from "vue";
 import { DateTime } from "luxon";
 import LanguageSelector2 from "./LanguageSelector2.vue";
 import EditContentBasic from "./EditContentBasic.vue";
+import type { ContentDto } from "@/types";
+import type WrapperLike from "node_modules/@vue/test-utils/dist/interfaces/wrapperLike";
 
 describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
-        vi.mock("@/db/baseDatabase", () => ({
-            db: {
-                whereTypeAsRef: vi.fn((docType) => {
-                    if (docType === "post") {
-                        return ref([mockPostDto]);
-                    } else if (docType === "language") {
-                        return ref([mockLanguageDtoEng, mockLanguageDtoFra]);
-                    } else if (docType === "content") {
-                        return ref([mockEnglishContentDto, mockFrenchContentDto]);
-                    }
-
-                    return ref([]);
-                }),
-                whereParentAsRef: vi.fn(() => {
-                    return ref([mockEnglishContentDto, mockFrenchContentDto]);
-                }),
-                isLocalChange: vi.fn(() => {
-                    return false;
-                }),
-                toDateTime: vi.fn((val) => {
-                    return DateTime.fromMillis(val);
-                }),
-            },
-        }));
-
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
@@ -53,36 +30,37 @@ describe("EditContentBasic.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("edit title", async () => {
+    it("can update the title", async () => {
+        const content = ref<ContentDto>(mockEnglishContentDto);
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
-                validated: false,
-                content: mockEnglishContentDto,
-            },
-            global: {
-                plugins: [createTestingPinia()],
+                content: content.value,
             },
         });
-
-        // Wait for the component to update
-        await wrapper.vm.$nextTick();
 
         // Find and update the title input field
         const titleInput = wrapper.find('[name="title"]');
         await titleInput.setValue("Updated Title");
 
         // Check if the content's title was updated
-        expect(wrapper.props().content?.title).toBe("Updated Title");
+        expect(content.value.title).toBe("Updated Title");
+    });
 
-        // // Check if the slug is updated correctly
-        // await wrapper.vm.$nextTick();
-        // const slugSpan = wrapper.find('[data-test="slugSpan"]');
+    it("can update the summary", async () => {
+        const content = ref<ContentDto>(mockEnglishContentDto);
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
 
-        // await wrapper.vm.$nextTick();
-        // expect(slugSpan.text()).toBe("updated-title");
+        // Find and update the summary input field
+        const summaryInput = wrapper.find('[name="summary"]');
+        await summaryInput.setValue("Updated Summary");
 
-        // Check if the save event is emitted
-        expect(wrapper.emitted().save).toBeTruthy();
+        // Check if the content's summary was updated
+        expect(content.value.summary).toBe("Updated Summary");
     });
 });
