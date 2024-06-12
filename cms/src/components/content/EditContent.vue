@@ -80,17 +80,25 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 watch(
     languages,
     () => {
+        // Get list of content languages
+        const contentLanguages = contentDocs.value
+            .map((c) => c.language)
+            .filter((l) => {
+                // Check if the language is in the list of languages
+                return languages.value.find((lang) => lang._id == l);
+            });
+
         if (props.languageCode) {
-            const preferred = languages.value.find((l) => l.languageCode == props.languageCode);
+            const preferred = contentLanguages.find((l) => l == props.languageCode);
 
             if (preferred) {
-                selectedLanguageId.value = preferred._id;
+                selectedLanguageId.value = preferred;
                 return;
             }
         }
 
-        if (languages.value.length > 0) {
-            selectedLanguageId.value = languages.value[0]._id;
+        if (contentLanguages.length > 0) {
+            selectedLanguageId.value = contentLanguages[0];
             return;
         }
     },
