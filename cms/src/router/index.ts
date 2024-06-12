@@ -57,18 +57,6 @@ const router = createRouter({
                     redirect: { name: "posts.index" },
                     children: [
                         {
-                            path: "",
-                            name: "posts.index",
-                            component: () => import("../pages/posts/PostOverview.vue"),
-                            meta: {
-                                title: "Posts",
-                                canAccess: {
-                                    docType: DocType.Post,
-                                    permission: AclPermission.View,
-                                },
-                            },
-                        },
-                        {
                             path: "create",
                             name: "posts.create",
                             component: () => import("../pages/posts/CreatePost.vue"),
@@ -80,19 +68,33 @@ const router = createRouter({
                                 },
                             },
                         },
-                        {
-                            path: "edit/:id/:language?",
-                            name: "posts.edit",
-                            component: () => import("../pages/posts/EditPost2.vue"),
-                            meta: {
-                                title: "Edit Post",
-                                canAccess: {
-                                    docType: DocType.Post,
-                                    permission: AclPermission.View,
-                                },
-                            },
-                        },
                     ],
+                },
+                // Generic content document edit route
+                {
+                    path: ":docType/edit/:tagType/:parentId/:languageCode?",
+                    name: "edit",
+                    component: () => import("../components/content/EditContent.vue"),
+                    meta: {
+                        canAccess: {
+                            docType: DocType.Post,
+                            permission: AclPermission.View,
+                        },
+                    },
+                    props: true,
+                },
+                // Generic content document overview route
+                {
+                    path: ":docType/overview/:tagType/:languageCode?",
+                    name: "overview",
+                    component: () => import("../components/content/ContentOverview.vue"),
+                    meta: {
+                        canAccess: {
+                            docType: DocType.Post,
+                            permission: AclPermission.View,
+                        },
+                    },
+                    props: true,
                 },
                 {
                     path: "tags",
@@ -108,55 +110,6 @@ const router = createRouter({
                                 canAccess: {
                                     docType: DocType.Tag,
                                     permission: AclPermission.Create,
-                                },
-                            },
-                        },
-                        {
-                            path: "edit/:id/:language?",
-                            name: "tags.edit",
-                            component: () => import("../pages/tags/EditTag.vue"),
-                            meta: {
-                                title: "Edit tag",
-                                canAccess: {
-                                    docType: DocType.Tag,
-                                    permission: AclPermission.View,
-                                },
-                            },
-                        },
-
-                        {
-                            path: "categories",
-                            name: "tags.categories",
-                            component: () => import("../pages/tags/CategoriesOverview.vue"),
-                            meta: {
-                                title: "Categories",
-                                canAccess: {
-                                    docType: DocType.Tag,
-                                    permission: AclPermission.View,
-                                },
-                            },
-                        },
-                        {
-                            path: "topics",
-                            name: "tags.topics",
-                            component: () => import("../pages/tags/TopicsOverview.vue"),
-                            meta: {
-                                title: "Topics",
-                                canAccess: {
-                                    docType: DocType.Tag,
-                                    permission: AclPermission.View,
-                                },
-                            },
-                        },
-                        {
-                            path: "audio-playlists",
-                            name: "tags.audio-playlists",
-                            component: () => import("../pages/tags/AudioPlaylistsOverview.vue"),
-                            meta: {
-                                title: "AudioPlaylists",
-                                canAccess: {
-                                    docType: DocType.Tag,
-                                    permission: AclPermission.View,
                                 },
                             },
                         },

@@ -6,7 +6,6 @@ import LCard from "../common/LCard.vue";
 
 type Props = {
     contentParents: PostDto[] | TagDto[];
-    editLinkName: string;
     docType: DocType.Post | DocType.Tag;
     language: Uuid;
 };
@@ -77,7 +76,6 @@ defineProps<Props>();
                             :parent="contentParent"
                             :parentType="docType"
                             :language="language"
-                            :editLinkName="editLinkName"
                         />
                     </tbody>
                 </table>

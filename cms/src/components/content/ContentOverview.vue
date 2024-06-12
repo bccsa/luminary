@@ -19,17 +19,20 @@ import { computed, ref, watch } from "vue";
 import ContentTable2 from "@/components/content/ContentTable2.vue";
 import { db } from "@/db/baseDatabase";
 import LSelect from "../forms/LSelect.vue";
+import { capitaliseFirstLetter } from "@/util/string";
+import router from "@/router";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
     tagType?: TagType;
-    titleSingular: string;
-    titlePlural: string;
 };
-
 const props = defineProps<Props>();
 
-const contentParents = db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, [], props.tagType);
+const tagType = Object.entries(TagType).some((t) => t[1] == props.tagType)
+    ? props.tagType
+    : undefined;
+
+const contentParents = db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, [], tagType);
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const selectedLanguage = ref<Uuid>("");
 const languageOptions = computed(() =>
@@ -49,11 +52,21 @@ watch(
 const { hasAnyPermission } = useUserAccessStore();
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Create));
-const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined;
+const createRouteParams = tagType ? { tagType: tagType } : undefined;
+
+// Set the title
+let tagTypeString: string = tagType as string;
+if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString = "";
+
+const titleType = tagTypeString ? tagTypeString : props.docType;
+router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} overview`;
 </script>
 
 <template>
-    <BasePage :title="titlePlural" :loading="contentParents === undefined">
+    <BasePage
+        :title="`${capitaliseFirstLetter(tagType ? tagType : docType)} overview`"
+        :loading="contentParents === undefined"
+    >
         <template #actions>
             <div class="flex gap-4">
                 <LSelect
@@ -70,7 +83,7 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
                     :to="{ name: `${docType}s.create`, params: createRouteParams }"
                     data-test="create-button"
                 >
-                    Create {{ titleSingular }}
+                    Create {{ docType }}
                 </LButton>
             </div>
         </template>
@@ -78,13 +91,13 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
         <EmptyState
             v-if="!contentParents || contentParents.length == 0"
             :icon="TagIcon"
-            :title="`No ${titleSingular}s yet`"
+            :title="`No ${docType}(s) yet`"
             :description="
                 canCreateNew
-                    ? `Get started by creating a new ${titleSingular}.`
-                    : `You do not have permission to create new ${titlePlural}.`
+                    ? `Get started by creating a new ${docType}.`
+                    : `You do not have permission to create a new ${docType}.`
             "
-            :buttonText="`Create ${titleSingular.charAt(0).toUpperCase()}${titleSingular.slice(1)}`"
+            :buttonText="`Create ${docType}`"
             :buttonLink="{ name: `${docType}s.create`, params: createRouteParams }"
             :buttonPermission="canCreateNew"
             data-test="no-content"
@@ -95,7 +108,6 @@ const createRouteParams = props.tagType ? { tagType: props.tagType } : undefined
             :contentParents="contentParents"
             :docType="docType"
             :tagType="tagType"
-            :editLinkName="`${docType}s.edit`"
             :language="selectedLanguage"
         />
     </BasePage>
