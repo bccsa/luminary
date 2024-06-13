@@ -1,24 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import EditTag from "./EditTag.vue";
+import EditPost from "./EditPost.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useLanguageStore } from "@/stores/language";
 import {
-    mockCategory,
-    mockEnglishCategoryContent,
+    mockEnglishContent,
     mockFrenchContent,
     mockLanguageEng,
     mockLanguageFra,
     mockLanguageSwa,
-    mockTopic,
+    mockPost,
     fullAccessToAllContentMap,
 } from "@/tests/mockData";
 import EditContentForm from "@/components/content/EditContentForm.vue";
+import { usePostStore } from "@/stores/post";
 import waitForExpect from "wait-for-expect";
 import EmptyState from "@/components/EmptyState.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
-import { useTagStore } from "@/stores/tag";
 import { useNotificationStore } from "@/stores/notification";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -32,7 +31,7 @@ vi.mock("vue-router", () => ({
     })),
     useRoute: vi.fn().mockImplementation(() => ({
         params: {
-            id: mockCategory._id,
+            id: mockPost._id,
             language: routeLanguage,
         },
     })),
@@ -56,16 +55,16 @@ vi.mock("@/db/baseDatabase", () => {
     };
 });
 
-describe("EditTag", () => {
+describe.skip("EditPost", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
 
         const languageStore = useLanguageStore();
-        const tagStore = useTagStore();
+        const postStore = usePostStore();
         const userAccessStore = useUserAccessStore();
         const globalConfigStore = useGlobalConfigStore();
         languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
-        tagStore.tags = [mockCategory, mockTopic];
+        postStore.posts = [mockPost];
         userAccessStore.accessMap = fullAccessToAllContentMap;
         globalConfigStore.clientAppUrl = "http://localhost:4174";
     });
@@ -75,31 +74,31 @@ describe("EditTag", () => {
     });
 
     it("renders an initial loading state", async () => {
-        const tagStore = useTagStore();
-        tagStore.tags = [];
-        const wrapper = mount(EditTag);
+        const postStore = usePostStore();
+        postStore.posts = [];
+        const wrapper = mount(EditPost);
 
         const form = await wrapper.findComponent(EditContentForm);
         expect(form.exists()).toBe(false);
     });
 
     it("renders the form", async () => {
-        const wrapper = mount(EditTag);
+        const wrapper = mount(EditPost);
 
         const form = await wrapper.findComponent(EditContentForm);
         expect(form.exists()).toBe(true);
     });
 
-    it("renders an empty state when there is no content in the tag", async () => {
-        const tagStore = useTagStore();
-        tagStore.tags = [
+    it("renders an empty state when there is no content in the post", async () => {
+        const postStore = usePostStore();
+        postStore.posts = [
             {
-                ...mockCategory,
+                ...mockPost,
                 content: [],
             },
         ];
 
-        const wrapper = mount(EditTag);
+        const wrapper = mount(EditPost);
 
         const emptyState = await wrapper.findComponent(EmptyState);
         expect(emptyState.exists()).toBe(true);
@@ -110,21 +109,21 @@ describe("EditTag", () => {
     });
 
     it("renders the title of the default language", async () => {
-        const wrapper = mount(EditTag);
+        const wrapper = mount(EditPost);
 
-        expect(wrapper.text()).toContain(mockEnglishCategoryContent.title);
+        expect(wrapper.text()).toContain(mockEnglishContent.title);
     });
 
     it("renders a different language than the default when it's not available", async () => {
-        const tagStore = useTagStore();
-        tagStore.tags = [
+        const postStore = usePostStore();
+        postStore.posts = [
             {
-                ...mockCategory,
+                ...mockPost,
                 content: [mockFrenchContent],
             },
         ];
 
-        const wrapper = mount(EditTag);
+        const wrapper = mount(EditPost);
 
         expect(wrapper.text()).toContain(mockFrenchContent.title);
     });
@@ -132,36 +131,34 @@ describe("EditTag", () => {
     it("can set the language from the route params", async () => {
         routeLanguage = "fra";
 
-        const wrapper = mount(EditTag);
+        const wrapper = mount(EditPost);
 
-        expect(wrapper.text()).toContain(mockCategory.content[1].title);
+        expect(wrapper.text()).toContain(mockPost.content[1].title);
 
         // Reset test state
         routeLanguage = "";
     });
 
-    // FIXME This test is timing out for inexplicable reasons.
-    // Test it with a tag when we combine EditPost with EditTag in a future refactor.
-    it.skip("saves the content", async () => {
-        const tagStore = useTagStore();
-        const wrapper = mount(EditTag);
+    it("saves the content", async () => {
+        const postStore = usePostStore();
+        const wrapper = mount(EditPost);
 
         await wrapper.find("button[data-test='publish']").trigger("click");
 
         await waitForExpect(() => {
-            expect(tagStore.updateTag).toHaveBeenCalledWith(mockCategory.content[0], mockCategory);
+            expect(postStore.updatePost).toHaveBeenCalledWith(mockEnglishContent, mockPost);
         });
     });
 
     it("can create a translation", async () => {
-        const tagStore = useTagStore();
+        const postStore = usePostStore();
         const notificationStore = useNotificationStore();
-        const wrapper = mount(EditTag);
+        const wrapper = mount(EditPost);
 
         await wrapper.find("button[data-test='language-selector']").trigger("click");
         await wrapper.find("button[data-test='select-language-swa']").trigger("click");
 
-        expect(tagStore.createTranslation).toHaveBeenCalledWith(mockCategory, mockLanguageSwa);
+        expect(postStore.createTranslation).toHaveBeenCalledWith(mockPost, mockLanguageSwa);
         expect(notificationStore.addNotification).toHaveBeenCalled();
         // Test that it switched the current language
         expect(wrapper.text()).toContain("Swahili");
