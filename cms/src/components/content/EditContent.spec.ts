@@ -20,10 +20,6 @@ import waitForExpect from "wait-for-expect";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 describe("EditContent.vue", () => {
-    beforeAll(async () => {
-        useGlobalConfigStore();
-    });
-
     beforeEach(async () => {
         // seed the fake indexDB with mock datas
         await db.docs.bulkPut([mockPostDto]);
@@ -35,6 +31,9 @@ describe("EditContent.vue", () => {
 
         const userAccessStore = useUserAccessStore();
         userAccessStore.accessMap = fullAccessToAllContentMap;
+
+        const globalConfigStore = useGlobalConfigStore();
+        globalConfigStore.clientAppUrl = "http://localhost:3000";
     });
 
     afterEach(async () => {
