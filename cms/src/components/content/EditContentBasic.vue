@@ -255,7 +255,7 @@ watch(publishStatus, () => {
                 <!-- Publish / draft toggle -->
                 <div class="mt-2 flex items-center justify-between">
                     <FormLabel>Status: Draft / Published</FormLabel>
-                    <LToggle v-model="publishStatus" :disabled="disabled" />
+                    <LToggle v-model="publishStatus" :disabled="disabled" data-test="toggle" />
                 </div>
             </LInput>
 
