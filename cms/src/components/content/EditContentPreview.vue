@@ -15,6 +15,8 @@ const props = defineProps<Props>();
 const { clientAppUrl } = useGlobalConfigStore();
 const liveUrl = computed(() => {
     if (!props.content) return "";
+    console.log("props.content.slug: ", props.content.slug);
+    console.log("clientAppUrl: ", clientAppUrl);
     const url = new URL(props.content.slug, clientAppUrl);
     return url.toString();
 });
