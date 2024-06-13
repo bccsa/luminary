@@ -170,6 +170,9 @@ const save = async () => {
     parentPrev.value = _.cloneDeep(parent.value);
     contentDocsPrev.value = _.cloneDeep(contentDocs.value);
 };
+
+// Local change detection
+const isLocalChange = db.isLocalChangeAsRef(props.parentId);
 </script>
 
 <template>
@@ -215,6 +218,7 @@ const save = async () => {
                         :languages="languages"
                         @save="save"
                         :dirty="isDirty"
+                        :localChange="isLocalChange"
                     />
                     <!-- Live View -->
                     <EditContentPreview v-if="selectedContent" :content="selectedContent" />

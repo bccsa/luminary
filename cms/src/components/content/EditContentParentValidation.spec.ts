@@ -27,6 +27,7 @@ describe("EditContent.vue", () => {
                 dirty: false,
                 parent: mockPostDto,
                 contentDocs: [],
+                localChange: false,
             },
         });
 
@@ -42,6 +43,7 @@ describe("EditContent.vue", () => {
                 dirty: true,
                 parent: mockPostDto,
                 contentDocs: [],
+                localChange: false,
             },
         });
 
@@ -57,6 +59,7 @@ describe("EditContent.vue", () => {
                 dirty: true,
                 parent: mockPostDto,
                 contentDocs: [],
+                localChange: false,
             },
         });
 
@@ -75,6 +78,7 @@ describe("EditContent.vue", () => {
                 dirty: true,
                 parent: { ...mockPostDto, memberOf: [] },
                 contentDocs: [],
+                localChange: false,
             },
         });
 
@@ -92,6 +96,7 @@ describe("EditContent.vue", () => {
                 dirty: false,
                 parent: { ...mockPostDto, image: "" },
                 contentDocs: [],
+                localChange: false,
             },
         });
 
@@ -109,6 +114,7 @@ describe("EditContent.vue", () => {
                 dirty: true,
                 parent: mockPostDto,
                 contentDocs: [{ ...mockEnglishContentDto, title: "" }],
+                localChange: false,
             },
         });
 
@@ -119,5 +125,33 @@ describe("EditContent.vue", () => {
         // Check if the save button is disabled
         const saveButton = wrapper.find('[data-test="save-button"]');
         expect(saveButton.attributes().disabled).toBeDefined();
+    });
+
+    it("displays the offline change warning when there are local changes", async () => {
+        const wrapper = mount(EditContentParentValidation, {
+            props: {
+                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                dirty: false,
+                parent: mockPostDto,
+                contentDocs: [],
+                localChange: true,
+            },
+        });
+
+        expect(wrapper.html()).toContain("Offline changes");
+    });
+
+    it("does not display the offline change warning when there are no local changes", async () => {
+        const wrapper = mount(EditContentParentValidation, {
+            props: {
+                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                dirty: false,
+                parent: mockPostDto,
+                contentDocs: [],
+                localChange: false,
+            },
+        });
+
+        expect(wrapper.html()).not.toContain("Offline changes");
     });
 });

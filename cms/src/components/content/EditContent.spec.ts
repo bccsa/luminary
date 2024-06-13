@@ -9,6 +9,7 @@ import {
     mockLanguageDtoEng,
     mockLanguageDtoFra,
     mockLanguageDtoSwa,
+    mockLocalChange1,
     mockPostDto,
 } from "@/tests/mockData";
 import { setActivePinia } from "pinia";
@@ -45,9 +46,6 @@ describe("EditContent.vue", () => {
                 parentId: mockPostDto._id,
                 languageCode: "eng",
             },
-            global: {
-                plugins: [createTestingPinia()],
-            },
         });
 
         // Wait for the component to fetch data
@@ -62,9 +60,6 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 parentId: mockPostDto._id,
                 languageCode: "eng",
-            },
-            global: {
-                plugins: [createTestingPinia()],
             },
         });
 
@@ -97,9 +92,6 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 parentId: mockPostDto._id,
                 languageCode: "eng",
-            },
-            global: {
-                plugins: [createTestingPinia()],
             },
         });
 
@@ -134,9 +126,6 @@ describe("EditContent.vue", () => {
                 parentId: mockPostDto._id,
                 languageCode: "eng",
             },
-            global: {
-                plugins: [createTestingPinia()],
-            },
         });
 
         // Wait for the component to fetch data
@@ -156,9 +145,6 @@ describe("EditContent.vue", () => {
                 parentId: mockPostDto._id,
                 languageCode: "eng",
             },
-            global: {
-                plugins: [createTestingPinia()],
-            },
         });
 
         await waitForExpect(() => {
@@ -172,9 +158,6 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 parentId: mockPostDto._id,
                 languageCode: "swa",
-            },
-            global: {
-                plugins: [createTestingPinia()],
             },
         });
 
@@ -190,13 +173,26 @@ describe("EditContent.vue", () => {
                 parentId: mockPostDto._id,
                 languageCode: "fra",
             },
-            global: {
-                plugins: [createTestingPinia()],
-            },
         });
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+        });
+    });
+
+    it("can detect a local change", async () => {
+        await db.localChanges.put(mockLocalChange1);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                parentId: mockPostDto._id,
+                languageCode: "eng",
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Offline changes");
         });
     });
 });

@@ -169,7 +169,7 @@ export class BaseDatabase extends Dexie {
     /**
      * Check if a document is queued in the localChanges table
      */
-    isLocalChange(docId: Uuid) {
+    isLocalChangeAsRef(docId: Uuid) {
         return this.toRef<boolean>(
             () =>
                 this.localChanges
