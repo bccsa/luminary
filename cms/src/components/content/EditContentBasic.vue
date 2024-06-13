@@ -278,19 +278,20 @@ watch(publishStatus, () => {
                 <div class="flex w-full cursor-pointer flex-wrap gap-1">
                     <LButton
                         type="button"
+                        name="1"
                         variant="custom"
                         class="flex-1"
                         :class="{
                             ' bg-black text-white': selectedExpiryNumber === 1,
                         }"
                         @click="setExpiryNumber(1)"
-                        data-test="1"
                         :disabled="disabled"
                     >
                         1
                     </LButton>
                     <LButton
                         type="button"
+                        name="2"
                         variant="custom"
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryNumber === 2 }"
@@ -301,6 +302,7 @@ watch(publishStatus, () => {
                     </LButton>
                     <LButton
                         type="button"
+                        name="3"
                         variant="custom"
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryNumber === 3 }"
@@ -311,6 +313,7 @@ watch(publishStatus, () => {
                     </LButton>
                     <LButton
                         type="button"
+                        name="6"
                         variant="custom"
                         class="flex-1"
                         size="lg"
@@ -322,6 +325,7 @@ watch(publishStatus, () => {
                     </LButton>
                     <LButton
                         type="button"
+                        name="W"
                         variant="custom"
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryUnit === 'Week' }"
@@ -333,6 +337,7 @@ watch(publishStatus, () => {
                     </LButton>
                     <LButton
                         type="button"
+                        name="M"
                         variant="custom"
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryUnit === 'Month' }"
@@ -343,6 +348,7 @@ watch(publishStatus, () => {
                     </LButton>
                     <LButton
                         type="button"
+                        name="Y"
                         variant="custom"
                         class="flex-1"
                         :class="{ 'bg-black text-white': selectedExpiryUnit === 'Year' }"
@@ -353,6 +359,7 @@ watch(publishStatus, () => {
                     </LButton>
                     <LButton
                         type="button"
+                        name="clear"
                         variant="custom"
                         :icon="ChevronLeftIcon"
                         class="flex-1"
