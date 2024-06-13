@@ -7,6 +7,7 @@ import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
 import type { ContentDto } from "@/types";
 import EditContentText from "./EditContentText.vue";
+import waitForExpect from "wait-for-expect";
 
 describe("EditContentPreview.vue", () => {
     beforeAll(async () => {
@@ -20,7 +21,7 @@ describe("EditContentPreview.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("does not display text when not defined", async () => {
+    it("display text, when is defined", async () => {
         const content = ref<ContentDto>(mockEnglishContentDto);
         const wrapper = mount(EditContentText, {
             props: {
@@ -29,11 +30,15 @@ describe("EditContentPreview.vue", () => {
             },
         });
 
-        expect(wrapper.html()).not.toContain(content.value.text);
+        const mockText = JSON.parse(mockEnglishContentDto.text!).content[0].content[0].text;
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockText);
+        });
     });
 
-    it("display text, when is defined", async () => {
-        const content = ref<ContentDto>(mockEnglishContentDto);
+    it("hide editor when text is not defined", async () => {
+        const content = ref<ContentDto>({ ...mockEnglishContentDto, text: undefined });
         const wrapper = mount(EditContentText, {
             props: {
                 disabled: true,
@@ -41,9 +46,9 @@ describe("EditContentPreview.vue", () => {
             },
         });
 
-        const textContent = wrapper.find('div[data-test="textContent"]');
-        expect(textContent.exists()).toBe(true);
+        const textContent = wrapper.find("div[data-test='textContent']");
+        console.log(textContent);
 
-        expect(textContent).toBeTruthy();
+        expect(textContent.exists()).toBe(false);
     });
 });
