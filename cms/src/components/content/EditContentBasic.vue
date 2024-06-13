@@ -21,39 +21,6 @@ const content = defineModel<ContentDto>("content");
 // Slug generation
 const isEditingSlug = ref(false);
 const slugInput = ref<HTMLInputElement | undefined>(undefined);
-const updateSlug = async (text: string) => {
-    if (!content || !content.value) return;
-
-    text = text.trim();
-    if (!text) text = content.value.title || "";
-    if (!text) return "invalid-slug";
-
-    content.value.slug = await Slug.generate(text, content.value._id || "");
-};
-
-let previousTitle: string;
-const autoUpdateSlug = async (title: string) => {
-    if (!content || !content.value) return;
-    if (!previousTitle) previousTitle = content.value.title;
-
-    if (!content.value.slug) await updateSlug(title);
-
-    if (content.value.status == ContentStatus.Draft && !content.value.title) {
-        content.value.slug = "";
-    }
-
-    // Only auto-update if in draft mode
-    // Check if the slug is still the default value
-    if (
-        content.value.status == ContentStatus.Draft &&
-        content.value.slug.replace(/-[0-9]*$/g, "") ==
-            Slug.generateNonUnique(previousTitle).replace(/-[0-9]*$/g, "")
-    ) {
-        await updateSlug(title);
-    }
-
-    previousTitle = title;
-};
 
 const startEditingSlug = () => {
     isEditingSlug.value = true;
@@ -62,14 +29,57 @@ const startEditingSlug = () => {
     });
 };
 
+let previousTitle: string = content.value?.title || "";
+let previousSlug: string = content.value?.slug || "";
 watch(
     content,
-    () => {
+    async () => {
         if (!content.value) return;
-        autoUpdateSlug(content.value.title);
+
+        const titleChanged = previousTitle != content.value.title;
+        const slugChanged = previousSlug != content.value.slug;
+
+        // Only update the slug if the title or slug has changed
+        if (!titleChanged && !slugChanged) {
+            return;
+        }
+
+        // If the title is empty, generate a new slug
+        if (!content.value.title) {
+            content.value.slug = "";
+        }
+
+        // If the slug is empty, generate a new one from the title
+        if (!content.value.slug) {
+            content.value.slug = Slug.generateNonUnique(content.value.title);
+        }
+
+        // Auto-update the slug if the title changes when in draft mode (unless the slug has been manually changed)
+        if (
+            titleChanged &&
+            content.value.status == ContentStatus.Draft &&
+            content.value.slug.replace(/-[0-9]*$/g, "") ==
+                Slug.generateNonUnique(previousTitle).replace(/-[0-9]*$/g, "")
+        ) {
+            // TODO: This sometimes creates a race condition
+            content.value.slug = Slug.generateNonUnique(content.value.title);
+        }
+
+        // Validate slug
+        if (slugChanged) {
+            content.value.slug = Slug.generateNonUnique(content.value.slug);
+        }
+
+        previousTitle = content.value.title;
+        previousSlug = content.value.slug;
     },
     { deep: true },
 );
+
+const validateSlug = async () => {
+    if (!content || !content.value) return;
+    content.value.slug = await Slug.generate(content.value.slug, content.value._id || "");
+};
 
 // Publish and expiry dates
 const publishDateString = ref<string | undefined>(undefined);
@@ -168,7 +178,14 @@ watch(publishStatus, () => {
 <template>
     <LCard title="Basic translation settings" collapsible v-if="content">
         <!-- Title -->
-        <LInput name="title" label="Title" required :disabled="disabled" v-model="content.title" />
+        <LInput
+            name="title"
+            label="Title"
+            required
+            :disabled="disabled"
+            v-model="content.title"
+            @blur="validateSlug"
+        />
 
         <!-- Slug -->
         <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
@@ -181,13 +198,16 @@ watch(publishStatus, () => {
             >
             <LInput
                 v-show="isEditingSlug"
+                :disabled="disabled"
                 ref="slugInput"
                 name="slug"
                 size="sm"
                 class="w-full"
                 v-model="content.slug"
-                @change="(e) => updateSlug(e.target.value)"
-                @blur="isEditingSlug = false"
+                @blur="
+                    isEditingSlug = false;
+                    validateSlug();
+                "
             />
             <button
                 data-test="editSlugButton"
