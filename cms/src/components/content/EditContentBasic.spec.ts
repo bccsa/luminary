@@ -176,4 +176,26 @@ describe("EditContentBasic.vue", () => {
         await clearButton.trigger("click");
         expect(content.value.expiryDate).toBeUndefined();
     });
+
+    it("check if the Publish/Draft toggle switchs correctly", async () => {
+        const content = ref<ContentDto>({ ...mockEnglishContentDto, status: "draft" });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Find the publish status toggle (assuming LToggle renders as a button)
+        const toggleButton = wrapper.find("[data-test='toggle']");
+
+        // Initially, the content status should be Draft
+        expect(content.value.status).toBe("draft");
+
+        // click on the button
+        await toggleButton.trigger("click");
+
+        // Check if the content's status was updated
+        expect(content.value.status).toBe("published");
+    });
 });
