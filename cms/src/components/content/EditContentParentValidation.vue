@@ -12,6 +12,7 @@ import { validate, type Validation } from "./ContentValidator";
 type Props = {
     languages: LanguageDto[];
     dirty: boolean;
+    localChange: boolean;
 };
 const props = defineProps<Props>();
 const parent = defineModel<PostDto | TagDto>("parent");
@@ -79,6 +80,7 @@ watch(
 <template>
     <LCard :showFooter="!overallIsValid">
         <div class="flex gap-4">
+            <LBadge v-if="localChange" variant="warning">Offline changes</LBadge>
             <LBadge v-if="dirty">Unsaved changes</LBadge>
             <div class="flex-1"></div>
             <LButton
