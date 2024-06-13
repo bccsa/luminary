@@ -7,11 +7,13 @@ import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
 import EditContentPreview from "./EditContentPreview.vue";
 import type { ContentDto } from "@/types";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 describe("EditContentPreview.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
+        useGlobalConfigStore();
         const userAccessStore = useUserAccessStore();
         userAccessStore.accessMap = fullAccessToAllContentMap;
     });
