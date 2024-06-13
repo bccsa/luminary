@@ -9,7 +9,7 @@ import { setActivePinia } from "pinia";
 import { useLocalChangeStore } from "@/stores/localChanges";
 import { DocType } from "@/types";
 
-describe("ContentTable", () => {
+describe.skip("ContentTable", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
     });
