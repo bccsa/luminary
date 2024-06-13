@@ -5,7 +5,6 @@ import { EyeIcon, ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
 import { ContentStatus, type ContentDto } from "@/types";
 import { computed } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { client } from "@auth0/auth0-vue/dist/typings/plugin";
 
 type Props = {
     content: ContentDto;
