@@ -17,7 +17,6 @@ import EditContent from "./EditContent.vue";
 import { DocType, type ContentDto } from "@/types";
 import { db } from "@/db/baseDatabase";
 import waitForExpect from "wait-for-expect";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 describe("EditContent.vue", () => {
     beforeEach(async () => {
@@ -31,9 +30,6 @@ describe("EditContent.vue", () => {
 
         const userAccessStore = useUserAccessStore();
         userAccessStore.accessMap = fullAccessToAllContentMap;
-
-        const globalConfigStore = useGlobalConfigStore();
-        globalConfigStore.clientAppUrl = "http://localhost:3000";
     });
 
     afterEach(async () => {
