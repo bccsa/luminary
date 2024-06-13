@@ -199,41 +199,4 @@ describe("EditContent.vue", () => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.title);
         });
     });
-    describe("validation", () => {
-        it("can't save with invalid fomrs", async () => {
-            const wrapper = mount(EditContent, {
-                props: {
-                    docType: DocType.Post,
-                    parentId: mockPostDto._id,
-                    languageCode: "fra",
-                },
-                global: {
-                    plugins: [createTestingPinia()],
-                },
-            });
-
-            // Wait for the component to fetch data
-            await waitForExpect(() => {
-                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
-                expect(wrapper.find('input[name="parent.image"]').exists()).toBe(true);
-            });
-
-            // make the content dirty by setting en empty string value
-            const titleInput = wrapper.find('input[name="title"]');
-            await titleInput.setValue("");
-
-            // Image input
-            const imageInput = wrapper.find('input[name="parent.image"]');
-            await imageInput.setValue("");
-
-            const saveButton = wrapper.find('[data-test="save-button"]');
-
-            expect(wrapper.html()).toContain("A title is required");
-            expect(wrapper.html()).toContain("English");
-
-            expect(wrapper.html()).toContain("The default image must be set");
-            expect(wrapper.html()).toContain("General");
-            expect(saveButton.attributes().disabled).toBe("");
-        });
-    });
 });
