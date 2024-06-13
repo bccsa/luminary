@@ -60,8 +60,6 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
-                titleSingular: "Post",
-                titlePlural: "Posts",
             },
         });
 
@@ -75,8 +73,6 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
-                titleSingular: "Post",
-                titlePlural: "Posts",
             },
         });
 
@@ -89,8 +85,10 @@ describe("ContentOverview.vue", () => {
         expect(routerLink.exists()).toBe(true);
 
         const linkProps = routerLink.props().to as RouteLocationNamedRaw;
-        expect(linkProps.name).toBe("posts.edit");
-        expect(linkProps.params?.id).toBe(mockPostDto._id);
+
+        expect(linkProps.name).toBe("edit");
+        expect(linkProps.params?.docType).toBe("post");
+        expect(linkProps.params?.parentId).toBe(mockPostDto._id);
 
         const icon = editButton.findComponent(PencilSquareIcon);
         expect(icon.exists()).toBe(true);
@@ -106,8 +104,6 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
-                titleSingular: "Post",
-                titlePlural: "Posts",
             },
         });
         await wrapper.vm.$nextTick();
@@ -119,10 +115,10 @@ describe("ContentOverview.vue", () => {
         expect(routerLink.exists()).toBe(true);
 
         const linkProps = routerLink.props().to as RouteLocationNamedRaw;
-        console.log("View button linkProps:", linkProps);
-
-        expect(linkProps.name).toBe("posts.edit");
-        expect(linkProps.params?.id).toBe(mockPostDto._id);
+        console.log(linkProps);
+        expect(linkProps.name).toBe(`edit`);
+        expect(linkProps.params?.docType).toBe("post");
+        expect(linkProps.params?.parentId).toBe(mockPostDto._id);
 
         const icon = viewButton.findComponent(EyeIcon);
         expect(icon.exists()).toBe(true);
@@ -136,8 +132,6 @@ describe("ContentOverview.vue", () => {
 
             props: {
                 docType: DocType.Post,
-                titleSingular: "Post",
-                titlePlural: "Posts",
             },
         });
 
@@ -145,14 +139,16 @@ describe("ContentOverview.vue", () => {
 
         const createButton = wrapper.find('[data-test="create-button"]');
         expect(createButton.exists()).toBe(true);
-        expect(createButton.text()).toBe("Create Post");
+        expect(createButton.text()).toBe("Create post");
 
         const routerLink = createButton.findComponent(RouterLink);
         expect(routerLink.exists()).toBe(true);
 
         const linkProps = routerLink.props().to as RouteLocationNamedRaw;
+        console.log(linkProps.params?.docType);
         expect(linkProps.name).toBe("posts.create");
-        expect(linkProps.params?.id).toBe(undefined);
+        expect(linkProps.params?.docType).toBe(undefined);
+        expect(linkProps.params?.parentId).toBe(undefined);
     });
 
     it("should handle language switching correctly", async () => {
@@ -162,8 +158,6 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
-                titleSingular: "Post",
-                titlePlural: "Posts",
             },
         });
 
