@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, afterEach, beforeEach, expect } from "vitest";
+import { describe, it, afterEach, beforeEach, expect, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import {
@@ -17,8 +17,13 @@ import EditContent from "./EditContent.vue";
 import { DocType, type ContentDto } from "@/types";
 import { db } from "@/db/baseDatabase";
 import waitForExpect from "wait-for-expect";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 
 describe("EditContent.vue", () => {
+    beforeAll(async () => {
+        useGlobalConfigStore();
+    });
+
     beforeEach(async () => {
         // seed the fake indexDB with mock datas
         await db.docs.bulkPut([mockPostDto]);
