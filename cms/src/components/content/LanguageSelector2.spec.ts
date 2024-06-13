@@ -7,39 +7,15 @@ import {
     mockFrenchContentDto,
     mockLanguageDtoEng,
     mockLanguageDtoFra,
-    mockPostDto,
+    mockLanguageDtoSwa,
 } from "@/tests/mockData";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
-import { ref } from "vue";
-import { DateTime } from "luxon";
 import LanguageSelector2 from "./LanguageSelector2.vue";
+import LBadge from "@/components/common/LBadge.vue";
 
 describe("LanguageSelector2.vue", () => {
     beforeAll(async () => {
-        vi.mock("@/db/baseDatabase", () => ({
-            db: {
-                whereTypeAsRef: vi.fn((docType) => {
-                    if (docType === "post") {
-                        return ref([mockPostDto]);
-                    } else if (docType === "language") {
-                        return ref([mockLanguageDtoEng, mockLanguageDtoFra]);
-                    }
-
-                    return ref([]);
-                }),
-                whereParentAsRef: vi.fn(() => {
-                    return ref([mockEnglishContentDto, mockFrenchContentDto]);
-                }),
-                isLocalChange: vi.fn(() => {
-                    return false;
-                }),
-                toDateTime: vi.fn((val) => {
-                    return DateTime.fromMillis(val);
-                }),
-            },
-        }));
-
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
@@ -50,36 +26,99 @@ describe("LanguageSelector2.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("should switch content language", async () => {
+    it("displays the current language", async () => {
         const wrapper = mount(LanguageSelector2, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra],
-                content: [mockEnglishContentDto, mockFrenchContentDto],
+                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                content: [mockEnglishContentDto],
             },
             global: {
                 plugins: [createTestingPinia()],
             },
         });
 
-        // Wait for the component to update
-        await wrapper.vm.$nextTick();
+        const selectLanguage = wrapper.find("button[data-test='language-selector']");
+        await selectLanguage.trigger("click");
 
-        // Check if language selector button exists
-        expect(wrapper.find("[data-test='language-selector']").exists()).toBe(true);
+        const select = wrapper.find("button[data-test='select-language-eng']");
+        await select.trigger("click");
 
-        // Simulate opening the language selector dropdown
-        await wrapper.find("[data-test='language-selector']").trigger("click");
+        expect(wrapper.text()).toContain("English");
+        expect(wrapper.text()).not.toContain("French");
+        expect(wrapper.text()).not.toContain("Swahili");
+    });
 
-        // Check if English language option exists
-        expect(wrapper.find("[data-test='select-language-eng']").exists()).toBe(true);
+    it("can handle an unset language", async () => {
+        const wrapper = mount(LanguageSelector2, {
+            props: {
+                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                content: [],
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
 
-        // Check if French language option exists
-        expect(wrapper.find("[data-test='select-language-fra']").exists()).toBe(true);
+        expect(wrapper.text()).toContain("Select language");
+        expect(wrapper.text()).not.toContain("English");
+        expect(wrapper.text()).not.toContain("French");
+        expect(wrapper.text()).not.toContain("Swahili");
+    });
 
-        // Simulate clicking on the French language option
-        await wrapper.find("[data-test='select-language-fra']").trigger("click");
+    it("can display a dropdown with all languages", async () => {
+        const wrapper = mount(LanguageSelector2, {
+            props: {
+                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                content: [],
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
 
-        // Check if the selected language is updated to French
+        const selectLanguage = wrapper.find("button[data-test='language-selector']");
+        await selectLanguage.trigger("click");
+
+        expect(wrapper.text()).toContain("English");
+        expect(wrapper.text()).toContain("Add translation");
         expect(wrapper.text()).toContain("Français");
+        expect(wrapper.text()).toContain("Swahili");
+    });
+
+    it("displays a label with the translation status", async () => {
+        const wrapper = mount(LanguageSelector2, {
+            props: {
+                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                content: [mockEnglishContentDto, { ...mockFrenchContentDto, status: "draft" }],
+            },
+            global: {
+                plugins: [createTestingPinia()],
+            },
+        });
+
+        await wrapper.find("button[data-test='language-selector']").trigger("click");
+
+        const badge = wrapper.findAllComponents(LBadge);
+        expect(badge[0].props().variant).toBe("success"); // English content = Published
+        expect(badge[1].props().variant).toBe("info"); // French content = Draft
+        expect(badge[2].props().variant).toBe("default"); // Swahili = no translation yet
+    });
+    describe("permissions", () => {
+        it("hides untranslated groups that the user doesn't have translate permission on", async () => {
+            const wrapper = mount(LanguageSelector2, {
+                props: {
+                    languages: [mockLanguageDtoEng, mockLanguageDtoFra],
+                    content: [mockEnglishContentDto, mockFrenchContentDto],
+                },
+            });
+
+            const selectLanguage = wrapper.find("button[data-test='language-selector']");
+            await selectLanguage.trigger("click");
+
+            expect(wrapper.text()).toContain("English");
+            expect(wrapper.text()).toContain("Français");
+            expect(wrapper.text()).not.toContain("Add translation");
+            expect(wrapper.text()).not.toContain("Swahili");
+        });
     });
 });
