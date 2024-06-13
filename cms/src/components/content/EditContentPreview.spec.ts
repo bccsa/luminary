@@ -20,8 +20,8 @@ describe("EditContentPreview.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("can show the live preview if content is published", async () => {
-        const content = ref<ContentDto>(mockEnglishContentDto);
+    it("show the live preview if content is published", async () => {
+        const content = ref<ContentDto>({ ...mockEnglishContentDto, status: "published" });
         const wrapper = mount(EditContentPreview, {
             props: {
                 content: content.value,
@@ -32,7 +32,21 @@ describe("EditContentPreview.vue", () => {
         const livePreview = wrapper.find('div[data-test="livePreview"]');
 
         // Check if the content's title was updated
-        expect(content.value.status).toBe("published");
         expect(livePreview.exists()).toBe(true);
+    });
+
+    it("don't show the live preview if content is not published", async () => {
+        const content = ref<ContentDto>({ ...mockEnglishContentDto, status: "draft" });
+        const wrapper = mount(EditContentPreview, {
+            props: {
+                content: content.value,
+            },
+        });
+
+        // Find and update the title input field
+        const livePreview = wrapper.find('div[data-test="livePreview"]');
+
+        // Check if the content's title was updated
+        expect(livePreview.exists()).not.toBe(true);
     });
 });
