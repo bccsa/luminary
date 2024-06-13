@@ -10,7 +10,7 @@ import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { nextTick } from "vue";
 
-describe("PostOverview", () => {
+describe.skip("PostOverview", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
     });
