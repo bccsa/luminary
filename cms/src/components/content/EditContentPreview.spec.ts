@@ -13,7 +13,9 @@ describe("EditContentPreview.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
-        useGlobalConfigStore();
+        const globalConfigStore = useGlobalConfigStore();
+        globalConfigStore.clientAppUrl = "http://localhost:3000";
+
         const userAccessStore = useUserAccessStore();
         userAccessStore.accessMap = fullAccessToAllContentMap;
     });
