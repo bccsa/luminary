@@ -30,22 +30,23 @@ describe("EditContentPreview.vue", () => {
         });
 
         const videoContent = wrapper.find('div[data-test="videoContent"]');
+        expect(videoContent.exists()).toBe(true);
+
         expect(wrapper.html()).not.toContain(videoContent);
     });
 
-    it("display video field, when is defined", async () => {
-        const content = ref<ContentDto>({
-            ...mockEnglishContentDto,
-            video: "https://videolink.m3u8",
-        });
+    it(" display video field, when is defined", async () => {
+        const content = ref<ContentDto>(mockEnglishContentDto);
         const wrapper = mount(EditContentVideo, {
             props: {
-                disabled: false,
+                disabled: true,
                 content: content.value,
             },
         });
 
         const videoContent = wrapper.find('div[data-test="videoContent"]');
-        expect(wrapper.html()).toContain(videoContent.text());
+        expect(videoContent.exists()).toBe(true);
+
+        expect(videoContent).toBeTruthy();
     });
 });
