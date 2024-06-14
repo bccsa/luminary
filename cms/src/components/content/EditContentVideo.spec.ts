@@ -39,7 +39,7 @@ describe("EditContentPreview.vue", () => {
         const content = ref<ContentDto>(mockEnglishContentDto);
         const wrapper = mount(EditContentVideo, {
             props: {
-                disabled: true,
+                disabled: false,
                 content: content.value,
             },
         });
@@ -47,6 +47,6 @@ describe("EditContentPreview.vue", () => {
         const videoContent = wrapper.find('div[data-test="videoContent"]');
         expect(videoContent.exists()).toBe(true);
 
-        expect(videoContent).toBeTruthy();
+        expect(wrapper.html()).toContain(videoContent.text());
     });
 });
