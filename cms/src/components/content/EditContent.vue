@@ -55,13 +55,6 @@ const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent do
 const contentDocs = ref<ContentDto[]>([]);
 const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 
-// Set the title
-let tagTypeString: string = props.tagType as string;
-if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString = "";
-
-const titleType = tagTypeString ? tagTypeString : props.docType;
-router.currentRoute.value.meta.title = `Edit ${titleType}`;
-
 // Get a copy of the parent document from IndexedDB, and host it as a local ref.
 db.get<PostDto | TagDto>(props.parentId).then((p) => {
     parent.value = p;
@@ -170,6 +163,24 @@ const save = async () => {
 
 // Local change detection
 const isLocalChange = db.isLocalChangeAsRef(props.parentId);
+
+// Set the title in the browser tab
+let tagTypeString: string = props.tagType as string;
+if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString = "";
+
+const titleType = tagTypeString ? tagTypeString : props.docType;
+router.currentRoute.value.meta.title = `Edit ${titleType}`;
+
+// Set the language code in the URL
+watch(selectedLanguage, () => {
+    if (selectedLanguage.value) {
+        router.replace(
+            `/${props.docType}/edit/${props.tagType ? props.tagType.toString() : "default"}/${
+                props.parentId
+            }/${selectedLanguage.value?.languageCode}`,
+        );
+    }
+});
 </script>
 
 <template>

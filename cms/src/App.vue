@@ -4,7 +4,7 @@ import { RouterView } from "vue-router";
 import SideBar from "@/components/navigation/SideBar.vue";
 import TopBar from "@/components/navigation/TopBar.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
-import { onBeforeMount, ref } from "vue";
+import { computed, onBeforeMount, ref } from "vue";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
@@ -14,6 +14,7 @@ import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
+import router from "./router";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const { appName } = useGlobalConfigStore();
@@ -53,6 +54,18 @@ onBeforeMount(async () => {
 });
 
 const sidebarOpen = ref(false);
+
+const routeKey = computed(() => {
+    let routeKey = router.currentRoute.value.fullPath;
+
+    // Check if the route is an overview route, and return a unique route key. This will disable component reuse for dynamic routes and allow the component to reload data
+    if (routeKey.includes("tag/overview/") || routeKey.includes("post/overview/")) {
+        return routeKey;
+    }
+
+    // Disable the route key for all other routes. This will enable component reuse for dynamic routes and prevent the component from reloading data
+    return "";
+});
 </script>
 
 <template>
@@ -86,8 +99,9 @@ const sidebarOpen = ref(false);
 
             <main class="py-10">
                 <div class="px-4 sm:px-6 lg:px-8">
-                    <!-- Do not reuse components when routing as this prevents dynamic routes to load / reload the correct data -->
-                    <RouterView :key="$route?.fullPath" />
+                    <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
+                    routes (e.g. Post / Tag overviews) -->
+                    <RouterView :key="routeKey" />
                 </div>
             </main>
         </div>
