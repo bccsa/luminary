@@ -28,7 +28,7 @@ import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
-    parentId: Uuid;
+    id: Uuid;
     languageCode?: string;
     docType: DocType.Post | DocType.Tag;
     tagType?: keyof TagType;
@@ -38,14 +38,18 @@ const props = defineProps<Props>();
 const { addNotification } = useNotificationStore();
 const { verifyAccess } = useUserAccessStore();
 
+// Generate new parent id if it is a new document
+const parentId = props.id == "new" ? db.uuid() : props.id;
+const newDocument = props.id == "new";
+
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
 const parent = ref<PostDto | TagDto>({
-    _id: props.parentId,
+    _id: parentId,
     type: props.docType,
     updatedTimeUtc: 0,
-    memberOf: [],
+    memberOf: ["group-private-content"], // temporary - this should not be hard coded
     image: "",
     tags: [],
 });
@@ -55,17 +59,19 @@ const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent do
 const contentDocs = ref<ContentDto[]>([]);
 const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 
-// Get a copy of the parent document from IndexedDB, and host it as a local ref.
-db.get<PostDto | TagDto>(props.parentId).then((p) => {
-    parent.value = p;
-    parentPrev.value = _.cloneDeep(p);
-});
+if (!newDocument) {
+    // Get a copy of the parent document from IndexedDB, and host it as a local ref.
+    db.get<PostDto | TagDto>(parentId).then((p) => {
+        parent.value = p;
+        parentPrev.value = _.cloneDeep(p);
+    });
 
-// In the same way as the parent document, get a copy of the content documents
-db.whereParent<ContentDto[]>(props.parentId, props.docType).then((doc) => {
-    contentDocs.value.push(...doc);
-    contentDocsPrev.value = _.cloneDeep(doc);
-});
+    // In the same way as the parent document, get a copy of the content documents
+    db.whereParent<ContentDto[]>(parentId, props.docType).then((doc) => {
+        contentDocs.value.push(...doc);
+        contentDocsPrev.value = _.cloneDeep(doc);
+    });
+}
 
 // Languages and language selection
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
@@ -162,7 +168,7 @@ const save = async () => {
 };
 
 // Local change detection
-const isLocalChange = db.isLocalChangeAsRef(props.parentId);
+const isLocalChange = db.isLocalChangeAsRef(parentId);
 
 // Set the title in the browser tab
 let tagTypeString: string = props.tagType as string;
@@ -175,9 +181,9 @@ router.currentRoute.value.meta.title = `Edit ${titleType}`;
 watch(selectedLanguage, () => {
     if (selectedLanguage.value) {
         router.replace(
-            `/${props.docType}/edit/${props.tagType ? props.tagType.toString() : "default"}/${
-                props.parentId
-            }/${selectedLanguage.value?.languageCode}`,
+            `/${props.docType}/edit/${
+                props.tagType ? props.tagType.toString() : "default"
+            }/${parentId}/${selectedLanguage.value?.languageCode}`,
         );
     }
 });

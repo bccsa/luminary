@@ -43,7 +43,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                parentId: mockPostDto._id,
+                id: mockPostDto._id,
                 languageCode: "eng",
             },
         });
@@ -58,7 +58,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                parentId: mockPostDto._id,
+                id: mockPostDto._id,
                 languageCode: "eng",
             },
         });
@@ -90,7 +90,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                parentId: mockPostDto._id,
+                id: mockPostDto._id,
                 languageCode: "eng",
             },
         });
@@ -123,7 +123,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                parentId: mockPostDto._id,
+                id: mockPostDto._id,
                 languageCode: "eng",
             },
         });
@@ -142,7 +142,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                parentId: mockPostDto._id,
+                id: mockPostDto._id,
                 languageCode: "eng",
             },
         });
@@ -156,7 +156,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                parentId: mockPostDto._id,
+                id: mockPostDto._id,
                 languageCode: "swa",
             },
         });
@@ -170,7 +170,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                parentId: mockPostDto._id,
+                id: mockPostDto._id,
                 languageCode: "fra",
             },
         });
@@ -186,7 +186,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                parentId: mockPostDto._id,
+                id: mockPostDto._id,
                 languageCode: "eng",
             },
         });

@@ -72,7 +72,7 @@ const router = createRouter({
                 },
                 // Generic content document edit route
                 {
-                    path: ":docType/edit/:tagType/:parentId/:languageCode?",
+                    path: ":docType/edit/:tagType/:id/:languageCode?",
                     name: "edit",
                     component: () => import("../components/content/EditContent.vue"),
                     meta: {

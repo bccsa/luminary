@@ -89,7 +89,7 @@ const translationStatus = computed(() => {
                         params: {
                             docType: parentType,
                             tagType: parentType == DocType.Tag ? DocType.Tag : undefined,
-                            parentId: parent._id,
+                            id: parent._id,
                             languageCode: languages.find((l) => l._id == language._id)
                                 ?.languageCode,
                         },
@@ -131,7 +131,7 @@ const translationStatus = computed(() => {
                     params: {
                         docType: parentType,
                         tagType: parentType == DocType.Tag ? (parent as TagDto).tagType : undefined,
-                        parentId: parent._id,
+                        id: parent._id,
                         languageCode: languages.find((l) => l._id == props.language)?.languageCode,
                     },
                 }"
