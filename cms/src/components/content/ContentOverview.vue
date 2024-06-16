@@ -80,7 +80,14 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
                     variant="primary"
                     :icon="PlusIcon"
                     :is="RouterLink"
-                    :to="{ name: `${docType}s.create`, params: createRouteParams }"
+                    :to="{
+                        name: `edit`,
+                        params: {
+                            docType: docType,
+                            tagType: tagType ? tagType.toString() : 'default',
+                            id: 'new',
+                        },
+                    }"
                     data-test="create-button"
                 >
                     Create {{ docType }}
