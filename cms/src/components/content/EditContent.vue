@@ -23,6 +23,7 @@ import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -205,7 +206,7 @@ watch(selectedLanguage, () => {
         }"
         v-if="parent"
     >
-        <template #actions>
+        <template #actions v-if="selectedLanguage">
             <LanguageSelector2
                 :parent="parent"
                 :content="contentDocs"
@@ -217,9 +218,23 @@ watch(selectedLanguage, () => {
         <div class="relative grid grid-cols-3 gap-8">
             <!-- Main area -->
             <div class="col-span-3 md:col-span-2">
-                <div v-if="!selectedContent">
+                <!-- <div v-if="!selectedContent">
                     <p class="text-md">Select a language to start editing</p>
-                </div>
+                </div> -->
+                <EmptyState
+                    v-if="!selectedContent"
+                    :icon="TagIcon"
+                    :title="`No selected language yet`"
+                    :description="`Please choose a language before starting editing
+                    `"
+                    data-test="no-content"
+                    ><LanguageSelector2
+                        :parent="parent"
+                        :content="contentDocs"
+                        :languages="languages"
+                        v-model="selectedLanguageId"
+                        @createTranslation="createTranslation"
+                /></EmptyState>
                 <div v-if="selectedContent" class="space-y-6">
                     <!-- Basic content settings -->
                     <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
