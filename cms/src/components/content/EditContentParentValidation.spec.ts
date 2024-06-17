@@ -11,7 +11,7 @@ import {
 import { setActivePinia } from "pinia";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
 
-describe("EditContent.vue", () => {
+describe("EditContentParentValidation.vue", () => {
     beforeEach(async () => {
         // seed the fake indexDB with mock datas
         // Set up the Pinia store before each test
@@ -42,7 +42,7 @@ describe("EditContent.vue", () => {
                 languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
                 dirty: true,
                 parent: mockPostDto,
-                contentDocs: [],
+                contentDocs: [mockEnglishContentDto],
                 localChange: false,
             },
         });
@@ -58,13 +58,14 @@ describe("EditContent.vue", () => {
                 languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
                 dirty: true,
                 parent: mockPostDto,
-                contentDocs: [],
+                contentDocs: [mockEnglishContentDto],
                 localChange: false,
             },
         });
 
         expect(wrapper.html()).not.toContain("At least one group is required");
         expect(wrapper.html()).not.toContain("The default image must be set");
+        expect(wrapper.html()).not.toContain("At least one translation is required");
 
         // Check if the save button is enabled
         const saveButton = wrapper.find('[data-test="save-button"]');
@@ -101,6 +102,24 @@ describe("EditContent.vue", () => {
         });
 
         expect(wrapper.html()).toContain("The default image must be set");
+
+        // Check if the save button is disabled
+        const saveButton = wrapper.find('[data-test="save-button"]');
+        expect(saveButton.attributes().disabled).toBeDefined();
+    });
+
+    it("fails validation if no translations are set", async () => {
+        const wrapper = mount(EditContentParentValidation, {
+            props: {
+                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                dirty: true,
+                parent: mockPostDto,
+                contentDocs: [],
+                localChange: false,
+            },
+        });
+
+        expect(wrapper.html()).toContain("At least one translation is required");
 
         // Check if the save button is disabled
         const saveButton = wrapper.find('[data-test="save-button"]');

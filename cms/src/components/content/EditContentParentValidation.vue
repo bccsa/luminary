@@ -41,32 +41,44 @@ const setOverallValidation = (id: Uuid, isValid: boolean) => {
 const parentValidations = ref([] as Validation[]);
 const parentIsValid = ref(true);
 watch(
-    parent,
-    (parent) => {
-        if (!parent) return;
+    [parent, contentDocs],
+    ([_parent, _contentDocs]) => {
+        if (!_parent) return;
 
         validate(
             "At least one group is required",
             "groups",
             parentValidations.value,
-            parent,
-            () => parent.memberOf.length > 0,
+            _parent,
+            () => _parent.memberOf.length > 0,
         );
 
         validate(
             "The default image must be set",
             "image",
             parentValidations.value,
-            parent,
-            () => parent.image != "" && parent.image != undefined,
+            _parent,
+            () => _parent.image != "" && _parent.image != undefined,
+        );
+
+        validate(
+            "At least one translation is required",
+            "translations",
+            parentValidations.value,
+            _parent,
+            () => _contentDocs != undefined && _contentDocs.length > 0,
         );
 
         parentIsValid.value = parentValidations.value.every((v) => v.isValid);
 
         // Update overall validation
-        let parentOverallValidation = overallValidations.value.find((v) => v.id == parent._id);
+        let parentOverallValidation = overallValidations.value.find((v) => v.id == _parent._id);
         if (!parentOverallValidation) {
-            parentOverallValidation = { id: parent._id, isValid: parentIsValid.value, message: "" };
+            parentOverallValidation = {
+                id: _parent._id,
+                isValid: parentIsValid.value,
+                message: "",
+            };
             overallValidations.value.push(parentOverallValidation);
         } else {
             parentOverallValidation.isValid = parentIsValid.value;

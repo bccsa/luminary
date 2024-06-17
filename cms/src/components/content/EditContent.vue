@@ -49,7 +49,8 @@ const parent = ref<PostDto | TagDto>({
     _id: parentId,
     type: props.docType,
     updatedTimeUtc: 0,
-    memberOf: ["group-private-content"], // temporary - this should not be hard coded
+    memberOf: ["group-private-content"], // temporary - this should not be hard coded - remove when groups are implemented
+    // memberOf: [],
     image: "",
     tags: [],
 });
@@ -215,11 +216,16 @@ watch(selectedLanguage, () => {
         </template>
         <div class="relative grid grid-cols-3 gap-8">
             <!-- Main area -->
-            <div class="col-span-3 space-y-6 md:col-span-2" v-if="selectedContent">
-                <!-- Basic content settings -->
-                <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
-                <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
-                <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
+            <div class="col-span-3 space-y-6 md:col-span-2">
+                <div v-if="!selectedContent">
+                    <p class="text-md">Select a language to start editing</p>
+                </div>
+                <div v-if="selectedContent">
+                    <!-- Basic content settings -->
+                    <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
+                    <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
+                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
+                </div>
             </div>
             <!-- Sidebar -->
             <div class="col-span-3 md:col-span-1">
