@@ -9,7 +9,6 @@ import { ref } from "vue";
 import EditContentBasic from "./EditContentBasic.vue";
 import type { ContentDto } from "@/types";
 import { DateTime } from "luxon";
-import waitForExpect from "wait-for-expect";
 
 describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
