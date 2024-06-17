@@ -73,5 +73,38 @@ describe("EditContentParent.vue", () => {
         // TODO: Check why the selected categories are not displayed
     });
 
+    it("enables the post editing components when no groups are set", async () => {
+        const parent = ref<PostDto>({ ...mockPostDto, memberOf: [] });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                modelValue: parent.value,
+                language: mockLanguageDtoEng,
+            },
+        });
+
+        // Check if the image input field is not disabled
+        const imageInput = wrapper.find("input[name='parent.image']");
+        expect(imageInput.attributes().disabled).toBeUndefined();
+    });
+
+    it("disables the post editing components when the user does not have access to one of the groups", async () => {
+        const parent = ref<PostDto>({
+            ...mockPostDto,
+            memberOf: ["group-public-content", "a-group-to-which-the-user-does-not-have-access"],
+        });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                modelValue: parent.value,
+                language: mockLanguageDtoEng,
+            },
+        });
+
+        // Check if the image input field is not disabled
+        const imageInput = wrapper.find("input[name='parent.image']");
+        expect(imageInput.attributes().disabled).toBeDefined();
+    });
+
     // TODO: test to see if added tags are added to underlying Parent document
 });
