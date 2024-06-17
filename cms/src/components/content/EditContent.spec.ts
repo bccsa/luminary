@@ -112,11 +112,20 @@ describe("EditContent.vue", () => {
     });
 
     it.skip("renders an initial loading state", async () => {
-        // TODO: Add test after loading state is implemented
+        // TODO: Implement this
     });
 
-    it.skip("renders an empty state when there is no content in the post", async () => {
-        // TODO: Add test after empty state is implemented
+    it("renders an empty state when no language is selected", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockPostDto._id,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("No selected language yet");
+        });
     });
 
     it("renders all the components", async () => {
