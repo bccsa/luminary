@@ -33,7 +33,7 @@ const canEdit = computed(() => {
             return true;
         }
 
-        return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Edit);
+        return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Edit, "all");
     }
 
     return false;
