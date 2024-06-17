@@ -216,11 +216,11 @@ watch(selectedLanguage, () => {
         </template>
         <div class="relative grid grid-cols-3 gap-8">
             <!-- Main area -->
-            <div class="col-span-3 space-y-6 md:col-span-2">
+            <div class="col-span-3 md:col-span-2">
                 <div v-if="!selectedContent">
                     <p class="text-md">Select a language to start editing</p>
                 </div>
-                <div v-if="selectedContent">
+                <div v-if="selectedContent" class="space-y-6">
                     <!-- Basic content settings -->
                     <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
