@@ -11,19 +11,34 @@ export const useUserAccessStore = defineStore("userAccess", () => {
     };
 
     const verifyAccess = computed(
-        () => (targetGroups: Uuid[], docType: DocType, permission: AclPermission) => {
-            for (const targetGroup of targetGroups) {
-                if (
-                    accessMap.value[targetGroup] &&
-                    accessMap.value[targetGroup][docType] &&
-                    accessMap.value[targetGroup][docType]![permission]
-                ) {
+        () =>
+            (
+                targetGroups: Uuid[],
+                docType: DocType,
+                permission: AclPermission,
+                validation: "any" | "all" = "any",
+            ) => {
+                for (const targetGroup of targetGroups) {
+                    if (
+                        accessMap.value[targetGroup] &&
+                        accessMap.value[targetGroup][docType] &&
+                        accessMap.value[targetGroup][docType]![permission]
+                    ) {
+                        if (validation === "any") {
+                            return true;
+                        }
+                    } else {
+                        if (validation === "all") {
+                            return false;
+                        }
+                    }
+                }
+                if (validation === "all") {
                     return true;
                 }
-            }
 
-            return false;
-        },
+                return false;
+            },
     );
 
     const hasAnyPermission = computed(() => (docType: DocType, permission: AclPermission) => {
