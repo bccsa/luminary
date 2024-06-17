@@ -120,7 +120,6 @@ describe("TagSelector2.vue", () => {
         await waitForExpect(() => {
             const selectEvent: any = wrapper.emitted("select");
             expect(selectEvent).not.toBe(undefined);
-            // expect(selectEvent![0][0]).toEqual(mockCategoryDto);
         });
     });
 
@@ -142,7 +141,6 @@ describe("TagSelector2.vue", () => {
         await waitForExpect(() => {
             const removeEvent: any = wrapper.emitted("remove");
             expect(removeEvent).toBe(undefined);
-            // expect(removeEvent![0][0]).toEqual("tag-topicA");
         });
     });
 
@@ -161,10 +159,7 @@ describe("TagSelector2.vue", () => {
         await wait();
 
         await waitForExpect(() => {
-            // const ltag = wrapper.findComponent(LTag);
-            console.log(wrapper.html());
-            // expect(wrapper.findComponent(Combobox).props().disabled).toBe(true);
-            // expect(wrapper.findComponent(LTag).props().disabled).toBe(true);
+            expect(wrapper.findComponent(Combobox).props().disabled).toBe(true);
         });
     });
 });
