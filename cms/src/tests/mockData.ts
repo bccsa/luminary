@@ -28,6 +28,17 @@ export const mockCategoryDto: TagDto = {
     tags: [],
 };
 
+export const mockTopicDto: TagDto = {
+    _id: "tag-topicA",
+    type: DocType.Tag,
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-public-content"],
+    tagType: TagType.Category,
+    pinned: false,
+    image: "test-image.jpg",
+    tags: [],
+};
+
 export const mockPostDto: PostDto = {
     _id: "post-post1",
     type: DocType.Post,
@@ -108,6 +119,22 @@ export const mockCategoryContentDto: ContentDto = {
     status: ContentStatus.Published,
     slug: "content-tag-category1",
     title: "Category 1",
+    summary: "Example tag",
+    text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
+    publishDate: 1704114000000,
+};
+
+export const mockTopicContentDto: ContentDto = {
+    _id: "content-tag-topicA",
+    type: DocType.Content,
+    parentId: "tag-topicA",
+    parentType: DocType.Tag,
+    updatedTimeUtc: 1704114000000,
+    memberOf: [],
+    language: "lang-eng",
+    status: ContentStatus.Published,
+    slug: "content-tag-topicA",
+    title: "Topic A",
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
