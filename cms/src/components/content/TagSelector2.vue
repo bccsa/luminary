@@ -17,7 +17,7 @@ import {
     type PostDto,
     type TagDto,
 } from "@/types";
-import Ltag from "./LTag.vue";
+import LTag from "./LTag.vue";
 import { db } from "@/db/baseDatabase";
 import { watchDeep } from "@vueuse/core";
 
@@ -166,7 +166,7 @@ const isTagSelected = computed(() => {
                 leave-to-class="transform scale-90 opacity-0"
             >
                 <!-- Filter on tags of type tagType by comparing the parent.tags with the filtered list of tags -->
-                <Ltag
+                <LTag
                     v-for="tag in selectedTagsByType"
                     :key="tag._id"
                     @remove="
@@ -178,7 +178,7 @@ const isTagSelected = computed(() => {
                     :disabled="disabled"
                 >
                     {{ tagsContent.find((tc) => tc.parentId == tag._id)?.title }}
-                </Ltag>
+                </LTag>
             </TransitionGroup>
         </div>
         <!-- Message when no tags are selected -->
