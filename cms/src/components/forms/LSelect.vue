@@ -10,7 +10,6 @@ import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { useId } from "@/util/useId";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
-import LBadge from "../common/LBadge.vue";
 
 type Option = { label: string; value: string; disabled?: boolean };
 

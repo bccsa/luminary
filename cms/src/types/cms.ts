@@ -1,5 +1,5 @@
 import type { DateTime } from "luxon";
-import type { AclPermission, BaseDocumentDto, ImageFileDto, ImageUploadDto, Uuid } from "./dto";
+import type { AclPermission, ImageFileDto, ImageUploadDto, Uuid } from "./dto";
 
 export enum DocType {
     Change = "change",
