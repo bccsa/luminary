@@ -15,7 +15,7 @@ import {
     type TagDto,
     type Uuid,
 } from "@/types";
-import { DocumentIcon } from "@heroicons/vue/24/solid";
+import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import { useUserAccessStore } from "@/stores/userAccess";
