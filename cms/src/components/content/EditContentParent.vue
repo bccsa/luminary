@@ -28,6 +28,11 @@ const parent = defineModel<PostDto | TagDto>();
 
 const canEdit = computed(() => {
     if (parent && parent.value) {
+        if (parent.value.memberOf == undefined || parent.value.memberOf.length == 0) {
+            // Allow editing if the parent is not part of any group to allow the editor to set a group
+            return true;
+        }
+
         return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Edit);
     }
 
