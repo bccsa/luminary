@@ -24,6 +24,7 @@ import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
+// import LoadingSpinner from "@/components/LoadingSpinner.vue"; // TODO: Enable it when loading spinner is implemented
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -218,9 +219,6 @@ watch(selectedLanguage, () => {
         <div class="relative grid grid-cols-3 gap-8">
             <!-- Main area -->
             <div class="col-span-3 md:col-span-2">
-                <!-- <div v-if="!selectedContent">
-                    <p class="text-md">Select a language to start editing</p>
-                </div> -->
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="TagIcon"
@@ -243,7 +241,7 @@ watch(selectedLanguage, () => {
                 </div>
             </div>
             <!-- Sidebar -->
-            <div class="col-span-3 md:col-span-1">
+            <div class="col-span-3 md:col-span-1" v-if="parent">
                 <div class="sticky top-20 space-y-6">
                     <!-- Validation -->
                     <EditContentParentValidation
@@ -268,4 +266,12 @@ watch(selectedLanguage, () => {
             </div>
         </div>
     </BasePage>
+
+    <!-- Spinner Loading state -->
+    <!-- <div class="relative flex items-center justify-center">
+        <div class="flex flex-col items-center gap-4">
+            <img class="w-72" src="@/assets/logo.svg" :alt="appName" />
+            <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
+        </div>
+    </div> -->
 </template>
