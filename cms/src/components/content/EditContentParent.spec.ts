@@ -111,7 +111,6 @@ describe("EditContentParent.vue", () => {
         expect(imageInput.attributes().disabled).toBeDefined();
     });
 
-    // TODO: test to see if added tags are added to underlying Parent document
     it("see if added tags are added to underlying Parent document", async () => {
         await db.docs.bulkPut([mockCategoryDto, mockCategoryContentDto]);
 

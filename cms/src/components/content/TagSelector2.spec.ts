@@ -19,7 +19,6 @@ import { DocType, TagType } from "@/types";
 import { db } from "@/db/baseDatabase";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
-import LTag from "./LTag.vue";
 
 describe("TagSelector2.vue", () => {
     beforeEach(async () => {
