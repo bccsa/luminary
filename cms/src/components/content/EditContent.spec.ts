@@ -119,9 +119,7 @@ describe("EditContent.vue", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Loading...");
-        });
+        expect(wrapper.html()).toContain("Loading...");
     });
 
     it("renders an empty state when no language is selected", async () => {

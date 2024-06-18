@@ -194,9 +194,11 @@ watch(selectedLanguage, () => {
 </script>
 
 <template>
-    <div v-if="!parent" class="relative flex h-screen items-center justify-center">
+    <div
+        v-if="!newDocument && !parent?.updatedTimeUtc"
+        class="relative flex h-screen items-center justify-center"
+    >
         <div class="flex flex-col items-center gap-4">
-            <!-- <img class="w-72" src="@/assets/logo.svg" :alt="appName" /> -->
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
         </div>
     </div>
@@ -273,6 +275,5 @@ watch(selectedLanguage, () => {
             </div>
         </div>
     </BasePage>
-
     <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 </template>
