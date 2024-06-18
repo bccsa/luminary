@@ -47,7 +47,6 @@ describe("EditContentPreview.vue", () => {
         });
 
         const textContent = wrapper.find("div[data-test='textContent']");
-        console.log(textContent);
 
         expect(textContent.exists()).toBe(false);
     });
