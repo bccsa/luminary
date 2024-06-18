@@ -239,8 +239,6 @@ const save = async (validatedFormValues: typeof values, status: ContentStatus) =
     let publishDate;
     let expiryDate;
 
-    console.log(publishDate);
-
     if (contentValues.publishDate) {
         publishDate = DateTime.fromJSDate(contentValues.publishDate);
     } else if (status == ContentStatus.Published) {
