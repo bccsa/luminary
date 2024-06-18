@@ -108,4 +108,29 @@ describe("TagSelector2.vue", () => {
             expect(wrapper.findComponent(Combobox).props().disabled).toBe(true);
         });
     });
+
+    it("can add tags to the passed Parent document", async () => {
+        const parent = { ...mockPostDto, tags: [] };
+        const wrapper = mount(TagSelector2, {
+            props: {
+                docType: DocType.Tag,
+                tagType: TagType.Category,
+                language: mockLanguageDtoEng,
+                modelValue: parent,
+            },
+        });
+
+        await wrapper.find("input").setValue("Category 1");
+
+        // wait for the tag element to be loaded
+        let tag;
+        await waitForExpect(() => {
+            tag = wrapper.find("li");
+            expect(tag.exists()).toBe(true);
+        });
+
+        await tag!.trigger("click");
+
+        expect(parent.tags).toContain("tag-category1");
+    });
 });
