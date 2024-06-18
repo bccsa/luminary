@@ -111,8 +111,17 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.skip("renders an initial loading state", async () => {
-        // TODO: Implement this
+    it("renders an initial loading state", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockPostDto._id,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Loading...");
+        });
     });
 
     it("renders an empty state when no language is selected", async () => {
