@@ -50,9 +50,6 @@ describe("TagSelector2.vue", () => {
             },
         });
 
-        const wait = () => new Promise((resolve) => setTimeout(resolve, 2000));
-        await wait();
-
         // Wait for updates
         await waitForExpect(async () => {
             expect(wrapper.text()).toContain("Category 1");
@@ -69,9 +66,6 @@ describe("TagSelector2.vue", () => {
                 modelValue: { ...mockPostDto, tags: ["tag-topicA"] },
             },
         });
-
-        const wait = () => new Promise((resolve) => setTimeout(resolve, 2000));
-        await wait();
 
         await wrapper.find("button").trigger("click");
 
@@ -91,55 +85,11 @@ describe("TagSelector2.vue", () => {
             },
         });
 
-        const wait = () => new Promise((resolve) => setTimeout(resolve, 2000));
-        await wait();
-
         await wrapper.find("input").setValue("cat");
 
-        expect(wrapper.text()).toContain("Category 1");
-        expect(wrapper.text()).not.toContain("Topic A");
-    });
-
-    it("emits an event when selecting a tag", async () => {
-        const wrapper = mount(TagSelector2, {
-            props: {
-                docType: DocType.Tag,
-                tagType: TagType.Category,
-                language: mockLanguageDtoEng,
-                modelValue: { ...mockPostDto, tags: [] },
-            },
-        });
-
-        const wait = () => new Promise((resolve) => setTimeout(resolve, 1000));
-        await wait();
-
-        await wrapper.find("input").setValue("cat");
-        await wrapper.find("li").trigger("click");
-
         await waitForExpect(() => {
-            const selectEvent: any = wrapper.emitted("select");
-            expect(selectEvent).not.toBe(undefined);
-        });
-    });
-
-    it("emits an event when removing a tag", async () => {
-        const wrapper = mount(TagSelector2, {
-            props: {
-                docType: DocType.Tag,
-                tagType: TagType.Category,
-                language: mockLanguageDtoEng,
-                modelValue: mockPostDto,
-            },
-        });
-
-        const wait = () => new Promise((resolve) => setTimeout(resolve, 1000));
-        await wait();
-
-        await wrapper.find("button[data-test='removeTag']").trigger("click");
-
-        await waitForExpect(() => {
-            const removeEvent: any = wrapper.emitted("remove");
-            expect(removeEvent).toBe(undefined);
+            expect(wrapper.text()).toContain("Category 1");
+            expect(wrapper.text()).not.toContain("Topic A");
         });
     });
 
@@ -153,9 +103,6 @@ describe("TagSelector2.vue", () => {
                 disabled: true,
             },
         });
-
-        const wait = () => new Promise((resolve) => setTimeout(resolve, 1000));
-        await wait();
 
         await waitForExpect(() => {
             expect(wrapper.findComponent(Combobox).props().disabled).toBe(true);

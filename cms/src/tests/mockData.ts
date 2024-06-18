@@ -618,17 +618,17 @@ export const mockGroupSuperAdmins: Group = {
 export const fullAccessToAllContentMap = {
     "group-private-content": {
         post: { view: true, create: true, edit: true, translate: true, publish: true },
-        tag: { view: true, create: true, edit: true, translate: true, publish: true },
+        tag: { view: true, create: true, edit: true, translate: true, publish: true, assign: true },
         language: { view: true, create: true, edit: true, translate: true, publish: true },
     },
     "group-public-content": {
         post: { view: true, create: true, edit: true, translate: true, publish: true },
-        tag: { view: true, create: true, edit: true, translate: true, publish: true },
+        tag: { view: true, create: true, edit: true, translate: true, publish: true, assign: true },
         language: { view: true, create: true, edit: true, translate: true, publish: true },
     },
     "group-languages": {
         post: { view: true, create: true, edit: true, translate: true, publish: true },
-        tag: { view: true, create: true, edit: true, translate: true, publish: true },
+        tag: { view: true, create: true, edit: true, translate: true, publish: true, assign: true },
         language: { view: true, create: true, edit: true, translate: true, publish: true },
     },
 };
