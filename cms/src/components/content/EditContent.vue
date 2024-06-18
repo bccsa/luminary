@@ -24,7 +24,8 @@ import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import LoadingSpinner from "@/components/LoadingSpinner.vue"; // TODO: Enable it when loading spinner is implemented
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -273,11 +274,5 @@ watch(selectedLanguage, () => {
         </div>
     </BasePage>
 
-    <!-- Spinner Loading state -->
-    <!-- <div class="relative flex items-center justify-center">
-        <div class="flex flex-col items-center gap-4">
-            <img class="w-72" src="@/assets/logo.svg" :alt="appName" />
-            <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
-        </div>
-    </div> -->
+    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 </template>
