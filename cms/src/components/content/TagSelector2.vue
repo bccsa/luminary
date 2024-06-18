@@ -10,7 +10,6 @@ import {
     ComboboxOptions,
 } from "@headlessui/vue";
 import {
-    AclPermission,
     DocType,
     TagType,
     type ContentDto,
@@ -21,7 +20,6 @@ import {
 import LTag from "./LTag.vue";
 import { db } from "@/db/baseDatabase";
 import { watchDeep } from "@vueuse/core";
-import { useUserAccessStore } from "@/stores/userAccess";
 
 type Props = {
     docType: DocType;
@@ -37,33 +35,28 @@ const props = withDefaults(defineProps<Props>(), {
 const parent = defineModel<PostDto | TagDto>();
 const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 
-const { verifyAccess } = useUserAccessStore();
-
 const tagsContent = ref<ContentDto[]>([]);
 watch(tags, async () => {
     const pList: any[] = [];
     tags.value.forEach((tag) => {
-        // Filter tags based on access before proceeding
-        if (verifyAccess([tag._id], props.docType, AclPermission.Assign)) {
-            pList.push(
-                // We are getting the content as non-reactive, meaning that if someone else would change
-                // the content of an existing tag, it will not automatically update in the tag selector.
-                db.whereParent<ContentDto[]>(tag._id, DocType.Tag).then((content) => {
-                    if (content.length == 0) return;
+        pList.push(
+            // We are getting the content as non-reactive, meaning that if someone else would change
+            // the content of an existing tag, it will not automatically update in the tag selector.
+            db.whereParent<ContentDto[]>(tag._id, DocType.Tag).then((content) => {
+                if (content.length == 0) return;
 
-                    const preferred = content.find((c) => c.language == props.language?._id);
-                    const c = preferred ? preferred : content[0];
+                const preferred = content.find((c) => c.language == props.language?._id);
+                const c = preferred ? preferred : content[0];
 
-                    const existingIndex = tagsContent.value.findIndex((tc) => tc._id == c._id);
-                    if (existingIndex >= 0) {
-                        tagsContent.value[existingIndex] = c;
-                        return;
-                    }
+                const existingIndex = tagsContent.value.findIndex((tc) => tc._id == c._id);
+                if (existingIndex >= 0) {
+                    tagsContent.value[existingIndex] = c;
+                    return;
+                }
 
-                    tagsContent.value.push(c);
-                }),
-            );
-        }
+                tagsContent.value.push(c);
+            }),
+        );
     });
 
     await Promise.all(pList);
