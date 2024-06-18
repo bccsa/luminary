@@ -1,8 +1,10 @@
+import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import {
     fullAccessToAllContentMap,
+    mockCategoryContentDto,
     mockCategoryDto,
     mockLanguageDtoEng,
     mockPostDto,
@@ -11,7 +13,10 @@ import { setActivePinia } from "pinia";
 import EditContentParent from "./EditContentParent.vue";
 import { DocType, type PostDto, type TagDto } from "@/types";
 import { useUserAccessStore } from "@/stores/userAccess";
+import TagSelector2 from "./TagSelector2.vue";
 import { ref } from "vue";
+import { db } from "@/db/baseDatabase";
+import waitForExpect from "wait-for-expect";
 
 describe("EditContentParent.vue", () => {
     beforeEach(async () => {
@@ -107,4 +112,31 @@ describe("EditContentParent.vue", () => {
     });
 
     // TODO: test to see if added tags are added to underlying Parent document
+    it("see if added tags are added to underlying Parent document", async () => {
+        await db.docs.bulkPut([mockCategoryDto, mockCategoryContentDto]);
+
+        const parent = ref<PostDto>({ ...mockPostDto, tags: [] });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                modelValue: parent.value,
+                language: mockLanguageDtoEng,
+            },
+        });
+
+        // Find the first TagSelector2 component, assuming it handles Categories
+        const tagSelector = wrapper.findComponent(TagSelector2);
+        expect(tagSelector.exists()).toBe(true);
+
+        tagSelector.find("input").setValue("cat");
+
+        await waitForExpect(() => {
+            expect(tagSelector.find("li").exists()).toBe(true);
+            tagSelector.find("li").trigger("click");
+        });
+
+        expect(parent.value.tags).toContain("tag-category1");
+
+        await db.docs.clear();
+    });
 });
