@@ -51,36 +51,11 @@ const router = createRouter({
                         title: "Settings",
                     },
                 },
-                {
-                    path: "posts",
-                    name: "posts",
-                    redirect: { name: "posts.index" },
-                    children: [
-                        {
-                            path: "create",
-                            name: "posts.create",
-                            component: () => import("../pages/posts/CreatePost.vue"),
-                            meta: {
-                                title: "Create Post",
-                                canAccess: {
-                                    docType: DocType.Post,
-                                    permission: AclPermission.Create,
-                                },
-                            },
-                        },
-                    ],
-                },
                 // Generic content document edit route
                 {
                     path: ":docType/edit/:tagType/:id/:languageCode?",
                     name: "edit",
                     component: () => import("../components/content/EditContent.vue"),
-                    meta: {
-                        canAccess: {
-                            docType: DocType.Post,
-                            permission: AclPermission.View,
-                        },
-                    },
                     props: true,
                 },
                 // Generic content document overview route
@@ -88,32 +63,7 @@ const router = createRouter({
                     path: ":docType/overview/:tagType/:languageCode?",
                     name: "overview",
                     component: () => import("../components/content/ContentOverview.vue"),
-                    meta: {
-                        canAccess: {
-                            docType: DocType.Post,
-                            permission: AclPermission.View,
-                        },
-                    },
                     props: true,
-                },
-                {
-                    path: "tags",
-                    name: "tags",
-                    redirect: { name: "tags.categories" },
-                    children: [
-                        {
-                            path: "create/:tagType",
-                            name: "tags.create",
-                            component: () => import("../pages/tags/CreateTag.vue"),
-                            meta: {
-                                title: "Create tag",
-                                canAccess: {
-                                    docType: DocType.Tag,
-                                    permission: AclPermission.Create,
-                                },
-                            },
-                        },
-                    ],
                 },
                 {
                     path: "groups",

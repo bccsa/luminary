@@ -2,7 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { PlusIcon } from "@heroicons/vue/20/solid";
+import { DocumentIcon, PlusIcon } from "@heroicons/vue/20/solid";
 import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import {
@@ -52,7 +52,6 @@ watch(
 const { hasAnyPermission } = useUserAccessStore();
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Create));
-const createRouteParams = tagType ? { tagType: tagType } : undefined;
 
 // Set the title
 let tagTypeString: string = tagType as string;
@@ -64,7 +63,7 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
 
 <template>
     <BasePage
-        :title="`${capitaliseFirstLetter(tagType ? tagType : docType)} overview`"
+        :title="`${capitaliseFirstLetter(titleType)} overview`"
         :loading="contentParents === undefined"
     >
         <template #actions>
@@ -97,15 +96,22 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
 
         <EmptyState
             v-if="!contentParents || contentParents.length == 0"
-            :icon="TagIcon"
-            :title="`No ${docType}(s) yet`"
+            :icon="docType == DocType.Post ? DocumentIcon : TagIcon"
+            :title="`No ${titleType}(s) yet`"
             :description="
                 canCreateNew
-                    ? `Get started by creating a new ${docType}.`
-                    : `You do not have permission to create a new ${docType}.`
+                    ? `Get started by creating a new ${titleType}.`
+                    : `You do not have permission to create a new ${titleType}.`
             "
-            :buttonText="`Create ${docType}`"
-            :buttonLink="{ name: `${docType}s.create`, params: createRouteParams }"
+            :buttonText="`Create ${titleType}`"
+            :buttonLink="{
+                name: `edit`,
+                params: {
+                    docType: docType,
+                    tagType: tagType ? tagType.toString() : 'default',
+                    id: 'new',
+                },
+            }"
             :buttonPermission="canCreateNew"
             data-test="no-content"
         />
