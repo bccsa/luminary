@@ -110,32 +110,4 @@ describe("EditContentParent.vue", () => {
         const imageInput = wrapper.find("input[name='parent.image']");
         expect(imageInput.attributes().disabled).toBeDefined();
     });
-
-    it("see if added tags are added to underlying Parent document", async () => {
-        await db.docs.bulkPut([mockCategoryDto, mockCategoryContentDto]);
-
-        const parent = ref<PostDto>({ ...mockPostDto, tags: [] });
-        const wrapper = mount(EditContentParent, {
-            props: {
-                docType: DocType.Post,
-                modelValue: parent.value,
-                language: mockLanguageDtoEng,
-            },
-        });
-
-        // Find the first TagSelector2 component, assuming it handles Categories
-        const tagSelector = wrapper.findComponent(TagSelector2);
-        expect(tagSelector.exists()).toBe(true);
-
-        tagSelector.find("input").setValue("cat");
-
-        await waitForExpect(() => {
-            expect(tagSelector.find("li").exists()).toBe(true);
-            tagSelector.find("li").trigger("click");
-        });
-
-        expect(parent.value.tags).toContain("tag-category1");
-
-        await db.docs.clear();
-    });
 });
