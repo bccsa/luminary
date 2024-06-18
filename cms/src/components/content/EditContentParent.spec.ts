@@ -4,7 +4,6 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import {
     fullAccessToAllContentMap,
-    mockCategoryContentDto,
     mockCategoryDto,
     mockLanguageDtoEng,
     mockPostDto,
@@ -13,10 +12,7 @@ import { setActivePinia } from "pinia";
 import EditContentParent from "./EditContentParent.vue";
 import { DocType, type PostDto, type TagDto } from "@/types";
 import { useUserAccessStore } from "@/stores/userAccess";
-import TagSelector2 from "./TagSelector2.vue";
 import { ref } from "vue";
-import { db } from "@/db/baseDatabase";
-import waitForExpect from "wait-for-expect";
 
 describe("EditContentParent.vue", () => {
     beforeEach(async () => {
