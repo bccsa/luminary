@@ -34,7 +34,30 @@ cp .env.example .env
 npm ci
 ```
 
-3. Then start a live-reloading server with:
+3. Build the shared library
+
+```sh
+cd ../shared
+npm run build
+```
+
+_Remember that this needs to be done every time changes are made to the shared library._
+
+4. Then start a live-reloading server with:
+
+Navigate back to the CMS / app directory:
+
+```sh
+cd ../cms
+```
+
+or
+
+```sh
+cd ../app
+```
+
+then:
 
 ```sh
 npm run dev
