@@ -2,15 +2,9 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    fullAccessToAllContentMap,
-    mockCategoryDto,
-    mockLanguageDtoEng,
-    mockPostDto,
-} from "@/tests/mockData";
+import { mockData, DocType, type PostDto, type TagDto } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import EditContentParent from "./EditContentParent.vue";
-import { DocType, type PostDto, type TagDto } from "@/types";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
 
@@ -19,13 +13,13 @@ describe("EditContentParent.vue", () => {
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
     });
 
     afterEach(async () => {});
 
     it("test the tag pinned toggle", async () => {
-        const parent = ref<TagDto>({ ...mockCategoryDto, pinned: true });
+        const parent = ref<TagDto>({ ...mockData.mockCategoryDto, pinned: true });
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Tag,
@@ -41,7 +35,7 @@ describe("EditContentParent.vue", () => {
     });
 
     it("test the image input", async () => {
-        const parent = ref<TagDto>({ ...mockCategoryDto, image: "image.png" });
+        const parent = ref<TagDto>({ ...mockData.mockCategoryDto, image: "image.png" });
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Tag,
@@ -58,12 +52,12 @@ describe("EditContentParent.vue", () => {
     });
 
     it("test to see if Category and selected tags are displayed", async () => {
-        const parent = ref<PostDto>({ ...mockPostDto, tags: ["tag-category1"] });
+        const parent = ref<PostDto>({ ...mockData.mockPostDto, tags: ["tag-category1"] });
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Post,
                 modelValue: parent.value,
-                language: mockLanguageDtoEng,
+                language: mockData.mockLanguageDtoEng,
             },
         });
 
@@ -75,12 +69,12 @@ describe("EditContentParent.vue", () => {
     });
 
     it("enables the post editing components when no groups are set", async () => {
-        const parent = ref<PostDto>({ ...mockPostDto, memberOf: [] });
+        const parent = ref<PostDto>({ ...mockData.mockPostDto, memberOf: [] });
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Post,
                 modelValue: parent.value,
-                language: mockLanguageDtoEng,
+                language: mockData.mockLanguageDtoEng,
             },
         });
 
@@ -91,14 +85,14 @@ describe("EditContentParent.vue", () => {
 
     it("disables the post editing components when the user does not have access to one of the groups", async () => {
         const parent = ref<PostDto>({
-            ...mockPostDto,
+            ...mockData.mockPostDto,
             memberOf: ["group-public-content", "a-group-to-which-the-user-does-not-have-access"],
         });
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Post,
                 modelValue: parent.value,
-                language: mockLanguageDtoEng,
+                language: mockData.mockLanguageDtoEng,
             },
         });
 

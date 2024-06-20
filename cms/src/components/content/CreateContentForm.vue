@@ -4,7 +4,7 @@ import LBadge from "@/components/common/LBadge.vue";
 import LInput from "@/components/forms/LInput.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { useLanguageStore } from "@/stores/language";
-import type { CreateContentParentDto, Language } from "@/types";
+import type { CreateContentParentDto, Language } from "luminary-shared";
 import { ref } from "vue";
 import { ArrowRightIcon, LinkIcon } from "@heroicons/vue/20/solid";
 import { useForm } from "vee-validate";

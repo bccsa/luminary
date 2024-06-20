@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ContentStatus, type ContentDto, type LanguageDto } from "@/types";
+import { ContentStatus, type ContentDto, type LanguageDto } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { XCircleIcon } from "@heroicons/vue/20/solid";

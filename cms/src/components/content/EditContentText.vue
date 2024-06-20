@@ -2,7 +2,7 @@
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { DocumentTextIcon } from "@heroicons/vue/20/solid";
-import { type ContentDto } from "@/types";
+import { type ContentDto } from "luminary-shared";
 import RichTextEditor2 from "../editor/RichTextEditor2.vue";
 
 const EMPTY_TEXT = '{"type":"doc","content":[{"type":"paragraph"}]}';

@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { fullAccessToAllContentMap, mockEnglishContentDto } from "@/tests/mockData";
+import { mockData } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
@@ -15,7 +15,7 @@ describe("EditContentBasic.vue", () => {
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
     });
 
     afterAll(() => {
@@ -23,7 +23,7 @@ describe("EditContentBasic.vue", () => {
     });
 
     it("can update the title", async () => {
-        const content = ref<ContentDto>(mockEnglishContentDto);
+        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
@@ -40,7 +40,7 @@ describe("EditContentBasic.vue", () => {
     });
 
     it("can update the summary", async () => {
-        const content = ref<ContentDto>(mockEnglishContentDto);
+        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
@@ -58,7 +58,7 @@ describe("EditContentBasic.vue", () => {
 
     it("sets expiry date when shortcut buttons are clicked", async () => {
         const content = ref<ContentDto>({
-            ...mockEnglishContentDto,
+            ...mockData.mockEnglishContentDto,
             publishDate: DateTime.now().toMillis(),
         });
         const wrapper = mount(EditContentBasic, {
@@ -177,7 +177,7 @@ describe("EditContentBasic.vue", () => {
     });
 
     it("check if the Publish/Draft toggle switchs correctly", async () => {
-        const content = ref<ContentDto>({ ...mockEnglishContentDto, status: "draft" });
+        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, status: "draft" });
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,

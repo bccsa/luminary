@@ -11,7 +11,7 @@ import {
     type PostDto,
     type TagDto,
     type Uuid,
-} from "@/types";
+} from "luminary-shared";
 import { computed } from "vue";
 import { ArrowRightIcon, CheckCircleIcon } from "@heroicons/vue/16/solid";
 import { sortByName } from "@/util/sortByName";
