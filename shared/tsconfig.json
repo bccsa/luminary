@@ -3,7 +3,6 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "declaration": true,
-
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
 
