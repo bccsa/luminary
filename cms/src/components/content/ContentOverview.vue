@@ -6,6 +6,7 @@ import { DocumentIcon, PlusIcon } from "@heroicons/vue/20/solid";
 import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import {
+    db,
     AclPermission,
     DocType,
     TagType,
@@ -13,11 +14,10 @@ import {
     type PostDto,
     type TagDto,
     type Uuid,
-} from "@/types";
+} from "luminary-shared";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { computed, ref, watch } from "vue";
 import ContentTable2 from "@/components/content/ContentTable2.vue";
-import { db } from "@/db/baseDatabase";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
