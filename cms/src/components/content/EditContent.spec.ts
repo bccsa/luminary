@@ -2,35 +2,29 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    fullAccessToAllContentMap,
-    mockEnglishContentDto,
-    mockFrenchContentDto,
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-    mockLanguageDtoSwa,
-    mockLocalChange1,
-    mockPostDto,
-} from "@/tests/mockData";
+import { db, mockData } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import EditContent from "./EditContent.vue";
 import { DocType, type ContentDto } from "@/types";
-import { db } from "@/db/baseDatabase";
 import waitForExpect from "wait-for-expect";
 
 describe("EditContent.vue", () => {
     beforeEach(async () => {
         // seed the fake indexDB with mock datas
-        await db.docs.bulkPut([mockPostDto]);
-        await db.docs.bulkPut([mockEnglishContentDto, mockFrenchContentDto]);
-        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await db.docs.bulkPut([mockData.mockPostDto]);
+        await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
+        await db.docs.bulkPut([
+            mockData.mockLanguageDtoEng,
+            mockData.mockLanguageDtoFra,
+            mockData.mockLanguageDtoSwa,
+        ]);
 
         // Set up the Pinia store before each test
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
     });
 
     afterEach(async () => {
@@ -43,14 +37,14 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "eng",
             },
         });
 
         // Wait for the component to fetch data
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockEnglishContentDto.title);
+            expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
         });
     });
 
@@ -58,7 +52,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "eng",
             },
         });
@@ -81,7 +75,7 @@ describe("EditContent.vue", () => {
 
         // Wait for the save to complete
         await waitForExpect(async () => {
-            const savedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            const savedDoc = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
             expect(savedDoc.title).toBe("New Title");
         });
     });
@@ -90,7 +84,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "eng",
             },
         });
@@ -115,7 +109,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
             },
         });
 
@@ -126,7 +120,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
             },
         });
 
@@ -139,7 +133,7 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "eng",
             },
         });
@@ -158,13 +152,13 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "eng",
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper.text()).toContain(mockData.mockEnglishContentDto.title);
         });
     });
 
@@ -172,13 +166,13 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "swa",
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper.text()).toContain(mockData.mockEnglishContentDto.title);
         });
     });
 
@@ -186,23 +180,23 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "fra",
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper.text()).toContain(mockData.mockFrenchContentDto.title);
         });
     });
 
     it("can detect a local change", async () => {
-        await db.localChanges.put(mockLocalChange1);
+        await db.localChanges.put(mockData.mockLocalChange1);
 
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockPostDto._id,
+                id: mockData.mockPostDto._id,
                 languageCode: "eng",
             },
         });

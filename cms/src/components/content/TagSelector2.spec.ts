@@ -2,36 +2,26 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    fullAccessToAllContentMap,
-    mockCategoryContentDto,
-    mockCategoryDto,
-    mockEnglishContentDto,
-    mockLanguageDtoEng,
-    mockPostDto,
-    mockTopicContentDto,
-    mockTopicDto,
-} from "@/tests/mockData";
+import { db, mockData } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import TagSelector2 from "./TagSelector2.vue";
 import { DocType, TagType } from "@/types";
-import { db } from "@/db/baseDatabase";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
 
 describe("TagSelector2.vue", () => {
     beforeEach(async () => {
-        await db.docs.bulkPut([mockPostDto]);
-        await db.docs.bulkPut([mockEnglishContentDto]);
-        await db.docs.bulkPut([mockLanguageDtoEng]);
-        await db.docs.bulkPut([mockCategoryDto, mockTopicDto]);
-        await db.docs.bulkPut([mockCategoryContentDto, mockTopicContentDto]);
+        await db.docs.bulkPut([mockData.mockPostDto]);
+        await db.docs.bulkPut([mockData.mockEnglishContentDto]);
+        await db.docs.bulkPut([mockData.mockLanguageDtoEng]);
+        await db.docs.bulkPut([mockData.mockCategoryDto, mockData.mockTopicDto]);
+        await db.docs.bulkPut([mockData.mockCategoryContentDto, mockData.mockTopicContentDto]);
 
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
     });
 
     afterEach(async () => {
@@ -45,8 +35,8 @@ describe("TagSelector2.vue", () => {
             props: {
                 docType: DocType.Tag,
                 tagType: TagType.Category,
-                language: mockLanguageDtoEng,
-                modelValue: mockPostDto,
+                language: mockData.mockLanguageDtoEng,
+                modelValue: mockData.mockPostDto,
             },
         });
 
@@ -62,8 +52,8 @@ describe("TagSelector2.vue", () => {
             props: {
                 docType: DocType.Tag,
                 tagType: TagType.Category,
-                language: mockLanguageDtoEng,
-                modelValue: { ...mockPostDto, tags: ["tag-topicA"] },
+                language: mockData.mockLanguageDtoEng,
+                modelValue: { ...mockData.mockPostDto, tags: ["tag-topicA"] },
             },
         });
 
@@ -80,8 +70,8 @@ describe("TagSelector2.vue", () => {
             props: {
                 docType: DocType.Tag,
                 tagType: TagType.Category,
-                language: mockLanguageDtoEng,
-                modelValue: mockPostDto,
+                language: mockData.mockLanguageDtoEng,
+                modelValue: mockData.mockPostDto,
             },
         });
 
@@ -98,8 +88,8 @@ describe("TagSelector2.vue", () => {
             props: {
                 docType: DocType.Tag,
                 tagType: TagType.Category,
-                language: mockLanguageDtoEng,
-                modelValue: mockPostDto,
+                language: mockData.mockLanguageDtoEng,
+                modelValue: mockData.mockPostDto,
                 disabled: true,
             },
         });
@@ -110,12 +100,12 @@ describe("TagSelector2.vue", () => {
     });
 
     it("can add tags to the passed Parent document", async () => {
-        const parent = { ...mockPostDto, tags: [] };
+        const parent = { ...mockData.mockPostDto, tags: [] };
         const wrapper = mount(TagSelector2, {
             props: {
                 docType: DocType.Tag,
                 tagType: TagType.Category,
-                language: mockLanguageDtoEng,
+                language: mockData.mockLanguageDtoEng,
                 modelValue: parent,
             },
         });

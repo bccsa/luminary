@@ -1,13 +1,7 @@
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    mockEnglishContentDto,
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-    mockLanguageDtoSwa,
-    mockPostDto,
-} from "@/tests/mockData";
+import { mockData } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
 
@@ -23,9 +17,13 @@ describe("EditContentParentValidation.vue", () => {
     it("disables the save button when dirty is false", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: false,
-                parent: mockPostDto,
+                parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
             },
@@ -39,10 +37,14 @@ describe("EditContentParentValidation.vue", () => {
     it("enables the save button when dirty is true", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: true,
-                parent: mockPostDto,
-                contentDocs: [mockEnglishContentDto],
+                parent: mockData.mockPostDto,
+                contentDocs: [mockData.mockEnglishContentDto],
                 localChange: false,
             },
         });
@@ -55,10 +57,14 @@ describe("EditContentParentValidation.vue", () => {
     it("passes validation by default", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: true,
-                parent: mockPostDto,
-                contentDocs: [mockEnglishContentDto],
+                parent: mockData.mockPostDto,
+                contentDocs: [mockData.mockEnglishContentDto],
                 localChange: false,
             },
         });
@@ -75,9 +81,13 @@ describe("EditContentParentValidation.vue", () => {
     it("fails validation if no groups are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: true,
-                parent: { ...mockPostDto, memberOf: [] },
+                parent: { ...mockData.mockPostDto, memberOf: [] },
                 contentDocs: [],
                 localChange: false,
             },
@@ -93,9 +103,13 @@ describe("EditContentParentValidation.vue", () => {
     it("fails validation if the default image is not set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: false,
-                parent: { ...mockPostDto, image: "" },
+                parent: { ...mockData.mockPostDto, image: "" },
                 contentDocs: [],
                 localChange: false,
             },
@@ -111,9 +125,13 @@ describe("EditContentParentValidation.vue", () => {
     it("fails validation if no translations are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: true,
-                parent: mockPostDto,
+                parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
             },
@@ -129,10 +147,14 @@ describe("EditContentParentValidation.vue", () => {
     it("disables the save button when a content document has a validation error", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: true,
-                parent: mockPostDto,
-                contentDocs: [{ ...mockEnglishContentDto, title: "" }],
+                parent: mockData.mockPostDto,
+                contentDocs: [{ ...mockData.mockEnglishContentDto, title: "" }],
                 localChange: false,
             },
         });
@@ -149,9 +171,13 @@ describe("EditContentParentValidation.vue", () => {
     it("displays the offline change warning when there are local changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: false,
-                parent: mockPostDto,
+                parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: true,
             },
@@ -163,9 +189,13 @@ describe("EditContentParentValidation.vue", () => {
     it("does not display the offline change warning when there are no local changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 dirty: false,
-                parent: mockPostDto,
+                parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
             },

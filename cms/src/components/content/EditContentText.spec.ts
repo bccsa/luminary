@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { fullAccessToAllContentMap, mockEnglishContentDto } from "@/tests/mockData";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
-import type { ContentDto } from "@/types";
+import { mockData, type ContentDto } from "luminary-shared";
 import EditContentText from "./EditContentText.vue";
 import waitForExpect from "wait-for-expect";
 
@@ -14,7 +13,7 @@ describe("EditContentPreview.vue", () => {
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
     });
 
     afterAll(() => {
@@ -22,7 +21,7 @@ describe("EditContentPreview.vue", () => {
     });
 
     it("display text, when is defined", async () => {
-        const content = ref<ContentDto>(mockEnglishContentDto);
+        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
         const wrapper = mount(EditContentText, {
             props: {
                 disabled: false,
@@ -30,7 +29,8 @@ describe("EditContentPreview.vue", () => {
             },
         });
 
-        const mockText = JSON.parse(mockEnglishContentDto.text!).content[0].content[0].text;
+        const mockText = JSON.parse(mockData.mockEnglishContentDto.text!).content[0].content[0]
+            .text;
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockText);
@@ -38,7 +38,7 @@ describe("EditContentPreview.vue", () => {
     });
 
     it("hide editor when text is not defined", async () => {
-        const content = ref<ContentDto>({ ...mockEnglishContentDto, text: undefined });
+        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, text: undefined });
         const wrapper = mount(EditContentText, {
             props: {
                 disabled: true,

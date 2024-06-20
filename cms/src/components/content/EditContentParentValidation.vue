@@ -5,7 +5,13 @@ import LCard from "@/components/common/LCard.vue";
 import EditContentValidation from "./EditContentValidation.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import { XCircleIcon } from "@heroicons/vue/16/solid";
-import { type PostDto, type TagDto, type ContentDto, type Uuid, type LanguageDto } from "@/types";
+import {
+    type PostDto,
+    type TagDto,
+    type ContentDto,
+    type Uuid,
+    type LanguageDto,
+} from "luminary-shared";
 import { ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 

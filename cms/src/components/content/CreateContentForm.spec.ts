@@ -4,7 +4,7 @@ import CreateContentForm from "./CreateContentForm.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useLanguageStore } from "@/stores/language";
-import { mockLanguageEng, mockLanguageFra } from "@/tests/mockData";
+import { mockData } from "luminary-shared";
 import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
 
@@ -13,7 +13,7 @@ describe.skip("CreateContentForm", () => {
         setActivePinia(createTestingPinia());
 
         const languageStore = useLanguageStore();
-        languageStore.languages = [mockLanguageEng, mockLanguageFra];
+        languageStore.languages = [mockData.mockData.mockLanguageEng, mockData.mockLanguageFra];
     });
 
     afterEach(() => {
@@ -26,8 +26,8 @@ describe.skip("CreateContentForm", () => {
         });
 
         expect(wrapper.html()).toContain("Default image");
-        expect(wrapper.html()).toContain(mockLanguageEng.name);
-        expect(wrapper.html()).toContain(mockLanguageFra.name);
+        expect(wrapper.html()).toContain(mockData.mockLanguageEng.name);
+        expect(wrapper.html()).toContain(mockData.mockLanguageFra.name);
         expect(wrapper.html()).not.toContain("Title");
     });
 
@@ -38,8 +38,8 @@ describe.skip("CreateContentForm", () => {
 
         await wrapper.findAll("button[data-test='language']")[0].trigger("click");
 
-        expect(wrapper.html()).toContain(mockLanguageEng.name); // In the placeholder
-        expect(wrapper.html()).not.toContain(mockLanguageFra.name);
+        expect(wrapper.html()).toContain(mockData.mockLanguageEng.name); // In the placeholder
+        expect(wrapper.html()).not.toContain(mockData.mockLanguageFra.name);
         expect(wrapper.html()).toContain("Title");
     });
 
@@ -51,8 +51,8 @@ describe.skip("CreateContentForm", () => {
         await wrapper.findAll("button[data-test='language']")[0].trigger("click");
         await wrapper.find("button[data-test='reset']").trigger("click");
 
-        expect(wrapper.html()).toContain(mockLanguageEng.name);
-        expect(wrapper.html()).toContain(mockLanguageFra.name);
+        expect(wrapper.html()).toContain(mockData.mockLanguageEng.name);
+        expect(wrapper.html()).toContain(mockData.mockLanguageFra.name);
         expect(wrapper.html()).not.toContain("Title");
     });
 
