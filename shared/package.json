@@ -3,7 +3,7 @@
   "version": "0.0.3",
   "type": "module",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "typings": "dist/index.d.ts",
   "files": [
     "/dist"
   ],
@@ -18,7 +18,7 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --ignore-path .gitignore",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --write src/",
-    "type-check": "vue-tsc --build --force"
+    "type-check": "vue-tsc --noEmit && vite build"
   },
   "dependencies": {
     "@vueuse/rxjs": "^10.7.2",
