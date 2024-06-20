@@ -29,7 +29,7 @@
         "dexie": "^4.0.7",
         "lodash.clonedeep": "^4.5.0",
         "lodash.isequal": "^4.5.0",
-        "luminary-shared": "^0.0.2",
+        "luminary-shared": "file:../shared",
         "luxon": "^3.4.4",
         "pinia": "^2.1.7",
         "rxjs": "^7.8.1",
