@@ -24,7 +24,6 @@ import { watchDeep } from "@vueuse/core";
 import { useUserAccessStore } from "@/stores/userAccess";
 
 type Props = {
-    docType: DocType;
     tagType: TagType;
     language?: LanguageDto;
     label?: string;
@@ -34,7 +33,7 @@ const props = withDefaults(defineProps<Props>(), {
     label: "Tags",
     disabled: false,
 });
-const parent = defineModel<PostDto | TagDto>();
+const parent = defineModel<PostDto | TagDto>("parent");
 const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 
 const { verifyAccess } = useUserAccessStore();
@@ -43,8 +42,11 @@ const tagsContent = ref<ContentDto[]>([]);
 watch(tags, async () => {
     const pList: any[] = [];
     tags.value.forEach((tag) => {
-        // Filter tags based on access before proceeding
-        if (verifyAccess(tag.memberOf, props.docType, AclPermission.Assign)) {
+        // Filter tags based on access before proceeding, and exclude the the tag itself (if parent is a tag)
+        if (
+            tag._id != parent.value?._id &&
+            verifyAccess(tag.memberOf, DocType.Tag, AclPermission.Assign, "any")
+        ) {
             pList.push(
                 // We are getting the content as non-reactive, meaning that if someone else would change
                 // the content of an existing tag, it will not automatically update in the tag selector.

@@ -2,9 +2,9 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { mockData, DocType, type PostDto, type TagDto } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import EditContentParent from "./EditContentParent.vue";
+import { DocType, type PostDto, type TagDto, mockData } from "luminary-shared";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
 

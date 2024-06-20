@@ -68,8 +68,7 @@ const canEdit = computed(() => {
         </LInput>
 
         <TagSelector2
-            v-model="parent"
-            :docType="docType"
+            v-model:parent="parent"
             :language="language"
             :tagType="TagType.Category"
             label="Categories"
@@ -79,8 +78,7 @@ const canEdit = computed(() => {
         />
 
         <TagSelector2
-            v-model="parent"
-            :docType="docType"
+            v-model:parent="parent"
             :language="language"
             :tagType="TagType.Topic"
             label="Topics"
@@ -90,8 +88,7 @@ const canEdit = computed(() => {
         />
 
         <TagSelector2
-            v-model="parent"
-            :docType="docType"
+            v-model:parent="parent"
             :language="language"
             :tagType="TagType.AudioPlaylist"
             label="Audio Playlists"
