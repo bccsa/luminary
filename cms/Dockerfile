@@ -1,7 +1,7 @@
 FROM node:lts-alpine as build-stage
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --install-links
 COPY . .
 RUN npm run build
 
