@@ -9,7 +9,7 @@ import {
     type PostDto,
     type TagDto,
     type LanguageDto,
-} from "@/types";
+} from "luminary-shared";
 import { computed } from "vue";
 import TagSelector2 from "./TagSelector2.vue";
 import { capitaliseFirstLetter } from "@/util/string";

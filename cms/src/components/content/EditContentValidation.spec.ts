@@ -1,11 +1,6 @@
 import { describe, it, afterEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import {
-    mockEnglishContentDto,
-    mockFrenchContentDto,
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-} from "@/tests/mockData";
+import { mockData } from "luminary-shared";
 import EditContentValidation from "./EditContentValidation.vue";
 
 describe("EditContentValidation.vue", () => {
@@ -18,8 +13,8 @@ describe("EditContentValidation.vue", () => {
     it("don't show validation error if no errors", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
-                languages: [mockLanguageDtoEng],
-                content: mockEnglishContentDto,
+                languages: [mockData.mockLanguageDtoEng],
+                content: mockData.mockEnglishContentDto,
             },
         });
 
@@ -29,8 +24,8 @@ describe("EditContentValidation.vue", () => {
     it("show validation error if no title", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
-                languages: [mockLanguageDtoEng],
-                content: { ...mockEnglishContentDto, title: "" },
+                languages: [mockData.mockLanguageDtoEng],
+                content: { ...mockData.mockEnglishContentDto, title: "" },
             },
         });
 
@@ -40,8 +35,8 @@ describe("EditContentValidation.vue", () => {
     it("show validation error if no slug", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
-                languages: [mockLanguageDtoEng],
-                content: { ...mockEnglishContentDto, slug: "" },
+                languages: [mockData.mockLanguageDtoEng],
+                content: { ...mockData.mockEnglishContentDto, slug: "" },
             },
         });
 
@@ -51,9 +46,9 @@ describe("EditContentValidation.vue", () => {
     it("show validation error if expiryDate is before publishDate", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
-                languages: [mockLanguageDtoEng],
+                languages: [mockData.mockLanguageDtoEng],
                 content: {
-                    ...mockEnglishContentDto,
+                    ...mockData.mockEnglishContentDto,
                     publishDate: 1704114000000,
                     expiryDate: 1604114000000,
                 },
@@ -66,8 +61,8 @@ describe("EditContentValidation.vue", () => {
     it("show the correct language name", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
-                languages: [mockLanguageDtoFra],
-                content: { ...mockFrenchContentDto, title: "" },
+                languages: [mockData.mockLanguageDtoFra],
+                content: { ...mockData.mockFrenchContentDto, title: "" },
             },
         });
 

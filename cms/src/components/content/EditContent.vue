@@ -2,9 +2,9 @@
 import BasePage from "@/components/BasePage.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
 import LanguageSelector2 from "@/components/content/LanguageSelector2.vue";
-import { db } from "@/db/baseDatabase";
 import { useNotificationStore } from "@/stores/notification";
 import {
+    db,
     AclPermission,
     ContentStatus,
     DocType,
@@ -14,7 +14,7 @@ import {
     type PostDto,
     type TagDto,
     type Uuid,
-} from "@/types";
+} from "luminary-shared";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";

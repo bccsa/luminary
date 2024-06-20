@@ -1,14 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    fullAccessToAllContentMap,
-    mockEnglishContentDto,
-    mockFrenchContentDto,
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-    mockLanguageDtoSwa,
-} from "@/tests/mockData";
+import { mockData } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import LanguageSelector2 from "./LanguageSelector2.vue";
@@ -19,7 +12,7 @@ describe("LanguageSelector2.vue", () => {
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
     });
 
     afterAll(() => {
@@ -29,8 +22,12 @@ describe("LanguageSelector2.vue", () => {
     it("displays the current language", async () => {
         const wrapper = mount(LanguageSelector2, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
-                content: [mockEnglishContentDto],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                content: [mockData.mockEnglishContentDto],
             },
             global: {
                 plugins: [createTestingPinia()],
@@ -51,7 +48,11 @@ describe("LanguageSelector2.vue", () => {
     it("can handle an unset language", async () => {
         const wrapper = mount(LanguageSelector2, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 content: [],
             },
             global: {
@@ -68,7 +69,11 @@ describe("LanguageSelector2.vue", () => {
     it("can display a dropdown with all languages", async () => {
         const wrapper = mount(LanguageSelector2, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
                 content: [],
             },
             global: {
@@ -88,8 +93,15 @@ describe("LanguageSelector2.vue", () => {
     it("displays a label with the translation status", async () => {
         const wrapper = mount(LanguageSelector2, {
             props: {
-                languages: [mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa],
-                content: [mockEnglishContentDto, { ...mockFrenchContentDto, status: "draft" }],
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                content: [
+                    mockData.mockEnglishContentDto,
+                    { ...mockData.mockFrenchContentDto, status: "draft" },
+                ],
             },
             global: {
                 plugins: [createTestingPinia()],
@@ -107,8 +119,8 @@ describe("LanguageSelector2.vue", () => {
         it("hides untranslated groups that the user doesn't have translate permission on", async () => {
             const wrapper = mount(LanguageSelector2, {
                 props: {
-                    languages: [mockLanguageDtoEng, mockLanguageDtoFra],
-                    content: [mockEnglishContentDto, mockFrenchContentDto],
+                    languages: [mockData.mockLanguageDtoEng, mockData.mockLanguageDtoFra],
+                    content: [mockData.mockEnglishContentDto, mockData.mockFrenchContentDto],
                 },
             });
 

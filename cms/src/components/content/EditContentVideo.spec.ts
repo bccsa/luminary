@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { fullAccessToAllContentMap, mockEnglishContentDto } from "@/tests/mockData";
+import { mockData, type ContentDto } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
-import type { ContentDto } from "@/types";
 import EditContentVideo from "./EditContentVideo.vue";
 import LInput from "../forms/LInput.vue";
 
@@ -14,7 +13,7 @@ describe("EditContentPreview.vue", () => {
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
     });
 
     afterAll(() => {
@@ -22,7 +21,7 @@ describe("EditContentPreview.vue", () => {
     });
 
     it("does not display video field when not defined", async () => {
-        const content = ref<ContentDto>({ ...mockEnglishContentDto, video: undefined });
+        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, video: undefined });
         const wrapper = mount(EditContentVideo, {
             props: {
                 disabled: false,
@@ -36,7 +35,7 @@ describe("EditContentPreview.vue", () => {
 
     it("display video field, when is defined", async () => {
         const content = ref<ContentDto>({
-            ...mockEnglishContentDto,
+            ...mockData.mockEnglishContentDto,
             video: "https://example.com/video.mp4",
         });
         const wrapper = mount(EditContentVideo, {
@@ -52,7 +51,7 @@ describe("EditContentPreview.vue", () => {
 
     it("displays video URL in the text input", async () => {
         const content = ref<ContentDto>({
-            ...mockEnglishContentDto,
+            ...mockData.mockEnglishContentDto,
             video: "https://example.com/video.mp4",
         });
 
@@ -73,7 +72,7 @@ describe("EditContentPreview.vue", () => {
 
     it("can update the video input field", async () => {
         const content = ref<ContentDto>({
-            ...mockEnglishContentDto,
+            ...mockData.mockEnglishContentDto,
             video: "https://example.com/video.mp4",
         });
         const wrapper = mount(EditContentVideo, {

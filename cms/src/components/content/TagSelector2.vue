@@ -10,6 +10,7 @@ import {
     ComboboxOptions,
 } from "@headlessui/vue";
 import {
+    db,
     AclPermission,
     DocType,
     TagType,
@@ -17,9 +18,8 @@ import {
     type LanguageDto,
     type PostDto,
     type TagDto,
-} from "@/types";
+} from "luminary-shared";
 import LTag from "./LTag.vue";
-import { db } from "@/db/baseDatabase";
 import { watchDeep } from "@vueuse/core";
 import { useUserAccessStore } from "@/stores/userAccess";
 
