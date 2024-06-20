@@ -1,0 +1,65 @@
+name: Run luminary-shared Unit Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - shared/**
+      - .github/workflows/shared-unit-tests.yml
+  workflow_call:
+
+env:
+  CI: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: shared/.node-version
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: shared/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: shared
+
+      - name: Run Unit Tests
+        run: npm run test:unit
+        working-directory: shared
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: shared/.node-version
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: shared/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: shared
+
+      - name: Lint
+        run: npm run lint
+        working-directory: shared
+
+      - name: Type Check
+        run: npm run type-check
+        working-directory: shared
