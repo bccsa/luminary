@@ -31,7 +31,7 @@ cp .env.example .env
 2. Install dependencies:
 
 ```sh
-npm ci
+npm ci --install-links
 ```
 
 3. Build the shared library
