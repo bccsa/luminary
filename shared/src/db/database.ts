@@ -8,7 +8,7 @@ import type {
 } from "../types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
-import { toRaw } from "vue";
+import { type Ref, toRaw } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 
@@ -48,7 +48,7 @@ export class BaseDatabase extends Dexie {
         return await query();
       }) as unknown as Observable<T>,
       { initialValue }
-    );
+    ) as Ref<T>;
   }
 
   /**
