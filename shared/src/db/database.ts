@@ -84,7 +84,7 @@ export class BaseDatabase extends Dexie {
       return this.toRef<T>(
         () =>
           this.docs
-            .where({ type: docType, tagType })
+            .where({ type: docType, tagType: tagType })
             .toArray() as unknown as Promise<T>,
         initialValue
       );
