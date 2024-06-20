@@ -1,6 +1,6 @@
 import { describe, it, afterEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import { mockData } from "luminary-shared";
+import * as mockData from "@/tests/mockData";
 import EditContentValidation from "./EditContentValidation.vue";
 
 describe("EditContentValidation.vue", () => {
