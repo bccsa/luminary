@@ -2,29 +2,12 @@
 
 This library contains essential building blocks for building a front-end application for the Luminary sync API
 
-## Local setup
+## Installation
 
 ```sh
-cd shared
-npm ci
+npm install luminary-shared
 ```
 
-The library should be added to front-end projects as an NPM import. For projects belonging to the Luminary mono-repo, this can be done by installing as follows:
+_Note_
 
-```sh
-npm install ../shared
-```
-
-## Build
-
-For changes (to the shared library) to be available in consuming projects in the Luminary mono-repo, the shared library should be built by running:
-
-```sh
-npm run build
-```
-
-## Unit testing
-
-```sh
-npm run test
-```
+Installing this package as a local dependency (e.g. when cloning the parent mono-repo) does not work due to some issues with the underlying symlinks breaking the reactiveness of data passed from IndexedDB. The workaround is to install it from the NPM registery.

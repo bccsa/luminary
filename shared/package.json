@@ -1,12 +1,11 @@
 {
   "name": "luminary-shared",
-  "private": true,
   "version": "0.0.1",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "/dist"
   ],
   "scripts": {
     "dev": "vite",
@@ -39,5 +38,8 @@
     "vitest": "^1.6.0",
     "vue-tsc": "^1.8.25",
     "wait-for-expect": "^3.0.2"
-  }
+  },
+  "description": "This library contains essential building blocks for building a front-end application for the Luminary sync API",
+  "author": "BCC South Africa",
+  "license": "Apache-2.0"
 }
