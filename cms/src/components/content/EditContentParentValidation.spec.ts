@@ -1,7 +1,7 @@
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { mockData } from "luminary-shared";
+import * as mockData from "@/tests/mockData";
 import { setActivePinia } from "pinia";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
 

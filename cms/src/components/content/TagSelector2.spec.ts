@@ -6,7 +6,8 @@ import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import TagSelector2 from "./TagSelector2.vue";
-import { db, TagType, mockData, type ContentDto } from "luminary-shared";
+import { db, TagType, type ContentDto } from "luminary-shared";
+import * as mockData from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
 
