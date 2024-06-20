@@ -3,34 +3,28 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
-import {
-    fullAccessToAllContentMap,
-    mockEnglishContentDto,
-    mockFrenchContentDto,
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-    mockLanguageDtoSwa,
-    mockPostDto,
-    viewAccessToAllContentMap,
-} from "@/tests/mockData";
+import { mockData, db } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import { useUserAccessStore } from "@/stores/userAccess";
 import { DocType } from "@/types";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
-import { db } from "@/db/baseDatabase";
 import waitForExpect from "wait-for-expect";
 
 describe("ContentOverview.vue", () => {
     beforeEach(async () => {
-        await db.docs.bulkPut([mockPostDto]);
-        await db.docs.bulkPut([mockEnglishContentDto, mockFrenchContentDto]);
-        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await db.docs.bulkPut([mockData.mockPostDto]);
+        await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
+        await db.docs.bulkPut([
+            mockData.mockLanguageDtoEng,
+            mockData.mockLanguageDtoFra,
+            mockData.mockLanguageDtoSwa,
+        ]);
 
         setActivePinia(createTestingPinia());
 
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
     });
 
     afterEach(async () => {
@@ -50,7 +44,7 @@ describe("ContentOverview.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockEnglishContentDto.title);
+            expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
         });
     });
 
@@ -74,7 +68,7 @@ describe("ContentOverview.vue", () => {
             const linkProps = routerLink.props().to as RouteLocationNamedRaw;
             expect(linkProps.name).toBe("edit");
             expect(linkProps.params?.docType).toBe("post");
-            expect(linkProps.params?.id).toBe(mockPostDto._id);
+            expect(linkProps.params?.id).toBe(mockData.mockPostDto._id);
 
             const icon = editButton.findComponent(PencilSquareIcon);
             expect(icon.exists()).toBe(true);
@@ -83,7 +77,7 @@ describe("ContentOverview.vue", () => {
 
     it("should show view icon with correct router link if no edit permission", async () => {
         const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = viewAccessToAllContentMap;
+        userAccessStore.accessMap = mockData.viewAccessToAllContentMap;
 
         const wrapper = mount(ContentOverview, {
             global: {
@@ -104,7 +98,7 @@ describe("ContentOverview.vue", () => {
             const linkProps = routerLink.props().to as RouteLocationNamedRaw;
             expect(linkProps.name).toBe("edit");
             expect(linkProps.params?.docType).toBe("post");
-            expect(linkProps.params?.id).toBe(mockPostDto._id);
+            expect(linkProps.params?.id).toBe(mockData.mockPostDto._id);
 
             const icon = viewButton.findComponent(EyeIcon);
             expect(icon.exists()).toBe(true);
@@ -149,10 +143,10 @@ describe("ContentOverview.vue", () => {
             const languageSelect = wrapper.findComponent({ name: "LSelect" });
 
             // Switch to French
-            await languageSelect.vm.$emit("update:modelValue", mockFrenchContentDto._id);
+            await languageSelect.vm.$emit("update:modelValue", mockData.mockFrenchContentDto._id);
 
             // Mocked French content should be displayed
-            expect(wrapper.html().includes(mockFrenchContentDto.title)).toBeTruthy();
+            expect(wrapper.html().includes(mockData.mockFrenchContentDto.title)).toBeTruthy();
         });
     });
 });

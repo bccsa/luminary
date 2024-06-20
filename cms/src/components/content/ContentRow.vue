@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { db } from "@/db/baseDatabase";
 import {
+    db,
     ContentStatus,
     DocType,
     type ContentDto,
@@ -9,7 +9,7 @@ import {
     type TagDto,
     type Uuid,
     AclPermission,
-} from "@/types";
+} from "luminary-shared";
 import { DateTime } from "luxon";
 import { computed } from "vue";
 import LBadge from "../common/LBadge.vue";
