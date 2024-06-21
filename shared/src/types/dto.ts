@@ -1,99 +1,100 @@
 import type { DocType, TagType } from "../types";
 
 export enum AckStatus {
-  Accepted = "accepted",
-  Rejected = "rejected",
+    Accepted = "accepted",
+    Rejected = "rejected",
 }
 
 export type Uuid = string;
 
 export type ApiDataResponseDto = {
-  docs: BaseDocumentDto[];
-  version?: number;
+    docs: BaseDocumentDto[];
+    version?: number;
 };
 
 export type BaseDocumentDto = {
-  _id: string;
-  type: DocType;
-  updatedTimeUtc: number;
-  memberOf?: Uuid[];
-  docType?: DocType;
-  acl?: GroupAclEntryDto[];
+    _id: string;
+    type: DocType;
+    updatedTimeUtc: number;
+    memberOf?: Uuid[];
+    docType?: DocType;
+    acl?: GroupAclEntryDto[];
+    parentType?: DocType.Post | DocType.Tag;
 };
 
 export type GroupAclEntryDto = {
-  type: DocType;
-  groupId: Uuid;
-  permission: AclPermission[];
+    type: DocType;
+    groupId: Uuid;
+    permission: AclPermission[];
 };
 
 export type ContentBaseDto = BaseDocumentDto & {
-  memberOf: Uuid[];
+    memberOf: Uuid[];
 };
 
 export type LanguageDto = ContentBaseDto & {
-  type: DocType.Language;
-  languageCode: string;
-  name: string;
+    type: DocType.Language;
+    languageCode: string;
+    name: string;
 };
 
 export type ContentDto = ContentBaseDto & {
-  parentId: Uuid;
-  language: Uuid;
-  status: string;
-  title: string;
-  slug: string;
-  publishDate?: number;
-  expiryDate?: number;
-  localisedImage?: Uuid;
-  audio?: Uuid;
-  video?: Uuid;
-  author?: string;
-  summary?: string;
-  text?: string;
-  parentType?: DocType;
+    parentId: Uuid;
+    language: Uuid;
+    status: string;
+    title: string;
+    slug: string;
+    publishDate?: number;
+    expiryDate?: number;
+    localisedImage?: Uuid;
+    audio?: Uuid;
+    video?: Uuid;
+    author?: string;
+    summary?: string;
+    text?: string;
+    parentType?: DocType;
 };
 
 export type TagDto = ContentBaseDto & {
-  tagType: TagType;
-  pinned: boolean;
-  image: string;
-  tags: Uuid[];
+    tagType: TagType;
+    pinned: boolean;
+    image: string;
+    tags: Uuid[];
 };
 
 export type PostDto = ContentBaseDto & {
-  image: string;
-  tags: Uuid[];
+    image: string;
+    tags: Uuid[];
 };
 
 export type GroupDto = BaseDocumentDto & {
-  type: DocType.Group;
-  name: string;
-  acl: GroupAclEntryDto[];
+    type: DocType.Group;
+    name: string;
+    acl: GroupAclEntryDto[];
 };
 
 export type ImageDto = ContentBaseDto & {
-  name: string;
-  description: string;
-  fileCollections: ImageFileCollectionDto[];
-  uploadData?: ImageUploadDto[];
+    name: string;
+    description: string;
+    fileCollections: ImageFileCollectionDto[];
+    uploadData?: ImageUploadDto[];
 };
 
 export type ImageFileCollectionDto = {
-  aspectRatio: number;
-  imageFiles: ImageFileDto[];
+    aspectRatio: number;
+    imageFiles: ImageFileDto[];
 };
 
 export type ImageFileDto = {
-  width: number;
-  height: number;
-  filename: string;
+    width: number;
+    height: number;
+    filename: string;
 };
 
 export type ImageUploadDto = {
-  fileData: ArrayBuffer;
-  preset: string;
-  filename?: string;
+    fileData: ArrayBuffer;
+    preset: string;
+    filename?: string;
 };
 
 // export type CreateGroupDto = {
@@ -102,37 +103,37 @@ export type ImageUploadDto = {
 // };
 
 export type ChangeReqDto = {
-  id: number;
-  doc: BaseDocumentDto;
+    id: number;
+    doc: BaseDocumentDto;
 };
 
 export type ChangeReqAckDto = {
-  id: number;
-  ack: AckStatus;
-  message?: string;
-  doc?: any;
+    id: number;
+    ack: AckStatus;
+    message?: string;
+    doc?: any;
 };
 
 export type LocalChangeDto = {
-  id: number;
-  doc: BaseDocumentDto;
-  docId: Uuid;
+    id: number;
+    doc: BaseDocumentDto;
+    docId: Uuid;
 };
 
 export enum AclPermission {
-  View = "view",
-  Create = "create",
-  Edit = "edit",
-  Delete = "delete",
-  Assign = "assign",
-  Translate = "translate",
-  Publish = "publish",
+    View = "view",
+    Create = "create",
+    Edit = "edit",
+    Delete = "delete",
+    Assign = "assign",
+    Translate = "translate",
+    Publish = "publish",
 }
 
 export type AccessMap = {
-  [T: Uuid]: {
-    [U in DocType]?: { [V in AclPermission]?: boolean | undefined };
-  };
+    [T: Uuid]: {
+        [U in DocType]?: { [V in AclPermission]?: boolean | undefined };
+    };
 };
 
 export type DocGroupAccess = { [a in DocType]?: Uuid[] };
