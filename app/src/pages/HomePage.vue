@@ -39,13 +39,13 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
 
 <template>
     pinned
-    <div v-for="t in pinnedCategories" :key="t._id" class="text-lg">
+    <div v-for="t in pinnedCategories" :key="t._id" class="text-lg text-red-500">
         {{ t._id }}
         <HorizontalScrollableTagViewer :tag="t" />
     </div>
     <br />
     unpined
-    <div v-for="t in unpinnedCategories" :key="t._id">
+    <div v-for="t in unpinnedCategories" :key="t._id" class="text-lg text-red-500">
         {{ t._id }}
         <HorizontalScrollableTagViewer :tag="t" :queryOptions="{ languageId: 'language-eng' }" />
     </div>
