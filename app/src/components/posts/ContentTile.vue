@@ -14,7 +14,6 @@ import { useRouter } from "vue-router";
 
 type Props = {
     parent: PostDto | TagDto;
-    parentType: DocType.Post | DocType.Tag;
     languageId?: Uuid;
     tagType?: TagType;
     pinned?: boolean;
@@ -24,7 +23,11 @@ const props = withDefaults(defineProps<Props>(), {
     pinned: false,
 });
 
-const content = db.whereParentAsRef<ContentDto[]>(props.parent._id, props.parentType, []);
+const content = db.whereParentAsRef<ContentDto[]>(
+    props.parent._id,
+    props.parent.type == DocType.Post ? DocType.Post : DocType.Tag,
+    [],
+);
 
 const router = useRouter();
 

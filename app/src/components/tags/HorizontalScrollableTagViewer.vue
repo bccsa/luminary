@@ -1,36 +1,53 @@
 <script setup lang="ts">
-// import type { Tag } from "@/types";
 import ContentTile from "@/components/posts/ContentTile.vue";
-// import { usePostStore } from "@/stores/post";
-// import type { postQueryOptions } from "@/stores/post";
-// import { storeToRefs } from "pinia";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { useResizeObserver } from "@vueuse/core";
 import {
     DocType,
     TagType,
     db,
-    type PostDto,
+    type ContentDto,
     type TagDto,
+    type Uuid,
     type queryOptions as options,
 } from "luminary-shared";
 
-// const postStore = usePostStore();
-
-// const { postsByTag } = storeToRefs(postStore);
-
 type Props = {
     tag?: TagDto;
-    // tag?: Tag;
     title?: string;
     queryOptions?: options;
-    contentParents: PostDto[] | TagDto[];
-    docType: DocType.Post | DocType.Tag;
+    languageId: Uuid;
 };
 const props = defineProps<Props>();
 
 const taggedDocs = db.whereTagAsRef(props.tag?._id, props.queryOptions);
+
+const content = ref();
+const tagTitle = ref(props.title);
+const tagSummary = ref("");
+
+if (props.tag) {
+    const tagContent = db.whereParentAsRef<ContentDto[]>(props.tag._id, DocType.Tag, []);
+    content.value = tagContent;
+
+    watch(tagContent, () => {
+        const preferred = tagContent.value.find((c) => c.language == props.languageId);
+
+        if (preferred) {
+            tagTitle.value = preferred.title;
+            tagSummary.value = preferred.summary || "";
+            return;
+        }
+
+        if (tagContent.value.length > 0) {
+            tagTitle.value = tagContent.value[0].title;
+            tagSummary.value = tagContent.value[0].summary || "";
+            return;
+        }
+        tagTitle.value = "No translation found";
+    });
+}
 
 const spinLeft = () => {
     if (scrollElement.value) scrollElement.value.scrollLeft -= 100;
@@ -80,13 +97,12 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
     <!-- <div class="text-sm text-black" v-for="doc in taggedDocs" :key="doc._id">{{ doc._id }}</div> -->
 
     <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
-        <!-- <h2 class="truncate px-6">
-            {{ tag?.content[0]?.title || title }}
-            {{ content }}
+        <h2 class="truncate px-6">
+            {{ tagTitle }}
             <span class="ml-1 text-sm text-zinc-500 dark:text-zinc-200">
-                {{ tag?.content[0]?.summary }}
+                {{ tagSummary }}
             </span>
-        </h2> -->
+        </h2>
 
         <div class="relative">
             <div class="group absolute left-0 top-0 h-full cursor-pointer px-6" @click="spinLeft()">
@@ -112,19 +128,11 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                 @scroll="setSpinBtnVisibility"
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-6">
-                    <!-- <PostTile
-                        v-for="post in postsByTag(tag ? tag._id : '', queryOptions)"
-                        :key="post._id"
-                        :post="post"
-                        :pinned="tag?.pinned"
-                        class="w-40 overflow-clip md:w-60"
-                    /> -->
                     <ContentTile
                         v-for="content in taggedDocs"
                         :key="content._id"
                         :parent="content"
                         :tagType="TagType.Category"
-                        :parentType="docType"
                         :pinned="tag?.pinned"
                         class="w-40 overflow-clip md:w-60"
                     />
