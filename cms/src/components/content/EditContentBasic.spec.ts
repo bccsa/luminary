@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { mount } from "@vue/test-utils";
+import { DOMWrapper, mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockData";
 import { setActivePinia } from "pinia";
@@ -9,6 +9,7 @@ import { ref } from "vue";
 import EditContentBasic from "./EditContentBasic.vue";
 import type { ContentDto } from "@/types";
 import { DateTime } from "luxon";
+import { db } from "luminary-shared";
 
 describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
@@ -196,5 +197,93 @@ describe("EditContentBasic.vue", () => {
 
         // Check if the content's status was updated
         expect(content.value.status).toBe("published");
+    });
+
+    it("sets the publish date correctly from the loaded data", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            publishDate: Date.now(),
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Find the publish date input field
+        const publishDateInput = wrapper.find(
+            '[name="publishDate"]',
+        ) as DOMWrapper<HTMLInputElement>;
+
+        // Check if the publish date input field has the correct value
+        expect(publishDateInput.element.value).toBe(db.toIsoDateTime(content.value.publishDate!));
+    });
+
+    it("sets the expiry date correctly from the loaded data", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            expiryDate: Date.now(),
+        });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Find the expiry date input field
+        const expiryDateInput = wrapper.find('[name="expiryDate"]') as DOMWrapper<HTMLInputElement>;
+
+        // Check if the expiry date input field has the correct value
+        expect(expiryDateInput.element.value).toBe(db.toIsoDateTime(content.value.expiryDate!));
+    });
+
+    it("sets the status toggle correctly to draft from the loaded data", async () => {
+        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, status: "draft" });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Find the publish status toggle
+        const toggleButtonOffState = wrapper
+            .find("[data-test='toggle']")
+            .findAll("span")[1]
+            .find("span");
+        const toggleButtonOnState = wrapper
+            .find("[data-test='toggle']")
+            .findAll("span")[1]
+            .findAll("span")[1];
+
+        // Check if the toggle button is in the correct state
+        expect(toggleButtonOffState.classes()).toContain("opacity-100");
+        expect(toggleButtonOnState.classes()).toContain("opacity-0");
+    });
+
+    it("sets the status toggle correctly to published from the loaded data", async () => {
+        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, status: "published" });
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Find the publish status toggle
+        const toggleButtonOffState = wrapper
+            .find("[data-test='toggle']")
+            .findAll("span")[1]
+            .find("span");
+        const toggleButtonOnState = wrapper
+            .find("[data-test='toggle']")
+            .findAll("span")[1]
+            .findAll("span")[1];
+
+        // Check if the toggle button is in the correct state
+        expect(toggleButtonOffState.classes()).toContain("opacity-0");
+        expect(toggleButtonOnState.classes()).toContain("opacity-100");
     });
 });
