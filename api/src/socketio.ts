@@ -119,7 +119,7 @@ export class Socketio implements OnGatewayInit {
         this.db.on("update", async (update: any) => {
             // Only include documents with a document type property
             if (!update.type) {
-                this.logger.warning(
+                this.logger.warn(
                     `Document type not found in database update object: ${update._id}`,
                 );
                 return;
@@ -136,7 +136,7 @@ export class Socketio implements OnGatewayInit {
             if (refDoc.type == "content") {
                 const res = await this.db.getDoc(refDoc.parentId);
                 if (!(res.docs && Array.isArray(res.docs) && res.docs.length > 0)) {
-                    this.logger.warning(
+                    this.logger.warn(
                         `Parent document not found for content document: ${refDoc._id}`,
                     );
                     return;
@@ -305,6 +305,7 @@ export class Socketio implements OnGatewayInit {
             socket.data.memberOf,
             this.db,
             this.s3,
+            this.logger,
         )
             .then(() => {
                 this.emitAck(socket, AckStatus.Accepted, changeRequest);

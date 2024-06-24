@@ -7,6 +7,10 @@ import { DocType, Uuid } from "../enums";
 import { validateSlug } from "./validateSlug";
 import { processImage } from "../s3/s3.imagehandling";
 import { S3Service } from "../s3/s3.service";
+import { generatePostTagMetadata } from "./generatePostTagMetadata";
+import { Logger } from "winston";
+import { PostDto } from "src/dto/PostDto";
+import { TagDto } from "src/dto/TagDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -14,6 +18,7 @@ export async function processChangeRequest(
     groupMembership: Array<Uuid>,
     db: DbService,
     s3: S3Service,
+    logger: Logger,
 ) {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
@@ -32,6 +37,11 @@ export async function processChangeRequest(
     if (doc.type == DocType.Image) {
         const prevDoc = await db.getDoc(doc._id);
         doc = await processImage(doc, prevDoc.docs.length > 0 ? prevDoc.docs[0] : undefined, s3);
+    }
+
+    // Generate Post / Tag metadata
+    if (doc.type == DocType.Post || doc.type == DocType.Tag) {
+        (doc as PostDto | TagDto).metadata = await generatePostTagMetadata(db, logger, doc._id);
     }
 
     // Insert / update the document in the database
