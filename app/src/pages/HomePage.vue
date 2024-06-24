@@ -2,17 +2,33 @@
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
 // import { useTagStore } from "@/stores/tag";
 // import { usePostStore } from "@/stores/post";
-import { TagType } from "@/types";
+import { TagType, type Post } from "@/types";
 // import { storeToRefs } from "pinia";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { DocType, db } from "luminary-shared";
+import {
+    DocType,
+    db,
+    type ContentDto,
+    type PostDto,
+    type TagDto,
+    type Uuid,
+} from "luminary-shared";
 
 // const { posts } = storeToRefs(usePostStore());
 // const { tagsByTagType } = storeToRefs(useTagStore());
 const { isAuthenticated } = useAuth0();
 
+type Props = {
+    parent: PostDto | TagDto;
+    docType: DocType.Post | DocType.Tag;
+    tagType?: TagType;
+    language?: Uuid;
+};
+defineProps<Props>();
+
 const hasPosts = db.someByTypeAsRef(DocType.Post);
+
 const pinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
     filterOptions: {
         topLevelOnly: true,
@@ -38,16 +54,26 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
 </script>
 
 <template>
-    pinned
+    <!-- pinned -->
     <div v-for="t in pinnedCategories" :key="t._id" class="text-lg text-red-500">
         {{ t._id }}
-        <HorizontalScrollableTagViewer :tag="t" />
+        <HorizontalScrollableTagViewer
+            :title="t._id"
+            :docType="docType"
+            :contentParents="pinnedCategories"
+            :tag="t"
+        />
     </div>
     <br />
-    unpined
+    <!-- unpined -->
     <div v-for="t in unpinnedCategories" :key="t._id" class="text-lg text-red-500">
         {{ t._id }}
-        <HorizontalScrollableTagViewer :tag="t" :queryOptions="{ languageId: 'language-eng' }" />
+        <HorizontalScrollableTagViewer
+            :docType="docType"
+            :contentParents="unpinnedCategories"
+            :tag="t"
+            :queryOptions="{ languageId: 'language-eng' }"
+        />
     </div>
     <br />
 
@@ -72,9 +98,9 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
             </p>
         </div>
     </div>
-    <IgnorePagePadding v-else>
+    <!-- <IgnorePagePadding v-else>
         <div class="space-y-4 pt-4">
-            <!-- Display latest posts -->
+           Display latest posts 
             <HorizontalScrollableTagViewer
                 title="Newest Content"
                 :queryOptions="{
@@ -88,8 +114,8 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
                 }"
             />
 
-            <!-- Display category tags -->
-            <!-- <HorizontalScrollableTagViewer
+             Display category tags
+            <HorizontalScrollableTagViewer
                 v-for="tag in tagsByTagType(TagType.Category, {
                     filterOptions: {
                         topLevelOnly: true,
@@ -108,7 +134,7 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
                         sortOrder: 'asc',
                     },
                 }"
-            /> -->
+            />
         </div>
-    </IgnorePagePadding>
+    </IgnorePagePadding> -->
 </template>

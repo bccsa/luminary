@@ -1,13 +1,20 @@
 <script setup lang="ts">
 // import type { Tag } from "@/types";
-import PostTile from "@/components/posts/PostTile.vue";
+import ContentTile from "@/components/posts/ContentTile.vue";
 // import { usePostStore } from "@/stores/post";
 // import type { postQueryOptions } from "@/stores/post";
 // import { storeToRefs } from "pinia";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref } from "vue";
 import { useResizeObserver } from "@vueuse/core";
-import { TagType, db, type TagDto, type Uuid, type queryOptions as options } from "luminary-shared";
+import {
+    DocType,
+    TagType,
+    db,
+    type PostDto,
+    type TagDto,
+    type queryOptions as options,
+} from "luminary-shared";
 
 // const postStore = usePostStore();
 
@@ -18,6 +25,8 @@ type Props = {
     // tag?: Tag;
     title?: string;
     queryOptions?: options;
+    contentParents: PostDto[] | TagDto[];
+    docType: DocType.Post | DocType.Tag;
 };
 const props = defineProps<Props>();
 
@@ -68,15 +77,16 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 </script>
 
 <template>
-    <div class="text-sm text-black" v-for="doc in taggedDocs" :key="doc._id">{{ doc._id }}</div>
+    <!-- <div class="text-sm text-black" v-for="doc in taggedDocs" :key="doc._id">{{ doc._id }}</div> -->
 
-    <!-- <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
-        <h2 class="truncate px-6">
+    <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
+        <!-- <h2 class="truncate px-6">
             {{ tag?.content[0]?.title || title }}
+            {{ content }}
             <span class="ml-1 text-sm text-zinc-500 dark:text-zinc-200">
                 {{ tag?.content[0]?.summary }}
             </span>
-        </h2>
+        </h2> -->
 
         <div class="relative">
             <div class="group absolute left-0 top-0 h-full cursor-pointer px-6" @click="spinLeft()">
@@ -102,15 +112,24 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                 @scroll="setSpinBtnVisibility"
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-6">
-                    <PostTile
+                    <!-- <PostTile
                         v-for="post in postsByTag(tag ? tag._id : '', queryOptions)"
                         :key="post._id"
                         :post="post"
+                        :pinned="tag?.pinned"
+                        class="w-40 overflow-clip md:w-60"
+                    /> -->
+                    <ContentTile
+                        v-for="content in taggedDocs"
+                        :key="content._id"
+                        :parent="content"
+                        :tagType="TagType.Category"
+                        :parentType="docType"
                         :pinned="tag?.pinned"
                         class="w-40 overflow-clip md:w-60"
                     />
                 </div>
             </div>
         </div>
-    </div> -->
+    </div>
 </template>
