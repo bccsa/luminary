@@ -83,28 +83,36 @@ const validateSlug = async () => {
 
 // Publish and expiry dates
 const publishDateString = ref<string | undefined>(undefined);
-watch(content, () => {
-    if (!content.value) return;
-    if (!content.value.publishDate) {
-        publishDateString.value = undefined;
-        return;
-    }
+watch(
+    content,
+    () => {
+        if (!content.value) return;
+        if (!content.value.publishDate) {
+            publishDateString.value = undefined;
+            return;
+        }
 
-    const date = db.toIsoDateTime(content.value.publishDate);
-    publishDateString.value = date ? date : undefined;
-});
+        const date = db.toIsoDateTime(content.value.publishDate);
+        publishDateString.value = date ? date : undefined;
+    },
+    { immediate: true },
+);
 
 const expiryDateString = ref<string | undefined>(undefined);
-watchDeep(content, () => {
-    if (!content.value) return;
-    if (!content.value.expiryDate) {
-        expiryDateString.value = undefined;
-        return;
-    }
+watchDeep(
+    content,
+    () => {
+        if (!content.value) return;
+        if (!content.value.expiryDate) {
+            expiryDateString.value = undefined;
+            return;
+        }
 
-    const date = db.toIsoDateTime(content.value.expiryDate);
-    expiryDateString.value = date ? date : undefined;
-});
+        const date = db.toIsoDateTime(content.value.expiryDate);
+        expiryDateString.value = date ? date : undefined;
+    },
+    { immediate: true },
+);
 
 const selectedExpiryNumber = ref<number | undefined>(undefined);
 const selectedExpiryUnit = ref<string | undefined>(undefined);
@@ -165,10 +173,14 @@ const linkedDates = ref<boolean>(false);
 
 // Publish status
 const publishStatus = ref<boolean>(false);
-watch(content, () => {
-    if (!content.value) return;
-    publishStatus.value = content.value.status == ContentStatus.Published;
-});
+watch(
+    content,
+    () => {
+        if (!content.value) return;
+        publishStatus.value = content.value.status == ContentStatus.Published;
+    },
+    { immediate: true },
+);
 watch(publishStatus, () => {
     if (!content.value) return;
     content.value.status = publishStatus.value ? ContentStatus.Published : ContentStatus.Draft;
