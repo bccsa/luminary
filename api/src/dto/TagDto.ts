@@ -1,12 +1,12 @@
-import { IsArray, IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { TagType, Uuid } from "../enums";
-import { _contentBaseDto } from "./_contentBaseDto";
+import { IsBoolean, IsEnum, IsNotEmpty } from "class-validator";
+import { TagType } from "../enums";
 import { Expose } from "class-transformer";
+import { PostDto } from "./PostDto";
 
 /**
  * Database structured Tag object
  */
-export class TagDto extends _contentBaseDto {
+export class TagDto extends PostDto {
     @IsNotEmpty()
     @IsEnum(TagType)
     @Expose()
@@ -16,14 +16,4 @@ export class TagDto extends _contentBaseDto {
     @IsNotEmpty()
     @Expose()
     pinned: boolean;
-
-    @IsOptional()
-    @IsString()
-    @Expose()
-    image?: Uuid;
-
-    @IsArray()
-    @IsString({ each: true })
-    @Expose()
-    tags: Uuid[];
 }

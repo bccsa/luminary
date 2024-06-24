@@ -291,6 +291,14 @@ describe("DbService", () => {
         expect(res2.docs.some((d) => d._id === "user-public")).toBe(false);
     });
 
+    it("can get content documents by their parent ID", async () => {
+        const res: any = await service.getContentByParentId("post-post1");
+
+        expect(res.docs.length).toBe(2);
+        expect(res.docs.some((d) => d._id == "content-post1-eng")).toBe(true);
+        expect(res.docs.some((d) => d._id == "content-post1-fra")).toBe(true);
+    });
+
     // TODO: Fix this test after researching CouchDB indexing
     it.skip("does not return indexing warnings on getDocsPerGroup queries", async () => {
         const userAccess = new Map<DocType, Uuid[]>();
