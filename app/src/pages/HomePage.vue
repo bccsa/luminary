@@ -1,22 +1,10 @@
 <script setup lang="ts">
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
-// import { useTagStore } from "@/stores/tag";
-// import { usePostStore } from "@/stores/post";
-import { TagType, type Post } from "@/types";
-// import { storeToRefs } from "pinia";
+import { TagType } from "@/types";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
-import {
-    DocType,
-    db,
-    type ContentDto,
-    type PostDto,
-    type TagDto,
-    type Uuid,
-} from "luminary-shared";
+import { DocType, db, type PostDto, type TagDto, type Uuid } from "luminary-shared";
 
-// const { posts } = storeToRefs(usePostStore());
-// const { tagsByTagType } = storeToRefs(useTagStore());
 const { isAuthenticated } = useAuth0();
 
 type Props = {
@@ -54,30 +42,7 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
 </script>
 
 <template>
-    <!-- pinned -->
-    <div v-for="t in pinnedCategories" :key="t._id" class="text-lg text-red-500">
-        {{ t._id }}
-        <HorizontalScrollableTagViewer
-            :title="t._id"
-            :docType="docType"
-            :contentParents="pinnedCategories"
-            :tag="t"
-        />
-    </div>
-    <br />
-    <!-- unpined -->
-    <div v-for="t in unpinnedCategories" :key="t._id" class="text-lg text-red-500">
-        {{ t._id }}
-        <HorizontalScrollableTagViewer
-            :docType="docType"
-            :contentParents="unpinnedCategories"
-            :tag="t"
-            :queryOptions="{ languageId: 'language-eng' }"
-        />
-    </div>
-    <br />
-
-    <div v-if="hasPosts" class="text-zinc-800 dark:text-zinc-100">
+    <div v-if="!hasPosts" class="text-zinc-800 dark:text-zinc-100">
         <div v-if="isAuthenticated">
             <p>
                 You don't have access to any content. If you believe this is an error, send your
@@ -98,10 +63,30 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
             </p>
         </div>
     </div>
-    <!-- <IgnorePagePadding v-else>
+    <IgnorePagePadding v-else>
         <div class="space-y-4 pt-4">
-           Display latest posts 
+            <!-- Display latest posts -->
+
+            <!-- <HorizontalScrollableTagViewer
+                title="Newest Content"
+                :queryOptions="{
+                    sortOptions: {  
+                        sortBy: 'publishDate',
+                        sortOrder: 'desc',
+                    },
+                    filterOptions: {
+                        top: 10,
+                        excludeEmpty: true,
+                    },
+                }"
+            /> -->
+
+            <!-- Display pinned category -->
             <HorizontalScrollableTagViewer
+                v-for="post in pinnedCategories"
+                :key="post._id"
+                :tag="post"
+                languageId="lang-eng"
                 title="Newest Content"
                 :queryOptions="{
                     sortOptions: {
@@ -114,20 +99,12 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
                 }"
             />
 
-             Display category tags
+            <!-- Display unpined category -->
             <HorizontalScrollableTagViewer
-                v-for="tag in tagsByTagType(TagType.Category, {
-                    filterOptions: {
-                        topLevelOnly: true,
-                        includeEmpty: false,
-                    },
-                    sortOptions: {
-                        sortBy: 'publishDate',
-                        sortOrder: 'desc',
-                    },
-                })"
+                v-for="tag in unpinnedCategories"
                 :key="tag._id"
                 :tag="tag"
+                languageId="lang-eng"
                 :queryOptions="{
                     sortOptions: {
                         sortBy: 'publishDate',
@@ -136,5 +113,5 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
                 }"
             />
         </div>
-    </IgnorePagePadding> -->
+    </IgnorePagePadding>
 </template>
