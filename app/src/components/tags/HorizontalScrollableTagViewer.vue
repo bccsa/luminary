@@ -1,23 +1,27 @@
 <script setup lang="ts">
-import type { Tag } from "@/types";
+// import type { Tag } from "@/types";
 import PostTile from "@/components/posts/PostTile.vue";
-import { usePostStore } from "@/stores/post";
-import type { postQueryOptions } from "@/stores/post";
-import { storeToRefs } from "pinia";
+// import { usePostStore } from "@/stores/post";
+// import type { postQueryOptions } from "@/stores/post";
+// import { storeToRefs } from "pinia";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref } from "vue";
 import { useResizeObserver } from "@vueuse/core";
+import { TagType, db, type TagDto, type Uuid, type queryOptions as options } from "luminary-shared";
 
-const postStore = usePostStore();
+// const postStore = usePostStore();
 
-const { postsByTag } = storeToRefs(postStore);
+// const { postsByTag } = storeToRefs(postStore);
 
 type Props = {
-    tag?: Tag;
+    tag?: TagDto;
+    // tag?: Tag;
     title?: string;
-    queryOptions?: postQueryOptions;
+    queryOptions?: options;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const taggedDocs = db.whereTagAsRef(props.tag?._id, props.queryOptions);
 
 const spinLeft = () => {
     if (scrollElement.value) scrollElement.value.scrollLeft -= 100;
@@ -64,7 +68,9 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 </script>
 
 <template>
-    <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
+    <div class="text-sm" v-for="doc in taggedDocs" :key="doc._id">{{ doc._id }}</div>
+
+    <!-- <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
         <h2 class="truncate px-6">
             {{ tag?.content[0]?.title || title }}
             <span class="ml-1 text-sm text-zinc-500 dark:text-zinc-200">
@@ -106,5 +112,5 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                 </div>
             </div>
         </div>
-    </div>
+    </div> -->
 </template>

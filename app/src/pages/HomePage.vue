@@ -1,19 +1,57 @@
 <script setup lang="ts">
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
-import { useTagStore } from "@/stores/tag";
-import { usePostStore } from "@/stores/post";
+// import { useTagStore } from "@/stores/tag";
+// import { usePostStore } from "@/stores/post";
 import { TagType } from "@/types";
-import { storeToRefs } from "pinia";
+// import { storeToRefs } from "pinia";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
+import { DocType, db } from "luminary-shared";
 
-const { posts } = storeToRefs(usePostStore());
-const { tagsByTagType } = storeToRefs(useTagStore());
+// const { posts } = storeToRefs(usePostStore());
+// const { tagsByTagType } = storeToRefs(useTagStore());
 const { isAuthenticated } = useAuth0();
+
+const hasPosts = db.someByTypeAsRef(DocType.Post);
+const pinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
+    filterOptions: {
+        topLevelOnly: true,
+        excludeEmpty: true,
+        pinned: true,
+    },
+    sortOptions: {
+        sortBy: "publishDate",
+        sortOrder: "asc",
+    },
+});
+const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
+    filterOptions: {
+        topLevelOnly: true,
+        excludeEmpty: true,
+        pinned: false,
+    },
+    sortOptions: {
+        sortBy: "publishDate",
+        sortOrder: "asc",
+    },
+});
 </script>
 
 <template>
-    <div v-if="posts && posts.length == 0" class="text-zinc-800 dark:text-zinc-100">
+    pinned
+    <div v-for="t in pinnedCategories" :key="t._id" class="text-lg">
+        {{ t._id }}
+        <HorizontalScrollableTagViewer :tag="t" />
+    </div>
+    <br />
+    unpined
+    <div v-for="t in unpinnedCategories" :key="t._id">
+        {{ t._id }}
+        <HorizontalScrollableTagViewer :tag="t" :queryOptions="{ languageId: 'language-eng' }" />
+    </div>
+    <br />
+
+    <div v-if="hasPosts" class="text-zinc-800 dark:text-zinc-100">
         <div v-if="isAuthenticated">
             <p>
                 You don't have access to any content. If you believe this is an error, send your
@@ -51,7 +89,7 @@ const { isAuthenticated } = useAuth0();
             />
 
             <!-- Display category tags -->
-            <HorizontalScrollableTagViewer
+            <!-- <HorizontalScrollableTagViewer
                 v-for="tag in tagsByTagType(TagType.Category, {
                     filterOptions: {
                         topLevelOnly: true,
@@ -70,7 +108,7 @@ const { isAuthenticated } = useAuth0();
                         sortOrder: 'asc',
                     },
                 }"
-            />
+            /> -->
         </div>
     </IgnorePagePadding>
 </template>
