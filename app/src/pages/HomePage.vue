@@ -67,19 +67,19 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
         <div class="space-y-4 pt-4">
             <!-- Display latest posts -->
 
-            <!-- <HorizontalScrollableTagViewer
+            <HorizontalScrollableTagViewer
                 title="Newest Content"
+                languageId="lang-eng"
                 :queryOptions="{
-                    sortOptions: {  
+                    sortOptions: {
                         sortBy: 'publishDate',
                         sortOrder: 'desc',
                     },
                     filterOptions: {
-                        top: 10,
-                        excludeEmpty: true,
+                        bottom: 10,
                     },
                 }"
-            /> -->
+            />
 
             <!-- Display pinned category -->
             <HorizontalScrollableTagViewer
