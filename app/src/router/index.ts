@@ -3,10 +3,10 @@ import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import NotFoundPage from "../pages/NotFoundPage.vue";
 import HomePage from "../pages/HomePage.vue";
-import SinglePost from "@/pages/SinglePost.vue";
 import SettingsPage from "@/pages/SettingsPage.vue";
 import LoginPage from "@/pages/LoginPage.vue";
 import { isNotAuthenticatedGuard } from "@/guards/isNotAuthenticatedGuard";
+import SingleContent from "@/pages/SingleContent.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -48,8 +48,9 @@ const router = createRouter({
         // to prevent wrongly configured slugs from taking over pages
         {
             path: "/:slug",
-            component: SinglePost,
+            component: SingleContent,
             name: "post",
+            props: true,
         },
 
         {

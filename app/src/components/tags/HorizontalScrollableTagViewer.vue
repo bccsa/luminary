@@ -23,13 +23,11 @@ const props = defineProps<Props>();
 
 const taggedDocs = db.whereTagAsRef(props.tag?._id, props.queryOptions);
 
-const content = ref();
 const tagTitle = ref(props.title);
 const tagSummary = ref("");
 
 if (props.tag) {
     const tagContent = db.whereParentAsRef<ContentDto[]>(props.tag._id, DocType.Tag, []);
-    content.value = tagContent;
 
     watch(tagContent, () => {
         const preferred = tagContent.value.find((c) => c.language == props.languageId);
