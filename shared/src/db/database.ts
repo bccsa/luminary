@@ -106,6 +106,18 @@ class database extends Dexie {
     }
 
     /**
+     * Get an IndexedDB document by its slug as Vue Ref
+     * @param slug - The slug of the document to get
+     * @param initialValue - The initial value of the ref while waiting for the query to complete
+     */
+    getBySlugAsRef<T extends BaseDocumentDto>(slug: string, initialValue?: T) {
+        return this.toRef<T>(
+            () => this.docs.where("slug").equals(slug).first() as unknown as Promise<T>,
+            initialValue,
+        );
+    }
+
+    /**
      * Return true if there are some documents of the specified DocType
      */
     async someByType(docType: DocType) {
