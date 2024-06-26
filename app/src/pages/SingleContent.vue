@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { db, type PostDto, type TagDto, type Uuid } from "luminary-shared";
+import { db } from "luminary-shared";
 import { mockEnglishContentDto } from "@/tests/mockData";
-import VideoPlayer from "@/components/posts/VideoPlayer.vue";
-import { computed, ref } from "vue";
+// import VideoPlayer from "@/components/posts/VideoPlayer.vue";
+import { computed } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { useRouter } from "vue-router";
 import { DateTime } from "luxon";
 
 type Props = {
@@ -16,8 +14,6 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-// const { appName } = useGlobalConfigStore();
-// const router = useRouter();
 const contentDocs = db.getBySlugAsRef(props.slug, mockEnglishContentDto);
 
 const text = computed(() => {
@@ -36,14 +32,6 @@ const text = computed(() => {
 
     return generateHTML(text, [StarterKit]);
 });
-
-// const loadDocumentNameOrRedirect = async () => {
-//     if (contentDocs.value) {
-//         document.title = `${contentDocs.value.title} - ${appName}`;
-//     } else {
-//         await router.push({ name: "home" });
-//     }
-// };
 </script>
 
 <template>
