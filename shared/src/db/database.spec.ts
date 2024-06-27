@@ -100,6 +100,22 @@ describe("baseDatabase.ts", () => {
         });
     });
 
+    it("can get documents by their parentId and parent document type", async () => {
+        const content = await db.whereParent([mockCategoryDto._id, mockPostDto._id], DocType.Tag);
+
+        expect(content).toEqual([mockCategoryContentDto]);
+    });
+
+    it("can get documents by their parentId and language", async () => {
+        const postContent = await db.whereParent(
+            mockPostDto._id,
+            undefined,
+            mockLanguageDtoFra._id,
+        );
+
+        expect(postContent).toEqual([mockFrenchContentDto]);
+    });
+
     it("can detect if a local change is queued for a given document ID", async () => {
         const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
         await db.upsert(mockPostDto);
@@ -323,23 +339,23 @@ describe("baseDatabase.ts", () => {
         });
     });
 
-    // it("can get content documents by tag", async () => {
-    //     const docs = await db.contentWhereTag(mockCategoryDto._id, {
-    //         languageId: mockLanguageDtoEng._id,
-    //     });
+    it("can get content documents by tag", async () => {
+        const docs = await db.contentWhereTag(mockCategoryDto._id, {
+            languageId: mockLanguageDtoEng._id,
+        });
 
-    //     expect(docs).toEqual([mockEnglishContentDto]);
-    // });
+        expect(docs).toEqual([mockEnglishContentDto]);
+    });
 
-    // it("can get content documents by tag as a ref", async () => {
-    //     const docs = db.contentWhereTagAsRef(mockCategoryDto._id, {
-    //         languageId: mockLanguageDtoEng._id,
-    //     });
+    it("can get content documents by tag as a ref", async () => {
+        const docs = db.contentWhereTagAsRef(mockCategoryDto._id, {
+            languageId: mockLanguageDtoEng._id,
+        });
 
-    //     await waitForExpect(() => {
-    //         expect(docs.value).toEqual([mockEnglishContentDto]);
-    //     });
-    // });
+        await waitForExpect(() => {
+            expect(docs.value).toEqual([mockEnglishContentDto]);
+        });
+    });
 
     it("can sort and limit content documents by tag", async () => {
         // Set the publish date Post1's content document

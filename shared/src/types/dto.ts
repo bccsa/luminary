@@ -22,6 +22,7 @@ export type BaseDocumentDto = {
     parentType?: DocType.Post | DocType.Tag;
     tags?: Uuid[];
     pinned?: boolean;
+    language?: Uuid;
 };
 
 export type GroupAclEntryDto = {

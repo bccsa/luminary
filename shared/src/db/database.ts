@@ -154,28 +154,23 @@ class database extends Dexie {
      * @param parentId - The parentId(s) to filter by
      * @param parentType - Optional: The parent type to filter by
      */
-    whereParent<T extends ContentDto[]>(
+    whereParent(
         parentId: Uuid | Uuid[],
         parentType?: DocType.Post | DocType.Tag,
+        languageId?: Uuid,
     ) {
+        let res;
         if (Array.isArray(parentId)) {
-            if (!parentType) {
-                return this.docs
-                    .where("parentId")
-                    .anyOf(parentId)
-                    .toArray() as unknown as Promise<T>;
-            }
-            return this.docs
-                .where("parentId")
-                .anyOf(parentId)
-                .and((d) => d.parentType == parentType)
-                .toArray() as unknown as Promise<T>;
+            res = this.docs.where("parentId").anyOf(parentId);
+        } else {
+            res = this.docs.where({ parentId });
         }
 
-        if (!parentType) {
-            return this.docs.where({ parentId }).toArray() as unknown as Promise<T>;
-        }
-        return this.docs.where({ parentId, parentType }).toArray() as unknown as Promise<T>;
+        if (parentType) res = res.and((d) => d.parentType == parentType);
+
+        if (languageId) res = res.and((d) => d.language == languageId);
+
+        return res.toArray() as unknown as Promise<ContentDto[]>;
     }
 
     /**
@@ -184,12 +179,16 @@ class database extends Dexie {
      * @param parentType - Optional: The parent type to filter by
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      */
-    whereParentAsRef<T extends ContentDto[]>(
+    whereParentAsRef(
         parentId: Uuid | Uuid[],
         parentType?: DocType.Post | DocType.Tag,
-        initialValue?: T,
+        languageId?: Uuid,
+        initialValue?: ContentDto[],
     ) {
-        return this.toRef<T>(() => this.whereParent<T>(parentId, parentType), initialValue);
+        return this.toRef<ContentDto[]>(
+            () => this.whereParent(parentId, parentType, languageId),
+            initialValue,
+        );
     }
 
     /**
