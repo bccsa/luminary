@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { db } from "luminary-shared";
-import { mockEnglishContentDto } from "@/tests/mockData";
-// import VideoPlayer from "@/components/posts/VideoPlayer.vue";
-import { computed } from "vue";
+import { DocType, db, type ContentDto, type PostDto, type TagDto } from "luminary-shared";
+import VideoPlayer from "@/components/posts/VideoPlayer.vue";
+import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
@@ -14,20 +13,48 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const contentDocs = db.getBySlugAsRef(props.slug, mockEnglishContentDto);
+const content = db.getBySlugAsRef<ContentDto>(props.slug);
+const parent = ref<PostDto | TagDto | undefined>();
+const tagsContent = ref<ContentDto[] | undefined>([]);
+
+watch(
+    content,
+    async () => {
+        if (content.value) {
+            parent.value = await db.get<PostDto | TagDto>(content.value.parentId);
+        }
+    },
+    { once: true },
+);
+
+watch(
+    parent,
+    async () => {
+        if (parent.value) {
+            tagsContent.value = await db.whereParent<ContentDto[]>(parent.value.tags, DocType.Tag);
+        }
+    },
+    { once: true },
+);
+
+const isLoading = computed(() => {
+    return (
+        content.value == undefined || parent.value == undefined || tagsContent.value == undefined
+    );
+});
 
 const text = computed(() => {
-    if (!contentDocs.value.text) {
-        return undefined;
+    if (!content.value.text) {
+        return "";
     }
 
     let text;
 
     // Only parse text with TipTap if it's JSON, otherwise we render it out as HTML
     try {
-        text = JSON.parse(contentDocs.value.text);
+        text = JSON.parse(content.value.text);
     } catch {
-        return contentDocs.value.text;
+        return content.value.text;
     }
 
     return generateHTML(text, [StarterKit]);
@@ -43,49 +70,48 @@ const text = computed(() => {
             <ArrowLeftIcon class="h-4 w-4" /> Back
         </RouterLink>
     </div>
-    <div v-if="!contentDocs">
+
+    {{ tagsContent }}
+
+    <div v-if="isLoading">
         <LoadingSpinner />
     </div>
     <article v-else class="mx-auto mb-12 max-w-3xl">
-        <!-- <VideoPlayer
-            v-if="contentDocs.video"
-            :content-parent="contentParent"
-            :content="contentDocs"
-        />
-        <img v-else :src="contentParent.image" class="rounded-lg shadow-md" /> -->
+        <VideoPlayer v-if="content.video" :content-parent="parent!" :content="content" />
+        <img v-else :src="parent!.image" class="rounded-lg shadow-md" />
 
         <h1 class="mt-4 text-center text-2xl text-zinc-800 dark:text-zinc-50">
-            {{ contentDocs.title }}
+            {{ content.title }}
         </h1>
 
         <div
             class="mt-1 text-center text-sm text-zinc-500 dark:text-zinc-300"
-            v-if="contentDocs.publishDate"
+            v-if="content.publishDate"
         >
-            {{ db.toDateTime(contentDocs.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
+            {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
         </div>
 
-        <div class="mt-2 text-justify text-gray-800 dark:text-zinc-100" v-if="contentDocs.summary">
-            {{ contentDocs.summary }}
+        <div class="mt-2 text-justify text-gray-800 dark:text-zinc-100" v-if="content.summary">
+            {{ content.summary }}
         </div>
 
         <div
-            v-if="contentDocs.text"
+            v-if="content.text"
             v-html="text"
             class="prose prose-zinc mt-6 text-justify dark:prose-invert"
         ></div>
 
-        <!-- <div class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500">
+        <div class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500">
             <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3>
             <div class="flex gap-3">
                 <span
-                    v-for="tag in contentDocs.tags"
+                    v-for="tag in tagsContent?.map((tag) => tag.title) || []"
                     :key="tag"
                     class="inline-block rounded bg-yellow-300 px-1.5 py-1 text-sm text-yellow-950 shadow"
                 >
                     {{ tag }}
                 </span>
             </div>
-        </div> -->
+        </div>
     </article>
 </template>
