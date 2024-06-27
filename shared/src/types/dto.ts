@@ -1,4 +1,4 @@
-import type { DocType, TagType } from "../types";
+import type { DocType, TagType, PublishStatus } from "../types";
 
 export enum AckStatus {
     Accepted = "accepted",
@@ -20,6 +20,8 @@ export type BaseDocumentDto = {
     docType?: DocType;
     acl?: GroupAclEntryDto[];
     parentType?: DocType.Post | DocType.Tag;
+    tags?: Uuid[];
+    pinned?: boolean;
 };
 
 export type GroupAclEntryDto = {
@@ -41,7 +43,7 @@ export type LanguageDto = ContentBaseDto & {
 export type ContentDto = ContentBaseDto & {
     parentId: Uuid;
     language: Uuid;
-    status: string;
+    status: PublishStatus;
     title: string;
     slug: string;
     publishDate?: number;
@@ -53,18 +55,28 @@ export type ContentDto = ContentBaseDto & {
     summary?: string;
     text?: string;
     parentType?: DocType;
+    tags: Uuid[];
+    image?: string;
 };
 
-export type TagDto = ContentBaseDto & {
-    tagType: TagType;
-    pinned: boolean;
-    image: string;
-    tags: Uuid[];
+export type ContentMetadataDto = {
+    contentId: Uuid;
+    languageId: Uuid;
+    title: string;
+    status: PublishStatus;
+    publishDate?: number;
+    expiryDate?: number;
 };
 
 export type PostDto = ContentBaseDto & {
     image: string;
     tags: Uuid[];
+    metadata?: ContentMetadataDto[];
+};
+
+export type TagDto = PostDto & {
+    tagType: TagType;
+    pinned: boolean;
 };
 
 export type GroupDto = BaseDocumentDto & {

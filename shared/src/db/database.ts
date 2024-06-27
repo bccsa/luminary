@@ -1,12 +1,57 @@
 import Dexie, { type Table, liveQuery } from "dexie";
-import { BaseDocumentDto, ContentDto, DocType, LocalChangeDto, TagType, Uuid } from "../types";
+import {
+    BaseDocumentDto,
+    ContentDto,
+    DocType,
+    LocalChangeDto,
+    TagDto,
+    TagType,
+    Uuid,
+} from "../types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { type Ref, toRaw } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
+import { filterAsync, someAsync } from "../util/asyncArray";
 
-export class database extends Dexie {
+export type queryOptions = {
+    filterOptions?: {
+        /**
+         * Only return top level tags (i.e. tags that are not tagged with other tags of the same tag type).
+         * Not applicable to post queries
+         */
+        topLevelOnly?: boolean;
+        /**
+         * Only return pinned or unpinned tags
+         * Not applicable to post queries
+         */
+        pinned?: boolean;
+        /**
+         * Limit the results to the specified number
+         */
+        limit?: number;
+    };
+    /**
+     * Sort options are only applicable to Post and Tag queries.
+     */
+    sortOptions?: {
+        /**
+         * Sort by publishDate.
+         */
+        sortBy?: "publishDate" | "title";
+        /**
+         * Sort in ascending or descending order.
+         */
+        sortOrder?: "asc" | "desc";
+    };
+    /**
+     * Optionally set the language ID
+     */
+    languageId?: Uuid;
+};
+
+class database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
 
@@ -58,6 +103,23 @@ export class database extends Dexie {
      */
     getAsRef<T extends BaseDocumentDto>(id: Uuid, initialValue?: T) {
         return this.toRef<T>(() => this.docs.get(id) as unknown as Promise<T>, initialValue);
+    }
+
+    /**
+     * Return true if there are some documents of the specified DocType
+     */
+    async someByType(docType: DocType) {
+        return (await this.docs.where("type").equals(docType).first()) != undefined;
+    }
+
+    /**
+     * Return true if there are some documents of the specified DocType as Vue Ref
+     */
+    someByTypeAsRef(docType: DocType) {
+        return this.toRef<boolean>(
+            () => this.someByType(docType) as unknown as Promise<boolean>,
+            false,
+        );
     }
 
     /**
@@ -185,6 +247,149 @@ export class database extends Dexie {
             // Check if the document is NOT a member of the given groupIds
             return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
         });
+    }
+
+    /**
+     * Check if a tag document is of a certain tag type
+     */
+    async isTagType(id: Uuid, tagType: TagType) {
+        const doc = await this.get<TagDto>(id);
+        if (!doc) return false;
+        return doc.type === DocType.Tag && doc.tagType === tagType;
+    }
+
+    /**
+     * Get all tags of a certain tag type
+     */
+    async tagsWhereTagType(tagType: TagType, options?: queryOptions): Promise<TagDto[]> {
+        if (!options?.languageId) throw new Error("Language ID is required");
+        if (options.sortOptions)
+            throw new Error("Sort options are not applicable to tag type queries");
+
+        // Get all tags of the specified tag type
+        const res = (await this.docs
+            .where({ type: DocType.Tag, tagType })
+
+            // Optionally only include pinned or unpinned tags
+            .and((t) => {
+                if (options?.filterOptions?.pinned === true) return t.pinned === true;
+                if (options?.filterOptions?.pinned === false) return t.pinned === false;
+                return true;
+            })
+            .toArray()) as TagDto[];
+
+        // Optionally only include tags that are not tagged with other tags of the same tag type
+        let topLevel = res;
+        if (options?.filterOptions?.topLevelOnly) {
+            topLevel = await filterAsync(res, async (tag: TagDto) => {
+                const hasTagsOfSameType = await someAsync(tag.tags, async (tagId) =>
+                    this.isTagType(tagId, tagType),
+                );
+                return !hasTagsOfSameType;
+            });
+        }
+
+        // Get the newest content publish date per tag
+        const newestContent: { tagId: Uuid; publishDate: number }[] = [];
+        const pList = [];
+        for (const tag of topLevel) {
+            pList.push(
+                this.contentWhereTag(tag._id, {
+                    languageId: options.languageId,
+                    filterOptions: { limit: 1 },
+                    sortOptions: { sortBy: "publishDate", sortOrder: "desc" },
+                }).then((content) => {
+                    if (content.length > 0) {
+                        newestContent.push({
+                            tagId: tag._id,
+                            publishDate: content[0].publishDate!,
+                        });
+                    }
+                }),
+            );
+        }
+        await Promise.all(pList);
+
+        // Filter out tags that are not used
+        const usedTags = topLevel.filter((tag) => newestContent.some((c) => c.tagId == tag._id));
+
+        // Sort the decending tags by the newest content publish date
+        const sorted = usedTags.sort((a, b) => {
+            const aDate = newestContent.find((c) => c.tagId == a._id)?.publishDate || 0;
+            const bDate = newestContent.find((c) => c.tagId == b._id)?.publishDate || 0;
+            return bDate - aDate;
+        });
+
+        // Optionally limit the number of results.
+        if (options?.filterOptions?.limit) {
+            return sorted.slice(0, options.filterOptions.limit);
+        }
+
+        return sorted;
+    }
+
+    /**
+     * Get all tags of a certain tag type as Vue Ref
+     */
+    tagsWhereTagTypeAsRef(tagType: TagType, options?: queryOptions) {
+        return this.toRef<TagDto[]>(() => this.tagsWhereTagType(tagType, options), []);
+    }
+
+    /**
+     * Get all content documents that are tagged with the passed tag ID. If no tagId is passed, return all posts and tags.
+     */
+    async contentWhereTag(tagId?: Uuid, options?: queryOptions) {
+        if (options?.filterOptions?.topLevelOnly)
+            throw new Error("Top level only filter is not applicable to content queries");
+        if (!options?.languageId) throw new Error("Language ID is required");
+        if (!tagId && !options.filterOptions?.limit)
+            throw new Error("Limit is required if no tagId is passed");
+
+        let res = this.docs
+            .where("type")
+            .equals(DocType.Content)
+            .and((d) => {
+                const doc = d as ContentDto;
+
+                // Filter by language
+                if (doc.language != options.languageId) return false;
+
+                // Filter by status
+                if (doc.status != "published") return false;
+
+                // Filter by publish date
+                if (doc.publishDate == undefined || doc.publishDate > Date.now()) return false;
+
+                // Filter by expiry date
+                if (doc.expiryDate != undefined && doc.expiryDate < Date.now()) return false;
+
+                // Optionally filter by tagId
+                if (tagId && !doc.tags.some((tag) => tag == tagId)) return false;
+
+                return true;
+            });
+
+        // Optionally limit the number of results
+        if (options.filterOptions?.limit) res = res.limit(options.filterOptions.limit);
+
+        // Optionally sort the results
+        if (options.sortOptions?.sortBy) {
+            let sorted = res;
+            if (options.sortOptions.sortOrder == "desc") sorted = res.reverse();
+
+            return (await sorted.sortBy(options.sortOptions.sortBy)) as unknown as Promise<
+                ContentDto[]
+            >;
+        }
+
+        return (await res.toArray()) as unknown as Promise<ContentDto[]>;
+    }
+
+    /**
+     * Get all posts and tags that are tagged with the passed tag ID as Vue Ref
+     */
+    contentWhereTagAsRef(tagId?: Uuid, options?: queryOptions) {
+        return this.toRef<ContentDto[]>(() => this.contentWhereTag(tagId, options), []);
     }
 
     /**
