@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import type { Post, Tag } from "@/types";
 import videojs from "video.js";
 import "videojs-mobile-ui";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import type Player from "video.js/dist/types/player";
+import type { ContentDto, PostDto, TagDto } from "luminary-shared";
 
 type Props = {
-    contentParent: Post | Tag;
+    contentParent: PostDto | TagDto;
+    content: ContentDto;
 };
 const props = defineProps<Props>();
 
@@ -62,7 +63,7 @@ onMounted(() => {
     player = videojs(playerElement.value!, options);
 
     player.poster(props.contentParent.image);
-    player.src({ type: "application/x-mpegURL", src: props.contentParent.content[0].video });
+    player.src({ type: "application/x-mpegURL", src: props.content.video });
 
     // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
     player.mobileUi({
