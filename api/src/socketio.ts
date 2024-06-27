@@ -305,7 +305,6 @@ export class Socketio implements OnGatewayInit {
             socket.data.memberOf,
             this.db,
             this.s3,
-            this.logger,
         )
             .then(() => {
                 this.emitAck(socket, AckStatus.Accepted, changeRequest);

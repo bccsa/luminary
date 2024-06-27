@@ -1,5 +1,7 @@
 // This file generates the documents for the change request tests some random data
 
+import { ContentDto } from "src/dto/ContentDto";
+
 function randomString() {
     return Math.random().toString(36).substring(7);
 }
@@ -51,7 +53,7 @@ export const changeRequest_content = () => {
             video: "",
             publishDate: 1704114000000,
             expiryDate: 1704114000000,
-        },
+        } as ContentDto,
     };
 };
 export const changeRequest_language = () => {
