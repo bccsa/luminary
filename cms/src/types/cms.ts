@@ -1,5 +1,5 @@
 import type { DateTime } from "luxon";
-import type { AclPermission, BaseDocumentDto, ImageFileDto, ImageUploadDto, Uuid } from "./dto";
+import type { AclPermission, ImageFileDto, ImageUploadDto, Uuid } from "./dto";
 
 export enum DocType {
     Change = "change",
@@ -129,11 +129,6 @@ export type User = ContentBase & {
     type: DocType.User;
     name: string;
     email: string;
-};
-
-export type LocalChange = {
-    id: number;
-    doc: BaseDocumentDto;
 };
 
 export type Notification = {

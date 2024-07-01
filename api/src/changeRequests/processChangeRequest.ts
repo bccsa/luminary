@@ -7,6 +7,8 @@ import { DocType, Uuid } from "../enums";
 import { validateSlug } from "./validateSlug";
 import { processImage } from "../s3/s3.imagehandling";
 import { S3Service } from "../s3/s3.service";
+import { PostDto } from "src/dto/PostDto";
+import { TagDto } from "src/dto/TagDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -32,6 +34,32 @@ export async function processChangeRequest(
     if (doc.type == DocType.Image) {
         const prevDoc = await db.getDoc(doc._id);
         doc = await processImage(doc, prevDoc.docs.length > 0 ? prevDoc.docs[0] : undefined, s3);
+    }
+
+    // Copy essential properties from Post / Tag documents to Content documents
+    if (doc.type == DocType.Content) {
+        const parentQuery = await db.getDoc(doc.parentId);
+        const parentDoc: PostDto | TagDto | undefined =
+            parentQuery.docs.length > 0 ? parentQuery.docs[0] : undefined;
+
+        if (parentDoc) {
+            doc.memberOf = parentDoc.memberOf;
+            doc.tags = parentDoc.tags;
+            doc.image = parentDoc.image;
+        }
+    }
+
+    if (doc.type == DocType.Post || doc.type == DocType.Tag) {
+        // Get content documents that are children of the Post / Tag document
+        await db.getContentByParentId(doc._id).then((contentDocs) => {
+            // Copy essential properties from the Post / Tag document to the child content document
+            contentDocs.docs.forEach(async (contentDoc) => {
+                contentDoc.memberOf = doc.memberOf;
+                contentDoc.tags = doc.tags;
+                contentDoc.image = doc.image;
+                await db.upsertDoc(contentDoc);
+            });
+        });
     }
 
     // Insert / update the document in the database

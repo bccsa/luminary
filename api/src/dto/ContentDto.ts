@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
 import { DocType, PublishStatus, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
@@ -78,4 +78,19 @@ export class ContentDto extends _contentBaseDto {
     @Min(0)
     @Expose()
     expiryDate?: number;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsArray()
+    @Expose()
+    memberOf: Uuid[];
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsArray()
+    @Expose()
+    tags?: Uuid[];
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @Expose()
+    image?: string;
 }

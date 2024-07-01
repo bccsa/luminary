@@ -29,8 +29,12 @@ jobs:
           cache: "npm"
           cache-dependency-path: cms/package-lock.json
 
+      - name: Build shared dependencies
+        run: npm ci; npm run build;
+        working-directory: shared
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --install-links
         working-directory: cms
 
       - name: Run Unit Tests
@@ -52,8 +56,12 @@ jobs:
           cache: "npm"
           cache-dependency-path: cms/package-lock.json
 
+      - name: Build shared dependencies
+        run: npm ci; npm run build;
+        working-directory: shared
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --install-links
         working-directory: cms
 
       - name: Lint

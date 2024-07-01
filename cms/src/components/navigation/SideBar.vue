@@ -12,7 +12,7 @@ import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { ref, watch } from "vue";
 import { useUserAccessStore } from "@/stores/userAccess";
-import { AclPermission, DocType } from "@/types";
+import { AclPermission, DocType, TagType } from "@/types";
 
 const { appName, isDevMode } = useGlobalConfigStore();
 const { hasAnyPermission } = useUserAccessStore();
@@ -22,7 +22,7 @@ const navigation = ref([
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
     {
         name: "Posts",
-        to: { name: "posts" },
+        to: { name: "overview", params: { docType: DocType.Post, tagType: "default" } },
         icon: DocumentDuplicateIcon,
         visible: hasAnyPermission(DocType.Post, AclPermission.View),
     },
@@ -31,20 +31,10 @@ const navigation = ref([
         icon: TagIcon,
         open: false,
         visible: hasAnyPermission(DocType.Tag, AclPermission.View),
-        children: [
-            {
-                name: "Categories",
-                to: { name: "tags.categories" },
-            },
-            {
-                name: "Topics",
-                to: { name: "tags.topics" },
-            },
-            {
-                name: "Audio playlists",
-                to: { name: "tags.audio-playlists" },
-            },
-        ],
+        children: Object.entries(TagType).map((t) => ({
+            name: t[0],
+            to: { name: "overview", params: { docType: DocType.Tag, tagType: t[1] } },
+        })),
     },
     {
         name: "Users",
