@@ -1,8 +1,7 @@
 import { Uuid } from "../enums";
-import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsArray, IsNotEmpty, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
-import { Expose, Type } from "class-transformer";
-import { ContentMetadataDto } from "./ContentMetadataDto";
+import { Expose } from "class-transformer";
 
 /**
  * Database structured Post object
@@ -17,11 +16,4 @@ export class PostDto extends _contentBaseDto {
     @IsString({ each: true })
     @Expose()
     tags: Uuid[];
-
-    @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => ContentMetadataDto)
-    @Expose()
-    metadata?: ContentMetadataDto[] = [];
 }

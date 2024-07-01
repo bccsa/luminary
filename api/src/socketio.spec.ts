@@ -225,15 +225,21 @@ describe("Socketio", () => {
             });
 
             describe("APP client", () => {
-                it("Post documents: emits one data socket.io events after change request submission", async () => {
+                it("Post documents: emits a data socket.io events after change request submission", async () => {
                     const res = await socketioTestClient({
                         cms: false,
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_post(),
                     });
-                    expect(res.docs.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
+
+                    // The response includes 3 documents:
+                    // - The user document
+                    // - The post document
+                    // - The content document(s) that are children of the post document which were updated with essential properties from the post document
+                    expect(res.docs.length).toBe(3);
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                     expect(res.docs.some((d) => d.type == "post")).toBe(true);
+                    expect(res.docs.some((d) => d.type == "content")).toBe(true);
                 });
 
                 it("Tag documents: emits one data socket.io events after change request submission", async () => {

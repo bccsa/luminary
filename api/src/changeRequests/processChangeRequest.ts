@@ -49,6 +49,19 @@ export async function processChangeRequest(
         }
     }
 
+    if (doc.type == DocType.Post || doc.type == DocType.Tag) {
+        // Get content documents that are children of the Post / Tag document
+        await db.getContentByParentId(doc._id).then((contentDocs) => {
+            // Copy essential properties from the Post / Tag document to the child content document
+            contentDocs.docs.forEach(async (contentDoc) => {
+                contentDoc.memberOf = doc.memberOf;
+                contentDoc.tags = doc.tags;
+                contentDoc.image = doc.image;
+                await db.upsertDoc(contentDoc);
+            });
+        });
+    }
+
     // Insert / update the document in the database
     const upsertResult = await db.upsertDoc(doc);
 
