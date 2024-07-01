@@ -261,9 +261,14 @@ class database extends Dexie {
      * Get all tags of a certain tag type
      */
     async tagsWhereTagType(tagType: TagType, options?: queryOptions): Promise<TagDto[]> {
-        if (!options?.languageId) throw new Error("Language ID is required");
-        if (options.sortOptions)
-            throw new Error("Sort options are not applicable to tag type queries");
+        if (!options?.languageId) {
+            console.error("Language ID is required");
+            return [];
+        }
+        if (options.sortOptions) {
+            console.error("Sort options are not applicable to tag type queries");
+            return [];
+        }
 
         // Get all tags of the specified tag type
         const res = (await this.docs
@@ -338,11 +343,18 @@ class database extends Dexie {
      * Get all content documents that are tagged with the passed tag ID. If no tagId is passed, return all posts and tags.
      */
     async contentWhereTag(tagId?: Uuid, options?: queryOptions) {
-        if (options?.filterOptions?.topLevelOnly)
-            throw new Error("Top level only filter is not applicable to content queries");
-        if (!options?.languageId) throw new Error("Language ID is required");
-        if (!tagId && !options.filterOptions?.limit)
-            throw new Error("Limit is required if no tagId is passed");
+        if (options?.filterOptions?.topLevelOnly) {
+            console.error("Top level only filter is not applicable to content queries");
+            return [];
+        }
+        if (!options?.languageId) {
+            console.error("Language ID is required");
+            return [];
+        }
+        if (!tagId && !options.filterOptions?.limit) {
+            console.error("Limit is required if no tagId is passed");
+            return [];
+        }
 
         let res = this.docs
             .where("type")
@@ -363,7 +375,7 @@ class database extends Dexie {
                 if (doc.expiryDate != undefined && doc.expiryDate < Date.now()) return false;
 
                 // Optionally filter by tagId
-                if (tagId && !doc.tags.some((tag) => tag == tagId)) return false;
+                if (!doc.tags || (tagId && !doc.tags.some((tag) => tag == tagId))) return false;
 
                 return true;
             });
