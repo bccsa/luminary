@@ -259,10 +259,10 @@ watch(publishStatus, () => {
                 "
             >
                 <!-- Link publish & expiry dates toggle -->
-                <div class="flex items-center justify-between">
+                <!-- <div class="flex items-center justify-between">
                     <FormLabel>Link dates (not implemented yet)</FormLabel>
                     <LToggle v-model="linkedDates" :disabled="disabled || true" />
-                </div>
+                </div> -->
 
                 <!-- Publish / draft toggle -->
                 <div class="mt-2 flex items-center justify-between">
