@@ -1,4 +1,4 @@
-# Luminary frontent shared library
+# Luminary frontend shared library
 
 This library contains essential building blocks for building a front-end application for the Luminary sync API
 
