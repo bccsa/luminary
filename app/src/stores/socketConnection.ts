@@ -58,30 +58,30 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             const baseRepository = new BaseRepository();
             const groupsPerDocType = accessMapToGroups(accessMap, AclPermission.View);
 
-            Object.values(DocType)
-                .filter((t) => !(t == DocType.Change || t == DocType.Content))
-                .forEach(async (docType) => {
-                    let groups = groupsPerDocType[docType as DocType];
-                    if (groups === undefined) groups = [];
+            // Object.values(DocType)
+            //     .filter((t) => !(t == DocType.Change || t == DocType.Content))
+            //     .forEach(async (docType) => {
+            //         let groups = groupsPerDocType[docType as DocType];
+            //         if (groups === undefined) groups = [];
 
-                    const revokedDocs = baseRepository.whereNotMemberOf(groups, docType as DocType);
+            //         const revokedDocs = baseRepository.whereNotMemberOf(groups, docType as DocType);
 
-                    // Delete associated Post and Tag content documents
-                    if (docType === DocType.Post || docType === DocType.Tag) {
-                        const revokedParents = await revokedDocs.toArray();
-                        const revokedParentIds = revokedParents.map((p) => p._id);
-                        await baseRepository.whereParentIds(revokedParentIds).delete();
-                    }
+            //         // Delete associated Post and Tag content documents
+            //         if (docType === DocType.Post || docType === DocType.Tag) {
+            //             const revokedParents = await revokedDocs.toArray();
+            //             const revokedParentIds = revokedParents.map((p) => p._id);
+            //             await baseRepository.whereParentIds(revokedParentIds).delete();
+            //         }
 
-                    // Delete associated Language content documents
-                    if (docType === DocType.Language) {
-                        const revokedLanguages = await revokedDocs.toArray();
-                        const revokedlanguageIds = revokedLanguages.map((l) => l._id);
-                        await baseRepository.whereLanguageIds(revokedlanguageIds).delete();
-                    }
+            //         // Delete associated Language content documents
+            //         if (docType === DocType.Language) {
+            //             const revokedLanguages = await revokedDocs.toArray();
+            //             const revokedlanguageIds = revokedLanguages.map((l) => l._id);
+            //             await baseRepository.whereLanguageIds(revokedlanguageIds).delete();
+            //         }
 
-                    await revokedDocs.delete();
-                });
+            //         await revokedDocs.delete();
+            //     });
 
             // Store the updated access map
             localStorage.setItem("accessMap", JSON.stringify(accessMap));

@@ -3,41 +3,26 @@ import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollabl
 import { TagType } from "@/types";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { DocType, db, type PostDto, type TagDto, type Uuid } from "luminary-shared";
+import { DocType, db } from "luminary-shared";
 
 const { isAuthenticated } = useAuth0();
 
-type Props = {
-    parent: PostDto | TagDto;
-    docType: DocType.Post | DocType.Tag;
-    tagType?: TagType;
-    language?: Uuid;
-};
-defineProps<Props>();
-
 const hasPosts = db.someByTypeAsRef(DocType.Post);
 
-const pinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
+const pinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
     filterOptions: {
         topLevelOnly: true,
-        excludeEmpty: true,
         pinned: true,
     },
-    sortOptions: {
-        sortBy: "publishDate",
-        sortOrder: "asc",
-    },
+    languageId: "lang-eng",
 });
-const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
+const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
     filterOptions: {
         topLevelOnly: true,
-        excludeEmpty: true,
         pinned: false,
+        limit: 10,
     },
-    sortOptions: {
-        sortBy: "publishDate",
-        sortOrder: "asc",
-    },
+    languageId: "lang-eng",
 });
 </script>
 
@@ -69,47 +54,43 @@ const unpinnedCategories = db.whereTagTypeAsRef(TagType.Category, {
 
             <HorizontalScrollableTagViewer
                 title="Newest Content"
-                languageId="lang-eng"
                 :queryOptions="{
                     sortOptions: {
                         sortBy: 'publishDate',
                         sortOrder: 'desc',
                     },
                     filterOptions: {
-                        bottom: 10,
+                        limit: 10,
                     },
+                    languageId: 'lang-eng',
                 }"
             />
 
             <!-- Display pinned category -->
             <HorizontalScrollableTagViewer
-                v-for="post in pinnedCategories"
-                :key="post._id"
-                :tag="post"
-                languageId="lang-eng"
-                title="Newest Content"
-                :queryOptions="{
-                    sortOptions: {
-                        sortBy: 'publishDate',
-                        sortOrder: 'desc',
-                    },
-                    filterOptions: {
-                        top: 10,
-                    },
-                }"
-            />
-
-            <!-- Display unpined category -->
-            <HorizontalScrollableTagViewer
-                v-for="tag in unpinnedCategories"
-                :key="tag._id"
-                :tag="tag"
-                languageId="lang-eng"
+                v-for="category in pinnedCategories"
+                :key="category._id"
+                :tag="category"
                 :queryOptions="{
                     sortOptions: {
                         sortBy: 'publishDate',
                         sortOrder: 'asc',
                     },
+                    languageId: 'lang-eng',
+                }"
+            />
+
+            <!-- Display unpined category -->
+            <HorizontalScrollableTagViewer
+                v-for="category in unpinnedCategories"
+                :key="category._id"
+                :tag="category"
+                :queryOptions="{
+                    sortOptions: {
+                        sortBy: 'publishDate',
+                        sortOrder: 'asc',
+                    },
+                    languageId: 'lang-eng',
                 }"
             />
         </div>

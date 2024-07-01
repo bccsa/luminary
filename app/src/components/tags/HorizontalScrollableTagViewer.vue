@@ -3,49 +3,37 @@ import ContentTile from "@/components/posts/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref, watch } from "vue";
 import { useResizeObserver } from "@vueuse/core";
-import {
-    DocType,
-    TagType,
-    db,
-    type ContentDto,
-    type TagDto,
-    type Uuid,
-    type queryOptions as options,
-} from "luminary-shared";
+import { DocType, db, type TagDto, type queryOptions as options } from "luminary-shared";
 
 type Props = {
     tag?: TagDto;
     title?: string;
-    queryOptions?: options;
-    languageId: Uuid;
+    queryOptions: options;
 };
 const props = defineProps<Props>();
 
-const taggedDocs = db.whereTagAsRef(props.tag?._id, props.queryOptions);
+const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
+const tagContent = props.tag
+    ? db.whereParentAsRef(props.tag._id, DocType.Tag, props.queryOptions.languageId, [])
+    : ref([]);
 
 const tagTitle = ref(props.title);
 const tagSummary = ref("");
 
-if (props.tag) {
-    const tagContent = db.whereParentAsRef<ContentDto[]>(props.tag._id, DocType.Tag, []);
+watch(tagContent, () => {
+    if (props.title) {
+        tagTitle.value = props.title;
+        return;
+    }
 
-    watch(tagContent, () => {
-        const preferred = tagContent.value.find((c) => c.language == props.languageId);
+    if (tagContent.value.length > 0) {
+        tagTitle.value = tagContent.value[0].title;
+        tagSummary.value = tagContent.value[0].summary || "";
+        return;
+    }
 
-        if (preferred) {
-            tagTitle.value = preferred.title;
-            tagSummary.value = preferred.summary || "";
-            return;
-        }
-
-        if (tagContent.value.length > 0) {
-            tagTitle.value = tagContent.value[0].title;
-            tagSummary.value = tagContent.value[0].summary || "";
-            return;
-        }
-        tagTitle.value = "No translation found";
-    });
-}
+    tagTitle.value = "No translation found";
+});
 
 const spinLeft = () => {
     if (scrollElement.value) scrollElement.value.scrollLeft -= 100;
@@ -129,9 +117,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                     <ContentTile
                         v-for="content in taggedDocs"
                         :key="content._id"
-                        :parent="content"
-                        :tagType="TagType.Category"
-                        :pinned="tag?.pinned"
+                        :content="content"
                         class="w-40 overflow-clip md:w-60"
                     />
                 </div>
