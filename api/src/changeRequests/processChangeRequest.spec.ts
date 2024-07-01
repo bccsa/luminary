@@ -6,6 +6,8 @@ import { isDeepStrictEqual } from "util";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { changeRequest_content } from "../test/changeRequestDocuments";
 import { S3Service } from "../s3/s3.service";
+import { ChangeReqDto } from "src/dto/ChangeReqDto";
+import { PostDto } from "src/dto/PostDto";
 
 describe("processChangeRequest", () => {
     let db: DbService;
@@ -190,7 +192,7 @@ describe("processChangeRequest", () => {
         expect(dbDoc.docs[0].slug).toBe("invalid-slug-123-wu-xiao-de-bor-ikke-vaere-tilladt");
     });
 
-    it("can set essential properties from a parent document to a content document", async () => {
+    it("can set essential properties from a parent document to a content document on content document submission", async () => {
         const changeRequest = changeRequest_content();
         changeRequest.doc.parentId = "post-post1";
         changeRequest.doc._id = "test-essential-properties";
@@ -203,5 +205,40 @@ describe("processChangeRequest", () => {
         expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
         expect(dbDoc.docs[0].tags).toEqual(["tag-category1", "tag-topicA"]);
         expect(dbDoc.docs[0].image).toBe("image.jpg");
+    });
+
+    it("can set essential properties from a parent document to a content document on post / tag document submission", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 86,
+            doc: {
+                _id: "post-post1",
+                type: "post",
+                memberOf: ["group-public-content", "group-private-content"],
+                image: "test1234.jpg",
+                tags: ["tag1", "tag2"],
+            } as PostDto,
+        };
+
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+
+        const res = await db.getContentByParentId(changeRequest.doc._id);
+        const docsCount = res.docs.length;
+        expect(docsCount).toBeGreaterThan(0);
+
+        expect(
+            res.docs.map(
+                (doc) =>
+                    doc.memberOf.some((m) => m == "group-public-content") &&
+                    doc.memberOf.some((m) => m == "group-private-content"),
+            ).length,
+        ).toBe(docsCount);
+
+        expect(res.docs.map((doc) => doc.image == "test1234.jpg").length).toBe(docsCount);
+
+        expect(
+            res.docs.map(
+                (doc) => doc.tags.some((m) => m == "tag1") && doc.tags.some((m) => m == "tag2"),
+            ).length,
+        ).toBe(docsCount);
     });
 });
