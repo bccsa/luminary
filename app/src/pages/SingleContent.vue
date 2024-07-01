@@ -31,7 +31,14 @@ watch(
     parent,
     async () => {
         if (parent.value) {
-            tagsContent.value = await db.whereParent<ContentDto[]>(parent.value.tags, DocType.Tag);
+            const datas = await db.whereParent(
+                parent.value.tags,
+                DocType.Tag,
+                parent.value.language,
+            );
+
+            const result = datas.filter((d) => d.language == content.value.language);
+            tagsContent.value = result;
         }
     },
     { once: true },
@@ -70,8 +77,6 @@ const text = computed(() => {
             <ArrowLeftIcon class="h-4 w-4" /> Back
         </RouterLink>
     </div>
-
-    {{ tagsContent }}
 
     <div v-if="isLoading">
         <LoadingSpinner />
