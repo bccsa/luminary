@@ -1,5 +1,5 @@
 import Dexie, { liveQuery, type Table } from "dexie";
-import type { BaseDocumentDto, DocType, LocalChange, Uuid } from "@/types";
+import type { BaseDocumentDto, DocType, LocalChangeDto, TagType, Uuid } from "@/types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
 import { toRaw, type Ref } from "vue";
@@ -8,14 +8,14 @@ import { v4 as uuidv4 } from "uuid";
 
 export class BaseDatabase extends Dexie {
     docs!: Table<BaseDocumentDto>;
-    localChanges!: Table<Partial<LocalChange>>; // Partial because it includes id which is only set after saving
+    localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
 
     constructor() {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(4).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type]",
+        this.version(6).stores({
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType]",
             localChanges: "++id, reqId, docId, status",
         });
     }
@@ -33,7 +33,7 @@ export class BaseDatabase extends Dexie {
      * @param initialValue - The initial value of the ref while waiting for the query to complete
      * @returns Vue Ref
      */
-    toRef<T extends BaseDocumentDto | BaseDocumentDto[]>(
+    toRef<T extends BaseDocumentDto | BaseDocumentDto[] | boolean>(
         query: () => Promise<T>,
         initialValue?: T,
     ) {
@@ -63,13 +63,48 @@ export class BaseDatabase extends Dexie {
     /**
      * Get all IndexedDB documents of a certain type as Vue Ref
      * @param initialValue - The initial value of the ref while waiting for the query to complete
+     * @param tagType - Optional: The tag type to filter by (only used for tags)
      * TODO: Add pagination
      */
-    whereTypeAsRef<T extends BaseDocumentDto[]>(docType: DocType, initialValue?: T) {
+    whereTypeAsRef<T extends BaseDocumentDto[]>(
+        docType: DocType,
+        initialValue?: T,
+        tagType?: TagType,
+    ) {
+        if (tagType) {
+            return this.toRef<T>(
+                () =>
+                    this.docs.where({ type: docType, tagType }).toArray() as unknown as Promise<T>,
+                initialValue,
+            );
+        }
+
         return this.toRef<T>(
             () => this.docs.where("type").equals(docType).toArray() as unknown as Promise<T>,
             initialValue,
         );
+    }
+
+    /**
+     * Get IndexedDB documents by their parentId
+     */
+    whereParent<T extends BaseDocumentDto[]>(
+        parentId: Uuid,
+        parentType: DocType.Post | DocType.Tag,
+    ) {
+        return this.docs.where({ parentId, parentType }).toArray() as unknown as Promise<T>;
+    }
+
+    /**
+     * Get IndexedDB documents by their parentId as Vue Ref
+     * @param initialValue - The initial value of the ref while waiting for the query to complete
+     */
+    whereParentAsRef<T extends BaseDocumentDto[]>(
+        parentId: Uuid,
+        parentType: DocType.Post | DocType.Tag,
+        initialValue?: T,
+    ) {
+        return this.toRef<T>(() => this.whereParent<T>(parentId, parentType), initialValue);
     }
 
     /**
@@ -92,25 +127,59 @@ export class BaseDatabase extends Dexie {
         // Queue the change to be sent to the API
         await this.localChanges.put({
             doc: raw,
+            docId: raw._id,
         });
     }
 
     /**
      * Convert a numeric (UNIX) date to a DateTime object
-     * @param date
-     * @returns
      */
     toDateTime(date: number) {
         return DateTime.fromMillis(date);
     }
 
     /**
-     * Convert a DateTime object to a numeric (UNIX) date
+     * Convert a numeric (UNIX) date to an ISO date string
      * @param date
      * @returns
      */
+    toIsoDateTime(date: number) {
+        return DateTime.fromMillis(date).toISO({
+            includeOffset: false,
+            suppressSeconds: true,
+        });
+    }
+
+    /**
+     * Convert a DateTime object to a numeric (UNIX) date
+     */
     fromDateTime(date: DateTime) {
         return date.toMillis();
+    }
+
+    /**
+     * Convert an ISO date string to a numeric (UNIX) date
+     * @param date
+     * @returns
+     */
+    fromIsoDateTime(date: string) {
+        return DateTime.fromISO(date).toMillis();
+    }
+
+    /**
+     * Check if a document is queued in the localChanges table
+     */
+    isLocalChangeAsRef(docId: Uuid) {
+        return this.toRef<boolean>(
+            () =>
+                this.localChanges
+                    .where({ docId })
+                    .first()
+                    .then((res) => {
+                        return res ? true : false;
+                    }) as unknown as Promise<boolean>,
+            false,
+        );
     }
 }
 

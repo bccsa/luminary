@@ -39,3 +39,7 @@ See the [CMS readme](./cms/README.md)
 ### App
 
 See the [App readme](./app/README.md)
+
+### Shared library
+
+See the [Shared readme](./shared/README.md)

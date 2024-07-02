@@ -449,6 +449,31 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * Get all content documents with a specific parent ID
+     * @param parentId
+     * @returns
+     */
+    getContentByParentId(parentId: Uuid): Promise<DbQueryResult> {
+        return new Promise((resolve, reject) => {
+            const query = {
+                selector: {
+                    type: "content",
+                    parentId: parentId,
+                },
+                limit: Number.MAX_SAFE_INTEGER,
+            };
+            this.db
+                .find(query)
+                .then((res) => {
+                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
+    }
+
+    /**
      * Check if a slug is unique
      * @param slug - Slug to be checked
      * @param documentId - ID of the document to be excluded from the check

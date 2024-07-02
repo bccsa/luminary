@@ -38,6 +38,7 @@ export class TagRepository extends BaseRepository {
         // Save change, which will be sent to the API later
         await db.localChanges.put({
             doc: tag,
+            docId: tag._id,
         });
 
         // Create content
@@ -60,9 +61,11 @@ export class TagRepository extends BaseRepository {
         // Save change, which will be sent to the API later
         await db.localChanges.put({
             doc: tagDto,
+            docId: tagDto._id,
         });
         return db.localChanges.put({
             doc: contentDto,
+            docId: contentDto._id,
         });
     }
 

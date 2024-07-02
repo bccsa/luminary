@@ -51,6 +51,7 @@ export type ContentDto = ContentBaseDto & {
     author?: string;
     summary?: string;
     text?: string;
+    parentType?: DocType;
 };
 
 export type TagDto = ContentBaseDto & {
@@ -120,6 +121,12 @@ export type ChangeReqAckDto = {
     ack: AckStatus;
     message?: string;
     doc?: any;
+};
+
+export type LocalChangeDto = {
+    id: number;
+    doc: BaseDocumentDto;
+    docId: Uuid;
 };
 
 export enum AclPermission {
