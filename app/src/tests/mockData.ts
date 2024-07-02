@@ -14,6 +14,7 @@ import {
     type Group,
     AclPermission,
 } from "@/types";
+import { PublishStatus } from "luminary-shared";
 import { DateTime } from "luxon";
 
 export const mockCategoryDto: TagDto = {
@@ -40,10 +41,12 @@ export const mockEnglishContentDto: ContentDto = {
     _id: "content-post1-eng",
     type: DocType.Content,
     parentId: "post-post1",
+    parentType: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
+    tags: ["tag-category1"],
     language: "lang-eng",
-    status: "published",
+    status: PublishStatus.Published,
     slug: "post1-eng",
     title: "Post 1",
     summary: "This is an example post",
@@ -54,6 +57,7 @@ export const mockEnglishContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
+    image: "test-image.jpg",
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
