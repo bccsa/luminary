@@ -25,6 +25,16 @@ export type BaseDocumentDto = {
     language?: Uuid;
 };
 
+export enum AclPermission {
+    View = "view",
+    Create = "create",
+    Edit = "edit",
+    Delete = "delete",
+    Assign = "assign",
+    Translate = "translate",
+    Publish = "publish",
+}
+
 export type GroupAclEntryDto = {
     type: DocType;
     groupId: Uuid;
@@ -132,21 +142,3 @@ export type LocalChangeDto = {
     doc: BaseDocumentDto;
     docId: Uuid;
 };
-
-export enum AclPermission {
-    View = "view",
-    Create = "create",
-    Edit = "edit",
-    Delete = "delete",
-    Assign = "assign",
-    Translate = "translate",
-    Publish = "publish",
-}
-
-export type AccessMap = {
-    [T: Uuid]: {
-        [U in DocType]?: { [V in AclPermission]?: boolean | undefined };
-    };
-};
-
-export type DocGroupAccess = { [a in DocType]?: Uuid[] };
