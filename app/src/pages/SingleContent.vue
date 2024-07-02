@@ -83,9 +83,9 @@ const text = computed(() => {
     </div>
     <article v-else class="mx-auto mb-12 max-w-3xl">
         <VideoPlayer v-if="content.video" :content-parent="parent!" :content="content" />
-        <img v-else :src="parent!.image" class="rounded-lg shadow-md" />
+        <img v-else :src="parent!.image" class="w-full rounded-lg object-cover shadow-md" />
 
-        <h1 class="mt-4 text-center text-2xl text-zinc-800 dark:text-zinc-50">
+        <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-zinc-50">
             {{ content.title }}
         </h1>
 
@@ -96,14 +96,14 @@ const text = computed(() => {
             {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
         </div>
 
-        <div class="mt-2 text-justify text-gray-800 dark:text-zinc-100" v-if="content.summary">
+        <div class="mt-12 text-justify text-gray-800 dark:text-zinc-100" v-if="content.summary">
             {{ content.summary }}
         </div>
 
         <div
             v-if="content.text"
             v-html="text"
-            class="prose prose-zinc mt-6 text-justify dark:prose-invert"
+            class="prose prose-zinc mt-6 max-w-3xl text-justify dark:prose-invert"
         ></div>
 
         <div class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500">
