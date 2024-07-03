@@ -475,18 +475,18 @@ class database extends Dexie {
         if (ack.ack == "rejected") {
             if (ack.doc) {
                 // Replace our local copy with the provided database version
-                await db.localChanges.update(ack.doc._id, ack.doc);
+                await this.localChanges.update(ack.doc._id, ack.doc);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
-                const change = await db.localChanges.get(ack.id);
+                const change = await this.localChanges.get(ack.id);
 
                 if (change?.doc) {
-                    await db.docs.delete(change.doc._id);
+                    await this.docs.delete(change.doc._id);
                 }
             }
         }
 
-        await db.localChanges.delete(ack.id);
+        await this.localChanges.delete(ack.id);
     }
 
     /**
@@ -495,7 +495,7 @@ class database extends Dexie {
     private whereNotMemberOfAsCollection(groupIds: Array<Uuid>, docType: DocType) {
         // Query groups and group changeDocs
         if (docType === DocType.Group) {
-            return db.docs.filter((group) => {
+            return this.docs.filter((group) => {
                 // Check if the ACL field exists
                 if (!group.acl) return false;
 
@@ -520,7 +520,7 @@ class database extends Dexie {
         }
 
         // Query other documents
-        return db.docs.filter((doc) => {
+        return this.docs.filter((doc) => {
             // Check if the memberOf field exists
             if (!doc.memberOf) return false;
 
@@ -551,14 +551,14 @@ class database extends Dexie {
                 if (docType === DocType.Post || docType === DocType.Tag) {
                     const revokedParents = await revokedDocs.toArray();
                     const revokedParentIds = revokedParents.map((p) => p._id);
-                    await db.docs.where("parentId").anyOf(revokedParentIds).delete();
+                    await this.docs.where("parentId").anyOf(revokedParentIds).delete();
                 }
 
                 // Delete associated Language content documents
                 if (docType === DocType.Language) {
                     const revokedLanguages = await revokedDocs.toArray();
                     const revokedlanguageIds = revokedLanguages.map((l) => l._id);
-                    await db.docs.where("language").anyOf(revokedlanguageIds).delete();
+                    await this.docs.where("language").anyOf(revokedlanguageIds).delete();
                 }
 
                 await revokedDocs.delete();
