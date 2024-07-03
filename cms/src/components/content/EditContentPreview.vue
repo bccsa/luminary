@@ -2,7 +2,7 @@
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { EyeIcon, ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
-import { ContentStatus, type ContentDto } from "luminary-shared";
+import { PublishStatus, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 
@@ -24,7 +24,7 @@ const liveUrl = computed(() => {
     <LCard
         title="View"
         :icon="EyeIcon"
-        v-if="content && content.status == ContentStatus.Published"
+        v-if="content && content.status == PublishStatus.Published"
         data-test="livePreview"
     >
         <LButton :icon="ArrowTopRightOnSquareIcon" iconRight is="a" :href="liveUrl" target="_blank"

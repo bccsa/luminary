@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
     db,
-    ContentStatus,
+    PublishStatus,
     DocType,
     type ContentDto,
     type LanguageDto,
@@ -24,7 +24,7 @@ type Props = {
     language: Uuid;
 };
 const props = defineProps<Props>();
-const content = db.whereParentAsRef<ContentDto[]>(props.parent._id, props.parentType, []);
+const content = db.whereParentAsRef(props.parent._id, props.parentType, undefined, []);
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []); // TODO: Move this to ContentTable and pass ref to ContentRow
 const isLocalChange = db.isLocalChangeAsRef(props.parent._id);
 
@@ -52,11 +52,11 @@ const translationStatus = computed(() => {
             return "default";
         }
 
-        if (item.status == ContentStatus.Published) {
+        if (item.status == PublishStatus.Published) {
             return "success";
         }
 
-        if (item.status == ContentStatus.Draft) {
+        if (item.status == PublishStatus.Draft) {
             return "info";
         }
 
