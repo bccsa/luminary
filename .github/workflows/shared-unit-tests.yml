@@ -3,9 +3,8 @@ name: Run luminary-shared Unit Tests
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    # test
     branches:
-      - main, refactor-data-model, move-socketio-to-shared
+      - main
     paths:
       - shared/**
       - .github/workflows/shared-unit-tests.yml
