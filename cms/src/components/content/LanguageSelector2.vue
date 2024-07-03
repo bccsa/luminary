@@ -4,7 +4,7 @@ import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import LBadge from "@/components/common/LBadge.vue";
 import {
     AclPermission,
-    ContentStatus,
+    PublishStatus,
     DocType,
     type ContentDto,
     type LanguageDto,
@@ -60,11 +60,11 @@ const untranslatedLanguages = computed(() => {
 
 const translationStatus = computed(() => {
     return (content: ContentDto | undefined) => {
-        if (content?.status == ContentStatus.Published) {
+        if (content?.status == PublishStatus.Published) {
             return "success";
         }
 
-        if (content?.status == ContentStatus.Draft) {
+        if (content?.status == PublishStatus.Draft) {
             return "info";
         }
 

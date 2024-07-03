@@ -6,7 +6,7 @@ import { useNotificationStore } from "@/stores/notification";
 import {
     db,
     AclPermission,
-    ContentStatus,
+    PublishStatus,
     DocType,
     TagType,
     type ContentDto,
@@ -71,7 +71,7 @@ if (!newDocument) {
     });
 
     // In the same way as the parent document, get a copy of the content documents
-    db.whereParent<ContentDto[]>(parentId, props.docType).then((doc) => {
+    db.whereParent(parentId, props.docType).then((doc) => {
         contentDocs.value.push(...doc);
         contentDocsPrev.value = _.cloneDeep(doc);
     });
@@ -124,9 +124,10 @@ const createTranslation = (language: LanguageDto) => {
         parentId: parent.value._id,
         parentType: props.docType,
         language: language._id,
-        status: ContentStatus.Draft,
+        status: PublishStatus.Draft,
         title: `Translation for ${language.name}`,
         slug: "",
+        tags: [],
     });
     selectedLanguageId.value = language._id;
 };
