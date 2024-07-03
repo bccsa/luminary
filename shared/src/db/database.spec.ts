@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
-
+import waitForExpect from "wait-for-expect";
 import {
     mockCategoryContentDto,
     mockCategoryDto,
@@ -12,9 +12,8 @@ import {
     mockPostDto,
 } from "../tests/mockData";
 
-import { DocType, TagType, type ContentDto, type PostDto, type TagDto } from "../types";
+import { AckStatus, DocType, TagType, type ContentDto, type PostDto, type TagDto } from "../types";
 import { db } from "../db/database";
-import waitForExpect from "wait-for-expect";
 
 describe("baseDatabase.ts", () => {
     beforeEach(async () => {
@@ -453,5 +452,51 @@ describe("baseDatabase.ts", () => {
         // Check if the document is in the database
         const post = await db.get<PostDto>(mockPostDto._id);
         expect(post).toEqual(mockPostDto);
+    });
+
+    it("can apply a successful change request acknowledgement", async () => {
+        // Queue a local change
+        await db.upsert(mockPostDto);
+        const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).first();
+        expect(localChange).toBeDefined();
+
+        // Apply the local change
+        await db.applyLocalChangeAck({ id: localChange!.id!, ack: AckStatus.Accepted });
+
+        // Check if the local change is removed
+        const localChangeAfter = await db.localChanges
+            .where("docId")
+            .equals(mockPostDto._id)
+            .first();
+        expect(localChangeAfter).toBeUndefined();
+    });
+
+    it("can apply a failed change request acknowledgement", async () => {
+        // Queue a local change
+        await db.upsert(mockEnglishContentDto);
+        const localChange = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChange).toBeDefined();
+
+        // Apply the local change
+        const ackDoc = { ...mockEnglishContentDto, title: "Old Title 123" };
+        await db.applyLocalChangeAck({
+            id: localChange!.id!,
+            ack: AckStatus.Rejected,
+            doc: ackDoc,
+        });
+
+        // Check if the local change is removed
+        const localChangeAfter = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChangeAfter).toBeUndefined();
+
+        // Check if the document is updated with the acked document
+        const post = await db.get<ContentDto>(mockEnglishContentDto._id);
+        expect(post).toEqual(ackDoc);
     });
 });
