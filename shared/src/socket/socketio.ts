@@ -26,7 +26,6 @@ export class Socketio {
 
     /**
      * Create a new socketio instance
-     * @param socketUrl - URL of the socket server
      * @param token - Access token
      */
     constructor(token?: string) {
@@ -34,17 +33,7 @@ export class Socketio {
 
         this.socket.on("connect", () => {
             this._isConnected.value = true;
-
-            // Request documents that are newer than the last received version
-            const syncVersionString = localStorage.getItem("syncVersion");
-            let syncVersion = 0;
-            if (syncVersionString) syncVersion = Number.parseInt(syncVersionString);
-
-            this.socket!.emit("clientDataReq", {
-                version: syncVersion,
-                cms: config.isCms,
-                accessMap: accessMap.value,
-            });
+            this.requestData();
         });
 
         this.socket.on("disconnect", () => {
@@ -79,6 +68,35 @@ export class Socketio {
                 }
             },
         );
+    }
+
+    /**
+     * Disconnect and reconnect to the socket server
+     * @param token - Access token
+     */
+    public reconnect(token?: string) {
+        this.socket.disconnect();
+        this._isConnected.value = false;
+        this.socket.auth = { token };
+        this.socket.connect();
+    }
+
+    /**
+     * Send a clientDataReq message to the server. This is automatically called upon
+     * connection to the server, but in some cases it may be necessary to request it manually
+     * (e.g. after clearing local data).
+     */
+    public requestData() {
+        // Request documents that are newer than the last received version
+        const syncVersionString = localStorage.getItem("syncVersion");
+        let syncVersion = 0;
+        if (syncVersionString) syncVersion = Number.parseInt(syncVersionString);
+
+        this.socket!.emit("clientDataReq", {
+            version: syncVersion,
+            cms: config.isCms,
+            accessMap: accessMap.value,
+        });
     }
 
     /**
