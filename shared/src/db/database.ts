@@ -469,20 +469,6 @@ class database extends Dexie {
     }
 
     /**
-     * Get a local change by its id
-     */
-    // getLocalChange(id: number) {
-    //     return this.localChanges.where("id").equals(id).first();
-    // }
-
-    /**
-     * Delete a local change by its id
-     */
-    // deleteLocalChange(id: number) {
-    //     return this.localChanges.where("id").equals(id).delete();
-    // }
-
-    /**
      * Apply a change request ack from the API
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto) {
