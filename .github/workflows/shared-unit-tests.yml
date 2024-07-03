@@ -3,6 +3,7 @@ name: Run luminary-shared Unit Tests
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    # test
     branches:
       - main, refactor-data-model
     paths:
