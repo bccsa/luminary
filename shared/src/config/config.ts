@@ -18,6 +18,10 @@ class Config {
      */
     public readonly appUrl = import.meta.env.VITE_APP_URL;
     /**
+     * CMS mode flag imported from Vite environment variable VITE_IS_CMS
+     */
+    public readonly isCms = import.meta.env.VITE_IS_CMS;
+    /**
      * Development mode flag imported from Vite environment variable DEV
      */
     public readonly isDevMode = import.meta.env.DEV;

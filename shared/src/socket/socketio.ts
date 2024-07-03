@@ -29,8 +29,8 @@ export class Socketio {
      * @param socketUrl - URL of the socket server
      * @param token - Access token
      */
-    constructor(socketUrl: string, token?: string) {
-        this.socket = io(socketUrl, token ? { auth: { token } } : undefined);
+    constructor(token?: string) {
+        this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
 
         this.socket.on("connect", () => {
             this._isConnected.value = true;
@@ -42,7 +42,7 @@ export class Socketio {
 
             this.socket!.emit("clientDataReq", {
                 version: syncVersion,
-                cms: true,
+                cms: config.isCms,
                 accessMap: accessMap.value,
             });
         });
