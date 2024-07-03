@@ -21,6 +21,7 @@
     "type-check": "vue-tsc --noEmit && vite build"
   },
   "dependencies": {
+    "@auth0/auth0-vue": "^2.3.3",
     "@vueuse/core": "^10.11.0",
     "@vueuse/rxjs": "^10.7.2",
     "dexie": "^3.2.7",
