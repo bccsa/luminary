@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     # test
     branches:
-      - main, refactor-data-model
+      - main, refactor-data-model, move-socketio-to-shared
     paths:
       - shared/**
       - .github/workflows/shared-unit-tests.yml
