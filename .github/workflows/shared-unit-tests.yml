@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - main
+      - main, refactor-data-model
     paths:
       - shared/**
       - .github/workflows/shared-unit-tests.yml
