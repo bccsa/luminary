@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ContentStatus, type ContentDto, type LanguageDto } from "luminary-shared";
+import { PublishStatus, type ContentDto, type LanguageDto } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { XCircleIcon } from "@heroicons/vue/20/solid";
@@ -56,7 +56,7 @@ watch(
         );
 
         validate("A publish date is required", "publishDate", validations.value, content, () => {
-            if (content.status == ContentStatus.Draft) return true;
+            if (content.status == PublishStatus.Draft) return true;
             return content.publishDate != undefined && content.publishDate != null;
         });
 

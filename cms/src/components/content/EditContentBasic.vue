@@ -5,11 +5,10 @@ import LCard from "@/components/common/LCard.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { PencilIcon, ChevronLeftIcon } from "@heroicons/vue/16/solid";
-import { ContentStatus, type ContentDto } from "@/types";
+import { PublishStatus, type ContentDto, db } from "luminary-shared";
 import { nextTick, ref, watch } from "vue";
 import { DateTime } from "luxon";
 import { Slug } from "@/util/slug";
-import { db } from "@/db/baseDatabase";
 import { watchDeep } from "@vueuse/core";
 
 type Props = {
@@ -57,7 +56,7 @@ watch(
         // Auto-update the slug if the title changes when in draft mode (unless the slug has been manually changed)
         if (
             titleChanged &&
-            content.value.status == ContentStatus.Draft &&
+            content.value.status == PublishStatus.Draft &&
             content.value.slug.replace(/-[0-9]*$/g, "") ==
                 Slug.generateNonUnique(previousTitle).replace(/-[0-9]*$/g, "")
         ) {
@@ -177,13 +176,13 @@ watch(
     content,
     () => {
         if (!content.value) return;
-        publishStatus.value = content.value.status == ContentStatus.Published;
+        publishStatus.value = content.value.status == PublishStatus.Published;
     },
     { immediate: true },
 );
 watch(publishStatus, () => {
     if (!content.value) return;
-    content.value.status = publishStatus.value ? ContentStatus.Published : ContentStatus.Draft;
+    content.value.status = publishStatus.value ? PublishStatus.Published : PublishStatus.Draft;
 });
 </script>
 
