@@ -46,7 +46,6 @@ describe("ContentTile", () => {
             },
         });
 
-        console.log(wrapper.html());
         expect(wrapper.text()).toContain("Post 1");
         expect(wrapper.text()).toContain("Jan 1, 2024");
     });
