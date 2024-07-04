@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DocType, db, type ContentDto, type PostDto, type TagDto } from "luminary-shared";
+import { DocType, db, type ContentDto } from "luminary-shared";
 import VideoPlayer from "@/components/posts/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
@@ -14,40 +14,23 @@ type Props = {
 const props = defineProps<Props>();
 
 const content = db.getBySlugAsRef<ContentDto>(props.slug);
-const parent = ref<PostDto | TagDto | undefined>();
-const tagsContent = ref<ContentDto[] | undefined>([]);
+const tagsContent = ref<ContentDto[]>([]);
 
 watch(
     content,
     async () => {
-        if (content.value) {
-            parent.value = await db.get<PostDto | TagDto>(content.value.parentId);
-        }
+        if (!content.value) return;
+        tagsContent.value = await db.whereParent(
+            content.value.tags,
+            DocType.Tag,
+            content.value.language,
+        );
     },
-    { once: true },
-);
-
-watch(
-    parent,
-    async () => {
-        if (parent.value) {
-            const datas = await db.whereParent(
-                parent.value.tags,
-                DocType.Tag,
-                parent.value.language,
-            );
-
-            const result = datas.filter((d) => d.language == content.value.language);
-            tagsContent.value = result;
-        }
-    },
-    { once: true },
+    { immediate: true },
 );
 
 const isLoading = computed(() => {
-    return (
-        content.value == undefined || parent.value == undefined || tagsContent.value == undefined
-    );
+    return content.value == undefined;
 });
 
 const text = computed(() => {
@@ -82,8 +65,8 @@ const text = computed(() => {
         <LoadingSpinner />
     </div>
     <article v-else class="mx-auto mb-12 max-w-3xl">
-        <VideoPlayer v-if="content.video" :content-parent="parent!" :content="content" />
-        <img v-else :src="parent!.image" class="w-full rounded-lg object-cover shadow-md" />
+        <VideoPlayer v-if="content.video" :content="content" />
+        <img v-else :src="content.image" class="w-full rounded-lg object-cover shadow-md" />
 
         <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-zinc-50">
             {{ content.title }}
@@ -110,11 +93,11 @@ const text = computed(() => {
             <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3>
             <div class="flex gap-3">
                 <span
-                    v-for="tag in tagsContent?.map((tag) => tag.title) || []"
-                    :key="tag"
+                    v-for="tag in tagsContent"
+                    :key="tag._id"
                     class="inline-block rounded bg-yellow-300 px-1.5 py-1 text-sm text-yellow-950 shadow"
                 >
-                    {{ tag }}
+                    {{ tag.title }}
                 </span>
             </div>
         </div>
