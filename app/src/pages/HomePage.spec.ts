@@ -76,7 +76,6 @@ describe("HomePage", () => {
     it("does not display an empty category", async () => {
         const wrapper = mount(HomePage);
 
-        console.log(wrapper.html());
         expect(wrapper.text()).not.toContain(undefined);
     });
 
