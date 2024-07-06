@@ -14,11 +14,12 @@ import {
     type PostDto,
     type TagDto,
     type Uuid,
+    verifyAccess,
 } from "luminary-shared";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
-import { useUserAccessStore } from "@/stores/userAccess";
+
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
@@ -39,7 +40,6 @@ type Props = {
 const props = defineProps<Props>();
 
 const { addNotification } = useNotificationStore();
-const { verifyAccess } = useUserAccessStore();
 
 // Generate new parent id if it is a new document
 const parentId = props.id == "new" ? db.uuid() : props.id;

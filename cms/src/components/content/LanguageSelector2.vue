@@ -11,13 +11,11 @@ import {
     type PostDto,
     type TagDto,
     type Uuid,
+    verifyAccess,
 } from "luminary-shared";
 import { computed } from "vue";
 import { ArrowRightIcon, CheckCircleIcon } from "@heroicons/vue/16/solid";
 import { sortByName } from "@/util/sortByName";
-import { useUserAccessStore } from "@/stores/userAccess";
-
-const { verifyAccess } = useUserAccessStore();
 
 type Props = {
     parent?: PostDto | TagDto;

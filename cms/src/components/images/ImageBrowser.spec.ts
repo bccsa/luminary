@@ -1,11 +1,12 @@
+import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { db } from "@/db/baseDatabase";
+import { db } from "luminary-shared";
 import ImageBrowser from "./ImageBrowser.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
-import { mockImage } from "@/tests/mockData";
+import { mockImageDto } from "@/tests/mockData";
 
 describe("ImageBrowser", () => {
     beforeAll(async () => {
@@ -29,7 +30,7 @@ describe("ImageBrowser", () => {
 
     it("can create a new image document", async () => {
         const upsertSpy = vi.spyOn(db, "upsert");
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImage));
+        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
 
         const wrapper = mount(ImageBrowser);
 

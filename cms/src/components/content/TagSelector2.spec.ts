@@ -2,11 +2,9 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-
 import { setActivePinia } from "pinia";
-import { useUserAccessStore } from "@/stores/userAccess";
 import TagSelector2 from "./TagSelector2.vue";
-import { db, TagType, type ContentDto } from "luminary-shared";
+import { db, TagType, type ContentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
@@ -31,8 +29,7 @@ describe("TagSelector2.vue", () => {
 
         setActivePinia(createTestingPinia());
 
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
     afterEach(async () => {

@@ -1,17 +1,18 @@
+import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
 import LImage from "./LImage.vue";
 import { describe, expect, it, vi } from "vitest";
-import { db } from "@/db/baseDatabase";
+import { db } from "luminary-shared";
 import { ref } from "vue";
-import { mockImage } from "@/tests/mockData";
+import { mockImageDto } from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 
 describe("LImage", () => {
     it("displays an image", async () => {
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImage));
+        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
         const wrapper = mount(LImage, {
             propsData: {
-                image: mockImage,
+                image: mockImageDto,
                 aspectRatio: "video",
                 size: "thumbnail",
                 baseUrl: "@/tests",
