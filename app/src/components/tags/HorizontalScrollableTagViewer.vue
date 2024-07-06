@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ContentTile from "@/components/posts/ContentTile.vue";
+import ContentTile from "@/components/content/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref, watch } from "vue";
 import { useResizeObserver } from "@vueuse/core";
@@ -80,8 +80,6 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 </script>
 
 <template>
-    <!-- <div class="text-sm text-black" v-for="doc in taggedDocs" :key="doc._id">{{ doc._id }}</div> -->
-
     <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
         <h2 class="truncate px-6">
             {{ tagTitle }}
