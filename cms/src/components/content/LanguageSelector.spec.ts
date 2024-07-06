@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockData";
 import { setActivePinia } from "pinia";
-import LanguageSelector2 from "./LanguageSelector2.vue";
+import LanguageSelector2 from "./LanguageSelector.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import { PublishStatus, accessMap } from "luminary-shared";
 

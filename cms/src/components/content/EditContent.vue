@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
-import LanguageSelector2 from "@/components/content/LanguageSelector2.vue";
+import LanguageSelector2 from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
 import {
     db,

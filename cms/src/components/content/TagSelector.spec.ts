@@ -3,7 +3,7 @@ import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
-import TagSelector2 from "./TagSelector2.vue";
+import TagSelector2 from "./TagSelector.vue";
 import { db, TagType, type ContentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";

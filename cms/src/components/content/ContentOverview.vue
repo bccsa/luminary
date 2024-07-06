@@ -17,7 +17,7 @@ import {
     hasAnyPermission,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
-import ContentTable2 from "@/components/content/ContentTable2.vue";
+import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
@@ -114,7 +114,7 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
             data-test="no-content"
         />
 
-        <ContentTable2
+        <ContentTable
             v-else
             :contentParents="contentParents"
             :docType="docType"
