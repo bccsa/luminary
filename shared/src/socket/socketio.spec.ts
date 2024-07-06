@@ -1,13 +1,13 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from "vitest";
+import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
 import { mockEnglishContentDto, mockPostDto } from "../tests/mockData";
-import { Socketio } from "./socketio";
+import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
 import { Server } from "socket.io";
 import { db } from "../db/database";
 import { AckStatus, ChangeReqDto, DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
-import { config } from "../config/config";
 
 vi.mock("../config/config", () => ({
     config: {
@@ -18,13 +18,23 @@ vi.mock("../config/config", () => ({
     },
 }));
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 describe("socketio", () => {
     const socketServer = new Server(12345);
 
-    beforeEach(() => {});
+    beforeAll(() => {
+        // initialize the socket client
+        const socket = getSocket({
+            apiUrl: "http://localhost:12345",
+            cms: true,
+        });
+        socket.disconnect();
+    });
 
     afterEach(() => {
         vi.clearAllMocks();
+        getSocket().disconnect();
         socketServer.removeAllListeners();
     });
 
@@ -36,18 +46,133 @@ describe("socketio", () => {
         await db.localChanges.clear();
     });
 
+    it("will not sync via the watcher if there are multiple changes when online", async () => {
+        // This test needs to be executed first, as it relies on the socket class not being instantiated
+        // put more than 1 local change in the database without triggering the watcher
+
+        // Mock the event listener from the server
+        let changeReq;
+        socketServer.on("connection", (socket) => {
+            socket.on("changeRequest", (data) => {
+                changeReq = data;
+            });
+        });
+        // force the connection status to true to prevent the watcher from syncing immediately;
+        isConnected.value = true;
+
+        // Connect to the server
+        getSocket({ reconnect: true });
+
+        // Wait for the connection to be established
+        await waitForExpect(() => {
+            isConnected.value = true;
+        });
+
+        flushPromises();
+
+        // Create multiple local changes
+        await db.localChanges.bulkPut([
+            {
+                id: 1234,
+                doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
+            },
+            {
+                id: 1235,
+                doc: { _id: "test-doc2", type: DocType.Post, updatedTimeUtc: 1234 },
+            },
+        ]);
+
+        // Check that the server should not receive a change request.
+        await wait(1000);
+        expect(changeReq).toBeUndefined();
+    });
+
+    it("will immediately sync when online", async () => {
+        // Mock the event listener from the server
+        let changeReq;
+        socketServer.on("connection", (socket) => {
+            socket.on("changeRequest", (data) => {
+                changeReq = data;
+            });
+        });
+
+        // Connect to the server
+        getSocket({ reconnect: true });
+
+        // Create a local change
+        await db.localChanges.put({
+            id: 1234,
+            doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
+        });
+        const localChange = await db.localChanges.get(1234);
+        expect(localChange).toBeDefined();
+
+        // Check if the server received the change request
+        await waitForExpect(() => {
+            expect(changeReq).toEqual(localChange);
+        });
+    });
+
+    it("will start syncing when coming online after being offline", async () => {
+        // Mock the event listener from the server
+        let changeReq;
+        socketServer.on("connection", (socket) => {
+            socket.on("changeRequest", (data) => {
+                changeReq = data;
+            });
+        });
+
+        // Create a local change
+        await db.localChanges.put({
+            id: 1234,
+            doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
+        });
+        const localChange = await db.localChanges.get(1234);
+        expect(localChange).toBeDefined();
+
+        // check that the local change is not sent to the server
+        await wait(1000);
+        expect(changeReq).toBeUndefined();
+
+        // Connect to the server
+        getSocket({ reconnect: true });
+
+        // Check if the server received the change request
+        await waitForExpect(() => {
+            expect(changeReq).toEqual(localChange);
+        });
+    });
+
+    it("can set the sync version", async () => {
+        localStorage.setItem("syncVersion", "0");
+        await waitForExpect(() => {
+            expect(db.syncVersion).toBe(0);
+        });
+
+        socketServer.on("connection", (socket) => {
+            socket.emit("data", { docs: [], version: 42 });
+        });
+        getSocket({ reconnect: true });
+
+        await waitForExpect(() => {
+            expect(db.syncVersion).toBe(42);
+            expect(localStorage.getItem("syncVersion")).toBe("42");
+        });
+    });
+
     it("can connect to a socket server and set the connection status", async () => {
         let serverConnectCalled = false;
         socketServer.on("connection", () => {
             serverConnectCalled = true;
         });
 
-        const socketClient = new Socketio();
-        expect(socketClient.isConnected.value).toEqual(false); // Should be false immediately after creating the instance
+        expect(isConnected.value).toEqual(false); // Should be false immediately after creating the instance
+
+        getSocket({ reconnect: true });
 
         await waitForExpect(() => {
             expect(serverConnectCalled).toEqual(true);
-            expect(socketClient.isConnected.value).toEqual(true);
+            expect(isConnected.value).toEqual(true);
         });
     });
 
@@ -59,7 +184,7 @@ describe("socketio", () => {
             });
         });
 
-        new Socketio();
+        getSocket({ reconnect: true });
 
         let lastUpdatedTime = localStorage.getItem("syncVersion");
         if (typeof lastUpdatedTime !== "string") lastUpdatedTime = "0";
@@ -79,25 +204,25 @@ describe("socketio", () => {
             serverConnectCalled = true;
         });
 
-        const socketClient = new Socketio();
+        getSocket({ reconnect: true });
 
         await waitForExpect(() => {
             expect(serverConnectCalled).toEqual(true);
-            expect(socketClient.isConnected.value).toEqual(true);
+            expect(isConnected.value).toEqual(true);
         });
 
         serverConnectCalled = false;
-        socketClient.reconnect();
-        expect(socketClient.isConnected.value).toEqual(false);
+        getSocket({ reconnect: true }).reconnect();
+        expect(isConnected.value).toEqual(false);
 
         await waitForExpect(() => {
             expect(serverConnectCalled).toEqual(true);
-            expect(socketClient.isConnected.value).toEqual(true);
+            expect(isConnected.value).toEqual(true);
         });
     });
 
     it("can manually request data from the api", async () => {
-        new Socketio();
+        getSocket({ reconnect: true });
 
         let lastUpdatedTime = localStorage.getItem("syncVersion");
         if (typeof lastUpdatedTime !== "string") lastUpdatedTime = "0";
@@ -122,7 +247,7 @@ describe("socketio", () => {
         socketServer.on("connection", (socket) => {
             socket.emit("data", { docs: [mockPostDto, mockEnglishContentDto], version: 42 });
         });
-        new Socketio();
+        getSocket({ reconnect: true });
 
         await waitForExpect(async () => {
             const result = await db.docs.toArray();
@@ -142,13 +267,13 @@ describe("socketio", () => {
                 changeReq = data;
             });
         });
-        new Socketio();
+        getSocket({ reconnect: true });
 
         const localChange: ChangeReqDto = {
             id: 1234,
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
         };
-        await db.localChanges.add(localChange);
+        await db.localChanges.put(localChange);
 
         await waitForExpect(() => {
             expect(changeReq).toEqual(localChange);
@@ -169,8 +294,7 @@ describe("socketio", () => {
             socket.emit("changeRequestAck", { id: 1234, ack: AckStatus.Accepted });
         });
 
-        // Create a new socket client
-        new Socketio();
+        getSocket({ reconnect: true });
 
         await waitForExpect(async () => {
             // Check if the local change was removed
@@ -196,11 +320,11 @@ describe("socketio", () => {
             socket.emit("clientConfig", clientConfig);
         });
 
-        new Socketio();
+        getSocket({ reconnect: true });
 
         await waitForExpect(() => {
             expect(accessMap.value).toEqual(clientConfig.accessMap);
-            expect(config.maxUploadFileSize).toEqual(clientConfig.maxUploadFileSize);
+            expect(maxUploadFileSize.value).toEqual(clientConfig.maxUploadFileSize);
         });
     });
 });
