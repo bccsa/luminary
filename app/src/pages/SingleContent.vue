@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DocType, db, type ContentDto } from "luminary-shared";
-import VideoPlayer from "@/components/posts/VideoPlayer.vue";
+import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
