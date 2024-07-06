@@ -14,8 +14,8 @@ import {
     type PostDto,
     type TagDto,
     type Uuid,
+    hasAnyPermission,
 } from "luminary-shared";
-import { useUserAccessStore } from "@/stores/userAccess";
 import { computed, ref, watch } from "vue";
 import ContentTable2 from "@/components/content/ContentTable2.vue";
 import LSelect from "../forms/LSelect.vue";
@@ -48,8 +48,6 @@ watch(
     },
     { once: true },
 );
-
-const { hasAnyPermission } = useUserAccessStore();
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Create));
 

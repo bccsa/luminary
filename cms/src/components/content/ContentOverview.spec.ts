@@ -3,11 +3,9 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
-import { db } from "luminary-shared";
+import { db, accessMap, DocType } from "luminary-shared";
 import * as mockData from "@/tests/mockData";
 import { setActivePinia } from "pinia";
-import { useUserAccessStore } from "@/stores/userAccess";
-import { DocType } from "@/types";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
@@ -24,8 +22,7 @@ describe("ContentOverview.vue", () => {
 
         setActivePinia(createTestingPinia());
 
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
     afterEach(async () => {
@@ -77,8 +74,7 @@ describe("ContentOverview.vue", () => {
     });
 
     it("should show view icon with correct router link if no edit permission", async () => {
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = mockData.viewAccessToAllContentMap;
+        accessMap.value = mockData.viewAccessToAllContentMap;
 
         const wrapper = mount(ContentOverview, {
             global: {

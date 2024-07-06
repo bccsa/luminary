@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { describe, it, afterEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockData";

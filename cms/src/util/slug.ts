@@ -1,5 +1,5 @@
 import { slugify } from "transliteration";
-import { db } from "@/db/baseDatabase";
+import { db } from "luminary-shared";
 import type { Uuid } from "@/types";
 
 /**

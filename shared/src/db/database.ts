@@ -16,7 +16,7 @@ import { type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
-import { AccessMap, accessMap, accessMapToGroups } from "../permissions/permissions";
+import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 
 export type queryOptions = {
     filterOptions?: {
@@ -72,8 +72,8 @@ class database extends Dexie {
         // Listen for changes to the access map and delete documents that the user no longer has access to
         watch(
             this.accessMapRef,
-            (newAccessMap) => {
-                this.deleteRevoked(newAccessMap);
+            () => {
+                this.deleteRevoked();
             },
             { immediate: true },
         );
@@ -84,6 +84,20 @@ class database extends Dexie {
      */
     uuid() {
         return uuidv4();
+    }
+
+    /**
+     * Set the sync version as received from the api
+     */
+    set syncVersion(value: number) {
+        localStorage.setItem("syncVersion", value.toString());
+    }
+
+    /**
+     * Get the stored sync version
+     */
+    get syncVersion(): number {
+        return parseInt(localStorage.getItem("syncVersion") || "0");
     }
 
     /**
@@ -536,8 +550,8 @@ class database extends Dexie {
     /**
      * Delete documents to which access has been revoked
      */
-    private deleteRevoked(accessMap: AccessMap) {
-        const groupsPerDocType = accessMapToGroups(accessMap, AclPermission.View);
+    private deleteRevoked() {
+        const groupsPerDocType = getAccessibleGroups(AclPermission.View);
 
         Object.values(DocType)
             .filter((t) => !(t == DocType.Change || t == DocType.Content))
@@ -563,6 +577,14 @@ class database extends Dexie {
 
                 await revokedDocs.delete();
             });
+    }
+
+    /**
+     * Purge the local database
+     */
+    async purge() {
+        await Promise.all([this.docs.clear(), this.localChanges.clear()]);
+        this.syncVersion = 0;
     }
 }
 

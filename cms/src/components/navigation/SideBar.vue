@@ -11,14 +11,21 @@ import {
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { ref, watch } from "vue";
-import { useUserAccessStore } from "@/stores/userAccess";
-import { AclPermission, DocType, TagType } from "@/types";
+import { AclPermission, DocType, TagType, hasAnyPermission } from "luminary-shared";
 
 const { appName, isDevMode } = useGlobalConfigStore();
-const { hasAnyPermission } = useUserAccessStore();
 const route = useRoute();
 
-const navigation = ref([
+type NavigationEntry = {
+    name: string;
+    to?: { name: string; params?: Record<string, string | number> };
+    icon?: any;
+    open?: boolean;
+    visible?: boolean;
+    children?: NavigationEntry[];
+};
+
+const navigation = ref<NavigationEntry[]>([
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
     {
         name: "Posts",
@@ -36,18 +43,18 @@ const navigation = ref([
             to: { name: "overview", params: { docType: DocType.Tag, tagType: t[1] } },
         })),
     },
-    {
-        name: "Users",
-        to: { name: "users" },
-        icon: UsersIcon,
-        visible: hasAnyPermission(DocType.User, AclPermission.View),
-    },
-    {
-        name: "Groups",
-        to: { name: "groups" },
-        icon: RectangleStackIcon,
-        visible: hasAnyPermission(DocType.Group, AclPermission.View),
-    },
+    // {
+    //     name: "Users",
+    //     to: { name: "users" },
+    //     icon: UsersIcon,
+    //     visible: hasAnyPermission(DocType.User, AclPermission.View),
+    // },
+    // {
+    //     name: "Groups",
+    //     to: { name: "groups" },
+    //     icon: RectangleStackIcon,
+    //     visible: hasAnyPermission(DocType.Group, AclPermission.View),
+    // },
 ]);
 
 watch(route, (newRoute) => {
@@ -55,7 +62,7 @@ watch(route, (newRoute) => {
         if (!item.children) return item;
 
         item.children.forEach((subItem) => {
-            if (subItem.to.name == newRoute.name) {
+            if (subItem.to?.name == newRoute.name) {
                 item.open = true;
             }
         });
@@ -84,7 +91,7 @@ watch(route, (newRoute) => {
                     <ul role="list" class="-mx-2 space-y-1">
                         <li v-for="item in navigation" :key="item.name">
                             <RouterLink
-                                v-if="item.visible && !item.children"
+                                v-if="item.visible && !item.children && item.to"
                                 :to="item.to"
                                 active-class="bg-zinc-200 text-zinc-950"
                                 class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"

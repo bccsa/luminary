@@ -1,18 +1,18 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockData";
 import { setActivePinia } from "pinia";
-import { useUserAccessStore } from "@/stores/userAccess";
 import LanguageSelector2 from "./LanguageSelector2.vue";
 import LBadge from "@/components/common/LBadge.vue";
+import { PublishStatus, accessMap } from "luminary-shared";
 
 describe("LanguageSelector2.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
     afterAll(() => {
@@ -100,7 +100,7 @@ describe("LanguageSelector2.vue", () => {
                 ],
                 content: [
                     mockData.mockEnglishContentDto,
-                    { ...mockData.mockFrenchContentDto, status: "draft" },
+                    { ...mockData.mockFrenchContentDto, status: PublishStatus.Draft },
                 ],
             },
             global: {

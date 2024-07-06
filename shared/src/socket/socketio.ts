@@ -1,9 +1,9 @@
 import { io, Socket } from "socket.io-client";
-import { readonly, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
-import { setAccessMap, accessMap, AccessMap } from "../permissions/permissions";
+import { accessMap, AccessMap } from "../permissions/permissions";
 import { db } from "../db/database";
-import { config } from "../config/config";
+import { useLocalStorage } from "@vueuse/core";
 
 /**
  * Client configuration type definition
@@ -13,48 +13,57 @@ type ClientConfig = {
     maxUploadFileSize: number;
 };
 
-export class Socketio {
+/**
+ * Connection status as a Vue ref
+ */
+export const isConnected = ref(false);
+
+/**
+ * Maximum file size for uploads in bytes as a Vue ref
+ */
+export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
+
+class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
     private localChanges = db.getLocalChangesAsRef();
-
-    private _isConnected = ref(false);
-    /**
-     * Socket.io connection status as a Vue readonly ref
-     */
-    public isConnected = readonly(this._isConnected);
+    private isCms: boolean;
 
     /**
      * Create a new socketio instance
+     * @param apiUrl - Socket.io endpoint URL
+     * @param cms - CMS mode flag
      * @param token - Access token
      */
-    constructor(token?: string) {
-        this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
+    constructor(apiUrl: string, cms: boolean = false, token?: string) {
+        this.isCms = cms;
+
+        this.socket = io(apiUrl, token ? { auth: { token } } : undefined);
 
         this.socket.on("connect", () => {
-            this._isConnected.value = true;
+            isConnected.value = true;
             this.requestData();
         });
 
         this.socket.on("disconnect", () => {
-            this._isConnected.value = false;
+            isConnected.value = false;
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
             await db.bulkPut(data.docs);
-            if (data.version) localStorage.setItem("syncVersion", data.version.toString());
+            if (data.version != undefined) db.syncVersion = data.version;
         });
 
         this.socket.on("changeRequestAck", this.handleAck.bind(this));
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
-            if (c.accessMap) setAccessMap(c.accessMap);
-            if (c.maxUploadFileSize) config.setMaxUploadFileSize(c.maxUploadFileSize);
+            if (c.accessMap) accessMap.value = c.accessMap;
+            if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
         });
 
         // watch for local changes
         watch(
-            [this.isConnected, this.localChanges],
+            [isConnected, this.localChanges],
             async ([isConnected, localChanges], [wasConnected]) => {
                 if (!localChanges || localChanges.length == 0) {
                     return;
@@ -67,17 +76,25 @@ export class Socketio {
                     this.pushLocalChange(localChanges[0]);
                 }
             },
+            { immediate: true },
         );
     }
 
     /**
-     * Disconnect and reconnect to the socket server
-     * @param token - Access token
+     * Disconnect from the socket server
      */
-    public reconnect(token?: string) {
+    public disconnect() {
         this.socket.disconnect();
-        this._isConnected.value = false;
-        this.socket.auth = { token };
+        // Force the connection status to false without waiting for the disconnect event
+        isConnected.value = false;
+    }
+
+    /**
+     * Disconnect and reconnect to the socket server
+     */
+    public reconnect() {
+        this.socket.disconnect();
+        isConnected.value = false;
         this.socket.connect();
     }
 
@@ -88,13 +105,9 @@ export class Socketio {
      */
     public requestData() {
         // Request documents that are newer than the last received version
-        const syncVersionString = localStorage.getItem("syncVersion");
-        let syncVersion = 0;
-        if (syncVersionString) syncVersion = Number.parseInt(syncVersionString);
-
-        this.socket!.emit("clientDataReq", {
-            version: syncVersion,
-            cms: config.isCms,
+        this.socket.emit("clientDataReq", {
+            version: db.syncVersion,
+            cms: this.isCms,
             accessMap: accessMap.value,
         });
     }
@@ -127,4 +140,45 @@ export class Socketio {
             this.pushLocalChange(this.localChanges.value[0]);
         }
     }
+}
+
+type socketConnectionOptions = {
+    /**
+     * Socket.io endpoint URL
+     */
+    apiUrl?: string;
+    /**
+     * CMS mode flag
+     */
+    cms?: boolean;
+    /**
+     * Access token
+     */
+    token?: string;
+    /**
+     * Force a reconnect to the server if the socket already exists
+     */
+    reconnect?: boolean;
+};
+
+let socket: Socketio;
+
+/**
+ * Returns a singleton instance of the socketio client class. The api URL, token and CMS flag is only used when calling the function for the first time.
+ * @param options - Socket connection options
+ */
+export function getSocket(options?: socketConnectionOptions) {
+    if (!socket) {
+        if (!options) {
+            throw new Error("Socket connection requires options object");
+        }
+        if (!options.apiUrl) {
+            throw new Error("Socket connection requires an API URL");
+        }
+        if (!options.cms) options.cms = false;
+
+        socket = new Socketio(options.apiUrl, options.cms, options.token);
+    } else if (options?.reconnect) socket.reconnect();
+
+    return socket;
 }

@@ -2,7 +2,7 @@
 import { TrashIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import LModal from "@/components/common/LModal.vue";
-import type { ImageFileCollectionDto } from "@/types";
+import type { ImageFileCollectionDto } from "luminary-shared";
 
 type Props = {
     imageFileCollection: ImageFileCollectionDto;
