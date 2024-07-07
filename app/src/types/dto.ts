@@ -51,6 +51,9 @@ export type ContentDto = ContentBaseDto & {
     author?: string;
     summary?: string;
     text?: string;
+    tags: Uuid[];
+    image?: string;
+    parentType: DocType;
 };
 
 export type TagDto = ContentBaseDto & {

@@ -134,10 +134,15 @@ class database extends Dexie {
     }
 
     /**
-     * Bulk insert documents into the database
+     * Get an IndexedDB document by its slug as Vue Ref
+     * @param slug - The slug of the document to get
+     * @param initialValue - The initial value of the ref while waiting for the query to complete
      */
-    bulkPut(docs: BaseDocumentDto[]) {
-        return this.docs.bulkPut(docs);
+    getBySlugAsRef<T extends BaseDocumentDto>(slug: string, initialValue?: T) {
+        return this.toRef<T>(
+            () => this.docs.where("slug").equals(slug).first() as unknown as Promise<T>,
+            initialValue,
+        );
     }
 
     /**
