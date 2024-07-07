@@ -2,62 +2,67 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import LBadge from "@/components/common/LBadge.vue";
-import { storeToRefs } from "pinia";
-import { useLanguageStore } from "@/stores/language";
-import { AclPermission, ContentStatus, DocType, type Content, type Post, type Tag } from "@/types";
-import { computed, toRefs } from "vue";
+import {
+    AclPermission,
+    PublishStatus,
+    DocType,
+    type ContentDto,
+    type LanguageDto,
+    type PostDto,
+    type TagDto,
+    type Uuid,
+    verifyAccess,
+} from "luminary-shared";
+import { computed } from "vue";
 import { ArrowRightIcon, CheckCircleIcon } from "@heroicons/vue/16/solid";
 import { sortByName } from "@/util/sortByName";
-import { useUserAccessStore } from "@/stores/userAccess";
 
-const props = defineProps<{
-    parent?: Post | Tag;
-}>();
+type Props = {
+    parent?: PostDto | TagDto;
+    content?: ContentDto[];
+    languages: LanguageDto[];
+};
 
-const { parent } = toRefs(props);
+const props = defineProps<Props>();
 
 const emit = defineEmits(["createTranslation"]);
 
-const selectedLanguage = defineModel<string>();
-
-const { languages } = storeToRefs(useLanguageStore());
-const { verifyAccess } = useUserAccessStore();
-
+const selectedLanguage = defineModel<Uuid>();
 const selectedLanguageName = computed(() => {
-    return languages.value?.find((l) => l.languageCode == selectedLanguage.value)?.name;
+    return props.languages.find((l) => l._id == selectedLanguage.value)?.name;
 });
 
 const translatedLanguages = computed(() => {
-    if (!parent.value) {
+    if (!props.content) {
         return [];
     }
 
-    const list = parent.value.content.map((c) => c.language);
-
-    return list.sort(sortByName);
+    return props.languages
+        .filter((l) => props.content?.find((c) => c.language == l._id))
+        .sort(sortByName);
 });
 
 const untranslatedLanguages = computed(() => {
-    if (!parent.value || !languages.value) {
+    if (!props.content) {
         return [];
     }
 
-    const list = languages.value.filter(
-        (language) =>
-            translatedLanguages.value.findIndex((t) => t._id == language._id) < 0 &&
-            verifyAccess(language.memberOf, DocType.Language, AclPermission.Translate),
-    );
-
-    return list.sort(sortByName);
+    return props.languages
+        .filter(
+            (l) =>
+                !props.content?.find((c) => c.language == l._id) &&
+                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
+        )
+        .sort(sortByName);
 });
 
 const translationStatus = computed(() => {
-    return (content: Content | undefined) => {
-        if (content?.status == ContentStatus.Published) {
+    return (content: ContentDto | undefined) => {
+        if (content?.status == PublishStatus.Published) {
             return "success";
         }
 
-        if (content?.status == ContentStatus.Draft) {
+        if (content?.status == PublishStatus.Draft) {
             return "info";
         }
 
@@ -99,7 +104,7 @@ const translationStatus = computed(() => {
                         :key="language.languageCode"
                     >
                         <button
-                            @click="selectedLanguage = language.languageCode"
+                            @click="selectedLanguage = language._id"
                             :class="[
                                 active || selectedLanguage == language.languageCode
                                     ? 'bg-zinc-100 text-zinc-900'
@@ -113,10 +118,8 @@ const translationStatus = computed(() => {
                                     type="language"
                                     :variant="
                                         translationStatus(
-                                            parent?.content.find(
-                                                (c: Content) =>
-                                                    c.language.languageCode ==
-                                                    language.languageCode,
+                                            content?.find(
+                                                (c: ContentDto) => c.language == language._id,
                                             ),
                                         )
                                     "
@@ -128,7 +131,7 @@ const translationStatus = computed(() => {
                             </span>
 
                             <CheckCircleIcon
-                                v-if="selectedLanguage == language.languageCode"
+                                v-if="selectedLanguage == language._id"
                                 class="h-4 w-4 text-zinc-500"
                             />
                         </button>

@@ -1,6 +1,8 @@
 import Dexie, { type Table, liveQuery } from "dexie";
 import {
+    AclPermission,
     BaseDocumentDto,
+    ChangeReqAckDto,
     ContentDto,
     DocType,
     LocalChangeDto,
@@ -10,10 +12,11 @@ import {
 } from "../types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
-import { type Ref, toRaw } from "vue";
+import { type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
+import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 
 export type queryOptions = {
     filterOptions?: {
@@ -52,8 +55,10 @@ export type queryOptions = {
 };
 
 class database extends Dexie {
+    // TODO: Make tables private
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
+    private accessMapRef = accessMap;
 
     constructor() {
         super("luminary-db");
@@ -63,6 +68,15 @@ class database extends Dexie {
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType]",
             localChanges: "++id, reqId, docId, status",
         });
+
+        // Listen for changes to the access map and delete documents that the user no longer has access to
+        watch(
+            this.accessMapRef,
+            () => {
+                this.deleteRevoked();
+            },
+            { immediate: true },
+        );
     }
 
     /**
@@ -70,6 +84,20 @@ class database extends Dexie {
      */
     uuid() {
         return uuidv4();
+    }
+
+    /**
+     * Set the sync version as received from the api
+     */
+    set syncVersion(value: number) {
+        localStorage.setItem("syncVersion", value.toString());
+    }
+
+    /**
+     * Get the stored sync version
+     */
+    get syncVersion(): number {
+        return parseInt(localStorage.getItem("syncVersion") || "0");
     }
 
     /**
@@ -205,59 +233,18 @@ class database extends Dexie {
 
     /**
      * Get IndexedDB documents by their languageId(s)
+     * TODO: Check if used. This query is perhaps not practical.
      */
-    whereLanguage<T extends ContentDto[]>(languageId: Uuid | Uuid[]) {
+    whereLanguage(languageId: Uuid | Uuid[]) {
         if (Array.isArray(languageId)) {
-            return this.docs.where("parentId").anyOf(languageId).toArray() as unknown as Promise<T>;
+            return this.docs.where("parentId").anyOf(languageId).toArray() as unknown as Promise<
+                ContentDto[]
+            >;
         }
 
-        return this.docs.where("language").equals(languageId).toArray() as unknown as Promise<T>;
-    }
-
-    /**
-     * Return a list of documents and change documents of specified DocType that are NOT members of the given groupIds
-     */
-    whereNotMemberOf(groupIds: Array<Uuid>, docType: DocType) {
-        // Query groups and group changeDocs
-        if (docType === DocType.Group) {
-            return db.docs
-                .filter((group) => {
-                    // Check if the ACL field exists
-                    if (!group.acl) return false;
-
-                    // Only include groups and group changes
-                    if (
-                        !(
-                            group.type === DocType.Group ||
-                            (group.type === DocType.Change && group.docType === DocType.Group)
-                        )
-                    ) {
-                        return false;
-                    }
-
-                    // Check if the group is NOT a member of the given groupIds
-                    return !group.acl.some(
-                        (acl) =>
-                            acl.type === DocType.Group &&
-                            groupIds.includes(acl.groupId) &&
-                            acl.permission.some((p) => p === "view"),
-                    );
-                })
-                .toArray() as unknown as Promise<BaseDocumentDto[]>;
-        }
-
-        // Query other documents
-        return db.docs.filter((doc) => {
-            // Check if the memberOf field exists
-            if (!doc.memberOf) return false;
-
-            // Only include documents and document changes of the passed DocType
-            if (!(doc.type === docType || (doc.type === DocType.Change && doc.docType === docType)))
-                return false;
-
-            // Check if the document is NOT a member of the given groupIds
-            return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
-        });
+        return this.docs.where("language").equals(languageId).toArray() as unknown as Promise<
+            ContentDto[]
+        >;
     }
 
     /**
@@ -501,17 +488,108 @@ class database extends Dexie {
     }
 
     /**
-     * Get a local change by its id
+     * Apply a change request ack from the API
      */
-    getLocalChange(id: number) {
-        return this.localChanges.where("id").equals(id).first();
+    async applyLocalChangeAck(ack: ChangeReqAckDto) {
+        if (ack.ack == "rejected") {
+            if (ack.doc) {
+                // Replace our local copy with the provided database version
+                await this.docs.update(ack.doc._id, ack.doc);
+            } else {
+                // Otherwise attempt to delete the item, as it might have been a rejected create action
+                const change = await this.localChanges.get(ack.id);
+
+                if (change?.doc) {
+                    await this.docs.delete(change.doc._id);
+                }
+            }
+        }
+
+        await this.localChanges.delete(ack.id);
     }
 
     /**
-     * Delete a local change by its id
+     * Return a list of documents and change documents of specified DocType that are NOT members of the given groupIds as a Dexie collection
      */
-    deleteLocalChange(id: number) {
-        return this.localChanges.where("id").equals(id).delete();
+    private whereNotMemberOfAsCollection(groupIds: Array<Uuid>, docType: DocType) {
+        // Query groups and group changeDocs
+        if (docType === DocType.Group) {
+            return this.docs.filter((group) => {
+                // Check if the ACL field exists
+                if (!group.acl) return false;
+
+                // Only include groups and group changes
+                if (
+                    !(
+                        group.type === DocType.Group ||
+                        (group.type === DocType.Change && group.docType === DocType.Group)
+                    )
+                ) {
+                    return false;
+                }
+
+                // Check if the group is NOT a member of the given groupIds
+                return !group.acl.some(
+                    (acl) =>
+                        acl.type === DocType.Group &&
+                        groupIds.includes(acl.groupId) &&
+                        acl.permission.some((p) => p === "view"),
+                );
+            });
+        }
+
+        // Query other documents
+        return this.docs.filter((doc) => {
+            // Check if the memberOf field exists
+            if (!doc.memberOf) return false;
+
+            // Only include documents and document changes of the passed DocType
+            if (!(doc.type === docType || (doc.type === DocType.Change && doc.docType === docType)))
+                return false;
+
+            // Check if the document is NOT a member of the given groupIds
+            return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
+        });
+    }
+
+    /**
+     * Delete documents to which access has been revoked
+     */
+    private deleteRevoked() {
+        const groupsPerDocType = getAccessibleGroups(AclPermission.View);
+
+        Object.values(DocType)
+            .filter((t) => !(t == DocType.Change || t == DocType.Content))
+            .forEach(async (docType) => {
+                let groups = groupsPerDocType[docType as DocType];
+                if (groups === undefined) groups = [];
+
+                const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
+
+                // Delete associated Post and Tag content documents
+                if (docType === DocType.Post || docType === DocType.Tag) {
+                    const revokedParents = await revokedDocs.toArray();
+                    const revokedParentIds = revokedParents.map((p) => p._id);
+                    await this.docs.where("parentId").anyOf(revokedParentIds).delete();
+                }
+
+                // Delete associated Language content documents
+                if (docType === DocType.Language) {
+                    const revokedLanguages = await revokedDocs.toArray();
+                    const revokedlanguageIds = revokedLanguages.map((l) => l._id);
+                    await this.docs.where("language").anyOf(revokedlanguageIds).delete();
+                }
+
+                await revokedDocs.delete();
+            });
+    }
+
+    /**
+     * Purge the local database
+     */
+    async purge() {
+        await Promise.all([this.docs.clear(), this.localChanges.clear()]);
+        this.syncVersion = 0;
     }
 }
 

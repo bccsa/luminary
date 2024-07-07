@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { db } from "@/db/baseDatabase";
-import { DocType, type ImageDto, type Uuid } from "@/types";
+import { db, DocType, type ImageDto, type Uuid } from "luminary-shared";
 import LImage from "./LImage.vue";
 import LButton from "../button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";

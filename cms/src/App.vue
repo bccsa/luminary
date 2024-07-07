@@ -7,34 +7,21 @@ import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { computed, onBeforeMount, ref } from "vue";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { useSocketConnectionStore } from "@/stores/socketConnection";
-import { useLocalChangeStore } from "@/stores/localChanges";
-import { getSocket, initSocket } from "@/socket";
 import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
-import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import router from "./router";
+import { getSocket } from "luminary-shared";
+import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
-const { appName } = useGlobalConfigStore();
-const socketConnectionStore = useSocketConnectionStore();
-const localChangeStore = useLocalChangeStore();
+const { appName, apiUrl } = useGlobalConfigStore();
 
-const socket = getSocket();
-
-// remove any existing listeners (in case of hot reload)
-if (socket) socket.off();
-
-const connectToSocket = async () => {
-    let token;
-
+const getToken = async () => {
     try {
-        token = await getAccessTokenSilently();
+        return await getAccessTokenSilently();
     } catch (err) {
         Sentry.captureException(err);
-
-        // If we get an error while getting the token, the refresh token might have expired. Try to reauthenticate
         await loginWithRedirect({
             authorizationParams: {
                 redirect_uri: window.location.origin,
@@ -42,15 +29,23 @@ const connectToSocket = async () => {
         });
         return;
     }
-
-    initSocket(token);
-
-    socketConnectionStore.bindEvents();
-    localChangeStore.watchForSyncableChanges();
 };
 
 onBeforeMount(async () => {
-    await waitUntilAuth0IsLoaded(connectToSocket);
+    await waitUntilAuth0IsLoaded();
+    const token = await getToken();
+
+    // Initialize the socket connection
+    try {
+        getSocket({
+            apiUrl,
+            token,
+            cms: true,
+        });
+    } catch (err) {
+        console.error(err);
+        Sentry.captureException(err);
+    }
 });
 
 const sidebarOpen = ref(false);

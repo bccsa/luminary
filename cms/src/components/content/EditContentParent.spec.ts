@@ -4,17 +4,15 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import EditContentParent from "./EditContentParent.vue";
-import { DocType, type PostDto, type TagDto } from "luminary-shared";
+import { DocType, type PostDto, type TagDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockData";
-import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
 
 describe("EditContentParent.vue", () => {
     beforeEach(async () => {
         setActivePinia(createTestingPinia());
 
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
     afterEach(async () => {});

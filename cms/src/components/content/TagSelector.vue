@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, toRaw, toRefs } from "vue";
+import { computed, ref, watch } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import {
     Combobox,
@@ -9,58 +9,85 @@ import {
     ComboboxOption,
     ComboboxOptions,
 } from "@headlessui/vue";
-import type { Language, Tag } from "@/types";
-import Ltag from "./LTag.vue";
+import {
+    db,
+    AclPermission,
+    DocType,
+    TagType,
+    type ContentDto,
+    type LanguageDto,
+    type PostDto,
+    type TagDto,
+    verifyAccess,
+} from "luminary-shared";
+import LTag from "./LTag.vue";
+import { watchDeep } from "@vueuse/core";
 
 type Props = {
-    tags: Tag[];
-    selectedTags: Tag[];
-    language: Language;
+    tagType: TagType;
+    language?: LanguageDto;
     label?: string;
     disabled?: boolean;
 };
-
 const props = withDefaults(defineProps<Props>(), {
     label: "Tags",
     disabled: false,
 });
+const parent = defineModel<PostDto | TagDto>("parent");
+const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 
-const { tags, selectedTags } = toRefs(props);
+const tagsContent = ref<ContentDto[]>([]);
+watch(tags, async () => {
+    const pList: any[] = [];
+    tags.value.forEach((tag) => {
+        // Filter tags based on access before proceeding, and exclude the the tag itself (if parent is a tag)
+        if (
+            tag._id != parent.value?._id &&
+            verifyAccess(tag.memberOf, DocType.Tag, AclPermission.Assign, "any")
+        ) {
+            pList.push(
+                // We are getting the content as non-reactive, meaning that if someone else would change
+                // the content of an existing tag, it will not automatically update in the tag selector.
+                db.whereParent(tag._id, DocType.Tag).then((content) => {
+                    if (content.length == 0) return;
 
-const emit = defineEmits(["select", "remove"]);
+                    const preferred = content.find((c) => c.language == props.language?._id);
+                    const c = preferred ? preferred : content[0];
 
-const isTagSelected = computed(() => {
-    return (tagId: string) => {
-        return selectedTags.value.some((t) => t._id == tagId);
-    };
+                    const existingIndex = tagsContent.value.findIndex((tc) => tc._id == c._id);
+                    if (existingIndex >= 0) {
+                        tagsContent.value[existingIndex] = c;
+                        return;
+                    }
+
+                    tagsContent.value.push(c);
+                }),
+            );
+        }
+    });
+
+    await Promise.all(pList);
 });
 
 const query = ref("");
-const filteredTags = computed(() =>
+const filteredTagsContent = computed(() =>
     query.value === ""
-        ? tags.value
-        : tags.value.filter((tag) => {
-              return tag.content[0].title.toLowerCase().includes(query.value.toLowerCase());
+        ? tagsContent.value
+        : tagsContent.value.filter((content) => {
+              return content.title.toLowerCase().includes(query.value.toLowerCase());
           }),
 );
 
-const selectTag = (tag: Tag) => {
-    query.value = "";
+const selectedTagsByType = ref<TagDto[]>([]);
+watchDeep([parent, tags], () => {
+    if (!parent.value) return;
+    // The tags list is already filtered by the tagType
+    selectedTagsByType.value = tags.value.filter((t) => parent.value?.tags.includes(t._id));
+});
 
-    emit("select", toRaw(tag));
-};
-
-const contentTitle = computed(() => {
-    return (tag: Tag) => {
-        const contentForSelectedLanguage = tag.content.find(
-            (c) => c.language._id == props.language._id,
-        );
-
-        if (contentForSelectedLanguage) {
-            return contentForSelectedLanguage.title;
-        }
-
-        return tag.content[0].title;
+const isTagSelected = computed(() => {
+    return (tagId: string) => {
+        return parent.value?.tags.some((t) => t == tagId);
     };
 });
 </script>
@@ -69,7 +96,12 @@ const contentTitle = computed(() => {
     <div>
         <Combobox
             as="div"
-            @update:modelValue="(tag: Tag) => selectTag(tag)"
+            @update:modelValue="
+                (tagContent: ContentDto) => {
+                    if (!tagContent) return;
+                    parent?.tags.push(tagContent.parentId);
+                }
+            "
             nullable
             :disabled="disabled"
         >
@@ -99,15 +131,16 @@ const contentTitle = computed(() => {
                     leave-from-class="transform scale-100 opacity-100"
                     leave-to-class="transform scale-95 opacity-0"
                 >
+                    <!-- Available tags combo box -->
                     <ComboboxOptions
-                        v-if="filteredTags.length > 0"
+                        v-if="filteredTagsContent.length > 0"
                         class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
                     >
                         <ComboboxOption
-                            v-for="tag in filteredTags"
-                            :key="tag._id"
-                            :value="tag"
-                            :disabled="isTagSelected(tag._id)"
+                            v-for="content in filteredTagsContent"
+                            :key="content.parentId"
+                            :value="content"
+                            :disabled="isTagSelected(content.parentId)"
                             as="template"
                             v-slot="{ active, disabled }"
                         >
@@ -120,7 +153,7 @@ const contentTitle = computed(() => {
                                 ]"
                             >
                                 <span class="block truncate" data-test="tag-selector">
-                                    {{ contentTitle(tag) }}
+                                    {{ content.title }}
                                 </span>
                             </li>
                         </ComboboxOption>
@@ -129,6 +162,7 @@ const contentTitle = computed(() => {
             </div>
         </Combobox>
 
+        <!-- Selected tags -->
         <div class="mt-3 flex flex-wrap gap-3">
             <TransitionGroup
                 enter-active-class="transition duration-150 delay-75"
@@ -138,16 +172,23 @@ const contentTitle = computed(() => {
                 leave-from-class="transform scale-100 opacity-100"
                 leave-to-class="transform scale-90 opacity-0"
             >
-                <Ltag
-                    v-for="tag in selectedTags"
+                <!-- Filter on tags of type tagType by comparing the parent.tags with the filtered list of tags -->
+                <LTag
+                    v-for="tag in selectedTagsByType"
                     :key="tag._id"
-                    @remove="emit('remove', tag)"
+                    @remove="
+                        () => {
+                            if (!parent) return;
+                            parent.tags = parent.tags.filter((t) => t != tag._id);
+                        }
+                    "
                     :disabled="disabled"
                 >
-                    {{ contentTitle(tag) }}
-                </Ltag>
+                    {{ tagsContent.find((tc) => tc.parentId == tag._id)?.title }}
+                </LTag>
             </TransitionGroup>
         </div>
+        <!-- Message when no tags are selected -->
         <Transition
             enter-active-class="transition duration-75 delay-100"
             enter-from-class="transform scale-90 opacity-0 absolute"
@@ -156,7 +197,7 @@ const contentTitle = computed(() => {
             leave-from-class="transform scale-100 opacity-100 absolute"
             leave-to-class="transform scale-90 opacity-0"
         >
-            <div v-if="selectedTags.length == 0" class="text-xs text-zinc-500">
+            <div v-if="selectedTagsByType.length == 0" class="text-xs text-zinc-500">
                 No {{ label.toLowerCase() }} selected
             </div>
         </Transition>

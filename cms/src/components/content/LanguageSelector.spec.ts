@@ -1,109 +1,131 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import "fake-indexeddb/auto";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
-import LanguageSelector from "./LanguageSelector.vue";
-import {
-    fullAccessToAllContentMap,
-    mockLanguageEng,
-    mockLanguageFra,
-    mockLanguageSwa,
-    mockPost,
-} from "@/tests/mockData";
-import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { useLanguageStore } from "@/stores/language";
+import * as mockData from "@/tests/mockData";
+import { setActivePinia } from "pinia";
+import LanguageSelector2 from "./LanguageSelector.vue";
 import LBadge from "@/components/common/LBadge.vue";
-import { useUserAccessStore } from "@/stores/userAccess";
+import { PublishStatus, accessMap } from "luminary-shared";
 
-describe("LanguageSelector", () => {
-    beforeEach(() => {
+describe("LanguageSelector2.vue", () => {
+    beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
-        const languageStore = useLanguageStore();
-        languageStore.languages = [mockLanguageEng, mockLanguageFra, mockLanguageSwa];
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = fullAccessToAllContentMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
-    afterEach(() => {
+    afterAll(() => {
         vi.clearAllMocks();
     });
 
     it("displays the current language", async () => {
-        const wrapper = mount(LanguageSelector, {
+        const wrapper = mount(LanguageSelector2, {
             props: {
-                parent: mockPost,
-                modelValue: "swa",
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                content: [mockData.mockEnglishContentDto],
+            },
+            global: {
+                plugins: [createTestingPinia()],
             },
         });
 
-        expect(wrapper.text()).toContain("Swahili");
-        expect(wrapper.text()).not.toContain("English");
-        expect(wrapper.text()).not.toContain("Français");
+        const selectLanguage = wrapper.find("button[data-test='language-selector']");
+        await selectLanguage.trigger("click");
+
+        const select = wrapper.find("button[data-test='select-language-eng']");
+        await select.trigger("click");
+
+        expect(wrapper.text()).toContain("English");
+        expect(wrapper.text()).not.toContain("French");
+        expect(wrapper.text()).not.toContain("Swahili");
     });
 
     it("can handle an unset language", async () => {
-        const wrapper = mount(LanguageSelector, {
+        const wrapper = mount(LanguageSelector2, {
             props: {
-                post: undefined,
-                modelValue: undefined,
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                content: [],
+            },
+            global: {
+                plugins: [createTestingPinia()],
             },
         });
 
         expect(wrapper.text()).toContain("Select language");
-        expect(wrapper.text()).not.toContain("Swahili");
         expect(wrapper.text()).not.toContain("English");
-        expect(wrapper.text()).not.toContain("Français");
+        expect(wrapper.text()).not.toContain("French");
+        expect(wrapper.text()).not.toContain("Swahili");
     });
 
     it("can display a dropdown with all languages", async () => {
-        const wrapper = mount(LanguageSelector, {
+        const wrapper = mount(LanguageSelector2, {
             props: {
-                parent: mockPost,
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                content: [],
+            },
+            global: {
+                plugins: [createTestingPinia()],
             },
         });
 
-        await wrapper.find("button[data-test='language-selector']").trigger("click");
+        const selectLanguage = wrapper.find("button[data-test='language-selector']");
+        await selectLanguage.trigger("click");
 
         expect(wrapper.text()).toContain("English");
-        expect(wrapper.text()).toContain("Français");
         expect(wrapper.text()).toContain("Add translation");
+        expect(wrapper.text()).toContain("Français");
         expect(wrapper.text()).toContain("Swahili");
     });
 
     it("displays a label with the translation status", async () => {
-        const wrapper = mount(LanguageSelector, {
+        const wrapper = mount(LanguageSelector2, {
             props: {
-                parent: mockPost,
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                content: [
+                    mockData.mockEnglishContentDto,
+                    { ...mockData.mockFrenchContentDto, status: PublishStatus.Draft },
+                ],
+            },
+            global: {
+                plugins: [createTestingPinia()],
             },
         });
 
         await wrapper.find("button[data-test='language-selector']").trigger("click");
 
-        const badge = await wrapper.findAllComponents(LBadge);
+        const badge = wrapper.findAllComponents(LBadge);
         expect(badge[0].props().variant).toBe("success"); // English content = Published
         expect(badge[1].props().variant).toBe("info"); // French content = Draft
         expect(badge[2].props().variant).toBe("default"); // Swahili = no translation yet
     });
-
     describe("permissions", () => {
         it("hides untranslated groups that the user doesn't have translate permission on", async () => {
-            const languageStore = useLanguageStore();
-            languageStore.languages = [
-                mockLanguageEng,
-                mockLanguageFra,
-                {
-                    ...mockLanguageSwa,
-                    memberOf: ["group-without-permissions"],
-                },
-            ];
-
-            const wrapper = mount(LanguageSelector, {
+            const wrapper = mount(LanguageSelector2, {
                 props: {
-                    parent: mockPost,
+                    languages: [mockData.mockLanguageDtoEng, mockData.mockLanguageDtoFra],
+                    content: [mockData.mockEnglishContentDto, mockData.mockFrenchContentDto],
                 },
             });
 
-            await wrapper.find("button[data-test='language-selector']").trigger("click");
+            const selectLanguage = wrapper.find("button[data-test='language-selector']");
+            await selectLanguage.trigger("click");
 
             expect(wrapper.text()).toContain("English");
             expect(wrapper.text()).toContain("Français");
