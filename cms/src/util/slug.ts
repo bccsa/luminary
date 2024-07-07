@@ -1,6 +1,5 @@
 import { slugify } from "transliteration";
-import { db } from "luminary-shared";
-import type { Uuid } from "@/types";
+import { db, type Uuid } from "luminary-shared";
 
 /**
  * Functions to generate and validate slugs

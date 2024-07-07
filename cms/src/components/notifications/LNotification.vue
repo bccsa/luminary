@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
-import type { Notification } from "@/types";
+import type { Notification } from "@/stores/notification";
 
 type Props = {
     notification: Notification;
