@@ -2,7 +2,7 @@
 // Image component with automatic aspect ratio selection and fallback image
 
 import { computed, ref } from "vue";
-import { type ImageDto } from "@/types";
+import { type ImageDto } from "luminary-shared";
 
 const props = defineProps<{
     image: ImageDto;

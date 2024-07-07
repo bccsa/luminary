@@ -1,19 +1,19 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import OnlineIndicator from "./OnlineIndicator.vue";
-import { useSocketConnectionStore } from "@/stores/socketConnection";
-import { createTestingPinia } from "@pinia/testing";
+import { isConnected } from "luminary-shared";
 
-describe("OnlineIndicator", () => {
+describe("OnlineIndicator", async () => {
     it("renders the online status", async () => {
-        const store = useSocketConnectionStore(createTestingPinia());
-
         const wrapper = mount(OnlineIndicator);
+        await wrapper.vm.$nextTick();
 
         expect(wrapper.html()).not.toContain("Online");
         expect(wrapper.html()).toContain("Offline");
 
-        store.isConnected = true;
+        isConnected.value = true;
+
         await wrapper.vm.$nextTick();
 
         expect(wrapper.html()).toContain("Online");

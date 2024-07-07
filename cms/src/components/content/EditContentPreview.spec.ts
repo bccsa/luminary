@@ -1,10 +1,10 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { type ContentDto } from "luminary-shared";
+import { type ContentDto, accessMap, PublishStatus } from "luminary-shared";
 import * as mockData from "@/tests/mockData";
 import { setActivePinia } from "pinia";
-import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
 import EditContentPreview from "./EditContentPreview.vue";
 
@@ -12,8 +12,7 @@ describe("EditContentPreview.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
     afterAll(() => {
@@ -21,7 +20,10 @@ describe("EditContentPreview.vue", () => {
     });
 
     it("show the live preview if content is published", async () => {
-        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, status: "published" });
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Published,
+        });
         const wrapper = mount(EditContentPreview, {
             props: {
                 content: content.value,
@@ -36,7 +38,10 @@ describe("EditContentPreview.vue", () => {
     });
 
     it("don't show the live preview if content is not published", async () => {
-        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, status: "draft" });
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Draft,
+        });
         const wrapper = mount(EditContentPreview, {
             props: {
                 content: content.value,
