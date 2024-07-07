@@ -4,8 +4,7 @@ import { nextTick } from "vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
-import { AclPermission, DocType } from "@/types";
-import { useUserAccessStore } from "@/stores/userAccess";
+import { AclPermission, DocType, hasAnyPermission } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 
 declare module "vue-router" {
@@ -65,56 +64,56 @@ const router = createRouter({
                     component: () => import("../components/content/ContentOverview.vue"),
                     props: true,
                 },
-                {
-                    path: "groups",
-                    name: "groups",
-                    redirect: { name: "groups.index" },
-                    children: [
-                        {
-                            path: "",
-                            name: "groups.index",
-                            component: () => import("../pages/groups/GroupOverview.vue"),
-                            meta: {
-                                title: "Groups",
-                                canAccess: {
-                                    docType: DocType.Group,
-                                    permission: AclPermission.View,
-                                },
-                            },
-                        },
-                        {
-                            path: "create",
-                            name: "groups.create",
-                            component: () => import("../pages/groups/CreateGroup.vue"),
-                            meta: {
-                                title: "Create group",
-                                canAccess: {
-                                    docType: DocType.Group,
-                                    permission: AclPermission.Create,
-                                },
-                            },
-                        },
-                    ],
-                },
-                {
-                    path: "users",
-                    name: "users",
-                    redirect: { name: "users.index" },
-                    children: [
-                        {
-                            path: "",
-                            name: "users.index",
-                            component: () => import("../pages/UsersPage.vue"),
-                            meta: {
-                                title: "Users",
-                                canAccess: {
-                                    docType: DocType.User,
-                                    permission: AclPermission.View,
-                                },
-                            },
-                        },
-                    ],
-                },
+                // {
+                //     path: "groups",
+                //     name: "groups",
+                //     redirect: { name: "groups.index" },
+                //     children: [
+                //         {
+                //             path: "",
+                //             name: "groups.index",
+                //             component: () => import("../pages/groups/GroupOverview.vue"),
+                //             meta: {
+                //                 title: "Groups",
+                //                 canAccess: {
+                //                     docType: DocType.Group,
+                //                     permission: AclPermission.View,
+                //                 },
+                //             },
+                //         },
+                //         {
+                //             path: "create",
+                //             name: "groups.create",
+                //             component: () => import("../pages/groups/CreateGroup.vue"),
+                //             meta: {
+                //                 title: "Create group",
+                //                 canAccess: {
+                //                     docType: DocType.Group,
+                //                     permission: AclPermission.Create,
+                //                 },
+                //             },
+                //         },
+                //     ],
+                // },
+                // {
+                //     path: "users",
+                //     name: "users",
+                //     redirect: { name: "users.index" },
+                //     children: [
+                //         {
+                //             path: "",
+                //             name: "users.index",
+                //             component: () => import("../pages/UsersPage.vue"),
+                //             meta: {
+                //                 title: "Users",
+                //                 canAccess: {
+                //                     docType: DocType.User,
+                //                     permission: AclPermission.View,
+                //                 },
+                //             },
+                //         },
+                //     ],
+                // },
                 { path: "/:pathMatch(.*)*", name: "404", component: NotFoundPage },
             ],
         },
@@ -122,7 +121,6 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from) => {
-    const { hasAnyPermission } = useUserAccessStore();
     const { addNotification } = useNotificationStore();
     if (
         to.meta.canAccess &&

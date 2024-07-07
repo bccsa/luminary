@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { SignalIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
-
-const store = useSocketConnectionStore();
+import { isConnected } from "luminary-shared";
 </script>
 
 <template>
@@ -11,12 +9,12 @@ const store = useSocketConnectionStore();
         <PopoverButton
             class="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm shadow-sm"
             :class="{
-                'bg-green-100 text-green-800': store.isConnected,
-                'bg-yellow-100 text-yellow-800': !store.isConnected,
+                'bg-green-100 text-green-800': isConnected,
+                'bg-yellow-100 text-yellow-800': !isConnected,
             }"
         >
-            <component :is="store.isConnected ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
-            <span class="hidden sm:block">{{ store.isConnected ? "Online" : "Offline" }}</span>
+            <component :is="isConnected ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
+            <span class="hidden sm:block">{{ isConnected ? "Online" : "Offline" }}</span>
         </PopoverButton>
 
         <transition
@@ -34,7 +32,7 @@ const store = useSocketConnectionStore();
                     class="mt-2 rounded-md bg-white px-4 py-3 text-xs shadow-lg ring-1 ring-inset ring-zinc-900/5"
                 >
                     {{
-                        store.isConnected
+                        isConnected
                             ? "You are online. Any changes you make will be saved online and are immediately visible for other CMS users."
                             : "You are offline. Any changes you make will be saved offline and synced to other CMS users when you go online again."
                     }}

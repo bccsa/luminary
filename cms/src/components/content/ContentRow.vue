@@ -9,11 +9,11 @@ import {
     type TagDto,
     type Uuid,
     AclPermission,
+    verifyAccess,
 } from "luminary-shared";
 import { DateTime } from "luxon";
 import { computed } from "vue";
 import LBadge from "../common/LBadge.vue";
-import { useUserAccessStore } from "@/stores/userAccess";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import LButton from "../button/LButton.vue";
@@ -27,8 +27,6 @@ const props = defineProps<Props>();
 const content = db.whereParentAsRef(props.parent._id, props.parentType, undefined, []);
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []); // TODO: Move this to ContentTable and pass ref to ContentRow
 const isLocalChange = db.isLocalChangeAsRef(props.parent._id);
-
-const { verifyAccess } = useUserAccessStore();
 
 // Get the title in the selected language if available, otherwise use the first available translation
 const title = computed(() => {

@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
-
+import waitForExpect from "wait-for-expect";
 import {
     mockCategoryContentDto,
     mockCategoryDto,
@@ -12,9 +12,17 @@ import {
     mockPostDto,
 } from "../tests/mockData";
 
-import { DocType, TagType, type ContentDto, type PostDto, type TagDto } from "../types";
+import {
+    AckStatus,
+    AclPermission,
+    DocType,
+    TagType,
+    type ContentDto,
+    type PostDto,
+    type TagDto,
+} from "../types";
 import { db } from "../db/database";
-import waitForExpect from "wait-for-expect";
+import { accessMap } from "../permissions/permissions";
 
 describe("baseDatabase.ts", () => {
     beforeEach(async () => {
@@ -453,5 +461,323 @@ describe("baseDatabase.ts", () => {
         // Check if the document is in the database
         const post = await db.get<PostDto>(mockPostDto._id);
         expect(post).toEqual(mockPostDto);
+    });
+
+    it("can apply a successful change request acknowledgement", async () => {
+        // Queue a local change
+        await db.upsert(mockPostDto);
+        const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).first();
+        expect(localChange).toBeDefined();
+
+        // Apply the local change
+        await db.applyLocalChangeAck({ id: localChange!.id!, ack: AckStatus.Accepted });
+
+        // Check if the local change is removed
+        const localChangeAfter = await db.localChanges
+            .where("docId")
+            .equals(mockPostDto._id)
+            .first();
+        expect(localChangeAfter).toBeUndefined();
+    });
+
+    it("can apply a failed change request acknowledgement with a document", async () => {
+        // Queue a local change
+        await db.upsert(mockEnglishContentDto);
+        const localChange = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChange).toBeDefined();
+
+        // Apply the local change
+        const ackDoc = { ...mockEnglishContentDto, title: "Old Title 123" };
+        await db.applyLocalChangeAck({
+            id: localChange!.id!,
+            ack: AckStatus.Rejected,
+            doc: ackDoc,
+        });
+
+        // Check if the local change is removed
+        const localChangeAfter = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChangeAfter).toBeUndefined();
+
+        // Check if the document is updated with the acked document
+        const post = await db.get<ContentDto>(mockEnglishContentDto._id);
+        expect(post).toEqual(ackDoc);
+    });
+
+    it("can apply a failed change request acknowledgement without a document", async () => {
+        // Queue a local change
+        await db.upsert(mockEnglishContentDto);
+        const localChange = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChange).toBeDefined();
+
+        // Apply the local change
+        await db.applyLocalChangeAck({
+            id: localChange!.id!,
+            ack: AckStatus.Rejected,
+        });
+
+        // Check if the local change is removed
+        const localChangeAfter = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChangeAfter).toBeUndefined();
+
+        // Check if the document is removed from the database
+        const post = await db.get<ContentDto>(mockEnglishContentDto._id);
+        expect(post).toBeUndefined();
+    });
+
+    it("can purge the local database", async () => {
+        // Queue a local change and check if it exists in the docs and localChanges tables
+        await db.upsert(mockPostDto);
+        db.syncVersion = 123;
+        const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).first();
+        const doc = await db.get<PostDto>(mockPostDto._id);
+        expect(localChange).toBeDefined();
+        expect(doc).toEqual(mockPostDto);
+        expect(localStorage.getItem("syncVersion")).toBe("123");
+
+        // Purge the local database
+        await db.purge();
+
+        // Check that the local changes table is empty
+        const localChanges = await db.localChanges.toArray();
+        expect(localChanges.length).toBe(0);
+
+        // Check that the docs table is empty
+        const docs = await db.docs.toArray();
+        expect(docs.length).toBe(0);
+
+        // Check that the sync version is reset
+        expect(localStorage.getItem("syncVersion")).toBe("0");
+        expect(db.syncVersion).toBe(0);
+    });
+
+    describe("revoked documents", () => {
+        it("removes documents with memberOf field when access to a group is revoked", async () => {
+            const docs = [
+                {
+                    _id: "doc1",
+                    type: DocType.Post, // Test Post documents
+                    memberOf: ["group-private-users"],
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "doc2",
+                    type: DocType.Tag, // Test Tag documents
+                    memberOf: ["group-private-users"],
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "doc3",
+                    type: DocType.Content, // Test Content documents
+                    parentId: "doc1",
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "doc4",
+                    type: DocType.Change, // Test change documents of type Post
+                    memberOf: ["group-private-users"],
+                    docType: DocType.Post,
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "doc5",
+                    type: DocType.Change, // Test change documents of type Content
+                    docType: DocType.Content,
+                    parentId: "doc2",
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "doc6",
+                    type: DocType.Post,
+                    memberOf: ["group-private-users", "group-public-users"], // This document should not be removed as it is also a member of 'group-public-users'
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "doc7",
+                    type: DocType.Content,
+                    parentId: "doc6", // This document should not be removed as it's parent is also a member of 'group-public-users'
+                    updatedTimeUtc: 0,
+                },
+            ];
+            await db.docs.bulkPut(docs);
+
+            // Simulate receiving an accessMap update that only gives access to 'group-public-users'
+            accessMap.value = {
+                "group-public-users": {
+                    [DocType.Post]: {
+                        view: true,
+                        assign: true,
+                    },
+                },
+            };
+
+            await waitForExpect(async () => {
+                const remainingDocs = await db.docs.toArray();
+                expect(remainingDocs).toHaveLength(2);
+                expect(remainingDocs.find((doc) => doc._id === "doc6")).toBeDefined();
+                expect(remainingDocs.find((doc) => doc._id === "doc7")).toBeDefined();
+            });
+        });
+
+        it("removes content documents when access to the language document is revoked", async () => {
+            const docs = [
+                {
+                    _id: "doc1",
+                    type: DocType.Post, // Parent document - will not be removed as it is a member of 'group-public-users'
+                    memberOf: ["group-public-users"],
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "doc2",
+                    type: DocType.Tag, // Parent document - will not be removed as it is a member of 'group-public-users'
+                    memberOf: ["group-public-users"],
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "doc3",
+                    type: DocType.Content, // Test Content documents for Posts - should be removed as access to the language is revoked
+                    parentId: "doc1",
+                    updatedTimeUtc: 0,
+                    language: "lang1",
+                },
+                {
+                    _id: "doc4",
+                    type: DocType.Content, // Test Content documents for Tags - should be removed as access to the language is revoked
+                    parentId: "doc2",
+                    updatedTimeUtc: 0,
+                    language: "lang1",
+                },
+                {
+                    _id: "doc5",
+                    type: DocType.Content, // Test Content documents for Posts - should NOT be removed as access to the language is not revoked
+                    parentId: "doc1",
+                    updatedTimeUtc: 0,
+                    language: "lang2",
+                },
+                {
+                    _id: "doc6",
+                    type: DocType.Change, // Test content Change docs - should be removed as access to the language is revoked
+                    parentId: "doc1",
+                    updatedTimeUtc: 0,
+                    language: "lang1",
+                },
+                {
+                    _id: "doc7",
+                    type: DocType.Change, // Test content Change docs - should NOT be removed as access to the language NOT revoked
+                    parentId: "doc1",
+                    updatedTimeUtc: 0,
+                    language: "lang2",
+                },
+                {
+                    _id: "lang1",
+                    type: DocType.Language, // Test Language document - will be removed as it is not a member of 'group-public-users'
+                    memberOf: ["group-private-users"],
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "lang2",
+                    type: DocType.Language, // Test Language document - will not be removed as it is a member of 'group-public-users'
+                    memberOf: ["group-public-users"],
+                    updatedTimeUtc: 0,
+                },
+            ];
+            await db.docs.bulkPut(docs);
+
+            // Simulate receiving an accessMap update that only gives access to 'group-public-users'
+            accessMap.value = {
+                "group-public-users": {
+                    [DocType.Post]: {
+                        view: true,
+                        assign: true,
+                    },
+                    [DocType.Tag]: {
+                        view: true,
+                    },
+                    [DocType.Language]: {
+                        view: true,
+                    },
+                },
+            };
+
+            await waitForExpect(async () => {
+                const remainingDocs = await db.docs.toArray();
+                expect(remainingDocs).toHaveLength(5);
+                expect(remainingDocs.find((doc) => doc._id === "doc1")).toBeDefined();
+                expect(remainingDocs.find((doc) => doc._id === "doc2")).toBeDefined();
+                expect(remainingDocs.find((doc) => doc._id === "doc5")).toBeDefined();
+                expect(remainingDocs.find((doc) => doc._id === "doc7")).toBeDefined();
+                expect(remainingDocs.find((doc) => doc._id === "lang2")).toBeDefined();
+            });
+        });
+
+        it("removes documents with acl field when access to a group is revoked", async () => {
+            const docs = [
+                {
+                    _id: "group1", // Should be removed as it is not a member of 'group-public-users'
+                    type: DocType.Group,
+                    acl: [
+                        {
+                            type: DocType.Group,
+                            groupId: "group-private-users",
+                            permission: [AclPermission.View],
+                        },
+                    ],
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "group2", // Should be kept as it is a member of 'group-public-users'
+                    type: DocType.Group,
+                    acl: [
+                        {
+                            type: DocType.Group,
+                            groupId: "group-public-users",
+                            permission: [AclPermission.View],
+                        },
+                    ],
+                    updatedTimeUtc: 0,
+                },
+                {
+                    _id: "group3", // Should be removed as it is not a member of 'group-public-users'
+                    type: DocType.Change,
+                    docType: DocType.Group,
+                    acl: [
+                        {
+                            type: DocType.Group,
+                            groupId: "group-private-users",
+                            permission: [AclPermission.View],
+                        },
+                    ],
+                    updatedTimeUtc: 0,
+                },
+            ];
+            await db.docs.bulkPut(docs);
+
+            // Simulate receiving an accessMap update that only gives access to 'group-public-users'
+            accessMap.value = {
+                "group-public-users": {
+                    [DocType.Group]: {
+                        view: true,
+                        assign: true,
+                    },
+                },
+            };
+
+            await waitForExpect(async () => {
+                const remainingDocs = await db.docs.toArray();
+                expect(remainingDocs).toHaveLength(1);
+                expect(remainingDocs.find((doc) => doc._id === "group2")).toBeDefined();
+            });
+        });
     });
 });

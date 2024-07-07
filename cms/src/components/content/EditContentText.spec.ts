@@ -1,10 +1,10 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
-import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
-import { type ContentDto } from "luminary-shared";
+import { type ContentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockData";
 import EditContentText from "./EditContentText.vue";
 import waitForExpect from "wait-for-expect";
@@ -13,8 +13,7 @@ describe("EditContentPreview.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
     afterAll(() => {

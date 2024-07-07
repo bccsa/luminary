@@ -1,6 +1,12 @@
 import { defineStore } from "pinia";
-import { type Notification } from "@/types";
 import { ref } from "vue";
+
+export type Notification = {
+    id?: number;
+    title: string;
+    description?: string;
+    state?: "success" | "error" | "info";
+};
 
 export const useNotificationStore = defineStore("notification", () => {
     const id = ref(0);

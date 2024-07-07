@@ -3,13 +3,19 @@ import SettingsPage from "./SettingsPage.vue";
 import { mount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { useNotificationStore } from "@/stores/notification";
+import { db, getSocket, isConnected } from "luminary-shared";
 
-const purgeMock = vi.hoisted(() => vi.fn());
+const requestDataMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/util/purgeLocalDatabase", () => ({
-    purgeLocalDatabase: purgeMock,
+vi.mock("luminary-shared", () => ({
+    db: {
+        purge: vi.fn(),
+    },
+    getSocket: vi.fn(() => ({
+        requestData: requestDataMock,
+    })),
+    isConnected: { value: false },
 }));
 
 describe("purgeLocalDatabase", () => {
@@ -22,25 +28,24 @@ describe("purgeLocalDatabase", () => {
     });
 
     it("purges the local database when connected", async () => {
-        const socketConnectionStore = useSocketConnectionStore();
         const notificationStore = useNotificationStore();
         const wrapper = mount(SettingsPage);
 
         await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
 
-        expect(purgeMock).not.toHaveBeenCalled();
-        expect(socketConnectionStore.reloadClientData).not.toHaveBeenCalled();
+        expect(db.purge).not.toHaveBeenCalled();
+        expect(getSocket().requestData).not.toHaveBeenCalled();
         expect(notificationStore.addNotification).toHaveBeenCalledWith(
             expect.objectContaining({ state: "error" }),
         );
 
-        socketConnectionStore.isConnected = true;
+        isConnected.value = true;
 
         await wrapper.vm.$nextTick();
         await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
 
-        expect(purgeMock).toHaveBeenCalledOnce();
-        expect(socketConnectionStore.reloadClientData).toHaveBeenCalledOnce();
+        expect(db.purge).toHaveBeenCalledOnce();
+        expect(getSocket().requestData).toHaveBeenCalledOnce();
         expect(notificationStore.addNotification).toHaveBeenCalledWith(
             expect.objectContaining({ state: "success" }),
         );

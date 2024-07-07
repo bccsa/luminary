@@ -4,19 +4,16 @@ import { DOMWrapper, mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockData";
 import { setActivePinia } from "pinia";
-import { useUserAccessStore } from "@/stores/userAccess";
 import { ref } from "vue";
 import EditContentBasic from "./EditContentBasic.vue";
-import type { ContentDto } from "@/types";
 import { DateTime } from "luxon";
-import { db } from "luminary-shared";
+import { db, accessMap, type ContentDto, PublishStatus } from "luminary-shared";
 
 describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
-        const userAccessStore = useUserAccessStore();
-        userAccessStore.accessMap = mockData.fullAccessToAllContentMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
     afterAll(() => {
@@ -178,7 +175,10 @@ describe("EditContentBasic.vue", () => {
     });
 
     it("check if the Publish/Draft toggle switchs correctly", async () => {
-        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, status: "draft" });
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Draft,
+        });
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
@@ -240,7 +240,10 @@ describe("EditContentBasic.vue", () => {
     });
 
     it("sets the status toggle correctly to draft from the loaded data", async () => {
-        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, status: "draft" });
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Draft,
+        });
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
@@ -264,7 +267,10 @@ describe("EditContentBasic.vue", () => {
     });
 
     it("sets the status toggle correctly to published from the loaded data", async () => {
-        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, status: "published" });
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Published,
+        });
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,

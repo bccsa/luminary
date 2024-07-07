@@ -1,6 +1,4 @@
-import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
-import type { Ref } from "vue";
 
 export const useGlobalConfigStore = defineStore("globalConfig", () => {
     const appName = import.meta.env.VITE_APP_NAME;
@@ -8,7 +6,5 @@ export const useGlobalConfigStore = defineStore("globalConfig", () => {
     const clientAppUrl = import.meta.env.VITE_CLIENT_APP_URL;
     const isDevMode = import.meta.env.DEV;
 
-    const maxUploadFileSize: Ref<number> = useLocalStorage("maxUploadFileSize", 0);
-
-    return { appName, apiUrl, clientAppUrl, isDevMode, maxUploadFileSize };
+    return { appName, apiUrl, clientAppUrl, isDevMode };
 });
