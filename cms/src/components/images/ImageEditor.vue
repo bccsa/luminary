@@ -5,16 +5,17 @@ import LTextarea from "../forms/LTextarea.vue";
 import LButton from "../button/LButton.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { useNotificationStore } from "@/stores/notification";
 import {
+    db,
     type Uuid,
     type ImageUploadDto,
     type ImageDto,
     DocType,
     type ImageFileCollectionDto,
-} from "@/types";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { useNotificationStore } from "@/stores/notification";
-import { db } from "@/db/baseDatabase";
+    maxUploadFileSize,
+} from "luminary-shared";
 
 // Note: This control is used in a fully reactive mode as we want to show rendered images as soon as they are uploaded. Mixing non-reactive and reactive modes is difficult to implement.
 
@@ -37,8 +38,7 @@ const image = db.getAsRef<ImageDto>(props.imageId, {
 const { addNotification } = useNotificationStore();
 
 // Computed
-const globalConfigStore = useGlobalConfigStore();
-const maxUploadFileSize = computed(() => globalConfigStore.maxUploadFileSize / 1000000);
+const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
 // Child component refs
 const nameInput = ref<typeof LInput | undefined>(undefined);
@@ -70,10 +70,10 @@ const upload = () => {
         if (!image.value.uploadData) image.value.uploadData = [] as ImageUploadDto[];
         const fileData = e.target!.result as ArrayBuffer;
 
-        if (fileData.byteLength > globalConfigStore.maxUploadFileSize) {
+        if (fileData.byteLength > maxUploadFileSize.value) {
             addNotification({
                 title: `Invalid image file size`,
-                description: `Image file size is larger than the maximum allowed size of ${maxUploadFileSize.value}MB`,
+                description: `Image file size is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`,
                 state: "error",
             });
             return;
@@ -122,7 +122,7 @@ const removeFileCollection = (collection: ImageFileCollectionDto) => {
             <div class="mb-2 flex items-end gap-4">
                 <div class="flex flex-col">
                     <label class="mb-3 w-full text-right text-xs text-zinc-900"
-                        >Max size: {{ maxUploadFileSize }}MB</label
+                        >Max size: {{ maxUploadFileSizeMb }}MB</label
                     >
                     <LButton :icon="ArrowUpOnSquareIcon" class="h-9" @click="showFilePicker"
                         >Upload</LButton

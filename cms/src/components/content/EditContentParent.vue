@@ -9,15 +9,13 @@ import {
     type PostDto,
     type TagDto,
     type LanguageDto,
+    verifyAccess,
 } from "luminary-shared";
 import { computed } from "vue";
-import TagSelector2 from "./TagSelector2.vue";
+import TagSelector2 from "./TagSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
-import { useUserAccessStore } from "@/stores/userAccess";
-
-const { verifyAccess } = useUserAccessStore();
 
 type Props = {
     docType: DocType;

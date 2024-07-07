@@ -3,13 +3,9 @@ import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { useNotificationStore } from "@/stores/notification";
-import { useSocketConnectionStore } from "@/stores/socketConnection";
-import { purgeLocalDatabase } from "@/util/purgeLocalDatabase";
 import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
-import { storeToRefs } from "pinia";
+import { db, isConnected, getSocket } from "luminary-shared";
 
-const socketConnectionStore = useSocketConnectionStore();
-const { isConnected } = storeToRefs(socketConnectionStore);
 const { addNotification } = useNotificationStore();
 
 const deleteLocalData = async () => {
@@ -21,8 +17,8 @@ const deleteLocalData = async () => {
         });
     }
 
-    await purgeLocalDatabase();
-    await socketConnectionStore.reloadClientData();
+    await db.purge();
+    getSocket().requestData();
 
     return addNotification({
         title: "Local cache cleared",

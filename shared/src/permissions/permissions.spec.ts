@@ -1,12 +1,9 @@
 import { describe, it, beforeEach, afterEach, vi, afterAll, expect } from "vitest";
-import { setActivePinia, createPinia } from "pinia";
-import { useUserAccessStore } from "./userAccess";
-import { AclPermission, DocType } from "@/types";
+import { AclPermission, DocType } from "../types";
+import { accessMap, verifyAccess } from "./permissions";
 
-describe("userAccess store", () => {
-    beforeEach(() => {
-        setActivePinia(createPinia());
-    });
+describe("permissions", () => {
+    beforeEach(() => {});
 
     afterEach(() => {
         vi.clearAllMocks();
@@ -17,8 +14,7 @@ describe("userAccess store", () => {
     });
 
     it("verifies access for a docType and permission", () => {
-        const store = useUserAccessStore();
-        store.accessMap = {
+        accessMap.value = {
             "group-private-editors": {
                 post: {
                     view: true,
@@ -35,31 +31,27 @@ describe("userAccess store", () => {
         };
 
         // Assigned access
-        let result = store.verifyAccess(
-            ["group-private-editors"],
-            DocType.Post,
-            AclPermission.Edit,
-        );
+        let result = verifyAccess(["group-private-editors"], DocType.Post, AclPermission.Edit);
         expect(result).toBe(true);
 
         // Non-assigned access
-        result = store.verifyAccess(["group-private-editors"], DocType.Post, AclPermission.Delete);
+        result = verifyAccess(["group-private-editors"], DocType.Post, AclPermission.Delete);
         expect(result).toBe(false);
 
         // DocType exists in the map but permission doesn't
-        result = store.verifyAccess(["group-private-editors"], DocType.Post, AclPermission.Create);
+        result = verifyAccess(["group-private-editors"], DocType.Post, AclPermission.Create);
         expect(result).toBe(false);
 
         // Both docType and permission don't exist in the map
-        result = store.verifyAccess(["group-private-editors"], DocType.Group, AclPermission.Assign);
+        result = verifyAccess(["group-private-editors"], DocType.Group, AclPermission.Assign);
         expect(result).toBe(false);
 
         // Group doesn't exist in the map
-        result = store.verifyAccess(["unknown-group"], DocType.Post, AclPermission.Create);
+        result = verifyAccess(["unknown-group"], DocType.Post, AclPermission.Create);
         expect(result).toBe(false);
 
         // private-editors has the permission but public-editors doesn't
-        result = store.verifyAccess(
+        result = verifyAccess(
             ["group-private-editors", "group-public-editors"],
             DocType.Post,
             AclPermission.Edit,
