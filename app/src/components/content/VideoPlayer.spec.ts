@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import VideoPlayer from "./VideoPlayer.vue";
-import { mockEnglishContent, mockPost } from "@/tests/mockData";
+import { mockEnglishContentDto } from "@/tests/mockData";
 
 const posterMock = vi.hoisted(() => vi.fn());
 const srcMock = vi.hoisted(() => vi.fn());
@@ -30,12 +30,14 @@ vi.mock("video.js", () => {
 describe("VideoPlayer", () => {
     it("renders the poster image", async () => {
         mount(VideoPlayer, {
-            props: { contentParent: mockPost },
+            props: {
+                content: mockEnglishContentDto,
+            },
         });
 
         expect(srcMock).toHaveBeenCalledWith(
-            expect.objectContaining({ src: mockEnglishContent.video }),
+            expect.objectContaining({ src: mockEnglishContentDto.video }),
         );
-        expect(posterMock).toHaveBeenCalledWith(mockPost.image);
+        expect(posterMock).toHaveBeenCalledWith(mockEnglishContentDto.image);
     });
 });

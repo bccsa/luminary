@@ -1,23 +1,39 @@
 <script setup lang="ts">
-import type { Tag } from "@/types";
-import PostTile from "@/components/posts/PostTile.vue";
-import { usePostStore } from "@/stores/post";
-import type { postQueryOptions } from "@/stores/post";
-import { storeToRefs } from "pinia";
+import ContentTile from "@/components/content/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { useResizeObserver } from "@vueuse/core";
-
-const postStore = usePostStore();
-
-const { postsByTag } = storeToRefs(postStore);
+import { DocType, db, type TagDto, type queryOptions as options } from "luminary-shared";
 
 type Props = {
-    tag?: Tag;
+    tag?: TagDto;
     title?: string;
-    queryOptions?: postQueryOptions;
+    queryOptions: options;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
+const tagContent = props.tag
+    ? db.whereParentAsRef(props.tag._id, DocType.Tag, props.queryOptions.languageId, [])
+    : ref([]);
+
+const tagTitle = ref(props.title);
+const tagSummary = ref("");
+
+watch(tagContent, () => {
+    if (props.title) {
+        tagTitle.value = props.title;
+        return;
+    }
+
+    if (tagContent.value.length > 0) {
+        tagTitle.value = tagContent.value[0].title;
+        tagSummary.value = tagContent.value[0].summary || "";
+        return;
+    }
+
+    tagTitle.value = "No translation found";
+});
 
 const spinLeft = () => {
     if (scrollElement.value) scrollElement.value.scrollLeft -= 100;
@@ -66,9 +82,9 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 <template>
     <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
         <h2 class="truncate px-6">
-            {{ tag?.content[0]?.title || title }}
+            {{ tagTitle }}
             <span class="ml-1 text-sm text-zinc-500 dark:text-zinc-200">
-                {{ tag?.content[0]?.summary }}
+                {{ tagSummary }}
             </span>
         </h2>
 
@@ -96,11 +112,10 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                 @scroll="setSpinBtnVisibility"
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-6">
-                    <PostTile
-                        v-for="post in postsByTag(tag ? tag._id : '', queryOptions)"
-                        :key="post._id"
-                        :post="post"
-                        :pinned="tag?.pinned"
+                    <ContentTile
+                        v-for="content in taggedDocs"
+                        :key="content._id"
+                        :content="content"
                         class="w-40 overflow-clip md:w-60"
                     />
                 </div>

@@ -10,7 +10,6 @@ import {
 } from "@/types";
 import { db } from "@/db/baseDatabase";
 import { ref } from "vue";
-import { BaseRepository } from "@/db/repositories/baseRepository";
 import { Socket } from "socket.io-client";
 
 export const useSocketConnectionStore = defineStore("socketConnection", () => {
@@ -51,41 +50,7 @@ export const useSocketConnectionStore = defineStore("socketConnection", () => {
             if (data.version) localStorage.setItem("syncVersion", data.version.toString());
         });
 
-        socket.value.on("accessMap", (accessMap: AccessMap) => {
-            // Delete revoked documents
-
-            // TODO: Only delete documents if the accessMap changed for improved performance
-            const baseRepository = new BaseRepository();
-            const groupsPerDocType = accessMapToGroups(accessMap, AclPermission.View);
-
-            Object.values(DocType)
-                .filter((t) => !(t == DocType.Change || t == DocType.Content))
-                .forEach(async (docType) => {
-                    let groups = groupsPerDocType[docType as DocType];
-                    if (groups === undefined) groups = [];
-
-                    const revokedDocs = baseRepository.whereNotMemberOf(groups, docType as DocType);
-
-                    // Delete associated Post and Tag content documents
-                    if (docType === DocType.Post || docType === DocType.Tag) {
-                        const revokedParents = await revokedDocs.toArray();
-                        const revokedParentIds = revokedParents.map((p) => p._id);
-                        await baseRepository.whereParentIds(revokedParentIds).delete();
-                    }
-
-                    // Delete associated Language content documents
-                    if (docType === DocType.Language) {
-                        const revokedLanguages = await revokedDocs.toArray();
-                        const revokedlanguageIds = revokedLanguages.map((l) => l._id);
-                        await baseRepository.whereLanguageIds(revokedlanguageIds).delete();
-                    }
-
-                    await revokedDocs.delete();
-                });
-
-            // Store the updated access map
-            localStorage.setItem("accessMap", JSON.stringify(accessMap));
-        });
+        //   TODO: Add sync code from shared library
     };
 
     return { isConnected, bindEvents, reloadClientData };
