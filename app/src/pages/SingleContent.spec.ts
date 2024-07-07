@@ -22,7 +22,7 @@ describe("SinglePost", () => {
         db.docs.clear();
     });
 
-    it("displays the loading when no content", async () => {
+    it("displays the loading spinner when no content is available", async () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -32,7 +32,7 @@ describe("SinglePost", () => {
         expect(wrapper.findComponent({ name: "LoadingSpinner" }).exists()).toBe(true);
     });
 
-    it("displays the image content", async () => {
+    it("displays the content image", async () => {
         await db.docs.update(mockEnglishContentDto._id, { image: "test-image.jpg" });
 
         const wrapper = mount(SingleContent, {
@@ -46,7 +46,7 @@ describe("SinglePost", () => {
         });
     });
 
-    it("displays the video content when defined", async () => {
+    it("displays the content video when defined", async () => {
         await db.docs.update(mockEnglishContentDto._id, {
             image: "",
             video: "test-video.mp4",
@@ -87,7 +87,7 @@ describe("SinglePost", () => {
         });
     });
 
-    it("displays the text content", async () => {
+    it("displays the content text", async () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -99,7 +99,7 @@ describe("SinglePost", () => {
         });
     });
 
-    it("display the categories", async () => {
+    it("displays tags", async () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
