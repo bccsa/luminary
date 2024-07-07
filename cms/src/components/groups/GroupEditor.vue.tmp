@@ -8,7 +8,7 @@ import {
     type GroupAclEntry,
     type GroupAclEntryDto,
     type GroupDto,
-} from "@/types";
+} from "luminary-shared";
 import { capitaliseFirstLetter } from "@/util/string";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import {

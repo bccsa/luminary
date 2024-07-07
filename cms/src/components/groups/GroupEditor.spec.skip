@@ -13,7 +13,7 @@ import {
 import LBadge from "../common/LBadge.vue";
 import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { useLocalChangeStore } from "@/stores/localChanges";
-import { AclPermission, DocType } from "@/types";
+import { AclPermission, DocType } from "luminary-shared";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 
 vi.mock("vue-router", () => ({
