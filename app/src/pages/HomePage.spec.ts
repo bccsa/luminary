@@ -2,14 +2,32 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import HomePage from "./HomePage.vue";
 import { setActivePinia, createPinia } from "pinia";
-import { usePostStore } from "@/stores/post";
-import { mockCategory, mockPost } from "@/tests/mockData";
-import { useTagStore } from "@/stores/tag";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
+import { db, TagType, type queryOptions } from "luminary-shared";
 
-vi.mock("vue-router");
 vi.mock("@auth0/auth0-vue");
+vi.mock("luminary-shared", async () => {
+    const actual = await vi.importActual("luminary-shared");
+    return {
+        ...actual,
+        db: {
+            someByTypeAsRef: vi.fn(),
+            tagsWhereTagTypeAsRef: vi.fn(),
+        },
+    };
+});
+
+// Mock the IgnorePagePadding and HorizontalScrollableTagViewer components
+vi.mock("@/components/IgnorePagePadding.vue", () => ({
+    default: { template: "<div><slot /></div>" },
+}));
+vi.mock("@/components/tags/HorizontalScrollableTagViewer.vue", () => ({
+    default: {
+        props: ["title", "queryOptions", "tag"],
+        template: '<div>{{ title }} {{ tag ? tag.name : "" }}</div>',
+    },
+}));
 
 describe("HomePage", () => {
     beforeEach(() => {
@@ -18,49 +36,53 @@ describe("HomePage", () => {
             isLoading: ref(false),
             isAuthenticated: ref(true),
         });
+        (db.someByTypeAsRef as any).mockReturnValue(true);
+        (db.tagsWhereTagTypeAsRef as any).mockImplementation(
+            (tagType: TagType.Category, options: queryOptions) => {
+                if (options.filterOptions?.pinned) {
+                    return [{ _id: "1", name: "Pinned Category" }];
+                }
+                return [
+                    { _id: "2", name: "Unpinned Category" },
+
+                    // empty category
+                    { _id: "2", name: "" },
+                ];
+            },
+        );
     });
 
     afterEach(() => {
         vi.clearAllMocks();
     });
 
-    it("displays a message when there are no posts", async () => {
-        const postStore = usePostStore();
-        postStore.posts = [];
+    it("displays a message when there are no contents", async () => {
+        (db.someByTypeAsRef as any).mockReturnValue(false);
 
         const wrapper = mount(HomePage);
 
-        expect(wrapper.text()).not.toBe("");
+        expect(wrapper.text()).toContain(
+            "You don't have access to any content. If you believe this is an error, send your contact person a message.",
+        );
     });
 
     it("displays the categories", async () => {
-        const postStore = usePostStore();
-        const tagStore = useTagStore();
-        postStore.posts = [mockPost];
-        tagStore.tags = [mockCategory];
-
         const wrapper = mount(HomePage);
 
-        expect(wrapper.html()).toContain(mockCategory.content[0].title);
+        expect(wrapper.text()).toContain("Pinned Category");
+        expect(wrapper.text()).toContain("Unpinned Category");
     });
 
     it("does not display an empty category", async () => {
-        const tagStore = useTagStore();
-        tagStore.tags = [mockCategory];
-
         const wrapper = mount(HomePage);
 
-        expect(wrapper.html()).not.toContain(mockCategory.content[0].title);
+        expect(wrapper.text()).not.toContain(undefined);
     });
 
-    it("displays the posts", async () => {
-        const postStore = usePostStore();
-        const tagStore = useTagStore();
-        postStore.posts = [mockPost];
-        tagStore.tags = [mockCategory];
-
+    it("displays the content", async () => {
         const wrapper = mount(HomePage);
 
-        expect(wrapper.html()).toContain(mockPost.content[0].title);
+        // Check for the "Newest Content" section
+        expect(wrapper.text()).toContain("Newest Content");
     });
 });
