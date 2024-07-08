@@ -146,6 +146,13 @@ class database extends Dexie {
     }
 
     /**
+     * Bulk insert documents into the database
+     */
+    bulkPut(docs: BaseDocumentDto[]) {
+        return this.docs.bulkPut(docs);
+    }
+
+    /**
      * Return true if there are some documents of the specified DocType
      */
     async someByType(docType: DocType) {
