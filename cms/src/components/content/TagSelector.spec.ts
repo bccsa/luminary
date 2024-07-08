@@ -9,7 +9,7 @@ import * as mockData from "@/tests/mockData";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
 
-describe("TagSelector2.vue", () => {
+describe("TagSelector.vue", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([mockData.mockPostDto]);
         await db.docs.bulkPut([mockData.mockEnglishContentDto]);
@@ -71,7 +71,6 @@ describe("TagSelector2.vue", () => {
             // This expect is not working. It can be that the fake indexeddb is not filtering the tags as expected, returing Topic A as well.
             // expect(wrapper.text()).not.toContain("Topic A");
         });
-        console.log(wrapper.html());
     });
 
     it("can filter on tags", async () => {
