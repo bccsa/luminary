@@ -5,7 +5,6 @@ import LTextarea from "../forms/LTextarea.vue";
 import LButton from "../button/LButton.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import {
     db,
