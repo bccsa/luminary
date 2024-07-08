@@ -168,7 +168,7 @@ const clearExpiryDate = () => {
 };
 
 // Linked publish and expiry dates
-const linkedDates = ref<boolean>(false);
+// const linkedDates = ref<boolean>(false); // future feature
 
 // Publish status
 const publishStatus = ref<boolean>(false);

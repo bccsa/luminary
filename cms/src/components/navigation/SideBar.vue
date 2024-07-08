@@ -4,9 +4,9 @@ import {
     DocumentDuplicateIcon,
     TagIcon,
     HomeIcon,
-    UsersIcon,
+    // UsersIcon,
     ChevronRightIcon,
-    RectangleStackIcon,
+    // RectangleStackIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
