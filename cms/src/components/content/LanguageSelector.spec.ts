@@ -8,7 +8,7 @@ import LanguageSelector2 from "./LanguageSelector.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import { PublishStatus, accessMap } from "luminary-shared";
 
-describe("LanguageSelector2.vue", () => {
+describe("LanguageSelector.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
