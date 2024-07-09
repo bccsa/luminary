@@ -123,7 +123,7 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("No selected language yet");
+            expect(wrapper.html()).toContain("The content is not yet available in");
         });
     });
 
@@ -152,20 +152,6 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "eng",
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockData.mockEnglishContentDto.title);
-        });
-    });
-
-    it("renders a different language than the selected (route/prop) language when it's not available", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "swa",
             },
         });
 
