@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
-import LanguageSelector2 from "@/components/content/LanguageSelector.vue";
+import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
 import {
     db,
@@ -19,7 +19,6 @@ import {
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
-
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
@@ -58,7 +57,6 @@ const parent = ref<PostDto | TagDto>({
     tags: [],
 });
 const isLoading = computed(() => parent.value == undefined);
-const selectedLanguageId = ref<Uuid>();
 const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent document for dirty check
 const contentDocs = ref<ContentDto[]>([]);
 const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
@@ -80,30 +78,22 @@ if (!newDocument) {
 // Languages and language selection
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
-watch(
-    languages,
-    () => {
-        if (!languages) return;
-        const contentLanguages = languages.value.filter((l) =>
-            contentDocs.value.find((c) => c.language == l._id),
-        );
-
+let _selectedLanguageId = ref<Uuid | undefined>(undefined);
+const selectedLanguageId = computed({
+    get() {
+        if (_selectedLanguageId.value) return _selectedLanguageId.value;
+        if (!languages.value) return undefined;
         if (props.languageCode) {
-            const preferred = contentLanguages.find((l) => l.languageCode == props.languageCode);
-
-            if (preferred) {
-                selectedLanguageId.value = preferred._id;
-                return;
-            }
+            const preferred = languages.value.find((l) => l.languageCode == props.languageCode);
+            if (preferred) return preferred._id;
         }
-
-        if (contentLanguages.length > 0) {
-            selectedLanguageId.value = contentLanguages[0]._id;
-            return;
-        }
+        if (languages.value.length > 0) return languages.value[0]._id;
+        return undefined;
     },
-    { once: true },
-);
+    set(val) {
+        _selectedLanguageId.value = val;
+    },
+});
 
 const selectedLanguage = computed(() => {
     return languages.value.find((l) => l._id == selectedLanguageId.value);
@@ -218,7 +208,7 @@ watch(selectedLanguage, () => {
         v-if="parent"
     >
         <template #actions v-if="selectedLanguage">
-            <LanguageSelector2
+            <LanguageSelector
                 :parent="parent"
                 :content="contentDocs"
                 :languages="languages"
@@ -232,18 +222,18 @@ watch(selectedLanguage, () => {
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="TagIcon"
-                    :title="`No selected language yet`"
-                    :description="`Please choose a language before starting editing
+                    :title="`The content is not yet available in ${selectedLanguage?.name}`"
+                    :description="`Please select a language before starting editing
                     `"
                     data-test="no-content"
-                    ><LanguageSelector2
+                    ><LanguageSelector
                         :parent="parent"
                         :content="contentDocs"
                         :languages="languages"
                         v-model="selectedLanguageId"
                         @createTranslation="createTranslation"
                 /></EmptyState>
-                <div v-if="selectedContent" class="space-y-6">
+                <div v-else class="space-y-6">
                     <!-- Basic content settings -->
                     <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
