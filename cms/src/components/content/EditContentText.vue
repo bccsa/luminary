@@ -14,7 +14,7 @@ defineProps<Props>();
 const content = defineModel<ContentDto>("content");
 
 const initializeText = () => {
-    if (!content || !content.value) return;
+    if (!content.value) return;
     content.value.text = EMPTY_TEXT;
 };
 </script>

@@ -7,6 +7,8 @@ import { mockCategoryContentDto, mockCategoryDto, mockEnglishContentDto } from "
 import waitForExpect from "wait-for-expect";
 import { db } from "luminary-shared";
 
+vi.mock("vue-router");
+
 describe("HorizontalScrollableTagViewer", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([mockCategoryContentDto, mockCategoryDto]);
@@ -43,6 +45,8 @@ describe("HorizontalScrollableTagViewer", () => {
         expect(wrapper.text()).toContain("Newest Content");
     });
 
+    // This test is showing a Vue warn in the console.
+    //It should be a warning comming from the router in one of the child components.
     it("displays a ContentTile", async () => {
         db.docs.bulkPut([mockEnglishContentDto]);
 

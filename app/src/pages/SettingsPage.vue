@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
-import { useSocketConnectionStore } from "@/stores/socketConnection";
 import { purgeLocalDatabase } from "@/util/purgeLocalDatabase";
-import { storeToRefs } from "pinia";
-
-const { isConnected } = storeToRefs(useSocketConnectionStore());
+import { isConnected } from "luminary-shared";
 
 const deleteLocalData = async () => {
     await purgeLocalDatabase();
