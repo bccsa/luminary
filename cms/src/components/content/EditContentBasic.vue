@@ -76,7 +76,7 @@ watch(
 );
 
 const validateSlug = async () => {
-    if (!content || !content.value) return;
+    if (!content.value) return;
     content.value.slug = await Slug.generate(content.value.slug, content.value._id || "");
 };
 

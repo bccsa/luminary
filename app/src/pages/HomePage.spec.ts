@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import HomePage from "./HomePage.vue";
