@@ -9,7 +9,7 @@ export default defineConfig({
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
-            mockdata: path.resolve(__dirname, "../mockdata"),
+            "@mockdata": path.resolve(__dirname, "../mockdata"),
         },
     },
     server: {

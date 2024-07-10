@@ -6,7 +6,7 @@ import ImageBrowser from "./ImageBrowser.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
-import { mockImageDto } from "../../../../mockdata/mockData";
+import { mockImageDto } from "../../../../mockdata/mockdata";
 
 describe("ImageBrowser", () => {
     beforeAll(async () => {

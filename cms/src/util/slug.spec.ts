@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
 import { Slug } from "./slug";
 import { db, type ContentDto } from "luminary-shared";
-import { mockEnglishContentDto } from "../../../mockdata/mockData";
+import { mockEnglishContentDto } from "@mockdata";
 
 describe("Slug", () => {
     afterEach(() => {

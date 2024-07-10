@@ -4,7 +4,7 @@ import LImage from "./LImage.vue";
 import { describe, expect, it, vi } from "vitest";
 import { db } from "luminary-shared";
 import { ref } from "vue";
-import { mockImageDto } from "../../../../mockdata/mockData";
+import { mockImageDto } from "../../../../mockdata/mockdata";
 import waitForExpect from "wait-for-expect";
 
 describe("LImage", () => {
