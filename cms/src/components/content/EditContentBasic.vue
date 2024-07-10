@@ -80,7 +80,7 @@ const validateSlug = async () => {
 };
 
 // Publish and expiry dates
-const publishDateString = computed<string | undefined>({
+const publishDateString = computed({
     get() {
         if (!content.value || !content.value.publishDate) return;
         return db.toIsoDateTime(content.value.publishDate);
@@ -95,7 +95,7 @@ const publishDateString = computed<string | undefined>({
     },
 });
 
-const expiryDateString = computed<string | undefined>({
+const expiryDateString = computed({
     get() {
         if (!content.value || !content.value.expiryDate) return;
         return db.toIsoDateTime(content.value.expiryDate);
@@ -168,7 +168,7 @@ const clearExpiryDate = () => {
 // const linkedDates = ref<boolean>(false); // future feature
 
 // Publish status
-const publishStatus = computed<boolean>({
+const publishStatus = computed({
     get() {
         if (!content.value) return false;
         return content.value.status == PublishStatus.Published;
