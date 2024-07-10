@@ -28,20 +28,21 @@ Configure Prettier as the default formatter, and configure VS Code to automatica
 cp .env.example .env
 ```
 
-2. Install dependencies:
-
-```sh
-npm ci --install-links
-```
-
-3. Build the shared library
+2. Build the shared library
 
 ```sh
 cd ../shared
 npm run build
 ```
 
-_Remember that this needs to be done every time changes are made to the shared library._
+3. Install dependencies:
+   Return to the `app` / `cms` directory and
+
+```sh
+npm ci --install-links
+```
+
+_Remember that steps 2 and 3 need to be done every time changes are made to the shared library._
 
 4. Then start a live-reloading server with:
 
