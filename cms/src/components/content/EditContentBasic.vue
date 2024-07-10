@@ -6,10 +6,9 @@ import LToggle from "@/components/forms/LToggle.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { PencilIcon, ChevronLeftIcon } from "@heroicons/vue/16/solid";
 import { PublishStatus, type ContentDto, db } from "luminary-shared";
-import { nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { DateTime } from "luxon";
 import { Slug } from "@/util/slug";
-import { watchDeep } from "@vueuse/core";
 
 type Props = {
     disabled: boolean;
@@ -81,37 +80,35 @@ const validateSlug = async () => {
 };
 
 // Publish and expiry dates
-const publishDateString = ref<string | undefined>(undefined);
-watch(
-    content,
-    () => {
+const publishDateString = computed<string | undefined>({
+    get() {
+        if (!content.value || !content.value.publishDate) return;
+        return db.toIsoDateTime(content.value.publishDate);
+    },
+    set(val) {
         if (!content.value) return;
-        if (!content.value.publishDate) {
-            publishDateString.value = undefined;
+        if (!val) {
+            content.value.publishDate = undefined;
             return;
         }
-
-        const date = db.toIsoDateTime(content.value.publishDate);
-        publishDateString.value = date ? date : undefined;
+        content.value.publishDate = db.fromIsoDateTime(val);
     },
-    { immediate: true },
-);
+});
 
-const expiryDateString = ref<string | undefined>(undefined);
-watchDeep(
-    content,
-    () => {
+const expiryDateString = computed<string | undefined>({
+    get() {
+        if (!content.value || !content.value.expiryDate) return;
+        return db.toIsoDateTime(content.value.expiryDate);
+    },
+    set(val) {
         if (!content.value) return;
-        if (!content.value.expiryDate) {
-            expiryDateString.value = undefined;
+        if (!val) {
+            content.value.expiryDate = undefined;
             return;
         }
-
-        const date = db.toIsoDateTime(content.value.expiryDate);
-        expiryDateString.value = date ? date : undefined;
+        content.value.expiryDate = db.fromIsoDateTime(val);
     },
-    { immediate: true },
-);
+});
 
 const selectedExpiryNumber = ref<number | undefined>(undefined);
 const selectedExpiryUnit = ref<string | undefined>(undefined);
@@ -171,18 +168,15 @@ const clearExpiryDate = () => {
 // const linkedDates = ref<boolean>(false); // future feature
 
 // Publish status
-const publishStatus = ref<boolean>(false);
-watch(
-    content,
-    () => {
-        if (!content.value) return;
-        publishStatus.value = content.value.status == PublishStatus.Published;
+const publishStatus = computed<boolean>({
+    get() {
+        if (!content.value) return false;
+        return content.value.status == PublishStatus.Published;
     },
-    { immediate: true },
-);
-watch(publishStatus, () => {
-    if (!content.value) return;
-    content.value.status = publishStatus.value ? PublishStatus.Published : PublishStatus.Draft;
+    set(val) {
+        if (!content.value) return;
+        content.value.status = val ? PublishStatus.Published : PublishStatus.Draft;
+    },
 });
 </script>
 
@@ -250,12 +244,6 @@ watch(publishStatus, () => {
                 type="datetime-local"
                 :disabled="disabled"
                 v-model="publishDateString"
-                @change="
-                    (e) => {
-                        if (!content) return;
-                        content.publishDate = db.fromIsoDateTime(e.target.value);
-                    }
-                "
             >
                 <!-- Link publish & expiry dates toggle -->
                 <!-- <div class="flex items-center justify-between">
@@ -278,12 +266,6 @@ watch(publishStatus, () => {
                 type="datetime-local"
                 :disabled="disabled"
                 v-model="expiryDateString"
-                @change="
-                    (e) => {
-                        if (!content) return;
-                        content.expiryDate = db.fromIsoDateTime(e.target.value);
-                    }
-                "
             >
                 <!-- Expiry date shortcut buttons -->
                 <div class="flex w-full cursor-pointer flex-wrap gap-1">
