@@ -4,7 +4,6 @@
     "compilerOptions": {
         "composite": true,
         "lib": [],
-        "types": ["node", "jsdom"],
-        "rootDirs": ["./src", "../mockdata"]
+        "types": ["node", "jsdom"]
     }
 }

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { type ContentDto, accessMap, PublishStatus } from "luminary-shared";
-import * as mockData from "@mockdata";
+import * as mockData from "@/mockdata";
 import { setActivePinia } from "pinia";
 import { ref } from "vue";
 import EditContentPreview from "./EditContentPreview.vue";

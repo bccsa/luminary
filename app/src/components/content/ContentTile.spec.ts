@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import ContentTile from "./ContentTile.vue";
-import { mockEnglishContentDto } from "@mockdata";
+import { mockEnglishContentDto } from "@/mockdata";
 
 vi.mock("vue-router");
 
