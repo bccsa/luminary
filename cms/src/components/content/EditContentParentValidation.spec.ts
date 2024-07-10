@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import * as mockData from "@/tests/mockData";
+import * as mockData from "../../../../mockdata/mockData";
 import { setActivePinia } from "pinia";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
 

@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
 import { db, accessMap, DocType } from "luminary-shared";
-import * as mockData from "@/tests/mockData";
+import * as mockData from "../../../../mockdata/mockData";
 import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";

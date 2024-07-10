@@ -3,7 +3,7 @@ import { DOMWrapper, mount } from "@vue/test-utils";
 import ImageEditor from "./ImageEditor.vue";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db, accessMap } from "luminary-shared";
-import { fullAccessToAllContentMap, mockImageDto } from "@/tests/mockData";
+import { fullAccessToAllContentMap, mockImageDto } from "../../../../mockdata/mockData";
 import { ref } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";

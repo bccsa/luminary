@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import VideoPlayer from "./VideoPlayer.vue";
-import { mockEnglishContentDto } from "@/tests/mockData";
+import { mockEnglishContentDto } from "../../../../mockdata/mockData";
 
 const posterMock = vi.hoisted(() => vi.fn());
 const srcMock = vi.hoisted(() => vi.fn());

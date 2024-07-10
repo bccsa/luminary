@@ -5,7 +5,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import EditContentParent from "./EditContentParent.vue";
 import { DocType, type PostDto, type TagDto, accessMap } from "luminary-shared";
-import * as mockData from "@/tests/mockData";
+import * as mockData from "../../../../mockdata/mockData";
 import { ref } from "vue";
 
 describe("EditContentParent.vue", () => {

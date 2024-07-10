@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, afterEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import * as mockData from "@/tests/mockData";
+import * as mockData from "../../../../mockdata/mockData";
 import EditContentValidation from "./EditContentValidation.vue";
 
 describe("EditContentValidation.vue", () => {

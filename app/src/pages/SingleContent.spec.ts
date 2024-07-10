@@ -3,7 +3,11 @@ import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { mount, shallowMount } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import SingleContent from "./SingleContent.vue";
-import { mockPostDto, mockEnglishContentDto, mockCategoryContentDto } from "@/tests/mockData";
+import {
+    mockPostDto,
+    mockEnglishContentDto,
+    mockCategoryContentDto,
+} from "../../../mockdata/mockData";
 import { db, type BaseDocumentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
