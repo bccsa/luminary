@@ -19,8 +19,7 @@
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "noFallthroughCasesInSwitch": true,
-
-        "rootDirs": ["./", "../mockdata"]
+        "rootDirs": ["./src", "../mockdata"]
     },
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
     "exclude": ["src/**/*.spec.ts", "src/tests"],
