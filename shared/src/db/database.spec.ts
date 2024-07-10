@@ -10,7 +10,7 @@ import {
     mockLanguageDtoFra,
     mockLanguageDtoSwa,
     mockPostDto,
-} from "../tests/mockData";
+} from "../../../mockdata";
 
 import {
     AckStatus,

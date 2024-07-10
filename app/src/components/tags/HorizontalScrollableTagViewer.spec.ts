@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import HorizontalScrollableTagViewer from "./HorizontalScrollableTagViewer.vue";
-import { mockCategoryContentDto, mockCategoryDto, mockEnglishContentDto } from "@/tests/mockData";
+import { mockCategoryContentDto, mockCategoryDto, mockEnglishContentDto } from "@mockdata";
 import waitForExpect from "wait-for-expect";
 import { db } from "luminary-shared";
 
