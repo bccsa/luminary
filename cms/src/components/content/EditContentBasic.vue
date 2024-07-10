@@ -83,7 +83,7 @@ const validateSlug = async () => {
 const publishDateString = computed({
     get() {
         if (!content.value || !content.value.publishDate) return;
-        return db.toIsoDateTime(content.value.publishDate);
+        return db.toIsoDateTime(content.value.publishDate) || undefined;
     },
     set(val) {
         if (!content.value) return;
@@ -98,7 +98,7 @@ const publishDateString = computed({
 const expiryDateString = computed({
     get() {
         if (!content.value || !content.value.expiryDate) return;
-        return db.toIsoDateTime(content.value.expiryDate);
+        return db.toIsoDateTime(content.value.expiryDate) || undefined;
     },
     set(val) {
         if (!content.value) return;
