@@ -61,6 +61,7 @@ const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
                     },
                     filterOptions: {
                         limit: 10,
+                        docType: DocType.Post,
                     },
                     languageId: 'lang-eng',
                 }"
