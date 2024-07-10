@@ -6,6 +6,7 @@ import {
     ContentDto,
     DocType,
     LocalChangeDto,
+    PublishStatus,
     TagDto,
     TagType,
     Uuid,
@@ -288,21 +289,39 @@ class database extends Dexie {
             })
             .toArray()) as TagDto[];
 
-        // Optionally only include tags that are not tagged with other tags of the same tag type
-        let topLevel = res;
-        if (options?.filterOptions?.topLevelOnly) {
-            topLevel = await filterAsync(res, async (tag: TagDto) => {
-                const hasTagsOfSameType = await someAsync(tag.tags, async (tagId) =>
+        // Filter array in memory
+        let filtered = res;
+        const now = Date.now();
+        filtered = await filterAsync(res, async (tag: TagDto) => {
+            // Get the content document of the tag for the selected language
+            const tagContent = await this.whereParent(tag._id, DocType.Tag, options.languageId);
+
+            // Check if the tag has content in the selected language
+            if (tagContent.length == 0) return false;
+
+            // Exclude results which are not publised
+            if (tagContent[0].status == PublishStatus.Draft) return false;
+
+            // Exlcude results where the publish date is in the future
+            if (!tagContent[0].publishDate || tagContent[0].publishDate > now) return false;
+
+            // Exclude results where the expiry date is in the past
+            if (tagContent[0].expiryDate && tagContent[0].expiryDate < now) return false;
+
+            // Optionally only include tags that are not tagged with other tags of the same tag type
+            if (options?.filterOptions?.topLevelOnly) {
+                return !(await someAsync(tag.tags, async (tagId) =>
                     this.isTagType(tagId, tagType),
-                );
-                return !hasTagsOfSameType;
-            });
-        }
+                ));
+            }
+
+            return true;
+        });
 
         // Get the newest content publish date per tag
         const newestContent: { tagId: Uuid; publishDate: number }[] = [];
         const pList = [];
-        for (const tag of topLevel) {
+        for (const tag of filtered) {
             pList.push(
                 this.contentWhereTag(tag._id, {
                     languageId: options.languageId,
@@ -321,7 +340,7 @@ class database extends Dexie {
         await Promise.all(pList);
 
         // Filter out tags that are not used
-        const usedTags = topLevel.filter((tag) => newestContent.some((c) => c.tagId == tag._id));
+        const usedTags = filtered.filter((tag) => newestContent.some((c) => c.tagId == tag._id));
 
         // Sort the decending tags by the newest content publish date
         const sorted = usedTags.sort((a, b) => {

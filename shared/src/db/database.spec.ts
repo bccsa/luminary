@@ -225,7 +225,14 @@ describe("baseDatabase.ts", () => {
 
         // Category 2
         // Add a second category
-        await db.docs.bulkPut([{ ...mockCategoryDto, _id: "tag-category2" }]);
+        await db.docs.bulkPut([
+            { ...mockCategoryDto, _id: "tag-category2" },
+            {
+                ...mockCategoryContentDto,
+                _id: "content-tag-category2",
+                parentId: "tag-category2",
+            } as ContentDto,
+        ]);
 
         // Create a third content document tagged with Category 2
         await db.docs.bulkPut([
