@@ -450,6 +450,49 @@ describe("baseDatabase.ts", () => {
         expect(res6[0]._id).toBe("post2-content");
     });
 
+    it("can get content documents by tag filtered by document type", async () => {
+        // Add a second tag document tagged with our mockCategoryDto
+        const category2 = {
+            ...mockCategoryDto,
+            _id: "category-2",
+            tags: [mockCategoryDto._id],
+        } as TagDto;
+        const category2Content = {
+            ...mockCategoryContentDto,
+            _id: "category-2-content",
+            parentId: "category-2",
+            tags: [mockCategoryDto._id],
+        } as ContentDto;
+        await db.docs.bulkPut([category2, category2Content]);
+
+        const docs = await db.contentWhereTag(mockCategoryDto._id, {
+            languageId: mockLanguageDtoEng._id,
+            filterOptions: { docType: DocType.Post },
+        });
+
+        // This test should only return the post document's content
+        expect(docs).toEqual([mockEnglishContentDto]);
+
+        const docs2 = await db.contentWhereTag(mockCategoryDto._id, {
+            languageId: mockLanguageDtoEng._id,
+            filterOptions: { docType: DocType.Tag },
+        });
+
+        // This test should only return the second tag document's content
+        expect(docs2).toEqual([category2Content]);
+
+        const docs3 = await db.contentWhereTag(mockCategoryDto._id, {
+            languageId: mockLanguageDtoEng._id,
+        });
+
+        // This test should return both post and tag documents
+        expect(docs3.length).toBe(2);
+        expect(docs3.find((d) => d._id == mockEnglishContentDto._id)).toEqual(
+            mockEnglishContentDto,
+        );
+        expect(docs3.find((d) => d._id == category2Content._id)).toEqual(category2Content);
+    });
+
     it("can upsert a document into the database and queue the change to be sent to the API", async () => {
         await db.upsert(mockPostDto);
         const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
