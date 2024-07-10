@@ -35,6 +35,11 @@ export type queryOptions = {
          * Limit the results to the specified number
          */
         limit?: number;
+        /**
+         * Only return documents of the specified DocType.
+         * When used with tagsWhereTagType(), this option is used when calculating the newest content publish date per tag.
+         */
+        docType?: DocType.Post | DocType.Tag;
     };
     /**
      * Sort options are only applicable to Post and Tag queries.
@@ -325,7 +330,7 @@ class database extends Dexie {
             pList.push(
                 this.contentWhereTag(tag._id, {
                     languageId: options.languageId,
-                    filterOptions: { limit: 1 },
+                    filterOptions: { limit: 1, docType: options.filterOptions?.docType },
                     sortOptions: { sortBy: "publishDate", sortOrder: "desc" },
                 }).then((content) => {
                     if (content.length > 0) {
@@ -386,6 +391,13 @@ class database extends Dexie {
             .equals(DocType.Content)
             .and((d) => {
                 const doc = d as ContentDto;
+                // Optionally filter by DocType
+                if (
+                    options.filterOptions?.docType &&
+                    doc.parentType != options.filterOptions.docType
+                ) {
+                    return false;
+                }
 
                 // Filter by language
                 if (doc.language != options.languageId) return false;
