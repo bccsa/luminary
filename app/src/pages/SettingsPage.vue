@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
-import { purgeLocalDatabase } from "@/util/purgeLocalDatabase";
-import { isConnected } from "luminary-shared";
+import { db, getSocket, isConnected } from "luminary-shared";
 
 const deleteLocalData = async () => {
-    await purgeLocalDatabase();
-    window.location.reload();
+    await db.purge();
+    getSocket().requestData();
 };
 </script>
 

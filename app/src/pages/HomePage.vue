@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
-import { TagType } from "@/types";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { DocType, db } from "luminary-shared";
+import { DocType, TagType, db } from "luminary-shared";
 
 const { isAuthenticated } = useAuth0();
 
