@@ -2,6 +2,8 @@
     "_id": "content-category1-eng",
     "type": "content",
     "memberOf": ["group-public-content"],
+    "image": "image.jpg",
+    "tags": [],
     "parentId": "tag-category1",
     "parentType": "tag",
     "language": "lang-eng",

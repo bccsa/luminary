@@ -2,6 +2,8 @@
     "_id": "content-post1-fra",
     "type": "content",
     "memberOf": ["group-public-content"],
+    "image": "image.jpg",
+    "tags": ["tag-category1", "tag-topicA"],
     "parentId": "post-post1",
     "parentType": "post",
     "language": "lang-fra",
