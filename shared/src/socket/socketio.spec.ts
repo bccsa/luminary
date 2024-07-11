@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
-import { mockEnglishContentDto, mockPostDto } from "../../../mockdata";
+import { mockEnglishContentDto, mockPostDto } from "../tests/mockdata";
 import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
 import { Server } from "socket.io";
 import { db } from "../db/database";
