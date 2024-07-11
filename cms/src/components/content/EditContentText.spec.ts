@@ -5,7 +5,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { ref } from "vue";
 import { type ContentDto, accessMap } from "luminary-shared";
-import * as mockData from "@/mockdata";
+import * as mockData from "@/tests/mockdata";
 import EditContentText from "./EditContentText.vue";
 import waitForExpect from "wait-for-expect";
 

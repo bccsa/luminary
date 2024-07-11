@@ -3,7 +3,7 @@ import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { db, DocType, type ContentDto, accessMap } from "luminary-shared";
-import * as mockData from "@/mockdata";
+import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
 import waitForExpect from "wait-for-expect";
