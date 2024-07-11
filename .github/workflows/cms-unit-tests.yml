@@ -29,8 +29,14 @@ jobs:
           cache: "npm"
           cache-dependency-path: cms/package-lock.json
 
-      # - name: Copy mock files
-      # run: rm -rf cms/src/mockdata && cp -r mockdata cms/src/mockdata;
+      # Symlinks do not work in GitHub Actions
+      - name: Remove symlinked mockdata dependencies
+        run: rm -rf cms/src/mockdata; rm -rf shared/src/mockdata;
+        working-directory: ./
+
+      - name: Copy mock files
+        run: cp -r mockdata cms/src/mockdata;
+        working-directory: ./
 
       - name: Build shared dependencies
         run: npm ci; npm run build;
