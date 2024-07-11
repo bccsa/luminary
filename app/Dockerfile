@@ -1,8 +1,16 @@
 FROM node:lts-alpine as build-stage
+
+# Build the shared library
+WORKDIR /shared
+COPY ./shared ./
+RUN npm ci
+RUN npm run build
+
+# Build the app
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --install-links
-COPY . .
+COPY ./app .
 RUN npm run build
 
 FROM nginx:stable-alpine as production-stage

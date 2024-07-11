@@ -1,11 +1,12 @@
 FROM node:lts-alpine as build-stage
+
 # Build the shared library
 WORKDIR /shared
 COPY ./shared ./
 RUN npm ci
 RUN npm run build
 
-# Comment
+# Build the CMS
 WORKDIR /cms
 COPY ./cms/package*.json ./
 RUN npm ci --install-links

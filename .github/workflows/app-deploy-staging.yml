@@ -6,6 +6,7 @@ on:
     paths:
       - app/**
       - .github/workflows/app-deploy-staging.yml
+      - shared/**
   workflow_dispatch:
 
 concurrency:
@@ -16,11 +17,14 @@ env:
   CI: true
 
 jobs:
-  test:
+  test-app:
     uses: ./.github/workflows/app-unit-tests.yml
 
+  test-shared:
+    uses: ./.github/workflows/shared-unit-tests.yml
+
   deploy:
-    needs: test
+    needs: [test-app, test-shared]
     runs-on: [self-hosted, ac]
     environment: app-staging
 
@@ -39,8 +43,8 @@ jobs:
         working-directory: app
 
       - name: Build Docker container
-        run: docker build . -t ${{ vars.DOCKER_IMAGE }}
-        working-directory: app
+        run: docker build -f ./app/Dockerfile . -t ${{ vars.DOCKER_IMAGE }}
+        working-directory: ./
 
       - name: Stop and remove old Docker container
         run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true

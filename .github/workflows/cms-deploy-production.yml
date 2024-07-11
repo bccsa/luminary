@@ -11,11 +11,14 @@ env:
   CI: true
 
 jobs:
-  test:
+  test-cms:
     uses: ./.github/workflows/cms-unit-tests.yml
 
+  test-shared:
+    uses: ./.github/workflows/shared-unit-tests.yml
+
   deploy:
-    needs: test
+    needs: [test-cms, test-shared]
     runs-on: [self-hosted, ac]
     environment: cms-production
 
@@ -35,8 +38,8 @@ jobs:
         working-directory: cms
 
       - name: Build Docker container
-        run: docker build . -t ${{ vars.DOCKER_IMAGE }}
-        working-directory: cms
+        run: docker build -f ./cms/Dockerfile . -t ${{ vars.DOCKER_IMAGE }}
+        working-directory: ./
 
       - name: Stop and remove old Docker container
         run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
