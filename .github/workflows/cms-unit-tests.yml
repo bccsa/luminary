@@ -19,27 +19,30 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: cms/.node-version
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
           cache-dependency-path: cms/package-lock.json
 
+      # - name: Copy mock files
+      # run: rm -rf cms/src/mockdata && cp -r mockdata cms/src/mockdata;
+
       - name: Build shared dependencies
-        run: cd shared; npm ci; npm run build;
-        # working-directory: shared
+        run: npm ci; npm run build;
+        working-directory: shared
 
       - name: Install dependencies
-        run: cd ../cms; npm ci --install-links
-        # working-directory: cms
+        run: npm ci --install-links
+        working-directory: cms
 
       - name: Run Unit Tests
         run: npm run test:unit
-        # working-directory: cms
+        working-directory: cms
 
   lint:
     runs-on: ubuntu-latest
@@ -57,17 +60,17 @@ jobs:
           cache-dependency-path: cms/package-lock.json
 
       - name: Build shared dependencies
-        run: cd shared; npm ci; npm run build;
-        # working-directory: shared
+        run: npm ci; npm run build;
+        working-directory: shared
 
       - name: Install dependencies
-        run: cd ../cms; npm ci --install-links
-        # working-directory: cms
+        run: npm ci --install-links
+        working-directory: cms
 
       - name: Lint
         run: npm run lint
-        # working-directory: cms
+        working-directory: cms
 
       - name: Type Check
         run: npm run type-check
-        # working-directory: cms
+        working-directory: cms
