@@ -35,7 +35,7 @@ jobs:
         working-directory: ./
 
       - name: Copy mock files
-        run: mkdir -p cms/src/mockdata; cp -r mockdata cms/src/mockdata;
+        run: mkdir -p cms/src/mockdata; cp -r mockdata; cms/src/mockdata; ls cms/src/mockdata;
         working-directory: ./
 
       - name: Build shared dependencies
