@@ -1,25 +1,35 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 
-const { user, logout } = useAuth0();
+const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
 
-const userNavigation: {
-    name: string;
-    action: Function;
-}[] = [
-    { name: "Settings", action: () => router.push({ name: "settings" }) },
-    {
-        name: "Sign out",
-        action: async () => {
-            localStorage.removeItem("usedAuth0Connection");
-            await logout({ logoutParams: { returnTo: window.location.origin } });
-        },
-    },
-];
+const userNavigation = computed(() => {
+    if (isAuthenticated.value) {
+        return [
+            { name: "Settings", action: () => router.push({ name: "settings" }) },
+            {
+                name: "Sign out",
+                action: async () => {
+                    localStorage.removeItem("usedAuth0Connection");
+                    await logout({ logoutParams: { returnTo: window.location.origin } });
+                },
+            },
+        ];
+    } else {
+        return [
+            { name: "Settings", action: () => router.push({ name: "settings" }) },
+            {
+                name: "Log In",
+                action: () => router.push({ name: "login" }),
+            },
+        ];
+    }
+});
 </script>
 
 <template>
@@ -28,8 +38,8 @@ const userNavigation: {
             <span class="sr-only">Open user menu</span>
             <img
                 class="h-8 w-8 rounded-full bg-zinc-50"
-                :src="user.picture"
-                v-if="user?.picture"
+                :src="user?.picture"
+                v-if="isAuthenticated && user?.picture"
                 alt=""
             />
             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300" v-else>
@@ -39,6 +49,7 @@ const userNavigation: {
                 <span
                     class="ml-4 text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
                     aria-hidden="true"
+                    v-if="isAuthenticated"
                     >{{ user?.name }}</span
                 >
                 <ChevronDownIcon
