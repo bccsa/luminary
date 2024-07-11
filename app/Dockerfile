@@ -8,7 +8,7 @@ RUN npm run build
 
 # Build the app
 WORKDIR /app
-COPY package*.json ./
+COPY ./app/package*.json ./
 RUN npm ci --install-links
 COPY ./app .
 RUN npm run build
