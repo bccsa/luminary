@@ -19,24 +19,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version-file: cms/.node-version
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
           cache-dependency-path: cms/package-lock.json
-
-      # Symlinks do not work in GitHub Actions
-      - name: Remove symlinked mockdata dependencies
-        run: rm -rf cms/src/mockdata; rm -rf shared/src/mockdata; rm -rf app/src/mockdata;
-        working-directory: ./
-
-      - name: Copy mock files
-        run: mkdir -p cms/src/mockdata; cp -r mockdata cms/src; ls cms/src/mockdata;
-        working-directory: ./
 
       - name: Build shared dependencies
         run: npm ci; npm run build;
@@ -50,7 +41,7 @@ jobs:
         run: npm run test:unit
         working-directory: cms
 
-      - name: Run Lint Test
+      - name: Run Lint Tests
         run: npm run lint
         working-directory: cms
 
