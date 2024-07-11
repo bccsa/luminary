@@ -1,4 +1,4 @@
-name: Run luminary-shared Unit Tests
+name: Run luminary-shared Unit & Lint Tests
 
 on:
   pull_request:

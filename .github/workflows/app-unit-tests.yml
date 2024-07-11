@@ -1,4 +1,4 @@
-name: Run App Unit Tests
+name: Run App Unit & Lint Tests
 
 on:
   pull_request:

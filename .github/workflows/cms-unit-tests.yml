@@ -1,4 +1,4 @@
-name: Run CMS Unit Tests
+name: Run CMS Unit & Lint Tests
 
 on:
   pull_request:
