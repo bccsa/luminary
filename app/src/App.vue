@@ -8,20 +8,24 @@ import * as Sentry from "@sentry/vue";
 import { getSocket } from "luminary-shared";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 
-const { getAccessTokenSilently, loginWithRedirect } = useAuth0();
+const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const { apiUrl } = useGlobalConfigStore();
 
 const getToken = async () => {
-    try {
-        return await getAccessTokenSilently();
-    } catch (err) {
-        Sentry.captureException(err);
-        await loginWithRedirect({
-            authorizationParams: {
-                redirect_uri: window.location.origin,
-            },
-        });
-        return;
+    if (isAuthenticated.value) {
+        try {
+            return await getAccessTokenSilently();
+        } catch (err) {
+            Sentry.captureException(err);
+            const usedConnection = localStorage.getItem("usedAuth0Connection");
+            await loginWithRedirect({
+                authorizationParams: {
+                    connection: usedConnection ? usedConnection : undefined,
+                    redirect_uri: window.location.origin,
+                },
+            });
+            return;
+        }
     }
 };
 
