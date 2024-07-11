@@ -30,16 +30,16 @@ jobs:
           cache-dependency-path: cms/package-lock.json
 
       - name: Build shared dependencies
-        run: npm ci; npm run build;
-        working-directory: shared
+        run: cd shared; npm ci; npm run build;
+        # working-directory: shared
 
       - name: Install dependencies
-        run: npm ci --install-links
-        working-directory: cms
+        run: cd ../cms; npm ci --install-links
+        # working-directory: cms
 
       - name: Run Unit Tests
         run: npm run test:unit
-        working-directory: cms
+        # working-directory: cms
 
   lint:
     runs-on: ubuntu-latest
@@ -57,17 +57,17 @@ jobs:
           cache-dependency-path: cms/package-lock.json
 
       - name: Build shared dependencies
-        run: npm ci; npm run build;
-        working-directory: shared
+        run: cd shared; npm ci; npm run build;
+        # working-directory: shared
 
       - name: Install dependencies
-        run: npm ci --install-links
-        working-directory: cms
+        run: cd ../cms; npm ci --install-links
+        # working-directory: cms
 
       - name: Lint
         run: npm run lint
-        working-directory: cms
+        # working-directory: cms
 
       - name: Type Check
         run: npm run type-check
-        working-directory: cms
+        # working-directory: cms
