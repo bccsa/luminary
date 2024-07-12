@@ -13,7 +13,7 @@ const router = useRouter();
 const showModal = ref(false);
 
 const userNavigation = computed(() => {
-    if (isAuthenticated.value) {
+    if (isAuthenticated) {
         return [
             { name: "Settings", action: () => router.push({ name: "settings" }) },
             { name: "Language", action: () => (showModal.value = true), icon: LanguageIcon },
