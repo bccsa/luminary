@@ -3,25 +3,46 @@ import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollabl
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { DocType, TagType, db } from "luminary-shared";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { storeToRefs } from "pinia";
 
 const { isAuthenticated } = useAuth0();
+const { appLanguage } = storeToRefs(useGlobalConfigStore());
 
 const hasPosts = db.someByTypeAsRef(DocType.Post);
+
+// const pinnedCategories = computed(() => {
+//     if (appLanguage.value) {
+//         const categories = db.tagsWhereTagTypeAsRef(TagType.Category, {
+//             filterOptions: {
+//                 topLevelOnly: true,
+//                 pinned: true,
+//             },
+//             languageId: appLanguage.value?._id,
+//         });
+//         // console.log("appLanguage", appLanguage.value);
+//         return categories.value;
+//     }
+
+//     return [];
+// });
 
 const pinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
     filterOptions: {
         topLevelOnly: true,
         pinned: true,
+        limit: 10,
     },
-    languageId: "lang-eng",
+    languageId: appLanguage.value?._id,
 });
+
 const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
     filterOptions: {
         topLevelOnly: true,
         pinned: false,
         limit: 10,
     },
-    languageId: "lang-eng",
+    languageId: appLanguage.value?._id,
 });
 </script>
 
@@ -62,7 +83,8 @@ const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
                         limit: 10,
                         docType: DocType.Post,
                     },
-                    languageId: 'lang-eng',
+
+                    languageId: appLanguage?._id,
                 }"
             />
 
@@ -76,7 +98,7 @@ const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
                         sortBy: 'publishDate',
                         sortOrder: 'asc',
                     },
-                    languageId: 'lang-eng',
+                    languageId: appLanguage?._id,
                 }"
             />
 
@@ -90,7 +112,7 @@ const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
                         sortBy: 'publishDate',
                         sortOrder: 'asc',
                     },
-                    languageId: 'lang-eng',
+                    languageId: appLanguage?._id,
                 }"
             />
         </div>

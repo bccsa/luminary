@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
+import LanguageModal from "@/components/content/LanguageModal.vue";
+import { LanguageIcon } from "@heroicons/vue/24/solid";
 
 const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
+
+const showModal = ref(false);
 
 const userNavigation = computed(() => {
     if (isAuthenticated.value) {
         return [
             { name: "Settings", action: () => router.push({ name: "settings" }) },
+            { name: "Language", action: () => (showModal.value = true), icon: LanguageIcon },
             {
                 name: "Sign out",
                 action: async () => {
@@ -23,6 +28,8 @@ const userNavigation = computed(() => {
     } else {
         return [
             { name: "Settings", action: () => router.push({ name: "settings" }) },
+            { name: "Language", action: () => (showModal.value = true) },
+
             {
                 name: "Log In",
                 action: () => router.push({ name: "login" }),
@@ -51,6 +58,12 @@ const userNavigation = computed(() => {
                     aria-hidden="true"
                     v-if="isAuthenticated"
                     >{{ user?.name }}</span
+                >
+                <span
+                    class="ml-4 text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
+                    aria-hidden="true"
+                    v-else
+                    >Profile</span
                 >
                 <ChevronDownIcon
                     class="ml-2 h-5 w-5 text-zinc-400 dark:text-zinc-100"
@@ -83,4 +96,6 @@ const userNavigation = computed(() => {
             </MenuItems>
         </transition>
     </Menu>
+
+    <LanguageModal :isVisible="showModal" @close="showModal = false" />
 </template>
