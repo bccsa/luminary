@@ -80,7 +80,10 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 </script>
 
 <template>
-    <div :class="['select-none', { 'bg-zinc-100 py-6 dark:bg-zinc-900': tag?.pinned }]">
+    <div
+        :class="['select-none', { 'bg-zinc-100 py-8 dark:bg-zinc-900': tag?.pinned }]"
+        class="py-8"
+    >
         <h2 class="truncate px-6">
             {{ tagTitle }}
             <span class="ml-1 text-sm text-zinc-500 dark:text-zinc-200">
