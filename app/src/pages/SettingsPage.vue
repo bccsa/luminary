@@ -2,10 +2,19 @@
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { db, getSocket, isConnected } from "luminary-shared";
+import { useNotificationStore } from "@/stores/notification";
+
+const { addNotification } = useNotificationStore();
 
 const deleteLocalData = async () => {
     await db.purge();
     getSocket().requestData();
+
+    addNotification({
+        title: `Local cache cleared`,
+        description: `New data is loading from the server, it might take a minute.`,
+        state: "success",
+    });
 };
 </script>
 
