@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { DocType, type PostDto, type TagDto, type Uuid } from "luminary-shared";
+import { DocType, type PostDto, type TagDto, type Uuid, db } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
 import { ArrowsUpDownIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/vue/20/solid";
 import LCard from "../common/LCard.vue";
+import type { LanguageDto } from "luminary-shared";
 
 type Props = {
     contentParents: PostDto[] | TagDto[];
@@ -10,6 +11,8 @@ type Props = {
     language: Uuid;
 };
 defineProps<Props>();
+
+const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 </script>
 
 <template>
@@ -76,6 +79,7 @@ defineProps<Props>();
                             :parent="contentParent"
                             :parentType="docType"
                             :language="language"
+                            :languages="languages"
                         />
                     </tbody>
                 </table>
