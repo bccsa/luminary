@@ -20,13 +20,13 @@ const emit = defineEmits(["close"]);
         v-if="isVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-75"
     >
-        <div class="w-11/12 rounded-lg bg-white p-6 shadow-lg sm:w-96">
+        <div class="w-11/12 rounded-lg bg-white p-6 shadow-lg sm:w-96 dark:bg-zinc-900">
             <h2 class="mb-4 text-lg font-semibold">Select Language</h2>
             <ul class="divide-y divide-gray-200">
                 <li
                     v-for="language in languages"
                     :key="language._id"
-                    class="flex cursor-pointer items-center p-3 hover:bg-gray-100"
+                    class="flex cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
                     @click="
                         () => {
                             appLanguage = language;
