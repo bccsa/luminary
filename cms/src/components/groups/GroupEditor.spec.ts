@@ -1,0 +1,371 @@
+import "fake-indexeddb/auto";
+import { describe, it, expect, vi, afterEach, beforeEach, afterAll, beforeAll } from "vitest";
+import { mount } from "@vue/test-utils";
+import GroupEditor from "./GroupEditor.vue";
+import { createTestingPinia } from "@pinia/testing";
+import { setActivePinia } from "pinia";
+import {
+    mockGroupDtoPublicContent,
+    mockGroupDtoPublicEditors,
+    mockGroupDtoPublicUsers,
+    mockGroupDtoSuperAdmins,
+    superAdminAccessMap,
+} from "@/tests/mockdata";
+import LBadge from "../common/LBadge.vue";
+import { accessMap, AclPermission, db, DocType, isConnected, type GroupDto } from "luminary-shared";
+import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
+import waitForExpect from "wait-for-expect";
+
+vi.mock("vue-router", () => ({
+    useRouter: vi.fn().mockImplementation(() => ({
+        push: vi.fn(),
+    })),
+    onBeforeRouteLeave: vi.fn(),
+}));
+
+describe("GroupEditor", () => {
+    const saveChangesButton = 'button[data-test="saveChanges"]';
+    const discardChangesButton = 'button[data-test="discardChanges"]';
+
+    const createWrapper = async () => {
+        const wrapper = mount(GroupEditor, {
+            props: {
+                group: mockGroupDtoPublicContent,
+            },
+        });
+        // Open up the accordion
+        await wrapper.find("button").trigger("click");
+
+        return wrapper;
+    };
+
+    beforeAll(() => {
+        accessMap.value = superAdminAccessMap;
+    });
+
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+        db.docs.bulkPut([
+            mockGroupDtoPublicContent,
+            mockGroupDtoPublicEditors,
+            mockGroupDtoPublicUsers,
+            mockGroupDtoSuperAdmins,
+        ]);
+    });
+
+    afterEach(() => {
+        db.docs.clear();
+        db.localChanges.clear();
+        vi.clearAllMocks();
+    });
+
+    afterAll(() => {
+        vi.restoreAllMocks();
+    });
+
+    it("displays all ACL groups under the given group", async () => {
+        const wrapper = await createWrapper();
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Public Content");
+            expect(wrapper.text()).toContain("Public Users");
+            expect(wrapper.text()).toContain("Public Editors");
+        });
+    });
+
+    it("displays buttons when changing a value", async () => {
+        const wrapper = await createWrapper();
+
+        let permissionCell;
+        await waitForExpect(async () => {
+            permissionCell = wrapper.find('[data-test="permissionCell"]');
+            expect(permissionCell.exists()).toBe(true);
+        });
+
+        await permissionCell!.trigger("click");
+
+        expect(wrapper.text()).toContain("Discard changes");
+        expect(wrapper.text()).toContain("Save changes");
+    });
+
+    it("displays a label when there are unsaved changes and the accordion is closed", async () => {
+        const wrapper = await createWrapper();
+
+        let permissionCell;
+        await waitForExpect(async () => {
+            permissionCell = wrapper.find('[data-test="permissionCell"]');
+            expect(permissionCell.exists()).toBe(true);
+        });
+
+        await permissionCell!.trigger("click");
+
+        expect(wrapper.text()).not.toContain("Unsaved changes");
+
+        // Close the accordion
+        await wrapper.find("button").trigger("click");
+
+        expect(wrapper.text()).toContain("Unsaved changes");
+    });
+
+    it("displays a label when there are offline changes", async () => {
+        isConnected.value = false;
+
+        const wrapper = await createWrapper();
+
+        const test = await db.localChanges.toArray();
+        console.log(test);
+
+        expect(wrapper.text()).not.toContain("Offline changes");
+
+        // Upsert a local change
+        await db.upsert({ ...mockGroupDtoPublicContent, updatedTimeUtc: 1234 });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Offline changes");
+        });
+    });
+
+    it("can discard all changes", async () => {
+        const wrapper = await createWrapper();
+
+        let permissionCell;
+        await waitForExpect(async () => {
+            permissionCell = wrapper.find('[data-test="permissionCell"]');
+            expect(permissionCell.exists()).toBe(true);
+        });
+
+        await permissionCell!.trigger("click");
+
+        await wrapper.find(discardChangesButton).trigger("click");
+
+        expect(wrapper.find(saveChangesButton).exists()).toBe(false);
+        expect(wrapper.find(discardChangesButton).exists()).toBe(false);
+    });
+
+    it("can add a new group", async () => {
+        const wrapper = await createWrapper();
+
+        // Wait for content to load
+        let permissionCell;
+        await waitForExpect(async () => {
+            permissionCell = wrapper.find('[data-test="permissionCell"]');
+            expect(permissionCell.exists()).toBe(true);
+        });
+
+        expect(wrapper.text()).not.toContain("Super Admins");
+
+        await wrapper.find('button[data-test="addGroupButton"]').trigger("click");
+        await wrapper.find('button[data-test="selectGroupButton"]').trigger("click");
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Super Admins");
+        });
+    });
+
+    it("can edit the group name", async () => {
+        const groupNameInput = 'input[data-test="groupNameInput"]';
+        const groupName = '[data-test="groupName"]';
+        const wrapper = await createWrapper();
+
+        await wrapper.find(groupName).trigger("click");
+
+        expect(wrapper.find(groupNameInput).isVisible()).toBe(true);
+        expect(wrapper.find(groupName).exists()).toBe(false);
+
+        await wrapper.find(groupNameInput).setValue("New group name");
+        await wrapper.find(groupNameInput).trigger("blur");
+
+        expect(wrapper.find(groupNameInput).exists()).toBe(false);
+        expect(wrapper.find(groupName).text()).toBe("New group name");
+        expect(wrapper.find(saveChangesButton).exists()).toBe(true);
+
+        // Reset back to old value, save changes button should vanish
+        await wrapper.find(groupName).trigger("click");
+        await wrapper.find(groupNameInput).setValue("Public Content");
+        await wrapper.find(groupNameInput).trigger("blur");
+
+        expect(wrapper.find(saveChangesButton).exists()).toBe(false);
+    });
+
+    it("duplicate the whole group", async () => {
+        const wrapper = await createWrapper();
+
+        // Wait for content to load
+        let permissionCell;
+        await waitForExpect(async () => {
+            permissionCell = wrapper.find('[data-test="permissionCell"]');
+            expect(permissionCell.exists()).toBe(true);
+        });
+
+        await wrapper.find("button[data-test='duplicateGroup']").trigger("click");
+
+        await waitForExpect(async () => {
+            const groups = await (db.docs
+                .where({ type: DocType.Group })
+                .toArray() as unknown as Promise<GroupDto[]>);
+
+            expect(groups.some((g) => g.name == "Public Content - copy")).toBe(true);
+        });
+    });
+
+    it("can copy a group's ID", async () => {
+        const wrapper = await createWrapper();
+        let clipboardContents = "";
+        // @ts-ignore
+        window.__defineGetter__("navigator", function () {
+            return {
+                clipboard: {
+                    writeText: (text: string) => {
+                        clipboardContents = text;
+                    },
+                },
+            };
+        });
+
+        await wrapper.find("button[data-test='copyGroupId']").trigger("click");
+
+        expect(clipboardContents).toBe(mockGroupDtoPublicContent._id);
+    });
+
+    describe("update ACLs", () => {
+        it("correctly adds a new ACL entry", async () => {
+            const wrapper = await createWrapper();
+
+            // Wait for content to load
+            let permissionCell;
+            await waitForExpect(async () => {
+                permissionCell = wrapper.find('[data-test="permissionCell"]');
+                expect(permissionCell.exists()).toBe(true);
+            });
+
+            // Group=Public Users, DocType=Group, Permission=View
+            await wrapper.findAll('[data-test="permissionCell"]')[0].trigger("click");
+
+            await wrapper.find(saveChangesButton).trigger("click");
+
+            console.log(wrapper.html());
+
+            await waitForExpect(async () => {
+                const group = await (db.docs.get(
+                    "group-public-content",
+                ) as unknown as Promise<GroupDto>);
+                console.log(group.acl);
+
+                expect(group.acl).toContainEqual({
+                    type: DocType.Group,
+                    groupId: "group-public-editors",
+                    permission: [AclPermission.View],
+                });
+            });
+        });
+
+        it.skip("correctly duplicates an ACL group", async () => {
+            const duplicateAclIcon = 'button[data-test="duplicateAclIcon"]';
+            const selectGroupIcon = 'button[data-test="selectGroupIcon"]';
+
+            const wrapper = mount(DuplicateGroupAclButton, {
+                props: {
+                    groups: [
+                        mockGroupDtoPublicContent,
+                        // mockGroupDtoPublicEditors,
+                        // mockGroupDtoPublicUsers,
+                    ],
+                },
+            });
+
+            // Simulate clicking on the duplicate ACL icon
+            await wrapper.find(duplicateAclIcon).trigger("click");
+
+            // Assert that all group names are present in the wrapper's text
+            expect(wrapper.text()).toContain("Public Content");
+            expect(wrapper.text()).toContain("Public Editors");
+            expect(wrapper.text()).toContain("Public Users");
+
+            // Simulate clicking on the select group icon
+            await wrapper.find(selectGroupIcon).trigger("click");
+
+            // Assert that the event is emitted when clicking a group
+            expect(wrapper.emitted("select")?.length).toBe(1);
+            // @ts-ignore
+            expect(wrapper.emitted("select")![0][0].name).toEqual("Public Content");
+        });
+
+        it.skip("correctly updates an existing group ACL", async () => {
+            // const { updateGroup } = useGroupStore();
+            const wrapper = await createWrapper();
+
+            // Group=Public Users, DocType=Language, Permission=Create
+            await wrapper.findAll('[data-test="permissionCell"]')[8].trigger("click");
+
+            await wrapper.find(saveChangesButton).trigger("click");
+
+            // // @ts-ignore
+            // const updateGroupCall = updateGroup.mock.calls[0][0];
+            // expect(updateGroupCall.acl).toContainEqual({
+            //     type: DocType.Language,
+            //     groupId: "group-public-users",
+            //     permission: [AclPermission.View, AclPermission.Create],
+            // });
+        });
+
+        it.skip("removes an existing group ACL if all permissions are removed", async () => {
+            // const { updateGroup } = useGroupStore();
+            const wrapper = await createWrapper();
+
+            // Group=Public Users, DocType=Language, Permission=View
+            await wrapper.findAll('[data-test="permissionCell"]')[7].trigger("click");
+
+            await wrapper.find(saveChangesButton).trigger("click");
+
+            // // @ts-ignore
+            // const updateGroupCall = updateGroup.mock.calls[0][0];
+            // expect(updateGroupCall.acl).not.toContainEqual({
+            //     type: DocType.Language,
+            //     groupId: "group-public-users",
+            //     permission: [AclPermission.View],
+            // });
+        });
+
+        it.skip("automatically enables View permission if another permission is clicked", async () => {
+            // const { updateGroup } = useGroupStore();
+            const wrapper = await createWrapper();
+
+            // Group=Public Users, DocType=Group, Permission=Create
+            await wrapper.findAll('[data-test="permissionCell"]')[1].trigger("click");
+
+            await wrapper.find(saveChangesButton).trigger("click");
+
+            // // @ts-ignore
+            // const updateGroupCall = updateGroup.mock.calls[0][0];
+            // expect(updateGroupCall.acl).toContainEqual({
+            //     type: DocType.Group,
+            //     groupId: "group-public-users",
+            //     permission: [AclPermission.Create, AclPermission.View],
+            // });
+        });
+
+        it.skip("automatically disables all permissions if View permission is clicked", async () => {
+            // const { updateGroup } = useGroupStore();
+            const wrapper = await createWrapper();
+
+            // Group=Public Editors, DocType=Group, Permission=View
+            await wrapper.findAll('[data-test="permissionCell"]')[35].trigger("click");
+
+            await wrapper.find(saveChangesButton).trigger("click");
+
+            // // @ts-ignore
+            // const updateGroupCall = updateGroup.mock.calls[0][0];
+            // // Just to be sure we check both the old state with permissions View and Assign, and the state with just Assign which is what would happen if the automatic deselect doesn't work
+            // expect(updateGroupCall.acl).not.toContainEqual({
+            //     type: DocType.Group,
+            //     groupId: "group-public-editors",
+            //     permission: [AclPermission.View, AclPermission.Assign],
+            // });
+            // expect(updateGroupCall.acl).not.toContainEqual({
+            //     type: DocType.Group,
+            //     groupId: "group-public-editors",
+            //     permission: [AclPermission.Assign],
+            // });
+        });
+    });
+});

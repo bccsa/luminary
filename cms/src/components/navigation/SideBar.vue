@@ -6,7 +6,7 @@ import {
     HomeIcon,
     // UsersIcon,
     ChevronRightIcon,
-    // RectangleStackIcon,
+    RectangleStackIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -49,12 +49,12 @@ const navigation = ref<NavigationEntry[]>([
     //     icon: UsersIcon,
     //     visible: hasAnyPermission(DocType.User, AclPermission.View),
     // },
-    // {
-    //     name: "Groups",
-    //     to: { name: "groups" },
-    //     icon: RectangleStackIcon,
-    //     visible: hasAnyPermission(DocType.Group, AclPermission.View),
-    // },
+    {
+        name: "Groups",
+        to: { name: "groups" },
+        icon: RectangleStackIcon,
+        visible: hasAnyPermission(DocType.Group, AclPermission.View),
+    },
 ]);
 
 watch(route, (newRoute) => {

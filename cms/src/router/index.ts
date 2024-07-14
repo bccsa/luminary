@@ -64,37 +64,37 @@ const router = createRouter({
                     component: () => import("../components/content/ContentOverview.vue"),
                     props: true,
                 },
-                // {
-                //     path: "groups",
-                //     name: "groups",
-                //     redirect: { name: "groups.index" },
-                //     children: [
-                //         {
-                //             path: "",
-                //             name: "groups.index",
-                //             component: () => import("../pages/groups/GroupOverview.vue"),
-                //             meta: {
-                //                 title: "Groups",
-                //                 canAccess: {
-                //                     docType: DocType.Group,
-                //                     permission: AclPermission.View,
-                //                 },
-                //             },
-                //         },
-                //         {
-                //             path: "create",
-                //             name: "groups.create",
-                //             component: () => import("../pages/groups/CreateGroup.vue"),
-                //             meta: {
-                //                 title: "Create group",
-                //                 canAccess: {
-                //                     docType: DocType.Group,
-                //                     permission: AclPermission.Create,
-                //                 },
-                //             },
-                //         },
-                //     ],
-                // },
+                {
+                    path: "groups",
+                    name: "groups",
+                    redirect: { name: "groups.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "groups.index",
+                            component: () => import("../pages/groups/GroupOverview.vue"),
+                            meta: {
+                                title: "Groups",
+                                canAccess: {
+                                    docType: DocType.Group,
+                                    permission: AclPermission.View,
+                                },
+                            },
+                        },
+                        {
+                            path: "create",
+                            name: "groups.create",
+                            component: () => import("../pages/groups/CreateGroup.vue"),
+                            meta: {
+                                title: "Create group",
+                                canAccess: {
+                                    docType: DocType.Group,
+                                    permission: AclPermission.Create,
+                                },
+                            },
+                        },
+                    ],
+                },
                 // {
                 //     path: "users",
                 //     name: "users",
