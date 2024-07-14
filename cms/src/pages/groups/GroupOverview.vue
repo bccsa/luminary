@@ -1,25 +1,18 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
-import GroupEditor from "@/components/groups/GroupEditor.vue";
-import { useGroupStore } from "@/stores/group";
-import { sortByName } from "@/util/sortByName";
-import { storeToRefs } from "pinia";
-import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import LButton from "@/components/button/LButton.vue";
+import { db, DocType, type GroupDto } from "luminary-shared";
+import EditGroup from "@/components/groups/EditGroup.vue";
 
-const { groups } = storeToRefs(useGroupStore());
-
-const sortedGroups = computed(() => {
-    let sortedGroups = groups.value;
-
-    if (!sortedGroups || sortedGroups.length == 1) {
-        return sortedGroups;
-    }
-
-    return sortedGroups.sort(sortByName);
-});
+const groups = db.toRef<GroupDto[]>(
+    () =>
+        db.docs.where("type").equals(DocType.Group).sortBy("name") as unknown as Promise<
+            GroupDto[]
+        >,
+    [],
+);
 </script>
 
 <template>
@@ -36,6 +29,6 @@ const sortedGroups = computed(() => {
             </LButton>
         </template>
 
-        <GroupEditor v-for="group in sortedGroups" :key="group._id" :group="group" class="mb-4" />
+        <EditGroup v-for="group in groups" :key="group._id" :group="group" class="mb-4" />
     </BasePage>
 </template>

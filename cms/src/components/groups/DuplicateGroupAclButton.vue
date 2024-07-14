@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Group } from "luminary-shared";
+import type { GroupDto } from "luminary-shared";
 import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/vue";
 import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { toRaw, toRefs } from "vue";
 import LButton from "../button/LButton.vue";
 
 type Props = {
-    groups: Group[];
+    groups: GroupDto[];
 };
 
 const props = defineProps<Props>();
@@ -15,7 +15,7 @@ const { groups } = toRefs(props);
 
 const emit = defineEmits(["select"]);
 
-const selectGroup = (group: Group) => {
+const selectGroup = (group: GroupDto) => {
     emit("select", toRaw(group));
 };
 </script>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, toRaw, type Ref } from "vue";
-import { useGroupStore } from "@/stores/group";
+// import { useGroupStore } from "@/stores/group";
 import {
     AclPermission,
+    db,
     DocType,
-    type Group,
-    type GroupAclEntry,
+    isConnected,
     type GroupAclEntryDto,
     type GroupDto,
 } from "luminary-shared";
@@ -21,13 +21,14 @@ import {
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import { useNotificationStore } from "@/stores/notification";
-import { useSocketConnectionStore } from "@/stores/socketConnection";
-import { storeToRefs } from "pinia";
+// import { useSocketConnectionStore } from "@/stores/socketConnection";
+// import { storeToRefs } from "pinia";
 import LBadge from "@/components/common/LBadge.vue";
-import { useLocalChangeStore } from "@/stores/localChanges";
+// import { useLocalChangeStore } from "@/stores/localChanges";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
+import * as _ from "lodash";
 
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
@@ -66,55 +67,73 @@ const availablePermissionsPerDocType = {
 };
 
 type Props = {
-    group: Group;
+    group: GroupDto;
 };
 const props = defineProps<Props>();
 
-const groupStore = useGroupStore();
-const { group: getGroup, createGroup, updateGroup } = groupStore;
-const { groups } = storeToRefs(groupStore);
+// const groupStore = useGroupStore();
+// const { group: getGroup, createGroup, updateGroup } = groupStore;
+// const { groups } = storeToRefs(groupStore);
 const { addNotification } = useNotificationStore();
-const { isConnected } = storeToRefs(useSocketConnectionStore());
-const { isLocalChange } = useLocalChangeStore();
+// const { isConnected } = storeToRefs(useSocketConnectionStore());
+// const { isLocalChange } = useLocalChangeStore();
 
 const isDirty = ref(false);
 const isEditingGroupName = ref(false);
+const isLocalChange = db.isLocalChangeAsRef(props.group._id);
 const newGroupName = ref(props.group.name);
 const groupNameInput = ref<HTMLInputElement>();
-const changedAclEntries: Ref<GroupAclEntry[]> = ref([]);
-const addedGroups: Ref<Group[]> = ref([]);
+const changedAclEntries: Ref<GroupAclEntryDto[]> = ref([]);
+const addedGroups: Ref<GroupDto[]> = ref([]);
 
-const uniqueGroups = computed(() => {
-    const groups: string[] = [];
+const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 
-    props.group.acl.forEach((acl) => {
-        if (!groups.includes(acl.groupId)) {
-            groups.push(acl.groupId);
-        }
-    });
+const uniqueGroups = db.toRef<GroupDto[]>(
+    () =>
+        db.docs
+            .where("type")
+            .equals(DocType.Group)
+            .and((group) => props.group.acl.some((acl) => acl.groupId == group._id))
+            .toArray() as unknown as Promise<GroupDto[]>,
+    [],
+);
 
-    const mappedGroups = groups.map((groupId) => getGroup(groupId)).filter((g) => g) as Group[];
-
-    return mappedGroups.concat(addedGroups.value);
+const selectedGroups = computed(() => {
+    return uniqueGroups.value.concat(addedGroups.value);
 });
-const availableGroups = computed(() => {
-    if (!groups.value) {
-        return [];
-    }
 
-    const selectedGroupIds = uniqueGroups.value.filter((g) => g).map((g) => g?._id);
+// const uniqueGroups = computed(() => {
+//     const groups: string[] = [];
+
+//     props.group.acl.forEach((acl) => {
+//         if (!groups.includes(acl.groupId)) {
+//             groups.push(acl.groupId);
+//         }
+//     });
+
+//     const mappedGroups = groups.map((groupId) => db.get(groupId)).filter((g) => g) as GroupDto[];
+
+//     return mappedGroups.concat(addedGroups.value);
+// });
+const availableGroups = computed(() => {
+    // if (!groups.value) {
+    //     return [];
+    // }
+
+    const selectedGroupIds = selectedGroups.value.filter((g) => g).map((g) => g?._id);
 
     return groups.value.filter(
         (g) => g._id != props.group._id && !selectedGroupIds.includes(g._id),
     );
 });
 
-const addGroup = (group: Group) => {
+const addGroup = (group: GroupDto) => {
+    console.log("test");
     addedGroups.value.push(group);
 };
 
 const changePermission = (
-    aclGroup: Group,
+    aclGroup: GroupDto,
     docType: DocType,
     aclPermission: AclPermission,
     ignoreViewPermissionCheck = false,
@@ -192,7 +211,7 @@ const changePermission = (
  * or because it has been changed
  */
 const hasAssignedPermission = computed(() => {
-    return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+    return (aclGroup: GroupDto, docType: DocType, aclPermission: AclPermission) => {
         const permissionForDocType = props.group.acl.find((acl) => {
             return acl.groupId == aclGroup._id && acl.type == docType;
         });
@@ -217,7 +236,7 @@ const hasAssignedPermission = computed(() => {
  * Whether the given permission has been changed by the user, but not yet saved to the DB
  */
 const hasChangedPermission = computed(() => {
-    return (aclGroup: Group, docType: DocType, aclPermission: AclPermission) => {
+    return (aclGroup: GroupDto, docType: DocType, aclPermission: AclPermission) => {
         const permissionForDocType = changedAclEntries.value.find((acl) => {
             return acl.groupId == aclGroup._id && acl.type == docType;
         });
@@ -270,10 +289,10 @@ const discardChanges = () => {
 };
 
 const duplicateGroup = async () => {
-    const duplicatedGroup = { ...toRaw(props.group) };
-    duplicatedGroup.name = `Copy of ${duplicatedGroup.name}`;
+    const duplicatedGroup = { ...toRaw(props.group), _id: db.uuid() };
+    duplicatedGroup.name = `${duplicatedGroup.name} - copy`;
 
-    await createGroup(duplicatedGroup);
+    await db.upsert<GroupDto>(duplicatedGroup);
 
     addNotification({
         title: `Group "${duplicatedGroup.name}" created successfully`,
@@ -282,7 +301,7 @@ const duplicateGroup = async () => {
     });
 };
 
-const duplicateAcl = async (newGroup: Group, existingGroup: Group) => {
+const duplicateAcl = async (newGroup: GroupDto, existingGroup: GroupDto) => {
     addGroup(newGroup);
 
     existingGroup.acl.forEach((acl) => {
@@ -296,7 +315,7 @@ const duplicateAcl = async (newGroup: Group, existingGroup: Group) => {
         state: "success",
     });
 };
-const copyGroupId = (group: Group) => {
+const copyGroupId = (group: GroupDto) => {
     const groupId = group._id;
     navigator.clipboard.writeText(groupId);
 
@@ -359,7 +378,7 @@ const saveChanges = async () => {
     // Filter out any entries that have no permissions, to prevent clutter in the DB
     updatedGroup.acl = updatedGroup.acl.filter((a) => a.permission.length > 0);
 
-    await updateGroup(updatedGroup);
+    await db.upsert<GroupDto>(updatedGroup);
 
     addedGroups.value = [];
     changedAclEntries.value = [];
@@ -411,6 +430,9 @@ const saveChanges = async () => {
                     v-model="newGroupName"
                     @blur="finishEditingGroupName"
                     @keyup.enter="finishEditingGroupName"
+                    @keydown.enter.stop
+                    @keydown.space.stop
+                    @click.stop
                     class="mr-4 grow"
                     data-test="groupNameInput"
                 />
@@ -431,7 +453,7 @@ const saveChanges = async () => {
                     </div>
 
                     <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>
-                    <LBadge v-if="isLocalChange(group._id) && !isConnected" variant="warning">
+                    <LBadge v-if="isLocalChange && !isConnected" variant="warning">
                         Offline changes
                     </LBadge>
                     <LButton
@@ -461,7 +483,7 @@ const saveChanges = async () => {
                         enter-to-class="opacity-100 scale-100"
                     >
                         <div
-                            v-for="aclGroup in uniqueGroups"
+                            v-for="aclGroup in selectedGroups"
                             :key="aclGroup?._id"
                             class="overflow-x-auto"
                         >
@@ -481,7 +503,8 @@ const saveChanges = async () => {
                                             <DuplicateGroupAclButton
                                                 :groups="availableGroups"
                                                 @select="
-                                                    (group: Group) => duplicateAcl(group, aclGroup)
+                                                    (group: GroupDto) =>
+                                                        duplicateAcl(group, aclGroup)
                                                 "
                                                 data-test="duplicateAcl"
                                             />
