@@ -74,18 +74,6 @@ const hasPosts = db.someByTypeAsRef(DocType.Post);
                     languageId: appLanguage._id,
                 }"
             />
-            <!-- <HorizontalScrollableTagViewer
-                v-for="category in pinnedCategories"
-                :key="category._id"
-                :tag="category"
-                :queryOptions="{
-                    sortOptions: {
-                        sortBy: 'publishDate',
-                        sortOrder: 'asc',
-                    },
-                    languageId: appLanguage._id,
-                }"
-            /> -->
 
             <!-- Display unpined categories -->
             <HorizontalScrollableTagViewerCollection
