@@ -114,10 +114,16 @@ watch(
 
         <template #footer>
             <div v-show="!overallIsValid" class="flex flex-col gap-2">
-                <p class="text-xs text-zinc-700">Validation</p>
+                <p class="text-lg font-bold text-zinc-700">Validation</p>
 
                 <div class="flex flex-col" v-if="!parentIsValid">
-                    <span class="mb-0.5 text-sm text-zinc-900"> General </span>
+                    <div class="flex gap-2">
+                        <span class="mb-0.5 text-[1em] text-zinc-900"> General </span>
+                        <div class="flex items-center gap-2">
+                            <LBadge variant="warning" class="mb-2">Unsaved changes</LBadge>
+                        </div>
+                    </div>
+
                     <!-- Parent validations -->
                     <div
                         v-for="validation in parentValidations.filter((v) => !v.isValid)"
@@ -138,6 +144,7 @@ watch(
                         :languages="props.languages"
                         :key="content._id"
                         @isValid="(val) => setOverallValidation(content._id, val)"
+                        :dirty="props.dirty"
                     />
                 </div>
             </div>
