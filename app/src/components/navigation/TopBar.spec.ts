@@ -38,12 +38,18 @@ describe("TopBar", () => {
     it("shows the profile menu when logged out", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(true),
+            user: {
+                name: "Test Person",
+            },
         });
 
         const wrapper = mount(TopBar, {
-            shallow: true,
+            shallow: false,
         });
 
-        expect(wrapper.find("profile-menu-stub").exists()).toBe(true);
+        const ProfileMenu = wrapper.findComponent({ name: "ProfileMenu" });
+
+        expect(ProfileMenu.exists()).toBe(true);
+        expect(ProfileMenu.text()).toContain("Test Person");
     });
 });

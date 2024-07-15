@@ -29,7 +29,7 @@ describe("LanguageSelector.vue", () => {
         expect(wrapper.findAll("li").at(2)?.text()).toBe("Swahili");
     });
 
-    it("emits close event on language click", async () => {
+    it("emits close event on language click and stores the selected language", async () => {
         const wrapper = mount(LanguageSelector, {
             props: { isVisible: true },
             global: {
@@ -38,12 +38,13 @@ describe("LanguageSelector.vue", () => {
         });
         const store = useGlobalConfigStore();
 
-        await wrapper.findAll("li").at(0)?.trigger("click");
-        expect(store.appLanguage).toEqual(mockLanguageDtoEng);
+        await wrapper.findAll("li").at(1)?.trigger("click");
+
+        expect(store.appLanguage).toEqual(mockLanguageDtoFra);
         expect(wrapper.emitted()).toHaveProperty("close");
     });
 
-    it("emits close event on button click", async () => {
+    it("emits the close event on close button click", async () => {
         const wrapper = mount(LanguageSelector, {
             props: { isVisible: true },
             global: {
