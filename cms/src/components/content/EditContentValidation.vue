@@ -3,6 +3,7 @@ import { PublishStatus, type ContentDto, type LanguageDto } from "luminary-share
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { XCircleIcon } from "@heroicons/vue/20/solid";
+import LBadge from "@/components/common/LBadge.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -69,9 +70,14 @@ watch(
 
 <template>
     <div class="flex flex-col" v-if="!isValid">
-        <span class="mb-0.5 text-sm text-zinc-900">
-            {{ contentLanguage?.name }}
-        </span>
+        <div class="flex gap-2">
+            <span class="mb-0.5 text-[1em] text-zinc-900">
+                {{ contentLanguage?.name }}
+            </span>
+            <div class="flex items-center gap-2">
+                <LBadge variant="warning" class="mb-2">Unsaved changes</LBadge>
+            </div>
+        </div>
         <div
             v-for="validation in validations.filter((v) => !v.isValid)"
             :key="validation.id"
