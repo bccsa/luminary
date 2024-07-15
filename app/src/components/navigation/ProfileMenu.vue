@@ -1,30 +1,69 @@
 <script setup lang="ts">
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
+import {
+    ChevronDownIcon,
+    UserIcon,
+    ArrowRightEndOnRectangleIcon,
+    ArrowLeftEndOnRectangleIcon,
+    Cog6ToothIcon,
+} from "@heroicons/vue/20/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
-import { ref } from "vue";
+import { computed, ref } from "vue";
+import { LanguageIcon, SunIcon } from "@heroicons/vue/24/solid";
+import LanguageModal from "@/components/content/LanguageModal.vue";
+import { appLanguageAsRef } from "@/globalConfig";
 
-const { user, logout } = useAuth0();
+const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
 
 const showThemeSelector = ref(false);
+const showLanguageModal = ref(false);
 
-const userNavigation: {
-    name: string;
-    action: Function;
-}[] = [
-    { name: "Settings", action: () => router.push({ name: "settings" }) },
-    { name: "Theme", action: () => (showThemeSelector.value = true) },
-    {
-        name: "Sign out",
-        action: async () => {
-            localStorage.removeItem("usedAuth0Connection");
-            await logout({ logoutParams: { returnTo: window.location.origin } });
+const commonNavigation = computed(() => {
+    return [
+        {
+            name: "Settings",
+            icon: Cog6ToothIcon,
+            action: () => router.push({ name: "settings" }),
         },
-    },
-];
+        { name: "Theme", icon: SunIcon, action: () => (showThemeSelector.value = true) },
+        {
+            name: "Language",
+            language: appLanguageAsRef.value,
+            icon: LanguageIcon,
+            action: () => (showLanguageModal.value = true),
+        },
+    ];
+});
+
+const userNavigation = computed(() => {
+    if (isAuthenticated.value) {
+        return [
+            ...commonNavigation.value,
+
+            {
+                name: "Sign out",
+                icon: ArrowRightEndOnRectangleIcon,
+                action: async () => {
+                    localStorage.removeItem("usedAuth0Connection");
+                    await logout({ logoutParams: { returnTo: window.location.origin } });
+                },
+            },
+        ];
+    } else {
+        return [
+            ...commonNavigation.value,
+
+            {
+                name: "Log In",
+                icon: ArrowLeftEndOnRectangleIcon,
+                action: () => router.push({ name: "login" }),
+            },
+        ];
+    }
+});
 </script>
 
 <template>
@@ -33,8 +72,8 @@ const userNavigation: {
             <span class="sr-only">Open user menu</span>
             <img
                 class="h-8 w-8 rounded-full bg-zinc-50"
-                :src="user.picture"
-                v-if="user?.picture"
+                :src="user?.picture"
+                v-if="isAuthenticated && user?.picture"
                 alt=""
             />
             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300" v-else>
@@ -44,10 +83,17 @@ const userNavigation: {
                 <span
                     class="ml-4 text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
                     aria-hidden="true"
+                    v-if="isAuthenticated"
                     >{{ user?.name }}</span
                 >
+                <span
+                    class="ml-2 text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
+                    aria-hidden="true"
+                    v-else
+                    >Menu</span
+                >
                 <ChevronDownIcon
-                    class="ml-2 h-5 w-5 text-zinc-400 dark:text-zinc-100"
+                    class="h-5 w-5 text-zinc-400 dark:text-zinc-100"
                     aria-hidden="true"
                 />
             </span>
@@ -61,21 +107,35 @@ const userNavigation: {
             leave-to-class="transform opacity-0 scale-95"
         >
             <MenuItems
-                class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
+                class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-zinc-700"
             >
                 <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
                     <button
                         :class="[
-                            active ? 'bg-zinc-50' : '',
-                            'block w-full cursor-pointer px-3 py-1 text-left text-sm leading-6 text-zinc-900 ',
+                            active ? 'bg-zinc-50 dark:bg-zinc-800' : '',
+                            'flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-zinc-500',
                         ]"
                         @click="item.action"
                     >
-                        {{ item.name }}
+                        <component
+                            :is="item.icon"
+                            class="h-5 w-5 flex-shrink-0 text-zinc-500"
+                            aria-hidden="true"
+                        />
+                        <div class="flex flex-col">
+                            {{ item.name }}
+                            <span
+                                class="-mt-2 text-[12px] text-zinc-500 dark:text-white"
+                                v-if="item.language"
+                                >{{ item.language.name }}</span
+                            >
+                        </div>
                     </button>
                 </MenuItem>
             </MenuItems>
         </transition>
     </Menu>
+
+    <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
     <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
 </template>
