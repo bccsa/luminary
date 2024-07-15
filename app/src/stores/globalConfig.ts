@@ -29,7 +29,6 @@ export const useGlobalConfigStore = defineStore("globalConfig", () => {
         },
         set(val) {
             languageLocalStorageId.value = val?._id;
-            location.reload();
         },
     });
     return { appName, apiUrl, isDevMode, appLanguage };

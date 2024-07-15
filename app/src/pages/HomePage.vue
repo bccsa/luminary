@@ -1,28 +1,16 @@
 <script setup lang="ts">
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
+import HorizontalScrollableTagViewerCollection from "@/components/tags/HorizontalScrollableTagViewerCollection.vue";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { DocType, TagType, db } from "luminary-shared";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { storeToRefs } from "pinia";
 
 const { isAuthenticated } = useAuth0();
+const { appLanguage } = storeToRefs(useGlobalConfigStore());
 
 const hasPosts = db.someByTypeAsRef(DocType.Post);
-
-const pinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
-    filterOptions: {
-        topLevelOnly: true,
-        pinned: true,
-    },
-    languageId: "lang-eng",
-});
-const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
-    filterOptions: {
-        topLevelOnly: true,
-        pinned: false,
-        limit: 10,
-    },
-    languageId: "lang-eng",
-});
 </script>
 
 <template>
@@ -48,10 +36,11 @@ const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
         </div>
     </div>
     <IgnorePagePadding v-else>
-        <div class="pt-4">
+        <div class="pt-4" v-if="appLanguage">
             <!-- Display latest posts -->
 
             <HorizontalScrollableTagViewer
+                :key="appLanguage._id"
                 title="Newest Content"
                 :queryOptions="{
                     sortOptions: {
@@ -62,12 +51,30 @@ const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
                         limit: 10,
                         docType: DocType.Post,
                     },
-                    languageId: 'lang-eng',
+                    languageId: appLanguage._id,
                 }"
             />
 
-            <!-- Display pinned category -->
-            <HorizontalScrollableTagViewer
+            <!-- Display pinned categories -->
+            <HorizontalScrollableTagViewerCollection
+                :key="appLanguage._id"
+                :tagType="TagType.Category"
+                :tagQueryOptions="{
+                    filterOptions: {
+                        topLevelOnly: true,
+                        pinned: true,
+                    },
+                    languageId: appLanguage._id,
+                }"
+                :contentQueryOptions="{
+                    sortOptions: {
+                        sortBy: 'publishDate',
+                        sortOrder: 'asc',
+                    },
+                    languageId: appLanguage._id,
+                }"
+            />
+            <!-- <HorizontalScrollableTagViewer
                 v-for="category in pinnedCategories"
                 :key="category._id"
                 :tag="category"
@@ -76,21 +83,27 @@ const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
                         sortBy: 'publishDate',
                         sortOrder: 'asc',
                     },
-                    languageId: 'lang-eng',
+                    languageId: appLanguage._id,
                 }"
-            />
+            /> -->
 
-            <!-- Display unpined category -->
-            <HorizontalScrollableTagViewer
-                v-for="category in unpinnedCategories"
-                :key="category._id"
-                :tag="category"
-                :queryOptions="{
+            <!-- Display unpined categories -->
+            <HorizontalScrollableTagViewerCollection
+                :key="appLanguage._id"
+                :tagType="TagType.Category"
+                :tagQueryOptions="{
+                    filterOptions: {
+                        topLevelOnly: true,
+                        pinned: false,
+                    },
+                    languageId: appLanguage._id,
+                }"
+                :contentQueryOptions="{
                     sortOptions: {
                         sortBy: 'publishDate',
                         sortOrder: 'asc',
                     },
-                    languageId: 'lang-eng',
+                    languageId: appLanguage._id,
                 }"
             />
         </div>
