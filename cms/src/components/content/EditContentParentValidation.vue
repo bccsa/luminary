@@ -99,6 +99,8 @@ watch(
     <LCard :showFooter="!overallIsValid">
         <div class="flex gap-4">
             <LBadge v-if="localChange" variant="warning">Offline changes</LBadge>
+            <LBadge v-if="dirty">Unsaved changes</LBadge>
+
             <div class="flex-1"></div>
             <LButton
                 type="button"
