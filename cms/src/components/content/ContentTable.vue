@@ -78,7 +78,7 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
                             :key="contentParent._id"
                             :parent="contentParent"
                             :parentType="docType"
-                            :language="language"
+                            :languageId="language"
                             :languages="languages"
                         />
                     </tbody>
