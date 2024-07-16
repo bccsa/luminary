@@ -21,7 +21,7 @@ import LButton from "../button/LButton.vue";
 type Props = {
     parent: PostDto | TagDto;
     parentType: DocType.Post | DocType.Tag;
-    language: Uuid;
+    languageId: Uuid;
     languages: LanguageDto[];
 };
 const props = defineProps<Props>();
@@ -30,7 +30,7 @@ const isLocalChange = db.isLocalChangeAsRef(props.parent._id);
 
 // Get the title in the selected language if available, otherwise use the first available translation
 const title = computed(() => {
-    const preferred = content.value.filter((c) => c.language == props.language)[0]?.title;
+    const preferred = content.value.filter((c) => c.language == props.languageId)[0]?.title;
 
     if (preferred) return preferred;
 
@@ -79,16 +79,16 @@ const translationStatus = computed(() => {
             <div class="flex gap-2" v-if="content.length > 0">
                 <RouterLink
                     custom
-                    v-for="language in props.languages"
+                    v-for="language in languages"
                     :key="language.languageCode"
                     v-slot="{ navigate }"
                     :to="{
                         name: 'edit',
                         params: {
-                            docType: props.parentType,
-                            tagType: props.parentType == DocType.Tag ? DocType.Tag : undefined,
-                            id: props.parent._id,
-                            languageCode: props.languages.find((l) => l._id == language._id)
+                            docType: parentType,
+                            tagType: parentType == DocType.Tag ? DocType.Tag : undefined,
+                            id: parent._id,
+                            languageCode: languages.find((l) => l._id == language._id)
                                 ?.languageCode,
                         },
                     }"
@@ -109,17 +109,17 @@ const translationStatus = computed(() => {
         </td>
         <!-- updated -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ db.toDateTime(props.parent.updatedTimeUtc).toLocaleString(DateTime.DATETIME_MED) }}
+            {{ db.toDateTime(parent.updatedTimeUtc).toLocaleString(DateTime.DATETIME_MED) }}
         </td>
         <!-- actions -->
         <td
             class="flex justify-end whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
         >
             <LButton
-                v-if="verifyAccess(props.parent.memberOf, props.parentType, AclPermission.View)"
+                v-if="verifyAccess(parent.memberOf, parentType, AclPermission.View)"
                 variant="tertiary"
                 :icon="
-                    verifyAccess(props.parent.memberOf, props.parentType, AclPermission.Edit)
+                    verifyAccess(parent.memberOf, parentType, AclPermission.Edit)
                         ? PencilSquareIcon
                         : EyeIcon
                 "
@@ -127,14 +127,10 @@ const translationStatus = computed(() => {
                 :to="{
                     name: 'edit',
                     params: {
-                        docType: props.parentType,
-                        tagType:
-                            props.parentType == DocType.Tag
-                                ? (props.parent as TagDto).tagType
-                                : undefined,
-                        id: props.parent._id,
-                        languageCode: props.languages.find((l) => l._id == props.language)
-                            ?.languageCode,
+                        docType: parentType,
+                        tagType: parentType == DocType.Tag ? (parent as TagDto).tagType : undefined,
+                        id: parent._id,
+                        languageCode: languages.find((l) => l._id == languageId)?.languageCode,
                     },
                 }"
                 class="flex justify-end"
