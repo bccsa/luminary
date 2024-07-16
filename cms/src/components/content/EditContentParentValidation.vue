@@ -4,7 +4,7 @@ import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
 import EditContentValidation from "./EditContentValidation.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
-import { XCircleIcon } from "@heroicons/vue/16/solid";
+import { XCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 import {
     type PostDto,
     type TagDto,
@@ -119,10 +119,13 @@ watch(
                 <p class="text-lg font-bold text-zinc-700">Validation</p>
 
                 <div class="flex flex-col" v-if="!parentIsValid">
-                    <div class="flex gap-2">
-                        <span class="mb-0.5 text-[1em] text-zinc-900"> General </span>
+                    <div class="flex flex-col gap-2">
+                        <span class="text-[1em] text-zinc-900"> General </span>
                         <div class="flex items-center gap-2">
-                            <LBadge variant="warning" class="mb-2">Unsaved changes</LBadge>
+                            <p>
+                                <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                            </p>
+                            <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
                         </div>
                     </div>
 
