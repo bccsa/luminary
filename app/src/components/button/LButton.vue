@@ -45,7 +45,7 @@ const sizes = {
 };
 
 const roundingClasses = {
-    default: "rounded-full",
+    default: "rounded-md",
     less: "rounded-lg",
 };
 </script>
