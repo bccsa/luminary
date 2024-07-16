@@ -8,7 +8,7 @@ import type { LanguageDto } from "luminary-shared";
 type Props = {
     contentParents: PostDto[] | TagDto[];
     docType: DocType.Post | DocType.Tag;
-    language: Uuid;
+    languageId: Uuid;
 };
 defineProps<Props>();
 
@@ -78,7 +78,7 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
                             :key="contentParent._id"
                             :parent="contentParent"
                             :parentType="docType"
-                            :languageId="language"
+                            :languageId="languageId"
                             :languages="languages"
                         />
                     </tbody>

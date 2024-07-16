@@ -119,7 +119,7 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
             :contentParents="contentParents"
             :docType="docType"
             :tagType="tagType"
-            :language="selectedLanguage"
+            :languageId="selectedLanguage"
         />
     </BasePage>
 </template>
