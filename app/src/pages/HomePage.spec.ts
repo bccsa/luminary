@@ -19,6 +19,7 @@ import { createTestingPinia } from "@pinia/testing";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("@auth0/auth0-vue");
+vi.mock("vue-router");
 
 describe("HomePage.vue", () => {
     beforeAll(() => {
