@@ -1,65 +1,51 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { describe, it, beforeEach, expect, vi } from "vitest";
 import HomePage from "./HomePage.vue";
-import { setActivePinia, createPinia } from "pinia";
+import { useGlobalConfigStore } from "@/stores/globalConfig";
 import * as auth0 from "@auth0/auth0-vue";
+import * as db from "luminary-shared";
 import { ref } from "vue";
-import { db, TagType, type queryOptions } from "luminary-shared";
+import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 
 vi.mock("@auth0/auth0-vue");
-vi.mock("luminary-shared", async () => {
-    const actual = await vi.importActual("luminary-shared");
-    return {
-        ...actual,
-        db: {
-            someByTypeAsRef: vi.fn(),
-            tagsWhereTagTypeAsRef: vi.fn(),
-        },
-    };
-});
+vi.mock("luminary-shared");
 
-// Mock the IgnorePagePadding and HorizontalScrollableTagViewer components
-vi.mock("@/components/IgnorePagePadding.vue", () => ({
-    default: { template: "<div><slot /></div>" },
-}));
+// Mock the components used in HomePage
 vi.mock("@/components/tags/HorizontalScrollableTagViewer.vue", () => ({
-    default: {
-        props: ["title", "queryOptions", "tag"],
-        template: '<div>{{ title }} {{ tag ? tag.name : "" }}</div>',
-    },
+    default: { template: '<div class="horizontal-scrollable-tag-viewer"></div>' },
 }));
 
-describe("HomePage", () => {
-    beforeEach(() => {
-        setActivePinia(createPinia());
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isLoading: ref(false),
-            isAuthenticated: ref(true),
-        });
-        (db.someByTypeAsRef as any).mockReturnValue(true);
-        (db.tagsWhereTagTypeAsRef as any).mockImplementation(
-            (tagType: TagType.Category, options: queryOptions) => {
-                if (options.filterOptions?.pinned) {
-                    return [{ _id: "1", name: "Pinned Category" }];
-                }
-                return [
-                    { _id: "2", name: "Unpinned Category" },
+vi.mock("@/components/tags/HorizontalScrollableTagViewerCollection.vue", () => ({
+    default: { template: '<div class="horizontal-scrollable-tag-viewer-collection"></div>' },
+}));
 
-                    // empty category
-                    { _id: "2", name: "" },
-                ];
-            },
+vi.mock("@/components/IgnorePagePadding.vue", () => ({
+    default: { template: '<div class="ignore-page-padding"><slot /></div>' },
+}));
+
+describe("HomePage.vue", () => {
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+    });
+
+    it("renders correctly with no content and not authenticated", () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+        const wrapper = mount(HomePage);
+
+        expect(wrapper.text()).toContain(
+            "There is currently no content available. If you have an account, first  log in.",
         );
     });
 
-    afterEach(() => {
-        vi.clearAllMocks();
-    });
-
-    it.skip("displays a message when there are no contents", async () => {
-        (db.someByTypeAsRef as any).mockReturnValue(false);
-
+    it("renders correctly with no content and authenticated", () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(true),
+        });
         const wrapper = mount(HomePage);
 
         expect(wrapper.text()).toContain(
@@ -67,23 +53,7 @@ describe("HomePage", () => {
         );
     });
 
-    it.skip("displays the categories", async () => {
-        const wrapper = mount(HomePage);
-
-        expect(wrapper.text()).toContain("Pinned Category");
-        expect(wrapper.text()).toContain("Unpinned Category");
-    });
-
-    it.skip("does not display an empty category", async () => {
-        const wrapper = mount(HomePage);
-
-        expect(wrapper.text()).not.toContain(undefined);
-    });
-
-    it.skip("displays the content", async () => {
-        const wrapper = mount(HomePage);
-
-        // Check for the "Newest Content" section
-        expect(wrapper.text()).toContain("Newest Content");
-    });
+    it.skip("renders correctly the Categories", async () => {});
+    it.skip("does not display an empty category", async () => {});
+    it.skip("displays the content", async () => {});
 });
