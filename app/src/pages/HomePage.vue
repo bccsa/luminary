@@ -48,7 +48,7 @@ const unpinnedCategories = db.tagsWhereTagTypeAsRef(TagType.Category, {
         </div>
     </div>
     <IgnorePagePadding v-else>
-        <div class="space-y-4 pt-4">
+        <div class="pt-4">
             <!-- Display latest posts -->
 
             <HorizontalScrollableTagViewer
