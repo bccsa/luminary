@@ -7,12 +7,20 @@ import { useNotificationStore } from "@/stores/notification";
 const { addNotification } = useNotificationStore();
 
 const deleteLocalData = async () => {
+    if (!isConnected.value) {
+        return addNotification({
+            title: "Can't clear local cache",
+            description: "You are offline, new data can't be loaded. Wait until you are online.",
+            state: "error",
+        });
+    }
+
     await db.purge();
     getSocket().requestData();
 
-    addNotification({
-        title: `Local cache cleared`,
-        description: `New data is loading from the server, it might take a minute.`,
+    return addNotification({
+        title: "Local cache cleared",
+        description: "New data is loading from the server, it might take a minute.",
         state: "success",
     });
 };
@@ -28,11 +36,7 @@ const deleteLocalData = async () => {
                 all local data. Depending on the amount of available data on the server, it can take
                 some time before all data is available again.
             </div>
-            <LButton
-                @click="deleteLocalData"
-                data-test="deleteLocalDatabase"
-                :disabled="!isConnected"
-            >
+            <LButton @click="deleteLocalData" data-test="deleteLocalDatabase">
                 Delete local cache
             </LButton>
         </LCard>
