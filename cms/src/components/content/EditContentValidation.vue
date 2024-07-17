@@ -3,6 +3,7 @@ import { PublishStatus, type ContentDto, type LanguageDto } from "luminary-share
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import LBadge from "../common/LBadge.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -21,7 +22,44 @@ const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
 }>();
 
+const statusLanguageTitle = ref("");
+
+const translationStatus = computed(() => {
+    return (content: ContentDto | undefined) => {
+        if (
+            content?.status == PublishStatus.Published &&
+            content?.publishDate &&
+            new Date(content.publishDate) > new Date()
+        ) {
+            statusLanguageTitle.value = "Scheduled";
+            return "warning";
+        }
+
+        if (
+            content?.status == PublishStatus.Published &&
+            content?.expiryDate &&
+            new Date(content.expiryDate) < new Date()
+        ) {
+            statusLanguageTitle.value = "Expired";
+            return "error";
+        }
+
+        if (content?.status == PublishStatus.Published) {
+            statusLanguageTitle.value = "Published";
+            return "success";
+        }
+
+        if (content?.status == PublishStatus.Draft) {
+            statusLanguageTitle.value = "Draft";
+            return "info";
+        }
+
+        return "default";
+    };
+});
+
 const validations = ref([] as Validation[]);
+
 const isValid = ref(true);
 watch(
     content,
@@ -68,12 +106,19 @@ watch(
 </script>
 
 <template>
-    <div class="flex flex-col" v-if="!isValid">
+    <div class="flex flex-col">
         <div class="flex flex-col gap-2">
-            <span class="text-[1em] text-zinc-900">
+            <span class="flex justify-between text-[1em] text-zinc-900">
                 {{ contentLanguage?.name }}
+                <LBadge
+                    type="language"
+                    class="w-auto cursor-pointer"
+                    :variant="translationStatus(content)"
+                >
+                    {{ statusLanguageTitle }}
+                </LBadge>
             </span>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2" v-if="!isValid">
                 <p>
                     <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
                 </p>

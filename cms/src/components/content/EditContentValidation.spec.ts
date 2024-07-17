@@ -1,16 +1,10 @@
 import "fake-indexeddb/auto";
-import { describe, it, afterEach, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import EditContentValidation from "./EditContentValidation.vue";
 
 describe("EditContentValidation.vue", () => {
-    //
-
-    afterEach(async () => {});
-
-    // TODO: add a test to check if no message errors
-
     it("don't show validation error if no errors", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
@@ -19,7 +13,7 @@ describe("EditContentValidation.vue", () => {
             },
         });
 
-        expect(wrapper.text()).toBe("");
+        expect(wrapper.text()).not.toContain("There are some errors that prevent saving");
     });
 
     it("show validation error if no title", async () => {

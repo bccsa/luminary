@@ -96,7 +96,7 @@ watch(
 </script>
 
 <template>
-    <LCard :showFooter="!overallIsValid || dirty">
+    <LCard :showFooter="true">
         <div class="flex gap-4">
             <LBadge v-if="localChange" variant="warning">Offline changes</LBadge>
 
@@ -114,11 +114,13 @@ watch(
         </div>
 
         <template #footer>
-            <div v-show="!overallIsValid || dirty" class="flex flex-col gap-2">
-                <p class="text-lg text-zinc-700">Validation</p>
+            <div v-show="true" class="flex flex-col gap-2">
+                <p v-if="!overallIsValid" class="text-zinc-700">
+                    There are some errors that prevent saving
+                </p>
 
-                <div class="flex flex-col" v-if="!parentIsValid || dirty">
-                    <div class="flex flex-col gap-2">
+                <div class="flex flex-col">
+                    <div class="flex flex-col gap-2" v-if="dirty">
                         <span class="text-[1em] text-zinc-900"> General </span>
                         <div class="flex items-center gap-2">
                             <p>
