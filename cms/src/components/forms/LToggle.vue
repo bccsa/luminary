@@ -30,21 +30,23 @@ const toggled = computed({
         v-model="toggled"
         :disabled="disabled"
         :class="[
-            'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2',
+            'relative inline-flex h-6 w-24 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2',
             {
                 'cursor-pointer': !disabled,
                 'bg-zinc-500': disabled && toggled,
                 'bg-zinc-100': disabled && !toggled,
-                'bg-zinc-600': !disabled && toggled,
-                'bg-zinc-200': !disabled && !toggled,
+                'bg-green-100': !disabled && toggled,
+                'bg-red-100': !disabled && !toggled,
             },
         ]"
     >
         <span class="sr-only">Toggle</span>
         <span
             :class="[
-                toggled ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                toggled
+                    ? 'translate-x-12 bg-green-800 px-5 text-[10px]'
+                    : 'translate-x-0  bg-red-800 ',
+                'pointer-events-none relative inline-block h-5 w-1/2 transform rounded-full bg-white text-white shadow ring-0 transition duration-200 ease-in-out',
             ]"
         >
             <span
@@ -56,7 +58,7 @@ const toggled = computed({
                 ]"
                 aria-hidden="true"
             >
-                <svg
+                <!-- <svg
                     fill="none"
                     viewBox="0 0 12 12"
                     :class="['h-3 w-3 ', disabled ? 'text-zinc-300' : 'text-zinc-400']"
@@ -68,7 +70,8 @@ const toggled = computed({
                         stroke-linecap="round"
                         stroke-linejoin="round"
                     />
-                </svg>
+                </svg> -->
+                Draft
             </span>
             <span
                 :class="[
@@ -79,11 +82,12 @@ const toggled = computed({
                 ]"
                 aria-hidden="true"
             >
-                <svg class="h-3 w-3 text-zinc-600" fill="currentColor" viewBox="0 0 12 12">
+                <!-- <svg class="h-3 w-3 text-zinc-600" fill="currentColor" viewBox="0 0 12 12">
                     <path
                         d="M3.707 5.293a1 1 0 00-1.414 1.414l1.414-1.414zM5 8l-.707.707a1 1 0 001.414 0L5 8zm4.707-3.293a1 1 0 00-1.414-1.414l1.414 1.414zm-7.414 2l2 2 1.414-1.414-2-2-1.414 1.414zm3.414 2l4-4-1.414-1.414-4 4 1.414 1.414z"
                     />
-                </svg>
+                </svg> -->
+                Publish
             </span>
         </span>
     </Switch>
