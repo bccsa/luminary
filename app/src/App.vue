@@ -7,6 +7,7 @@ import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { getSocket } from "luminary-shared";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
+import NotificationManager from "./components/notifications/NotificationManager.vue";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const { apiUrl } = useGlobalConfigStore();
@@ -53,4 +54,8 @@ onBeforeMount(async () => {
     <main class="px-6">
         <RouterView />
     </main>
+
+    <Teleport to="body">
+        <NotificationManager />
+    </Teleport>
 </template>
