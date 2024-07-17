@@ -59,28 +59,11 @@ export const hasChangedPermission = computed(() => {
             (acl) => acl.groupId == aclEntry.groupId && acl.type == aclEntry.type,
         );
 
-        // If the permission is not in the original ACL entry and the aclEntry does not have permissions set, it is not changed
-        if (!origAclEntry && aclEntry.permission.length == 0) {
-            return false;
-        }
+        if (!origAclEntry) return aclEntry.permission.includes(permission);
 
-        // If the permission is in the original ACL entry and the permissions are the same, it is not changed
-        if (origAclEntry && _.isEqual(origAclEntry.permission.sort(), aclEntry.permission.sort())) {
-            return false;
-        }
-
-        // If the DocType is not in the original ACL, but is set in the new ACL, it is changed
-        if (!origAclEntry && aclEntry.permission.includes(permission)) {
-            return true;
-        }
-
-        if (
-            origAclEntry &&
+        return (
             origAclEntry.permission.includes(permission) != aclEntry.permission.includes(permission)
-        )
-            return true;
-
-        return false;
+        );
     };
 });
 

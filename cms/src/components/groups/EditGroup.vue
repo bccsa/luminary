@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, toRaw, watch } from "vue";
-import { db, DocType, isConnected, type GroupDto } from "luminary-shared";
+import { AclPermission, db, DocType, isConnected, type GroupDto } from "luminary-shared";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { DocumentDuplicateIcon, ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
@@ -21,8 +21,8 @@ type Props = {
 const props = defineProps<Props>();
 
 const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
-const editable = ref<GroupDto>(props.group);
-const editable_cleaned = ref<GroupDto>(props.group);
+const editable = ref<GroupDto>(_.cloneDeep(toRaw(props.group)));
+const editable_cleaned = ref<GroupDto>(editable.value);
 const original_cleaned = ref<GroupDto>(props.group);
 
 // Clear ACL's with no permissions from "editable" and save to "editable_cleaned"
@@ -39,12 +39,73 @@ watch(
 
 // Clear ACL's with no permissions from the passed group and save to "original_cleaned"
 watch(
-    props.group,
+    () => props.group,
     (current) => {
         original_cleaned.value = {
             ...current,
             acl: toRaw(current.acl).filter((a) => a.permission.length > 0),
         };
+    },
+    { deep: true },
+);
+
+// Keep editable up to date with upstream changes to the passed group
+watch(
+    () => props.group,
+    (current, previous) => {
+        if (previous.name == editable.value.name) {
+            editable.value.name = current.name;
+        }
+
+        // Update / add permissions to editable
+        current.acl.forEach((currentAcl) => {
+            let editableAcl = editable.value.acl.find(
+                (a) => a.groupId == currentAcl.groupId && a.type == currentAcl.type,
+            );
+            const previousAcl = previous.acl.find(
+                (a) => a.groupId == currentAcl.groupId && a.type == currentAcl.type,
+            );
+
+            Object.values(AclPermission).forEach((permission) => {
+                const editableHasPermission = editableAcl?.permission.includes(permission) || false;
+                const currentHasPermission = currentAcl.permission.includes(permission) || false;
+                const previousHasPermission = previousAcl?.permission.includes(permission) || false;
+
+                // Do not update permissions that were added by the user
+                if (editableHasPermission != previousHasPermission) {
+                    return;
+                }
+
+                // The editable already has the same permission as the current
+                if (currentHasPermission == editableHasPermission) {
+                    return;
+                }
+
+                // Create a new ACL entry if it does not exist in the editable group
+                if (!editableAcl) {
+                    editableAcl = {
+                        groupId: currentAcl.groupId,
+                        type: currentAcl.type,
+                        permission: [],
+                    };
+                    editable.value.acl.push(editableAcl);
+                }
+
+                // Update the permission
+                if (currentHasPermission) {
+                    editableAcl.permission.push(permission);
+                } else {
+                    editableAcl.permission = editableAcl?.permission.filter((p) => p != permission);
+                }
+            });
+        });
+
+        // Clear permissions from ACL entries that are no longer present in the current group
+        editable.value.acl
+            .filter((a) => !current.acl.some((c) => c.groupId == a.groupId && c.type == a.type))
+            .forEach((aclEntry) => {
+                aclEntry.permission = [];
+            });
     },
     { deep: true },
 );
