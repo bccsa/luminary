@@ -4,7 +4,7 @@ import { describe, it, beforeEach, expect, vi, vitest, beforeAll, afterEach } fr
 import HomePage from "./HomePage.vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import * as auth0 from "@auth0/auth0-vue";
-import { accessMap, db, type ContentDto } from "luminary-shared";
+import { accessMap, db } from "luminary-shared";
 import { ref } from "vue";
 import {
     mockCategoryContentDto,
