@@ -4,13 +4,15 @@ import { describe, it, beforeEach, expect, vi, vitest, beforeAll, afterEach } fr
 import HomePage from "./HomePage.vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import * as auth0 from "@auth0/auth0-vue";
-import { accessMap, db } from "luminary-shared";
+import { accessMap, db, type ContentDto } from "luminary-shared";
 import { ref } from "vue";
 import {
     mockCategoryContentDto,
     mockCategoryDto,
     mockEnglishContentDto,
+    mockFrenchContentDto,
     mockLanguageDtoEng,
+    mockLanguageDtoFra,
     mockPostDto,
     viewAccessToAllContentMap,
 } from "@/tests/mockdata";
@@ -107,12 +109,41 @@ describe("HomePage.vue", () => {
     });
 
     describe("Language selection tests", () => {
-        it("returns the first available language if no language is selected by the user", () => {
-            // Move this test to the globalConfigStore
+        it("updates the category title and content when the language is changed", async () => {
+            // Mock initial database setup with English content
+            db.docs.bulkPut([
+                mockCategoryDto,
+                mockCategoryContentDto,
+                { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
+                { ...mockPostDto, tags: [mockCategoryDto._id] },
+
+                {
+                    ...mockCategoryContentDto,
+                    _id: "content-tag-category1-fr",
+                    language: mockLanguageDtoFra._id,
+                    title: "Catégorie 1",
+                    summary: "Exemple de tag",
+                },
+                { ...mockFrenchContentDto, title: "Poste 1" },
+            ]);
+
+            // Mount the component
+            const wrapper = mount(HomePage);
+
+            // Assert that the category title reflects the new language
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain(mockCategoryContentDto.title);
+                expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            });
+
+            // Change the language
+            const store = useGlobalConfigStore();
+            store.appLanguage = mockLanguageDtoFra;
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("Catégorie 1");
+                expect(wrapper.text()).toContain("Poste 1");
+            });
         });
-
-        it("updates the category title when the language is changed", async () => {});
-
-        it("updates the content title when the language is changed", async () => {});
     });
 });
