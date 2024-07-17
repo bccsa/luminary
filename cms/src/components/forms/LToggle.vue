@@ -47,6 +47,10 @@ const toggled = computed({
                     ? 'translate-x-12 bg-green-800 px-5 text-[10px]'
                     : 'translate-x-0  bg-red-800 ',
                 'pointer-events-none relative inline-block h-5 w-1/2 transform rounded-full bg-white text-white shadow ring-0 transition duration-200 ease-in-out',
+                toggled
+                    ? 'translate-x-12 bg-green-800 px-5 text-[10px]'
+                    : 'translate-x-0  bg-red-800 ',
+                'pointer-events-none relative inline-block h-5 w-1/2 transform rounded-full bg-white text-white shadow ring-0 transition duration-200 ease-in-out',
             ]"
         >
             <span
