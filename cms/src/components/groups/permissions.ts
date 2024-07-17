@@ -71,3 +71,22 @@ export const hasChangedPermission = computed(() => {
  * Valid DocTypes that can be used ACL assignments
  */
 export const validDocTypes = Object.keys(availablePermissionsPerDocType) as unknown as DocType[];
+
+/**
+ * Validate an ACL entry and returns the validated entry
+ */
+export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: GroupAclEntryDto) => {
+    // Add the view permission if any other permission is set
+    if (
+        aclEntry.permission.length &&
+        !aclEntry.permission.includes(AclPermission.View) &&
+        prevAclEntry.permission.length === 0
+    ) {
+        aclEntry.permission.push(AclPermission.View);
+    }
+
+    // Remove all other permissions if the view permission is removed
+    if (!aclEntry.permission.includes(AclPermission.View)) {
+        aclEntry.permission = [];
+    }
+};

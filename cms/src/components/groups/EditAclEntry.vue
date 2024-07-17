@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { type GroupAclEntryDto, AclPermission, type GroupDto } from "luminary-shared";
-import { defineModel, defineProps } from "vue";
+import { defineModel, defineProps, toRaw } from "vue";
 import { capitaliseFirstLetter } from "@/util/string";
-import { isPermissionAvailable, hasChangedPermission } from "./permissions";
+import { isPermissionAvailable, hasChangedPermission, validateAclEntry } from "./permissions";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import _ from "lodash";
 
 type Props = {
     /**
@@ -16,14 +17,19 @@ const aclEntry = defineModel<GroupAclEntryDto>("aclEntry");
 
 const setPermission = (aclPermission: AclPermission) => {
     if (!aclEntry.value) return;
+
+    const prev = _.cloneDeep(toRaw(aclEntry.value));
+
     // Add or remove permission
     const i = aclEntry.value.permission.indexOf(aclPermission);
     if (i >= 0) {
         aclEntry.value.permission.splice(i, 1);
+        validateAclEntry(aclEntry.value, prev);
         return;
     }
 
     aclEntry.value.permission.push(aclPermission);
+    validateAclEntry(aclEntry.value, prev);
 };
 </script>
 
