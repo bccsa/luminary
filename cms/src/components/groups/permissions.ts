@@ -1,6 +1,5 @@
 import { AclPermission, DocType, type GroupAclEntryDto, type GroupDto } from "luminary-shared";
 import { computed } from "vue";
-import * as _ from "lodash";
 
 export const availablePermissionsPerDocType = {
     [DocType.Group]: [
@@ -35,8 +34,18 @@ export const availablePermissionsPerDocType = {
         AclPermission.Translate,
         AclPermission.Publish,
     ],
-    [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
+    [DocType.User]: [
+        AclPermission.View,
+        AclPermission.Create,
+        AclPermission.Edit,
+        AclPermission.Delete,
+    ],
 };
+
+/**
+ * Valid DocTypes that can be used ACL assignments
+ */
+export const validDocTypes = Object.keys(availablePermissionsPerDocType) as unknown as DocType[];
 
 /**
  * Check if a permission is available for a given DocType
@@ -68,11 +77,6 @@ export const hasChangedPermission = computed(() => {
 });
 
 /**
- * Valid DocTypes that can be used ACL assignments
- */
-export const validDocTypes = Object.keys(availablePermissionsPerDocType) as unknown as DocType[];
-
-/**
  * Validate an ACL entry and returns the validated entry
  */
 export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: GroupAclEntryDto) => {
@@ -82,7 +86,7 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         !aclEntry.permission.includes(AclPermission.View) &&
         prevAclEntry.permission.length === 0
     ) {
-        aclEntry.permission.push(AclPermission.View);
+        aclEntry.permission = [AclPermission.View, ...aclEntry.permission]; // We need to recreate the array to trigger reactivity
     }
 
     // Remove all other permissions if the view permission is removed
