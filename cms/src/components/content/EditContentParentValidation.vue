@@ -96,10 +96,9 @@ watch(
 </script>
 
 <template>
-    <LCard :showFooter="!overallIsValid">
+    <LCard :showFooter="!overallIsValid || dirty">
         <div class="flex gap-4">
             <LBadge v-if="localChange" variant="warning">Offline changes</LBadge>
-            <LBadge v-if="dirty">Unsaved changes</LBadge>
 
             <div class="flex-1"></div>
             <LButton
@@ -115,10 +114,10 @@ watch(
         </div>
 
         <template #footer>
-            <div v-show="!overallIsValid" class="flex flex-col gap-2">
-                <p class="text-lg font-bold text-zinc-700">Validation</p>
+            <div v-show="!overallIsValid || dirty" class="flex flex-col gap-2">
+                <p class="text-lg text-zinc-700">Validation</p>
 
-                <div class="flex flex-col" v-if="!parentIsValid">
+                <div class="flex flex-col" v-if="!parentIsValid || dirty">
                     <div class="flex flex-col gap-2">
                         <span class="text-[1em] text-zinc-900"> General </span>
                         <div class="flex items-center gap-2">
