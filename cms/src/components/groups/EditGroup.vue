@@ -22,13 +22,26 @@ const props = defineProps<Props>();
 
 const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 const editable = ref<GroupDto>(props.group);
-const cleaned = ref<GroupDto>(props.group);
+const editable_cleaned = ref<GroupDto>(props.group);
+const original_cleaned = ref<GroupDto>(props.group);
 
-// Clear ACL's with no permissions from "editable" and save to "cleaned"
+// Clear ACL's with no permissions from "editable" and save to "editable_cleaned"
 watch(
     editable,
     (current) => {
-        cleaned.value = {
+        editable_cleaned.value = {
+            ...current,
+            acl: toRaw(current.acl).filter((a) => a.permission.length > 0),
+        };
+    },
+    { deep: true },
+);
+
+// Clear ACL's with no permissions from the passed group and save to "original_cleaned"
+watch(
+    props.group,
+    (current) => {
+        original_cleaned.value = {
             ...current,
             acl: toRaw(current.acl).filter((a) => a.permission.length > 0),
         };
@@ -81,8 +94,8 @@ const availableGroups = computed(() => {
 
 const isDirty = computed(() => {
     return !_.isEqual(
-        { ...toRaw(props.group), updatedTimeUtc: 0, _rev: "" },
-        { ...toRaw(cleaned.value), updatedTimeUtc: 0, _rev: "" },
+        { ...toRaw(original_cleaned.value), updatedTimeUtc: 0, _rev: "" },
+        { ...toRaw(editable_cleaned.value), updatedTimeUtc: 0, _rev: "" },
     );
 });
 
@@ -141,10 +154,10 @@ const copyGroupId = (group: GroupDto) => {
 };
 
 const saveChanges = async () => {
-    db.upsert<GroupDto>(toRaw(cleaned.value));
+    db.upsert<GroupDto>(toRaw(editable_cleaned.value));
 
     addNotification({
-        title: `${cleaned.value.name} changes saved`,
+        title: `${editable_cleaned.value.name} changes saved`,
         description: `All changes are saved ${
             isConnected.value
                 ? "online"
