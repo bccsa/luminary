@@ -3,7 +3,6 @@ import { db, DocType, type LanguageDto } from "luminary-shared";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import { computed } from "vue";
 
 type Props = {
     isVisible: boolean;
@@ -11,15 +10,6 @@ type Props = {
 defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const appLanguage = computed(() => {
-    if (!appLanguageIdAsRef.value || !languages.value.length) return;
-
-    const preferred = languages.value.find((language) => language._id === appLanguageIdAsRef.value);
-
-    if (preferred) return preferred;
-
-    return languages.value[0];
-});
 
 const emit = defineEmits(["close"]);
 
@@ -45,7 +35,7 @@ const setLanguage = (language: LanguageDto) => {
                 >
                     <span class="text-sm">{{ language.name }}</span>
                     <CheckCircleIcon
-                        v-if="appLanguage?._id === language._id"
+                        v-if="appLanguageIdAsRef === language._id"
                         class="ml-auto h-6 w-6 text-yellow-500"
                         aria-hidden="true"
                     />
