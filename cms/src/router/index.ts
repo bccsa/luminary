@@ -81,18 +81,6 @@ const router = createRouter({
                                 },
                             },
                         },
-                        {
-                            path: "create",
-                            name: "groups.create",
-                            component: () => import("../pages/groups/CreateGroup.vue"),
-                            meta: {
-                                title: "Create group",
-                                canAccess: {
-                                    docType: DocType.Group,
-                                    permission: AclPermission.Create,
-                                },
-                            },
-                        },
                     ],
                 },
                 // {

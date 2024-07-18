@@ -10,7 +10,7 @@ import { useNotificationStore } from "@/stores/notification";
 import LBadge from "@/components/common/LBadge.vue";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
-import * as _ from "lodash";
+import _ from "lodash";
 import { validDocTypes } from "./permissions";
 
 const { addNotification } = useNotificationStore();
