@@ -7,11 +7,10 @@ import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useRouter } from "vue-router";
 import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
+import { appName } from "@/globalConfig";
 
-const { appName } = useGlobalConfigStore();
 const router = useRouter();
 
 type Props = {
