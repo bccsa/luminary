@@ -1,13 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterAll, beforeAll } from "vitest";
-import {
-    apiUrl,
-    appLanguageAsRef,
-    appLanguageIdAsRef,
-    appName,
-    initLanguage,
-    isDevMode,
-} from "@/globalConfig";
+import { appLanguageAsRef, appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "./tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
