@@ -42,4 +42,16 @@ describe("GroupOverview", () => {
             expect(wrapper.text()).toContain("Super Admins");
         });
     });
+
+    it("can create a new group", async () => {
+        const wrapper = mount(GroupOverview);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Create group");
+        });
+
+        await wrapper.find('button[data-test="createGroupButton"]').trigger("click");
+
+        expect(wrapper.text()).toContain("New group");
+    });
 });
