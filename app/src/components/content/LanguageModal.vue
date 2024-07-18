@@ -1,19 +1,32 @@
 <script setup lang="ts">
 import { db, DocType, type LanguageDto } from "luminary-shared";
 import LButton from "../button/LButton.vue";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { storeToRefs } from "pinia";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { appLanguageIdAsRef } from "@/globalConfig";
+import { computed } from "vue";
 
 type Props = {
     isVisible: boolean;
 };
 defineProps<Props>();
 
-const { appLanguage } = storeToRefs(useGlobalConfigStore());
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const appLanguage = computed(() => {
+    if (!appLanguageIdAsRef.value || !languages.value.length) return;
+
+    const preferred = languages.value.find((language) => language._id === appLanguageIdAsRef.value);
+
+    if (preferred) return preferred;
+
+    return languages.value[0];
+});
 
 const emit = defineEmits(["close"]);
+
+const setLanguage = (language: LanguageDto) => {
+    appLanguageIdAsRef.value = language._id;
+    emit("close");
+};
 </script>
 
 <template>
@@ -28,12 +41,7 @@ const emit = defineEmits(["close"]);
                     v-for="language in languages"
                     :key="language._id"
                     class="flex cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
-                    @click="
-                        () => {
-                            appLanguage = language;
-                            emit('close');
-                        }
-                    "
+                    @click="setLanguage(language)"
                 >
                     <span class="text-sm">{{ language.name }}</span>
                     <CheckCircleIcon

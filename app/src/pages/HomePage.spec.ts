@@ -2,7 +2,6 @@ import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
 import { describe, it, beforeEach, expect, vi, vitest, beforeAll, afterEach } from "vitest";
 import HomePage from "./HomePage.vue";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
 import * as auth0 from "@auth0/auth0-vue";
 import { accessMap, db } from "luminary-shared";
 import { ref } from "vue";
@@ -13,12 +12,12 @@ import {
     mockFrenchContentDto,
     mockLanguageDtoEng,
     mockLanguageDtoFra,
+    mockLanguageDtoSwa,
     mockPostDto,
     viewAccessToAllContentMap,
 } from "@/tests/mockdata";
-import { setActivePinia, storeToRefs } from "pinia";
-import { createTestingPinia } from "@pinia/testing";
 import waitForExpect from "wait-for-expect";
+import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 
 vi.mock("@auth0/auth0-vue");
 vi.mock("vue-router");
@@ -26,19 +25,17 @@ vi.mock("vue-router");
 describe("HomePage.vue", () => {
     beforeAll(() => {
         accessMap.value = viewAccessToAllContentMap;
+        initLanguage();
     });
 
-    beforeEach(() => {
-        setActivePinia(createTestingPinia());
-        const store = storeToRefs(useGlobalConfigStore());
-        const { appLanguage } = store;
-        appLanguage.value = mockLanguageDtoEng;
+    beforeEach(async () => {
+        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
     });
 
-    afterEach(() => {
+    afterEach(async () => {
         vitest.clearAllMocks();
-        db.docs.clear();
-        db.localChanges.clear();
+        await db.docs.clear();
+        await db.localChanges.clear();
     });
 
     describe("No content notifications", () => {
@@ -137,8 +134,7 @@ describe("HomePage.vue", () => {
             });
 
             // Change the language
-            const store = useGlobalConfigStore();
-            store.appLanguage = mockLanguageDtoFra;
+            appLanguageIdAsRef.value = mockLanguageDtoFra._id;
 
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("Catégorie 1");

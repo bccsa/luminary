@@ -1,7 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { setActivePinia, createPinia } from "pinia";
 import HorizontalScrollableTagViewer from "./HorizontalScrollableTagViewer.vue";
 import { mockCategoryContentDto, mockCategoryDto, mockEnglishContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
@@ -12,11 +11,10 @@ vi.mock("vue-router");
 describe("HorizontalScrollableTagViewer", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([mockCategoryContentDto, mockCategoryDto]);
-        setActivePinia(createPinia());
     });
 
-    afterEach(() => {
-        db.docs.clear();
+    afterEach(async () => {
+        await db.docs.clear();
         vi.clearAllMocks();
     });
 

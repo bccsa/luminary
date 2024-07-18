@@ -4,11 +4,9 @@ import HorizontalScrollableTagViewerCollection from "@/components/tags/Horizonta
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { DocType, TagType, db } from "luminary-shared";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { storeToRefs } from "pinia";
+import { appLanguageIdAsRef } from "@/globalConfig";
 
 const { isAuthenticated } = useAuth0();
-const { appLanguage } = storeToRefs(useGlobalConfigStore());
 
 const hasPosts = db.someByTypeAsRef(DocType.Post);
 </script>
@@ -36,11 +34,11 @@ const hasPosts = db.someByTypeAsRef(DocType.Post);
         </div>
     </div>
     <IgnorePagePadding v-else>
-        <div class="pt-4" v-if="appLanguage">
+        <div class="pt-4" v-if="appLanguageIdAsRef">
             <!-- Display latest posts -->
 
             <HorizontalScrollableTagViewer
-                :key="appLanguage._id"
+                :key="appLanguageIdAsRef"
                 title="Newest Content"
                 :queryOptions="{
                     sortOptions: {
@@ -51,47 +49,47 @@ const hasPosts = db.someByTypeAsRef(DocType.Post);
                         limit: 10,
                         docType: DocType.Post,
                     },
-                    languageId: appLanguage._id,
+                    languageId: appLanguageIdAsRef,
                 }"
             />
 
             <!-- Display pinned categories -->
             <HorizontalScrollableTagViewerCollection
-                :key="appLanguage._id"
+                :key="appLanguageIdAsRef"
                 :tagType="TagType.Category"
                 :tagQueryOptions="{
                     filterOptions: {
                         topLevelOnly: true,
                         pinned: true,
                     },
-                    languageId: appLanguage._id,
+                    languageId: appLanguageIdAsRef,
                 }"
                 :contentQueryOptions="{
                     sortOptions: {
                         sortBy: 'publishDate',
                         sortOrder: 'asc',
                     },
-                    languageId: appLanguage._id,
+                    languageId: appLanguageIdAsRef,
                 }"
             />
 
             <!-- Display unpined categories -->
             <HorizontalScrollableTagViewerCollection
-                :key="appLanguage._id"
+                :key="appLanguageIdAsRef"
                 :tagType="TagType.Category"
                 :tagQueryOptions="{
                     filterOptions: {
                         topLevelOnly: true,
                         pinned: false,
                     },
-                    languageId: appLanguage._id,
+                    languageId: appLanguageIdAsRef,
                 }"
                 :contentQueryOptions="{
                     sortOptions: {
                         sortBy: 'publishDate',
                         sortOrder: 'asc',
                     },
-                    languageId: appLanguage._id,
+                    languageId: appLanguageIdAsRef,
                 }"
             />
         </div>
