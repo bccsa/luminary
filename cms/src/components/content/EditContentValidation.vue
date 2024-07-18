@@ -1,9 +1,16 @@
 <script setup lang="ts">
-import { PublishStatus, type ContentDto, type LanguageDto } from "luminary-shared";
+import {
+    PublishStatus,
+    type ContentDto,
+    type LanguageDto,
+    DocType,
+    type TagDto,
+} from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
+import { RouterLink } from "vue-router";
 
 type Props = {
     languages: LanguageDto[];
@@ -110,13 +117,31 @@ watch(
         <div class="flex flex-col gap-2">
             <span class="flex justify-between text-[1em] text-zinc-900">
                 {{ contentLanguage?.name }}
-                <LBadge
-                    type="language"
-                    class="w-auto cursor-pointer"
-                    :variant="translationStatus(content)"
+                <RouterLink
+                    :to="{
+                        name: 'edit',
+                        params: {
+                            docType: content?.parentType,
+                            tagType:
+                                content?.parentType == DocType.Tag
+                                    ? (content as unknown as TagDto).tagType
+                                    : undefined,
+                            id: content?._id,
+                            languageCode: languages.find((l) => l._id == content?.language)
+                                ?.languageCode,
+                        },
+                    }"
+                    class="flex justify-end"
+                    data-test="edit-button"
                 >
-                    {{ statusLanguageTitle }}
-                </LBadge>
+                    <LBadge
+                        type="language"
+                        class="w-auto cursor-pointer"
+                        :variant="translationStatus(content)"
+                    >
+                        {{ statusLanguageTitle }}
+                    </LBadge>
+                </RouterLink>
             </span>
             <div class="flex items-center gap-2" v-if="!isValid">
                 <p>
