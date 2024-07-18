@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { RouterLinkStub, mount } from "@vue/test-utils";
 import TopBar from "./TopBar.vue";
 import * as auth0 from "@auth0/auth0-vue";
