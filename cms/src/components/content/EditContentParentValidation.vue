@@ -150,7 +150,6 @@ watch(
                         :languages="props.languages"
                         :key="content._id"
                         @isValid="(val) => setOverallValidation(content._id, val)"
-                        :dirty="props.dirty"
                     />
                 </div>
             </div>

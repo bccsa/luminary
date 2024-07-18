@@ -8,7 +8,7 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import { CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 
