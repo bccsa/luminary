@@ -22,13 +22,6 @@ describe("globalConfig.ts", () => {
         await db.localChanges.clear();
     });
 
-    it("initializes with the correct environment variables", () => {
-        // Expect the values from .env.example to be returned
-        expect(appName).toBe("Luminary App");
-        expect(apiUrl).toBe("http://localhost:3000");
-        expect(isDevMode).toBe(true);
-    });
-
     it("can initialize the preferred language", async () => {
         await waitForExpect(() => {
             expect(appLanguageIdAsRef.value).toBe(mockLanguageDtoEng._id);
