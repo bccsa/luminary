@@ -17,8 +17,10 @@ import { validate, type Validation } from "./ContentValidator";
 
 type Props = {
     languages: LanguageDto[];
-    dirty: boolean;
     localChange: boolean;
+    dirty: boolean;
+    parentPrev: PostDto | TagDto;
+    contentPrev: ContentDto;
 };
 const props = defineProps<Props>();
 const parent = defineModel<PostDto | TagDto>("parent");
@@ -150,6 +152,7 @@ watch(
                         :languages="props.languages"
                         :key="content._id"
                         @isValid="(val) => setOverallValidation(content._id, val)"
+                        :content-prev="props.contentPrev"
                     />
                 </div>
             </div>

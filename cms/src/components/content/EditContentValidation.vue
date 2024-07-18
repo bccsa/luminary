@@ -11,9 +11,11 @@ import { validate, type Validation } from "./ContentValidator";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
+import _ from "lodash";
 
 type Props = {
     languages: LanguageDto[];
+    contentPrev?: ContentDto;
 };
 const props = defineProps<Props>();
 const content = defineModel<ContentDto>("content");
@@ -24,6 +26,8 @@ const contentLanguage = computed(() => {
     // @ts-ignore we are certain that content exists
     return props.languages.find((l) => content.value.language == l._id);
 });
+
+const isDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
 
 const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
@@ -143,7 +147,7 @@ watch(
                     </LBadge>
                 </RouterLink>
             </span>
-            <div class="flex items-center gap-2" v-if="!isValid">
+            <div class="flex items-center gap-2" v-if="!isValid && isDirty">
                 <p>
                     <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
                 </p>
