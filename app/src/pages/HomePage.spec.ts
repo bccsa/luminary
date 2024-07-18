@@ -64,7 +64,7 @@ describe("HomePage.vue", () => {
 
     describe("Content display tests", () => {
         it("renders pinned categories correctly", async () => {
-            db.docs.bulkPut([
+            await db.docs.bulkPut([
                 { ...mockCategoryDto, pinned: true },
                 mockCategoryContentDto,
                 { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
@@ -79,7 +79,7 @@ describe("HomePage.vue", () => {
         });
 
         it("renders unpinned categories correctly", async () => {
-            db.docs.bulkPut([
+            await db.docs.bulkPut([
                 { ...mockCategoryDto, pinned: false },
                 mockCategoryContentDto,
                 { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
@@ -94,7 +94,7 @@ describe("HomePage.vue", () => {
         });
 
         it("displays the newest content", async () => {
-            db.docs.bulkPut([mockEnglishContentDto, mockPostDto]);
+            await db.docs.bulkPut([mockEnglishContentDto, mockPostDto]);
 
             const wrapper = mount(HomePage);
 
@@ -108,7 +108,7 @@ describe("HomePage.vue", () => {
     describe("Language selection tests", () => {
         it("updates the category title and content when the language is changed", async () => {
             // Mock initial database setup with English content
-            db.docs.bulkPut([
+            await db.docs.bulkPut([
                 mockCategoryDto,
                 mockCategoryContentDto,
                 { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },

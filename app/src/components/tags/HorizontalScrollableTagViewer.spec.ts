@@ -46,7 +46,7 @@ describe("HorizontalScrollableTagViewer", () => {
     // This test is showing a Vue warn in the console.
     //It should be a warning comming from the router in one of the child components.
     it("displays a ContentTile", async () => {
-        db.docs.bulkPut([mockEnglishContentDto]);
+        await db.docs.bulkPut([mockEnglishContentDto]);
 
         const wrapper = mount(HorizontalScrollableTagViewer, {
             props: {

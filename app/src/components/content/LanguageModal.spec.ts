@@ -1,13 +1,17 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
-import LanguageSelector from "@/components/content/LanguageModal.vue";
+import LanguageModal from "@/components/content/LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 
 describe("LanguageModal.vue", () => {
+    beforeAll(async () => {
+        initLanguage();
+    });
+
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
     });
@@ -18,7 +22,7 @@ describe("LanguageModal.vue", () => {
     });
 
     it("renders correctly when visible", async () => {
-        const wrapper = mount(LanguageSelector, {
+        const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
         });
 
@@ -32,7 +36,7 @@ describe("LanguageModal.vue", () => {
     });
 
     it("does not render when isVisible is false", () => {
-        const wrapper = mount(LanguageSelector, {
+        const wrapper = mount(LanguageModal, {
             props: { isVisible: false },
         });
 
@@ -40,7 +44,7 @@ describe("LanguageModal.vue", () => {
     });
 
     it.skip("emits close event on language click and stores the selected language", async () => {
-        const wrapper = mount(LanguageSelector, {
+        const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
         });
 
@@ -53,7 +57,7 @@ describe("LanguageModal.vue", () => {
     });
 
     it("emits the close event on close button click", async () => {
-        const wrapper = mount(LanguageSelector, {
+        const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
         });
 
