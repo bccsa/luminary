@@ -233,10 +233,10 @@ describe("EditContentParentValidation.vue", () => {
                 ],
                 dirty: true,
                 parent: mockData.mockPostDto,
-                contentDocs: [],
+                contentDocs: [mockData.mockEnglishContentDto],
                 localChange: true,
                 parentPrev: mockData.mockPostDto,
-                contentPrev: [mockData.mockEnglishContentDto],
+                contentPrev: [],
             },
         });
 
