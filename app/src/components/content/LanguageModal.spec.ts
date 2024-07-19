@@ -28,15 +28,18 @@ describe("LanguageModal.vue", () => {
 
         expect(wrapper.find("h2").text()).toBe("Select Language");
 
-        // It is not rendering the languages
-
-        await waitForExpect(() => {
-            console.log(wrapper.html());
-            // expect(wrapper.findAll("li").length).toBe(3);
-            // expect(wrapper.findAll("li").at(0)?.text()).toBe("English");
-            // expect(wrapper.findAll("li").at(1)?.text()).toBe("Français");
-            // expect(wrapper.findAll("li").at(2)?.text()).toBe("Swahili");
-        });
+        // await waitForExpect(() => {
+        //     expect(wrapper.findAll('data-test="switch-language-button"').length).toBe(3);
+        //     expect(wrapper.findAll('data-test="switch-language-button"').at(0)?.text()).toBe(
+        //         "English",
+        //     );
+        //     expect(wrapper.findAll('data-test="switch-language-button"').at(1)?.text()).toBe(
+        //         "Français",
+        //     );
+        //     expect(wrapper.findAll('data-test="switch-language-button"').at(2)?.text()).toBe(
+        //         "Swahili",
+        //     );
+        // });
     });
 
     it("does not render when isVisible is false", () => {
