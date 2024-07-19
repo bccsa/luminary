@@ -23,11 +23,12 @@ const setLanguage = (language: LanguageDto) => {
     <div
         v-if="isVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-75"
+        @click="emit('close')"
     >
-        <div class="w-11/12 rounded-lg bg-white p-6 shadow-lg sm:w-96 dark:bg-zinc-900">
+        <div class="w-11/12 rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-900 sm:w-96">
             <h2 class="mb-4 text-lg font-semibold">Select Language</h2>
-            <ul class="divide-y divide-gray-200">
-                <li
+            <div class="divide-y divide-gray-200">
+                <button
                     v-for="language in languages"
                     :key="language._id"
                     class="flex cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
@@ -39,12 +40,11 @@ const setLanguage = (language: LanguageDto) => {
                         class="ml-auto h-6 w-6 text-yellow-500"
                         aria-hidden="true"
                     />
-                </li>
-            </ul>
+                </button>
+            </div>
             <LButton
                 variant="primary"
                 size="lg"
-                :to="{ name: 'login' }"
                 rounding="less"
                 class="mt-4 w-full"
                 @click="emit('close')"
