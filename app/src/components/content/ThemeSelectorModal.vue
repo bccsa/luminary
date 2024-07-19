@@ -42,7 +42,7 @@ onMounted(() => {
         v-if="isVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-75"
     >
-        <div class="w-11/12 rounded-lg bg-white p-6 shadow-lg sm:w-96 dark:bg-zinc-900">
+        <div class="w-11/12 rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-800 sm:w-96">
             <h2 class="mb-4 text-lg font-semibold">Select Theme</h2>
             <ul class="divide-y divide-gray-200 dark:divide-zinc-700">
                 <li
