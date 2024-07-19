@@ -31,7 +31,7 @@ const setLanguage = (language: LanguageDto) => {
                 <button
                     v-for="language in languages"
                     :key="language._id"
-                    class="flex cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
+                    class="flex w-full cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
                     @click="setLanguage(language)"
                 >
                     <span class="text-sm">{{ language.name }}</span>
