@@ -33,6 +33,7 @@ const setLanguage = (language: LanguageDto) => {
                     :key="language._id"
                     class="flex w-full cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
                     @click="setLanguage(language)"
+                    data-test="switch-language-button"
                 >
                     <span class="text-sm">{{ language.name }}</span>
                     <CheckCircleIcon
