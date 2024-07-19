@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
+import ThemeSelectorModal from "../content/ThemeSelectorModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
+import { ref } from "vue";
 
 const { user, logout } = useAuth0();
 const router = useRouter();
+
+const showThemeSelector = ref(false);
 
 const userNavigation: {
     name: string;
     action: Function;
 }[] = [
     { name: "Settings", action: () => router.push({ name: "settings" }) },
+    { name: "Theme", action: () => (showThemeSelector.value = true) },
     {
         name: "Sign out",
         action: async () => {
@@ -69,7 +74,9 @@ const userNavigation: {
                         {{ item.name }}
                     </button>
                 </MenuItem>
+                <ThemeSelector />
             </MenuItems>
         </transition>
     </Menu>
+    <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
 </template>
