@@ -27,7 +27,7 @@ const contentLanguage = computed(() => {
     return props.languages.find((l) => content.value.language == l._id);
 });
 
-const isDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
+const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
 
 const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
@@ -147,12 +147,12 @@ watch(
                     </LBadge>
                 </RouterLink>
             </span>
-            <div class="flex items-center gap-2" v-if="!isValid && isDirty">
-                <p>
-                    <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-                </p>
-                <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
-            </div>
+        </div>
+        <div class="flex items-center gap-2" v-if="!isValid || isContentDirty">
+            <p>
+                <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+            </p>
+            <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
         </div>
         <div
             v-for="validation in validations.filter((v) => !v.isValid)"

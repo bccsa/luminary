@@ -12,15 +12,16 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
+import _ from "lodash";
 
 type Props = {
     languages: LanguageDto[];
     localChange: boolean;
     dirty: boolean;
-    parentPrev: PostDto | TagDto;
-    contentPrev: ContentDto;
+    parentPrev: PostDto | TagDto | undefined;
+    contentPrev: ContentDto[] | undefined;
 };
 const props = defineProps<Props>();
 const parent = defineModel<PostDto | TagDto>("parent");
@@ -29,6 +30,10 @@ const contentDocs = defineModel<ContentDto[]>("contentDocs");
 const emit = defineEmits<{
     (e: "save"): void;
 }>();
+
+const isParentDirty = computed(() => {
+    return _.isEqual(parent.value, props.parentPrev);
+});
 
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
@@ -122,7 +127,7 @@ watch(
                 </p>
 
                 <div class="flex flex-col">
-                    <div class="flex flex-col gap-2" v-if="dirty">
+                    <div class="flex flex-col gap-2" v-if="!overallIsValid || !isParentDirty">
                         <span class="text-[1em] text-zinc-900"> General </span>
                         <div class="flex items-center gap-2">
                             <p>
@@ -152,7 +157,7 @@ watch(
                         :languages="props.languages"
                         :key="content._id"
                         @isValid="(val) => setOverallValidation(content._id, val)"
-                        :content-prev="props.contentPrev"
+                        :contentPrev="props.contentPrev?.find((c) => c._id == content._id)"
                     />
                 </div>
             </div>

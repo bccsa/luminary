@@ -252,6 +252,8 @@ watch(selectedLanguage, () => {
                         @save="save"
                         :dirty="isDirty"
                         :localChange="isLocalChange"
+                        :contentPrev="contentDocsPrev"
+                        :parentPrev="parentPrev"
                     />
                     <!-- Live View -->
                     <EditContentPreview v-if="selectedContent" :content="selectedContent" />
