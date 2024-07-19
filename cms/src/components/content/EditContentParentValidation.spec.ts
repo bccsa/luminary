@@ -27,6 +27,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -47,6 +49,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [mockData.mockEnglishContentDto],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -67,6 +71,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [mockData.mockEnglishContentDto],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -91,6 +97,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: { ...mockData.mockPostDto, memberOf: [] },
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -113,6 +121,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: { ...mockData.mockPostDto, image: "" },
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -135,6 +145,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -157,6 +169,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [{ ...mockData.mockEnglishContentDto, title: "" }],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -181,6 +195,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: true,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -199,6 +215,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -217,6 +235,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: true,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -235,6 +255,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [mockData.mockEnglishContentDto],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
