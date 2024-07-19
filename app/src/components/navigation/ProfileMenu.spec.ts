@@ -2,7 +2,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import ProfileMenu from "./ProfileMenu.vue";
 import * as auth0 from "@auth0/auth0-vue";
-import { setActivePinia, createPinia } from "pinia";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -26,7 +27,7 @@ describe("ProfileMenu", () => {
             dispatchEvent: vi.fn(),
         }));
 
-        setActivePinia(createPinia());
+        setActivePinia(createTestingPinia());
     });
 
     afterEach(() => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
-import ThemeSelectorModal from "../content/ThemeSelectorModal.vue";
+import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { ref } from "vue";
