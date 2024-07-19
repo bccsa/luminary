@@ -119,7 +119,7 @@ watch(
 <template>
     <div class="flex flex-col">
         <div class="flex flex-col gap-2">
-            <span class="flex justify-between text-[1em] text-zinc-900">
+            <span class="flex justify-between text-sm text-zinc-900">
                 {{ contentLanguage?.name }}
                 <RouterLink
                     :to="{
