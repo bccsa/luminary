@@ -122,12 +122,12 @@ watch(
 
         <template #footer>
             <div v-show="true" class="flex flex-col gap-2">
-                <p v-if="!overallIsValid" class="text-zinc-700">
+                <p v-if="!overallIsValid && !isParentDirty" class="text-zinc-700">
                     There are some errors that prevent saving
                 </p>
 
                 <div class="flex flex-col">
-                    <div class="flex flex-col gap-2" v-if="!overallIsValid || !isParentDirty">
+                    <div class="flex flex-col gap-2" v-if="!isParentDirty">
                         <span class="text-[1em] text-zinc-900"> General </span>
                         <div class="flex items-center gap-2">
                             <p>
