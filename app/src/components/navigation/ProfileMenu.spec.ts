@@ -45,9 +45,25 @@ describe("ProfileMenu", () => {
         });
 
         const wrapper = mount(ProfileMenu);
-        console.log(wrapper.text());
 
         expect(wrapper.html()).toContain("Test Person");
+    });
+
+    it("shows the modal when clicking the language button", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        const wrapper = mount(ProfileMenu);
+
+        await wrapper.find("button").trigger("click");
+
+        const button = wrapper.findAll("button")[2];
+        await button.trigger("click");
+
+        expect(wrapper.html()).toContain("Select Language");
+
+        // We must also expect to see the languages here
     });
 
     it("logs the user out after clicking logout", async () => {

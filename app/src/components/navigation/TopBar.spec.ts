@@ -26,7 +26,7 @@ describe("TopBar", () => {
 
         const wrapper = mount(TopBar);
 
-        expect(wrapper.html()).toContain("Profile");
+        expect(wrapper.html()).toContain("Menu");
     });
 
     it("shows the profile menu when logged out", async () => {
