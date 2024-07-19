@@ -74,7 +74,6 @@ const userNavigation: {
                         {{ item.name }}
                     </button>
                 </MenuItem>
-                <ThemeSelector />
             </MenuItems>
         </transition>
     </Menu>

@@ -15,6 +15,17 @@ vi.mock("@auth0/auth0-vue");
 
 describe("ProfileMenu", () => {
     beforeEach(() => {
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === "(prefers-color-scheme: dark)",
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
         setActivePinia(createPinia());
     });
 
@@ -42,7 +53,7 @@ describe("ProfileMenu", () => {
 
         const wrapper = mount(ProfileMenu);
         await wrapper.find("button").trigger("click");
-        await wrapper.findAll("button")[2].trigger("click");
+        await wrapper.findAll("button")[3].trigger("click");
 
         expect(logout).toHaveBeenCalled();
     });
