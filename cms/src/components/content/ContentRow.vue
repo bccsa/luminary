@@ -21,16 +21,16 @@ import LButton from "../button/LButton.vue";
 type Props = {
     parent: PostDto | TagDto;
     parentType: DocType.Post | DocType.Tag;
-    language: Uuid;
+    languageId: Uuid;
+    languages: LanguageDto[];
 };
 const props = defineProps<Props>();
 const content = db.whereParentAsRef(props.parent._id, props.parentType, undefined, []);
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []); // TODO: Move this to ContentTable and pass ref to ContentRow
 const isLocalChange = db.isLocalChangeAsRef(props.parent._id);
 
 // Get the title in the selected language if available, otherwise use the first available translation
 const title = computed(() => {
-    const preferred = content.value.filter((c) => c.language == props.language)[0]?.title;
+    const preferred = content.value.filter((c) => c.language == props.languageId)[0]?.title;
 
     if (preferred) return preferred;
 
@@ -130,7 +130,7 @@ const translationStatus = computed(() => {
                         docType: parentType,
                         tagType: parentType == DocType.Tag ? (parent as TagDto).tagType : undefined,
                         id: parent._id,
-                        languageCode: languages.find((l) => l._id == props.language)?.languageCode,
+                        languageCode: languages.find((l) => l._id == languageId)?.languageCode,
                     },
                 }"
                 class="flex justify-end"
