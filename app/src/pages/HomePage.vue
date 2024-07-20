@@ -23,13 +23,12 @@ const hasPosts = db.someByTypeAsRef(DocType.Post);
             <p>There is currently no content available.</p>
 
             <p class="mt-1">
-                If you have an account, first
+                Please
                 <router-link
                     :to="{ name: 'login' }"
                     class="text-yellow-600 underline hover:text-yellow-500"
-                >
-                    log in.
-                </router-link>
+                    >log in </router-link
+                >if you have an account.
             </p>
         </div>
     </div>
