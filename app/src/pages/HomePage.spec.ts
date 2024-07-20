@@ -46,7 +46,7 @@ describe("HomePage.vue", () => {
             const wrapper = mount(HomePage);
 
             expect(wrapper.text()).toContain(
-                "There is currently no content available. If you have an account, first  log in.",
+                "There is currently no content available. Please log in if you have an account.",
             );
         });
 

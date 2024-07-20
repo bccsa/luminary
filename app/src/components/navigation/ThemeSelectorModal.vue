@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
 import { ref, watch, onMounted } from "vue";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
@@ -38,38 +39,37 @@ onMounted(() => {
 </script>
 
 <template>
-    <div
-        v-if="isVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-75"
-    >
-        <div class="w-11/12 rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-800 sm:w-96">
-            <h2 class="mb-4 text-lg font-semibold">Select Theme</h2>
-            <ul class="divide-y divide-gray-200 dark:divide-zinc-700">
-                <li
-                    v-for="theme in themes"
-                    :key="theme"
-                    class="flex cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
-                    @click="selectedTheme = theme"
+    <Dialog :open="isVisible" @close="emit('close')">
+        <div class="fixed inset-0 bg-gray-800 bg-opacity-50"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <DialogPanel class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-zinc-800">
+                <DialogTitle class="mb-4 text-lg font-semibold">Select Theme</DialogTitle>
+                <div class="divide-y divide-gray-200 dark:divide-zinc-700">
+                    <button
+                        v-for="theme in themes"
+                        :key="theme"
+                        class="flex w-full cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
+                        @click="selectedTheme = theme"
+                        data-test="switch-language-button"
+                    >
+                        <span class="text-sm">{{ theme }}</span>
+                        <CheckCircleIcon
+                            v-if="selectedTheme === theme"
+                            class="ml-auto h-6 w-6 text-yellow-500"
+                            aria-hidden="true"
+                        />
+                    </button>
+                </div>
+                <LButton
+                    variant="primary"
+                    size="lg"
+                    rounding="less"
+                    class="mt-4 w-full"
+                    @click="emit('close')"
                 >
-                    <span class="text-sm">{{ theme }}</span>
-                    <CheckCircleIcon
-                        v-if="selectedTheme === theme"
-                        class="ml-auto h-6 w-6 text-yellow-500"
-                        aria-hidden="true"
-                    />
-                </li>
-            </ul>
-
-            <LButton
-                variant="primary"
-                size="lg"
-                :to="{ name: 'login' }"
-                rounding="less"
-                class="mt-4 w-full"
-                @click="emit('close')"
-            >
-                Close
-            </LButton>
+                    Close
+                </LButton>
+            </DialogPanel>
         </div>
-    </div>
+    </Dialog>
 </template>
