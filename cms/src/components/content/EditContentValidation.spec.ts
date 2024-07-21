@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import EditContentValidation from "./EditContentValidation.vue";
 import { PublishStatus } from "luminary-shared";
+import waitForExpect from "wait-for-expect";
 
 describe("EditContentValidation.vue", () => {
     it("don't show validation error if no errors", async () => {
@@ -74,8 +75,10 @@ describe("EditContentValidation.vue", () => {
                 },
             });
 
-            expect(wrapper.text()).toContain("Français");
-            expect(wrapper.text()).toContain("Published");
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("Français");
+                expect(wrapper.text()).toContain("Published");
+            });
         });
 
         it("shows expired status", async () => {
@@ -86,8 +89,10 @@ describe("EditContentValidation.vue", () => {
                 },
             });
 
-            expect(wrapper.text()).toContain("Swahili");
-            expect(wrapper.text()).toContain("Expired");
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("Swahili");
+                expect(wrapper.text()).toContain("Expired");
+            });
         });
 
         it("shows scheduled status", async () => {
@@ -98,8 +103,10 @@ describe("EditContentValidation.vue", () => {
                 },
             });
 
-            expect(wrapper.text()).toContain("English");
-            expect(wrapper.text()).toContain("Scheduled");
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+                expect(wrapper.text()).toContain("Scheduled");
+            });
         });
 
         it("shows draft status", async () => {
@@ -110,8 +117,10 @@ describe("EditContentValidation.vue", () => {
                 },
             });
 
-            expect(wrapper.text()).toContain("English");
-            expect(wrapper.text()).toContain("Draft");
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+                expect(wrapper.text()).toContain("Draft");
+            });
         });
     });
 });
