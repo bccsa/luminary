@@ -8,10 +8,11 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import _ from "lodash";
+// import { sortByName } from "@/util/sortByName";
 
 type Props = {
     languages: LanguageDto[];
@@ -20,11 +21,17 @@ type Props = {
 const props = defineProps<Props>();
 const content = defineModel<ContentDto>("content");
 
-// Get the content document's language document
+// Computed property or method to get sorted languages
+const sortedLanguages = computed(() => {
+    if (!props.languages) return [];
+    return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
+});
+
+// Existing computed property using the sorted languages
 const contentLanguage = computed(() => {
-    if (!content.value || !props.languages) return;
+    if (!content.value || !sortedLanguages.value) return;
     // @ts-ignore we are certain that content exists
-    return props.languages.find((l) => content.value.language == l._id);
+    return sortedLanguages.value.find((l) => content.value.language == l._id);
 });
 
 const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
@@ -33,7 +40,9 @@ const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
 }>();
 
-const statusLanguageTitle = ref("");
+const icon = ref();
+const color = ref("");
+const text = ref("");
 
 const translationStatus = computed(() => {
     return (content: ContentDto | undefined) => {
@@ -42,8 +51,10 @@ const translationStatus = computed(() => {
             content?.publishDate &&
             new Date(content.publishDate) > new Date()
         ) {
-            statusLanguageTitle.value = "Scheduled";
-            return "warning";
+            text.value = "Scheduled";
+            icon.value = CheckCircleIcon;
+            color.value = "bg-purple-100 ring-purple-200 text-purple-700";
+            return;
         }
 
         if (
@@ -51,21 +62,27 @@ const translationStatus = computed(() => {
             content?.expiryDate &&
             new Date(content.expiryDate) < new Date()
         ) {
-            statusLanguageTitle.value = "Expired";
-            return "error";
+            text.value = "Expired";
+            icon.value = XCircleIcon;
+            color.value = "bg-gray-100 ring-gray-200 text-gray-700";
+            return;
         }
 
         if (content?.status == PublishStatus.Published) {
-            statusLanguageTitle.value = "Published";
-            return "success";
+            text.value = "Published";
+            icon.value = CheckCircleIcon;
+            color.value = "bg-green-100 ring-green-200 text-green-700";
+            return;
         }
 
         if (content?.status == PublishStatus.Draft) {
-            statusLanguageTitle.value = "Draft";
-            return "info";
+            text.value = "Draft";
+            icon.value = CheckCircleIcon;
+            color.value = "bg-blue-100 ring-blue-200 text-blue-700";
+            return;
         }
 
-        return "default";
+        return undefined;
     };
 });
 
@@ -140,11 +157,12 @@ watch(
                 >
                     <LBadge
                         type="language"
-                        class="w-auto cursor-pointer"
+                        :customColor="color"
+                        :customIcon="icon"
+                        :customText="text"
+                        class="w-auto"
                         :variant="translationStatus(content)"
-                    >
-                        {{ statusLanguageTitle }}
-                    </LBadge>
+                    />
                 </RouterLink>
             </span>
         </div>
