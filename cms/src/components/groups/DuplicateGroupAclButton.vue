@@ -32,8 +32,7 @@ const selectGroup = (group: GroupDto) => {
                     size="sm"
                     title="Duplicate"
                     data-test="duplicateAclIcon"
-                >
-                </MenuButton>
+                />
             </div>
 
             <transition
@@ -45,7 +44,7 @@ const selectGroup = (group: GroupDto) => {
                 leave-to-class="transform scale-95 opacity-0"
             >
                 <MenuItems
-                    class="absolute left-0 z-20 mt-2 w-52 origin-top-left divide-y divide-zinc-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
+                    class="absolute right-0 z-20 mt-2 w-52 origin-top-left divide-y divide-zinc-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
                 >
                     <div class="px-1 py-1">
                         <MenuItem v-slot="{ active }" v-for="group in groups" :key="group._id">

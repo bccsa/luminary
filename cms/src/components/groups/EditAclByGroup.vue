@@ -37,7 +37,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
 </script>
 
 <template>
-    <div class="overflow-x-auto">
+    <div>
         <div class="inline-block rounded-md border border-zinc-200 bg-zinc-50 shadow-sm">
             <h3 class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700">
                 <!-- Add the duplicate ACL button -->
