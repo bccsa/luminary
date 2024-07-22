@@ -4,6 +4,7 @@ import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import { toRaw, toRefs } from "vue";
 import LButton from "../button/LButton.vue";
+import { sortByName } from "@/util/sortByName";
 
 type Props = {
     groups: GroupDto[];
@@ -48,15 +49,7 @@ const selectGroup = (group: GroupDto) => {
                     <div class="px-1 py-1">
                         <MenuItem
                             v-slot="{ active }"
-                            v-for="group in groups.sort((a, b) => {
-                                if (a.name < b.name) {
-                                    return -1;
-                                }
-                                if (a.name > b.name) {
-                                    return 1;
-                                }
-                                return 0;
-                            })"
+                            v-for="group in groups.sort(sortByName)"
                             :key="group._id"
                         >
                             <button
