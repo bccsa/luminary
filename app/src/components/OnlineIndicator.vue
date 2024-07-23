@@ -1,0 +1,39 @@
+<script setup lang="ts">
+import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
+import { SignalIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
+import { isConnected } from "luminary-shared";
+</script>
+
+<template>
+    <Popover class="relative">
+        <PopoverButton
+            class="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm shadow-sm"
+            :class="{
+                'bg-green-100 text-green-800': isConnected,
+                'bg-yellow-100 text-yellow-800': !isConnected,
+            }"
+        >
+            <component :is="isConnected ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
+            <span class="hidden sm:block">{{ isConnected ? "Online" : "Offline" }}</span>
+        </PopoverButton>
+
+        <transition
+            enter-active-class="transition ease-out duration-100"
+            enter-from-class="transform opacity-0 scale-95"
+            enter-to-class="transform opacity-100 scale-100"
+            leave-active-class="transition ease-in duration-75"
+            leave-from-class="transform opacity-100 scale-100"
+            leave-to-class="transform opacity-0 scale-95"
+        >
+            <PopoverPanel
+                class="absolute z-10 w-screen max-w-40 -translate-x-1/2 lg:left-0 lg:max-w-72 lg:translate-x-0"
+            >
+                <div
+                    class="mt-2 rounded-md bg-white px-4 py-3 text-xs shadow-lg ring-1 ring-inset ring-zinc-900/5"
+                >
+                    {{ isConnected ? "You are online." : "You are offline." }}
+                </div>
+            </PopoverPanel>
+        </transition>
+    </Popover>
+</template>
