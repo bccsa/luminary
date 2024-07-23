@@ -12,7 +12,7 @@ import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { computed, ref } from "vue";
 import { LanguageIcon, SunIcon } from "@heroicons/vue/24/solid";
-import LanguageModal from "@/components/content/LanguageModal.vue";
+import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
 
 const { user, logout, isAuthenticated } = useAuth0();
