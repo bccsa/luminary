@@ -11,13 +11,13 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
 
-const { modelValue } = toRefs(props);
+const { modelValue, disabled } = toRefs(props);
 
 const emit = defineEmits(["update:modelValue"]);
 
 const toggled = computed({
     get() {
-        return !!modelValue.value;
+        return modelValue.value;
     },
     set(value: boolean) {
         emit("update:modelValue", value);
@@ -58,19 +58,6 @@ const toggled = computed({
                 ]"
                 aria-hidden="true"
             >
-                <!-- <svg
-                    fill="none"
-                    viewBox="0 0 12 12"
-                    :class="['h-3 w-3 ', disabled ? 'text-zinc-300' : 'text-zinc-400']"
-                >
-                    <path
-                        d="M4 8l2-2m0 0l2-2M6 6L4 4m2 2l2 2"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
-                </svg> -->
                 Draft
             </span>
             <span
@@ -82,11 +69,6 @@ const toggled = computed({
                 ]"
                 aria-hidden="true"
             >
-                <!-- <svg class="h-3 w-3 text-zinc-600" fill="currentColor" viewBox="0 0 12 12">
-                    <path
-                        d="M3.707 5.293a1 1 0 00-1.414 1.414l1.414-1.414zM5 8l-.707.707a1 1 0 001.414 0L5 8zm4.707-3.293a1 1 0 00-1.414-1.414l1.414 1.414zm-7.414 2l2 2 1.414-1.414-2-2-1.414 1.414zm3.414 2l4-4-1.414-1.414-4 4 1.414 1.414z"
-                    />
-                </svg> -->
                 Publish
             </span>
         </span>
