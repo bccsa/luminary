@@ -7,6 +7,7 @@ type Props = {
     tagType: TagType;
     tagQueryOptions: queryOptions;
     contentQueryOptions: queryOptions;
+    showPublishDate?: boolean;
 };
 const props = defineProps<Props>();
 
@@ -23,5 +24,6 @@ const categories = db.tagsWhereTagTypeAsRef(props.tagType, props.tagQueryOptions
         :key="category._id"
         :tag="category"
         :queryOptions="contentQueryOptions"
+        :showPublishDate="!category.pinned"
     />
 </template>
