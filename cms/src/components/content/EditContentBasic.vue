@@ -275,7 +275,7 @@ const publishStatus = computed({
                         variant="custom"
                         class="flex-1"
                         :class="{
-                            ' bg-black text-white': selectedExpiryNumber === 1,
+                            'bg-black text-white': selectedExpiryNumber === 1,
                         }"
                         @click="setExpiryNumber(1)"
                         :disabled="disabled"
