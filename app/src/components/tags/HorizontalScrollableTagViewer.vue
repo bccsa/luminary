@@ -9,8 +9,11 @@ type Props = {
     tag?: TagDto;
     title?: string;
     queryOptions: options;
+    showPublishDate?: boolean;
 };
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    showPublishDate: true,
+});
 
 const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
 const tagContent = props.tag
@@ -119,6 +122,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                         v-for="content in taggedDocs"
                         :key="content._id"
                         :content="content"
+                        :show-publish-date="props.showPublishDate"
                         class="w-40 overflow-clip md:w-60"
                     />
                 </div>
