@@ -7,24 +7,29 @@ import {
     mockGroupDtoPublicEditors,
     mockGroupDtoPublicUsers,
     mockGroupDtoSuperAdmins,
+    superAdminAccessMap,
 } from "@/tests/mockdata";
 
 import GroupSelector from "./GroupSelector.vue";
 import { Combobox } from "@headlessui/vue";
 import LTag from "../content/LTag.vue";
-import { db } from "luminary-shared";
+import { accessMap, AclPermission, db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import { access } from "fs";
 
 describe("GroupSelector", () => {
+    // Need to set the access map before starting the tests. When moving this to beforeAll, it fails for some or other reason.
+    accessMap.value = superAdminAccessMap;
+
     beforeAll(async () => {
         await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
             mockGroupDtoPrivateContent,
         ]);
     });
+
     beforeEach(async () => {
         // setActivePinia(createTestingPinia());
     });
@@ -63,6 +68,30 @@ describe("GroupSelector", () => {
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("Public Content");
             expect(wrapper.text()).toContain("Public Users");
+            expect(wrapper.text()).toContain("Public Editors");
+            expect(wrapper.text()).toContain("Private Content");
+        });
+    });
+
+    it("hides groups to which the user does not have assign access", async () => {
+        // Remove assign access to the Public Users group
+        // @ts-ignore
+        accessMap.value[mockGroupDtoPublicUsers._id].group.assign = false;
+
+        const wrapper = mount(GroupSelector, {
+            props: {
+                groups: [],
+            },
+        });
+
+        await wrapper.find("button").trigger("click"); // First button is the dropdown button
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Public Content");
+            expect(wrapper.text()).toContain("Public Editors");
+            expect(wrapper.text()).toContain("Private Content");
+
+            expect(wrapper.text()).not.toContain("Public Users");
         });
     });
 

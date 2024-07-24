@@ -10,7 +10,14 @@ import {
     ComboboxOptions,
 } from "@headlessui/vue";
 import LTag from "../content/LTag.vue";
-import { db, DocType, type Uuid, type GroupDto } from "luminary-shared";
+import {
+    db,
+    DocType,
+    type Uuid,
+    type GroupDto,
+    verifyAccess,
+    AclPermission,
+} from "luminary-shared";
 
 type Props = {
     disabled?: boolean;
@@ -21,6 +28,12 @@ withDefaults(defineProps<Props>(), {
 const groups = defineModel<Uuid[]>("groups");
 
 const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+
+const assignableGroups = computed(() =>
+    availableGroups.value?.filter((g) =>
+        verifyAccess([g._id], DocType.Group, AclPermission.Assign, "any"),
+    ),
+);
 
 const selectedGroups = computed(() =>
     availableGroups.value?.filter((g) => groups.value?.includes(g._id)),
@@ -36,8 +49,8 @@ const isGroupSelected = computed(() => {
 const query = ref("");
 const filteredGroups = computed(() =>
     query.value === ""
-        ? availableGroups.value
-        : availableGroups.value.filter((group) => {
+        ? assignableGroups.value
+        : assignableGroups.value.filter((group) => {
               return group.name.toLowerCase().includes(query.value.toLowerCase());
           }),
 );
