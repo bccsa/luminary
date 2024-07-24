@@ -1,21 +1,19 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, afterEach, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import {
     mockGroupDtoPrivateContent,
     mockGroupDtoPublicContent,
     mockGroupDtoPublicEditors,
     mockGroupDtoPublicUsers,
-    mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
 
 import GroupSelector from "./GroupSelector.vue";
 import { Combobox } from "@headlessui/vue";
 import LTag from "../content/LTag.vue";
-import { accessMap, AclPermission, db } from "luminary-shared";
+import { accessMap, db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { access } from "fs";
 
 describe("GroupSelector", () => {
     // Need to set the access map before starting the tests. When moving this to beforeAll, it fails for some or other reason.
@@ -28,10 +26,6 @@ describe("GroupSelector", () => {
             mockGroupDtoPublicUsers,
             mockGroupDtoPrivateContent,
         ]);
-    });
-
-    beforeEach(async () => {
-        // setActivePinia(createTestingPinia());
     });
 
     afterEach(async () => {
