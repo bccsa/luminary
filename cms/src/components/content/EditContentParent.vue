@@ -12,7 +12,8 @@ import {
     verifyAccess,
 } from "luminary-shared";
 import { computed } from "vue";
-import TagSelector2 from "./TagSelector.vue";
+import TagSelector from "./TagSelector.vue";
+import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
@@ -56,16 +57,16 @@ const canEdit = computed(() => {
 
         <LInput
             name="parent.image"
-            label="Default image"
+            label="Image"
             :icon="LinkIcon"
             placeholder="https://..."
             :disabled="!canEdit"
             v-model="parent.image"
-        >
-            This image can be overridden in a translation
-        </LInput>
+        />
 
-        <TagSelector2
+        <GroupSelector v-model:groups="parent.memberOf" :disabled="!canEdit" class="mt-6" />
+
+        <TagSelector
             v-model:parent="parent"
             :language="language"
             :tagType="TagType.Category"
@@ -75,7 +76,7 @@ const canEdit = computed(() => {
             :key="language?._id"
         />
 
-        <TagSelector2
+        <TagSelector
             v-model:parent="parent"
             :language="language"
             :tagType="TagType.Topic"
@@ -85,7 +86,7 @@ const canEdit = computed(() => {
             :key="language?._id"
         />
 
-        <TagSelector2
+        <TagSelector
             v-model:parent="parent"
             :language="language"
             :tagType="TagType.AudioPlaylist"
