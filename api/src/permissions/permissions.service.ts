@@ -215,7 +215,13 @@ export class PermissionSystem {
                     g &&
                     g._groupTypePermissionMap[targetGroup] &&
                     g._groupTypePermissionMap[targetGroup][type] &&
-                    g._groupTypePermissionMap[targetGroup][type][permission]
+                    (g._groupTypePermissionMap[targetGroup][type][permission] ||
+                        // Allow self-assigning permissions to groups if the user has edit access to the group (see issue #257)
+                        (targetGroup == memberGroup &&
+                            permission == AclPermission.Assign &&
+                            g._groupTypePermissionMap[targetGroup][DocType.Group][
+                                AclPermission.Edit
+                            ]))
                 ) {
                     if (validation === "any") {
                         return true;
