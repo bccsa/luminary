@@ -93,4 +93,23 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
     if (!aclEntry.permission.includes(AclPermission.View)) {
         aclEntry.permission = [];
     }
+
+    // Remove edit permission if assign permission is removed on groups
+    if (
+        aclEntry.type == DocType.Group &&
+        prevAclEntry.permission.includes(AclPermission.Assign) &&
+        !aclEntry.permission.includes(AclPermission.Assign) &&
+        aclEntry.permission.includes(AclPermission.Edit)
+    ) {
+        aclEntry.permission = aclEntry.permission.filter((p) => p != AclPermission.Edit);
+    }
+
+    // Add assign permission if edit permission is set on groups
+    if (
+        aclEntry.type == DocType.Group &&
+        aclEntry.permission.includes(AclPermission.Edit) &&
+        !aclEntry.permission.includes(AclPermission.Assign)
+    ) {
+        aclEntry.permission.push(AclPermission.Assign);
+    }
 };
