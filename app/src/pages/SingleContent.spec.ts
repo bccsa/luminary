@@ -1,7 +1,8 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount, shallowMount } from "@vue/test-utils";
-import { setActivePinia, createPinia } from "pinia";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 import SingleContent from "./SingleContent.vue";
 import { mockPostDto, mockEnglishContentDto, mockCategoryContentDto } from "@/tests/mockdata";
 import { db, type BaseDocumentDto } from "luminary-shared";
@@ -17,7 +18,7 @@ describe("SinglePost", () => {
             mockCategoryContentDto,
         ] as BaseDocumentDto[]);
 
-        setActivePinia(createPinia());
+        setActivePinia(createTestingPinia());
     });
 
     afterEach(() => {
@@ -110,6 +111,19 @@ describe("SinglePost", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Category 1");
+        });
+    });
+
+    it("doesn't display tag when content not tagged", async () => {
+        const mockContent = { ...mockEnglishContentDto, tags: [] };
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockContent.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).not.toContain("Tags");
         });
     });
 });

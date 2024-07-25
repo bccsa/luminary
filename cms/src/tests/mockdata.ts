@@ -203,6 +203,50 @@ export const mockLocalChange2: LocalChangeDto = {
     docId: "content-post1-eng",
 };
 
+export const mockGroupDtoPrivateContent: GroupDto = {
+    _id: "group-private-content",
+    type: DocType.Group,
+    name: "Private Content",
+    updatedTimeUtc: 1,
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Post,
+            groupId: "group-private-editors",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-private-editors",
+            permission: [AclPermission.View, AclPermission.Translate, AclPermission.Assign],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-private-editors",
+            permission: [AclPermission.View, AclPermission.Assign],
+        },
+    ],
+};
+
 export const mockGroupDtoPublicContent: GroupDto = {
     _id: "group-public-content",
     type: DocType.Group,
@@ -534,6 +578,70 @@ export const superAdminAccessMap = {
         },
     },
     "group-public-editors": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-private-users": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-public-users": {
         post: {
             view: true,
             create: true,
