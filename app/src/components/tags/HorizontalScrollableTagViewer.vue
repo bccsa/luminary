@@ -122,7 +122,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                         v-for="content in taggedDocs"
                         :key="content._id"
                         :content="content"
-                        :show-publish-date="props.showPublishDate"
+                        :show-publish-date="showPublishDate"
                         class="w-40 overflow-clip md:w-60"
                     />
                 </div>
