@@ -4,7 +4,7 @@ import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
-import { PencilIcon, ChevronLeftIcon } from "@heroicons/vue/16/solid";
+import { PencilIcon } from "@heroicons/vue/16/solid";
 import { PublishStatus, type ContentDto, db } from "luminary-shared";
 import { computed, nextTick, ref, watch } from "vue";
 import { DateTime } from "luxon";
