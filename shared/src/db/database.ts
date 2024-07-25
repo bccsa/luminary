@@ -70,8 +70,8 @@ class database extends Dexie {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(6).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType]",
+        this.version(7).stores({
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate",
             localChanges: "++id, reqId, docId, status",
         });
 
@@ -386,41 +386,45 @@ class database extends Dexie {
             return [];
         }
 
-        let res = this.docs
-            .where("type")
-            .equals(DocType.Content)
-            .and((d) => {
-                const doc = d as ContentDto;
-                // Optionally filter by DocType
-                if (
-                    options.filterOptions?.docType &&
-                    doc.parentType != options.filterOptions.docType
-                ) {
-                    return false;
-                }
+        let res;
+        if (options.filterOptions?.limit) {
+            res = this.docs.orderBy("publishDate");
+        } else {
+            res = this.docs.where("type").equals(DocType.Content);
+        }
 
-                // Filter by language
-                if (doc.language != options.languageId) return false;
+        res.and((d) => {
+            const doc = d as ContentDto;
+            // Check type
+            if (doc.type != DocType.Content) return false;
 
-                // Filter by status
-                if (doc.status != "published") return false;
+            // Optionally filter by parent DocType
+            if (options.filterOptions?.docType && doc.parentType != options.filterOptions.docType) {
+                return false;
+            }
 
-                // Filter by publish date
-                if (doc.publishDate == undefined || doc.publishDate > Date.now()) return false;
+            // Filter by language
+            if (doc.language != options.languageId) return false;
 
-                // Filter by expiry date
-                if (doc.expiryDate != undefined && doc.expiryDate < Date.now()) return false;
+            // Filter by status
+            if (doc.status != "published") return false;
 
-                // Optionally filter by tagId
-                if (!doc.tags || (tagId && !doc.tags.some((tag) => tag == tagId))) return false;
+            // Filter by publish date
+            if (doc.publishDate == undefined || doc.publishDate > Date.now()) return false;
 
-                return true;
-            });
+            // Filter by expiry date
+            if (doc.expiryDate != undefined && doc.expiryDate < Date.now()) return false;
+
+            // Optionally filter by tagId
+            if (!doc.tags || (tagId && !doc.tags.some((tag) => tag == tagId))) return false;
+
+            return true;
+        });
 
         // Optionally limit the number of results
         if (options.filterOptions?.limit) res = res.limit(options.filterOptions.limit);
 
-        // Optionally sort the results
+        // Optionally sort the results (in memory sorting)
         if (options.sortOptions?.sortBy) {
             let sorted = res;
             if (options.sortOptions.sortOrder == "desc") sorted = res.reverse();
