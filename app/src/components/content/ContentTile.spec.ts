@@ -1,10 +1,12 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import ContentTile from "./ContentTile.vue";
 import { createRouter, createWebHistory } from "vue-router";
+import ContentTile from "./ContentTile.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import SingleContent from "@/pages/SingleContent.vue";
+
+const routePushMock = vi.fn();
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -12,10 +14,11 @@ vi.mock("vue-router", async (importOriginal) => {
         // @ts-expect-error
         ...actual,
         useRouter: () => ({
-            push: vi.fn(),
+            push: routePushMock,
         }),
     };
 });
+
 describe("ContentTile", () => {
     it("renders the image of content", async () => {
         const wrapper = mount(ContentTile, {
@@ -65,14 +68,12 @@ describe("ContentTile", () => {
             },
         });
 
-        const push = vi.spyOn(wrapper.vm.$router, "push");
-
         await wrapper.trigger("click");
-
-        await router.push(`/${mockEnglishContentDto.slug}`);
         await router.isReady();
 
-        expect(push).toHaveBeenCalledTimes(1);
-        expect(push).toHaveBeenCalledWith(`/${mockEnglishContentDto.slug}`);
+        expect(routePushMock).toHaveBeenCalledWith({
+            name: "post",
+            params: { slug: mockEnglishContentDto.slug },
+        });
     });
 });
