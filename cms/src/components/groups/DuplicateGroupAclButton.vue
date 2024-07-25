@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Group } from "luminary-shared";
+import type { GroupDto } from "luminary-shared";
 import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/vue";
-import { ChevronDownIcon } from "@heroicons/vue/20/solid";
+import { DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { toRaw, toRefs } from "vue";
 import LButton from "../button/LButton.vue";
 
 type Props = {
-    groups: Group[];
+    groups: GroupDto[];
 };
 
 const props = defineProps<Props>();
@@ -15,7 +15,7 @@ const { groups } = toRefs(props);
 
 const emit = defineEmits(["select"]);
 
-const selectGroup = (group: Group) => {
+const selectGroup = (group: GroupDto) => {
     emit("select", toRaw(group));
 };
 </script>
@@ -26,12 +26,13 @@ const selectGroup = (group: Group) => {
             <div>
                 <MenuButton
                     :as="LButton"
-                    :icon="ChevronDownIcon"
-                    iconRight
-                    data-test="addGroupButton"
-                >
-                    Add access
-                </MenuButton>
+                    :icon="DocumentDuplicateIcon"
+                    class="gap-x-0"
+                    variant="tertiary"
+                    size="sm"
+                    title="Duplicate"
+                    data-test="duplicateAclIcon"
+                />
             </div>
 
             <transition
@@ -43,7 +44,7 @@ const selectGroup = (group: Group) => {
                 leave-to-class="transform scale-95 opacity-0"
             >
                 <MenuItems
-                    class="absolute left-0 z-20 mt-2 w-52 origin-top-left divide-y divide-zinc-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
+                    class="absolute right-0 z-20 mt-2 w-52 origin-top-left divide-y divide-zinc-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
                 >
                     <div class="px-1 py-1">
                         <MenuItem v-slot="{ active }" v-for="group in groups" :key="group._id">
@@ -53,7 +54,7 @@ const selectGroup = (group: Group) => {
                                     { 'bg-zinc-100': active },
                                 ]"
                                 @click="() => selectGroup(group)"
-                                data-test="selectGroupButton"
+                                data-test="selectGroupIcon"
                             >
                                 {{ group.name }}
                             </button>

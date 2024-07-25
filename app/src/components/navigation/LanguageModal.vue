@@ -1,60 +1,42 @@
 <script setup lang="ts">
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
-import { ref, watch, onMounted } from "vue";
+import { db, DocType, type LanguageDto } from "luminary-shared";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { appLanguageIdAsRef } from "@/globalConfig";
 
 type Props = {
     isVisible: boolean;
 };
 defineProps<Props>();
 
-const themes = ["Light", "Dark", "System"];
-const selectedTheme = ref(localStorage.getItem("theme") || "System");
+const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
 const emit = defineEmits(["close"]);
 
-const applyTheme = (theme: string) => {
-    if (theme === "System") {
-        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-            document.documentElement.classList.add("dark");
-        } else {
-            document.documentElement.classList.remove("dark");
-        }
-    } else if (theme === "Dark") {
-        document.documentElement.classList.add("dark");
-    } else {
-        document.documentElement.classList.remove("dark");
-    }
+const setLanguage = (language: LanguageDto) => {
+    appLanguageIdAsRef.value = language._id;
+    emit("close");
 };
-
-watch(selectedTheme, (newTheme) => {
-    localStorage.setItem("theme", newTheme);
-    applyTheme(newTheme);
-});
-
-onMounted(() => {
-    applyTheme(selectedTheme.value);
-});
 </script>
 
 <template>
     <Dialog :open="isVisible" @close="emit('close')">
         <div class="fixed inset-0 bg-gray-800 bg-opacity-50"></div>
-        <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="fixed inset-0 flex items-center justify-center p-2">
             <DialogPanel class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-zinc-800">
-                <DialogTitle class="mb-4 text-lg font-semibold">Select Theme</DialogTitle>
+                <DialogTitle class="mb-4 text-lg font-semibold">Select Language</DialogTitle>
                 <div class="divide-y divide-gray-200 dark:divide-zinc-700">
                     <button
-                        v-for="theme in themes"
-                        :key="theme"
+                        v-for="language in languages"
+                        :key="language._id"
                         class="flex w-full cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
-                        @click="selectedTheme = theme"
+                        @click="setLanguage(language)"
                         data-test="switch-language-button"
                     >
-                        <span class="text-sm">{{ theme }}</span>
+                        <span class="text-sm">{{ language.name }}</span>
                         <CheckCircleIcon
-                            v-if="selectedTheme === theme"
+                            v-if="appLanguageIdAsRef === language._id"
                             class="ml-auto h-6 w-6 text-yellow-500"
                             aria-hidden="true"
                         />

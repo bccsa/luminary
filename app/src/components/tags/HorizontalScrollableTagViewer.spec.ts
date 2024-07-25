@@ -1,7 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { setActivePinia, createPinia } from "pinia";
 import HorizontalScrollableTagViewer from "./HorizontalScrollableTagViewer.vue";
 import { mockCategoryContentDto, mockCategoryDto, mockEnglishContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
@@ -12,11 +11,10 @@ vi.mock("vue-router");
 describe("HorizontalScrollableTagViewer", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([mockCategoryContentDto, mockCategoryDto]);
-        setActivePinia(createPinia());
     });
 
-    afterEach(() => {
-        db.docs.clear();
+    afterEach(async () => {
+        await db.docs.clear();
         vi.clearAllMocks();
     });
 
@@ -48,7 +46,7 @@ describe("HorizontalScrollableTagViewer", () => {
     // This test is showing a Vue warn in the console.
     //It should be a warning comming from the router in one of the child components.
     it("displays a ContentTile", async () => {
-        db.docs.bulkPut([mockEnglishContentDto]);
+        await db.docs.bulkPut([mockEnglishContentDto]);
 
         const wrapper = mount(HorizontalScrollableTagViewer, {
             props: {

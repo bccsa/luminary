@@ -7,11 +7,10 @@ import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { useRouter } from "vue-router";
 import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
+import { appName } from "@/globalConfig";
 
-const { appName } = useGlobalConfigStore();
 const router = useRouter();
 
 type Props = {
@@ -113,7 +112,10 @@ onMounted(async () => {
             class="prose prose-zinc mt-6 max-w-3xl text-justify dark:prose-invert"
         ></div>
 
-        <div class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500">
+        <div
+            class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500"
+            v-if="content.tags.length > 0"
+        >
             <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3>
             <div class="flex gap-3">
                 <span

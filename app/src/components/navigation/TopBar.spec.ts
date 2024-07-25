@@ -1,20 +1,37 @@
-import { describe, it, expect, vi } from "vitest";
+import "fake-indexeddb/auto";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RouterLinkStub, mount } from "@vue/test-utils";
 import TopBar from "./TopBar.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
-import ProfileMenu from "./ProfileMenu.vue";
 
 vi.mock("@auth0/auth0-vue");
 
-vi.mock("vue-router", () => ({
-    RouterLink: RouterLinkStub,
-    useRoute: vi.fn().mockImplementation(() => ({
-        name: "home",
-    })),
-}));
+vi.mock("vue-router", async () => {
+    const actual = await vi.importActual("vue-router");
+    return {
+        ...actual,
+        RouterLink: RouterLinkStub,
+        useRoute: vi.fn().mockImplementation(() => ({
+            name: "home",
+        })),
+    };
+});
 
 describe("TopBar", () => {
+    beforeEach(() => {
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === "(prefers-color-scheme: dark)",
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+    });
+
     it("shows a login button when logged out", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
@@ -22,20 +39,24 @@ describe("TopBar", () => {
 
         const wrapper = mount(TopBar);
 
-        expect(wrapper.html()).toContain("Log in");
-        expect(wrapper.findComponent(ProfileMenu).exists()).toBe(false);
+        expect(wrapper.html()).toContain("Menu");
     });
 
-    it("shows the profile menu when logged in", async () => {
+    it("shows the profile menu when logged out", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(true),
+            user: {
+                name: "Test Person",
+            },
         });
 
         const wrapper = mount(TopBar, {
-            shallow: true,
+            shallow: false,
         });
 
-        expect(wrapper.html()).not.toContain("Log in");
-        expect(wrapper.findComponent(ProfileMenu).exists()).toBe(true);
+        const ProfileMenu = wrapper.findComponent({ name: "ProfileMenu" });
+
+        expect(ProfileMenu.exists()).toBe(true);
+        expect(ProfileMenu.text()).toContain("Test Person");
     });
 });

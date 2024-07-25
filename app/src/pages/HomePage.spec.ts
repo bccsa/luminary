@@ -1,89 +1,145 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { describe, it, beforeEach, expect, vi, vitest, beforeAll, afterEach } from "vitest";
 import HomePage from "./HomePage.vue";
-import { setActivePinia, createPinia } from "pinia";
 import * as auth0 from "@auth0/auth0-vue";
+import { accessMap, db } from "luminary-shared";
 import { ref } from "vue";
-import { db, TagType, type queryOptions } from "luminary-shared";
+import {
+    mockCategoryContentDto,
+    mockCategoryDto,
+    mockEnglishContentDto,
+    mockFrenchContentDto,
+    mockLanguageDtoEng,
+    mockLanguageDtoFra,
+    mockLanguageDtoSwa,
+    mockPostDto,
+    viewAccessToAllContentMap,
+} from "@/tests/mockdata";
+import waitForExpect from "wait-for-expect";
+import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 
 vi.mock("@auth0/auth0-vue");
-vi.mock("luminary-shared", async () => {
-    const actual = await vi.importActual("luminary-shared");
-    return {
-        ...actual,
-        db: {
-            someByTypeAsRef: vi.fn(),
-            tagsWhereTagTypeAsRef: vi.fn(),
-        },
-    };
-});
+vi.mock("vue-router");
 
-// Mock the IgnorePagePadding and HorizontalScrollableTagViewer components
-vi.mock("@/components/IgnorePagePadding.vue", () => ({
-    default: { template: "<div><slot /></div>" },
-}));
-vi.mock("@/components/tags/HorizontalScrollableTagViewer.vue", () => ({
-    default: {
-        props: ["title", "queryOptions", "tag"],
-        template: '<div>{{ title }} {{ tag ? tag.name : "" }}</div>',
-    },
-}));
+describe("HomePage.vue", () => {
+    beforeAll(() => {
+        accessMap.value = viewAccessToAllContentMap;
+        initLanguage();
+    });
 
-describe("HomePage", () => {
-    beforeEach(() => {
-        setActivePinia(createPinia());
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isLoading: ref(false),
-            isAuthenticated: ref(true),
+    beforeEach(async () => {
+        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+    });
+
+    afterEach(async () => {
+        vitest.clearAllMocks();
+        await db.docs.clear();
+        await db.localChanges.clear();
+    });
+
+    describe("No content notifications", () => {
+        it("renders correctly with no content and not authenticated", () => {
+            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+                isAuthenticated: ref(false),
+            });
+            const wrapper = mount(HomePage);
+
+            expect(wrapper.text()).toContain(
+                "There is currently no content available. Please log in if you have an account.",
+            );
         });
-        (db.someByTypeAsRef as any).mockReturnValue(true);
-        (db.tagsWhereTagTypeAsRef as any).mockImplementation(
-            (tagType: TagType.Category, options: queryOptions) => {
-                if (options.filterOptions?.pinned) {
-                    return [{ _id: "1", name: "Pinned Category" }];
-                }
-                return [
-                    { _id: "2", name: "Unpinned Category" },
 
-                    // empty category
-                    { _id: "2", name: "" },
-                ];
-            },
-        );
+        it("renders correctly with no content and authenticated", () => {
+            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+                isAuthenticated: ref(true),
+            });
+            const wrapper = mount(HomePage);
+
+            expect(wrapper.text()).toContain(
+                "You don't have access to any content. If you believe this is an error, send your contact person a message.",
+            );
+        });
     });
 
-    afterEach(() => {
-        vi.clearAllMocks();
+    describe("Content display tests", () => {
+        it("renders pinned categories correctly", async () => {
+            await db.docs.bulkPut([
+                { ...mockCategoryDto, pinned: true },
+                mockCategoryContentDto,
+                { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
+                { ...mockPostDto, tags: [mockCategoryDto._id] },
+            ]);
+
+            const wrapper = mount(HomePage);
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain(mockCategoryContentDto.title);
+            });
+        });
+
+        it("renders unpinned categories correctly", async () => {
+            await db.docs.bulkPut([
+                { ...mockCategoryDto, pinned: false },
+                mockCategoryContentDto,
+                { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
+                { ...mockPostDto, tags: [mockCategoryDto._id] },
+            ]);
+
+            const wrapper = mount(HomePage);
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain(mockCategoryContentDto.title);
+            });
+        });
+
+        it("displays the newest content", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto, mockPostDto]);
+
+            const wrapper = mount(HomePage);
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("Newest Content");
+                expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            });
+        });
     });
 
-    it("displays a message when there are no contents", async () => {
-        (db.someByTypeAsRef as any).mockReturnValue(false);
+    describe("Language selection tests", () => {
+        it("updates the category title and content when the language is changed", async () => {
+            // Mock initial database setup with English content
+            await db.docs.bulkPut([
+                mockCategoryDto,
+                mockCategoryContentDto,
+                { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
+                { ...mockPostDto, tags: [mockCategoryDto._id] },
 
-        const wrapper = mount(HomePage);
+                {
+                    ...mockCategoryContentDto,
+                    _id: "content-tag-category1-fr",
+                    language: mockLanguageDtoFra._id,
+                    title: "Catégorie 1",
+                    summary: "Exemple de tag",
+                },
+                { ...mockFrenchContentDto, title: "Poste 1" },
+            ]);
 
-        expect(wrapper.text()).toContain(
-            "You don't have access to any content. If you believe this is an error, send your contact person a message.",
-        );
-    });
+            // Mount the component
+            const wrapper = mount(HomePage);
 
-    it("displays the categories", async () => {
-        const wrapper = mount(HomePage);
+            // Assert that the category title reflects the new language
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain(mockCategoryContentDto.title);
+                expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            });
 
-        expect(wrapper.text()).toContain("Pinned Category");
-        expect(wrapper.text()).toContain("Unpinned Category");
-    });
+            // Change the language
+            appLanguageIdAsRef.value = mockLanguageDtoFra._id;
 
-    it("does not display an empty category", async () => {
-        const wrapper = mount(HomePage);
-
-        expect(wrapper.text()).not.toContain(undefined);
-    });
-
-    it("displays the content", async () => {
-        const wrapper = mount(HomePage);
-
-        // Check for the "Newest Content" section
-        expect(wrapper.text()).toContain("Newest Content");
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("Catégorie 1");
+                expect(wrapper.text()).toContain("Poste 1");
+            });
+        });
     });
 });

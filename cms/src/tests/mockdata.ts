@@ -5,9 +5,9 @@ import {
     type LocalChangeDto,
     type LanguageDto,
     type TagDto,
-    // AclPermission,
+    AclPermission,
     type ImageDto,
-    // GroupDto,
+    type GroupDto,
     TagType,
     PublishStatus,
 } from "luminary-shared";
@@ -201,6 +201,509 @@ export const mockLocalChange2: LocalChangeDto = {
     id: 43,
     doc: mockEnglishContentDto,
     docId: "content-post1-eng",
+};
+
+export const mockGroupDtoPrivateContent: GroupDto = {
+    _id: "group-private-content",
+    type: DocType.Group,
+    name: "Private Content",
+    updatedTimeUtc: 1,
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-private-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Post,
+            groupId: "group-private-editors",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-private-editors",
+            permission: [AclPermission.View, AclPermission.Translate, AclPermission.Assign],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-private-editors",
+            permission: [AclPermission.View, AclPermission.Assign],
+        },
+    ],
+};
+
+export const mockGroupDtoPublicContent: GroupDto = {
+    _id: "group-public-content",
+    type: DocType.Group,
+    name: "Public Content",
+    updatedTimeUtc: 1,
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        },
+        {
+            type: DocType.Post,
+            groupId: "group-public-editors",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Translate, AclPermission.Assign],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Assign],
+        },
+    ],
+};
+export const mockGroupDtoPublicUsers: GroupDto = {
+    _id: "group-public-users",
+    type: DocType.Group,
+    name: "Public Users",
+    updatedTimeUtc: 1,
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.User,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+    ],
+};
+export const mockGroupDtoPublicEditors: GroupDto = {
+    _id: "group-public-editors",
+    type: DocType.Group,
+    name: "Public Editors",
+    updatedTimeUtc: 1,
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.User,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+    ],
+};
+export const mockGroupDtoSuperAdmins: GroupDto = {
+    _id: "group-super-admins",
+    type: DocType.Group,
+    name: "Super Admins",
+    updatedTimeUtc: 1,
+    acl: [
+        {
+            type: DocType.Post,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Tag,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Group,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.User,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+        {
+            type: DocType.Language,
+            groupId: "group-super-admins",
+            permission: [
+                AclPermission.View,
+                AclPermission.Edit,
+                AclPermission.Assign,
+                AclPermission.Translate,
+                AclPermission.Publish,
+            ],
+        },
+    ],
+};
+
+export const superAdminAccessMap = {
+    "group-private-content": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-public-content": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-private-editors": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-public-editors": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-private-users": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-public-users": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-languages": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+    },
 };
 
 export const fullAccessToAllContentMap = {

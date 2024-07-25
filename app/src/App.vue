@@ -6,11 +6,12 @@ import { onBeforeMount } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { getSocket } from "luminary-shared";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { apiUrl, initLanguage } from "./globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
-const { apiUrl } = useGlobalConfigStore();
+
+initLanguage();
 
 const getToken = async () => {
     if (isAuthenticated.value) {

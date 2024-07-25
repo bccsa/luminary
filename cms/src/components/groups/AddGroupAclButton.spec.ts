@@ -1,11 +1,12 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import {
-    mockGroupPublicContent,
-    mockGroupPublicEditors,
-    mockGroupPublicUsers,
-} from "@/tests/mockData";
+    mockGroupDtoPublicContent,
+    mockGroupDtoPublicEditors,
+    mockGroupDtoPublicUsers,
+} from "@/tests/mockdata";
 
 describe("AddGroupAclButton", () => {
     const addGroupButton = 'button[data-test="addGroupButton"]';
@@ -14,7 +15,11 @@ describe("AddGroupAclButton", () => {
     it("shows all given groups", async () => {
         const wrapper = mount(AddGroupAclButton, {
             props: {
-                groups: [mockGroupPublicContent, mockGroupPublicEditors, mockGroupPublicUsers],
+                groups: [
+                    mockGroupDtoPublicContent,
+                    mockGroupDtoPublicEditors,
+                    mockGroupDtoPublicUsers,
+                ],
             },
         });
 
@@ -28,7 +33,11 @@ describe("AddGroupAclButton", () => {
     it("emits an event when clicking a group", async () => {
         const wrapper = mount(AddGroupAclButton, {
             props: {
-                groups: [mockGroupPublicContent, mockGroupPublicEditors, mockGroupPublicUsers],
+                groups: [
+                    mockGroupDtoPublicContent,
+                    mockGroupDtoPublicEditors,
+                    mockGroupDtoPublicUsers,
+                ],
             },
         });
 
