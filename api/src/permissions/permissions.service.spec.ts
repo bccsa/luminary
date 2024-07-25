@@ -401,6 +401,59 @@ describe("PermissionService", () => {
                 ),
             ).toBe(true);
         });
+
+        it("can self-assign permissions to a group if the user has edit access to the group", () => {
+            // See issue #257
+            PermissionSystem.upsertGroups([
+                {
+                    _id: "test-self-assign",
+                    type: "group",
+                    updatedTimeUtc: 3,
+                    name: "Test Self Assign",
+                    acl: [
+                        {
+                            type: "group",
+                            groupId: "test-self-assign",
+                            permission: ["view", "edit"],
+                        },
+                    ],
+                },
+            ]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["test-self-assign"],
+                    DocType.Group,
+                    AclPermission.Assign,
+                    ["test-self-assign"],
+                ),
+            ).toBe(true);
+
+            PermissionSystem.upsertGroups([
+                {
+                    _id: "test-self-assign",
+                    type: "group",
+                    updatedTimeUtc: 3,
+                    name: "Test Self Assign",
+                    acl: [
+                        {
+                            type: "group",
+                            groupId: "test-self-assign",
+                            permission: ["view"],
+                        },
+                    ],
+                },
+            ]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["test-self-assign"],
+                    DocType.Group,
+                    AclPermission.Assign,
+                    ["test-self-assign"],
+                ),
+            ).toBe(false);
+        });
     });
 
     describe("Database integration tests", () => {
