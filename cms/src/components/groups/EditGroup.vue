@@ -258,12 +258,20 @@ const disabled = computed(() => {
 </script>
 
 <template>
-    <div class="w-full overflow-visible rounded-md bg-white shadow">
+    <div
+        :class="[
+            'w-full overflow-visible rounded-md shadow',
+            { 'bg-zinc-100': disabled },
+            { 'bg-white': !disabled },
+        ]"
+    >
         <Disclosure v-slot="{ open }">
             <DisclosureButton
                 :class="[
-                    'flex w-full items-center justify-between rounded-md bg-white px-6 py-4',
+                    'flex w-full items-center justify-between rounded-md px-6 py-4',
                     { 'sticky top-16 z-10 mb-4 rounded-b-none border-b border-zinc-200': open },
+                    { 'bg-zinc-200': disabled },
+                    { 'bg-white': !disabled },
                 ]"
             >
                 <div
@@ -283,8 +291,22 @@ const disabled = computed(() => {
                     :title="open ? 'Edit group name' : ''"
                     data-test="groupName"
                 >
-                    <RectangleStackIcon class="h-5 w-5 text-zinc-400" />
-                    <h2 class="font-medium text-zinc-800">{{ editable.name }}</h2>
+                    <RectangleStackIcon
+                        :class="[
+                            'h-5 w-5',
+                            { 'text-zinc-300': disabled },
+                            { 'text-zinc-400': !disabled },
+                        ]"
+                    />
+                    <h2
+                        :class="[
+                            'font-medium',
+                            { 'text-zinc-400': disabled },
+                            { 'text-zinc-800': !disabled },
+                        ]"
+                    >
+                        {{ editable.name }}
+                    </h2>
                 </div>
                 <LInput
                     v-else

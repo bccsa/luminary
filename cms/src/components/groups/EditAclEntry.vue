@@ -36,7 +36,10 @@ const setPermission = (aclPermission: AclPermission) => {
 
 <template>
     <tr v-if="aclEntry" class="border-b border-zinc-200 last:border-none">
-        <th scope="row" class="py-3 pl-6 pr-10 text-left font-medium">
+        <th
+            scope="row"
+            :class="['py-3 pl-6 pr-10 text-left font-medium', { 'text-zinc-400': disabled }]"
+        >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </th>
         <td
@@ -65,7 +68,9 @@ const setPermission = (aclPermission: AclPermission) => {
                     :class="[
                         'inline h-5 w-5',
                         isPermissionAvailable(aclEntry.type, aclPermission)
-                            ? 'text-zinc-500'
+                            ? disabled
+                                ? 'text-zinc-300'
+                                : 'text-zinc-500'
                             : 'text-zinc-200',
                     ]"
                 />
