@@ -101,7 +101,7 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         !aclEntry.permission.includes(AclPermission.Assign) &&
         aclEntry.permission.includes(AclPermission.Edit)
     ) {
-        aclEntry.permission = aclEntry.permission.filter((p) => p != AclPermission.Edit);
+        aclEntry.permission.splice(aclEntry.permission.indexOf(AclPermission.Edit), 1);
     }
 
     // Add assign permission if edit permission is set on groups
@@ -110,6 +110,9 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         aclEntry.permission.includes(AclPermission.Edit) &&
         !aclEntry.permission.includes(AclPermission.Assign)
     ) {
-        aclEntry.permission.push(AclPermission.Assign);
+        aclEntry.permission = [...aclEntry.permission, AclPermission.Assign]; // We need to recreate the array to trigger reactivity
     }
+
+    // Sort the permissions list to prevent dirty checking issues
+    aclEntry.permission.sort();
 };

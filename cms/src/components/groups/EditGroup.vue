@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, toRaw, watch } from "vue";
-import { AclPermission, db, DocType, isConnected, type GroupDto } from "luminary-shared";
+import {
+    AclPermission,
+    db,
+    DocType,
+    isConnected,
+    verifyAccess,
+    type GroupDto,
+} from "luminary-shared";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { DocumentDuplicateIcon, ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
@@ -25,7 +32,7 @@ const editable = ref<GroupDto>(_.cloneDeep(toRaw(props.group)));
 const editableGroupWithoutEmpty = ref<GroupDto>(editable.value);
 const originalGroupWithoutEmpty = ref<GroupDto>(props.group);
 
-// Clear ACL's with no permissions from "editable" and save to "editable_cleaned"
+// Clear ACL's with no permissions from "editable" and save to "editableGroupWithoutEmpty"
 watch(
     editable,
     (current) => {
@@ -37,13 +44,13 @@ watch(
     { deep: true },
 );
 
-// Clear ACL's with no permissions from the passed group and save to "original_cleaned"
+// Clear ACL's with no permissions from the passed group and save to "originalGroupWithoutEmpty"
 watch(
     () => props.group,
     (current) => {
         originalGroupWithoutEmpty.value = {
             ...current,
-            acl: toRaw(current.acl).filter((a) => a.permission.length > 0),
+            acl: toRaw(current.acl).filter((a) => a.permission.sort().length > 0), // sort the array to prevent issues with dirty checking
         };
     },
     { deep: true },
@@ -150,7 +157,11 @@ watch(assignedGroups, (newAssignedGroups, oldAssignedGroups) => {
 });
 
 const availableGroups = computed(() => {
-    return groups.value.filter((g) => !editable.value.acl.some((acl) => acl.groupId == g._id));
+    return groups.value.filter((g) => {
+        if (editable.value.acl.some((acl) => acl.groupId == g._id)) return false;
+
+        return verifyAccess([g._id], DocType.Group, AclPermission.Assign);
+    });
 });
 
 const isDirty = computed(() => {
@@ -164,6 +175,7 @@ const hasChangedGroupName = computed(() => editable.value.name != props.group.na
 
 const startEditingGroupName = (e: Event, open: boolean) => {
     if (!open) return;
+    if (disabled.value) return;
 
     e.preventDefault();
 
@@ -227,6 +239,22 @@ const saveChanges = async () => {
         state: "success",
     });
 };
+
+const disabled = computed(() => {
+    // Enable editing for new / unsaved groups
+    if (!groups.value.some((g) => g._id == props.group._id)) {
+        return false;
+    }
+
+    return (
+        !verifyAccess([props.group._id], DocType.Group, AclPermission.Edit) ||
+        !verifyAccess(
+            props.group.acl.filter((a) => a.type == DocType.Group).map((a) => a.groupId),
+            DocType.Group,
+            AclPermission.Assign,
+        )
+    );
+});
 </script>
 
 <template>
@@ -246,7 +274,10 @@ const saveChanges = async () => {
                             'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
                                 hasChangedGroupName && open,
                         },
-                        { 'hover:bg-zinc-100 active:bg-zinc-200': !hasChangedGroupName && open },
+                        {
+                            'hover:bg-zinc-100 active:bg-zinc-200':
+                                !hasChangedGroupName && open && !disabled,
+                        },
                     ]"
                     @click="(e) => startEditingGroupName(e, open)"
                     :title="open ? 'Edit group name' : ''"
@@ -270,7 +301,7 @@ const saveChanges = async () => {
                     data-test="groupNameInput"
                 />
                 <div class="flex items-center gap-4">
-                    <div v-if="isDirty && open" class="-my-2 flex items-center gap-2">
+                    <div v-if="isDirty && open && !disabled" class="-my-2 flex items-center gap-2">
                         <LButton
                             variant="tertiary"
                             size="sm"
@@ -280,7 +311,12 @@ const saveChanges = async () => {
                         >
                             Discard changes
                         </LButton>
-                        <LButton size="sm" @click.prevent="saveChanges" data-test="saveChanges">
+                        <LButton
+                            v-if="!disabled"
+                            size="sm"
+                            @click.prevent="saveChanges"
+                            data-test="saveChanges"
+                        >
                             Save changes
                         </LButton>
                     </div>
@@ -290,7 +326,7 @@ const saveChanges = async () => {
                         Offline changes
                     </LBadge>
                     <LButton
-                        v-if="groups && groups.length > 0 && open && !isDirty"
+                        v-if="groups && groups.length > 0 && open && !isDirty && !disabled"
                         variant="muted"
                         size="sm"
                         title="Duplicate"
@@ -322,12 +358,14 @@ const saveChanges = async () => {
                             :assignedGroup="assignedGroup"
                             :originalGroup="group"
                             :availableGroups="availableGroups"
+                            :disabled="disabled"
                         />
                     </TransitionGroup>
 
                     <div class="flex items-center justify-between">
                         <div>
                             <AddGroupAclButton
+                                v-if="!disabled"
                                 :groups="availableGroups"
                                 @select="addAssignedGroup"
                             />

@@ -2,7 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import LButton from "@/components/button/LButton.vue";
-import { db, DocType, type GroupDto } from "luminary-shared";
+import { AclPermission, db, DocType, hasAnyPermission, type GroupDto } from "luminary-shared";
 import EditGroup from "@/components/groups/EditGroup.vue";
 import { computed, ref, watch } from "vue";
 
@@ -41,13 +41,17 @@ const createGroup = async () => {
 
     newGroups.value.push(newGroup);
 };
+
+const canCreateGroup = computed(() => {
+    return hasAnyPermission(DocType.Group, AclPermission.Assign);
+});
 </script>
 
 <template>
     <BasePage title="Groups" :loading="combinedGroups === undefined">
         <template #actions>
             <LButton
-                v-if="combinedGroups && combinedGroups.length > 0"
+                v-if="combinedGroups && combinedGroups.length > 0 && canCreateGroup"
                 variant="primary"
                 :icon="PlusIcon"
                 @click="createGroup"

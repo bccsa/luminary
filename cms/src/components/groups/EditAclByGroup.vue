@@ -20,6 +20,7 @@ type Props = {
      * List of available groups to duplicate ACL entries from
      */
     availableGroups: GroupDto[];
+    disabled: boolean;
 };
 const props = defineProps<Props>();
 const group = defineModel<GroupDto>("group");
@@ -51,6 +52,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                             :groups="availableGroups"
                             @select="duplicateGroup"
                             data-test="duplicateAcl"
+                            v-if="!disabled"
                         />
                     </div>
                 </div>
@@ -85,6 +87,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                         :aclEntry="aclEntry"
                         :key="aclEntry.type"
                         :originalGroup="originalGroup"
+                        :disabled="disabled"
                     />
                 </tbody>
             </table>
