@@ -371,7 +371,9 @@ const disabled = computed(() => {
                     <p>
                         Users who are direct or inherited members of the following groups have
                         access as specified to documents who are members of this
-                        <b>{{ editable.name }}</b>
+                        <b>{{ editable.name }}</b> group. <br />
+                        Users with inherited access may have more permissions than specified here,
+                        depending on their upstream permission level.
                     </p>
                     <TransitionGroup
                         enter-active-class="transition ease duration-500"
