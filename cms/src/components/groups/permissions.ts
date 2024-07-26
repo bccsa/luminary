@@ -113,6 +113,7 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         aclEntry.permission = [...aclEntry.permission, AclPermission.Assign]; // We need to recreate the array to trigger reactivity
     }
 
-    // Sort the permissions list to prevent dirty checking issues
+    // Sort the permissions list to help prevent dirty checking issues. If the permissions list was stored unsorted in the database
+    // the dirty check will still show a change even though the permissions are the same, but after saving it will work correctly.
     aclEntry.permission.sort();
 };

@@ -50,7 +50,7 @@ watch(
     (current) => {
         originalGroupWithoutEmpty.value = {
             ...current,
-            acl: toRaw(current.acl).filter((a) => a.permission.sort().length > 0), // sort the array to prevent issues with dirty checking
+            acl: toRaw(current.acl).filter((a) => a.permission.length > 0), // sort the array to prevent issues with dirty checking
         };
     },
     { deep: true },
