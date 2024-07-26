@@ -11,6 +11,7 @@ type Props = {
      * Original data from database for visual marking of changes
      */
     originalGroup: GroupDto;
+    disabled: boolean;
 };
 defineProps<Props>();
 const aclEntry = defineModel<GroupAclEntryDto>("aclEntry");
@@ -43,14 +44,16 @@ const setPermission = (aclPermission: AclPermission) => {
             :key="aclPermission"
             :class="[
                 'text-center',
-                isPermissionAvailable(aclEntry.type, aclPermission) ? 'cursor-pointer' : '',
+                !disabled && isPermissionAvailable(aclEntry.type, aclPermission)
+                    ? 'cursor-pointer'
+                    : '',
                 {
                     'bg-yellow-200': hasChangedPermission(aclEntry, aclPermission, originalGroup),
                 },
             ]"
             @click="
                 () => {
-                    if (isPermissionAvailable(aclEntry!.type, aclPermission)) {
+                    if (!disabled && isPermissionAvailable(aclEntry!.type, aclPermission)) {
                         setPermission(aclPermission);
                     }
                 }
