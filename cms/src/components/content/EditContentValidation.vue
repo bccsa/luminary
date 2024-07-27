@@ -147,7 +147,7 @@ watch(
                                 content?.parentType == DocType.Tag
                                     ? (content as unknown as TagDto).tagType
                                     : undefined,
-                            id: content?._id,
+                            id: content?.parentId,
                             languageCode: languages.find((l) => l._id == content?.language)
                                 ?.languageCode,
                         },
