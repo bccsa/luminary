@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import BarnerComponent from "./LBanner.vue";
+import LBanner from "./LBanner.vue";
 import { isConnected } from "luminary-shared";
 import { SignalSlashIcon } from "@heroicons/vue/20/solid";
 
@@ -9,7 +9,7 @@ describe("LBanner", async () => {
     it("renders the offline status and verifies classes and icon", async () => {
         isConnected.value = false;
 
-        const wrapper = mount(BarnerComponent, {
+        const wrapper = mount(LBanner, {
             props: {
                 icon: SignalSlashIcon,
                 message: "Test Offline",
