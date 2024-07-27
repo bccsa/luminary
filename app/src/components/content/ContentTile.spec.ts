@@ -52,24 +52,13 @@ describe("ContentTile", () => {
     });
 
     it("navigates to the correct route on click", async () => {
-        const routes = [{ path: "/:slug", name: "post", component: SingleContent }];
-
-        const router = createRouter({
-            history: createWebHistory(),
-            routes,
-        });
-
         const wrapper = mount(ContentTile, {
             props: {
                 content: mockEnglishContentDto,
             },
-            global: {
-                plugins: [router],
-            },
         });
 
         await wrapper.trigger("click");
-        await router.isReady();
 
         expect(routePushMock).toHaveBeenCalledWith({
             name: "post",
