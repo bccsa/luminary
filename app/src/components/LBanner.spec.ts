@@ -1,11 +1,11 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import BarnerComponent from "./BannerComponent.vue";
+import BarnerComponent from "./LBanner.vue";
 import { isConnected } from "luminary-shared";
 import { SignalSlashIcon } from "@heroicons/vue/20/solid";
 
-describe("OnlineIndicator", async () => {
+describe("LBanner", async () => {
     it("renders the offline status and verifies classes and icon", async () => {
         isConnected.value = false;
 
