@@ -172,6 +172,35 @@ const isDirty = computed(() => {
 });
 
 const hasChangedGroupName = computed(() => editable.value.name != props.group.name);
+const isNewGroup = computed(() => !groups.value.some((g) => g._id == props.group._id));
+const isEmpty = computed(() => editableGroupWithoutEmpty.value.acl.length == 0);
+
+const disabled = computed(() => {
+    // Enable editing for new / unsaved groups
+    if (isNewGroup.value || isLocalChange.value) {
+        return false;
+    }
+
+    return !verifyAccess([props.group._id], DocType.Group, AclPermission.Edit);
+});
+
+/**
+ * Check if the user will have permission to edit the group
+ */
+const hasEditPermission = computed(() => {
+    return (
+        !isDirty.value ||
+        editable.value.acl.some(
+            (a) => a.type == DocType.Group && a.permission.includes(AclPermission.Edit),
+        ) ||
+        // Check if the user will have inherited permissions to edit the group
+        verifyAccess(
+            [...new Set(editableGroupWithoutEmpty.value.acl.map((a) => a.groupId))],
+            DocType.Group,
+            AclPermission.Edit,
+        )
+    );
+});
 
 const startEditingGroupName = (e: Event, open: boolean) => {
     if (!open) return;
@@ -239,22 +268,6 @@ const saveChanges = async () => {
         state: "success",
     });
 };
-
-const disabled = computed(() => {
-    // Enable editing for new / unsaved groups
-    if (!groups.value.some((g) => g._id == props.group._id)) {
-        return false;
-    }
-
-    return (
-        !verifyAccess([props.group._id], DocType.Group, AclPermission.Edit) ||
-        !verifyAccess(
-            props.group.acl.filter((a) => a.type == DocType.Group).map((a) => a.groupId),
-            DocType.Group,
-            AclPermission.Assign,
-        )
-    );
-});
 </script>
 
 <template>
@@ -334,7 +347,7 @@ const disabled = computed(() => {
                             Discard changes
                         </LButton>
                         <LButton
-                            v-if="!disabled"
+                            v-if="hasEditPermission"
                             size="sm"
                             @click.prevent="saveChanges"
                             data-test="saveChanges"
@@ -344,11 +357,24 @@ const disabled = computed(() => {
                     </div>
 
                     <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>
+                    <LBadge v-if="isEmpty" variant="warning">
+                        The group does not have any access configured</LBadge
+                    >
+                    <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning">
+                        The group will not be editable after saving</LBadge
+                    >
                     <LBadge v-if="isLocalChange && !isConnected" variant="warning">
                         Offline changes
                     </LBadge>
                     <LButton
-                        v-if="groups && groups.length > 0 && open && !isDirty && !disabled"
+                        v-if="
+                            groups &&
+                            groups.length > 0 &&
+                            open &&
+                            !isDirty &&
+                            !disabled &&
+                            !isNewGroup
+                        "
                         variant="muted"
                         size="sm"
                         title="Duplicate"
@@ -371,9 +397,9 @@ const disabled = computed(() => {
                     <p>
                         Users who are direct or inherited members of the following groups have
                         access as specified to documents who are members of this
-                        <b>{{ editable.name }}</b> group. <br />
-                        Users with inherited access may have more permissions than specified here,
-                        depending on their upstream permission level.
+                        <b>{{ editable.name }}</b> group. (Users with inherited access may have more
+                        permissions than specified here, depending on their upstream permission
+                        level.)
                     </p>
                     <TransitionGroup
                         enter-active-class="transition ease duration-500"
