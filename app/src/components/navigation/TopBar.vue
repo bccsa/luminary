@@ -2,7 +2,7 @@
 import { PlayCircleIcon, ChevronLeftIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRoute, RouterLink } from "vue-router";
-import BarnerComponent from "../BannerComponent.vue";
+import LBanner from "../LBanner.vue";
 
 const route = useRoute();
 </script>
@@ -36,11 +36,7 @@ const route = useRoute();
             </div>
         </div>
         <div>
-            <BarnerComponent
-                :icon="SignalSlashIcon"
-                message="You are offline"
-                bgColor="bg-yellow-100"
-            />
+            <LBanner :icon="SignalSlashIcon" message="You are offline" bgColor="bg-yellow-100" />
         </div>
     </header>
 </template>
