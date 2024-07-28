@@ -9,13 +9,16 @@ import {
     mockGroupDtoPublicEditors,
     mockGroupDtoPublicUsers,
     mockGroupDtoSuperAdmins,
+    superAdminAccessMap,
 } from "@/tests/mockdata";
-import { db } from "luminary-shared";
+import { accessMap, db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router");
 
 describe("GroupOverview", () => {
+    accessMap.value = superAdminAccessMap;
+
     beforeEach(() => {
         setActivePinia(createTestingPinia());
         db.docs.bulkPut([

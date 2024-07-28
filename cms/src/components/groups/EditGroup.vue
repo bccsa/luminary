@@ -394,13 +394,6 @@ const saveChanges = async () => {
                 leave-to-class="transform scale-95 opacity-0"
             >
                 <DisclosurePanel class="space-y-6 px-6 pb-10 pt-2">
-                    <!-- <p>
-                        Users who are direct or inherited members of the following groups have
-                        access as specified to documents who are members of this
-                        <b>{{ editable.name }}</b> group. (Users with inherited access may have more
-                        permissions than specified here, depending on their upstream permission
-                        level.)
-                    </p> -->
                     <p>
                         Configure permissions to this group ({{ editable.name }}) and it's members:
                     </p>
