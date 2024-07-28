@@ -125,7 +125,6 @@ export async function validateChangeRequestAccess(
             return {
                 validated: false,
                 error: "Language document not found",
-                // TODO: Write test for this case
             };
         }
         const language = plainToInstance(LanguageDto, dbLangDoc.docs[0]);
