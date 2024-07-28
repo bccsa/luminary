@@ -4,14 +4,12 @@ import { computed } from "vue";
 export const availablePermissionsPerDocType = {
     [DocType.Group]: [
         AclPermission.View,
-        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
     ],
     [DocType.Language]: [
         AclPermission.View,
-        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
@@ -19,7 +17,6 @@ export const availablePermissionsPerDocType = {
     ],
     [DocType.Post]: [
         AclPermission.View,
-        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Translate,
@@ -27,19 +24,13 @@ export const availablePermissionsPerDocType = {
     ],
     [DocType.Tag]: [
         AclPermission.View,
-        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.Translate,
         AclPermission.Publish,
     ],
-    [DocType.User]: [
-        AclPermission.View,
-        AclPermission.Create,
-        AclPermission.Edit,
-        AclPermission.Delete,
-    ],
+    [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
 };
 
 /**

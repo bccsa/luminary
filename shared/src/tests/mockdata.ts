@@ -207,14 +207,12 @@ export const fullAccessToAllContentMap = {
     "group-private-content": {
         post: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
         },
         tag: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
@@ -222,7 +220,6 @@ export const fullAccessToAllContentMap = {
         },
         language: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
@@ -231,14 +228,12 @@ export const fullAccessToAllContentMap = {
     "group-public-content": {
         post: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
         },
         tag: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
@@ -246,7 +241,6 @@ export const fullAccessToAllContentMap = {
         },
         language: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
@@ -255,14 +249,12 @@ export const fullAccessToAllContentMap = {
     "group-languages": {
         post: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
         },
         tag: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
@@ -270,7 +262,6 @@ export const fullAccessToAllContentMap = {
         },
         language: {
             view: true,
-            create: true,
             edit: true,
             translate: true,
             publish: true,
@@ -282,21 +273,18 @@ export const viewAccessToAllContentMap = {
     "group-private-content": {
         post: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
         },
         tag: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
         },
         language: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
@@ -305,21 +293,18 @@ export const viewAccessToAllContentMap = {
     "group-public-content": {
         post: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
         },
         tag: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
         },
         language: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
@@ -328,21 +313,18 @@ export const viewAccessToAllContentMap = {
     "group-languages": {
         post: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
         },
         tag: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
         },
         language: {
             view: true,
-            create: false,
             edit: false,
             translate: false,
             publish: false,
