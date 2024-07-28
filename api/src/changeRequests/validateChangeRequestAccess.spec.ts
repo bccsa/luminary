@@ -156,7 +156,7 @@ describe("validateChangeRequestAccess", () => {
                 ["group-private-editors"],
                 db,
             );
-            expect(res.error).toBe("No access to 'Edit' document type 'Group'");
+            expect(res.error).toBe("No access to create a new document type 'Group'");
         });
     });
 

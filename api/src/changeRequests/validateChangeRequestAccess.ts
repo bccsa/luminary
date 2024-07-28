@@ -5,6 +5,7 @@ import { LanguageDto } from "../dto/LanguageDto";
 import { plainToInstance } from "class-transformer";
 import { ValidationResult } from "./ValidationResult";
 import { PermissionSystem } from "../permissions/permissions.service";
+import { GroupAclEntryDto } from "src/dto/GroupAclEntryDto";
 
 /**
  * Validate a change request against a user's access map
@@ -35,33 +36,44 @@ export async function validateChangeRequestAccess(
     if (doc.type === DocType.Group) {
         // Check group edit access
         // -----------------------
-        if (
-            !PermissionSystem.verifyAccess([doc._id], doc.type, AclPermission.Edit, groupMembership)
-        ) {
+        if (!PermissionSystem.hasGroup(doc._id)) {
             // If this is a new group, the permission system does not yet know about it and it will not be in the access map.
             // We need to check if the user has edit access to at least one of the groups in the ACL list, which will imply that
-            // the user has edit access to the new group through inheritance.
+            // the user has edit access to the new group through inheritance, or that at least one ACL entry gives edit access
+            // to the new group.
             if (
                 !PermissionSystem.verifyAccess(
-                    doc.acl.map((acl) => acl.groupId),
+                    [...new Set(doc.acl.map((acl: GroupAclEntryDto) => acl.groupId) as Uuid[])], // get unique values
                     doc.type,
                     AclPermission.Edit,
                     groupMembership,
                     "any",
+                ) &&
+                !doc.acl.some(
+                    (acl: GroupAclEntryDto) =>
+                        acl.type == DocType.Group && acl.permission.includes(AclPermission.Edit),
                 )
             ) {
                 return {
                     validated: false,
-                    error: "No access to 'Edit' document type 'Group'",
+                    error: "No access to create a new document type 'Group'",
                 };
             }
+        } else if (
+            !PermissionSystem.verifyAccess([doc._id], doc.type, AclPermission.Edit, groupMembership)
+        ) {
+            // This is an existing group, and the user should have edit permissions to the group
+            return {
+                validated: false,
+                error: "No access to 'Edit' document type 'Group'",
+            };
         }
 
         // Check assign access for groups in ACL list
         // ------------------------------------------
         if (
             !PermissionSystem.verifyAccess(
-                doc.acl.map((acl) => acl.groupId),
+                [...new Set(doc.acl.map((acl: GroupAclEntryDto) => acl.groupId) as Uuid[])], // get unique values
                 doc.type,
                 AclPermission.Assign,
                 groupMembership,

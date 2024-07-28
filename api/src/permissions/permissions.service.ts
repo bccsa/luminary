@@ -545,4 +545,11 @@ export class PermissionSystem {
             delete this._groupTypePermissionMap[childGroupId];
         }
     }
+
+    /**
+     * Check if a group exists in the permission system
+     */
+    static hasGroup(id: Uuid) {
+        return groupMap[id] != undefined;
+    }
 }
