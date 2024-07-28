@@ -12,7 +12,7 @@ import {
 import GroupSelector from "./GroupSelector.vue";
 import { Combobox } from "@headlessui/vue";
 import LTag from "../content/LTag.vue";
-import { accessMap, db } from "luminary-shared";
+import { accessMap, db, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 describe("GroupSelector", () => {
@@ -41,6 +41,7 @@ describe("GroupSelector", () => {
         const wrapper = mount(GroupSelector, {
             props: {
                 groups: [mockGroupDtoPublicContent._id],
+                docType: DocType.Post,
             },
         });
 
@@ -54,6 +55,7 @@ describe("GroupSelector", () => {
         const wrapper = mount(GroupSelector, {
             props: {
                 groups: [],
+                docType: DocType.Post,
             },
         });
 
@@ -67,14 +69,15 @@ describe("GroupSelector", () => {
         });
     });
 
-    it("hides groups to which the user does not have assign access", async () => {
+    it("hides groups to which the user does not have document edit access", async () => {
         // Remove assign access to the Public Users group
         // @ts-ignore
-        accessMap.value[mockGroupDtoPublicUsers._id].group.assign = false;
+        accessMap.value[mockGroupDtoPublicUsers._id].post.edit = false;
 
         const wrapper = mount(GroupSelector, {
             props: {
                 groups: [],
+                docType: DocType.Post,
             },
         });
 
@@ -93,6 +96,7 @@ describe("GroupSelector", () => {
         const wrapper = mount(GroupSelector, {
             props: {
                 groups: [],
+                docType: DocType.Post,
             },
         });
 
@@ -111,6 +115,7 @@ describe("GroupSelector", () => {
             props: {
                 groups: groups,
                 "onUpdate:groups": (e: any) => wrapper.setProps({ groups: e }),
+                docType: DocType.Post,
             },
         });
 
@@ -134,6 +139,7 @@ describe("GroupSelector", () => {
         const wrapper = mount(GroupSelector, {
             props: {
                 groups: groups,
+                docType: DocType.Post,
             },
         });
 
@@ -156,6 +162,7 @@ describe("GroupSelector", () => {
             props: {
                 groups: [mockGroupDtoPublicContent._id],
                 disabled: true,
+                docType: DocType.Post,
             },
         });
 

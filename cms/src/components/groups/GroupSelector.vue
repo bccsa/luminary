@@ -21,8 +21,9 @@ import {
 
 type Props = {
     disabled?: boolean;
+    docType: DocType;
 };
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
 const groups = defineModel<Uuid[]>("groups");
@@ -31,7 +32,7 @@ const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 
 const assignableGroups = computed(() =>
     availableGroups.value?.filter((g) =>
-        verifyAccess([g._id], DocType.Group, AclPermission.Assign, "any"),
+        verifyAccess([g._id], props.docType, AclPermission.Edit, "any"),
     ),
 );
 
