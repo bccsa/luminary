@@ -64,7 +64,12 @@ const canEdit = computed(() => {
             v-model="parent.image"
         />
 
-        <GroupSelector v-model:groups="parent.memberOf" :disabled="!canEdit" class="mt-6" />
+        <GroupSelector
+            v-model:groups="parent.memberOf"
+            :disabled="!canEdit"
+            :docType="docType"
+            class="mt-6"
+        />
 
         <TagSelector
             v-model:parent="parent"
