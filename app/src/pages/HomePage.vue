@@ -55,6 +55,7 @@ const hasPosts = db.someByTypeAsRef(DocType.Post);
             <!-- Display pinned categories -->
             <HorizontalScrollableTagViewerCollection
                 :key="appLanguageIdAsRef"
+                :showPublishDate="false"
                 :tagType="TagType.Category"
                 :tagQueryOptions="{
                     filterOptions: {
