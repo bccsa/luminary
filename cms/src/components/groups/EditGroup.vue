@@ -394,8 +394,12 @@ const saveChanges = async () => {
                 leave-to-class="transform scale-95 opacity-0"
             >
                 <DisclosurePanel class="space-y-6 px-6 pb-10 pt-2">
-                    <p>
+                    <p v-if="!disabled">
                         Configure permissions to this group ({{ editable.name }}) and it's members:
+                    </p>
+                    <p v-else>
+                        No access to edit permissions to this group ({{ editable.name }}) and it's
+                        members.
                     </p>
                     <TransitionGroup
                         enter-active-class="transition ease duration-500"
