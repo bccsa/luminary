@@ -4,11 +4,12 @@ import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
-import { PencilIcon, ChevronLeftIcon } from "@heroicons/vue/16/solid";
+import { PencilIcon } from "@heroicons/vue/16/solid";
 import { PublishStatus, type ContentDto, db } from "luminary-shared";
 import { computed, nextTick, ref, watch } from "vue";
 import { DateTime } from "luxon";
 import { Slug } from "@/util/slug";
+import { BackspaceIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     disabled: boolean;
@@ -272,10 +273,10 @@ const publishStatus = computed({
                     <LButton
                         type="button"
                         name="1"
-                        variant="custom"
+                        variant="secondary"
                         class="flex-1"
                         :class="{
-                            ' bg-black text-white': selectedExpiryNumber === 1,
+                            '!bg-black !text-white': selectedExpiryNumber === 1,
                         }"
                         @click="setExpiryNumber(1)"
                         :disabled="disabled"
@@ -285,9 +286,9 @@ const publishStatus = computed({
                     <LButton
                         type="button"
                         name="2"
-                        variant="custom"
+                        variant="secondary"
                         class="flex-1"
-                        :class="{ 'bg-black text-white': selectedExpiryNumber === 2 }"
+                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
                         @click="setExpiryNumber(2)"
                         :disabled="disabled"
                     >
@@ -296,9 +297,9 @@ const publishStatus = computed({
                     <LButton
                         type="button"
                         name="3"
-                        variant="custom"
+                        variant="secondary"
                         class="flex-1"
-                        :class="{ 'bg-black text-white': selectedExpiryNumber === 3 }"
+                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
                         @click="setExpiryNumber(3)"
                         :disabled="disabled"
                     >
@@ -307,10 +308,10 @@ const publishStatus = computed({
                     <LButton
                         type="button"
                         name="6"
-                        variant="custom"
+                        variant="secondary"
                         class="flex-1"
                         size="lg"
-                        :class="{ 'bg-black text-white': selectedExpiryNumber === 6 }"
+                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
                         @click="setExpiryNumber(6)"
                         :disabled="disabled"
                     >
@@ -319,9 +320,9 @@ const publishStatus = computed({
                     <LButton
                         type="button"
                         name="W"
-                        variant="custom"
+                        variant="secondary"
                         class="flex-1"
-                        :class="{ 'bg-black text-white': selectedExpiryUnit === 'Week' }"
+                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
                         @click="setExpiryUnit('Week')"
                         data-test="W"
                         :disabled="disabled"
@@ -331,9 +332,9 @@ const publishStatus = computed({
                     <LButton
                         type="button"
                         name="M"
-                        variant="custom"
+                        variant="secondary"
                         class="flex-1"
-                        :class="{ 'bg-black text-white': selectedExpiryUnit === 'Month' }"
+                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
                         @click="setExpiryUnit('Month')"
                         :disabled="disabled"
                     >
@@ -342,9 +343,9 @@ const publishStatus = computed({
                     <LButton
                         type="button"
                         name="Y"
-                        variant="custom"
+                        variant="secondary"
                         class="flex-1"
-                        :class="{ 'bg-black text-white': selectedExpiryUnit === 'Year' }"
+                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
                         @click="setExpiryUnit('Year')"
                         :disabled="disabled"
                     >
@@ -353,8 +354,8 @@ const publishStatus = computed({
                     <LButton
                         type="button"
                         name="clear"
-                        variant="custom"
-                        :icon="ChevronLeftIcon"
+                        variant="secondary"
+                        :icon="BackspaceIcon"
                         class="flex-1"
                         @click="clearExpiryDate()"
                         :disabled="disabled"
