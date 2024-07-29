@@ -22,12 +22,12 @@ const isBannerVisible = ref(isConnected);
     >
         <div class="flex items-center justify-between px-6 py-2 sm:px-6 sm:py-1">
             <div class="flex items-center gap-2">
-                <component :is="icon" class="h-6 w-6" />
+                <component :is="icon" class="h-5 w-5" />
                 <span class="text-lg sm:text-sm">{{ message }}</span>
             </div>
             <XMarkIcon
                 @click="isBannerVisible = true"
-                class="h-8 w-8 cursor-pointer text-sm underline sm:h-6 sm:w-6"
+                class="h-8 w-8 cursor-pointer text-sm underline sm:h-5 sm:w-5"
             />
         </div>
     </div>
