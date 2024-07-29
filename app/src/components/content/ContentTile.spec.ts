@@ -4,7 +4,18 @@ import { mount } from "@vue/test-utils";
 import ContentTile from "./ContentTile.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 
-vi.mock("vue-router");
+const routePushMock = vi.fn();
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRouter: () => ({
+            push: routePushMock,
+        }),
+    };
+});
 
 describe("ContentTile", () => {
     it("renders the image of content", async () => {
@@ -47,5 +58,20 @@ describe("ContentTile", () => {
         });
 
         expect(wrapper.text()).not.toContain("Jan 1, 2024");
+    });
+
+    it("navigates to the correct route on click", async () => {
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: mockEnglishContentDto,
+            },
+        });
+
+        await wrapper.trigger("click");
+
+        expect(routePushMock).toHaveBeenCalledWith({
+            name: "post",
+            params: { slug: mockEnglishContentDto.slug },
+        });
     });
 });
