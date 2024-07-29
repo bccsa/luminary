@@ -82,7 +82,9 @@ const setPermission = (aclPermission: AclPermission) => {
                         isPermissionAvailable(aclEntry.type, aclPermission)
                             ? hasChangedPermission(aclEntry, aclPermission, originalGroup)
                                 ? 'text-zinc-400'
-                                : 'text-zinc-200'
+                                : disabled
+                                  ? 'text-zinc-100'
+                                  : 'text-zinc-200'
                             : 'opacity-0',
                     ]"
                 />
