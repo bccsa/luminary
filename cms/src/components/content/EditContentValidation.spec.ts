@@ -1,16 +1,12 @@
 import "fake-indexeddb/auto";
-import { describe, it, afterEach, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import EditContentValidation from "./EditContentValidation.vue";
+import { PublishStatus } from "luminary-shared";
+import waitForExpect from "wait-for-expect";
 
 describe("EditContentValidation.vue", () => {
-    //
-
-    afterEach(async () => {});
-
-    // TODO: add a test to check if no message errors
-
     it("don't show validation error if no errors", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
@@ -19,7 +15,7 @@ describe("EditContentValidation.vue", () => {
             },
         });
 
-        expect(wrapper.text()).toBe("");
+        expect(wrapper.text()).not.toContain("There are some errors that prevent saving");
     });
 
     it("show validation error if no title", async () => {
@@ -68,5 +64,63 @@ describe("EditContentValidation.vue", () => {
         });
 
         expect(wrapper.text()).toContain("Français");
+    });
+
+    describe("Content status", () => {
+        it("show published status", async () => {
+            const wrapper = mount(EditContentValidation, {
+                props: {
+                    languages: [mockData.mockLanguageDtoFra],
+                    content: mockData.mockFrenchContentDto,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("Français");
+                expect(wrapper.text()).toContain("Published");
+            });
+        });
+
+        it("shows expired status", async () => {
+            const wrapper = mount(EditContentValidation, {
+                props: {
+                    languages: [mockData.mockLanguageDtoSwa],
+                    content: { ...mockData.mockSwahiliContentDto, expiryDate: Date.now() - 1 },
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("Swahili");
+                expect(wrapper.text()).toContain("Expired");
+            });
+        });
+
+        it("shows scheduled status", async () => {
+            const wrapper = mount(EditContentValidation, {
+                props: {
+                    languages: [mockData.mockLanguageDtoEng],
+                    content: { ...mockData.mockEnglishContentDto, publishDate: Date.now() + 10 },
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+                expect(wrapper.text()).toContain("Scheduled");
+            });
+        });
+
+        it("shows draft status", async () => {
+            const wrapper = mount(EditContentValidation, {
+                props: {
+                    languages: [mockData.mockLanguageDtoEng],
+                    content: { ...mockData.mockEnglishContentDto, status: PublishStatus.Draft },
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+                expect(wrapper.text()).toContain("Draft");
+            });
+        });
     });
 });

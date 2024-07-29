@@ -27,6 +27,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -47,6 +49,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [mockData.mockEnglishContentDto],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -67,6 +71,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [mockData.mockEnglishContentDto],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -91,6 +97,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: { ...mockData.mockPostDto, memberOf: [] },
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -113,6 +121,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: { ...mockData.mockPostDto, image: "" },
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -135,6 +145,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -157,6 +169,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [{ ...mockData.mockEnglishContentDto, title: "" }],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -181,6 +195,8 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: true,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
@@ -199,9 +215,51 @@ describe("EditContentParentValidation.vue", () => {
                 parent: mockData.mockPostDto,
                 contentDocs: [],
                 localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
             },
         });
 
         expect(wrapper.html()).not.toContain("Offline changes");
+    });
+
+    it("displays unsaved changes warning when there are changes", async () => {
+        const wrapper = mount(EditContentParentValidation, {
+            props: {
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                dirty: true,
+                parent: mockData.mockPostDto,
+                contentDocs: [mockData.mockEnglishContentDto],
+                localChange: true,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [],
+            },
+        });
+
+        expect(wrapper.html()).toContain("Unsaved changes");
+    });
+
+    it("doestn't display warning when there are no changes", async () => {
+        const wrapper = mount(EditContentParentValidation, {
+            props: {
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                dirty: false,
+                parent: mockData.mockPostDto,
+                contentDocs: [mockData.mockEnglishContentDto],
+                localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
+            },
+        });
+
+        expect(wrapper.html()).not.toContain("Unsaved changes");
     });
 });

@@ -4,7 +4,7 @@ import LBadge from "@/components/common/LBadge.vue";
 import LCard from "@/components/common/LCard.vue";
 import EditContentValidation from "./EditContentValidation.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
-import { XCircleIcon } from "@heroicons/vue/16/solid";
+import { XCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 import {
     type PostDto,
     type TagDto,
@@ -12,13 +12,16 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
+import _ from "lodash";
 
 type Props = {
     languages: LanguageDto[];
-    dirty: boolean;
     localChange: boolean;
+    dirty: boolean;
+    parentPrev: PostDto | TagDto | undefined;
+    contentPrev: ContentDto[] | undefined;
 };
 const props = defineProps<Props>();
 const parent = defineModel<PostDto | TagDto>("parent");
@@ -27,6 +30,10 @@ const contentDocs = defineModel<ContentDto[]>("contentDocs");
 const emit = defineEmits<{
     (e: "save"): void;
 }>();
+
+const isParentDirty = computed(() => {
+    return _.isEqual(parent.value, props.parentPrev);
+});
 
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
@@ -96,10 +103,10 @@ watch(
 </script>
 
 <template>
-    <LCard :showFooter="!overallIsValid">
+    <LCard :showFooter="true">
         <div class="flex gap-4">
             <LBadge v-if="localChange" variant="warning">Offline changes</LBadge>
-            <LBadge v-if="dirty">Unsaved changes</LBadge>
+
             <div class="flex-1"></div>
             <LButton
                 type="button"
@@ -114,11 +121,22 @@ watch(
         </div>
 
         <template #footer>
-            <div v-show="!overallIsValid" class="flex flex-col gap-2">
-                <p class="text-xs text-zinc-700">Validation errors:</p>
+            <div v-show="true" class="flex flex-col gap-2">
+                <p v-if="!overallIsValid && !isParentDirty" class="text-sm text-zinc-700">
+                    There are some errors that prevent saving
+                </p>
 
-                <div class="flex flex-col" v-if="!parentIsValid">
-                    <span class="mb-0.5 text-sm text-zinc-900"> General </span>
+                <div class="flex flex-col">
+                    <div class="flex flex-col gap-2" v-if="!isParentDirty">
+                        <span class="text-sm text-zinc-900"> General </span>
+                        <div class="flex items-center gap-2">
+                            <p>
+                                <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                            </p>
+                            <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
+                        </div>
+                    </div>
+
                     <!-- Parent validations -->
                     <div
                         v-for="validation in parentValidations.filter((v) => !v.isValid)"
@@ -136,9 +154,10 @@ watch(
                     <EditContentValidation
                         v-for="content in contentDocs"
                         :content="content"
-                        :languages="props.languages"
+                        :languages="languages"
                         :key="content._id"
                         @isValid="(val) => setOverallValidation(content._id, val)"
+                        :contentPrev="contentPrev?.find((c) => c._id == content._id)"
                     />
                 </div>
             </div>
