@@ -154,10 +154,10 @@ watch(
                     <EditContentValidation
                         v-for="content in contentDocs"
                         :content="content"
-                        :languages="props.languages"
+                        :languages="languages"
                         :key="content._id"
                         @isValid="(val) => setOverallValidation(content._id, val)"
-                        :contentPrev="props.contentPrev?.find((c) => c._id == content._id)"
+                        :contentPrev="contentPrev?.find((c) => c._id == content._id)"
                     />
                 </div>
             </div>
