@@ -16,7 +16,6 @@ import LBadge from "@/components/common/LBadge.vue";
 import LTable from "@/components/common/LTable.vue";
 import LTabs from "@/components/common/LTabs.vue";
 import ImageBrowser from "@/components/images/ImageBrowser.vue";
-import GroupSelector from "@/components/groups/GroupSelector.vue";
 import type { Uuid } from "luminary-shared";
 
 // Input
