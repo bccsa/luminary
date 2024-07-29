@@ -1,10 +1,8 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import { createRouter, createWebHistory } from "vue-router";
 import ContentTile from "./ContentTile.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
-import SingleContent from "@/pages/SingleContent.vue";
 
 const routePushMock = vi.fn();
 
@@ -49,32 +47,6 @@ describe("ContentTile", () => {
         });
 
         expect(wrapper.text()).toContain("Jan 1, 2024");
-    });
-
-    it("navigates to the correct route on click", async () => {
-        const routes = [{ path: "/:slug", name: "post", component: SingleContent }];
-
-        const router = createRouter({
-            history: createWebHistory(),
-            routes,
-        });
-
-        const wrapper = mount(ContentTile, {
-            props: {
-                content: mockEnglishContentDto,
-            },
-            global: {
-                plugins: [router],
-            },
-        });
-
-        await wrapper.trigger("click");
-        await router.isReady();
-
-        expect(routePushMock).toHaveBeenCalledWith({
-            name: "post",
-            params: { slug: mockEnglishContentDto.slug },
-        });
     });
 
     it("navigates to the correct route on click", async () => {
