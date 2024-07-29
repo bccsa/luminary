@@ -76,4 +76,19 @@ describe("ContentTile", () => {
             params: { slug: mockEnglishContentDto.slug },
         });
     });
+
+    it("navigates to the correct route on click", async () => {
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: mockEnglishContentDto,
+            },
+        });
+
+        await wrapper.trigger("click");
+
+        expect(routePushMock).toHaveBeenCalledWith({
+            name: "post",
+            params: { slug: mockEnglishContentDto.slug },
+        });
+    });
 });
