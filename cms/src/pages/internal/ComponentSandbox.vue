@@ -312,10 +312,6 @@ const selectedGroups = ref<Uuid[]>(["group-private-editors"]);
             <LCard title="Image Browser">
                 <ImageBrowser />
             </LCard>
-
-            <LCard title="Group Selector">
-                <GroupSelector :groups="selectedGroups" />
-            </LCard>
         </div>
     </BasePage>
 </template>
