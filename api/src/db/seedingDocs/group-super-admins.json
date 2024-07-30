@@ -6,17 +6,17 @@
         {
             "type": "post",
             "groupId": "group-super-admins",
-            "permission": ["view", "create", "edit", "delete", "translate", "publish"]
+            "permission": ["view", "edit", "delete", "translate", "publish"]
         },
         {
             "type": "tag",
             "groupId": "group-super-admins",
-            "permission": ["view", "create", "edit", "delete", "assign", "translate", "publish"]
+            "permission": ["view", "edit", "delete", "assign", "translate", "publish"]
         },
         {
             "type": "group",
             "groupId": "group-super-admins",
-            "permission": ["view", "create", "edit", "delete", "assign"]
+            "permission": ["view", "edit", "delete", "assign"]
         },
         {
             "type": "user",
@@ -26,12 +26,12 @@
         {
             "type": "language",
             "groupId": "group-super-admins",
-            "permission": ["view", "create", "edit", "delete", "assign", "translate"]
+            "permission": ["view", "edit", "delete", "assign", "translate"]
         },
         {
             "type": "image",
             "groupId": "group-super-admins",
-            "permission": ["view", "create", "edit", "delete", "assign"]
+            "permission": ["view", "edit", "delete", "assign"]
         }
     ]
 }
