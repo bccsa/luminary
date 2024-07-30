@@ -6,6 +6,7 @@ export type Notification = {
     title: string;
     description?: string;
     state?: "success" | "error" | "info";
+    type: "toast" | "banner";
 };
 
 export const useNotificationStore = defineStore("notification", () => {
@@ -15,6 +16,7 @@ export const useNotificationStore = defineStore("notification", () => {
 
     const addNotification = (notification: Notification) => {
         const notificationId = id.value++;
+        const notificationType = notification.type || "toast";
 
         notifications.value = [];
 
@@ -22,6 +24,7 @@ export const useNotificationStore = defineStore("notification", () => {
             notifications.value.push({
                 ...notification,
                 id: notificationId,
+                type: notificationType,
             });
         }, 100);
 

@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import NotificationManager from "./NotificationManager.vue";
@@ -16,7 +17,10 @@ describe("NotificationManager", () => {
 
     it("renders all notifications from the store", () => {
         const notificationStore = useNotificationStore();
-        notificationStore.notifications = [{ title: "First" }, { title: "Second" }];
+        notificationStore.notifications = [
+            { title: "First", type: "toast" },
+            { title: "Second", type: "banner" },
+        ];
         const wrapper = mount(NotificationManager);
 
         expect(wrapper.text()).toContain("First");
