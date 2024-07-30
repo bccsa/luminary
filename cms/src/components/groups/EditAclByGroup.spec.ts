@@ -148,6 +148,5 @@ describe("EditAclByGroup.vue", () => {
         });
 
         expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
-        // console.log(wrapper.html());
     });
 });

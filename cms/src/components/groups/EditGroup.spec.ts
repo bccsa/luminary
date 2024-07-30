@@ -279,7 +279,7 @@ describe("EditGroup.vue", () => {
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         // Group=Public Editors, DocType=Post, Permission=View  -  Clearing this should clear all the permissions, and cause the ACL entry to be deleted
-        await wrapper.findAll('[data-test="permissionCell"]')[12].trigger("click");
+        await wrapper.findAll('[data-test="permissionCell"]')[14].trigger("click");
         await wrapper.find(saveChangesButton).trigger("click");
 
         await waitForExpect(async () => {
@@ -305,7 +305,7 @@ describe("EditGroup.vue", () => {
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         expect(wrapper.text()).toContain(
-            "No access to edit permissions to this group (Public Content) and it's members.",
+            "No access to edit permissions to this group (Public Content) and its members.",
         );
         expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
         expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
