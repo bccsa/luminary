@@ -31,7 +31,7 @@
         {
             "type": "group",
             "groupId": "group-public-editors",
-            "permission": ["view", "assign"]
+            "permission": ["view"]
         },
         {
             "type": "post",

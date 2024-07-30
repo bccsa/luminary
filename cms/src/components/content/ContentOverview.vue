@@ -49,7 +49,7 @@ watch(
     { once: true },
 );
 
-const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Create));
+const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
 
 // Set the title
 let tagTypeString: string = tagType as string;

@@ -20,6 +20,7 @@ type Props = {
      * List of available groups to duplicate ACL entries from
      */
     availableGroups: GroupDto[];
+    disabled: boolean;
 };
 const props = defineProps<Props>();
 const group = defineModel<GroupDto>("group");
@@ -39,7 +40,13 @@ const duplicateGroup = (targetGroup: GroupDto) => {
 <template>
     <div>
         <div class="inline-block rounded-md border border-zinc-200 bg-zinc-50 shadow-sm">
-            <h3 class="border-b border-zinc-200 px-6 py-4 text-center font-medium text-zinc-700">
+            <h3
+                :class="[
+                    'border-b border-zinc-200 px-6 py-4 text-center font-medium',
+                    { 'text-zinc-700': !disabled },
+                    { 'text-zinc-400': disabled },
+                ]"
+            >
                 <!-- Add the duplicate ACL button -->
                 <div class="flex items-center justify-between">
                     <div></div>
@@ -51,6 +58,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                             :groups="availableGroups"
                             @select="duplicateGroup"
                             data-test="duplicateAcl"
+                            v-if="!disabled"
                         />
                     </div>
                 </div>
@@ -63,7 +71,11 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                         <th
                             v-for="aclPermission in AclPermission"
                             :key="aclPermission"
-                            class="p-4 text-center text-sm font-medium uppercase tracking-wider text-zinc-600 last:pr-6 lg:min-w-24"
+                            :class="[
+                                'p-4 text-center text-sm font-medium uppercase tracking-wider last:pr-6 lg:min-w-24',
+                                { 'text-zinc-600': !disabled },
+                                { 'text-zinc-400': disabled },
+                            ]"
                         >
                             {{ capitaliseFirstLetter(aclPermission) }}
                         </th>
@@ -85,6 +97,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                         :aclEntry="aclEntry"
                         :key="aclEntry.type"
                         :originalGroup="originalGroup"
+                        :disabled="disabled"
                     />
                 </tbody>
             </table>

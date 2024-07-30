@@ -29,6 +29,7 @@ describe("EditAclByGroup.vue", () => {
                 assignedGroup,
                 originalGroup,
                 availableGroups,
+                disabled: false,
             },
         });
         return wrapper;

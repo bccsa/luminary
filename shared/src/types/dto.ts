@@ -27,7 +27,6 @@ export type BaseDocumentDto = {
 
 export enum AclPermission {
     View = "view",
-    Create = "create",
     Edit = "edit",
     Delete = "delete",
     Assign = "assign",

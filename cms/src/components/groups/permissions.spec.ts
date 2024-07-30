@@ -176,5 +176,43 @@ describe("Group editor permissions (permissions.ts)", () => {
 
             expect(aclEntry.permission.length).toBe(0);
         });
+
+        it("can automatically set the 'assign' permission on a group if the 'edit' permission is set", async () => {
+            const aclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View, AclPermission.Edit],
+            };
+
+            const prevAclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View],
+            };
+
+            validateAclEntry(aclEntry, prevAclEntry);
+
+            expect(aclEntry.permission.includes(AclPermission.Edit)).toBe(true);
+            expect(aclEntry.permission.includes(AclPermission.Assign)).toBe(true);
+        });
+
+        it("can automatically clear the 'edit' permission on a group if the 'assign' permission is cleared", async () => {
+            const aclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View, AclPermission.Edit],
+            };
+
+            const prevAclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View, AclPermission.Edit, AclPermission.Assign],
+            };
+
+            validateAclEntry(aclEntry, prevAclEntry);
+
+            expect(aclEntry.permission.includes(AclPermission.Edit)).toBe(false);
+            expect(aclEntry.permission.includes(AclPermission.Assign)).toBe(false);
+        });
     });
 });

@@ -4,14 +4,12 @@ import { computed } from "vue";
 export const availablePermissionsPerDocType = {
     [DocType.Group]: [
         AclPermission.View,
-        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
     ],
     [DocType.Language]: [
         AclPermission.View,
-        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
@@ -19,7 +17,6 @@ export const availablePermissionsPerDocType = {
     ],
     [DocType.Post]: [
         AclPermission.View,
-        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Translate,
@@ -27,19 +24,13 @@ export const availablePermissionsPerDocType = {
     ],
     [DocType.Tag]: [
         AclPermission.View,
-        AclPermission.Create,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.Translate,
         AclPermission.Publish,
     ],
-    [DocType.User]: [
-        AclPermission.View,
-        AclPermission.Create,
-        AclPermission.Edit,
-        AclPermission.Delete,
-    ],
+    [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
 };
 
 /**
@@ -93,4 +84,27 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
     if (!aclEntry.permission.includes(AclPermission.View)) {
         aclEntry.permission = [];
     }
+
+    // Remove edit permission if assign permission is removed on groups
+    if (
+        aclEntry.type == DocType.Group &&
+        prevAclEntry.permission.includes(AclPermission.Assign) &&
+        !aclEntry.permission.includes(AclPermission.Assign) &&
+        aclEntry.permission.includes(AclPermission.Edit)
+    ) {
+        aclEntry.permission.splice(aclEntry.permission.indexOf(AclPermission.Edit), 1);
+    }
+
+    // Add assign permission if edit permission is set on groups
+    if (
+        aclEntry.type == DocType.Group &&
+        aclEntry.permission.includes(AclPermission.Edit) &&
+        !aclEntry.permission.includes(AclPermission.Assign)
+    ) {
+        aclEntry.permission = [...aclEntry.permission, AclPermission.Assign]; // We need to recreate the array to trigger reactivity
+    }
+
+    // Sort the permissions list to help prevent dirty checking issues. If the permissions list was stored unsorted in the database
+    // the dirty check will still show a change even though the permissions are the same, but after saving it will work correctly.
+    aclEntry.permission.sort();
 };

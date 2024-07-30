@@ -11,6 +11,7 @@ type Props = {
      * Original data from database for visual marking of changes
      */
     originalGroup: GroupDto;
+    disabled: boolean;
 };
 defineProps<Props>();
 const aclEntry = defineModel<GroupAclEntryDto>("aclEntry");
@@ -35,7 +36,10 @@ const setPermission = (aclPermission: AclPermission) => {
 
 <template>
     <tr v-if="aclEntry" class="border-b border-zinc-200 last:border-none">
-        <th scope="row" class="py-3 pl-6 pr-10 text-left font-medium">
+        <th
+            scope="row"
+            :class="['py-3 pl-6 pr-10 text-left font-medium', { 'text-zinc-400': disabled }]"
+        >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </th>
         <td
@@ -43,14 +47,16 @@ const setPermission = (aclPermission: AclPermission) => {
             :key="aclPermission"
             :class="[
                 'text-center',
-                isPermissionAvailable(aclEntry.type, aclPermission) ? 'cursor-pointer' : '',
+                !disabled && isPermissionAvailable(aclEntry.type, aclPermission)
+                    ? 'cursor-pointer'
+                    : '',
                 {
                     'bg-yellow-200': hasChangedPermission(aclEntry, aclPermission, originalGroup),
                 },
             ]"
             @click="
                 () => {
-                    if (isPermissionAvailable(aclEntry!.type, aclPermission)) {
+                    if (!disabled && isPermissionAvailable(aclEntry!.type, aclPermission)) {
                         setPermission(aclPermission);
                     }
                 }
@@ -62,7 +68,9 @@ const setPermission = (aclPermission: AclPermission) => {
                     :class="[
                         'inline h-5 w-5',
                         isPermissionAvailable(aclEntry.type, aclPermission)
-                            ? 'text-zinc-500'
+                            ? disabled
+                                ? 'text-zinc-300'
+                                : 'text-zinc-500'
                             : 'text-zinc-200',
                     ]"
                 />
@@ -74,7 +82,9 @@ const setPermission = (aclPermission: AclPermission) => {
                         isPermissionAvailable(aclEntry.type, aclPermission)
                             ? hasChangedPermission(aclEntry, aclPermission, originalGroup)
                                 ? 'text-zinc-400'
-                                : 'text-zinc-200'
+                                : disabled
+                                  ? 'text-zinc-100'
+                                  : 'text-zinc-200'
                             : 'opacity-0',
                     ]"
                 />
