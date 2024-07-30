@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import LNotification from "./LNotification.vue";
@@ -5,7 +6,13 @@ import LNotification from "./LNotification.vue";
 describe("LNotification", () => {
     it("renders the title and description", () => {
         const wrapper = mount(LNotification, {
-            props: { notification: { title: "Important News", description: "Read this." } },
+            props: {
+                notification: {
+                    title: "Important News",
+                    description: "Read this.",
+                    type: "toast",
+                },
+            },
         });
 
         expect(wrapper.text()).toContain("Important News");
@@ -14,11 +21,14 @@ describe("LNotification", () => {
 
     it("can be closed", async () => {
         const wrapper = mount(LNotification, {
-            props: { notification: { title: "Important News", description: "Read this." } },
+            props: {
+                notification: { title: "Important News", description: "Read this.", type: "toast" },
+            },
         });
 
-        await wrapper.find("button").trigger("click");
+        await wrapper.find("button[data-test='toast']").trigger("click");
 
-        expect(wrapper.findComponent(LNotification).isVisible()).toBe(false);
+        expect(wrapper.text()).not.toContain("Important News");
+        expect(wrapper.text()).not.toContain("Read this.");
     });
 });
