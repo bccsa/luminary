@@ -494,15 +494,6 @@ export class PermissionSystem {
                 (requestorIds.length == 1 && requestorIds[0] === this.id)
             ) {
                 delete this._typePermissionGroupRequestorMap[type][permission][childGroupId];
-
-                // As there is no permissions left, remove any permissions from parents that has been requested from this group
-                Object.values(this._aclMap).forEach((_acl: AclMapEntry) => {
-                    Object.keys(_acl.types).forEach((_type: DocType) => {
-                        Object.keys(_acl.types[_type]).forEach((_permission: AclPermission) => {
-                            _acl.ref.removeMap(childGroupId, this.id, _type, _permission);
-                        });
-                    });
-                });
             }
         }
 
@@ -543,6 +534,15 @@ export class PermissionSystem {
             Object.keys(this._groupTypePermissionMap[childGroupId]).length == 0
         ) {
             delete this._groupTypePermissionMap[childGroupId];
+
+            // As there is no permissions left, remove any permissions from parents that has been requested from this group
+            Object.values(this._aclMap).forEach((_acl: AclMapEntry) => {
+                Object.keys(_acl.types).forEach((_type: DocType) => {
+                    Object.keys(_acl.types[_type]).forEach((_permission: AclPermission) => {
+                        _acl.ref.removeMap(childGroupId, this.id, _type, _permission);
+                    });
+                });
+            });
         }
     }
 
