@@ -2,14 +2,26 @@
 import LNotification from "./LNotification.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { storeToRefs } from "pinia";
+import { ref } from "vue";
 
 const { notifications } = storeToRefs(useNotificationStore());
+
+let notificationTypeCheck = ref(false);
+
+if (notifications.value) {
+    let notificationType = notifications.value.filter((c) => c.type == "toast");
+
+    if (notificationType.length > 0) {
+        notificationTypeCheck.value = true;
+    }
+}
 </script>
 
 <template>
     <div
         aria-live="assertive"
         class="pointer-events-none fixed inset-0 top-12 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
+        v-if="notificationTypeCheck"
     >
         <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
             <TransitionGroup
@@ -26,6 +38,19 @@ const { notifications } = storeToRefs(useNotificationStore());
                     :notification
                 />
             </TransitionGroup>
+        </div>
+    </div>
+    <div
+        aria-live="assertive"
+        class="pointer-events-none fixed inset-0 top-12 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
+        v-if="!notificationTypeCheck"
+    >
+        <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
+            <LNotification
+                v-for="notification in notifications"
+                :key="notification.id"
+                :notification
+            />
         </div>
     </div>
 </template>

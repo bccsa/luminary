@@ -18,6 +18,7 @@ describe("notification store", () => {
 
         store.addNotification({
             title: "Test",
+            type: "toast",
         });
 
         await waitForExpect(() => {
@@ -27,10 +28,11 @@ describe("notification store", () => {
 
     it("automatically deletes the previous notification", async () => {
         const store = useNotificationStore();
-        store.notifications = [{ title: "Previous" }];
+        store.notifications = [{ title: "Previous", type: "toast" }];
 
         store.addNotification({
             title: "New",
+            type: "toast",
         });
 
         await waitForExpect(() => {

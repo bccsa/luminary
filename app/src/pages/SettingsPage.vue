@@ -12,6 +12,7 @@ const deleteLocalData = async () => {
             title: "Can't clear local cache",
             description: "You are offline, new data can't be loaded. Wait until you are online.",
             state: "error",
+            type: "toast",
         });
     }
 
@@ -22,6 +23,7 @@ const deleteLocalData = async () => {
         title: "Local cache cleared",
         description: "New data is loading from the server, it might take a minute.",
         state: "success",
+        type: "toast",
     });
 };
 </script>
