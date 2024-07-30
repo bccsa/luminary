@@ -115,8 +115,6 @@ const items = [
         },
     },
 ];
-
-const selectedGroups = ref<Uuid[]>(["group-private-editors"]);
 </script>
 
 <template>
