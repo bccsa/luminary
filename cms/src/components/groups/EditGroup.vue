@@ -19,6 +19,7 @@ import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import _ from "lodash";
 import { validDocTypes } from "./permissions";
+import { ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 
 const { addNotification } = useNotificationStore();
 
@@ -357,10 +358,14 @@ const saveChanges = async () => {
                     </div>
 
                     <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>
-                    <LBadge v-if="isEmpty" variant="warning">
-                        The group does not have any access configured</LBadge
+                    <LBadge v-if="isEmpty" variant="warning" :customIcon="ExclamationCircleIcon">
+                        The group does not have any access configured
+                    </LBadge>
+                    <LBadge
+                        v-if="!hasEditPermission && !isEmpty"
+                        variant="warning"
+                        :customIcon="ExclamationCircleIcon"
                     >
-                    <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning">
                         Saving disabled: The group would not be editable</LBadge
                     >
                     <LBadge v-if="isLocalChange && !isConnected" variant="warning">
