@@ -18,7 +18,7 @@ import LBadge from "@/components/common/LBadge.vue";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import _ from "lodash";
-import { validDocTypes } from "./permissions";
+import { compactAclEntries, validDocTypes } from "./permissions";
 import { ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 
 const { addNotification } = useNotificationStore();
@@ -39,7 +39,7 @@ watch(
     (current) => {
         editableGroupWithoutEmpty.value = {
             ...current,
-            acl: toRaw(current.acl).filter((a) => a.permission.length > 0),
+            acl: compactAclEntries(current.acl),
         };
     },
     { deep: true },
@@ -51,7 +51,7 @@ watch(
     (current) => {
         originalGroupWithoutEmpty.value = {
             ...current,
-            acl: toRaw(current.acl).filter((a) => a.permission.length > 0), // sort the array to prevent issues with dirty checking
+            acl: compactAclEntries(current.acl),
         };
     },
     { deep: true },
