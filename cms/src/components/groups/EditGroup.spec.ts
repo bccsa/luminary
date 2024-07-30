@@ -290,7 +290,7 @@ describe("EditGroup.vue", () => {
                     (g) => g.groupId == "group-public-editors" && g.type == DocType.Post,
                 ),
             ).toBeFalsy();
-        }, 1000);
+        });
     });
 
     it("checks if groups are disabled when no edit permissions", async () => {
