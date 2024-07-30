@@ -364,9 +364,7 @@ export class PermissionSystem {
                 parentGroup.removeMap(this.id, this.id, type, p);
 
                 // Remove inherited permissions from parent's map
-                Object.keys(this._childGroups).forEach((childGroupId: Uuid) => {
-                    parentGroup.removeMap(childGroupId, this.id, type, p);
-                });
+                this.updateParentInheritedMap(this, parentGroup, type, p, "remove");
             }
         });
 
@@ -381,9 +379,7 @@ export class PermissionSystem {
                 parentGroup.addMap(this.id, this.id, type, p);
 
                 // Update inherited permissions to parent's map
-                Object.keys(this._childGroups).forEach((childGroupId: Uuid) => {
-                    parentGroup.addMap(childGroupId, this.id, type, p);
-                });
+                this.updateParentInheritedMap(this, parentGroup, type, p, "add");
             }
         });
 
@@ -398,6 +394,32 @@ export class PermissionSystem {
             // remove reference from parent
             delete parentGroup._childGroups[this.id];
         }
+    }
+
+    /**
+     * Iteratively update a parent group's inherited permissions to its children
+     */
+    private updateParentInheritedMap(
+        group: PermissionSystem,
+        parentGroup: PermissionSystem,
+        type: DocType,
+        permission: AclPermission,
+        action: "add" | "remove",
+    ) {
+        // Update inherited permissions to parent's map
+        Object.keys(group._childGroups).forEach((childGroupId: Uuid) => {
+            if (action == "add") {
+                parentGroup.addMap(childGroupId, group.id, type, permission);
+            } else {
+                parentGroup.removeMap(childGroupId, group.id, type, permission);
+            }
+
+            // Prevent infinite loop on self-assigned permissions
+            if (childGroupId != this.id) {
+                const childGroup = group._childGroups[childGroupId];
+                this.updateParentInheritedMap(childGroup, parentGroup, type, permission, action);
+            }
+        });
     }
 
     private addMap(
