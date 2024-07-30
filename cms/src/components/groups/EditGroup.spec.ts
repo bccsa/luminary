@@ -280,6 +280,7 @@ describe("EditGroup.vue", () => {
 
         // Group=Public Editors, DocType=Post, Permission=View  -  Clearing this should clear all the permissions, and cause the ACL entry to be deleted
         await wrapper.findAll('[data-test="permissionCell"]')[14].trigger("click");
+
         await wrapper.find(saveChangesButton).trigger("click");
 
         await waitForExpect(async () => {
