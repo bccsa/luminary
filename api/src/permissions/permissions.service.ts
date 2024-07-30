@@ -443,7 +443,7 @@ export class PermissionSystem {
             // but this makes the code less consistent so we chose to stick to an old-fasioned object here.
         }
 
-        // Build Type Permisson Group map
+        // Build Type Permission Group map
         if (!this._typePermissionGroupRequestorMap[type]) {
             this._typePermissionGroupRequestorMap[type] = {};
         }
@@ -466,18 +466,24 @@ export class PermissionSystem {
             // be able to reliably remove permissions in multi-path hierarchies. The group passing an ACL map to an upstream group
             // will be the requestor.
 
-            // Pass child to grandparent with the parent group's access. This means:
-            // - If the grandparent has more access to the parent, this access will also apply to the grandparent's access to the child.
-            // - If the grandparent has less access to the parent, this access will also apply to the grandparent's access to the child.
-
             Object.values(this._aclMap)
                 // Iterate through acls
                 .forEach((acl: AclMapEntry) => {
                     //Iterate through docTypes
                     Object.keys(acl.types).forEach((_type: DocType) => {
-                        // Iterate through permissions
                         Object.keys(acl.types[_type]).forEach((_permission: AclPermission) => {
+                            // Downstream inheritance:
+                            // -----------------------
+                            // Pass this (parent) group's applied permissions to the grandparent group on behalf of the child group.
+                            // This means the grandparent will have at least the same access to the child group as the parent group.
                             acl.ref.addMap(childGroupId, this.id, _type, _permission);
+
+                            // Upstream inheritance:
+                            // ---------------------
+                            // Pass child group's permissions to the grandparent on behalf of the child group.
+                            // This will ensure that permissions direcly applied to the child group will be passed upstream as inherited permissions,
+                            // expanding the inherited permissions on the grandparent group with any additional permissions applied to the child group.
+                            acl.ref.addMap(childGroupId, this.id, type, permission);
                         });
                     });
                 });
@@ -541,6 +547,11 @@ export class PermissionSystem {
             this._groupTypePermissionMap[childGroupId][type][permission]
         ) {
             delete this._groupTypePermissionMap[childGroupId][type][permission];
+
+            // Remove from parents' maps
+            Object.keys(this._aclMap).forEach((_parentGroupId: Uuid) => {
+                this._aclMap[_parentGroupId].ref.removeMap(childGroupId, this.id, type, permission);
+            });
         }
 
         if (
