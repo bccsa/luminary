@@ -292,4 +292,23 @@ describe("EditGroup.vue", () => {
             ).toBeFalsy();
         });
     });
+
+    it("checks if groups are disabled when no edit permissions", async () => {
+        delete accessMap.value["group-public-content"].group?.edit;
+
+        await db.docs.bulkPut([
+            mockGroupDtoPublicContent,
+            mockGroupDtoPublicEditors,
+            mockGroupDtoPublicUsers,
+            mockGroupDtoSuperAdmins,
+        ]);
+
+        const wrapper = await createWrapper(mockGroupDtoPublicContent);
+
+        expect(wrapper.text()).toContain(
+            "No access to edit permissions to this group (Public Content) and it's members.",
+        );
+        expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
+        expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
+    });
 });
