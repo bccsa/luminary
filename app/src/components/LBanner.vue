@@ -15,28 +15,16 @@ const isBannerVisible = ref(isConnected);
 </script>
 
 <template>
-    <div
-        v-if="!isBannerVisible"
-        class="shadow-top inset-x-0 top-0 z-50 text-zinc-900"
-        :class="bgColor"
-    >
-        <div class="flex items-center justify-between px-6 py-2 sm:px-6 sm:py-1">
+    <div v-if="!isBannerVisible" class="inset-x-0 top-0 z-50 text-zinc-900" :class="bgColor">
+        <div class="flex items-center justify-between px-6 py-1 md:px-6 md:py-1">
             <div class="flex items-center gap-2">
                 <component :is="icon" class="h-5 w-5" />
-                <span class="text-lg sm:text-sm">{{ message }}</span>
+                <span class="text-md md:text-sm">{{ message }}</span>
             </div>
             <XMarkIcon
                 @click="isBannerVisible = true"
-                class="h-8 w-8 cursor-pointer text-sm underline sm:h-5 sm:w-5"
+                class="h-6 w-6 cursor-pointer underline md:h-5 md:w-5"
             />
         </div>
     </div>
 </template>
-
-<style scoped>
-.shadow-top {
-    box-shadow:
-        0 -10px 15px -3px rgba(0, 0, 0, 0.1),
-        0 -4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-</style>
