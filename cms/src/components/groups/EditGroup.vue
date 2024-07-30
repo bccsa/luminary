@@ -361,7 +361,7 @@ const saveChanges = async () => {
                         The group does not have any access configured</LBadge
                     >
                     <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning">
-                        The group will not be editable after saving</LBadge
+                        Saving disabled: The group would not be editable</LBadge
                     >
                     <LBadge v-if="isLocalChange && !isConnected" variant="warning">
                         Offline changes
@@ -395,10 +395,10 @@ const saveChanges = async () => {
             >
                 <DisclosurePanel class="space-y-6 px-6 pb-10 pt-2">
                     <p v-if="!disabled">
-                        Configure permissions to this group ({{ editable.name }}) and it's members:
+                        Configure permissions to this group ({{ editable.name }}) and its members:
                     </p>
                     <p v-else>
-                        No access to edit permissions to this group ({{ editable.name }}) and it's
+                        No access to edit permissions to this group ({{ editable.name }}) and its
                         members.
                     </p>
                     <TransitionGroup
