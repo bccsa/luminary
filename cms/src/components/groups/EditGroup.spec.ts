@@ -174,18 +174,17 @@ describe("EditGroup.vue", () => {
         expect(wrapper.find(discardChangesButton).exists()).toBe(false);
     });
 
-    it.skip("can add a new group", async () => {
-        await db.docs.bulkPut([mockGroupDtoPublicEditors, mockGroupDtoSuperAdmins]);
+    it("can add a new group", async () => {
+        await db.docs.bulkPut([mockGroupDtoPublicEditors, mockGroupDtoPublicContent]);
 
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
         expect(wrapper.text()).not.toContain("Super Admins");
 
-        // TODO: Dropdown list does not appear
         await wrapper.find('button[data-test="addGroupButton"]').trigger("click");
         await wrapper.find('button[data-test="selectGroupButton"]').trigger("click");
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Super Admins");
+            expect(wrapper.text()).toContain("Public Content");
         });
     });
 
