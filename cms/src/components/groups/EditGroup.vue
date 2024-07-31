@@ -257,7 +257,7 @@ const copyGroupId = (group: GroupDto) => {
 };
 
 const saveChanges = async () => {
-    db.upsert<GroupDto>(toRaw(editableGroupWithoutEmpty.value));
+    await db.upsert<GroupDto>(toRaw(editableGroupWithoutEmpty.value));
 
     addNotification({
         title: `${editableGroupWithoutEmpty.value.name} changes saved`,
@@ -350,7 +350,7 @@ const saveChanges = async () => {
                         <LButton
                             v-if="hasEditPermission"
                             size="sm"
-                            @click.prevent="saveChanges"
+                            @click.prevent="saveChanges()"
                             data-test="saveChanges"
                         >
                             Save changes
