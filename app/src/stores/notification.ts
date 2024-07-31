@@ -1,12 +1,13 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, type FunctionalComponent } from "vue";
 
 export type Notification = {
     id?: number;
     title: string;
     description?: string;
-    state?: "success" | "error" | "info";
+    state: "success" | "error" | "info" | "warning";
     type: "toast" | "banner";
+    icon?: FunctionalComponent;
 };
 
 export const useNotificationStore = defineStore("notification", () => {

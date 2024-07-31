@@ -7,14 +7,53 @@ import { isConnected } from "luminary-shared";
 
 type Props = {
     notification: Notification;
-    icon?: FunctionalComponent;
-    bgColor?: string;
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const show = ref(true);
 const isBannerVisible = ref(isConnected);
+
+const icon = ref<FunctionalComponent>();
+if (props.notification.icon) {
+    icon.value = props.notification.icon;
+} else {
+    switch (props.notification.state) {
+        case "success":
+            icon.value = CheckCircleIcon;
+            break;
+        case "error":
+            icon.value = ExclamationCircleIcon;
+            break;
+        case "info":
+            icon.value = ExclamationCircleIcon;
+            break;
+        case "warning":
+            icon.value = ExclamationCircleIcon;
+            break;
+    }
+}
+
+const colour = ref<string>("bg-gray-100");
+const textColor = ref<string>("text-gray-400");
+switch (props.notification.state) {
+    case "success":
+        colour.value = "bg-green-100";
+        textColor.value = "text-green-400";
+        break;
+    case "error":
+        colour.value = "bg-red-100";
+        textColor.value = "text-red-400";
+        break;
+    case "info":
+        colour.value = "bg-blue-100";
+        textColor.value = "text-blue-400";
+        break;
+    case "warning":
+        colour.value = "bg-yellow-100";
+        textColor.value = "text-yellow-400";
+        break;
+}
 </script>
 
 <template>
@@ -25,15 +64,12 @@ const isBannerVisible = ref(isConnected);
         <div class="p-4">
             <div class="flex items-start">
                 <div class="flex-shrink-0">
-                    <CheckCircleIcon
-                        class="h-6 w-6 text-green-400"
+                    <component
+                        :is="icon"
+                        v-if="icon"
+                        class="h-6 w-6"
+                        :class="textColor"
                         aria-hidden="true"
-                        v-if="notification.state == 'success'"
-                    />
-                    <ExclamationCircleIcon
-                        class="h-6 w-6 text-red-400"
-                        aria-hidden="true"
-                        v-if="notification.state == 'error'"
                     />
                 </div>
                 <div class="ml-3 w-0 flex-1 pt-0.5">
