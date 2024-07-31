@@ -17,7 +17,6 @@ export const useNotificationStore = defineStore("notification", () => {
 
     const addNotification = (notification: Notification) => {
         const notificationId = id.value++;
-        const notificationType = notification.type || "toast";
 
         notifications.value = [];
 
@@ -25,13 +24,14 @@ export const useNotificationStore = defineStore("notification", () => {
             notifications.value.push({
                 ...notification,
                 id: notificationId,
-                type: notificationType,
             });
         }, 100);
 
-        setTimeout(() => {
-            notifications.value = notifications.value.filter((n) => n.id != notificationId);
-        }, 2000);
+        if (notification.type == "toast") {
+            setTimeout(() => {
+                notifications.value = notifications.value.filter((n) => n.id != notificationId);
+            }, 4000);
+        }
     };
 
     return { notifications, addNotification };

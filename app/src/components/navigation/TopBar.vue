@@ -2,6 +2,7 @@
 import { PlayCircleIcon, ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRoute, RouterLink } from "vue-router";
+import NotificationManager from "../notifications/NotificationManager.vue";
 
 const route = useRoute();
 </script>
@@ -36,7 +37,6 @@ const route = useRoute();
                 </div>
             </div>
         </div>
-
         <div>
             <NotificationManager type="banner" />
         </div>

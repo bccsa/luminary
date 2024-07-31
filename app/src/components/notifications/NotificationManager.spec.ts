@@ -15,15 +15,27 @@ describe("NotificationManager", () => {
         vi.clearAllMocks();
     });
 
-    it("renders all notifications from the store", () => {
+    it("renders correctly the toast notification from the store", () => {
         const notificationStore = useNotificationStore();
-        notificationStore.notifications = [
-            { title: "First", type: "toast" },
-            { title: "Second", type: "banner" },
-        ];
-        const wrapper = mount(NotificationManager);
+        notificationStore.notifications = [{ title: "First", type: "toast", state: "success" }];
+        const wrapper = mount(NotificationManager, {
+            props: {
+                type: "toast",
+            },
+        });
 
         expect(wrapper.text()).toContain("First");
+    });
+
+    it("renders correctly the banner notification from the store", () => {
+        const notificationStore = useNotificationStore();
+        notificationStore.notifications = [{ title: "Second", type: "banner", state: "info" }];
+        const wrapper = mount(NotificationManager, {
+            props: {
+                type: "banner",
+            },
+        });
+
         expect(wrapper.text()).toContain("Second");
     });
 });

@@ -1,24 +1,15 @@
+q
 <script setup lang="ts">
 import LNotification from "./LNotification.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { storeToRefs } from "pinia";
-import { ref } from "vue";
 
 const { notifications } = storeToRefs(useNotificationStore());
+
 type Props = {
     type: "toast" | "banner";
 };
 defineProps<Props>();
-
-let notificationTypeCheck = ref(false);
-
-if (notifications.value) {
-    let notificationType = notifications.value.filter((c) => c.type == "toast");
-
-    if (notificationType.length > 0) {
-        notificationTypeCheck.value = true;
-    }
-}
 </script>
 
 <template>
@@ -46,10 +37,10 @@ if (notifications.value) {
     </div>
     <div
         aria-live="assertive"
-        class="pointer-events-none fixed inset-0 top-12 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
+        class="fixed inset-x-0 top-12 my-6 flex items-end sm:items-start"
         v-if="type == 'banner'"
     >
-        <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
+        <div class="w-full">
             <LNotification
                 v-for="notification in notifications.filter((c) => c.type == 'banner')"
                 :key="notification.id"
