@@ -174,18 +174,17 @@ describe("EditGroup.vue", () => {
         expect(wrapper.find(discardChangesButton).exists()).toBe(false);
     });
 
-    it.skip("can add a new group", async () => {
-        await db.docs.bulkPut([mockGroupDtoPublicEditors, mockGroupDtoSuperAdmins]);
+    it("can add a new group", async () => {
+        await db.docs.bulkPut([mockGroupDtoPublicEditors, mockGroupDtoPublicContent]);
 
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
         expect(wrapper.text()).not.toContain("Super Admins");
 
-        // TODO: Dropdown list does not appear
         await wrapper.find('button[data-test="addGroupButton"]').trigger("click");
         await wrapper.find('button[data-test="selectGroupButton"]').trigger("click");
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Super Admins");
+            expect(wrapper.text()).toContain("Public Content");
         });
     });
 
@@ -290,5 +289,24 @@ describe("EditGroup.vue", () => {
                 ),
             ).toBeFalsy();
         });
+    });
+
+    it("checks if groups are disabled when no edit permissions", async () => {
+        delete accessMap.value["group-public-content"].group?.edit;
+
+        await db.docs.bulkPut([
+            mockGroupDtoPublicContent,
+            mockGroupDtoPublicEditors,
+            mockGroupDtoPublicUsers,
+            mockGroupDtoSuperAdmins,
+        ]);
+
+        const wrapper = await createWrapper(mockGroupDtoPublicContent);
+
+        expect(wrapper.text()).toContain(
+            "No access to edit permissions to this group (Public Content) and its members.",
+        );
+        expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
+        expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
     });
 });
