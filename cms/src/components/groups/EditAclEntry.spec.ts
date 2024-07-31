@@ -23,7 +23,7 @@ describe("EditAclEntry", () => {
         const th = wrapper.find("th");
         expect(th.classes()).toContain("text-zinc-400");
 
-        // Check if permissionCells have the 'disabled' class or are missing cursor-pointer class
+        // Check if permissionCells are missing the cursor-pointer class
         const permissionCells = wrapper.findAll('[data-test="permissionCell"]');
         permissionCells.forEach((cell) => {
             expect(cell.classes()).not.toContain("cursor-pointer");
