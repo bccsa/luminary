@@ -5,9 +5,11 @@ import TopBar from "@/components/navigation/TopBar.vue";
 import { onBeforeMount } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
-import { getSocket } from "luminary-shared";
+import { getSocket, isConnected } from "luminary-shared";
 import { apiUrl, initLanguage } from "./globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
+import { useNotificationStore } from "./stores/notification";
+import { SignalSlashIcon } from "@heroicons/vue/24/solid";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 
@@ -47,6 +49,19 @@ onBeforeMount(async () => {
         Sentry.captureException(err);
     }
 });
+
+watch(isConnected, (value) => {
+    if (!value) {
+        useNotificationStore().addNotification({
+            title: "You are offline",
+            state: "error",
+            type: "banner",
+            icon: SignalSlashIcon,
+        });
+    } else {
+        // remove notification
+    }
+});
 </script>
 
 <template>
@@ -57,6 +72,6 @@ onBeforeMount(async () => {
     </main>
 
     <Teleport to="body">
-        <NotificationManager />
+        <NotificationManager type="toast" />
     </Teleport>
 </template>

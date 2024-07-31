@@ -1,19 +1,9 @@
 <script setup lang="ts">
-import { PlayCircleIcon, ChevronLeftIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
+import { PlayCircleIcon, ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRoute, RouterLink } from "vue-router";
-import LNotification from "../notifications/LNotification.vue";
-import { useNotificationStore, type Notification } from "@/stores/notification";
-import { isConnected } from "luminary-shared";
 
 const route = useRoute();
-const { addNotification } = useNotificationStore();
-
-const offlineBanner: Notification = { title: "You are Offline", type: "banner" };
-
-if (!isConnected) {
-    addNotification(offlineBanner);
-}
 </script>
 
 <template>
@@ -48,11 +38,7 @@ if (!isConnected) {
         </div>
 
         <div>
-            <LNotification
-                :notification="offlineBanner"
-                :icon="SignalSlashIcon"
-                bgColor="bg-yellow-100"
-            />
+            <NotificationManager type="banner" />
         </div>
     </header>
 </template>

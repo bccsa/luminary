@@ -5,6 +5,10 @@ import { storeToRefs } from "pinia";
 import { ref } from "vue";
 
 const { notifications } = storeToRefs(useNotificationStore());
+type Props = {
+    type: "toast" | "banner";
+};
+defineProps<Props>();
 
 let notificationTypeCheck = ref(false);
 
@@ -21,7 +25,7 @@ if (notifications.value) {
     <div
         aria-live="assertive"
         class="pointer-events-none fixed inset-0 top-12 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
-        v-if="notificationTypeCheck"
+        v-if="type == 'toast'"
     >
         <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
             <TransitionGroup
@@ -33,7 +37,7 @@ if (notifications.value) {
                 leave-to-class="opacity-0"
             >
                 <LNotification
-                    v-for="notification in notifications"
+                    v-for="notification in notifications.filter((c) => c.type == 'toast')"
                     :key="notification.id"
                     :notification
                 />
@@ -43,11 +47,11 @@ if (notifications.value) {
     <div
         aria-live="assertive"
         class="pointer-events-none fixed inset-0 top-12 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
-        v-if="!notificationTypeCheck"
+        v-if="type == 'banner'"
     >
         <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
             <LNotification
-                v-for="notification in notifications"
+                v-for="notification in notifications.filter((c) => c.type == 'banner')"
                 :key="notification.id"
                 :notification
             />
