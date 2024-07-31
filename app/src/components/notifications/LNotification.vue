@@ -3,7 +3,6 @@ import { ref, type FunctionalComponent } from "vue";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
 import type { Notification } from "@/stores/notification";
-import { isConnected } from "luminary-shared";
 
 type Props = {
     notification: Notification;
@@ -12,9 +11,9 @@ type Props = {
 const props = defineProps<Props>();
 
 const show = ref(true);
-const isBannerVisible = ref(isConnected);
 
 const icon = ref<FunctionalComponent>();
+
 if (props.notification.icon) {
     icon.value = props.notification.icon;
 } else {
@@ -36,6 +35,7 @@ if (props.notification.icon) {
 
 const colour = ref<string>("bg-gray-100");
 const textColor = ref<string>("text-gray-400");
+
 switch (props.notification.state) {
     case "success":
         colour.value = "bg-green-100";
@@ -65,8 +65,8 @@ switch (props.notification.state) {
             <div class="flex items-start">
                 <div class="flex-shrink-0">
                     <component
-                        :is="icon"
                         v-if="icon"
+                        :is="icon"
                         class="h-6 w-6"
                         :class="textColor"
                         aria-hidden="true"
@@ -94,10 +94,23 @@ switch (props.notification.state) {
     </div>
 
     <!-- Banner -->
+    <!-- <div v-if="show && notification.type == 'banner'" :class="colour">
+        <div class="flex items-center justify-between px-6 py-1 md:px-6 md:py-1">
+            <div class="flex items-center gap-2">
+                <component :is="icon" class="h-5 w-5" />
+                <div class="flex">
+                    <span class="text-md md:text-sm">{{ notification.title }}</span>
+                </div>
+            </div>
+            <XMarkIcon @click="show = false" class="h-6 w-6 cursor-pointer md:h-5 md:w-5" />
+        </div>
+    </div> -->
+
+    <!-- Banner -->
     <div
-        v-if="!isBannerVisible && notification.type == 'banner'"
+        v-if="show && notification.type == 'banner'"
         class="inset-x-0 top-0 z-50 text-zinc-900"
-        :class="bgColor"
+        :class="colour"
     >
         <div class="flex items-center justify-between px-6 py-1 md:px-6 md:py-1">
             <div class="flex items-center gap-2">
@@ -105,7 +118,7 @@ switch (props.notification.state) {
                 <span class="text-md md:text-sm">{{ notification.title }}</span>
             </div>
             <XMarkIcon
-                @click="isBannerVisible = true"
+                @click="show = false"
                 class="h-6 w-6 cursor-pointer underline md:h-5 md:w-5"
             />
         </div>

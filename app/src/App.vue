@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { onBeforeMount } from "vue";
+import { onBeforeMount, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { getSocket, isConnected } from "luminary-shared";
@@ -50,24 +50,26 @@ onBeforeMount(async () => {
     }
 });
 
-watch(isConnected, (value) => {
-    if (!value) {
-        useNotificationStore().addNotification({
-            title: "You are offline",
-            state: "error",
-            type: "banner",
-            icon: SignalSlashIcon,
-        });
-    } else {
-        // remove notification
-    }
-});
+watch(
+    isConnected,
+    () => {
+        if (!isConnected.value) {
+            useNotificationStore().addNotification({
+                title: "You are offline",
+                state: "warning",
+                type: "banner",
+                icon: SignalSlashIcon,
+            });
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
     <TopBar class="sticky top-0 z-40" />
 
-    <main class="px-6 pt-6">
+    <main class="px-6 pt-8">
         <RouterView />
     </main>
 
