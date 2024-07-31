@@ -350,7 +350,7 @@ const saveChanges = async () => {
                         <LButton
                             v-if="hasEditPermission"
                             size="sm"
-                            @click.prevent="saveChanges()"
+                            @click.prevent="saveChanges"
                             data-test="saveChanges"
                         >
                             Save changes
