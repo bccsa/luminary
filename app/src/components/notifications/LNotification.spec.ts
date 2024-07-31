@@ -10,6 +10,7 @@ describe("LNotification", () => {
                 notification: {
                     title: "Important News",
                     description: "Read this.",
+                    state: "success",
                     type: "toast",
                 },
             },
@@ -22,7 +23,12 @@ describe("LNotification", () => {
     it("can be closed", async () => {
         const wrapper = mount(LNotification, {
             props: {
-                notification: { title: "Important News", description: "Read this.", type: "toast" },
+                notification: {
+                    title: "Important News",
+                    description: "Read this.",
+                    state: "success",
+                    type: "toast",
+                },
             },
         });
 

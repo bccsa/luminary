@@ -94,19 +94,6 @@ switch (props.notification.state) {
     </div>
 
     <!-- Banner -->
-    <!-- <div v-if="show && notification.type == 'banner'" :class="colour">
-        <div class="flex items-center justify-between px-6 py-1 md:px-6 md:py-1">
-            <div class="flex items-center gap-2">
-                <component :is="icon" class="h-5 w-5" />
-                <div class="flex">
-                    <span class="text-md md:text-sm">{{ notification.title }}</span>
-                </div>
-            </div>
-            <XMarkIcon @click="show = false" class="h-6 w-6 cursor-pointer md:h-5 md:w-5" />
-        </div>
-    </div> -->
-
-    <!-- Banner -->
     <div
         v-if="show && notification.type == 'banner'"
         class="inset-x-0 top-0 z-50 text-zinc-900"
