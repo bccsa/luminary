@@ -2,7 +2,10 @@ import { defineStore } from "pinia";
 import { ref, type FunctionalComponent } from "vue";
 
 export type Notification = {
-    id?: number;
+    /**
+     * Optional notification ID. If not provided, it will be generated. The ID is needed to remove the notification.
+     */
+    id?: number | string;
     title: string;
     description?: string;
     state: "success" | "error" | "info" | "warning";
@@ -15,9 +18,16 @@ export const useNotificationStore = defineStore("notification", () => {
     const notifications = ref<Notification[]>([]);
 
     const addNotification = (notification: Notification) => {
-        const notificationId = id.value++;
+        // Do not add the notification if the notification's ID is already in the list
+        if (notifications.value.some((n) => n.id === notification.id)) {
+            return notification.id;
+        }
 
-        notifications.value = [];
+        let notificationId = notification.id;
+        if (!notificationId) {
+            id.value++;
+            notificationId = id.value;
+        }
 
         setTimeout(() => {
             notifications.value.push({
@@ -31,9 +41,11 @@ export const useNotificationStore = defineStore("notification", () => {
                 removeNotification(notificationId);
             }, 4000);
         }
+
+        return notificationId;
     };
 
-    const removeNotification = (notificationId: number) => {
+    const removeNotification = (notificationId: number | string) => {
         notifications.value = notifications.value.filter((n) => n.id !== notificationId);
     };
 

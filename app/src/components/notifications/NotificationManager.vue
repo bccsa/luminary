@@ -37,7 +37,7 @@ defineProps<Props>();
     </div>
     <div
         aria-live="assertive"
-        class="fixed inset-x-0 top-12 my-6 flex items-end sm:items-start"
+        class="inset-x-0 flex items-end sm:items-start"
         v-if="type == 'banner'"
     >
         <div class="w-full">
