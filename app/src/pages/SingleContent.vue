@@ -7,13 +7,17 @@ import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
-import { appName } from "@/globalConfig";
+import { appLanguageAsRef, appName } from "@/globalConfig";
+import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
+import { useRouter } from "vue-router";
 
 type Props = {
     slug: string;
 };
 const props = defineProps<Props>();
+
+const router = useRouter();
 
 const content = db.getBySlugAsRef<ContentDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
@@ -27,9 +31,30 @@ const isExpiredOrScheduled = computed(() => {
 });
 
 watch(
-    content,
+    [content, appLanguageAsRef],
     async () => {
-        if (!content.value) return;
+        if (!content.value) {
+            return;
+        } else {
+            if (appLanguageAsRef.value?._id != content.value.language) {
+                const contentDocs = await db.whereParent(content.value.parentId);
+                const preferred = contentDocs.find(
+                    (c) => c.language == appLanguageAsRef.value?._id,
+                );
+                if (preferred) {
+                    await router.push({ name: "post", params: { slug: preferred.slug } });
+                    content.value = preferred;
+                } else {
+                    useNotificationStore().addNotification({
+                        title: "Translation not found",
+                        description: `There is no ${appLanguageAsRef.value?.name} translation for this content.`,
+                        state: "error",
+                        type: "toast",
+                    });
+                    return;
+                }
+            }
+        }
 
         document.title = isExpiredOrScheduled.value
             ? `Page not found - ${appName}`
