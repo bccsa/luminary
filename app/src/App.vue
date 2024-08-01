@@ -68,6 +68,7 @@ watch(
 
 <template>
     <TopBar class="sticky top-0 z-40" />
+    <NotificationManager type="banner" class="sticky" />
 
     <main class="px-6 pt-8">
         <RouterView />
