@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<Props>(), {
 const router = useRouter();
 
 const openContent = () => {
-    router.push({ name: "post", params: { slug: props.content.slug } });
+    router.push({ name: "content", params: { slug: props.content.slug } });
 };
 </script>
 

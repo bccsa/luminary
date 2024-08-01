@@ -22,7 +22,7 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
-describe("SinglePost", () => {
+describe("SingleContent", () => {
     beforeEach(() => {
         db.docs.bulkPut([
             mockPostDto,
@@ -123,7 +123,6 @@ describe("SinglePost", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Tags");
-            console.log(wrapper.html());
         });
     });
 

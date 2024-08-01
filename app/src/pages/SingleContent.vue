@@ -42,7 +42,7 @@ watch(
                     (c) => c.language == appLanguageAsRef.value?._id,
                 );
                 if (preferred) {
-                    await router.push({ name: "post", params: { slug: preferred.slug } });
+                    await router.push({ name: "content", params: { slug: preferred.slug } });
                     content.value = preferred;
                 } else {
                     useNotificationStore().addNotification({
