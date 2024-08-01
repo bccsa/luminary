@@ -71,7 +71,7 @@ describe("PermissionService", () => {
             expect(diff["group-public-users"][DocType.Tag][AclPermission.Edit]).toBe(true);
         });
 
-        it("accessMapDiff: returns the first AccessMap second AccessMap is invalid", () => {
+        it("accessMapDiff: returns the first AccessMap if the second AccessMap is invalid", () => {
             const accessMap1 = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
             accessMap1["group-public-users"] = new Map<DocType, Map<AclPermission, boolean>>();
             accessMap1["group-public-users"][DocType.Post] = new Map<AclPermission, boolean>();
