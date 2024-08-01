@@ -36,9 +36,9 @@ const route = useRoute();
                     <ProfileMenu />
                 </div>
             </div>
-        </div>
-        <div>
-            <NotificationManager type="banner" />
+            <div>
+                <NotificationManager type="banner" />
+            </div>
         </div>
     </header>
 </template>
