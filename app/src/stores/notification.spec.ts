@@ -42,4 +42,26 @@ describe("notification store", () => {
             expect(store.notifications[0].title).toBe("New");
         });
     });
+
+    it("can remove a notification", async () => {
+        const store = useNotificationStore();
+
+        store.addNotification({
+            title: "Test",
+            type: "banner",
+            state: "success",
+        });
+
+        await waitForExpect(() => {
+            expect(store.notifications.length).toBe(1);
+        });
+
+        const notificationId = store.notifications[0].id;
+
+        store.removeNotification(notificationId!);
+
+        await waitForExpect(() => {
+            expect(store.notifications.length).toBe(0);
+        });
+    });
 });
