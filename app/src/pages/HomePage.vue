@@ -41,7 +41,7 @@ setTimeout(() => {
         </div>
     </div>
     <IgnorePagePadding v-else>
-        <div class="pt-4" v-if="appLanguageIdAsRef">
+        <div v-if="appLanguageIdAsRef">
             <!-- Display latest posts -->
             <HorizontalScrollableTagViewer
                 :key="appLanguageIdAsRef"

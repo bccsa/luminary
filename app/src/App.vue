@@ -50,27 +50,37 @@ onBeforeMount(async () => {
     }
 });
 
-watch(
-    isConnected,
-    () => {
-        if (!isConnected.value) {
-            useNotificationStore().addNotification({
-                title: "You are offline",
-                state: "warning",
-                type: "banner",
-                icon: SignalSlashIcon,
-            });
-        }
-    },
-    { immediate: true },
-);
+// Wait 1 second to allow the socket connection to be established before checking the connection status
+setTimeout(() => {
+    watch(
+        isConnected,
+        () => {
+            if (!isConnected.value) {
+                useNotificationStore().addNotification({
+                    id: "offlineBanner",
+                    title: "You are offline",
+                    description:
+                        "Do not worry - you can still use the app and browse through the offline content.",
+                    state: "warning",
+                    type: "banner",
+                    icon: SignalSlashIcon,
+                });
+            }
+
+            if (isConnected.value) {
+                useNotificationStore().removeNotification("offlineBanner");
+            }
+        },
+        { immediate: true },
+    );
+}, 1000);
 </script>
 
 <template>
     <TopBar class="sticky top-0 z-40" />
     <NotificationManager type="banner" class="sticky" />
 
-    <main class="px-6 pt-8">
+    <main class="px-6 pt-4">
         <RouterView />
     </main>
 
