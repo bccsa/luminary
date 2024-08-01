@@ -42,7 +42,7 @@ watch(
             acl: compactAclEntries(current.acl),
         };
     },
-    { deep: true },
+    { deep: true, immediate: true },
 );
 
 // Clear ACL's with no permissions from the passed group and save to "originalGroupWithoutEmpty"
@@ -54,7 +54,7 @@ watch(
             acl: compactAclEntries(current.acl),
         };
     },
-    { deep: true },
+    { deep: true, immediate: true },
 );
 
 // Keep editable up to date with upstream changes to the passed group
