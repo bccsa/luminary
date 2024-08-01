@@ -27,20 +27,22 @@ describe("notification store", () => {
         });
     });
 
-    it("automatically deletes the previous notification", async () => {
+    it("automatically deletes the notification", async () => {
         const store = useNotificationStore();
-        store.notifications = [{ title: "Previous", type: "toast", state: "success" }];
 
         store.addNotification({
             title: "New",
             type: "toast",
-            state: "success",
+            state: "info",
         });
 
         await waitForExpect(() => {
             expect(store.notifications.length).toBe(1);
-            expect(store.notifications[0].title).toBe("New");
         });
+
+        await waitForExpect(() => {
+            expect(store.notifications.length).toBe(0);
+        }, 5000);
     });
 
     it("can remove a notification", async () => {
