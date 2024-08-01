@@ -16,6 +16,7 @@ For development purposes, CouchDB can be installed as a docker:
 ```shell
 docker run -p 5984:5984 -d couchdb
 ```
+After successfully running couchDB, create a local database via the CouchDB web interface at http://localhost:5984/_utils/
 
 ### S3 storage (MinIO)
 
