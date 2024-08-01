@@ -27,6 +27,7 @@ Configure Prettier as the default formatter, and configure VS Code to automatica
 ```sh
 cp .env.example .env
 ```
+_Ensure you use your own OAuth application and API credentials for development. Replace the placeholders in the .env file with your relevant credentials (e.g., client ID, tenant domain)._
 
 2. Build the shared library
 
