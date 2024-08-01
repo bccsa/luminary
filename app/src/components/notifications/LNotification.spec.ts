@@ -1,9 +1,19 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import LNotification from "./LNotification.vue";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 
 describe("LNotification", () => {
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
     it("renders the title and description", () => {
         const wrapper = mount(LNotification, {
             props: {
