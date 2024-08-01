@@ -158,7 +158,7 @@ describe("PermissionService", () => {
             ).toBe(true);
         });
 
-        it("can calculate inherited groups", () => {
+        it("can calculate downward inherited groups", () => {
             // group-super-admins is the top level group in the testing data set, and group-language the lowest level group.
             // Test if inheritance is replicated through the whole testing data set.
             expect(
@@ -166,6 +166,46 @@ describe("PermissionService", () => {
                     ["group-languages"],
                     DocType.Language,
                     AclPermission.View,
+                    ["group-super-admins"],
+                ),
+            ).toBe(true);
+        });
+
+        it("can calculate upward inherited groups", async () => {
+            // group-super-admins is the top level group in the testing data set, and group-language the lowest level group.
+
+            // Remove language edit access from group-super-admins and test if group-super-admins does not have edit access to group-languages anymore.
+            // ----------------------------------------
+            const groupDoc = (await testingModule.dbService.getDoc("group-super-admins")).docs[0];
+            const langAcl = groupDoc.acl.find(
+                (acl) => acl.groupId === "group-super-admins" && acl.type === "language",
+            );
+            langAcl.permission = langAcl.permission.filter((p) => p !== "edit");
+            PermissionSystem.upsertGroups([groupDoc]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-languages"],
+                    DocType.Language,
+                    AclPermission.Edit,
+                    ["group-super-admins"],
+                ),
+            ).toBe(false);
+
+            // Give language edit access to group-public-editors to the group-languages group and test if group-super-admins has edit access to group-languages again.
+            const groupDoc2 = (await testingModule.dbService.getDoc("group-languages")).docs[0];
+            groupDoc2.acl.push({
+                type: "language",
+                groupId: "group-public-editors",
+                permission: ["view", "edit"],
+            });
+            PermissionSystem.upsertGroups([groupDoc2]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-languages"],
+                    DocType.Language,
+                    AclPermission.Edit,
                     ["group-super-admins"],
                 ),
             ).toBe(true);
