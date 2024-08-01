@@ -2,14 +2,13 @@
 import { PlayCircleIcon, ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRoute, RouterLink } from "vue-router";
-import NotificationManager from "../notifications/NotificationManager.vue";
 
 const route = useRoute();
 </script>
 
 <template>
     <header>
-        <div class="bg-white drop-shadow dark:bg-zinc-700">
+        <div class="z-40 bg-white drop-shadow dark:bg-zinc-700">
             <div class="flex flex-row items-center justify-between space-x-8 px-6 py-5">
                 <RouterLink to="/" class="flex items-center">
                     <div
@@ -35,9 +34,6 @@ const route = useRoute();
                 <div>
                     <ProfileMenu />
                 </div>
-            </div>
-            <div>
-                <NotificationManager type="banner" />
             </div>
         </div>
     </header>

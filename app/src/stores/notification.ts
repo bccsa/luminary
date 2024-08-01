@@ -12,7 +12,6 @@ export type Notification = {
 
 export const useNotificationStore = defineStore("notification", () => {
     const id = ref(0);
-
     const notifications = ref<Notification[]>([]);
 
     const addNotification = (notification: Notification) => {
@@ -29,10 +28,14 @@ export const useNotificationStore = defineStore("notification", () => {
 
         if (notification.type == "toast") {
             setTimeout(() => {
-                notifications.value = notifications.value.filter((n) => n.id != notificationId);
+                removeNotification(notificationId);
             }, 4000);
         }
     };
 
-    return { notifications, addNotification };
+    const removeNotification = (notificationId: number) => {
+        notifications.value = notifications.value.filter((n) => n.id !== notificationId);
+    };
+
+    return { notifications, addNotification, removeNotification };
 });
