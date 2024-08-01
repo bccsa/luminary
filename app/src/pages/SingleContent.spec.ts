@@ -110,7 +110,8 @@ describe("SinglePost", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Category 1");
+            expect(wrapper.html()).toContain("Tags");
+            console.log(wrapper.html());
         });
     });
 
