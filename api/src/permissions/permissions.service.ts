@@ -263,11 +263,15 @@ export class PermissionSystem {
 
         // Remove ACL's not passed with document
         Object.keys(g._aclMap).forEach((aclGroupId: Uuid) => {
-            if (!doc.acl.some((t: GroupAclEntryDto) => t.groupId == aclGroupId)) {
-                Object.keys(g._aclMap[aclGroupId].types).forEach((docType: DocType) => {
+            Object.keys(g._aclMap[aclGroupId].types).forEach((docType: DocType) => {
+                if (
+                    !doc.acl.some(
+                        (t: GroupAclEntryDto) => t.groupId == aclGroupId && t.type == docType,
+                    )
+                ) {
                     g.upsertAcl(g._aclMap[aclGroupId].ref, docType, []);
-                });
-            }
+                }
+            });
         });
 
         doc.acl.forEach((aclEntry: GroupAclEntryDto) => {
