@@ -171,6 +171,25 @@ describe("PermissionService", () => {
             ).toBe(true);
         });
 
+        it("can remove a single docType from an ACL", async () => {
+            // Remove language access from group-super-admins and test if group-super-admins does not have edit access to group-languages anymore.
+            // ----------------------------------------
+            const groupDoc = (await testingModule.dbService.getDoc("group-super-admins")).docs[0];
+            groupDoc.acl = groupDoc.acl.filter((acl) => acl.type !== "language");
+            PermissionSystem.upsertGroups([groupDoc]);
+
+            await waitForExpect(() => {
+                expect(
+                    PermissionSystem.verifyAccess(
+                        ["group-super-admins"],
+                        DocType.Language,
+                        AclPermission.Edit,
+                        ["group-super-admins"],
+                    ),
+                ).toBe(false);
+            });
+        });
+
         it("can calculate upward inherited groups", async () => {
             // group-super-admins is the top level group in the testing data set, and group-language the lowest level group.
 
