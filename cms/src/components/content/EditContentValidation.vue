@@ -10,7 +10,7 @@ import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
-import { RouterLink } from "vue-router";
+import { useRouter, RouterLink } from "vue-router";
 import _ from "lodash";
 // import { sortByName } from "@/util/sortByName";
 
@@ -20,6 +20,7 @@ type Props = {
 };
 const props = defineProps<Props>();
 const content = defineModel<ContentDto>("content");
+const router = useRouter();
 
 // Computed property or method to get sorted languages
 const sortedLanguages = computed(() => {
@@ -31,8 +32,15 @@ const sortedLanguages = computed(() => {
 const contentLanguage = computed(() => {
     if (!content.value || !sortedLanguages.value) return;
     // @ts-ignore we are certain that content exists
-    return sortedLanguages.value.find((l) => content.value.language == l._id);
+    const publishContent = sortedLanguages.value.find((l) => content.value.language == l._id);
+
+    return { publishContent };
 });
+
+// const getLanguageCode = (id: string | undefined) => {
+//     const language = props.languages.find((l) => l._id === id);
+//     return language ? language.languageCode : undefined;
+// };
 
 const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
 
@@ -137,7 +145,7 @@ watch(
     <div class="flex flex-col">
         <div class="flex flex-col gap-2">
             <span class="flex justify-between text-sm text-zinc-900">
-                {{ contentLanguage?.name }}
+                {{ contentLanguage?.publishContent?.name }}
                 <RouterLink
                     :to="{
                         name: 'edit',
@@ -148,6 +156,7 @@ watch(
                                     ? (content as unknown as TagDto).tagType
                                     : undefined,
                             id: content?.parentId,
+                            // languageCode: getLanguageCode(contentLanguage?.publishContent?._id),
                             languageCode: languages.find((l) => l._id == content?.language)
                                 ?.languageCode,
                         },
@@ -163,6 +172,16 @@ watch(
                         class="w-auto"
                         :variant="translationStatus(content)"
                     />
+
+                    <div class="ml-4">
+                        <CheckCircleIcon
+                            v-if="
+                                router.currentRoute.value.params.languageCode ==
+                                contentLanguage?.publishContent?.languageCode
+                            "
+                            class="fixed -ml-2 h-5 w-5 text-zinc-500"
+                        />
+                    </div>
                 </RouterLink>
             </span>
         </div>
