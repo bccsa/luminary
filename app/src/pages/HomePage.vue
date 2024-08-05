@@ -12,7 +12,8 @@ console.log(isAuthenticated.value);
 
 const hasPosts = db.someByTypeAsRef(DocType.Post);
 
-const waitForDataRenderIsOver = waitForDataRender(4.5);
+const noContentMessageDelay = ref(false);
+setTimeout(() => { noContentMessageDelay.value = true }, 1000);
 </script>
 
 <template>
