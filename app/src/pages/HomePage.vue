@@ -5,14 +5,16 @@ import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { DocType, TagType, db } from "luminary-shared";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import { waitForDataRender } from "@/util/waitForDataRender";
+import { ref } from "vue";
 
 const { isAuthenticated } = useAuth0();
-console.log(isAuthenticated.value);
 
 const hasPosts = db.someByTypeAsRef(DocType.Post);
 
-const waitForDataRenderIsOver = waitForDataRender(4.5);
+const noContentMessageDelay = ref(false);
+setTimeout(() => {
+    noContentMessageDelay.value = true;
+}, 1000);
 </script>
 
 <template>
@@ -24,7 +26,7 @@ const waitForDataRenderIsOver = waitForDataRender(4.5);
             </p>
         </div>
         <div v-else>
-            <div v-if="waitForDataRenderIsOver">
+            <div v-if="noContentMessageDelay">
                 <p>There is currently no content available.</p>
 
                 <p class="mt-1">
@@ -41,7 +43,7 @@ const waitForDataRenderIsOver = waitForDataRender(4.5);
     <IgnorePagePadding v-else>
         <div class="pt-4" v-if="appLanguageIdAsRef">
             <!-- Display latest posts -->
-
+            <p v-if="noContentMessageDelay">{{ noContentMessageDelay }}</p>
             <HorizontalScrollableTagViewer
                 :key="appLanguageIdAsRef"
                 title="Newest Content"
