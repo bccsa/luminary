@@ -43,7 +43,6 @@ setTimeout(() => {
     <IgnorePagePadding v-else>
         <div class="pt-4" v-if="appLanguageIdAsRef">
             <!-- Display latest posts -->
-            <p v-if="noContentMessageDelay">{{ noContentMessageDelay }}</p>
             <HorizontalScrollableTagViewer
                 :key="appLanguageIdAsRef"
                 title="Newest Content"
