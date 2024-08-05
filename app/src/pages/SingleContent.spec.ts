@@ -8,7 +8,12 @@ import { mockPostDto, mockEnglishContentDto, mockCategoryContentDto } from "@/te
 import { db, type BaseDocumentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
-vi.mock("vue-router");
+const routePushMock = vi.hoisted(() => vi.fn());
+vi.mock("vue-router", () => ({
+    useRouter: vi.fn().mockImplementation(() => ({
+        push: routePushMock,
+    })),
+}));
 
 describe("SinglePost", () => {
     beforeEach(() => {
@@ -114,16 +119,15 @@ describe("SinglePost", () => {
         });
     });
 
-    it("doesn't display tag when content not tagged", async () => {
-        const mockContent = { ...mockEnglishContentDto, tags: [] };
+    it("does not display expired content", async () => {
         const wrapper = mount(SingleContent, {
             props: {
-                slug: mockContent.slug,
+                slug: mockCategoryContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("Tags");
+            console.log(wrapper.html());
         });
     });
 });

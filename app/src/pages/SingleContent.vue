@@ -10,6 +10,8 @@ import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
 import { appName } from "@/globalConfig";
+import NotFoundPage from "@/pages/NotFoundPage.vue";
+// import { useNotificationStore } from "@/stores/notification";
 
 const router = useRouter();
 
@@ -21,10 +23,29 @@ const props = defineProps<Props>();
 const content = db.getBySlugAsRef<ContentDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
 
+const isExpiredOrScheduled = computed(() => {
+    if (!content.value) return false;
+    return (
+        (content.value && content.value.publishDate! > Date.now()) ||
+        content.value.expiryDate! < Date.now()
+    );
+});
+
 watch(
     content,
     async () => {
         if (!content.value) return;
+
+        // if (content.value.publishDate! > Date.now() || content.value.expiryDate! < Date.now()) {
+        //     useNotificationStore().addNotification({
+        //         title: "Content not found",
+        //         description: "The content you are looking for is not available",
+        //         state: "error",
+        //     });
+
+        //     await router.push({ name: "home" });
+        // }
+
         tagsContent.value = await db.whereParent(
             content.value.tags,
             DocType.Tag,
@@ -87,6 +108,9 @@ onMounted(async () => {
     <div v-if="isLoading">
         <LoadingSpinner />
     </div>
+
+    <NotFoundPage v-else-if="isExpiredOrScheduled" />
+
     <article v-else class="mx-auto mb-12 max-w-3xl">
         <VideoPlayer v-if="content.video" :content="content" />
         <img v-else :src="content.image" class="w-full rounded-lg object-cover shadow-md" />
