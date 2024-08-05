@@ -189,18 +189,29 @@ const disabled = computed(() => {
  * Check if the user will have permission to edit the group
  */
 const hasEditPermission = computed(() => {
-    return (
-        !isDirty.value ||
-        editable.value.acl.some(
-            (a) => a.type == DocType.Group && a.permission.includes(AclPermission.Edit),
-        ) ||
-        // Check if the user will have inherited permissions to edit the group
-        verifyAccess(
-            [...new Set(editableGroupWithoutEmpty.value.acl.map((a) => a.groupId))],
-            DocType.Group,
-            AclPermission.Edit,
-        )
+    // Bypass this check if the group is not in edit mode
+    if (!isDirty.value) return true;
+
+    // Check if the user will have inherited permissions to edit the group (exclude self-assigned permissions)
+    const hasInheritedPermissions = verifyAccess(
+        [
+            ...new Set(
+                editableGroupWithoutEmpty.value.acl
+                    .map((a) => a.groupId)
+                    .filter((g) => g != props.group._id),
+            ),
+        ],
+        DocType.Group,
+        AclPermission.Edit,
     );
+
+    // Check if the ACL includes group edit permissions.
+    // We here rely on the available groups already being filtered with groups to which the user has assign permissions
+    const editableAcl = editable.value.acl.some(
+        (a) => a.type == DocType.Group && a.permission.includes(AclPermission.Edit),
+    );
+
+    return hasInheritedPermissions || editableAcl;
 });
 
 const startEditingGroupName = (e: Event, open: boolean) => {
