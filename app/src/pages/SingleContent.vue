@@ -11,7 +11,6 @@ import { useRouter } from "vue-router";
 import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
 import { appName } from "@/globalConfig";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
-// import { useNotificationStore } from "@/stores/notification";
 
 const router = useRouter();
 
@@ -25,26 +24,13 @@ const tagsContent = ref<ContentDto[]>([]);
 
 const isExpiredOrScheduled = computed(() => {
     if (!content.value) return false;
-    return (
-        (content.value && content.value.publishDate! > Date.now()) ||
-        content.value.expiryDate! < Date.now()
-    );
+    return content.value.publishDate! > Date.now() || content.value.expiryDate! < Date.now();
 });
 
 watch(
     content,
     async () => {
         if (!content.value) return;
-
-        // if (content.value.publishDate! > Date.now() || content.value.expiryDate! < Date.now()) {
-        //     useNotificationStore().addNotification({
-        //         title: "Content not found",
-        //         description: "The content you are looking for is not available",
-        //         state: "error",
-        //     });
-
-        //     await router.push({ name: "home" });
-        // }
 
         tagsContent.value = await db.whereParent(
             content.value.tags,
