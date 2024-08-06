@@ -2,7 +2,6 @@
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
-import LToggle from "@/components/forms/LToggle.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { PencilIcon } from "@heroicons/vue/16/solid";
 import { PublishStatus, type ContentDto, db } from "luminary-shared";
@@ -255,7 +254,36 @@ const publishStatus = computed({
                 <!-- Publish / draft toggle -->
                 <div class="mt-2 flex items-center justify-between">
                     <FormLabel>Status: Draft / Published</FormLabel>
-                    <LToggle v-model="publishStatus" :disabled="disabled" data-test="toggle" />
+                    <div class="flex gap-4">
+                        <label class="text-md" :class="{ 'font-bold uppercase': !publishStatus }">
+                            <input
+                                type="radio"
+                                name="publishStatus"
+                                :value="false"
+                                v-model="publishStatus"
+                                :disabled="disabled"
+                                :class="{
+                                    'text-red-500': !publishStatus,
+                                    'text-gray-700': publishStatus,
+                                }"
+                            />
+                            Draft
+                        </label>
+                        <label class="text-md" :class="{ 'font-bold uppercase': publishStatus }">
+                            <input
+                                type="radio"
+                                name="publishStatus"
+                                :value="true"
+                                v-model="publishStatus"
+                                :disabled="disabled"
+                                :class="{
+                                    'text-green-500': publishStatus,
+                                    'text-gray-700': !publishStatus,
+                                }"
+                            />
+                            Published
+                        </label>
+                    </div>
                 </div>
             </LInput>
 
