@@ -49,10 +49,16 @@ const canEdit = computed(() => {
     >
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
-            class="mb-6 flex items-center justify-between"
+            class="mb-4 flex items-center justify-between"
         >
             <FormLabel>Pinned</FormLabel>
             <LToggle v-model="(parent as TagDto).pinned" :disabled="!canEdit" />
+        </div>
+        <hr />
+
+        <div class="mb-4 mt-4 flex justify-between">
+            <FormLabel>Link Dates</FormLabel>
+            <LToggle v-model="(parent as PostDto).linkDates!" :disabled="!canEdit" />
         </div>
 
         <LInput

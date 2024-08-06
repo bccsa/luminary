@@ -82,6 +82,7 @@ export type PostDto = ContentBaseDto & {
     image: string;
     tags: Uuid[];
     metadata?: ContentMetadataDto[];
+    linkDates?: boolean;
 };
 
 export type TagDto = PostDto & {
