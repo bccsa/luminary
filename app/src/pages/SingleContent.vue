@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import { DocType, db, type ContentDto } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
-import { useRouter } from "vue-router";
-import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
 import { appName } from "@/globalConfig";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
-
-const router = useRouter();
 
 type Props = {
     slug: string;
@@ -31,6 +27,10 @@ watch(
     content,
     async () => {
         if (!content.value) return;
+
+        isExpiredOrScheduled.value
+            ? (document.title = `Page not found - ${appName}`)
+            : (document.title = `${content.value.title} - ${appName}`);
 
         tagsContent.value = await db.whereParent(
             content.value.tags,
@@ -60,24 +60,6 @@ const text = computed(() => {
     }
 
     return generateHTML(text, [StarterKit]);
-});
-
-const loadDocumentNameOrRedirect = async () => {
-    if (content.value) {
-        document.title = `${content.value.title} - ${appName}`;
-    } else {
-        await router.push({ name: "home" });
-    }
-};
-
-onMounted(async () => {
-    if (content.value != undefined) {
-        return await loadDocumentNameOrRedirect();
-    }
-
-    await watchEffectOnceAsync(() => content.value != undefined);
-
-    await loadDocumentNameOrRedirect();
 });
 </script>
 
