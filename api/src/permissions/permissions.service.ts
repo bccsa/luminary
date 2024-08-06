@@ -2,16 +2,95 @@ import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
 import { DbService } from "src/db/db.service";
+import { EventEmitter } from "node:events";
 
 let dbService: DbService;
 
 /**
- * Acl map entry used internally in Group objects
+ * Acl map entry used internally in Group objects containing ACL entries for a given parent group
  */
-type AclMapEntry = {
+type AclGroupMap = {
     ref: PermissionSystem;
     types: Map<DocType, Map<AclPermission, boolean>>;
+    eventHandlers: {
+        parentListUpdated?: (event: GroupParentListUpdateEvent) => void;
+        targetListUpdated?: (event: GroupTargetListUpdateEvent) => void;
+    };
 };
+
+type GroupParentListUpdateEvent = {
+    parent: PermissionSystem;
+    action: "added" | "removed";
+};
+
+type GroupTargetListUpdateEvent = {
+    target: Uuid;
+    action: "added" | "removed";
+};
+
+type AclEntryUpdatedEvent = {
+    aclGroup: AclGroupMap;
+    type: DocType;
+};
+
+/**
+ * Type Group Permission Map with references to target and route groups
+ */
+type TypeGroupPermissionMap = Map<
+    /** Document Type */
+    DocType,
+    Map<
+        /** Permission */
+        AclPermission,
+        Map<
+            /** target group Uuid */
+            Uuid,
+            Map<
+                /** route group Uuid */
+                Uuid,
+                boolean
+            >
+        >
+    >
+>;
+
+/**
+ * Group Type Permission Map with references to target and route groups
+ */
+type GroupTypePermissionMap = Map<
+    /** target group Uuid */
+    Uuid,
+    Map<
+        /** Document Type */
+        DocType,
+        Map<
+            /** Perission */
+            AclPermission,
+            Map<
+                /** route group Uuid */
+                Uuid,
+                boolean
+            >
+        >
+    >
+>;
+
+/**
+ * Route Target Map
+ */
+type TargetRouteTypeMap = Map<
+    /** target group Uuid */
+    Uuid,
+    Map<
+        /** route group Uuid */
+        Uuid,
+        Map<
+            /** Document Type */
+            DocType,
+            boolean
+        >
+    >
+>;
 
 /**
  * Access Map used for access calculations
@@ -27,20 +106,25 @@ const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
  * Represents a permission system that uses a tree structure to organize groups and manage permissions.
  * Each group keeps track of implied permissions and references to parents and children.
  */
-export class PermissionSystem {
-    // The permission system is a tree structure where each node is representing a group. Each group keeps track of implied permissions and references to parents (through the group's ACLs) and to children (through the childGroup map).
-    // The referenced groupMap is a global map of all groups, and is used to look up groups by their ID.
-    private _typePermissionGroupRequestorMap = new Map<
-        DocType,
-        Map<AclPermission, Map<Uuid, Map<Uuid, boolean>>>
-    >();
-    private _groupTypePermissionMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
-    private _aclMap = new Map<Uuid, AclMapEntry>();
-    private _childGroups = new Map<Uuid, PermissionSystem>();
+export class PermissionSystem extends EventEmitter {
+    // The permission system is a tree structure where each node is representing a group.
+    // Each group keeps track of implied permissions and references to parents (through the group's ACLs)
+    // and to children (through the _typePermissionGroupMap and _groupTypePermissionMap).
+
+    private _aclMap = new Map<Uuid, AclGroupMap>();
+    private _typePermissionGroupMap: TypeGroupPermissionMap = new Map();
+    private _groupTypePermissionMap: GroupTypePermissionMap = new Map();
+    private _targetRouteTypeMap: TargetRouteTypeMap = new Map();
+    private _accessMap: AccessMap = new Map();
+
     private _id: Uuid;
 
     private constructor(id: string) {
+        super();
         this._id = id;
+
+        // Subscribe to events
+        this.on("aclEntryUpdated", this.upsertUpstreamInheritedMap);
     }
 
     /**
@@ -94,10 +178,10 @@ export class PermissionSystem {
 
         if (groupIds) {
             groupIds.forEach((id: Uuid) => {
-                const g = groupMap[id];
+                const g = groupMap[id] as PermissionSystem;
                 if (!g) return;
 
-                resultMap = { ...resultMap, ...g._groupTypePermissionMap };
+                resultMap = { ...resultMap, ...g._accessMap };
             });
         }
 
@@ -171,18 +255,18 @@ export class PermissionSystem {
     ): Map<DocType, Uuid[]> {
         const resultMap = new Map<DocType, Uuid[]>();
         memberOfGroups.forEach((memberGroup: Uuid) => {
-            const g = groupMap[memberGroup];
+            const g: PermissionSystem = groupMap[memberGroup];
             if (!g) return;
             types.forEach((type: DocType) => {
                 if (
-                    g._typePermissionGroupRequestorMap[type] &&
-                    g._typePermissionGroupRequestorMap[type][permission]
+                    g._typePermissionGroupMap[type] &&
+                    g._typePermissionGroupMap[type][permission]
                 ) {
                     // Add to result map and remove duplicates
                     if (!resultMap[type]) resultMap[type] = [];
                     const unique = new Set([
                         ...resultMap[type],
-                        ...Object.keys(g._typePermissionGroupRequestorMap[type][permission]),
+                        ...Object.keys(g._typePermissionGroupMap[type][permission]),
                     ]);
                     resultMap[type] = [...unique];
                 }
@@ -201,7 +285,7 @@ export class PermissionSystem {
      * @returns - True if access is granted, otherwise false
      */
     static verifyAccess(
-        targetGroups: Uuid[],
+        targetGroups: Array<Uuid>,
         type: DocType,
         permission: AclPermission,
         memberOfGroups: Array<Uuid>,
@@ -213,15 +297,13 @@ export class PermissionSystem {
                 const g: PermissionSystem = groupMap[memberGroup];
                 if (
                     g &&
-                    g._groupTypePermissionMap[targetGroup] &&
-                    g._groupTypePermissionMap[targetGroup][type] &&
-                    (g._groupTypePermissionMap[targetGroup][type][permission] ||
+                    g._accessMap[targetGroup] &&
+                    g._accessMap[targetGroup][type] &&
+                    (g._accessMap[targetGroup][type][permission] ||
                         // Allow self-assigning permissions to groups if the user has edit access to the group (see issue #257)
                         (targetGroup == memberGroup &&
                             permission == AclPermission.Assign &&
-                            g._groupTypePermissionMap[targetGroup][DocType.Group][
-                                AclPermission.Edit
-                            ]))
+                            g._accessMap[targetGroup][DocType.Group][AclPermission.Edit]))
                 ) {
                     if (validation === "any") {
                         return true;
@@ -246,33 +328,34 @@ export class PermissionSystem {
      */
     static upsertGroups(groupDocs: Array<any>) {
         while (groupDocs.length > 0) {
-            this.updateGroup(groupDocs.splice(0, 1)[0], groupDocs);
+            this.upsertGroup(groupDocs.splice(0, 1)[0], groupDocs);
         }
     }
 
     // Create or update single group
-    private static updateGroup(doc: GroupDto, groupDocs: Array<GroupDto>): PermissionSystem {
+    private static upsertGroup(doc: GroupDto, groupDocs: Array<GroupDto>): PermissionSystem {
         let g: PermissionSystem;
         // Check if group is already in group map
         if (groupMap[doc._id]) {
             g = groupMap[doc._id];
+
+            // Existing groups: Remove ACL's not passed with updated group document
+            Object.keys(g._aclMap).forEach((aclGroupId: Uuid) => {
+                Object.keys(g._aclMap[aclGroupId].types).forEach((docType: DocType) => {
+                    if (
+                        !doc.acl.some(
+                            (t: GroupAclEntryDto) => t.groupId == aclGroupId && t.type == docType,
+                        )
+                    ) {
+                        g.upsertAclEntry(g._aclMap[aclGroupId].ref, docType, []);
+                    }
+                });
+            });
         } else {
+            // Add new group
             g = new PermissionSystem(doc._id);
             groupMap[doc._id] = g;
         }
-
-        // Remove ACL's not passed with document
-        Object.keys(g._aclMap).forEach((aclGroupId: Uuid) => {
-            Object.keys(g._aclMap[aclGroupId].types).forEach((docType: DocType) => {
-                if (
-                    !doc.acl.some(
-                        (t: GroupAclEntryDto) => t.groupId == aclGroupId && t.type == docType,
-                    )
-                ) {
-                    g.upsertAcl(g._aclMap[aclGroupId].ref, docType, []);
-                }
-            });
-        });
 
         doc.acl.forEach((aclEntry: GroupAclEntryDto) => {
             let parent: PermissionSystem = groupMap[aclEntry.groupId];
@@ -284,14 +367,14 @@ export class PermissionSystem {
                 if (i >= 0) {
                     const d = groupDocs.splice(i, 1)[0];
                     if (d) {
-                        parent = this.updateGroup(d, groupDocs);
+                        parent = this.upsertGroup(d, groupDocs);
                     }
                 }
             }
 
             // If the parent now exists, add or update ACL's to this group
             if (parent) {
-                g.upsertAcl(parent, aclEntry.type, aclEntry.permission);
+                g.upsertAclEntry(parent, aclEntry.type, aclEntry.permission);
             }
         });
 
@@ -311,22 +394,14 @@ export class PermissionSystem {
     // Remove single group
     private static removeGroup(docId: Uuid) {
         // Find group in groupMap
-        const g = groupMap[docId];
+        const g: PermissionSystem = groupMap[docId];
         if (g) {
-            // Remove from parent maps
-            Object.values(g._aclMap).forEach((_acl: AclMapEntry) => {
+            // Remove all ACL's
+            Object.values(g._aclMap).forEach((_acl: AclGroupMap) => {
+                const parentGroup = _acl.ref;
                 Object.keys(_acl.types).forEach((_type: DocType) => {
-                    Object.keys(_acl.types[_type]).forEach((_permission: AclPermission) => {
-                        _acl.ref.removeMap(docId, g.id, _type, _permission);
-                    });
+                    g.upsertAclEntry(parentGroup, _type, []);
                 });
-            });
-
-            // Remove ACL in referenced documents
-            Object.values(g._childGroups).forEach((group: PermissionSystem) => {
-                if (group._aclMap[g.id]) {
-                    delete group._aclMap[g.id];
-                }
             });
 
             // Delete from groupMap
@@ -334,252 +409,346 @@ export class PermissionSystem {
         }
     }
 
-    // Add or update acl to Group object
-    private upsertAcl(
+    /**
+     * Add or update acl to Group object and emits events if the ACL entry has changed and / or if the parent list has been updated
+     */
+    private upsertAclEntry(
         parentGroup: PermissionSystem,
         type: DocType,
-        permissions: Array<AclPermission>,
+        permissions: AclPermission[],
     ) {
-        // Add group to map
+        let parentAction: "added" | "removed";
+
+        // Build ACL map
         if (!this._aclMap[parentGroup.id]) {
             this._aclMap[parentGroup.id] = {
                 ref: parentGroup,
                 types: {},
             };
+            parentAction = "added";
         }
 
-        // Store reference to this group in parent group to facilitate automatic ACL removal
-        // when the parent group is deleted
-        if (!parentGroup._childGroups[this.id]) {
-            parentGroup._childGroups[this.id] = this;
-        }
-
-        // Add docType to map
         if (!this._aclMap[parentGroup.id].types[type]) {
             this._aclMap[parentGroup.id].types[type] = {};
         }
 
+        const aclGroup: AclGroupMap = this._aclMap[parentGroup.id];
+
         // Remove revoked permissions from aclMap
-        Object.keys(this._aclMap[parentGroup.id].types[type]).forEach((p: AclPermission) => {
-            if (!permissions.includes(p)) {
-                delete this._aclMap[parentGroup.id].types[type][p];
-
-                // Update parent's map
-                parentGroup.removeMap(this.id, this.id, type, p);
-
-                // Remove inherited permissions from parent's map
-                this.updateParentInheritedMap(this, parentGroup, type, p, "remove");
-            }
-        });
+        Object.keys(aclGroup.types[type])
+            .filter((p: AclPermission) => !permissions.includes(p))
+            .forEach((p: AclPermission) => {
+                delete aclGroup.types[type][p];
+            });
 
         // Add new permissions to aclMap
         permissions.forEach((p) => {
-            if (!this._aclMap[parentGroup.id].types[type][p]) {
-                this._aclMap[parentGroup.id].types[type][p] = true;
-                // Why are we setting this to true? The value is not used, and another alternative would have been to use a Set,
-                // but this makes the code less consistent so we chose to stick to an old-fasioned object here.
-
-                // Update parent's map
-                parentGroup.addMap(this.id, this.id, type, p);
-
-                // Update inherited permissions to parent's map
-                this.updateParentInheritedMap(this, parentGroup, type, p, "add");
+            if (!aclGroup.types[type][p]) {
+                aclGroup.types[type][p] = true;
             }
         });
 
+        // Update downstream inherited permissions before cleaning up the ACL map.
+        // If the ACL entry has been removed, the empty permissions array is needed to trigger the cleanup of inherited maps.
+        this.upsertDownstreamInheritedMap(aclGroup, type);
+
         // Cleanup
-        if (Object.keys(this._aclMap[parentGroup.id].types[type]).length == 0) {
-            delete this._aclMap[parentGroup.id].types[type];
+        if (Object.keys(aclGroup.types[type]).length == 0) {
+            delete aclGroup.types[type];
         }
 
-        if (Object.keys(this._aclMap[parentGroup.id].types).length == 0) {
+        if (Object.keys(aclGroup.types).length == 0) {
+            if (aclGroup.eventHandlers?.parentListUpdated) {
+                parentGroup.off("parentListUpdated", aclGroup.eventHandlers.parentListUpdated);
+            }
+
+            if (aclGroup.eventHandlers?.targetListUpdated) {
+                this.off("targetListUpdated", aclGroup.eventHandlers.targetListUpdated);
+            }
+
             delete this._aclMap[parentGroup.id];
 
-            // remove reference from parent
-            delete parentGroup._childGroups[this.id];
+            parentAction = "removed";
+        }
+
+        // Trigger events
+        if (parentAction) {
+            this.emit("parentListUpdated", {
+                parent: parentGroup,
+                action: parentAction,
+            } as GroupParentListUpdateEvent);
+        }
+
+        this.emit("aclEntryUpdated", { aclGroup, type } as AclEntryUpdatedEvent);
+    }
+
+    /**
+     * Add or update the group's permission map with the passed permissions
+     */
+    private upsertMap(target: Uuid, route: Uuid, type: DocType, permissions: AclPermission[]) {
+        // We are having two maps to simplify access calculations. In both cases the map needs to keep track of the directly connected route to the target group.
+        // Map entries are created for each permission that is granted.
+
+        // An access map is kept in parallel with the groupTypePermissionMap to make access calculations faster.
+
+        // Build Group Type Permission map and access map.
+        // -------------------------------
+        if (!this._groupTypePermissionMap[target]) {
+            this._groupTypePermissionMap[target] = {};
+            this._accessMap[target] = {};
+
+            this.emit("targetListUpdated", {
+                target,
+                action: "added",
+            } as GroupTargetListUpdateEvent);
+        }
+
+        if (!this._groupTypePermissionMap[target][type]) {
+            this._groupTypePermissionMap[target][type] = {};
+            this._accessMap[target][type] = {};
+        }
+
+        // Add routes for new permissions
+        Object.values(permissions).forEach((permission: AclPermission) => {
+            if (!this._groupTypePermissionMap[target][type][permission]) {
+                this._groupTypePermissionMap[target][type][permission] = {};
+                this._accessMap[target][type][permission] = true;
+            }
+
+            if (!this._groupTypePermissionMap[target][type][permission][route]) {
+                this._groupTypePermissionMap[target][type][permission][route] = true;
+            }
+        });
+
+        // Remove routes for revoked permissions
+        Object.keys(this._groupTypePermissionMap[target][type])
+            .filter((p: AclPermission) => !permissions.includes(p))
+            .forEach((permission: AclPermission) => {
+                if (this._groupTypePermissionMap[target][type][permission][route]) {
+                    delete this._groupTypePermissionMap[target][type][permission][route];
+                }
+
+                const routes = Object.keys(this._groupTypePermissionMap[target][type][permission]);
+                if (routes.length == 0) {
+                    delete this._groupTypePermissionMap[target][type][permission];
+                    delete this._accessMap[target][type][permission];
+                }
+            });
+
+        // Cleanup
+        if (Object.keys(this._groupTypePermissionMap[target][type]).length == 0) {
+            delete this._groupTypePermissionMap[target][type];
+            delete this._accessMap[target][type];
+        }
+
+        if (Object.keys(this._groupTypePermissionMap[target]).length == 0) {
+            delete this._groupTypePermissionMap[target];
+            delete this._accessMap[target];
+
+            this.emit("targetListUpdated", {
+                target,
+                action: "removed",
+            } as GroupTargetListUpdateEvent);
+        }
+
+        // Build Type Permission Group map
+        // -------------------------------
+        if (!this._typePermissionGroupMap[type]) {
+            this._typePermissionGroupMap[type] = {};
+        }
+
+        // Add routes for new permissions
+        Object.values(permissions).forEach((permission: AclPermission) => {
+            if (!this._typePermissionGroupMap[type][permission]) {
+                this._typePermissionGroupMap[type][permission] = {};
+            }
+
+            if (!this._typePermissionGroupMap[type][permission][target]) {
+                this._typePermissionGroupMap[type][permission][target] = {};
+            }
+
+            if (!this._typePermissionGroupMap[type][permission][target][route]) {
+                this._typePermissionGroupMap[type][permission][target][route] = true;
+            }
+        });
+
+        // Remove routes for revoked permissions
+        Object.keys(this._typePermissionGroupMap[type])
+            .filter((p: AclPermission) => !permissions.includes(p))
+            .forEach((permission: AclPermission) => {
+                if (
+                    this._typePermissionGroupMap[type][permission][target] &&
+                    this._typePermissionGroupMap[type][permission][target][route]
+                ) {
+                    delete this._typePermissionGroupMap[type][permission][target][route];
+                }
+
+                if (
+                    this._typePermissionGroupMap[type][permission][target] &&
+                    Object.keys(this._typePermissionGroupMap[type][permission][target]).length == 0
+                ) {
+                    delete this._typePermissionGroupMap[type][permission][target];
+                }
+
+                if (Object.keys(this._typePermissionGroupMap[type][permission]).length == 0) {
+                    delete this._typePermissionGroupMap[type][permission];
+                }
+            });
+
+        // Cleanup
+        if (Object.keys(this._typePermissionGroupMap[type]).length == 0) {
+            delete this._typePermissionGroupMap[type];
+        }
+
+        // Build Target Route Type map
+        // ---------------------------
+        if (permissions.length > 0) {
+            if (!this._targetRouteTypeMap[target]) {
+                this._targetRouteTypeMap[target] = {};
+            }
+
+            if (!this._targetRouteTypeMap[target][route]) {
+                this._targetRouteTypeMap[target][route] = {};
+            }
+
+            if (!this._targetRouteTypeMap[target][route][type]) {
+                this._targetRouteTypeMap[target][route][type] = true;
+            }
+        } else {
+            if (
+                this._targetRouteTypeMap[target] &&
+                this._targetRouteTypeMap[target][route] &&
+                this._targetRouteTypeMap[target][route][type]
+            ) {
+                delete this._targetRouteTypeMap[target][route][type];
+            }
+
+            if (
+                this._targetRouteTypeMap[target] &&
+                this._targetRouteTypeMap[target][route] &&
+                Object.keys(this._targetRouteTypeMap[target][route]).length == 0
+            ) {
+                delete this._targetRouteTypeMap[target][route];
+            }
+
+            if (this._targetRouteTypeMap[target]) {
+                const routes = Object.keys(this._targetRouteTypeMap[target]);
+
+                if (routes.length == 1 && routes[0] == this.id) {
+                    // The only route to the target group is from this group, which means that the remaining map is from a self-assigned permission map, which now should be removed.
+                    delete this._groupTypePermissionMap[target];
+                    delete this._accessMap[target];
+
+                    Object.keys(this._typePermissionGroupMap).forEach((type: DocType) => {
+                        Object.keys(this._typePermissionGroupMap[type]).forEach(
+                            (permission: AclPermission) => {
+                                if (this._typePermissionGroupMap[type][permission][target]) {
+                                    delete this._typePermissionGroupMap[type][permission][target];
+                                }
+                            },
+                        );
+                    });
+                }
+            }
+
+            if (
+                this._targetRouteTypeMap[target] &&
+                Object.keys(this._targetRouteTypeMap[target]).length == 0
+            ) {
+                delete this._targetRouteTypeMap[target];
+            }
         }
     }
 
     /**
-     * Iteratively update a parent group's inherited permissions to its children
+     * Update upstream inherited permissions on the parent group's map for a given ACL entry (referring to (1) in permissionSystem.drawio.svg)
+     * This function is an event handler for the AclEntryUpdatedEvent, and should only be called from within a group (PermissionSystem) object (i.e. do not call it on parent or child groups)
      */
-    private updateParentInheritedMap(
-        group: PermissionSystem,
-        parentGroup: PermissionSystem,
-        type: DocType,
-        permission: AclPermission,
-        action: "add" | "remove",
-    ) {
-        // Update inherited permissions to parent's map
-        Object.keys(group._childGroups).forEach((childGroupId: Uuid) => {
-            if (action == "add") {
-                parentGroup.addMap(childGroupId, group.id, type, permission);
-            } else {
-                parentGroup.removeMap(childGroupId, group.id, type, permission);
-            }
+    private upsertUpstreamInheritedMap(event: AclEntryUpdatedEvent) {
+        const parentGroup = event.aclGroup.ref;
+        const permissions = event.aclGroup.types[event.type]
+            ? (Object.keys(event.aclGroup.types[event.type]) as AclPermission[])
+            : [];
 
-            // Prevent infinite loop on self-assigned permissions
-            if (childGroupId != this.id) {
-                const childGroup = group._childGroups[childGroupId];
-                this.updateParentInheritedMap(childGroup, parentGroup, type, permission, action);
-            }
-        });
+        parentGroup.upsertMap(this.id, this.id, event.type, permissions);
+        parentGroup.forwardUpstreamInheritedMap(this.id, event.type, permissions);
     }
 
-    private addMap(
-        childGroupId: Uuid,
-        requesterGroupId: Uuid,
-        type: DocType,
-        permission: AclPermission,
-    ) {
-        // Build Group Type Permission map
-        if (!this._groupTypePermissionMap[childGroupId]) {
-            this._groupTypePermissionMap[childGroupId] = {};
-        }
+    /**
+     * Iteratively forward upstream inherited group maps until the top level parent has been reached (referring to (2) in permissionSystem.drawio.svg)
+     */
+    private forwardUpstreamInheritedMap(target: Uuid, type: DocType, permissions: AclPermission[]) {
+        // Forward inherited permissions to parent groups
+        Object.values(this._aclMap)
+            .filter((aclGroup: AclGroupMap) => aclGroup.ref._id != this._id) // Exclude self-assigned ACLs
+            .forEach((aclGroup: AclGroupMap) => {
+                const parentGroup = aclGroup.ref;
+                parentGroup.upsertMap(target, this.id, type, permissions);
+                parentGroup.forwardUpstreamInheritedMap(target, type, permissions);
 
-        if (!this._groupTypePermissionMap[childGroupId][type]) {
-            this._groupTypePermissionMap[childGroupId][type] = {};
-        }
+                // Subscribe to the parent's "parentListUpdated" event to update upstream inherited permissions on the grandparent when the parent's ACL is updated.
+                if (!aclGroup.eventHandlers) aclGroup.eventHandlers = {};
+                if (!aclGroup.eventHandlers.parentListUpdated) {
+                    const eventHandler = (event: GroupParentListUpdateEvent) => {
+                        const grandparent = event.parent;
+                        const _permissions = event.action == "added" ? permissions : [];
+                        grandparent.upsertMap(target, parentGroup.id, type, _permissions);
+                        grandparent.forwardUpstreamInheritedMap(target, type, _permissions);
+                    };
 
-        if (!this._groupTypePermissionMap[childGroupId][type][permission]) {
-            this._groupTypePermissionMap[childGroupId][type][permission] = true;
-            // Why are we setting this to true? The value is not used, and another alternative would have been to use a Set,
-            // but this makes the code less consistent so we chose to stick to an old-fasioned object here.
-        }
+                    aclGroup.eventHandlers.parentListUpdated = eventHandler;
+                    parentGroup.on("parentListUpdated", eventHandler);
+                }
 
-        // Build Type Permission Group map
-        if (!this._typePermissionGroupRequestorMap[type]) {
-            this._typePermissionGroupRequestorMap[type] = {};
-        }
-
-        if (!this._typePermissionGroupRequestorMap[type][permission]) {
-            this._typePermissionGroupRequestorMap[type][permission] = {};
-        }
-
-        if (!this._typePermissionGroupRequestorMap[type][permission][childGroupId]) {
-            this._typePermissionGroupRequestorMap[type][permission][childGroupId] = {};
-        }
-
-        if (
-            !this._typePermissionGroupRequestorMap[type][permission][childGroupId][requesterGroupId]
-        ) {
-            this._typePermissionGroupRequestorMap[type][permission][childGroupId][
-                requesterGroupId
-            ] = true;
-            // The requesterGroupId is used to keep track of which path the inherited permission is passed. This is needed to
-            // be able to reliably remove permissions in multi-path hierarchies. The group passing an ACL map to an upstream group
-            // will be the requestor.
-
-            Object.values(this._aclMap)
-                // Iterate through acls
-                .forEach((acl: AclMapEntry) => {
-                    //Iterate through docTypes
-                    Object.keys(acl.types).forEach((_type: DocType) => {
-                        Object.keys(acl.types[_type]).forEach((_permission: AclPermission) => {
-                            // Downstream inheritance:
-                            // -----------------------
-                            // Pass this (parent) group's applied permissions to the grandparent group on behalf of the child group.
-                            // This means the grandparent will have at least the same access to the child group as the parent group.
-                            acl.ref.addMap(childGroupId, this.id, _type, _permission);
-
-                            // Upstream inheritance:
-                            // ---------------------
-                            // Pass child group's permissions to the grandparent on behalf of the child group.
-                            // This will ensure that permissions direcly applied to the child group will be passed upstream as inherited permissions,
-                            // expanding the inherited permissions on the grandparent group with any additional permissions applied to the child group.
-                            acl.ref.addMap(childGroupId, this.id, type, permission);
-                        });
-                    });
-                });
-        }
+                // Unsubscribe from parent's "parentListUpdated" event if the ACL entry has been removed
+                if (aclGroup.eventHandlers.parentListUpdated && permissions.length == 0) {
+                    parentGroup.off("parentListUpdated", aclGroup.eventHandlers.parentListUpdated);
+                    delete aclGroup.eventHandlers.parentListUpdated;
+                }
+            });
     }
 
-    private removeMap(
-        childGroupId: Uuid,
-        requestorGroupId: Uuid,
-        type: DocType,
-        permission: AclPermission,
-    ) {
-        // Remove from Type Permission Group map
-        if (
-            this._typePermissionGroupRequestorMap[type] &&
-            this._typePermissionGroupRequestorMap[type][permission] &&
-            this._typePermissionGroupRequestorMap[type][permission][childGroupId] &&
-            this._typePermissionGroupRequestorMap[type][permission][childGroupId][requestorGroupId]
-        ) {
-            delete this._typePermissionGroupRequestorMap[type][permission][childGroupId][
-                requestorGroupId
-            ];
-        }
+    /**
+     * Update downstream inherited group maps for a given DocType in the passed ACL group map (referring to (3) in permissionSystem.drawio.svg)
+     */
+    private upsertDownstreamInheritedMap(aclGroup: AclGroupMap, type: DocType) {
+        const parentGroup = aclGroup.ref;
 
-        if (
-            this._typePermissionGroupRequestorMap[type] &&
-            this._typePermissionGroupRequestorMap[type][permission] &&
-            this._typePermissionGroupRequestorMap[type][permission][childGroupId]
-        ) {
-            const requestorIds = Object.keys(
-                this._typePermissionGroupRequestorMap[type][permission][childGroupId],
-            );
-            // We need to remove self-induced permissions if all external requestors have been removed
-            if (
-                requestorIds.length == 0 ||
-                (requestorIds.length == 1 && requestorIds[0] === this.id)
-            ) {
-                delete this._typePermissionGroupRequestorMap[type][permission][childGroupId];
-            }
-        }
+        // Exclude ACLs that are self-assigned
+        // if (parentGroup._id == this._id) return;
 
-        if (
-            this._typePermissionGroupRequestorMap[type] &&
-            this._typePermissionGroupRequestorMap[type][permission] &&
-            Object.keys(this._typePermissionGroupRequestorMap[type][permission]).length == 0
-        ) {
-            delete this._typePermissionGroupRequestorMap[type][permission];
-        }
+        if (!aclGroup.types[type]) return;
 
-        if (
-            this._typePermissionGroupRequestorMap[type] &&
-            Object.keys(this._typePermissionGroupRequestorMap[type]).length == 0
-        ) {
-            delete this._typePermissionGroupRequestorMap[type];
-        }
-
-        // Remove from Group Type Permission map
-        if (
-            this._groupTypePermissionMap[childGroupId] &&
-            this._groupTypePermissionMap[childGroupId][type] &&
-            this._groupTypePermissionMap[childGroupId][type][permission]
-        ) {
-            delete this._groupTypePermissionMap[childGroupId][type][permission];
-
-            // Remove from parents' maps
-            Object.keys(this._aclMap).forEach((_parentGroupId: Uuid) => {
-                this._aclMap[_parentGroupId].ref.removeMap(childGroupId, this.id, type, permission);
+        // Iterate over all target groups in existing map entries in this group excluding self-assigned permissions (target = this._id)
+        Object.keys(this._groupTypePermissionMap)
+            .filter((target: Uuid) => target != this._id)
+            .forEach((target: Uuid) => {
+                // Set the permissions of the passed ACL entry to the parent group for all children of this group.
+                // This will give the parent group the same permissions to the children of this group as the parent group has to this group.
+                const permissions = Object.keys(aclGroup.types[type]) as AclPermission[];
+                parentGroup.upsertMap(target, this._id, type, permissions);
             });
-        }
 
-        if (
-            this._groupTypePermissionMap[childGroupId] &&
-            this._groupTypePermissionMap[childGroupId][type] &&
-            Object.keys(this._groupTypePermissionMap[childGroupId][type]).length == 0
-        ) {
-            delete this._groupTypePermissionMap[childGroupId][type];
-        }
-
-        if (
-            this._groupTypePermissionMap[childGroupId] &&
-            Object.keys(this._groupTypePermissionMap[childGroupId]).length == 0
-        ) {
-            delete this._groupTypePermissionMap[childGroupId];
-
-            // As there is no permissions left, remove any permissions from parents that has been requested from this group
-            Object.values(this._aclMap).forEach((_acl: AclMapEntry) => {
-                Object.keys(_acl.types).forEach((_type: DocType) => {
-                    Object.keys(_acl.types[_type]).forEach((_permission: AclPermission) => {
-                        _acl.ref.removeMap(childGroupId, this.id, _type, _permission);
-                    });
+        // Subscribe to this group's target group added / removed events the first time this function is called for a given parent group's ACL entries.
+        if (!aclGroup.eventHandlers) aclGroup.eventHandlers = {};
+        if (!aclGroup.eventHandlers.targetListUpdated) {
+            const eventHandler = (event: GroupTargetListUpdateEvent) => {
+                // Update the parent group's downstream inherited permissions with added / removed children to this group for all document types.
+                Object.keys(aclGroup.types).forEach((type: DocType) => {
+                    const permissions =
+                        event.action == "added"
+                            ? (Object.keys(aclGroup.types[type]) as AclPermission[])
+                            : [];
+                    parentGroup.upsertMap(event.target, this._id, type, permissions);
                 });
-            });
+
+                // Note: The targetListUpdated event does not trigger when self-assigned permissions are present for a given target and document type
+                // as the self-assigned permission maps are "sealing" the maps, preventing us from removing the downstream inherited maps with this event handler.
+                // The cleanup for self-assigned permission maps is done in upsertMap().
+            };
+
+            aclGroup.eventHandlers.targetListUpdated = eventHandler;
+            this.on("targetListUpdated", eventHandler);
         }
     }
 
