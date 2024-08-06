@@ -12,6 +12,7 @@ import { CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/
 import LBadge from "../common/LBadge.vue";
 import { useRouter, RouterLink } from "vue-router";
 import _ from "lodash";
+import LCard from "@/components/common/LCard.vue";
 // import { sortByName } from "@/util/sortByName";
 
 type Props = {
@@ -28,13 +29,9 @@ const sortedLanguages = computed(() => {
     return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
 });
 
-// Existing computed property using the sorted languages
-const contentLanguage = computed(() => {
-    if (!content.value || !sortedLanguages.value) return;
-    // @ts-ignore we are certain that content exists
-    const publishContent = sortedLanguages.value.find((l) => content.value.language == l._id);
-
-    return { publishContent };
+const usedLanguage = computed(() => {
+    if (!content.value || !sortedLanguages.value) return null;
+    return sortedLanguages.value.find((l) => content.value?.language == l._id);
 });
 
 // const getLanguageCode = (id: string | undefined) => {
@@ -142,64 +139,65 @@ watch(
 </script>
 
 <template>
-    <div class="flex flex-col">
-        <div class="flex flex-col gap-2">
-            <span class="flex justify-between text-sm text-zinc-900">
-                {{ contentLanguage?.publishContent?.name }}
-                <RouterLink
-                    :to="{
-                        name: 'edit',
-                        params: {
-                            docType: content?.parentType,
-                            tagType:
-                                content?.parentType == DocType.Tag
-                                    ? (content as unknown as TagDto).tagType
-                                    : undefined,
-                            id: content?.parentId,
-                            // languageCode: getLanguageCode(contentLanguage?.publishContent?._id),
-                            languageCode: languages.find((l) => l._id == content?.language)
-                                ?.languageCode,
-                        },
-                    }"
-                    class="flex justify-end"
-                    data-test="edit-button"
-                >
-                    <LBadge
-                        type="language"
-                        :customColor="color"
-                        :customIcon="icon"
-                        :customText="text"
-                        class="w-auto"
-                        :variant="translationStatus(content)"
-                    />
+    <LCard padding="none">
+        <RouterLink
+            :to="{
+                name: 'edit',
+                params: {
+                    docType: content?.parentType,
+                    tagType:
+                        content?.parentType == DocType.Tag
+                            ? (content as unknown as TagDto).tagType
+                            : undefined,
+                    id: content?.parentId,
+                    languageCode: languages.find((l) => l._id == content?.language)?.languageCode,
+                },
+            }"
+            data-test="edit-button"
+        >
+            <div class="flex flex-col hover:bg-zinc-100">
+                <span class="m-2 flex items-center justify-between p-0 text-sm text-zinc-900">
+                    {{ usedLanguage?.name }}
 
-                    <div class="ml-4">
+                    <div class="flex items-center gap-3">
+                        <LBadge
+                            type="language"
+                            :customColor="color"
+                            :customIcon="icon"
+                            :customText="text"
+                            class="-ml-2 w-auto"
+                            :variant="translationStatus(content)"
+                        />
+
                         <CheckCircleIcon
                             v-if="
                                 router.currentRoute.value.params.languageCode ==
-                                contentLanguage?.publishContent?.languageCode
+                                usedLanguage?.languageCode
                             "
-                            class="fixed -ml-2 h-5 w-5 text-zinc-500"
+                            class="-ml-2 h-5 w-5 text-zinc-500"
                         />
                     </div>
-                </RouterLink>
-            </span>
+                </span>
+            </div>
+        </RouterLink>
+
+        <div :class="{ ' bg-zinc-100 px-2 py-1': !isValid || isContentDirty }">
+            <div class="flex items-center gap-2" v-if="!isValid || isContentDirty">
+                <p>
+                    <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                </p>
+                <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
+            </div>
+            <div
+                v-for="validation in validations.filter((v) => !v.isValid)"
+                :key="validation.id"
+                class="flex items-center gap-2"
+            >
+                <p>
+                    <XCircleIcon class="h-4 w-4 text-red-400" />
+                </p>
+                <p class="h-4 text-xs text-zinc-700">{{ validation.message }}</p>
+            </div>
         </div>
-        <div class="flex items-center gap-2" v-if="!isValid || isContentDirty">
-            <p>
-                <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-            </p>
-            <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
-        </div>
-        <div
-            v-for="validation in validations.filter((v) => !v.isValid)"
-            :key="validation.id"
-            class="flex items-center gap-2"
-        >
-            <p>
-                <XCircleIcon class="h-4 w-4 text-red-400" />
-            </p>
-            <p class="h-4 text-xs text-zinc-700">{{ validation.message }}</p>
-        </div>
-    </div>
+    </LCard>
 </template>
