@@ -160,15 +160,6 @@ watch(
 
         <template #footer>
             <div v-show="true" class="flex flex-col gap-2">
-                <LanguageSelector
-                    v-if="untranslatedLanguages.length > 0"
-                    :languages="untranslatedLanguages"
-                    :parent="parent"
-                    :content="contentDocs"
-                    @create-translation="createTranslation"
-                    class="w-full justify-start"
-                />
-
                 <p v-if="!overallIsValid && !isParentDirty" class="text-sm text-zinc-700">
                     There are some errors that prevent saving
                 </p>
@@ -207,6 +198,14 @@ watch(
                         :contentPrev="contentPrev?.find((c) => c._id == content._id)"
                     />
                 </div>
+                <LanguageSelector
+                    v-if="untranslatedLanguages.length > 0"
+                    :languages="untranslatedLanguages"
+                    :parent="parent"
+                    :content="contentDocs"
+                    @create-translation="createTranslation"
+                    class="w-full justify-start"
+                />
             </div>
         </template>
     </LCard>

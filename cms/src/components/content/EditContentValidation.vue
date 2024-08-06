@@ -73,6 +73,13 @@ const translationStatus = computed(() => {
             return;
         }
 
+        if (isContentDirty.value && content?.status != PublishStatus.Draft) {
+            text.value = "Published";
+            icon.value = ExclamationCircleIcon;
+            color.value = "bg-yellow-100 ring-yellow-200 text-yellow-700";
+            return;
+        }
+
         if (content?.status == PublishStatus.Published) {
             text.value = "Published";
             icon.value = CheckCircleIcon;
@@ -155,29 +162,32 @@ watch(
             }"
             data-test="edit-button"
         >
-            <div class="flex flex-col hover:bg-zinc-100">
-                <span class="m-2 flex items-center justify-between p-0 text-sm text-zinc-900">
-                    {{ usedLanguage?.name }}
+            <div>
+                <div class="flex flex-col hover:bg-zinc-100">
+                    <span class="m-2 flex items-center justify-between p-0 text-sm text-zinc-900">
+                        <div class="static">
+                            <CheckCircleIcon
+                                v-if="
+                                    router.currentRoute.value.params.languageCode ==
+                                    usedLanguage?.languageCode
+                                "
+                                class="absolute -left-[-11.3px] -ml-2 h-4 w-4 text-zinc-500"
+                            />
+                            {{ usedLanguage?.name }}
+                        </div>
 
-                    <div class="flex items-center gap-3">
-                        <LBadge
-                            type="language"
-                            :customColor="color"
-                            :customIcon="icon"
-                            :customText="text"
-                            class="-ml-2 w-auto"
-                            :variant="translationStatus(content)"
-                        />
-
-                        <CheckCircleIcon
-                            v-if="
-                                router.currentRoute.value.params.languageCode ==
-                                usedLanguage?.languageCode
-                            "
-                            class="-ml-2 h-5 w-5 text-zinc-500"
-                        />
-                    </div>
-                </span>
+                        <div class="flex items-center gap-3">
+                            <LBadge
+                                type="language"
+                                :customColor="color"
+                                :customIcon="icon"
+                                :customText="text"
+                                class="-ml-2 w-auto"
+                                :variant="translationStatus(content)"
+                            />
+                        </div>
+                    </span>
+                </div>
             </div>
         </RouterLink>
 

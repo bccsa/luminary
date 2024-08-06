@@ -207,7 +207,7 @@ watch(selectedLanguage, () => {
         }"
         v-if="parent"
     >
-        <template #actions v-if="selectedLanguage">
+        <!-- <template #actions v-if="selectedLanguage">
             <LanguageSelector
                 :parent="parent"
                 :content="contentDocs"
@@ -215,7 +215,7 @@ watch(selectedLanguage, () => {
                 v-model="selectedLanguageId"
                 @createTranslation="createTranslation"
             />
-        </template>
+        </template> -->
         <div class="relative grid grid-cols-3 gap-8">
             <!-- Main area -->
             <div class="col-span-3 md:col-span-2">

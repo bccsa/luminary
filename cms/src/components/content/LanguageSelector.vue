@@ -81,7 +81,7 @@ const translationStatus = computed(() => {
                 <span v-if="selectedLanguage">
                     {{ selectedLanguageName }}
                 </span>
-                <span v-else>Select language</span>
+                <span v-else>Add a language</span>
                 <ChevronDownIcon class="-mr-1 h-5 w-5 text-zinc-400" aria-hidden="true" />
             </MenuButton>
         </div>
