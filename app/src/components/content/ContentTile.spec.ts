@@ -70,7 +70,7 @@ describe("ContentTile", () => {
         await wrapper.trigger("click");
 
         expect(routePushMock).toHaveBeenCalledWith({
-            name: "post",
+            name: "content",
             params: { slug: mockEnglishContentDto.slug },
         });
     });

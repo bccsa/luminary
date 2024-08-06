@@ -10,7 +10,7 @@ import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router");
 
-describe("SinglePost", () => {
+describe("SingleContent", () => {
     beforeEach(() => {
         db.docs.bulkPut([
             mockPostDto,
