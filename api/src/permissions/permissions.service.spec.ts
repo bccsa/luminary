@@ -176,6 +176,7 @@ describe("PermissionService", () => {
             // Remove language access from group-super-admins and test if group-super-admins does not have edit access to group-languages anymore.
             // ----------------------------------------
             const groupDoc = (await testingModule.dbService.getDoc("group-super-admins")).docs[0];
+            const languageAcls = groupDoc.acl.filter((acl) => acl.type === "language");
             groupDoc.acl = groupDoc.acl.filter((acl) => acl.type !== "language");
             PermissionSystem.upsertGroups([groupDoc]);
 
@@ -189,15 +190,9 @@ describe("PermissionService", () => {
                     ),
                 ).toBe(false);
             });
-        });
 
-        it("can calculate upward inherited groups", async () => {
-            // Remove language access from group-super-admins and test if group-super-admins does not have edit access to group-languages anymore.
-            // ----------------------------------------
-            const groupDoc = (await testingModule.dbService.getDoc("group-super-admins")).docs[0];
-            groupDoc.acl = groupDoc.acl.filter(
-                (acl) => acl.type != "language" && acl.type != "post",
-            );
+            // Restore language access for further tests
+            groupDoc.acl = groupDoc.acl.concat(languageAcls);
             PermissionSystem.upsertGroups([groupDoc]);
 
             await waitForExpect(() => {
@@ -208,11 +203,27 @@ describe("PermissionService", () => {
                         AclPermission.Edit,
                         ["group-super-admins"],
                     ),
-                ).toBe(false);
+                ).toBe(true);
             });
+        });
 
-            // Create a middle level group, and give group-super-admins only view access to post documents on it.
-            // ----------------------------------------
+        it("can calculate upward inherited groups for non-group documents", async () => {
+            // Create a top-level group with only self-assigned view access to post documents.
+            const groupDoc1: GroupDto = new GroupDto();
+            groupDoc1._id = "group-test-top";
+            groupDoc1.type = DocType.Group;
+            groupDoc1.updatedTimeUtc = 3;
+            groupDoc1.name = "Test Top Group";
+            groupDoc1.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-top",
+                    permission: [AclPermission.View],
+                },
+            ];
+            PermissionSystem.upsertGroups([groupDoc1]);
+
+            // Create a middle level group, and give group-test-top only view access to post documents on it.
             const groupDoc2: GroupDto = new GroupDto();
             groupDoc2._id = "group-test-middle";
             groupDoc2.type = DocType.Group;
@@ -221,7 +232,7 @@ describe("PermissionService", () => {
             groupDoc2.acl = [
                 {
                     type: DocType.Post,
-                    groupId: "group-super-admins",
+                    groupId: "group-test-top",
                     permission: [AclPermission.View],
                 },
             ];
@@ -232,12 +243,11 @@ describe("PermissionService", () => {
                     ["group-test-middle"],
                     DocType.Post,
                     AclPermission.View,
-                    ["group-super-admins"],
+                    ["group-test-top"],
                 ),
             ).toBe(true);
 
             // Create a lower level group, and give group-test-middle language document edit access to it.
-            // ----------------------------------------
             const groupDoc3: GroupDto = new GroupDto();
             groupDoc3._id = "group-test-low";
             groupDoc3.type = DocType.Group;
@@ -252,13 +262,13 @@ describe("PermissionService", () => {
             ];
             PermissionSystem.upsertGroups([groupDoc3]);
 
-            // Both group-super-admins and group-test-middle should have edit access to group-test-low
+            // Both group-test-top and group-test-middle should have edit access to group-test-low
             expect(
                 PermissionSystem.verifyAccess(
                     ["group-test-low"],
                     DocType.Language,
                     AclPermission.Edit,
-                    ["group-super-admins"],
+                    ["group-test-top"],
                 ),
             ).toBe(true);
             expect(
@@ -269,9 +279,38 @@ describe("PermissionService", () => {
                     ["group-test-middle"],
                 ),
             ).toBe(true);
+
+            // Add and remove language edit access to the top level group,
+            // and check if the top level group still has language edit access to the low level group
+            const groupDoc1a = {
+                ...groupDoc1,
+                acl: [
+                    {
+                        type: DocType.Post,
+                        groupId: "group-test-top",
+                        permission: [AclPermission.View],
+                    },
+                    {
+                        type: DocType.Language,
+                        groupId: "group-test-top",
+                        permission: [AclPermission.View, AclPermission.Edit],
+                    },
+                ],
+            };
+            PermissionSystem.upsertGroups([groupDoc1a]);
+            PermissionSystem.upsertGroups([groupDoc1]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-low"],
+                    DocType.Language,
+                    AclPermission.Edit,
+                    ["group-test-top"],
+                ),
+            ).toBe(true);
         });
 
-        it("can update inherited groups", () => {
+        it("can update downward inherited groups", () => {
             // Use modified version of existing document in test data set and see if it successfully updates the permission system
             PermissionSystem.upsertGroups([
                 {
