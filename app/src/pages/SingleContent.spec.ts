@@ -122,7 +122,7 @@ describe("SingleContent", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Tags");
+            expect(wrapper.html()).toContain("Category 1");
         });
     });
 
