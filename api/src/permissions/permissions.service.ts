@@ -680,7 +680,7 @@ export class PermissionSystem extends EventEmitter {
     private forwardUpstreamInheritedMap(target: Uuid, type: DocType, permissions: AclPermission[]) {
         // Forward inherited permissions to parent groups
         Object.values(this._aclMap)
-            .filter((aclGroup: AclGroupMap) => aclGroup.ref._id != this._id) // Exclude self-assigned ACLs
+            .filter((aclGroup: AclGroupMap) => aclGroup.ref.id != this.id) // Exclude self-assigned ACLs
             .forEach((aclGroup: AclGroupMap) => {
                 const parentGroup = aclGroup.ref;
                 parentGroup.upsertMap(target, this.id, type, permissions);
@@ -714,19 +714,16 @@ export class PermissionSystem extends EventEmitter {
     private upsertDownstreamInheritedMap(aclGroup: AclGroupMap, type: DocType) {
         const parentGroup = aclGroup.ref;
 
-        // Exclude ACLs that are self-assigned
-        // if (parentGroup._id == this._id) return;
-
         if (!aclGroup.types[type]) return;
 
-        // Iterate over all target groups in existing map entries in this group excluding self-assigned permissions (target = this._id)
+        // Iterate over all target groups in existing map entries in this group excluding self-assigned permissions (target = this.id)
         Object.keys(this._groupTypePermissionMap)
-            .filter((target: Uuid) => target != this._id)
+            .filter((target: Uuid) => target != this.id)
             .forEach((target: Uuid) => {
                 // Set the permissions of the passed ACL entry to the parent group for all children of this group.
                 // This will give the parent group the same permissions to the children of this group as the parent group has to this group.
                 const permissions = Object.keys(aclGroup.types[type]) as AclPermission[];
-                parentGroup.upsertMap(target, this._id, type, permissions);
+                parentGroup.upsertMap(target, this.id, type, permissions);
             });
 
         // Subscribe to this group's target group added / removed events the first time this function is called for a given parent group's ACL entries.
@@ -734,12 +731,12 @@ export class PermissionSystem extends EventEmitter {
         if (!aclGroup.eventHandlers.targetListUpdated) {
             const eventHandler = (event: GroupTargetListUpdateEvent) => {
                 // Update the parent group's downstream inherited permissions with added / removed children to this group for all document types.
-                Object.keys(aclGroup.types).forEach((type: DocType) => {
+                Object.keys(aclGroup.types).forEach((_type: DocType) => {
                     const permissions =
                         event.action == "added"
-                            ? (Object.keys(aclGroup.types[type]) as AclPermission[])
+                            ? (Object.keys(aclGroup.types[_type]) as AclPermission[])
                             : [];
-                    parentGroup.upsertMap(event.target, this._id, type, permissions);
+                    parentGroup.upsertMap(event.target, this.id, _type, permissions);
                 });
 
                 // Note: The targetListUpdated event does not trigger when self-assigned permissions are present for a given target and document type
