@@ -52,12 +52,20 @@ const canEdit = computed(() => {
             class="mb-6 flex items-center justify-between"
         >
             <FormLabel>Pinned</FormLabel>
-            <LToggle v-model="(parent as TagDto).pinned" :disabled="!canEdit" />
+            <LToggle
+                v-model="(parent as TagDto).pinned"
+                :disabled="!canEdit"
+                data-testId="pinned-LToggle"
+            />
         </div>
 
         <div class="mb-6 flex items-center justify-between">
             <FormLabel>Link Dates</FormLabel>
-            <LToggle v-model="(parent as PostDto).linkDates!" :disabled="!canEdit" />
+            <LToggle
+                v-model="(parent as PostDto).linkDates!"
+                :disabled="!canEdit"
+                data-testId="linkDates-LToggle"
+            />
         </div>
 
         <LInput
