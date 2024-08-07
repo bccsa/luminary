@@ -1,10 +1,40 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import EditContentValidation from "./EditContentValidation.vue";
 import { PublishStatus } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRouter: () => ({
+            currentRoute: {
+                value: {
+                    params: {
+                        languageCode: "eng",
+                    },
+                },
+            },
+        }),
+    };
+});
+
+// const routePushMock = vi.fn();
+
+// vi.mock("vue-router", async (importOriginal) => {
+//     const actual = await importOriginal();
+//     return {
+//         // @ts-expect-error
+//         ...actual,
+//         useRouter: () => ({
+//             push: routePushMock,
+//         }),
+//     };
+// });
 
 describe("EditContentValidation.vue", () => {
     it("don't show validation error if no errors", async () => {
@@ -106,6 +136,7 @@ describe("EditContentValidation.vue", () => {
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("English");
                 expect(wrapper.text()).toContain("Scheduled");
+                // console.log(wrapper.html());
             });
         });
 

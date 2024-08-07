@@ -9,6 +9,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import { DateTime } from "luxon";
 import { Slug } from "@/util/slug";
 import { BackspaceIcon } from "@heroicons/vue/20/solid";
+// import LToggle from "../forms/LToggle.vue";
 
 type Props = {
     disabled: boolean;
@@ -252,13 +253,17 @@ const publishStatus = computed({
                 </div> -->
 
                 <!-- Publish / draft toggle -->
-                <div class="mt-2 flex items-center justify-between">
-                    <FormLabel>Status: Draft / Published</FormLabel>
-                    <div class="flex gap-4">
-                        <label class="text-md" :class="{ 'font-bold uppercase': !publishStatus }">
+                <div class="mt-2 flex flex-col">
+                    <FormLabel>Content status:</FormLabel>
+                    <div class="mt-2 flex flex-col">
+                        <label
+                            class="text-md"
+                            :class="{ 'font-bold uppercase': !publishStatus }"
+                            data-test="draft"
+                        >
                             <input
                                 type="radio"
-                                name="publishStatus"
+                                name="draftStatus"
                                 :value="false"
                                 v-model="publishStatus"
                                 :disabled="disabled"
@@ -269,7 +274,11 @@ const publishStatus = computed({
                             />
                             Draft
                         </label>
-                        <label class="text-md" :class="{ 'font-bold uppercase': publishStatus }">
+                        <label
+                            class="text-md"
+                            :class="{ 'font-bold uppercase': publishStatus }"
+                            data-test="publish"
+                        >
                             <input
                                 type="radio"
                                 name="publishStatus"

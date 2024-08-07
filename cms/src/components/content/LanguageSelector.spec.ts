@@ -60,7 +60,7 @@ describe("LanguageSelector.vue", () => {
             },
         });
 
-        expect(wrapper.text()).toContain("Select language");
+        expect(wrapper.text()).toContain("Add a language");
         expect(wrapper.text()).not.toContain("English");
         expect(wrapper.text()).not.toContain("French");
         expect(wrapper.text()).not.toContain("Swahili");
