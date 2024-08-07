@@ -1,10 +1,27 @@
 import "fake-indexeddb/auto";
-import { describe, it, afterEach, beforeEach, expect } from "vitest";
+import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRouter: () => ({
+            currentRoute: {
+                value: {
+                    params: {
+                        languageCode: "eng",
+                    },
+                },
+            },
+        }),
+    };
+});
 
 describe("EditContentParentValidation.vue", () => {
     beforeEach(async () => {
