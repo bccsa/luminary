@@ -27,10 +27,28 @@ describe("EditContentParent.vue", () => {
         });
 
         // // Check if the LToggle component is rendered
-        const toggle = wrapper.findComponent({ name: "LToggle" });
+        const toggle = wrapper.find('[data-testId="pinned-LToggle"]');
         expect(toggle.exists()).toBe(true);
 
-        expect(toggle.props("modelValue")).toBe(true);
+        const props = toggle.getCurrentComponent()?.props;
+        expect(props!["modelValue"]).toBe(true);
+    });
+
+    it("test the link date toggle", async () => {
+        const parent = ref<PostDto>({ ...mockData.mockPostDto, linkDates: true });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                modelValue: parent.value,
+            },
+        });
+
+        // // Check if the LToggle component is rendered
+        const toggle = wrapper.find('[data-testId="linkDates-LToggle"]');
+        expect(toggle.exists()).toBe(true);
+
+        const props = toggle.getCurrentComponent()?.props;
+        expect(props!["modelValue"]).toBe(true);
     });
 
     it("test the image input", async () => {
