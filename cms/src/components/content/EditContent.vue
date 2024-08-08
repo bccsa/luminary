@@ -214,17 +214,7 @@ watch(selectedLanguage, () => {
         }"
         v-if="parent"
     >
-        <!-- <template #actions v-if="selectedLanguage">
-            <LanguageSelector
-                :parent="parent"
-                :content="contentDocs"
-                :languages="languages"
-                v-model="selectedLanguageId"
-                @createTranslation="createTranslation"
-            />
-        </template> -->
         <div class="relative grid grid-cols-3 gap-8">
-            <!-- Main area -->
             <div class="col-span-3 md:col-span-2">
                 <EmptyState
                     v-if="!selectedContent"
@@ -253,7 +243,6 @@ watch(selectedLanguage, () => {
             <!-- Sidebar -->
             <div class="col-span-3 md:col-span-1" v-if="parent">
                 <div class="sticky top-20 space-y-6">
-                    <!-- Validation -->
                     <EditContentParentValidation
                         v-if="contentDocs"
                         v-model:parent="parent"
@@ -265,9 +254,7 @@ watch(selectedLanguage, () => {
                         :contentPrev="contentDocsPrev"
                         :parentPrev="parentPrev"
                     />
-                    <!-- Live View -->
                     <EditContentPreview v-if="selectedContent" :content="selectedContent" />
-                    <!-- Parent settings -->
                     <EditContentParent
                         v-if="parent"
                         :docType="props.docType"
