@@ -2,7 +2,7 @@
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
-import FormLabel from "@/components/forms/FormLabel.vue";
+import LTextToggle from "@/components/forms/LTextToggle.vue";
 import { PublishStatus, type ContentDto, db } from "luminary-shared";
 import { computed, ref } from "vue";
 import { DateTime } from "luxon";
@@ -97,22 +97,21 @@ const clearExpiryDate = () => {
     if (content.value) content.value.expiryDate = undefined;
     clearExpirySelection();
 };
-
-const publishStatus = computed({
-    get() {
-        if (!content.value) return false;
-        return content.value.status == PublishStatus.Published;
-    },
-    set(val) {
-        if (!content.value) return;
-        content.value.status = val ? PublishStatus.Published : PublishStatus.Draft;
-    },
-});
 </script>
 
 <template>
     <LCard title="Status" collapsible v-if="content">
-        <div class="flex flex-col gap-4 sm:flex-row">
+        <div>
+            <LTextToggle
+                v-model="content.status"
+                leftLabel="Draft"
+                :leftValue="PublishStatus.Draft"
+                rightLabel="Published"
+                :rightValue="PublishStatus.Published"
+            />
+        </div>
+
+        <div class="mt-4 flex flex-col gap-4 sm:flex-row">
             <!-- Publish date -->
             <LInput
                 name="publishDate"
@@ -121,50 +120,7 @@ const publishStatus = computed({
                 type="datetime-local"
                 :disabled="disabled"
                 v-model="publishDateString"
-            >
-                <!-- Publish / draft toggle -->
-                <div class="mt-2 flex flex-col">
-                    <FormLabel>Content status:</FormLabel>
-                    <div class="mt-2 flex flex-col">
-                        <label
-                            class="text-md"
-                            :class="{ 'font-bold uppercase': !publishStatus }"
-                            data-test="draft"
-                        >
-                            <input
-                                type="radio"
-                                name="draftStatus"
-                                :value="false"
-                                v-model="publishStatus"
-                                :disabled="disabled"
-                                :class="{
-                                    'text-red-500': !publishStatus,
-                                    'text-gray-700': publishStatus,
-                                }"
-                            />
-                            Draft
-                        </label>
-                        <label
-                            class="text-md"
-                            :class="{ 'font-bold uppercase': publishStatus }"
-                            data-test="publish"
-                        >
-                            <input
-                                type="radio"
-                                name="publishStatus"
-                                :value="true"
-                                v-model="publishStatus"
-                                :disabled="disabled"
-                                :class="{
-                                    'text-green-500': publishStatus,
-                                    'text-gray-700': !publishStatus,
-                                }"
-                            />
-                            Published
-                        </label>
-                    </div>
-                </div>
-            </LInput>
+            />
 
             <!-- Expiry date -->
             <LInput
