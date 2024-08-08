@@ -726,7 +726,10 @@ export class PermissionSystem extends EventEmitter {
         type: DocType,
         permissions: AclPermission[],
     ) {
-        const appendedRoute = this.id + "-" + route;
+        // Prevent infinite loops with circular permissions (i.e. when a group is indirectly a parent of itself)
+        if (route != this.id && route.includes(this.id)) return;
+
+        const appendedRoute = this.id + "_" + route;
         // Forward inherited permissions to parent groups
         Object.values(this._aclMap)
             .filter((aclGroup: AclGroupMap) => aclGroup.ref.id != this.id) // Exclude self-assigned ACLs
