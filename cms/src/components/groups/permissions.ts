@@ -1,5 +1,5 @@
 import { AclPermission, DocType, type GroupAclEntryDto, type GroupDto } from "luminary-shared";
-import { computed } from "vue";
+import { computed, toRaw } from "vue";
 
 export const availablePermissionsPerDocType = {
     [DocType.Group]: [
@@ -77,7 +77,7 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         !aclEntry.permission.includes(AclPermission.View) &&
         prevAclEntry.permission.length === 0
     ) {
-        aclEntry.permission = [AclPermission.View, ...aclEntry.permission]; // We need to recreate the array to trigger reactivity
+        aclEntry.permission.push(AclPermission.View);
     }
 
     // Remove all other permissions if the view permission is removed
@@ -101,10 +101,25 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         aclEntry.permission.includes(AclPermission.Edit) &&
         !aclEntry.permission.includes(AclPermission.Assign)
     ) {
-        aclEntry.permission = [...aclEntry.permission, AclPermission.Assign]; // We need to recreate the array to trigger reactivity
+        aclEntry.permission.push(AclPermission.Assign);
     }
 
-    // Sort the permissions list to help prevent dirty checking issues. If the permissions list was stored unsorted in the database
-    // the dirty check will still show a change even though the permissions are the same, but after saving it will work correctly.
-    aclEntry.permission.sort();
+    // Remove invalid permissions
+    aclEntry.permission = aclEntry.permission.filter((permission) =>
+        isPermissionAvailable.value(aclEntry.type, permission),
+    );
+};
+
+/**
+ * Remove ACL entries with no permissions and remove invalid permissions
+ */
+export const compactAclEntries = (aclEntries: GroupAclEntryDto[]) => {
+    return toRaw(aclEntries).filter((a) => {
+        // Remove invalid permissions
+        a.permission = a.permission
+            .filter((permission) => isPermissionAvailable.value(a.type, permission))
+            .sort(); // Sort the permissions list to help prevent dirty checking issues.
+
+        return a.permission.length > 0 && validDocTypes.includes(a.type);
+    });
 };
