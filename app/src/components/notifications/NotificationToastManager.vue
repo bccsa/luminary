@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LNotification from "./LNotification.vue";
+import LNotification from "./NotificationToast.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { storeToRefs } from "pinia";
 
@@ -10,6 +10,7 @@ const { notifications } = storeToRefs(useNotificationStore());
     <div
         aria-live="assertive"
         class="pointer-events-none fixed inset-0 top-12 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
+        v-if="notifications.filter((c) => c.type == 'banner')"
     >
         <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
             <TransitionGroup
@@ -21,7 +22,7 @@ const { notifications } = storeToRefs(useNotificationStore());
                 leave-to-class="opacity-0"
             >
                 <LNotification
-                    v-for="notification in notifications"
+                    v-for="notification in notifications.filter((c) => c.type == 'toast')"
                     :key="notification.id"
                     :notification
                 />

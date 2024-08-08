@@ -1,14 +1,20 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import App from "./App.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 
 vi.mock("@auth0/auth0-vue");
 
 describe("App", () => {
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+    });
+
     afterEach(() => {
         vi.clearAllMocks();
     });

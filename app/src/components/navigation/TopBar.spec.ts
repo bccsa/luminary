@@ -1,7 +1,9 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { RouterLinkStub, mount } from "@vue/test-utils";
 import TopBar from "./TopBar.vue";
+import { createTestingPinia } from "@pinia/testing";
+import { setActivePinia } from "pinia";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
 
@@ -32,7 +34,15 @@ describe("TopBar", () => {
         }));
     });
 
-    it("shows a login button when logged out", async () => {
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("shows menu when logged out", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
         });
