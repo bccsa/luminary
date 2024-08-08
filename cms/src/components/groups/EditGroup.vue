@@ -449,9 +449,9 @@ const saveChanges = async () => {
                         </span>
                         <span v-else> No edit access. </span>
                         <span class="text-sm italic">
-                            <br />Higher level groups may give more permissions (than configured
-                            below) to this group and its members, depending on the permissions
-                            granted to user members of the higher level groups.
+                            <br />User members of higher level groups may have more more permissions
+                            (than configured below) to this group and its members by inheritance,
+                            depending on the permissions granted by the higher level groups.
                         </span>
                     </p>
 
