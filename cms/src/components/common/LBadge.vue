@@ -5,24 +5,20 @@ import {
     ExclamationCircleIcon,
     XCircleIcon,
 } from "@heroicons/vue/16/solid";
-import { computed, type FunctionalComponent } from "vue";
+import { computed, type Component } from "vue";
 
 type Props = {
     variant?: keyof typeof variants;
     type?: "default" | "language";
-    noIcon?: boolean;
-    customColor?: string;
-    customIcon?: FunctionalComponent | null;
-    customText?: string;
+    icon?: Component | null;
+    withIcon?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     variant: "default",
     type: "default",
-    noIcon: false,
+    withIcon: false,
     customColor: "",
-    customIcon: null,
-    customText: "",
 });
 
 const variants = {
@@ -33,40 +29,36 @@ const variants = {
     info: "bg-blue-100 text-blue-700 ring-blue-200",
 };
 
-const getDefaultIcon = computed(() => {
-    if (props.type === "language") {
-        switch (props.variant) {
-            case "success":
-                return CheckCircleIcon;
-            case "info":
-                return EllipsisHorizontalCircleIcon;
-            case "warning":
-                return ExclamationCircleIcon;
-            case "error":
-                return ExclamationCircleIcon;
-            default:
-                return XCircleIcon;
-        }
+const defaultIcon = computed(() => {
+    switch (props.variant) {
+        case "success":
+            return CheckCircleIcon;
+        case "info":
+            return EllipsisHorizontalCircleIcon;
+        case "warning":
+            return ExclamationCircleIcon;
+        case "error":
+            return ExclamationCircleIcon;
+        default:
+            return XCircleIcon;
     }
-    return null;
 });
 </script>
 
 <template>
     <span
         :class="[
-            customColor || variants[variant],
+            variants[variant],
             'inline-flex items-center rounded-md px-2 py-1 text-xs',
             {
                 'flex justify-center font-medium uppercase tracking-widest ring ring-inset':
                     type == 'language',
-                'w-12': type === 'language' && noIcon,
-                'w-16': type === 'language' && !noIcon,
+                'w-12': type === 'language' && !withIcon,
+                'w-16': type === 'language' && withIcon,
             },
         ]"
     >
-        <component :is="customIcon || getDefaultIcon" class="-ml-0.5 mr-1 h-3 w-3" v-if="!noIcon" />
-        <span v-if="customText" class="normal-case">{{ customText }}</span>
-        <slot v-else />
+        <component :is="icon || defaultIcon" class="-ml-0.5 mr-1 h-3 w-3" v-if="withIcon" />
+        <slot />
     </span>
 </template>

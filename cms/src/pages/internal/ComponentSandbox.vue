@@ -264,11 +264,11 @@ const items = [
                     <LBadge variant="info">Info</LBadge>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <LBadge type="language" no-icon>eng</LBadge>
-                    <LBadge type="language" variant="success">fra</LBadge>
-                    <LBadge type="language" variant="warning">swa</LBadge>
-                    <LBadge type="language" variant="error">nya</LBadge>
-                    <LBadge type="language" variant="info">spa</LBadge>
+                    <LBadge type="language">eng</LBadge>
+                    <LBadge type="language" :with-icon="true" variant="success">fra</LBadge>
+                    <LBadge type="language" :with-icon="true" variant="warning">swa</LBadge>
+                    <LBadge type="language" :with-icon="true" variant="error">nya</LBadge>
+                    <LBadge type="language" :with-icon="true" variant="info">spa</LBadge>
                 </div>
             </LCard>
 

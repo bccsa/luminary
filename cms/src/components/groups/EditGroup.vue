@@ -401,13 +401,13 @@ const saveChanges = async () => {
                     </div>
 
                     <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>
-                    <LBadge v-if="isEmpty" variant="warning" :customIcon="ExclamationCircleIcon">
+                    <LBadge v-if="isEmpty" variant="warning" :icon="ExclamationCircleIcon">
                         The group does not have any access configured
                     </LBadge>
                     <LBadge
                         v-if="!hasEditPermission && !isEmpty"
                         variant="warning"
-                        :customIcon="ExclamationCircleIcon"
+                        :icon="ExclamationCircleIcon"
                     >
                         Saving disabled: The group would not be editable</LBadge
                     >

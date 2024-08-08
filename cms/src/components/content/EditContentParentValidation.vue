@@ -175,7 +175,6 @@ watch(
                         </div>
                     </div>
 
-                    <!-- Parent validations -->
                     <div
                         v-for="validation in parentValidations.filter((v) => !v.isValid)"
                         :key="validation.id"
@@ -188,7 +187,6 @@ watch(
                     </div>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <!-- Content validations -->
                     <EditContentValidation
                         v-for="content in contentDocs"
                         :content="content"
@@ -198,14 +196,15 @@ watch(
                         :contentPrev="contentPrev?.find((c) => c._id == content._id)"
                     />
                 </div>
-                <LanguageSelector
-                    v-if="untranslatedLanguages.length > 0"
-                    :languages="untranslatedLanguages"
-                    :parent="parent"
-                    :content="contentDocs"
-                    @create-translation="createTranslation"
-                    class="w-full justify-start"
-                />
+                <div class="flex justify-center">
+                    <LanguageSelector
+                        v-if="untranslatedLanguages.length > 0"
+                        :languages="untranslatedLanguages"
+                        :parent="parent"
+                        :content="contentDocs"
+                        @create-translation="createTranslation"
+                    />
+                </div>
             </div>
         </template>
     </LCard>
