@@ -61,10 +61,16 @@ switch (props.notification.state) {
                     }}</span>
                 </div>
             </div>
-            <XMarkIcon
+
+            <button
+                type="button"
                 @click="notification.id ? removeNotification(notification.id) : (show = false)"
                 class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
-            />
+                data-test="banner-close-button"
+            >
+                <span class="sr-only">Close</span>
+                <XMarkIcon class="h-5 w-5" aria-hidden="true" />
+            </button>
         </div>
     </div>
 </template>
