@@ -46,6 +46,7 @@ export const useNotificationStore = defineStore("notification", () => {
     };
 
     const banners = notifications.value.filter((n) => n.type == "banner");
+    // try computed 
 
     const removeNotification = (notificationId: number | string) => {
         notifications.value = notifications.value.filter((n) => n.id !== notificationId);
