@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import NotificationManager from "./NotificationManager.vue";
+import NotificationManager from "./NotificationToastManager.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { useNotificationStore } from "@/stores/notification";

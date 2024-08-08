@@ -1,22 +1,16 @@
-q
 <script setup lang="ts">
-import LNotification from "./LNotification.vue";
+import LNotification from "./NotificationToast.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { storeToRefs } from "pinia";
 
 const { notifications } = storeToRefs(useNotificationStore());
-
-type Props = {
-    type: "toast" | "banner";
-};
-defineProps<Props>();
 </script>
 
 <template>
     <div
         aria-live="assertive"
         class="pointer-events-none fixed inset-0 top-12 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
-        v-if="type == 'toast'"
+        v-if="notifications.filter((c) => c.type == 'banner')"
     >
         <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
             <TransitionGroup
@@ -33,19 +27,6 @@ defineProps<Props>();
                     :notification
                 />
             </TransitionGroup>
-        </div>
-    </div>
-    <div
-        aria-live="assertive"
-        class="inset-x-0 flex items-end sm:items-start"
-        v-if="type == 'banner'"
-    >
-        <div class="w-full">
-            <LNotification
-                v-for="notification in notifications.filter((c) => c.type == 'banner')"
-                :key="notification.id"
-                :notification
-            />
         </div>
     </div>
 </template>
