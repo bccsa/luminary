@@ -8,6 +8,7 @@ import { ref } from "vue";
 import EditContentStatus from "./EditContentStatus.vue";
 import { DateTime } from "luxon";
 import { db, accessMap, type ContentDto, PublishStatus } from "luminary-shared";
+import LTextToggle from "../forms/LTextToggle.vue";
 
 describe("EditContentStatus.vue", () => {
     beforeAll(async () => {
@@ -140,7 +141,7 @@ describe("EditContentStatus.vue", () => {
         expect(content.value.expiryDate).toBeUndefined();
     });
 
-    it("check if the Publish/Draft toggle switchs correctly", async () => {
+    it("can switch between draft and published status", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
             status: PublishStatus.Draft,
@@ -152,17 +153,41 @@ describe("EditContentStatus.vue", () => {
             },
         });
 
-        // Find the publish status toggle (assuming LToggle renders as a button)
-        const toggleButton = wrapper.find("[data-test='toggle']");
+        // Find the publish status toggle
+        const textToggleWrapper = wrapper.find("[data-test='text-toggle']");
+        const draftButton = textToggleWrapper.find("[data-test='text-toggle-left-value']");
+        const publishedButton = textToggleWrapper.find("[data-test='text-toggle-right-value']");
 
         // Initially, the content status should be Draft
-        expect(content.value.status).toBe("draft");
+        expect(content.value.status).toBe(PublishStatus.Draft);
 
-        // click on the button
-        await toggleButton.trigger("click");
+        await publishedButton.trigger("click");
 
         // Check if the content's status was updated
-        expect(content.value.status).toBe("published");
+        expect(content.value.status).toBe(PublishStatus.Published);
+
+        await draftButton.trigger("click");
+
+        // Check if the content's status was updated
+        expect(content.value.status).toBe(PublishStatus.Draft);
+    });
+
+    it("correctly sets the publish status toggle from the prop", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Published,
+        });
+        const wrapper = mount(EditContentStatus, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Find the publish status toggle
+        const textToggle = wrapper.findComponent(LTextToggle);
+
+        expect(textToggle.props().modelValue).toBe("published");
     });
 
     it("sets the publish date correctly from the loaded data", async () => {
@@ -203,59 +228,5 @@ describe("EditContentStatus.vue", () => {
 
         // Check if the expiry date input field has the correct value
         expect(expiryDateInput.element.value).toBe(db.toIsoDateTime(content.value.expiryDate!));
-    });
-
-    it("sets the status toggle correctly to draft from the loaded data", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            status: PublishStatus.Draft,
-        });
-        const wrapper = mount(EditContentStatus, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
-
-        // Find the publish status toggle
-        const toggleButtonOffState = wrapper
-            .find("[data-test='toggle']")
-            .findAll("span")[1]
-            .find("span");
-        const toggleButtonOnState = wrapper
-            .find("[data-test='toggle']")
-            .findAll("span")[1]
-            .findAll("span")[1];
-
-        // Check if the toggle button is in the correct state
-        expect(toggleButtonOffState.classes()).toContain("opacity-100");
-        expect(toggleButtonOnState.classes()).toContain("opacity-0");
-    });
-
-    it("sets the status toggle correctly to published from the loaded data", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            status: PublishStatus.Published,
-        });
-        const wrapper = mount(EditContentStatus, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
-
-        // Find the publish status toggle
-        const toggleButtonOffState = wrapper
-            .find("[data-test='toggle']")
-            .findAll("span")[1]
-            .find("span");
-        const toggleButtonOnState = wrapper
-            .find("[data-test='toggle']")
-            .findAll("span")[1]
-            .findAll("span")[1];
-
-        // Check if the toggle button is in the correct state
-        expect(toggleButtonOffState.classes()).toContain("opacity-0");
-        expect(toggleButtonOnState.classes()).toContain("opacity-100");
     });
 });
