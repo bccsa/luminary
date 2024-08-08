@@ -1,11 +1,11 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import LNotification from "./LNotification.vue";
+import NotificationToast from "./NotificationToast.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
-describe("LNotification", () => {
+describe("NotificationToast", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
     });
@@ -15,7 +15,7 @@ describe("LNotification", () => {
     });
 
     it("renders the title and description", () => {
-        const wrapper = mount(LNotification, {
+        const wrapper = mount(NotificationToast, {
             props: {
                 notification: {
                     title: "Important News",
@@ -31,7 +31,7 @@ describe("LNotification", () => {
     });
 
     it("can be closed", async () => {
-        const wrapper = mount(LNotification, {
+        const wrapper = mount(NotificationToast, {
             props: {
                 notification: {
                     title: "Important News",
