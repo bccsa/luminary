@@ -18,6 +18,7 @@ import {
 } from "luminary-shared";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
+import EditContentStatus from "@/components/content/EditContentStatus.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
@@ -240,7 +241,10 @@ watch(selectedLanguage, () => {
                         @createTranslation="createTranslation"
                 /></EmptyState>
                 <div v-else class="space-y-6">
-                    <!-- Basic content settings -->
+                    <EditContentStatus
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslate"
+                    />
                     <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
