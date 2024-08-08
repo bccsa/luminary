@@ -95,33 +95,6 @@ describe("EditContent.vue", () => {
         });
     });
 
-    // Skip this test because language Selector has been also implemented yet
-
-    it.skip("can create a translation", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-            },
-        });
-
-        const wait = () => new Promise((resolve) => setTimeout(resolve, 2000));
-
-        await waitForExpect(async () => {
-            expect(wrapper.find("button[data-test='language-selector']").exists()).toBe(true);
-            await wrapper.find("button[data-test='language-selector']").trigger("click");
-            expect(wrapper.find("button[data-test='select-language-swa']").exists()).toBe(true);
-            await wrapper.find("button[data-test='select-language-swa']").trigger("click");
-        });
-        await wait();
-
-        // Wait for the new language to load
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Translation for Swahili");
-        });
-    });
-
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
             props: {

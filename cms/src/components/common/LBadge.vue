@@ -5,7 +5,7 @@ import {
     ExclamationCircleIcon,
     XCircleIcon,
 } from "@heroicons/vue/16/solid";
-import { defineProps, withDefaults, computed, type FunctionalComponent } from "vue";
+import { computed, type FunctionalComponent } from "vue";
 
 type Props = {
     variant?: keyof typeof variants;
