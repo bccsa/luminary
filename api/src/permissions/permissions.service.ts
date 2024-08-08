@@ -671,41 +671,7 @@ export class PermissionSystem extends EventEmitter {
             : [];
 
         parentGroup.upsertMap(this.id, this.id, event.type, permissions);
-        parentGroup.forwardUpstreamInheritedMap(this.id, event.type, permissions);
-    }
-
-    /**
-     * Iteratively forward upstream inherited group maps until the top level parent has been reached (referring to (2) in permissionSystem.drawio.svg)
-     */
-    private forwardUpstreamInheritedMap(target: Uuid, type: DocType, permissions: AclPermission[]) {
-        // Forward inherited permissions to parent groups
-        Object.values(this._aclMap)
-            .filter((aclGroup: AclGroupMap) => aclGroup.ref.id != this.id) // Exclude self-assigned ACLs
-            .forEach((aclGroup: AclGroupMap) => {
-                const parentGroup = aclGroup.ref;
-                parentGroup.upsertMap(target, this.id, type, permissions);
-                parentGroup.forwardUpstreamInheritedMap(target, type, permissions);
-
-                // Subscribe to the parent's "parentListUpdated" event to update upstream inherited permissions on the grandparent when the parent's ACL is updated.
-                if (!aclGroup.eventHandlers) aclGroup.eventHandlers = {};
-                if (!aclGroup.eventHandlers.parentListUpdated) {
-                    const eventHandler = (event: GroupParentListUpdateEvent) => {
-                        const grandparent = event.parent;
-                        const _permissions = event.action == "added" ? permissions : [];
-                        grandparent.upsertMap(target, parentGroup.id, type, _permissions);
-                        grandparent.forwardUpstreamInheritedMap(target, type, _permissions);
-                    };
-
-                    aclGroup.eventHandlers.parentListUpdated = eventHandler;
-                    parentGroup.on("parentListUpdated", eventHandler);
-                }
-
-                // Unsubscribe from parent's "parentListUpdated" event if the ACL entry has been removed
-                if (aclGroup.eventHandlers.parentListUpdated && permissions.length == 0) {
-                    parentGroup.off("parentListUpdated", aclGroup.eventHandlers.parentListUpdated);
-                    delete aclGroup.eventHandlers.parentListUpdated;
-                }
-            });
+        parentGroup.forwardInheritedMap(this.id, this.id, event.type, permissions);
     }
 
     /**
@@ -724,6 +690,7 @@ export class PermissionSystem extends EventEmitter {
                 // This will give the parent group the same permissions to the children of this group as the parent group has to this group.
                 const permissions = Object.keys(aclGroup.types[type]) as AclPermission[];
                 parentGroup.upsertMap(target, this.id, type, permissions);
+                parentGroup.forwardInheritedMap(target, this.id, type, permissions);
             });
 
         // Subscribe to this group's target group added / removed events the first time this function is called for a given parent group's ACL entries.
@@ -737,6 +704,7 @@ export class PermissionSystem extends EventEmitter {
                             ? (Object.keys(aclGroup.types[_type]) as AclPermission[])
                             : [];
                     parentGroup.upsertMap(event.target, this.id, _type, permissions);
+                    parentGroup.forwardInheritedMap(event.target, this.id, _type, permissions);
                 });
 
                 // Note: The targetListUpdated event does not trigger when self-assigned permissions are present for a given target and document type
@@ -747,6 +715,46 @@ export class PermissionSystem extends EventEmitter {
             aclGroup.eventHandlers.targetListUpdated = eventHandler;
             this.on("targetListUpdated", eventHandler);
         }
+    }
+
+    /**
+     * Iteratively forward inherited group maps until the top level parent has been reached (referring to (3) in permissionSystem.drawio.svg)
+     */
+    private forwardInheritedMap(
+        target: Uuid,
+        route: string,
+        type: DocType,
+        permissions: AclPermission[],
+    ) {
+        const appendedRoute = this.id + "-" + route;
+        // Forward inherited permissions to parent groups
+        Object.values(this._aclMap)
+            .filter((aclGroup: AclGroupMap) => aclGroup.ref.id != this.id) // Exclude self-assigned ACLs
+            .forEach((aclGroup: AclGroupMap) => {
+                const parentGroup = aclGroup.ref;
+                parentGroup.upsertMap(target, appendedRoute + route, type, permissions);
+                parentGroup.forwardInheritedMap(target, appendedRoute, type, permissions);
+
+                // Subscribe to the parent's "parentListUpdated" event to update inherited permissions on the grandparent when the parent's ACL is updated.
+                if (!aclGroup.eventHandlers) aclGroup.eventHandlers = {};
+                if (!aclGroup.eventHandlers.parentListUpdated) {
+                    const eventHandler = (event: GroupParentListUpdateEvent) => {
+                        const grandparent = event.parent;
+                        const _permissions = event.action == "added" ? permissions : [];
+                        grandparent.upsertMap(target, parentGroup.id, type, _permissions);
+                        grandparent.forwardInheritedMap(target, appendedRoute, type, _permissions);
+                    };
+
+                    aclGroup.eventHandlers.parentListUpdated = eventHandler;
+                    parentGroup.on("parentListUpdated", eventHandler);
+                }
+
+                // Unsubscribe from parent's "parentListUpdated" event if the ACL entry has been removed
+                if (aclGroup.eventHandlers.parentListUpdated && permissions.length == 0) {
+                    parentGroup.off("parentListUpdated", aclGroup.eventHandlers.parentListUpdated);
+                    delete aclGroup.eventHandlers.parentListUpdated;
+                }
+            });
     }
 
     /**
