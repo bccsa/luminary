@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, type FunctionalComponent } from "vue";
+import { computed, ref, type FunctionalComponent } from "vue";
 
 export type Notification = {
     /**
@@ -45,8 +45,10 @@ export const useNotificationStore = defineStore("notification", () => {
         return notificationId;
     };
 
-    const banners = notifications.value.filter((n) => n.type == "banner");
-    // try computed 
+    // try computed
+    const banners = computed(() => {
+        return notifications.value.filter((n) => n.type == "banner");
+    });
 
     const removeNotification = (notificationId: number | string) => {
         notifications.value = notifications.value.filter((n) => n.id !== notificationId);
