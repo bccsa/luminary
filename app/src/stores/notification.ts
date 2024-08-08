@@ -45,7 +45,6 @@ export const useNotificationStore = defineStore("notification", () => {
         return notificationId;
     };
 
-    // try computed
     const banners = computed(() => {
         return notifications.value.filter((n) => n.type == "banner");
     });
