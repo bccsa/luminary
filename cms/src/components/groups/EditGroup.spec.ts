@@ -303,9 +303,7 @@ describe("EditGroup.vue", () => {
 
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
-        expect(wrapper.text()).toContain(
-            "No access to edit permissions to this group (Public Content) and its members.",
-        );
+        expect(wrapper.text()).toContain("No edit access.");
         expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
         expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
     });
