@@ -134,8 +134,30 @@ const assignedGroups = computed(() => {
 
 // Add empty aclEntries to "editable" per assigned group for a complete visual overview
 watch(assignedGroups, (newAssignedGroups, oldAssignedGroups) => {
+    // Get unique IDs of assigned groups not available to the user (the user does not have view access to these group documents, so they are not in the groups list)
+    const unavailableGroupsIds = [
+        ...new Set(
+            props.group.acl
+                .map((a) => a.groupId)
+                .filter((g) => !groups.value.some((gr) => gr._id == g)),
+        ),
+    ];
+
+    // Create placeholder GroupDto's for the unavailable groups
+    const unavailableGroups: GroupDto[] = unavailableGroupsIds.map((g) => ({
+        _id: g,
+        type: DocType.Group,
+        updatedTimeUtc: 0,
+        name: g,
+        acl: [],
+    }));
+
     // get newly assigned groups
     let newGroups = newAssignedGroups;
+
+    // Add unavailable assigned groups to the list of assigned groups
+    newGroups.push(...unavailableGroups);
+
     if (oldAssignedGroups) {
         newGroups = newAssignedGroups.filter((g) => !oldAssignedGroups.some((o) => o._id == g._id));
     }
