@@ -13,6 +13,7 @@ import LBadge from "../common/LBadge.vue";
 import { useRouter, RouterLink } from "vue-router";
 import _ from "lodash";
 import LCard from "@/components/common/LCard.vue";
+import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
     languages: LanguageDto[];
@@ -22,7 +23,6 @@ const props = defineProps<Props>();
 const content = defineModel<ContentDto>("content");
 const router = useRouter();
 
-// Computed property or method to get sorted languages
 const sortedLanguages = computed(() => {
     if (!props.languages) return [];
     return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -39,57 +39,28 @@ const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
 }>();
 
-const icon = ref();
-const color = ref("");
-const text = ref("");
+const text = computed(() => {
+    if (!content.value) {
+        return "Unknown";
+    }
+
+    return capitaliseFirstLetter(content.value.status);
+});
 
 const translationStatus = computed(() => {
-    return (content: ContentDto | undefined) => {
-        if (
-            content?.status == PublishStatus.Published &&
-            content?.publishDate &&
-            new Date(content.publishDate) > new Date()
-        ) {
-            text.value = "Scheduled";
-            icon.value = CheckCircleIcon;
-            color.value = "bg-purple-100 ring-purple-200 text-purple-700";
-            return;
-        }
+    if (!content.value) {
+        return "default";
+    }
 
-        if (
-            content?.status == PublishStatus.Published &&
-            content?.expiryDate &&
-            new Date(content.expiryDate) < new Date()
-        ) {
-            text.value = "Expired";
-            icon.value = XCircleIcon;
-            color.value = "bg-gray-100 ring-gray-200 text-gray-700";
-            return;
-        }
+    if (content.value.status == PublishStatus.Published) {
+        return "success";
+    }
 
-        if (isContentDirty.value && content?.status != PublishStatus.Draft) {
-            text.value = "Published";
-            icon.value = ExclamationCircleIcon;
-            color.value = "bg-yellow-100 ring-yellow-200 text-yellow-700";
-            return;
-        }
+    if (content.value.status == PublishStatus.Draft) {
+        return "info";
+    }
 
-        if (content?.status == PublishStatus.Published) {
-            text.value = "Published";
-            icon.value = CheckCircleIcon;
-            color.value = "bg-green-100 ring-green-200 text-green-700";
-            return;
-        }
-
-        if (content?.status == PublishStatus.Draft) {
-            text.value = "Draft";
-            icon.value = CheckCircleIcon;
-            color.value = "bg-blue-100 ring-blue-200 text-blue-700";
-            return;
-        }
-
-        return undefined;
-    };
+    return "default";
 });
 
 const validations = ref([] as Validation[]);
@@ -171,14 +142,9 @@ watch(
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <LBadge
-                                type="language"
-                                :customColor="color"
-                                :customIcon="icon"
-                                :customText="text"
-                                class="-ml-2 w-auto"
-                                :variant="translationStatus(content)"
-                            />
+                            <LBadge withIcon class="-ml-2 w-auto" :variant="translationStatus">
+                                {{ text }}
+                            </LBadge>
                         </div>
                     </span>
                 </div>
