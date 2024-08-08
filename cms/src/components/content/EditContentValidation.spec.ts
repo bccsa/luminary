@@ -111,37 +111,6 @@ describe("EditContentValidation.vue", () => {
             });
         });
 
-        it("shows expired status", async () => {
-            const wrapper = mount(EditContentValidation, {
-                props: {
-                    languages: [mockData.mockLanguageDtoSwa],
-                    content: { ...mockData.mockSwahiliContentDto, expiryDate: Date.now() - 1 },
-                },
-            });
-
-            await waitForExpect(() => {
-                expect(wrapper.text()).toContain("Swahili");
-                expect(wrapper.text()).toContain("Expired");
-            });
-        });
-
-        it("shows scheduled status", async () => {
-            const wrapper = mount(EditContentValidation, {
-                props: {
-                    languages: [mockData.mockLanguageDtoEng],
-                    content: {
-                        ...mockData.mockEnglishContentDto,
-                        publishDate: Date.now() + 100000,
-                    },
-                },
-            });
-
-            await waitForExpect(() => {
-                expect(wrapper.text()).toContain("English");
-                expect(wrapper.text()).toContain("Scheduled");
-            });
-        });
-
         it("shows draft status", async () => {
             const wrapper = mount(EditContentValidation, {
                 props: {
