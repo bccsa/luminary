@@ -129,14 +129,16 @@ describe("EditContentValidation.vue", () => {
             const wrapper = mount(EditContentValidation, {
                 props: {
                     languages: [mockData.mockLanguageDtoEng],
-                    content: { ...mockData.mockEnglishContentDto, publishDate: Date.now() + 10 },
+                    content: {
+                        ...mockData.mockEnglishContentDto,
+                        publishDate: Date.now() + 100000,
+                    },
                 },
             });
 
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("English");
                 expect(wrapper.text()).toContain("Scheduled");
-                // console.log(wrapper.html());
             });
         });
 

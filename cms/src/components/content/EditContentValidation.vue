@@ -13,7 +13,6 @@ import LBadge from "../common/LBadge.vue";
 import { useRouter, RouterLink } from "vue-router";
 import _ from "lodash";
 import LCard from "@/components/common/LCard.vue";
-// import { sortByName } from "@/util/sortByName";
 
 type Props = {
     languages: LanguageDto[];
@@ -33,11 +32,6 @@ const usedLanguage = computed(() => {
     if (!content.value || !sortedLanguages.value) return null;
     return sortedLanguages.value.find((l) => content.value?.language == l._id);
 });
-
-// const getLanguageCode = (id: string | undefined) => {
-//     const language = props.languages.find((l) => l._id === id);
-//     return language ? language.languageCode : undefined;
-// };
 
 const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
 
