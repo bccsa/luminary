@@ -204,7 +204,17 @@ const disabled = computed(() => {
         return false;
     }
 
-    return !verifyAccess([props.group._id], DocType.Group, AclPermission.Edit);
+    return (
+        // The user needs to have edit permissions to the group itself
+        !verifyAccess([props.group._id], DocType.Group, AclPermission.Edit) ||
+        // The user needs to have assign permissions to all assigned groups in the ACL
+        !verifyAccess(
+            props.group.acl.map((a) => a.groupId),
+            DocType.Group,
+            AclPermission.Assign,
+            "all",
+        )
+    );
 });
 
 /**
