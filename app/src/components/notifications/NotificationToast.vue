@@ -24,35 +24,26 @@ if (props.notification.icon) {
             icon.value = CheckCircleIcon;
             break;
         case "error":
-            icon.value = ExclamationCircleIcon;
-            break;
         case "info":
-            icon.value = ExclamationCircleIcon;
-            break;
         case "warning":
             icon.value = ExclamationCircleIcon;
             break;
     }
 }
 
-const colour = ref<string>("bg-gray-100");
 const textColor = ref<string>("text-gray-400");
 
 switch (props.notification.state) {
     case "success":
-        colour.value = "bg-green-100";
         textColor.value = "text-green-400";
         break;
     case "error":
-        colour.value = "bg-red-100";
         textColor.value = "text-red-400";
         break;
     case "info":
-        colour.value = "bg-blue-100";
         textColor.value = "text-blue-400";
         break;
     case "warning":
-        colour.value = "bg-yellow-100";
         textColor.value = "text-yellow-400";
         break;
 }
@@ -94,29 +85,6 @@ switch (props.notification.state) {
                     </button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Banner -->
-    <div
-        v-if="show && notification.type == 'banner'"
-        class="inset-x-0 top-0 z-50 text-zinc-900"
-        :class="colour"
-    >
-        <div class="flex items-center justify-between px-6 py-1">
-            <div class="flex items-center gap-2">
-                <component :is="icon" class="h-5 min-h-5 w-5 min-w-5" />
-                <div class="flex flex-col md:inline-block md:align-middle">
-                    <span class="text-md md:text-sm">{{ notification.title }}</span>
-                    <span v-if="notification.description" class="text-xs md:ml-3">{{
-                        notification.description
-                    }}</span>
-                </div>
-            </div>
-            <XMarkIcon
-                @click="notification.id ? removeNotification(notification.id) : (show = false)"
-                class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
-            />
         </div>
     </div>
 </template>

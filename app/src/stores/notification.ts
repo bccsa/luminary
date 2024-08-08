@@ -45,9 +45,11 @@ export const useNotificationStore = defineStore("notification", () => {
         return notificationId;
     };
 
+    const banners = notifications.value.filter((n) => n.type == "banner");
+
     const removeNotification = (notificationId: number | string) => {
         notifications.value = notifications.value.filter((n) => n.id !== notificationId);
     };
 
-    return { notifications, addNotification, removeNotification };
+    return { notifications, banners, addNotification, removeNotification };
 });

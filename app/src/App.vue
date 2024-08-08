@@ -7,7 +7,8 @@ import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { getSocket, isConnected } from "luminary-shared";
 import { apiUrl, initLanguage } from "./globalConfig";
-import NotificationManager from "./components/notifications/NotificationManager.vue";
+import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
+import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
 import { SignalSlashIcon } from "@heroicons/vue/24/solid";
 
@@ -60,7 +61,7 @@ setTimeout(() => {
                     id: "offlineBanner",
                     title: "You are offline",
                     description:
-                        "Do not worry - you can still use the app and browse through the offline content.",
+                        "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
                     state: "warning",
                     type: "banner",
                     icon: SignalSlashIcon,
@@ -78,13 +79,13 @@ setTimeout(() => {
 
 <template>
     <TopBar class="sticky top-0 z-40" />
-    <NotificationManager type="banner" class="sticky" />
+    <NotificationBannerManager />
 
     <main class="px-6 pt-4">
         <RouterView />
     </main>
 
     <Teleport to="body">
-        <NotificationManager type="toast" />
+        <NotificationToastManager />
     </Teleport>
 </template>
