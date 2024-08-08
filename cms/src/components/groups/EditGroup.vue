@@ -410,13 +410,19 @@ const saveChanges = async () => {
                 leave-to-class="transform scale-95 opacity-0"
             >
                 <DisclosurePanel class="space-y-6 px-6 pb-10 pt-2">
-                    <p v-if="!disabled">
-                        Configure permissions to this group ({{ editable.name }}) and its members:
+                    <p>
+                        <span v-if="!disabled">
+                            Configure which permissions user members of the following groups have to
+                            <strong>this</strong> group and its member documents.
+                        </span>
+                        <span v-else> No edit access. </span>
+                        <span class="text-sm italic">
+                            <br />Higher level groups may give more permissions (than configured
+                            below) to this group and its members, depending on the permissions
+                            granted to user members of the higher level groups.
+                        </span>
                     </p>
-                    <p v-else>
-                        No access to edit permissions to this group ({{ editable.name }}) and its
-                        members.
-                    </p>
+
                     <TransitionGroup
                         enter-active-class="transition ease duration-500"
                         enter-from-class="opacity-0 scale-90"
