@@ -2,14 +2,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import LBadge from "@/components/common/LBadge.vue";
-import {
-    type ContentDto,
-    type LanguageDto,
-    type PostDto,
-    type TagDto,
-    type Uuid,
-} from "luminary-shared";
-import { computed } from "vue";
+import { type ContentDto, type LanguageDto, type PostDto, type TagDto } from "luminary-shared";
 import LButton from "@/components/button/LButton.vue";
 import { ArrowRightIcon } from "@heroicons/vue/16/solid";
 
@@ -34,7 +27,7 @@ const emit = defineEmits(["createTranslation"]);
                 iconRight
                 data-test="language-selector"
             >
-                Add a translation
+                Add translation
             </MenuButton>
         </div>
 
