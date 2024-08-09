@@ -133,7 +133,5 @@ describe("permissions", () => {
 
         result = getAccessibleGroups(AclPermission.Create);
         expect(result).toEqual({});
-
-        console.log();
     });
 });

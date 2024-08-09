@@ -96,6 +96,7 @@ const translationStatus = computed(() => {
                     <LBadge
                         @click="translationStatus(content, language) == 'default' ? '' : navigate()"
                         type="language"
+                        :with-icon="true"
                         :variant="translationStatus(content, language)"
                         :class="{
                             'cursor-pointer hover:opacity-75':

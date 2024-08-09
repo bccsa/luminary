@@ -8,7 +8,7 @@ describe("LToggle", () => {
             props: { modelValue: false },
         });
 
-        await wrapper.find("svg").trigger("click");
+        await wrapper.find("button").trigger("click");
 
         expect(wrapper.emitted("update:modelValue")?.length).toBe(1);
         expect(wrapper.emitted("update:modelValue")![0]).toEqual([true]);
