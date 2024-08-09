@@ -150,7 +150,7 @@ describe("EditAclByGroup.vue", () => {
         expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
     });
 
-    it("shows EditAclByGroup with assigned group's ID when the group is not available to the user", async () => {
+    it("shows the group's ID when the group is not available to the user", async () => {
         const wrapper = mount(EditAclByGroup, {
             props: {
                 group: mockGroupDtoPublicContent,
