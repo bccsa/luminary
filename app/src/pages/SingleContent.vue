@@ -42,7 +42,6 @@ watch(
             const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
 
             if (preferred) {
-                await router.push({ name: "content", params: { slug: preferred.slug } });
                 content.value = preferred;
             } else {
                 useNotificationStore().addNotification({
@@ -134,7 +133,7 @@ const text = computed(() => {
 
         <div
             class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500"
-            v-if="content.tags.length >= 0"
+            v-if="content.tags.length != 0"
         >
             <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3>
             <div class="flex gap-3">
