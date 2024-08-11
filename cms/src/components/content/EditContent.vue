@@ -61,7 +61,13 @@ const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent do
 const contentDocs = ref<ContentDto[]>([]);
 const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 
-if (!newDocument) {
+if (newDocument) {
+    // Set default tag properties if it is a new tag
+    if (props.docType == DocType.Tag) {
+        (parent.value as TagDto).tagType = props.tagType as TagType;
+        (parent.value as TagDto).pinned = false;
+    }
+} else {
     // Get a copy of the parent document from IndexedDB, and host it as a local ref.
     db.get<PostDto | TagDto>(parentId).then((p) => {
         parent.value = p;
