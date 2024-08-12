@@ -67,6 +67,7 @@ export type ContentDto = ContentBaseDto & {
     parentType?: DocType;
     tags: Uuid[];
     image?: string;
+    tagType?: TagType;
 };
 
 export type ContentMetadataDto = {

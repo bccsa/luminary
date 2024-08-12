@@ -46,6 +46,10 @@ export async function processChangeRequest(
             doc.memberOf = parentDoc.memberOf;
             doc.tags = parentDoc.tags;
             doc.image = parentDoc.image;
+
+            if (parentDoc.type == DocType.Tag) {
+                doc.tagType = (parentDoc as TagDto).tagType;
+            }
         }
     }
 

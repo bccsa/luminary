@@ -93,4 +93,9 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     image?: string;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @Expose()
+    tagType?: DocType;
 }

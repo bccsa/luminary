@@ -17,5 +17,6 @@
     "localisedImage": null,
     "audio": null,
     "video": null,
-    "publishDate": 1704114000000
+    "publishDate": 1704114000000,
+    "tagType": "category"
 }
