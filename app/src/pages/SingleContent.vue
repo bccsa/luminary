@@ -20,7 +20,10 @@ const tagsContent = ref<ContentDto[]>([]);
 
 const isExpiredOrScheduled = computed(() => {
     if (!content.value) return false;
-    return content.value.publishDate! > Date.now() || content.value.expiryDate! < Date.now();
+    return (
+        (content.value.publishDate && content.value.publishDate > Date.now()) ||
+        (content.value.expiryDate && content.value.expiryDate < Date.now())
+    );
 });
 
 watch(
@@ -28,9 +31,11 @@ watch(
     async () => {
         if (!content.value) return;
 
-        isExpiredOrScheduled.value
-            ? (document.title = `Page not found - ${appName}`)
-            : (document.title = `${content.value.title} - ${appName}`);
+        document.title = isExpiredOrScheduled.value
+            ? `Page not found - ${appName}`
+            : `${content.value.title} - ${appName}`;
+
+        if (isExpiredOrScheduled.value) return;
 
         tagsContent.value = await db.whereParent(
             content.value.tags,
