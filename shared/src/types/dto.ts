@@ -20,9 +20,11 @@ export type BaseDocumentDto = {
     docType?: DocType;
     acl?: GroupAclEntryDto[];
     parentType?: DocType.Post | DocType.Tag;
+    parentId?: Uuid;
     tags?: Uuid[];
     pinned?: boolean;
     language?: Uuid;
+    tagType?: TagType;
 };
 
 export enum AclPermission {
