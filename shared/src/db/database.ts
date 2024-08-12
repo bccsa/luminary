@@ -245,22 +245,6 @@ class database extends Dexie {
     }
 
     /**
-     * Get IndexedDB documents by their languageId(s)
-     * TODO: Check if used. This query is perhaps not practical.
-     */
-    whereLanguage(languageId: Uuid | Uuid[]) {
-        if (Array.isArray(languageId)) {
-            return this.docs.where("parentId").anyOf(languageId).toArray() as unknown as Promise<
-                ContentDto[]
-            >;
-        }
-
-        return this.docs.where("language").equals(languageId).toArray() as unknown as Promise<
-            ContentDto[]
-        >;
-    }
-
-    /**
      * Check if a tag document is of a certain tag type
      */
     async isTagType(id: Uuid, tagType: TagType) {
