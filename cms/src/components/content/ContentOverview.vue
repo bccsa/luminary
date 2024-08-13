@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
-import EmptyState from "@/components/EmptyState.vue";
-import { DocumentIcon, PlusIcon } from "@heroicons/vue/20/solid";
-import { TagIcon } from "@heroicons/vue/24/solid";
+import { PlusIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import {
     db,
@@ -11,8 +9,6 @@ import {
     DocType,
     TagType,
     type LanguageDto,
-    type PostDto,
-    type TagDto,
     type Uuid,
     hasAnyPermission,
 } from "luminary-shared";
@@ -21,6 +17,7 @@ import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
+import type { ContentOverviewQueryOptions } from "./query";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -32,12 +29,27 @@ const tagType = Object.entries(TagType).some((t) => t[1] == props.tagType)
     ? props.tagType
     : undefined;
 
-const contentParents = db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, [], tagType);
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const selectedLanguage = ref<Uuid>("");
 const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
+
+const queryOptions = ref<ContentOverviewQueryOptions>({
+    languageId: "",
+    parentDocType: props.docType,
+    tagType: tagType,
+    translationStatus: "all",
+    orderBy: "updatedTimeUtc",
+    orderDirection: "desc",
+    pageSize: 20,
+    pageIndex: 0,
+    tags: [],
+    search: "",
+    publishStatus: "all",
+});
+
+const queryKey = computed(() => JSON.stringify(queryOptions.value));
 
 watch(
     languages,
@@ -47,6 +59,14 @@ watch(
         }
     },
     { once: true },
+);
+
+watch(
+    selectedLanguage,
+    () => {
+        queryOptions.value.languageId = selectedLanguage.value;
+    },
+    { immediate: true },
 );
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
@@ -60,10 +80,7 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
 </script>
 
 <template>
-    <BasePage
-        :title="`${capitaliseFirstLetter(titleType)} overview`"
-        :loading="contentParents === undefined"
-    >
+    <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
                 <LSelect
@@ -73,7 +90,7 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
                     size="lg"
                 />
                 <LButton
-                    v-if="contentParents && contentParents.length > 0 && canCreateNew"
+                    v-if="canCreateNew"
                     variant="primary"
                     :icon="PlusIcon"
                     :is="RouterLink"
@@ -92,7 +109,8 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
             </div>
         </template>
 
-        <EmptyState
+        <!-- TODO: Move empty state to ContentTable as the ContentOverview does not anymore know if there are content documents or not -->
+        <!-- <EmptyState
             v-if="!contentParents || contentParents.length == 0"
             :icon="docType == DocType.Post ? DocumentIcon : TagIcon"
             :title="`No ${titleType}(s) yet`"
@@ -112,14 +130,15 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
             }"
             :buttonPermission="canCreateNew"
             data-test="no-content"
-        />
+        /> -->
 
         <ContentTable
-            v-else
-            :contentParents="contentParents"
+            v-if="selectedLanguage"
             :docType="docType"
             :tagType="tagType"
             :languageId="selectedLanguage"
+            :key="queryKey"
+            :queryOptions="queryOptions"
         />
     </BasePage>
 </template>
