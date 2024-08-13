@@ -5,13 +5,15 @@ import TopBar from "@/components/navigation/TopBar.vue";
 import { onBeforeMount } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
-import { getSocket } from "luminary-shared";
+import { getSocket, cmsFlag } from "luminary-shared";
 import { apiUrl, initLanguage } from "./globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 
 initLanguage();
+
+cmsFlag.app = true;
 
 const getToken = async () => {
     if (isAuthenticated.value) {
@@ -40,7 +42,6 @@ onBeforeMount(async () => {
         getSocket({
             apiUrl,
             token,
-            cms: true,
         });
     } catch (err) {
         console.error(err);

@@ -6,6 +6,7 @@ import {
     ContentDto,
     DocType,
     LocalChangeDto,
+    PostDto,
     PublishStatus,
     TagDto,
     TagType,
@@ -18,6 +19,7 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { cmsFlag } from "../socket/socketio";
 
 export type queryOptions = {
     filterOptions?: {
@@ -83,6 +85,8 @@ class database extends Dexie {
             },
             { immediate: true },
         );
+
+        this.deleteExpired();
     }
 
     /**
@@ -624,6 +628,51 @@ class database extends Dexie {
 
                 await revokedDocs.delete();
             });
+    }
+
+    private deleteExpired() {
+        console.log(`isCMS: ${cmsFlag.cms}`);
+
+        if (cmsFlag.cms) {
+            console.log("CMS is on");
+            return;
+        } else {
+            console.log("CMS is not on...deleting documents");
+            const now = DateTime.now().toMillis();
+
+            this.docs
+                .where("type")
+                .anyOf(DocType.Content, DocType.Post)
+                .toArray()
+                .then((docs: BaseDocumentDto[]) => {
+                    const expiredDocs = docs.filter((doc) => {
+                        if (doc.type === DocType.Content) {
+                            const contentDoc = doc as ContentDto;
+                            return contentDoc.expiryDate && contentDoc.expiryDate <= now;
+                        } else if (doc.type === DocType.Post) {
+                            const postDoc = doc as PostDto;
+                            if (postDoc.metadata && postDoc.metadata.length > 0) {
+                                for (const metadata of postDoc.metadata) {
+                                    if (metadata.expiryDate && metadata.expiryDate <= now) {
+                                        return true; // Expired document found
+                                    }
+                                }
+                            }
+                            return false; // No expiryDate found in metadata
+                        }
+                        return false; // Not a Content or Post document
+                    });
+
+                    // Delete expired documents
+                    return expiredDocs.map((doc) => this.docs.delete(doc._id));
+                })
+                .then(() => {
+                    console.log("Successfully deleted all expired documents");
+                })
+                .catch((error) => {
+                    console.error("Error deleting expired documents:", error);
+                });
+        }
     }
 
     /**
