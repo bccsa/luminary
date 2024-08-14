@@ -2,6 +2,7 @@ import { PermissionSystem } from "./permissions.service";
 import { DocType, AclPermission } from "../enums";
 import { createTestingModule } from "../test/testingModule";
 import waitForExpect from "wait-for-expect";
+import { GroupDto } from "../dto/GroupDto";
 
 describe("PermissionService", () => {
     let testingModule: any;
@@ -71,7 +72,7 @@ describe("PermissionService", () => {
             expect(diff["group-public-users"][DocType.Tag][AclPermission.Edit]).toBe(true);
         });
 
-        it("accessMapDiff: returns the first AccessMap second AccessMap is invalid", () => {
+        it("accessMapDiff: returns the first AccessMap if the second AccessMap is invalid", () => {
             const accessMap1 = new Map<string, Map<DocType, Map<AclPermission, boolean>>>();
             accessMap1["group-public-users"] = new Map<DocType, Map<AclPermission, boolean>>();
             accessMap1["group-public-users"][DocType.Post] = new Map<AclPermission, boolean>();
@@ -158,7 +159,7 @@ describe("PermissionService", () => {
             ).toBe(true);
         });
 
-        it("can calculate inherited groups", () => {
+        it("can calculate downstream inherited groups", () => {
             // group-super-admins is the top level group in the testing data set, and group-language the lowest level group.
             // Test if inheritance is replicated through the whole testing data set.
             expect(
@@ -171,7 +172,152 @@ describe("PermissionService", () => {
             ).toBe(true);
         });
 
-        it("can update inherited groups", () => {
+        it("can remove a single docType from an ACL entry", async () => {
+            // Remove language access from group-super-admins and test if group-super-admins does not have edit access to group-languages anymore.
+            // ----------------------------------------
+            const groupDoc = (await testingModule.dbService.getDoc("group-super-admins")).docs[0];
+            const languageAcls = groupDoc.acl.filter((acl) => acl.type === "language");
+            groupDoc.acl = groupDoc.acl.filter((acl) => acl.type !== "language");
+            PermissionSystem.upsertGroups([groupDoc]);
+
+            await waitForExpect(() => {
+                expect(
+                    PermissionSystem.verifyAccess(
+                        ["group-super-admins"],
+                        DocType.Language,
+                        AclPermission.Edit,
+                        ["group-super-admins"],
+                    ),
+                ).toBe(false);
+            });
+
+            // Restore language access for further tests
+            groupDoc.acl = groupDoc.acl.concat(languageAcls);
+            PermissionSystem.upsertGroups([groupDoc]);
+
+            await waitForExpect(() => {
+                expect(
+                    PermissionSystem.verifyAccess(
+                        ["group-super-admins"],
+                        DocType.Language,
+                        AclPermission.Edit,
+                        ["group-super-admins"],
+                    ),
+                ).toBe(true);
+            });
+        });
+
+        it("can calculate upstream inherited groups for non-group documents", async () => {
+            // Create a top-level group with only self-assigned view access to post documents.
+            const groupDoc1: GroupDto = new GroupDto();
+            groupDoc1._id = "group-test-top";
+            groupDoc1.type = DocType.Group;
+            groupDoc1.updatedTimeUtc = 3;
+            groupDoc1.name = "Test Top Group";
+            groupDoc1.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-top",
+                    permission: [AclPermission.View],
+                },
+            ];
+            PermissionSystem.upsertGroups([groupDoc1]);
+
+            // Create a middle level group, and give group-test-top only view access to post documents on it.
+            const groupDoc2: GroupDto = new GroupDto();
+            groupDoc2._id = "group-test-middle";
+            groupDoc2.type = DocType.Group;
+            groupDoc2.updatedTimeUtc = 3;
+            groupDoc2.name = "Test Middle Group";
+            groupDoc2.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-top",
+                    permission: [AclPermission.View],
+                },
+            ];
+            PermissionSystem.upsertGroups([groupDoc2]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-middle"],
+                    DocType.Post,
+                    AclPermission.View,
+                    ["group-test-top"],
+                ),
+            ).toBe(true);
+
+            // Create a lower level group, and give group-test-middle language document edit access to it.
+            const groupDoc3: GroupDto = new GroupDto();
+            groupDoc3._id = "group-test-low";
+            groupDoc3.type = DocType.Group;
+            groupDoc3.updatedTimeUtc = 3;
+            groupDoc3.name = "Test Lower Group";
+            groupDoc3.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-test-middle",
+                    permission: [AclPermission.View, AclPermission.Edit],
+                },
+            ];
+            PermissionSystem.upsertGroups([groupDoc3]);
+
+            // Both group-test-top and group-test-middle should have edit access to group-test-low
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-low"],
+                    DocType.Language,
+                    AclPermission.Edit,
+                    ["group-test-top"],
+                ),
+            ).toBe(true);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-low"],
+                    DocType.Language,
+                    AclPermission.Edit,
+                    ["group-test-middle"],
+                ),
+            ).toBe(true);
+
+            // Add and remove language edit access to the top level group,
+            // and check if the top level group still has language edit access to the low level group
+            const groupDoc1a = {
+                ...groupDoc1,
+                acl: [
+                    {
+                        type: DocType.Post,
+                        groupId: "group-test-top",
+                        permission: [AclPermission.View],
+                    },
+                    {
+                        type: DocType.Language,
+                        groupId: "group-test-top",
+                        permission: [AclPermission.View, AclPermission.Edit],
+                    },
+                ],
+            };
+            PermissionSystem.upsertGroups([groupDoc1a]);
+            PermissionSystem.upsertGroups([groupDoc1]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-low"],
+                    DocType.Language,
+                    AclPermission.Edit,
+                    ["group-test-top"],
+                ),
+            ).toBe(true);
+
+            // Remove the test groups for further tests
+            PermissionSystem.removeGroups([
+                "group-test-top",
+                "group-test-middle",
+                "group-test-low",
+            ]);
+        });
+
+        it("can update downstream groups", () => {
             // Use modified version of existing document in test data set and see if it successfully updates the permission system
             PermissionSystem.upsertGroups([
                 {
@@ -220,6 +366,206 @@ describe("PermissionService", () => {
                     ["group-public-editors"],
                 ),
             ).toBe(false);
+        });
+
+        it("can apply self-assigned permissions", () => {
+            // Create a group hierarchy with 4 levels, and give the top level group view access to post documents.
+            const groupDoc1: GroupDto = new GroupDto();
+            groupDoc1._id = "group-test-top";
+            groupDoc1.type = DocType.Group;
+            groupDoc1.updatedTimeUtc = 3;
+            groupDoc1.name = "Test Top Group";
+            groupDoc1.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-top",
+                    permission: [AclPermission.View, AclPermission.Edit],
+                },
+            ];
+
+            const groupDoc2: GroupDto = new GroupDto();
+            groupDoc2._id = "group-test-middle";
+            groupDoc2.type = DocType.Group;
+            groupDoc2.updatedTimeUtc = 3;
+            groupDoc2.name = "Test Middle Group";
+            groupDoc2.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-top",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            const groupDoc3: GroupDto = new GroupDto();
+            groupDoc3._id = "group-test-low";
+            groupDoc3.type = DocType.Group;
+            groupDoc3.updatedTimeUtc = 3;
+            groupDoc3.name = "Test Lower Group";
+            groupDoc3.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-middle",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            const groupDoc4: GroupDto = new GroupDto();
+            groupDoc4._id = "group-test-bottom";
+            groupDoc4.type = DocType.Group;
+            groupDoc4.updatedTimeUtc = 3;
+            groupDoc4.name = "Test Bottom Group";
+            groupDoc4.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-low",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            PermissionSystem.upsertGroups([groupDoc1, groupDoc2, groupDoc3, groupDoc4]);
+
+            // Check if the top level group has edit access to the bottom level group
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-bottom"],
+                    DocType.Post,
+                    AclPermission.Edit,
+                    ["group-test-top"],
+                ),
+            ).toBe(true);
+
+            // Remove edit access from the top level group and check if the bottom level group does not have edit access anymore
+            groupDoc1.acl[0].permission = [AclPermission.View];
+            PermissionSystem.upsertGroups([groupDoc1]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-bottom"],
+                    DocType.Post,
+                    AclPermission.Edit,
+                    ["group-test-top"],
+                ),
+            ).toBe(false);
+
+            // Remove the test groups for further tests
+            PermissionSystem.removeGroups([
+                "group-test-top",
+                "group-test-middle",
+                "group-test-low",
+                "group-test-bottom",
+            ]);
+        });
+
+        it("can correctly apply multi-path upstream inheritance", () => {
+            // Create a hierarchy with one top-level group, one middle-level group, two lower-level groups, and one bottom-level group.
+
+            // Top level group
+            const groupDoc1: GroupDto = new GroupDto();
+            groupDoc1._id = "group-test-top";
+            groupDoc1.type = DocType.Group;
+            groupDoc1.updatedTimeUtc = 3;
+            groupDoc1.name = "Test Top Group";
+            groupDoc1.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-top",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            // Middle level group
+            const groupDoc2: GroupDto = new GroupDto();
+            groupDoc2._id = "group-test-middle";
+            groupDoc2.type = DocType.Group;
+            groupDoc2.updatedTimeUtc = 3;
+            groupDoc2.name = "Test Middle Group";
+            groupDoc2.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-top",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            // Lower level groups
+            const groupDoc3: GroupDto = new GroupDto();
+            groupDoc3._id = "group-test-low1";
+            groupDoc3.type = DocType.Group;
+            groupDoc3.updatedTimeUtc = 3;
+            groupDoc3.name = "Test Lower Group 1";
+            groupDoc3.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-middle",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            const groupDoc4: GroupDto = new GroupDto();
+            groupDoc4._id = "group-test-low2";
+            groupDoc4.type = DocType.Group;
+            groupDoc4.updatedTimeUtc = 3;
+            groupDoc4.name = "Test Lower Group 2";
+            groupDoc4.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-middle",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            // Bottom level group
+            const groupDoc5: GroupDto = new GroupDto();
+            groupDoc5._id = "group-test-bottom";
+            groupDoc5.type = DocType.Group;
+            groupDoc5.updatedTimeUtc = 3;
+            groupDoc5.name = "Test Bottom Group";
+            groupDoc5.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-low1",
+                    permission: [AclPermission.View],
+                },
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-low2",
+                    permission: [AclPermission.View, AclPermission.Edit],
+                },
+            ];
+
+            PermissionSystem.upsertGroups([groupDoc1, groupDoc2, groupDoc3, groupDoc4, groupDoc5]);
+
+            // Check if the top level group has Edit access to the bottom level group
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-bottom"],
+                    DocType.Post,
+                    AclPermission.Edit,
+                    ["group-test-top"],
+                ),
+            ).toBe(true);
+
+            // Remove Edit access from the bottom level group's ACL entry for group-test-low2, and check if the top level group does not have Edit access anymore
+            groupDoc5.acl[1].permission = [AclPermission.View];
+            PermissionSystem.upsertGroups([groupDoc5]);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-bottom"],
+                    DocType.Post,
+                    AclPermission.Edit,
+                    ["group-test-top"],
+                ),
+            ).toBe(false);
+
+            // Remove the test groups for further tests
+            PermissionSystem.removeGroups([
+                "group-test-top",
+                "group-test-middle",
+                "group-test-low1",
+                "group-test-low2",
+                "group-test-bottom",
+            ]);
         });
 
         it("can remove a group", () => {
@@ -453,6 +799,52 @@ describe("PermissionService", () => {
                     ["test-self-assign"],
                 ),
             ).toBe(false);
+        });
+
+        it("does not break when a circular reference is created", () => {
+            // Create three groups with circular references
+            const groupDoc1: GroupDto = new GroupDto();
+            groupDoc1._id = "group-test1";
+            groupDoc1.type = DocType.Group;
+            groupDoc1.updatedTimeUtc = 3;
+            groupDoc1.name = "Test Group 1";
+            groupDoc1.acl = [
+                {
+                    type: DocType.Group,
+                    groupId: "group-test2",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            const groupDoc2: GroupDto = new GroupDto();
+            groupDoc2._id = "group-test2";
+            groupDoc2.type = DocType.Group;
+            groupDoc2.updatedTimeUtc = 3;
+            groupDoc2.name = "Test Group 2";
+            groupDoc2.acl = [
+                {
+                    type: DocType.Group,
+                    groupId: "group-test3",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            const groupDoc3: GroupDto = new GroupDto();
+            groupDoc3._id = "group-test3";
+            groupDoc3.type = DocType.Group;
+            groupDoc3.updatedTimeUtc = 3;
+            groupDoc3.name = "Test Group 3";
+            groupDoc3.acl = [
+                {
+                    type: DocType.Group,
+                    groupId: "group-test1",
+                    permission: [AclPermission.View],
+                },
+            ];
+
+            PermissionSystem.upsertGroups([groupDoc1, groupDoc2, groupDoc3]);
+
+            // If we are getting this far, the system did not break with a stack overflow error
         });
     });
 

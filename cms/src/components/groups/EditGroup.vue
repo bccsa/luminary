@@ -18,7 +18,7 @@ import LBadge from "@/components/common/LBadge.vue";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import _ from "lodash";
-import { validDocTypes } from "./permissions";
+import { compactAclEntries, validDocTypes } from "./permissions";
 import { ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 
 const { addNotification } = useNotificationStore();
@@ -39,10 +39,10 @@ watch(
     (current) => {
         editableGroupWithoutEmpty.value = {
             ...current,
-            acl: toRaw(current.acl).filter((a) => a.permission.length > 0),
+            acl: compactAclEntries(current.acl),
         };
     },
-    { deep: true },
+    { deep: true, immediate: true },
 );
 
 // Clear ACL's with no permissions from the passed group and save to "originalGroupWithoutEmpty"
@@ -51,10 +51,10 @@ watch(
     (current) => {
         originalGroupWithoutEmpty.value = {
             ...current,
-            acl: toRaw(current.acl).filter((a) => a.permission.length > 0), // sort the array to prevent issues with dirty checking
+            acl: compactAclEntries(current.acl),
         };
     },
-    { deep: true },
+    { deep: true, immediate: true },
 );
 
 // Keep editable up to date with upstream changes to the passed group
@@ -134,8 +134,30 @@ const assignedGroups = computed(() => {
 
 // Add empty aclEntries to "editable" per assigned group for a complete visual overview
 watch(assignedGroups, (newAssignedGroups, oldAssignedGroups) => {
+    // Get unique IDs of assigned groups not available to the user (the user does not have view access to these group documents, so they are not in the groups list)
+    const unavailableGroupsIds = [
+        ...new Set(
+            props.group.acl
+                .map((a) => a.groupId)
+                .filter((g) => !groups.value.some((gr) => gr._id == g)),
+        ),
+    ];
+
+    // Create placeholder GroupDto's for the unavailable groups
+    const unavailableGroups: GroupDto[] = unavailableGroupsIds.map((g) => ({
+        _id: g,
+        type: DocType.Group,
+        updatedTimeUtc: 0,
+        name: g,
+        acl: [],
+    }));
+
     // get newly assigned groups
     let newGroups = newAssignedGroups;
+
+    // Add unavailable assigned groups to the list of assigned groups
+    newGroups.push(...unavailableGroups);
+
     if (oldAssignedGroups) {
         newGroups = newAssignedGroups.filter((g) => !oldAssignedGroups.some((o) => o._id == g._id));
     }
@@ -182,25 +204,46 @@ const disabled = computed(() => {
         return false;
     }
 
-    return !verifyAccess([props.group._id], DocType.Group, AclPermission.Edit);
+    return (
+        // The user needs to have edit permissions to the group itself
+        !verifyAccess([props.group._id], DocType.Group, AclPermission.Edit) ||
+        // The user needs to have assign permissions to all assigned groups in the ACL
+        !verifyAccess(
+            props.group.acl.map((a) => a.groupId),
+            DocType.Group,
+            AclPermission.Assign,
+            "all",
+        )
+    );
 });
 
 /**
  * Check if the user will have permission to edit the group
  */
 const hasEditPermission = computed(() => {
-    return (
-        !isDirty.value ||
-        editable.value.acl.some(
-            (a) => a.type == DocType.Group && a.permission.includes(AclPermission.Edit),
-        ) ||
-        // Check if the user will have inherited permissions to edit the group
-        verifyAccess(
-            [...new Set(editableGroupWithoutEmpty.value.acl.map((a) => a.groupId))],
-            DocType.Group,
-            AclPermission.Edit,
-        )
+    // Bypass this check if the group is not in edit mode
+    if (!isDirty.value) return true;
+
+    // Check if the user will have inherited permissions to edit the group (exclude self-assigned permissions)
+    const hasInheritedPermissions = verifyAccess(
+        [
+            ...new Set(
+                editableGroupWithoutEmpty.value.acl
+                    .map((a) => a.groupId)
+                    .filter((g) => g != props.group._id),
+            ),
+        ],
+        DocType.Group,
+        AclPermission.Edit,
     );
+
+    // Check if the ACL includes group edit permissions.
+    // We here rely on the available groups already being filtered with groups to which the user has assign permissions
+    const editableAcl = editable.value.acl.some(
+        (a) => a.type == DocType.Group && a.permission.includes(AclPermission.Edit),
+    );
+
+    return hasInheritedPermissions || editableAcl;
 });
 
 const startEditingGroupName = (e: Event, open: boolean) => {
@@ -399,13 +442,19 @@ const saveChanges = async () => {
                 leave-to-class="transform scale-95 opacity-0"
             >
                 <DisclosurePanel class="space-y-6 px-6 pb-10 pt-2">
-                    <p v-if="!disabled">
-                        Configure permissions to this group ({{ editable.name }}) and its members:
+                    <p>
+                        <span v-if="!disabled">
+                            Configure which permissions user members of the following groups have to
+                            <strong>this</strong> group and its member documents.
+                        </span>
+                        <span v-else> No edit access. </span>
+                        <span class="text-sm italic">
+                            <br />User members of higher level groups may have more more permissions
+                            (than configured below) to this group and its members by inheritance,
+                            depending on the permissions granted by the higher level groups.
+                        </span>
                     </p>
-                    <p v-else>
-                        No access to edit permissions to this group ({{ editable.name }}) and its
-                        members.
-                    </p>
+
                     <TransitionGroup
                         enter-active-class="transition ease duration-500"
                         enter-from-class="opacity-0 scale-90"

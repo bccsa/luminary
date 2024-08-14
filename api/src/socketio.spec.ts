@@ -254,14 +254,23 @@ describe("Socketio", () => {
                 });
 
                 it("Content documents: emits one data socket.io events after change request submission", async () => {
-                    const res = await socketioTestClient({
+                    // add the parent document
+                    await socketioTestClient({
+                        cms: false,
+                        version: Date.now() + 1000000,
+                        changeRequest: changeRequest_post(),
+                    });
+
+                    // add the child document
+                    const res2 = await socketioTestClient({
                         cms: false,
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_content(),
                     });
-                    expect(res.docs.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.docs.some((d) => d.type == "user")).toBe(true);
-                    expect(res.docs.some((d) => d.type == "content")).toBe(true);
+
+                    expect(res2.docs.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
+                    expect(res2.docs.some((d) => d.type == "user")).toBe(true);
+                    expect(res2.docs.some((d) => d.type == "content")).toBe(true);
                 });
 
                 it("Language documents: emits one data socket.io events after change request submission", async () => {
