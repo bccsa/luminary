@@ -11,14 +11,12 @@ import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import * as Sentry from "@sentry/vue";
 import router from "./router";
-import { getSocket, cmsFlag } from "luminary-shared";
+import { getSocket } from "luminary-shared";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const { appName, apiUrl } = useGlobalConfigStore();
 let token;
-
-cmsFlag.cms = true;
 
 const getToken = async () => {
     try {

@@ -6,7 +6,6 @@ import {
     ContentDto,
     DocType,
     LocalChangeDto,
-    PostDto,
     PublishStatus,
     TagDto,
     TagType,
@@ -19,7 +18,9 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
-import { cmsFlag } from "../socket/socketio";
+import { config } from "../config";
+
+const isCms = config.getConfig().cms;
 
 export type queryOptions = {
     filterOptions?: {
@@ -51,6 +52,7 @@ export type queryOptions = {
          * Sort by publishDate.
          */
         sortBy?: "publishDate" | "title";
+
         /**
          * Sort in ascending or descending order.
          */
@@ -76,7 +78,7 @@ class database extends Dexie {
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate",
             localChanges: "++id, reqId, docId, status",
         });
-
+        console.log(`cms-flag given to database: ${isCms}`);
         // Listen for changes to the access map and delete documents that the user no longer has access to
         watch(
             this.accessMapRef,
@@ -631,46 +633,22 @@ class database extends Dexie {
     }
 
     private deleteExpired() {
-        console.log(`isCMS: ${cmsFlag.cms}`);
-
-        if (cmsFlag.cms) {
-            console.log("CMS is on");
+        const now = DateTime.now().toMillis();
+        if (isCms) {
+            console.log(`cms-flag on status: ${isCms}`);
             return;
         } else {
-            console.log("CMS is not on...deleting documents");
-            const now = DateTime.now().toMillis();
-
+            console.log(`cms-flag not on status: ${isCms}`);
             this.docs
                 .where("type")
-                .anyOf(DocType.Content, DocType.Post)
+                .anyOf(DocType.Content)
                 .toArray()
                 .then((docs: BaseDocumentDto[]) => {
                     const expiredDocs = docs.filter((doc) => {
-                        if (doc.type === DocType.Content) {
-                            const contentDoc = doc as ContentDto;
-                            return contentDoc.expiryDate && contentDoc.expiryDate <= now;
-                        } else if (doc.type === DocType.Post) {
-                            const postDoc = doc as PostDto;
-                            if (postDoc.metadata && postDoc.metadata.length > 0) {
-                                for (const metadata of postDoc.metadata) {
-                                    if (metadata.expiryDate && metadata.expiryDate <= now) {
-                                        return true; // Expired document found
-                                    }
-                                }
-                            }
-                            return false; // No expiryDate found in metadata
-                        }
-                        return false; // Not a Content or Post document
+                        const contentDoc = doc as ContentDto;
+                        return contentDoc.expiryDate && contentDoc.expiryDate <= now;
                     });
-
-                    // Delete expired documents
                     return expiredDocs.map((doc) => this.docs.delete(doc._id));
-                })
-                .then(() => {
-                    console.log("Successfully deleted all expired documents");
-                })
-                .catch((error) => {
-                    console.error("Error deleting expired documents:", error);
                 });
         }
     }

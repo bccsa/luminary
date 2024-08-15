@@ -14,20 +14,6 @@ type ClientConfig = {
 };
 
 /**
- * CMS FLag type definition
- */
-
-type CMSFlagT = {
-    cms: boolean;
-    app: boolean;
-};
-
-export const cmsFlag: CMSFlagT = {
-    cms: false,
-    app: false,
-};
-
-/**
  * Connection status as a Vue ref
  */
 export const isConnected = ref(false);
@@ -41,7 +27,7 @@ class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
     private localChanges = db.getLocalChangesAsRef();
-    private isCMS = false;
+    private isCms: boolean | undefined;
 
     /**
      * Create a new socketio instance
@@ -49,12 +35,9 @@ class Socketio {
      * @param cms - CMS mode flag
      * @param token - Access token
      */
-    constructor(apiUrl: string, cmsMode?: boolean, token?: string) {
-        cmsMode = cmsFlag.cms;
-        this.isCMS = cmsMode;
-
+    constructor(apiUrl: string, cms?: boolean, token?: string) {
+        this.isCms = cms;
         this.socket = io(apiUrl, token ? { auth: { token } } : undefined);
-
         this.socket.on("connect", () => {
             isConnected.value = true;
             this.requestData();
@@ -122,7 +105,7 @@ class Socketio {
         // Request documents that are newer than the last received version
         this.socket.emit("clientDataReq", {
             version: db.syncVersion,
-            cms: this.isCMS,
+            cms: this.isCms,
             accessMap: accessMap.value,
         });
     }
@@ -191,7 +174,7 @@ export function getSocket(options?: socketConnectionOptions) {
             throw new Error("Socket connection requires an API URL");
         }
 
-        socket = new Socketio(options.apiUrl, cmsFlag.cms, options.token);
+        socket = new Socketio(options.apiUrl, options.cms, options.token);
     } else if (options?.reconnect) socket.reconnect();
 
     return socket;
