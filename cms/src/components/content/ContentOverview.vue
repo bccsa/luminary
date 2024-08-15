@@ -37,7 +37,7 @@ const languageOptions = computed(() =>
 
 const queryOptions = ref<ContentOverviewQueryOptions>({
     languageId: "",
-    parentDocType: props.docType,
+    parentType: props.docType,
     tagType: tagType,
     translationStatus: "all",
     orderBy: "updatedTimeUtc",

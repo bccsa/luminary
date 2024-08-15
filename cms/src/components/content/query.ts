@@ -2,7 +2,7 @@ import { db, DocType, TagType, type Uuid, type ContentDto, PublishStatus } from 
 
 export type ContentOverviewQueryOptions = {
     languageId: Uuid;
-    parentDocType: DocType.Post | DocType.Tag;
+    parentType: DocType.Post | DocType.Tag;
     tagType?: TagType;
     orderBy?: "title" | "updatedTimeUtc" | "publishDate" | "expiryDate";
     orderDirection?: "asc" | "desc";
@@ -37,7 +37,7 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
             // Filter documents by type
             if (!contentDoc.parentId) return false;
             if (contentDoc.type != DocType.Content) return false;
-            if (contentDoc.parentType != options.parentDocType) return false;
+            if (contentDoc.parentType != options.parentType) return false;
             if (options.tagType && contentDoc.tagType != options.tagType) return false;
 
             const translationFilter = translationStatusFilter(
@@ -49,9 +49,9 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
             if (!translationFilter) return false;
 
             const tagFilter =
-                options.tags &&
-                (options.tags.length == 0 ||
-                    options.tags.some((tagId) => contentDoc.tags.includes(tagId)));
+                !options.tags ||
+                options.tags.length == 0 ||
+                options.tags.some((tagId) => contentDoc.tags.includes(tagId));
             if (!tagFilter) return false;
 
             const publishFilter = publishStatusFilter(contentDoc, options);
