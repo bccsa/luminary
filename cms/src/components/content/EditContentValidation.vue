@@ -6,10 +6,10 @@ import {
     DocType,
     type TagDto,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
-import LBadge from "../common/LBadge.vue";
+import LBadge, { variants } from "../common/LBadge.vue";
 import { useRouter, RouterLink } from "vue-router";
 import _ from "lodash";
 import LCard from "@/components/common/LCard.vue";
@@ -39,28 +39,38 @@ const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
 }>();
 
-const text = computed(() => {
+const statusBadge: ComputedRef<{ title: string; variant: keyof typeof variants }> = computed(() => {
     if (!content.value) {
-        return "Unknown";
+        return { title: "Unknown", variant: "default" };
     }
 
-    return capitaliseFirstLetter(content.value.status);
-});
+    if (
+        content.value.status == PublishStatus.Published &&
+        content.value.publishDate &&
+        content.value.publishDate > Date.now()
+    ) {
+        return { title: "Scheduled", variant: "scheduled" };
+    }
 
-const translationStatus = computed(() => {
-    if (!content.value) {
-        return "default";
+    if (
+        content.value.status == PublishStatus.Published &&
+        content.value.expiryDate &&
+        content.value.expiryDate < Date.now()
+    ) {
+        return { title: "Expired", variant: "default" };
     }
 
     if (content.value.status == PublishStatus.Published) {
-        return "success";
+        return {
+            title: "Published",
+            variant: "success",
+        };
     }
 
-    if (content.value.status == PublishStatus.Draft) {
-        return "info";
-    }
-
-    return "default";
+    return {
+        title: capitaliseFirstLetter(content.value.status),
+        variant: "info",
+    };
 });
 
 const validations = ref([] as Validation[]);
@@ -142,8 +152,8 @@ watch(
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <LBadge withIcon class="-ml-2 w-auto" :variant="translationStatus">
-                                {{ text }}
+                            <LBadge withIcon class="-ml-2 w-auto" :variant="statusBadge.variant">
+                                {{ statusBadge.title }}
                             </LBadge>
                         </div>
                     </span>
