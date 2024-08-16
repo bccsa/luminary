@@ -11,10 +11,17 @@ import {
     type ContentDto,
     type Uuid,
     type LanguageDto,
+    AclPermission,
+    DocType,
+    verifyAccess,
+    PublishStatus,
+    db,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import _ from "lodash";
+import { sortByName } from "@/util/sortByName";
+import LanguageSelector from "./LanguageSelector.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -27,6 +34,20 @@ const props = defineProps<Props>();
 const parent = defineModel<PostDto | TagDto>("parent");
 const contentDocs = defineModel<ContentDto[]>("contentDocs");
 
+const untranslatedLanguages = computed(() => {
+    if (!contentDocs.value) {
+        return [];
+    }
+
+    return props.languages
+        .filter(
+            (l) =>
+                !contentDocs.value?.find((c) => c.language == l._id) &&
+                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
+        )
+        .sort(sortByName);
+});
+
 const emit = defineEmits<{
     (e: "save"): void;
 }>();
@@ -34,6 +55,23 @@ const emit = defineEmits<{
 const isParentDirty = computed(() => {
     return _.isEqual(parent.value, props.parentPrev);
 });
+
+const createTranslation = (language: LanguageDto) => {
+    const newContent: ContentDto = {
+        _id: db.uuid(),
+        type: DocType.Content,
+        updatedTimeUtc: Date.now(),
+        memberOf: [],
+        parentId: parent.value?._id as Uuid,
+        parentType: parent.value?.docType as DocType.Post | DocType.Tag,
+        language: language._id,
+        status: PublishStatus.Draft,
+        title: `Translation for ${language.name}`,
+        slug: "",
+        tags: [],
+    };
+    contentDocs.value?.push(newContent);
+};
 
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
@@ -137,7 +175,6 @@ watch(
                         </div>
                     </div>
 
-                    <!-- Parent validations -->
                     <div
                         v-for="validation in parentValidations.filter((v) => !v.isValid)"
                         :key="validation.id"
@@ -150,7 +187,6 @@ watch(
                     </div>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <!-- Content validations -->
                     <EditContentValidation
                         v-for="content in contentDocs"
                         :content="content"
@@ -158,6 +194,15 @@ watch(
                         :key="content._id"
                         @isValid="(val) => setOverallValidation(content._id, val)"
                         :contentPrev="contentPrev?.find((c) => c._id == content._id)"
+                    />
+                </div>
+                <div class="flex justify-center">
+                    <LanguageSelector
+                        v-if="untranslatedLanguages.length > 0"
+                        :languages="untranslatedLanguages"
+                        :parent="parent"
+                        :content="contentDocs"
+                        @create-translation="createTranslation"
                     />
                 </div>
             </div>

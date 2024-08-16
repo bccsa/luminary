@@ -6,13 +6,14 @@ import {
     DocType,
     type TagDto,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
-import LBadge from "../common/LBadge.vue";
-import { RouterLink } from "vue-router";
+import LBadge, { variants } from "../common/LBadge.vue";
+import { useRouter, RouterLink } from "vue-router";
 import _ from "lodash";
-// import { sortByName } from "@/util/sortByName";
+import LCard from "@/components/common/LCard.vue";
+import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
     languages: LanguageDto[];
@@ -20,18 +21,16 @@ type Props = {
 };
 const props = defineProps<Props>();
 const content = defineModel<ContentDto>("content");
+const router = useRouter();
 
-// Computed property or method to get sorted languages
 const sortedLanguages = computed(() => {
     if (!props.languages) return [];
     return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
 });
 
-// Existing computed property using the sorted languages
-const contentLanguage = computed(() => {
-    if (!content.value || !sortedLanguages.value) return;
-    // @ts-ignore we are certain that content exists
-    return sortedLanguages.value.find((l) => content.value.language == l._id);
+const usedLanguage = computed(() => {
+    if (!content.value || !sortedLanguages.value) return null;
+    return sortedLanguages.value.find((l) => content.value?.language == l._id);
 });
 
 const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
@@ -40,49 +39,37 @@ const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
 }>();
 
-const icon = ref();
-const color = ref("");
-const text = ref("");
+const statusBadge: ComputedRef<{ title: string; variant: keyof typeof variants }> = computed(() => {
+    if (!content.value) {
+        return { title: "Unknown", variant: "default" };
+    }
 
-const translationStatus = computed(() => {
-    return (content: ContentDto | undefined) => {
-        if (
-            content?.status == PublishStatus.Published &&
-            content?.publishDate &&
-            new Date(content.publishDate) > new Date()
-        ) {
-            text.value = "Scheduled";
-            icon.value = CheckCircleIcon;
-            color.value = "bg-purple-100 ring-purple-200 text-purple-700";
-            return;
-        }
+    if (
+        content.value.status == PublishStatus.Published &&
+        content.value.publishDate &&
+        content.value.publishDate > Date.now()
+    ) {
+        return { title: "Scheduled", variant: "scheduled" };
+    }
 
-        if (
-            content?.status == PublishStatus.Published &&
-            content?.expiryDate &&
-            new Date(content.expiryDate) < new Date()
-        ) {
-            text.value = "Expired";
-            icon.value = XCircleIcon;
-            color.value = "bg-gray-100 ring-gray-200 text-gray-700";
-            return;
-        }
+    if (
+        content.value.status == PublishStatus.Published &&
+        content.value.expiryDate &&
+        content.value.expiryDate < Date.now()
+    ) {
+        return { title: "Expired", variant: "default" };
+    }
 
-        if (content?.status == PublishStatus.Published) {
-            text.value = "Published";
-            icon.value = CheckCircleIcon;
-            color.value = "bg-green-100 ring-green-200 text-green-700";
-            return;
-        }
+    if (content.value.status == PublishStatus.Published) {
+        return {
+            title: "Published",
+            variant: "success",
+        };
+    }
 
-        if (content?.status == PublishStatus.Draft) {
-            text.value = "Draft";
-            icon.value = CheckCircleIcon;
-            color.value = "bg-blue-100 ring-blue-200 text-blue-700";
-            return;
-        }
-
-        return undefined;
+    return {
+        title: capitaliseFirstLetter(content.value.status),
+        variant: "info",
     };
 });
 
@@ -134,53 +121,63 @@ watch(
 </script>
 
 <template>
-    <div class="flex flex-col">
-        <div class="flex flex-col gap-2">
-            <span class="flex justify-between text-sm text-zinc-900">
-                {{ contentLanguage?.name }}
-                <RouterLink
-                    :to="{
-                        name: 'edit',
-                        params: {
-                            docType: content?.parentType,
-                            tagType:
-                                content?.parentType == DocType.Tag
-                                    ? (content as unknown as TagDto).tagType
-                                    : undefined,
-                            id: content?.parentId,
-                            languageCode: languages.find((l) => l._id == content?.language)
-                                ?.languageCode,
-                        },
-                    }"
-                    class="flex justify-end"
-                    data-test="edit-button"
-                >
-                    <LBadge
-                        type="language"
-                        :customColor="color"
-                        :customIcon="icon"
-                        :customText="text"
-                        class="w-auto"
-                        :variant="translationStatus(content)"
-                    />
-                </RouterLink>
-            </span>
-        </div>
-        <div class="flex items-center gap-2" v-if="!isValid || isContentDirty">
-            <p>
-                <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-            </p>
-            <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
-        </div>
-        <div
-            v-for="validation in validations.filter((v) => !v.isValid)"
-            :key="validation.id"
-            class="flex items-center gap-2"
+    <LCard padding="none">
+        <RouterLink
+            :to="{
+                name: 'edit',
+                params: {
+                    docType: content?.parentType,
+                    tagType:
+                        content?.parentType == DocType.Tag
+                            ? (content as unknown as TagDto).tagType
+                            : undefined,
+                    id: content?.parentId,
+                    languageCode: languages.find((l) => l._id == content?.language)?.languageCode,
+                },
+            }"
+            data-test="edit-button"
         >
-            <p>
-                <XCircleIcon class="h-4 w-4 text-red-400" />
-            </p>
-            <p class="h-4 text-xs text-zinc-700">{{ validation.message }}</p>
+            <div>
+                <div class="flex flex-col hover:bg-zinc-100">
+                    <span class="m-2 flex items-center justify-between p-0 text-sm text-zinc-900">
+                        <div class="static">
+                            <CheckCircleIcon
+                                v-if="
+                                    router.currentRoute.value.params.languageCode ==
+                                    usedLanguage?.languageCode
+                                "
+                                class="absolute -left-[-11.3px] -ml-2 h-4 w-4 text-zinc-500"
+                            />
+                            {{ usedLanguage?.name }}
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <LBadge withIcon class="-ml-2 w-auto" :variant="statusBadge.variant">
+                                {{ statusBadge.title }}
+                            </LBadge>
+                        </div>
+                    </span>
+                </div>
+            </div>
+        </RouterLink>
+
+        <div :class="{ ' bg-zinc-100 px-2 py-1': !isValid || isContentDirty }">
+            <div class="flex items-center gap-2" v-if="!isValid || isContentDirty">
+                <p>
+                    <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                </p>
+                <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
+            </div>
+            <div
+                v-for="validation in validations.filter((v) => !v.isValid)"
+                :key="validation.id"
+                class="flex items-center gap-2"
+            >
+                <p>
+                    <XCircleIcon class="h-4 w-4 text-red-400" />
+                </p>
+                <p class="h-4 text-xs text-zinc-700">{{ validation.message }}</p>
+            </div>
         </div>
-    </div>
+    </LCard>
 </template>

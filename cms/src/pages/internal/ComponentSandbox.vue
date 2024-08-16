@@ -262,13 +262,15 @@ const items = [
                     <LBadge variant="warning">Warning</LBadge>
                     <LBadge variant="error">Error</LBadge>
                     <LBadge variant="info">Info</LBadge>
+                    <LBadge variant="scheduled">Scheduled</LBadge>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <LBadge type="language" no-icon>eng</LBadge>
-                    <LBadge type="language" variant="success">fra</LBadge>
-                    <LBadge type="language" variant="warning">swa</LBadge>
-                    <LBadge type="language" variant="error">nya</LBadge>
-                    <LBadge type="language" variant="info">spa</LBadge>
+                    <LBadge type="language" withIcon>eng</LBadge>
+                    <LBadge type="language" withIcon variant="success">fra</LBadge>
+                    <LBadge type="language" withIcon variant="warning">swa</LBadge>
+                    <LBadge type="language" withIcon variant="error">nya</LBadge>
+                    <LBadge type="language" withIcon variant="info">spa</LBadge>
+                    <LBadge type="language" withIcon variant="scheduled">zul</LBadge>
                 </div>
             </LCard>
 
