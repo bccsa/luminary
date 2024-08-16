@@ -101,14 +101,21 @@ const clearExpiryDate = () => {
 
 <template>
     <LCard title="Status" collapsible v-if="content">
-        <div>
+        <div class="flex flex-col items-center gap-2">
             <LTextToggle
                 v-model="content.status"
                 leftLabel="Draft"
                 :leftValue="PublishStatus.Draft"
-                rightLabel="Published"
+                rightLabel="Publishable"
                 :rightValue="PublishStatus.Published"
             />
+            <div class="text-xs text-zinc-700">
+                {{
+                    content.status == PublishStatus.Draft
+                        ? "This content will never be visible in the app"
+                        : "This content could be visible in the app, depending on the publish and expiry dates"
+                }}
+            </div>
         </div>
 
         <div class="mt-4 flex flex-col gap-4 sm:flex-row">

@@ -20,7 +20,7 @@ const emit = defineEmits(["update:modelValue"]);
 </script>
 
 <template>
-    <div class="inline-block rounded-full bg-zinc-100 p-1.5" data-test="text-toggle">
+    <div class="inline-block h-10 rounded-full bg-zinc-100 p-1.5" data-test="text-toggle">
         <button
             :class="[
                 'px-4 py-1 text-sm',
