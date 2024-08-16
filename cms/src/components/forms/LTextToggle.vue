@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { toRefs } from "vue";
-
 type Props = {
-    modelValue: string;
     disabled?: boolean;
     leftLabel: string;
     leftValue: string;
@@ -10,13 +7,11 @@ type Props = {
     rightValue: string;
 };
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     disabled: false,
 });
 
-const { modelValue } = toRefs(props);
-
-const emit = defineEmits(["update:modelValue"]);
+const modelValue = defineModel<string>();
 </script>
 
 <template>
@@ -27,7 +22,7 @@ const emit = defineEmits(["update:modelValue"]);
                 { 'rounded-full bg-white text-zinc-900 shadow': modelValue == leftValue },
                 { 'text-zinc-700 ': modelValue != leftValue },
             ]"
-            @click="emit('update:modelValue', leftValue)"
+            @click="modelValue = leftValue"
             data-test="text-toggle-left-value"
         >
             {{ leftLabel }}
@@ -38,7 +33,7 @@ const emit = defineEmits(["update:modelValue"]);
                 { 'rounded-full bg-white text-zinc-900 shadow': modelValue == rightValue },
                 { 'text-zinc-700 ': modelValue != rightValue },
             ]"
-            @click="emit('update:modelValue', rightValue)"
+            @click="modelValue = rightValue"
             data-test="text-toggle-right-value"
         >
             {{ rightLabel }}
