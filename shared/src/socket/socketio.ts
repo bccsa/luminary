@@ -2,8 +2,9 @@ import { io, Socket } from "socket.io-client";
 import { ref, watch } from "vue";
 import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
 import { accessMap, AccessMap } from "../permissions/permissions";
-import { db } from "../db/database";
+import { db } from "../index";
 import { useLocalStorage } from "@vueuse/core";
+import { config } from "../config";
 
 /**
  * Client configuration type definition
@@ -27,7 +28,7 @@ class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
     private localChanges = db.getLocalChangesAsRef();
-    private isCms: boolean | undefined;
+    private isCms: boolean | undefined = config.getCmsFlag();
 
     /**
      * Create a new socketio instance
@@ -35,8 +36,7 @@ class Socketio {
      * @param cms - CMS mode flag
      * @param token - Access token
      */
-    constructor(apiUrl: string, cms?: boolean, token?: string) {
-        this.isCms = cms;
+    constructor(apiUrl: string, token?: string) {
         this.socket = io(apiUrl, token ? { auth: { token } } : undefined);
         this.socket.on("connect", () => {
             isConnected.value = true;
@@ -146,10 +146,6 @@ type socketConnectionOptions = {
      */
     apiUrl?: string;
     /**
-     * CMS mode flag
-     */
-    cms?: boolean;
-    /**
      * Access token
      */
     token?: string;
@@ -174,7 +170,7 @@ export function getSocket(options?: socketConnectionOptions) {
             throw new Error("Socket connection requires an API URL");
         }
 
-        socket = new Socketio(options.apiUrl, options.cms, options.token);
+        socket = new Socketio(options.apiUrl, options.token);
     } else if (options?.reconnect) socket.reconnect();
 
     return socket;

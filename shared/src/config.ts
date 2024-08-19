@@ -1,11 +1,12 @@
-type SharedConfigT = {
+export type SharedConfigT = {
     cms: boolean | undefined;
 };
 
-class Configuration {
+export class Configuration {
     private config: SharedConfigT;
 
     constructor(conf: SharedConfigT) {
+        console.log("Configuration Initialized");
         this.config = conf;
     }
 

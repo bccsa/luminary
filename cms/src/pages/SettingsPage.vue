@@ -4,7 +4,8 @@ import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
-import { db, isConnected, getSocket } from "luminary-shared";
+import { isConnected, getSocket } from "luminary-shared";
+import { luminary } from "@/main";
 
 const { addNotification } = useNotificationStore();
 
@@ -17,7 +18,7 @@ const deleteLocalData = async () => {
         });
     }
 
-    await db.purge();
+    await luminary.db.purge();
     getSocket().requestData();
 
     return addNotification({

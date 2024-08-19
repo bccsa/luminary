@@ -3,13 +3,14 @@ import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollabl
 import HorizontalScrollableTagViewerCollection from "@/components/tags/HorizontalScrollableTagViewerCollection.vue";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { DocType, TagType, db } from "luminary-shared";
+import { DocType, TagType } from "luminary-shared";
+import { luminary } from "@/main";
 import { appLanguageIdAsRef } from "@/globalConfig";
 import { ref } from "vue";
 
 const { isAuthenticated } = useAuth0();
 
-const hasPosts = db.someByTypeAsRef(DocType.Post);
+const hasPosts = luminary.db.someByTypeAsRef(DocType.Post);
 
 const noContentMessageDelay = ref(false);
 setTimeout(() => {

@@ -18,9 +18,6 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
-import { config } from "../config";
-
-const isCms = config.getConfig().cms;
 
 export type queryOptions = {
     filterOptions?: {
@@ -64,21 +61,24 @@ export type queryOptions = {
     languageId?: Uuid;
 };
 
-class database extends Dexie {
+export class database extends Dexie {
     // TODO: Make tables private
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     private accessMapRef = accessMap;
+    private isCms: boolean | undefined = undefined;
 
-    constructor() {
+    constructor(cms?: boolean) {
         super("luminary-db");
+        console.log("Database Init");
+        this.isCms = cms;
 
         // Remember to increase the version number below if you change the schema
         this.version(7).stores({
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate",
             localChanges: "++id, reqId, docId, status",
         });
-        console.log(`cms-flag given to database: ${isCms}`);
+        console.log(`cms-flag given to database: ${this.isCms}`);
         // Listen for changes to the access map and delete documents that the user no longer has access to
         watch(
             this.accessMapRef,
@@ -634,11 +634,11 @@ class database extends Dexie {
 
     private deleteExpired() {
         const now = DateTime.now().toMillis();
-        if (isCms) {
-            console.log(`cms-flag on status: ${isCms}`);
+        if (this.isCms) {
+            console.log(`cms-flag on status: ${this.isCms}`);
             return;
         } else {
-            console.log(`cms-flag not on status: ${isCms}`);
+            console.log(`cms-flag not on status: ${this.isCms}`);
             this.docs
                 .where("type")
                 .anyOf(DocType.Content)
@@ -648,8 +648,9 @@ class database extends Dexie {
                         const contentDoc = doc as ContentDto;
                         return contentDoc.expiryDate && contentDoc.expiryDate <= now;
                     });
-                    return expiredDocs.map((doc) => this.docs.delete(doc._id));
-                });
+                    this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
+                })
+                .catch((e) => console.error(`Error: ${e}`));
         }
     }
 
@@ -661,6 +662,3 @@ class database extends Dexie {
         this.syncVersion = 0;
     }
 }
-
-// Export a single instance of the database
-export const db = new database();

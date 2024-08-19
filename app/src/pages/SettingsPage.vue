@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
-import { db, getSocket, isConnected } from "luminary-shared";
+import { getSocket, isConnected } from "luminary-shared";
+import { luminary } from "@/main";
 import { useNotificationStore } from "@/stores/notification";
 
 const { addNotification } = useNotificationStore();
@@ -15,7 +16,7 @@ const deleteLocalData = async () => {
         });
     }
 
-    await db.purge();
+    await luminary.db.purge();
     getSocket().requestData();
 
     return addNotification({
