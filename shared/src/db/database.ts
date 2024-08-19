@@ -70,7 +70,6 @@ export class database extends Dexie {
 
     constructor(cms?: boolean) {
         super("luminary-db");
-        console.log("Database Init");
         this.isCms = cms;
 
         // Remember to increase the version number below if you change the schema
@@ -78,7 +77,6 @@ export class database extends Dexie {
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate",
             localChanges: "++id, reqId, docId, status",
         });
-        console.log(`cms-flag given to database: ${this.isCms}`);
         // Listen for changes to the access map and delete documents that the user no longer has access to
         watch(
             this.accessMapRef,
@@ -634,21 +632,32 @@ export class database extends Dexie {
 
     private deleteExpired() {
         const now = DateTime.now().toMillis();
+        console.log("Current time:", now);
+
         if (this.isCms) {
-            console.log(`cms-flag on status: ${this.isCms}`);
+            console.log("CMS mode is active; skipping deleteExpired.");
             return;
         } else {
-            console.log(`cms-flag not on status: ${this.isCms}`);
             this.docs
                 .where("type")
-                .anyOf(DocType.Content)
+                .equals(DocType.Content)
                 .toArray()
                 .then((docs: BaseDocumentDto[]) => {
                     const expiredDocs = docs.filter((doc) => {
                         const contentDoc = doc as ContentDto;
-                        return contentDoc.expiryDate && contentDoc.expiryDate <= now;
+                        const expiryMillis = contentDoc.expiryDate;
+
+                        if (expiryMillis && expiryMillis <= now) {
+                            return true;
+                        }
+                        return false;
                     });
-                    this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
+
+                    if (expiredDocs.length > 0) {
+                        this.docs
+                            .bulkDelete(expiredDocs.map((doc) => doc._id))
+                            .catch((e) => console.error(`Error: ${e}`));
+                    }
                 })
                 .catch((e) => console.error(`Error: ${e}`));
         }

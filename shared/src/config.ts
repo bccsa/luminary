@@ -6,7 +6,6 @@ export class Configuration {
     private config: SharedConfigT;
 
     constructor(conf: SharedConfigT) {
-        console.log("Configuration Initialized");
         this.config = conf;
     }
 
