@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
+import LButton from "@/components/button/LButton.vue";
+import LBadge from "@/components/common/LBadge.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
@@ -173,7 +175,6 @@ const save = async () => {
     contentDocsPrev.value = _.cloneDeep(contentDocs.value);
 };
 
-// Local change detection
 const isLocalChange = db.isLocalChangeAsRef(parentId);
 
 // Set the title in the browser tab
@@ -218,6 +219,13 @@ watch(selectedLanguage, () => {
         }"
         v-if="parent"
     >
+        <template #actions>
+            <LBadge v-if="isLocalChange" variant="warning" class="mr-4">Offline changes</LBadge>
+
+            <LButton type="button" @click="save" data-test="save-button" variant="primary">
+                Save
+            </LButton>
+        </template>
         <div class="relative grid grid-cols-3 gap-8">
             <div class="col-span-3 md:col-span-2">
                 <EmptyState
@@ -252,9 +260,7 @@ watch(selectedLanguage, () => {
                         v-model:parent="parent"
                         v-model:contentDocs="contentDocs"
                         :languages="languages"
-                        @save="save"
                         :dirty="isDirty"
-                        :localChange="isLocalChange"
                         :contentPrev="contentDocsPrev"
                         :parentPrev="parentPrev"
                     />

@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import LButton from "@/components/button/LButton.vue";
-import LBadge from "@/components/common/LBadge.vue";
-import LCard from "@/components/common/LCard.vue";
 import EditContentValidation from "./EditContentValidation.vue";
-import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import { XCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 import {
     type PostDto,
@@ -25,7 +21,6 @@ import LanguageSelector from "./LanguageSelector.vue";
 
 type Props = {
     languages: LanguageDto[];
-    localChange: boolean;
     dirty: boolean;
     parentPrev: PostDto | TagDto | undefined;
     contentPrev: ContentDto[] | undefined;
@@ -47,10 +42,6 @@ const untranslatedLanguages = computed(() => {
         )
         .sort(sortByName);
 });
-
-const emit = defineEmits<{
-    (e: "save"): void;
-}>();
 
 const isParentDirty = computed(() => {
     return _.isEqual(parent.value, props.parentPrev);
@@ -141,71 +132,49 @@ watch(
 </script>
 
 <template>
-    <LCard :showFooter="true">
-        <div class="flex gap-4">
-            <LBadge v-if="localChange" variant="warning">Offline changes</LBadge>
-
-            <div class="flex-1"></div>
-            <LButton
-                type="button"
-                @click="emit('save')"
-                data-test="save-button"
-                :disabled="!overallIsValid || !dirty"
-                :icon="ArrowUpOnSquareIcon"
-                variant="primary"
-            >
-                Save
-            </LButton>
-        </div>
-
-        <template #footer>
-            <div v-show="true" class="flex flex-col gap-2">
-                <p v-if="!overallIsValid && !isParentDirty" class="text-sm text-zinc-700">
-                    There are some errors that prevent saving
-                </p>
-
-                <div class="flex flex-col">
-                    <div class="flex flex-col gap-2" v-if="!isParentDirty">
-                        <span class="text-sm text-zinc-900"> General </span>
-                        <div class="flex items-center gap-2">
-                            <p>
-                                <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-                            </p>
-                            <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
-                        </div>
-                    </div>
-
-                    <div
-                        v-for="validation in parentValidations.filter((v) => !v.isValid)"
-                        :key="validation.id"
-                        class="flex items-center gap-2"
-                    >
+    <div class="rounded-md bg-zinc-100 p-2 shadow-inner">
+        <div class="flex flex-col gap-2">
+            <div class="flex flex-col">
+                <div class="flex flex-col gap-2" v-if="!isParentDirty">
+                    <span class="text-sm text-zinc-900"> General </span>
+                    <div class="flex items-center gap-2">
                         <p>
-                            <XCircleIcon class="h-4 w-4 text-red-400" />
+                            <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
                         </p>
-                        <p class="h-4 text-xs text-zinc-700">{{ validation.message }}</p>
+                        <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
                     </div>
                 </div>
-                <div class="flex flex-col gap-2">
-                    <EditContentValidation
-                        v-for="content in contentDocs"
-                        :content="content"
-                        :languages="languages"
-                        :key="content._id"
-                        @isValid="(val) => setOverallValidation(content._id, val)"
-                        :contentPrev="contentPrev?.find((c) => c._id == content._id)"
-                    />
-                </div>
-                <div class="flex justify-center">
-                    <LanguageSelector
-                        v-if="untranslatedLanguages.length > 0"
-                        :languages="untranslatedLanguages"
-                        :parent="parent"
-                        :content="contentDocs"
-                        @create-translation="createTranslation"
-                    />
+
+                <div
+                    v-for="validation in parentValidations.filter((v) => !v.isValid)"
+                    :key="validation.id"
+                    class="flex items-center gap-2"
+                >
+                    <p>
+                        <XCircleIcon class="h-4 w-4 text-red-400" />
+                    </p>
+                    <p class="h-4 text-xs text-zinc-700">{{ validation.message }}</p>
                 </div>
             </div>
-        </template>
-    </LCard>
+            <div class="flex flex-col gap-2">
+                <EditContentValidation
+                    v-for="content in contentDocs"
+                    :content="content"
+                    :languages="languages"
+                    :key="content._id"
+                    @isValid="(val) => setOverallValidation(content._id, val)"
+                    :contentPrev="contentPrev?.find((c) => c._id == content._id)"
+                />
+            </div>
+            <div class="flex justify-center">
+                <LanguageSelector
+                    v-if="untranslatedLanguages.length > 0"
+                    :languages="untranslatedLanguages"
+                    :parent="parent"
+                    :content="contentDocs"
+                    @create-translation="createTranslation"
+                />
+            </div>
+        </div>
+    </div>
 </template>
