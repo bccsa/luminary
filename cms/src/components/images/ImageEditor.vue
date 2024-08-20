@@ -7,7 +7,6 @@ import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import { useNotificationStore } from "@/stores/notification";
 import {
-    db,
     type Uuid,
     type ImageUploadDto,
     type ImageDto,
@@ -15,6 +14,7 @@ import {
     type ImageFileCollectionDto,
     maxUploadFileSize,
 } from "luminary-shared";
+import { luminary } from "@/main";
 
 // Note: This control is used in a fully reactive mode as we want to show rendered images as soon as they are uploaded. Mixing non-reactive and reactive modes is difficult to implement.
 
@@ -23,8 +23,8 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-// We need to pass a default document to db.getAsRef to avoid a null reference error when the document is not yet loaded.
-const image = db.getAsRef<ImageDto>(props.imageId, {
+// We need to pass a default document to luminary.db.getAsRef to avoid a null reference error when the document is not yet loaded.
+const image = luminary.db.getAsRef<ImageDto>(props.imageId, {
     _id: props.imageId,
     type: DocType.Image,
     name: "",
@@ -48,7 +48,7 @@ const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 const save = () => {
     const raw = toRaw(image.value);
     delete raw.uploadData; // do not re-save upload data as this will trigger a re-render of the image in the API.
-    db.upsert<ImageDto>(toRaw(image.value));
+    luminary.db.upsert<ImageDto>(toRaw(image.value));
 };
 
 const showFilePicker = () => {
@@ -87,7 +87,7 @@ const upload = () => {
                 filename: file.name,
             },
         ]; // do not re-save previous upload data as this will trigger a re-render of the image in the API.
-        db.upsert<ImageDto>(toRaw(image.value));
+        luminary.db.upsert<ImageDto>(toRaw(image.value));
     };
 
     reader.readAsArrayBuffer(file);

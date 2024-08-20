@@ -21,8 +21,11 @@ import {
     type PostDto,
     type TagDto,
 } from "../types";
-import { db } from "../db/database";
+import { getDatabase } from "./database";
+import { config } from "../config";
 import { accessMap } from "../permissions/permissions";
+
+const db = getDatabase(config.getCmsFlag());
 
 describe("baseDatabase.ts", () => {
     beforeEach(async () => {

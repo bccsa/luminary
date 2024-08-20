@@ -1,12 +1,13 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
 import { Slug } from "./slug";
-import { db, type ContentDto } from "luminary-shared";
+import { type ContentDto } from "luminary-shared";
+import { luminary } from "@/main";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 
 describe("Slug", () => {
     afterEach(() => {
-        db.docs.clear();
+        luminary.db.docs.clear();
     });
 
     it("should generate a slug from a title", async () => {
@@ -18,7 +19,7 @@ describe("Slug", () => {
     });
 
     it("should append a number for a duplicate title", async () => {
-        db.docs.put({ ...mockEnglishContentDto, slug: "sample-title" } as ContentDto);
+        luminary.db.docs.put({ ...mockEnglishContentDto, slug: "sample-title" } as ContentDto);
         const title = "Sample Title";
 
         const generatedSlug = await Slug.generate(title, "different-id");
@@ -27,7 +28,7 @@ describe("Slug", () => {
     });
 
     it("should not make the slug for the same document unique", async () => {
-        db.docs.put({ ...mockEnglishContentDto, slug: "sample-title" } as ContentDto);
+        luminary.db.docs.put({ ...mockEnglishContentDto, slug: "sample-title" } as ContentDto);
         const title = "Sample Title";
 
         const generatedSlug = await Slug.generate(title, mockEnglishContentDto._id);

@@ -2,7 +2,8 @@ import "fake-indexeddb/auto";
 import { DOMWrapper, mount } from "@vue/test-utils";
 import ImageEditor from "./ImageEditor.vue";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { db, accessMap } from "luminary-shared";
+import { accessMap } from "luminary-shared";
+import { luminary } from "@/main";
 import { fullAccessToAllContentMap, mockImageDto } from "@/tests/mockdata";
 import { ref } from "vue";
 import { setActivePinia } from "pinia";
@@ -13,7 +14,7 @@ describe("ImageEditor", () => {
     beforeAll(async () => {
         // We need to mock Dexie (and Dexie's liveQuery) as it returns a promise(?) that Vitest doesn't like.
         // So we are not testing the actual liveQuery functionality here but rather the component itself.
-        vi.mock("@/db/baseDatabase", () => ({
+        vi.mock("@/luminary.db/baseDatabase", () => ({
             db: {
                 docs: {
                     put: vi.fn(),
@@ -36,7 +37,7 @@ describe("ImageEditor", () => {
     });
 
     it("can render an image document", async () => {
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
+        vi.spyOn(luminary.db, "getAsRef").mockReturnValue(ref(mockImageDto));
 
         const wrapper = mount(ImageEditor, {
             props: { imageId: "image-image1" },
@@ -57,8 +58,8 @@ describe("ImageEditor", () => {
     });
 
     it("can save an image document", async () => {
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
-        const spyOn_upsert = vi.spyOn(db, "upsert");
+        vi.spyOn(luminary.db, "getAsRef").mockReturnValue(ref(mockImageDto));
+        const spyOn_upsert = vi.spyOn(luminary.db, "upsert");
 
         const wrapper = mount(ImageEditor, {
             props: { imageId: "image-image1" },

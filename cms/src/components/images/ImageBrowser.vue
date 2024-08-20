@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { db, DocType, type ImageDto, type Uuid } from "luminary-shared";
+import { DocType, type ImageDto, type Uuid } from "luminary-shared";
+import { luminary } from "@/main";
 import LImage from "./LImage.vue";
 import LButton from "../button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
@@ -11,11 +12,11 @@ import fallbackImg from "../../assets/fallback-image-cms.webp";
 // TODO: Implement select event
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
-const images = db.whereTypeAsRef<ImageDto[]>(DocType.Image, []);
+const images = luminary.db.whereTypeAsRef<ImageDto[]>(DocType.Image, []);
 
 const newImage = async () => {
-    const id = db.uuid();
-    await db.upsert<ImageDto>({
+    const id = luminary.db.uuid();
+    await luminary.db.upsert<ImageDto>({
         _id: id,
         type: DocType.Image,
         name: "New Image",

@@ -2,7 +2,7 @@ import { io, Socket } from "socket.io-client";
 import { ref, watch } from "vue";
 import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
 import { accessMap, AccessMap } from "../permissions/permissions";
-import { db } from "../index";
+import { getDatabase } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { config } from "../config";
 
@@ -27,8 +27,9 @@ export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
 class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
-    private localChanges = db.getLocalChangesAsRef();
-    private isCms: boolean | undefined = config.getCmsFlag();
+    private isCms: boolean = config.getCmsFlag();
+    private db = getDatabase(this.isCms);
+    private localChanges = this.db.getLocalChangesAsRef();
 
     /**
      * Create a new socketio instance
@@ -48,8 +49,8 @@ class Socketio {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
-            await db.bulkPut(data.docs);
-            if (data.version != undefined) db.syncVersion = data.version;
+            await this.db.bulkPut(data.docs);
+            if (data.version != undefined) this.db.syncVersion = data.version;
         });
 
         this.socket.on("changeRequestAck", this.handleAck.bind(this));
@@ -104,7 +105,7 @@ class Socketio {
     public requestData() {
         // Request documents that are newer than the last received version
         this.socket.emit("clientDataReq", {
-            version: db.syncVersion,
+            version: this.db.syncVersion,
             cms: this.isCms,
             accessMap: accessMap.value,
         });
@@ -130,7 +131,7 @@ class Socketio {
      * Handle change request acknowledgements from the api
      */
     private async handleAck(ack: ChangeReqAckDto) {
-        await db.applyLocalChangeAck(ack);
+        await this.db.applyLocalChangeAck(ack);
 
         // Push the next local change to api
         clearTimeout(this.retryTimeout);

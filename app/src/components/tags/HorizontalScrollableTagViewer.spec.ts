@@ -4,17 +4,17 @@ import { mount } from "@vue/test-utils";
 import HorizontalScrollableTagViewer from "./HorizontalScrollableTagViewer.vue";
 import { mockCategoryContentDto, mockCategoryDto, mockEnglishContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { db } from "luminary-shared";
+import { luminary } from "@/main";
 
 vi.mock("vue-router");
 
 describe("HorizontalScrollableTagViewer", () => {
     beforeEach(async () => {
-        await db.docs.bulkPut([mockCategoryContentDto, mockCategoryDto]);
+        await luminary.db.docs.bulkPut([mockCategoryContentDto, mockCategoryDto]);
     });
 
     afterEach(async () => {
-        await db.docs.clear();
+        await luminary.db.docs.clear();
         vi.clearAllMocks();
     });
 
@@ -46,7 +46,7 @@ describe("HorizontalScrollableTagViewer", () => {
     // This test is showing a Vue warn in the console.
     //It should be a warning comming from the router in one of the child components.
     it("displays a ContentTile", async () => {
-        await db.docs.bulkPut([mockEnglishContentDto]);
+        await luminary.db.docs.bulkPut([mockEnglishContentDto]);
 
         const wrapper = mount(HorizontalScrollableTagViewer, {
             props: {

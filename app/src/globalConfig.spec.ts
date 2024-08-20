@@ -2,17 +2,17 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, afterAll, beforeAll } from "vitest";
 import { appLanguageAsRef, appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "./tests/mockdata";
-import { db } from "luminary-shared";
+import { luminary } from "@/main";
 import waitForExpect from "wait-for-expect";
 
 describe("globalConfig.ts", () => {
     beforeAll(async () => {
-        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await luminary.db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         initLanguage();
     });
     afterAll(async () => {
-        await db.docs.clear();
-        await db.localChanges.clear();
+        await luminary.db.docs.clear();
+        await luminary.db.localChanges.clear();
     });
 
     it("can initialize the preferred language", async () => {

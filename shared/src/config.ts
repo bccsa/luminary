@@ -1,5 +1,5 @@
 export type SharedConfigT = {
-    cms: boolean | undefined;
+    cms: boolean;
 };
 
 export class Configuration {

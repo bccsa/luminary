@@ -7,7 +7,8 @@ import { setActivePinia } from "pinia";
 import { ref } from "vue";
 import EditContentBasic from "./EditContentBasic.vue";
 import { DateTime } from "luxon";
-import { db, accessMap, type ContentDto, PublishStatus } from "luminary-shared";
+import { accessMap, type ContentDto, PublishStatus } from "luminary-shared";
+import { luminary } from "@/main";
 
 describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
@@ -217,7 +218,7 @@ describe("EditContentBasic.vue", () => {
         ) as DOMWrapper<HTMLInputElement>;
 
         // Check if the publish date input field has the correct value
-        expect(publishDateInput.element.value).toBe(db.toIsoDateTime(content.value.publishDate!));
+        expect(publishDateInput.element.value).toBe(luminary.db.toIsoDateTime(content.value.publishDate!));
     });
 
     it("sets the expiry date correctly from the loaded data", async () => {
@@ -236,7 +237,7 @@ describe("EditContentBasic.vue", () => {
         const expiryDateInput = wrapper.find('[name="expiryDate"]') as DOMWrapper<HTMLInputElement>;
 
         // Check if the expiry date input field has the correct value
-        expect(expiryDateInput.element.value).toBe(db.toIsoDateTime(content.value.expiryDate!));
+        expect(expiryDateInput.element.value).toBe(luminary.db.toIsoDateTime(content.value.expiryDate!));
     });
 
     it("sets the status toggle correctly to draft from the loaded data", async () => {

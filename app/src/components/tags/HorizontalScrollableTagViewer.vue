@@ -3,7 +3,8 @@ import ContentTile from "@/components/content/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref, watch } from "vue";
 import { useResizeObserver } from "@vueuse/core";
-import { DocType, db, type TagDto, type queryOptions as options } from "luminary-shared";
+import { DocType, type TagDto, type queryOptions as options } from "luminary-shared";
+import { luminary } from "@/main";
 
 type Props = {
     tag?: TagDto;
@@ -15,9 +16,9 @@ const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
 });
 
-const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
+const taggedDocs = luminary.db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
 const tagContent = props.tag
-    ? db.whereParentAsRef(props.tag._id, DocType.Tag, props.queryOptions.languageId, [])
+    ? luminary.db.whereParentAsRef(props.tag._id, DocType.Tag, props.queryOptions.languageId, [])
     : ref([]);
 
 const tagTitle = ref(props.title);

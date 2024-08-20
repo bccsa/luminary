@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-    db,
     PublishStatus,
     DocType,
     type ContentDto,
@@ -11,6 +10,7 @@ import {
     AclPermission,
     verifyAccess,
 } from "luminary-shared";
+import { luminary } from "@/main";
 import { DateTime } from "luxon";
 import { computed } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -25,8 +25,8 @@ type Props = {
     languages: LanguageDto[];
 };
 const props = defineProps<Props>();
-const content = db.whereParentAsRef(props.parent._id, props.parentType, undefined, []);
-const isLocalChange = db.isLocalChangeAsRef(props.parent._id);
+const content = luminary.db.whereParentAsRef(props.parent._id, props.parentType, undefined, []);
+const isLocalChange = luminary.db.isLocalChangeAsRef(props.parent._id);
 
 // Get the title in the selected language if available, otherwise use the first available translation
 const title = computed(() => {
@@ -109,7 +109,7 @@ const translationStatus = computed(() => {
         </td>
         <!-- updated -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ db.toDateTime(parent.updatedTimeUtc).toLocaleString(DateTime.DATETIME_MED) }}
+            {{ luminary.db.toDateTime(parent.updatedTimeUtc).toLocaleString(DateTime.DATETIME_MED) }}
         </td>
         <!-- actions -->
         <td

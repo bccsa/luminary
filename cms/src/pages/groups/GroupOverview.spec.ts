@@ -11,7 +11,8 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, db } from "luminary-shared";
+import { accessMap } from "luminary-shared";
+import { luminary } from "@/main";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router");
@@ -21,7 +22,7 @@ describe("GroupOverview", () => {
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
-        db.docs.bulkPut([
+        luminary.db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicUsers,
             mockGroupDtoPublicEditors,
@@ -31,8 +32,8 @@ describe("GroupOverview", () => {
 
     afterEach(() => {
         vi.clearAllMocks();
-        db.docs.clear();
-        db.localChanges.clear();
+        luminary.db.docs.clear();
+        luminary.db.localChanges.clear();
     });
 
     it("displays all groups", async () => {

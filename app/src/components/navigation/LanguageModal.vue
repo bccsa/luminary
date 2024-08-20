@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
-import { db, DocType, type LanguageDto } from "luminary-shared";
+import { DocType, type LanguageDto } from "luminary-shared";
+import { luminary } from "@/main";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { appLanguageIdAsRef } from "@/globalConfig";
@@ -10,7 +11,7 @@ type Props = {
 };
 defineProps<Props>();
 
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languages = luminary.db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
 const emit = defineEmits(["close"]);
 

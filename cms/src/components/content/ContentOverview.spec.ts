@@ -3,7 +3,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
-import { db, accessMap, DocType } from "luminary-shared";
+import { accessMap, DocType } from "luminary-shared";
+import { luminary } from "@/main";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
@@ -12,9 +13,9 @@ import waitForExpect from "wait-for-expect";
 
 describe("ContentOverview.vue", () => {
     beforeEach(async () => {
-        await db.docs.bulkPut([mockData.mockPostDto]);
-        await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
-        await db.docs.bulkPut([
+        await luminary.db.docs.bulkPut([mockData.mockPostDto]);
+        await luminary.db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
+        await luminary.db.docs.bulkPut([
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
             mockData.mockLanguageDtoSwa,
@@ -27,8 +28,8 @@ describe("ContentOverview.vue", () => {
 
     afterEach(async () => {
         // Clear the database after each test
-        await db.docs.clear();
-        await db.localChanges.clear();
+        await luminary.db.docs.clear();
+        await luminary.db.localChanges.clear();
     });
 
     it("should display content", async () => {

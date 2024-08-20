@@ -12,7 +12,8 @@ import {
 import GroupSelector from "./GroupSelector.vue";
 import { Combobox } from "@headlessui/vue";
 import LTag from "../content/LTag.vue";
-import { accessMap, db, DocType } from "luminary-shared";
+import { accessMap, DocType } from "luminary-shared";
+import { luminary } from "@/main";
 import waitForExpect from "wait-for-expect";
 
 describe("GroupSelector", () => {
@@ -20,7 +21,7 @@ describe("GroupSelector", () => {
     accessMap.value = superAdminAccessMap;
 
     beforeAll(async () => {
-        await db.docs.bulkPut([
+        await luminary.db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -33,8 +34,8 @@ describe("GroupSelector", () => {
     });
 
     afterAll(async () => {
-        await db.docs.clear();
-        await db.localChanges.clear();
+        await luminary.db.docs.clear();
+        await luminary.db.localChanges.clear();
     });
 
     it("displays selected groups", async () => {

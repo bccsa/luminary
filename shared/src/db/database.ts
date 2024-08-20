@@ -629,13 +629,12 @@ export class database extends Dexie {
                 await revokedDocs.delete();
             });
     }
-
+    /**
+     * Delete expired documents when not in cms-mode
+     */
     private deleteExpired() {
         const now = DateTime.now().toMillis();
-        console.log("Current time:", now);
-
         if (this.isCms) {
-            console.log("CMS mode is active; skipping deleteExpired.");
             return;
         } else {
             this.docs
@@ -670,4 +669,15 @@ export class database extends Dexie {
         await Promise.all([this.docs.clear(), this.localChanges.clear()]);
         this.syncVersion = 0;
     }
+}
+
+let db: database;
+export function getDatabase(cms: boolean) {
+    if (!db) {
+        if (!cms) {
+            throw new Error("Database requires a cms-flag");
+        }
+        db = new database(cms);
+    }
+    return db;
 }
