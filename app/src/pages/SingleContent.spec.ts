@@ -7,13 +7,25 @@ import SingleContent from "./SingleContent.vue";
 import { mockPostDto, mockEnglishContentDto, mockCategoryContentDto } from "@/tests/mockdata";
 import { db, type BaseDocumentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import NotFoundPage from "./NotFoundPage.vue";
 
 const routePushMock = vi.hoisted(() => vi.fn());
-vi.mock("vue-router", () => ({
-    useRouter: vi.fn().mockImplementation(() => ({
-        push: routePushMock,
-    })),
-}));
+// vi.mock("vue-router", () => ({
+//     useRouter: vi.fn().mockImplementation(() => ({
+//         push: routePushMock,
+//     })),
+// }));
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRoute: vi.fn().mockImplementation(() => ({
+            push: routePushMock,
+        })),
+    };
+});
 
 describe("SinglePost", () => {
     beforeEach(() => {
@@ -119,15 +131,22 @@ describe("SinglePost", () => {
         });
     });
 
-    it("does not display expired content", async () => {
+    it("does not display scheduled or expired content", async () => {
+        // Set a future publish date and an expired date
+        await db.docs.update(mockEnglishContentDto._id, {
+            publishDate: Date.now(),
+            expiryDate: Date.now() - 1000,
+        });
+
         const wrapper = mount(SingleContent, {
             props: {
-                slug: mockCategoryContentDto.slug,
+                slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            console.log(wrapper.html());
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.find("article").exists()).toBe(false);
         });
     });
 });
