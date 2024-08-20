@@ -84,40 +84,42 @@ const parentValidations = ref([] as Validation[]);
 const parentIsValid = ref(true);
 watch(
     [parent, contentDocs],
-    ([_parent, _contentDocs]) => {
-        if (!_parent) return;
+    ([newParent, newContentDocs]) => {
+        if (!newParent) return;
+
+        console.log(newParent.memberOf);
 
         validate(
             "At least one group is required",
             "groups",
             parentValidations.value,
-            _parent,
-            () => _parent.memberOf.length > 0,
+            newParent,
+            () => newParent.memberOf.length > 0,
         );
 
         validate(
             "The default image must be set",
             "image",
             parentValidations.value,
-            _parent,
-            () => _parent.image != "" && _parent.image != undefined,
+            newParent,
+            () => newParent.image != "" && newParent.image != undefined,
         );
 
         validate(
             "At least one translation is required",
             "translations",
             parentValidations.value,
-            _parent,
-            () => _contentDocs != undefined && _contentDocs.length > 0,
+            newParent,
+            () => newContentDocs != undefined && newContentDocs.length > 0,
         );
 
         parentIsValid.value = parentValidations.value.every((v) => v.isValid);
 
         // Update overall validation
-        let parentOverallValidation = overallValidations.value.find((v) => v.id == _parent._id);
+        let parentOverallValidation = overallValidations.value.find((v) => v.id == newParent._id);
         if (!parentOverallValidation) {
             parentOverallValidation = {
-                id: _parent._id,
+                id: newParent._id,
                 isValid: parentIsValid.value,
                 message: "",
             };

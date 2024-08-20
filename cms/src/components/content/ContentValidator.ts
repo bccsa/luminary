@@ -8,11 +8,10 @@ export type Validation = {
 /**
  * Validate a value and store the validation result in the passed validations list
  * @param message - display message
- * @param validationsList - list where validation result should be stored
  * @param id - unique validation id
+ * @param validationsList - list where validation result should be stored
  * @param value - value to be validated
  * @param callback - validation function
- * @param overallValidationsList - combined list for all validations
  */
 export function validate<T>(
     message: string,
