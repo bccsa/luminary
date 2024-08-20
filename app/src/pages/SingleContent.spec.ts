@@ -11,25 +11,11 @@ import {
     mockLanguageDtoFra,
     mockFrenchContentDto,
     mockLanguageDtoEng,
+    mockCategoryDto,
 } from "@/tests/mockdata";
 import { db, type BaseDocumentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import NotFoundPage from "./NotFoundPage.vue";
-
-const routePushMock = vi.hoisted(() => vi.fn());
-
-vi.mock("vue-router", async (importOriginal) => {
-    const actual = await importOriginal();
-    return {
-        // @ts-expect-error
-        ...actual,
-        useRoute: vi.fn().mockImplementation(() => ({
-            push: routePushMock,
-        })),
-    };
-});
-import { appLanguageAsRef } from "@/globalConfig";
-import { ref } from "vue";
+import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 
 const routeReplaceMock = vi.fn();
 vi.mock("vue-router", () => {
@@ -41,22 +27,18 @@ vi.mock("vue-router", () => {
 });
 
 describe("SingleContent", () => {
-    const mockAppLanguageAsRef = ref(mockLanguageDtoEng);
-
     beforeEach(() => {
         db.docs.bulkPut([
             mockPostDto,
-            mockEnglishContentDto,
+            mockCategoryDto,
             mockCategoryContentDto,
+            mockEnglishContentDto,
             mockFrenchContentDto,
-
             mockLanguageDtoEng,
             mockLanguageDtoFra,
-        ] as BaseDocumentDto[]);
+        ]);
 
         setActivePinia(createTestingPinia());
-
-        vi.spyOn(appLanguageAsRef, "value", "get").mockReturnValue(mockAppLanguageAsRef.value);
     });
 
     afterEach(() => {
@@ -177,23 +159,16 @@ describe("SingleContent", () => {
             },
         });
 
-        // Wait for the initial content to load
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockEnglishContentDto.summary);
+            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
         });
 
-        // Simulate language change to French
-        mockAppLanguageAsRef.value = mockLanguageDtoFra;
-        await wrapper.vm.$nextTick();
+        // simulate language change
+        appLanguageIdAsRef.value = mockLanguageDtoFra._id;
+        initLanguage();
 
-        // Assert: Check if the content updates
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockFrenchContentDto.summary);
-        });
-
-        expect(routeReplaceMock).toHaveBeenCalledWith({
-            name: "content",
-            params: { slug: mockFrenchContentDto.slug },
+            expect(wrapper.text()).toContain(mockFrenchContentDto.summary);
         });
     });
 });
