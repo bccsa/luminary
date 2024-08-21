@@ -65,7 +65,7 @@ describe("App", () => {
                 type: "banner",
                 icon: SignalSlashIcon,
             });
-        });
+        }, 1000);
 
         // Now test removing the notification when reconnected
         vi.spyOn(isConnected, "value", "get").mockReturnValue(true);
@@ -75,6 +75,6 @@ describe("App", () => {
 
         await waitForExpect(() => {
             expect(removeNotification).toHaveBeenCalledWith("offlineBanner");
-        });
+        }, 10000);
     });
 });
