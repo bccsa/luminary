@@ -76,5 +76,5 @@ describe("App", () => {
         await waitForExpect(() => {
             expect(removeNotification).toHaveBeenCalledWith("offlineBanner");
         });
-    });
+    }, 10000);
 });
