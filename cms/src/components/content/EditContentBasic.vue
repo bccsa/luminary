@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
-import LToggle from "@/components/forms/LToggle.vue";
-import FormLabel from "@/components/forms/FormLabel.vue";
 import { PencilIcon } from "@heroicons/vue/16/solid";
+
 import { PublishStatus, type ContentDto} from "luminary-shared";
 import { luminary } from "@/main";
 import { computed, nextTick, ref, watch } from "vue";
 import { DateTime } from "luxon";
+import { PublishStatus, type ContentDto } from "luminary-shared";
+import { nextTick, ref, watch } from "vue";
 import { Slug } from "@/util/slug";
-import { BackspaceIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     disabled: boolean;
@@ -235,135 +234,5 @@ const publishStatus = computed({
             :disabled="disabled"
             v-model="content.summary"
         />
-
-        <!-- Publish settings -->
-        <div class="mt-4 flex flex-col gap-4 sm:flex-row">
-            <!-- Publish date -->
-            <LInput
-                name="publishDate"
-                label="Publish date"
-                class="sm:w-1/2"
-                type="datetime-local"
-                :disabled="disabled"
-                v-model="publishDateString"
-            >
-                <!-- Link publish & expiry dates toggle -->
-                <!-- <div class="flex items-center justify-between">
-                    <FormLabel>Link dates (not implemented yet)</FormLabel>
-                    <LToggle v-model="linkedDates" :disabled="disabled || true" />
-                </div> -->
-
-                <!-- Publish / draft toggle -->
-                <div class="mt-2 flex items-center justify-between">
-                    <FormLabel>Status: Draft / Published</FormLabel>
-                    <LToggle v-model="publishStatus" :disabled="disabled" data-test="toggle" />
-                </div>
-            </LInput>
-
-            <!-- Expiry date -->
-            <LInput
-                name="expiryDate"
-                label="Expiry date"
-                class="group sm:w-1/2"
-                type="datetime-local"
-                :disabled="disabled"
-                v-model="expiryDateString"
-            >
-                <!-- Expiry date shortcut buttons -->
-                <div class="flex w-full cursor-pointer flex-wrap gap-1">
-                    <LButton
-                        type="button"
-                        name="1"
-                        variant="secondary"
-                        class="flex-1"
-                        :class="{
-                            '!bg-black !text-white': selectedExpiryNumber === 1,
-                        }"
-                        @click="setExpiryNumber(1)"
-                        :disabled="disabled"
-                    >
-                        1
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="2"
-                        variant="secondary"
-                        class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
-                        @click="setExpiryNumber(2)"
-                        :disabled="disabled"
-                    >
-                        2
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="3"
-                        variant="secondary"
-                        class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
-                        @click="setExpiryNumber(3)"
-                        :disabled="disabled"
-                    >
-                        3
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="6"
-                        variant="secondary"
-                        class="flex-1"
-                        size="lg"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
-                        @click="setExpiryNumber(6)"
-                        :disabled="disabled"
-                    >
-                        6
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="W"
-                        variant="secondary"
-                        class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
-                        @click="setExpiryUnit('Week')"
-                        data-test="W"
-                        :disabled="disabled"
-                    >
-                        W
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="M"
-                        variant="secondary"
-                        class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
-                        @click="setExpiryUnit('Month')"
-                        :disabled="disabled"
-                    >
-                        M
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="Y"
-                        variant="secondary"
-                        class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
-                        @click="setExpiryUnit('Year')"
-                        :disabled="disabled"
-                    >
-                        Y
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="clear"
-                        variant="secondary"
-                        :icon="BackspaceIcon"
-                        class="flex-1"
-                        @click="clearExpiryDate()"
-                        :disabled="disabled"
-                    >
-                    </LButton>
-                </div>
-            </LInput>
-        </div>
     </LCard>
 </template>

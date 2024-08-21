@@ -1,20 +1,16 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { mount } from "@vue/test-utils";
+import { DOMWrapper, mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { ref } from "vue";
-import EditContentBasic from "./EditContentBasic.vue";
-
+import EditContentStatus from "./EditContentStatus.vue";
 import { DateTime } from "luxon";
-import { accessMap, type ContentDto, PublishStatus } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, accessMap, type ContentDto, PublishStatus } from "luminary-shared";
+import LTextToggle from "../forms/LTextToggle.vue";
 
-import { accessMap, type ContentDto } from "luminary-shared";
-
-
-describe("EditContentBasic.vue", () => {
+describe("EditContentStatus.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
@@ -25,47 +21,12 @@ describe("EditContentBasic.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("can update the title", async () => {
-        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
-        const wrapper = mount(EditContentBasic, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
-
-        // Find and update the title input field
-        const titleInput = wrapper.find('[name="title"]');
-        await titleInput.setValue("Updated Title");
-
-        // Check if the content's title was updated
-        expect(content.value.title).toBe("Updated Title");
-    });
-
-    it("can update the summary", async () => {
-        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
-        const wrapper = mount(EditContentBasic, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
-
-        // Find and update the summary input field
-        const summaryInput = wrapper.find('[name="summary"]');
-        await summaryInput.setValue("Updated Summary");
-
-        // Check if the content's summary was updated
-        expect(content.value.summary).toBe("Updated Summary");
-    });
-
-
     it("sets expiry date when shortcut buttons are clicked", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
             publishDate: DateTime.now().toMillis(),
         });
-        const wrapper = mount(EditContentBasic, {
+        const wrapper = mount(EditContentStatus, {
             props: {
                 disabled: false,
                 content: content.value,
@@ -180,29 +141,53 @@ describe("EditContentBasic.vue", () => {
         expect(content.value.expiryDate).toBeUndefined();
     });
 
-    it("check if the Publish/Draft toggle switchs correctly", async () => {
+    it("can switch between draft and published status", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
             status: PublishStatus.Draft,
         });
-        const wrapper = mount(EditContentBasic, {
+        const wrapper = mount(EditContentStatus, {
             props: {
                 disabled: false,
                 content: content.value,
             },
         });
 
-        // Find the publish status toggle (assuming LToggle renders as a button)
-        const toggleButton = wrapper.find("[data-test='toggle']");
+        // Find the publish status toggle
+        const textToggleWrapper = wrapper.find("[data-test='text-toggle']");
+        const draftButton = textToggleWrapper.find("[data-test='text-toggle-left-value']");
+        const publishedButton = textToggleWrapper.find("[data-test='text-toggle-right-value']");
 
         // Initially, the content status should be Draft
-        expect(content.value.status).toBe("draft");
+        expect(content.value.status).toBe(PublishStatus.Draft);
 
-        // click on the button
-        await toggleButton.trigger("click");
+        await publishedButton.trigger("click");
 
         // Check if the content's status was updated
-        expect(content.value.status).toBe("published");
+        expect(content.value.status).toBe(PublishStatus.Published);
+
+        await draftButton.trigger("click");
+
+        // Check if the content's status was updated
+        expect(content.value.status).toBe(PublishStatus.Draft);
+    });
+
+    it("correctly sets the publish status toggle from the prop", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Published,
+        });
+        const wrapper = mount(EditContentStatus, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Find the publish status toggle
+        const textToggle = wrapper.findComponent(LTextToggle);
+
+        expect(textToggle.props().modelValue).toBe("published");
     });
 
     it("sets the publish date correctly from the loaded data", async () => {
@@ -210,7 +195,7 @@ describe("EditContentBasic.vue", () => {
             ...mockData.mockEnglishContentDto,
             publishDate: Date.now(),
         });
-        const wrapper = mount(EditContentBasic, {
+        const wrapper = mount(EditContentStatus, {
             props: {
                 disabled: false,
                 content: content.value,
@@ -223,7 +208,7 @@ describe("EditContentBasic.vue", () => {
         ) as DOMWrapper<HTMLInputElement>;
 
         // Check if the publish date input field has the correct value
-        expect(publishDateInput.element.value).toBe(luminary.db.toIsoDateTime(content.value.publishDate!));
+        expect(publishDateInput.element.value).toBe(db.toIsoDateTime(content.value.publishDate!));
     });
 
     it("sets the expiry date correctly from the loaded data", async () => {
@@ -231,7 +216,7 @@ describe("EditContentBasic.vue", () => {
             ...mockData.mockEnglishContentDto,
             expiryDate: Date.now(),
         });
-        const wrapper = mount(EditContentBasic, {
+        const wrapper = mount(EditContentStatus, {
             props: {
                 disabled: false,
                 content: content.value,
@@ -242,60 +227,6 @@ describe("EditContentBasic.vue", () => {
         const expiryDateInput = wrapper.find('[name="expiryDate"]') as DOMWrapper<HTMLInputElement>;
 
         // Check if the expiry date input field has the correct value
-        expect(expiryDateInput.element.value).toBe(luminary.db.toIsoDateTime(content.value.expiryDate!));
-    });
-
-    it("sets the status toggle correctly to draft from the loaded data", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            status: PublishStatus.Draft,
-        });
-        const wrapper = mount(EditContentBasic, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
-
-        // Find the publish status toggle
-        const toggleButtonOffState = wrapper
-            .find("[data-test='toggle']")
-            .findAll("span")[1]
-            .find("span");
-        const toggleButtonOnState = wrapper
-            .find("[data-test='toggle']")
-            .findAll("span")[1]
-            .findAll("span")[1];
-
-        // Check if the toggle button is in the correct state
-        expect(toggleButtonOffState.classes()).toContain("opacity-100");
-        expect(toggleButtonOnState.classes()).toContain("opacity-0");
-    });
-
-    it("sets the status toggle correctly to published from the loaded data", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            status: PublishStatus.Published,
-        });
-        const wrapper = mount(EditContentBasic, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
-
-        // Find the publish status toggle
-        const toggleButtonOffState = wrapper
-            .find("[data-test='toggle']")
-            .findAll("span")[1]
-            .find("span");
-        const toggleButtonOnState = wrapper
-            .find("[data-test='toggle']")
-            .findAll("span")[1]
-            .findAll("span")[1];
-
-        // Check if the toggle button is in the correct state
-        expect(toggleButtonOffState.classes()).toContain("opacity-0");
-        expect(toggleButtonOnState.classes()).toContain("opacity-100");
+        expect(expiryDateInput.element.value).toBe(db.toIsoDateTime(content.value.expiryDate!));
     });
 });

@@ -18,6 +18,7 @@ import {
 import { luminary } from "@/main";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
+import EditContentStatus from "@/components/content/EditContentStatus.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
@@ -213,17 +214,7 @@ watch(selectedLanguage, () => {
         }"
         v-if="parent"
     >
-        <template #actions v-if="selectedLanguage">
-            <LanguageSelector
-                :parent="parent"
-                :content="contentDocs"
-                :languages="languages"
-                v-model="selectedLanguageId"
-                @createTranslation="createTranslation"
-            />
-        </template>
         <div class="relative grid grid-cols-3 gap-8">
-            <!-- Main area -->
             <div class="col-span-3 md:col-span-2">
                 <EmptyState
                     v-if="!selectedContent"
@@ -240,7 +231,10 @@ watch(selectedLanguage, () => {
                         @createTranslation="createTranslation"
                 /></EmptyState>
                 <div v-else class="space-y-6">
-                    <!-- Basic content settings -->
+                    <EditContentStatus
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslate"
+                    />
                     <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
@@ -249,7 +243,6 @@ watch(selectedLanguage, () => {
             <!-- Sidebar -->
             <div class="col-span-3 md:col-span-1" v-if="parent">
                 <div class="sticky top-20 space-y-6">
-                    <!-- Validation -->
                     <EditContentParentValidation
                         v-if="contentDocs"
                         v-model:parent="parent"
@@ -261,9 +254,7 @@ watch(selectedLanguage, () => {
                         :contentPrev="contentDocsPrev"
                         :parentPrev="parentPrev"
                     />
-                    <!-- Live View -->
                     <EditContentPreview v-if="selectedContent" :content="selectedContent" />
-                    <!-- Parent settings -->
                     <EditContentParent
                         v-if="parent"
                         :docType="props.docType"
