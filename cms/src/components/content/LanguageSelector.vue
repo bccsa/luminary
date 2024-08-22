@@ -21,13 +21,11 @@ const emit = defineEmits(["createTranslation"]);
     <Menu as="div" class="relative inline-block text-left">
         <div>
             <MenuButton
-                :as="LButton"
-                :icon="ChevronDownIcon"
-                variant="tertiary"
-                iconRight
                 data-test="language-selector"
+                class="flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-200 hover:shadow-sm"
             >
                 Add translation
+                <ChevronDownIcon class="h-4 w-4 text-zinc-600" />
             </MenuButton>
         </div>
 
