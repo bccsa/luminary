@@ -292,7 +292,7 @@ export class DbService extends EventEmitter {
 
     /**
      * Get data to which a user has access to including the user document itself.
-     * @param {string} userID - User document ID.
+     * @param {string} userId - User document ID.
      * @param {GetDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */

@@ -2,10 +2,6 @@
     "_id": "content-topicB-eng",
     "type": "content",
     "memberOf": ["group-private-content"],
-    "image": "image.jpg",
-    "tags": [],
-    "parentId": "tag-topicB",
-    "parentType": "tag",
     "language": "lang-eng",
     "status": "published",
     "slug": "topicB-eng",
@@ -18,5 +14,9 @@
     "audio": null,
     "video": null,
     "publishDate": 1704114000000,
-    "tagType": "topic"
+    "parentId": "tag-topicB",
+    "parentType": "tag",
+    "parentTagType": "topic",
+    "parentImage": "image.jpg",
+    "parentTags": []
 }

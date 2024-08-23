@@ -197,14 +197,14 @@ describe("processChangeRequest", () => {
         changeRequest.doc.parentId = "post-post1";
         changeRequest.doc._id = "test-essential-properties";
         changeRequest.doc.memberOf = undefined;
-        changeRequest.doc.tags = undefined;
+        changeRequest.doc.parentTags = undefined;
 
         await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
-        expect(dbDoc.docs[0].tags).toEqual(["tag-category1", "tag-topicA"]);
-        expect(dbDoc.docs[0].image).toBe("image.jpg");
+        expect(dbDoc.docs[0].parentTags).toEqual(["tag-category1", "tag-topicA"]);
+        expect(dbDoc.docs[0].parentImage).toBe("image.jpg");
     });
 
     it("can set essential properties from a parent document to a content document on post / tag document submission", async () => {
@@ -237,7 +237,9 @@ describe("processChangeRequest", () => {
 
         expect(
             res.docs.map(
-                (doc) => doc.tags.some((m) => m == "tag1") && doc.tags.some((m) => m == "tag2"),
+                (doc) =>
+                    doc.parentTags.some((m) => m == "tag1") &&
+                    doc.parentTags.some((m) => m == "tag2"),
             ).length,
         ).toBe(docsCount);
     });

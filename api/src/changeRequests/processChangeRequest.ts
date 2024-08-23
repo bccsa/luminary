@@ -9,6 +9,7 @@ import { processImage } from "../s3/s3.imagehandling";
 import { S3Service } from "../s3/s3.service";
 import { PostDto } from "src/dto/PostDto";
 import { TagDto } from "src/dto/TagDto";
+import { ContentDto } from "src/dto/ContentDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -43,12 +44,13 @@ export async function processChangeRequest(
             parentQuery.docs.length > 0 ? parentQuery.docs[0] : undefined;
 
         if (parentDoc) {
-            doc.memberOf = parentDoc.memberOf;
-            doc.tags = parentDoc.tags;
-            doc.image = parentDoc.image;
+            const contentDoc = doc as ContentDto;
+            contentDoc.memberOf = parentDoc.memberOf;
+            contentDoc.parentTags = parentDoc.tags;
+            contentDoc.parentImage = parentDoc.image;
 
             if (parentDoc.type == DocType.Tag) {
-                doc.tagType = (parentDoc as TagDto).tagType;
+                contentDoc.parentTagType = (parentDoc as TagDto).tagType;
             }
         }
     }
@@ -57,10 +59,15 @@ export async function processChangeRequest(
         // Get content documents that are children of the Post / Tag document
         await db.getContentByParentId(doc._id).then((contentDocs) => {
             // Copy essential properties from the Post / Tag document to the child content document
-            contentDocs.docs.forEach(async (contentDoc) => {
+            contentDocs.docs.forEach(async (contentDoc: ContentDto) => {
                 contentDoc.memberOf = doc.memberOf;
-                contentDoc.tags = doc.tags;
-                contentDoc.image = doc.image;
+                contentDoc.parentTags = doc.tags;
+                contentDoc.parentImage = doc.image;
+
+                if (doc.type == DocType.Tag) {
+                    contentDoc.parentTagType = (doc as TagDto).tagType;
+                }
+
                 await db.upsertDoc(contentDoc);
             });
         });

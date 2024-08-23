@@ -2,10 +2,6 @@
     "_id": "content-topicA-fra",
     "type": "content",
     "memberOf": ["group-public-content"],
-    "image": "image.jpg",
-    "tags": [],
-    "parentId": "tag-topicA",
-    "parentType": "tag",
     "language": "lang-fra",
     "status": "published",
     "slug": "topicA-fra",
@@ -18,5 +14,9 @@
     "audio": null,
     "video": null,
     "publishDate": 1704114000000,
-    "tagType": "topic"
+    "parentId": "tag-topicA",
+    "parentType": "tag",
+    "parentTagType": "topic",
+    "parentImage": "image.jpg",
+    "parentTags": []
 }
