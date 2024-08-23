@@ -400,7 +400,8 @@ class database extends Dexie {
             if (doc.expiryDate != undefined && doc.expiryDate < Date.now()) return false;
 
             // Optionally filter by tagId
-            if (!doc.tags || (tagId && !doc.tags.some((tag) => tag == tagId))) return false;
+            if (!doc.parentTags || (tagId && !doc.parentTags.some((tag) => tag == tagId)))
+                return false;
 
             return true;
         });

@@ -25,6 +25,8 @@ export type BaseDocumentDto = {
     pinned?: boolean;
     language?: Uuid;
     tagType?: TagType;
+    parentTagType?: TagType;
+    parentTags?: Uuid[];
 };
 
 export enum AclPermission {
@@ -67,9 +69,9 @@ export type ContentDto = ContentBaseDto & {
     summary?: string;
     text?: string;
     parentType?: DocType;
-    tags: Uuid[];
-    image?: string;
-    tagType?: TagType;
+    parentTags: Uuid[];
+    parentImage?: string;
+    parentTagType?: TagType;
 };
 
 export type ContentMetadataDto = {

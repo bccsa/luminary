@@ -217,7 +217,7 @@ describe("baseDatabase.ts", () => {
                 type: DocType.Content,
                 parentId: mockPostDto._id,
                 language: mockLanguageDtoEng._id,
-                tags: [mockCategoryDto._id],
+                parentTags: [mockCategoryDto._id],
                 status: "published",
                 publishDate: 0,
             } as ContentDto,
@@ -241,7 +241,7 @@ describe("baseDatabase.ts", () => {
                 type: DocType.Content,
                 parentId: "post-2",
                 language: mockLanguageDtoEng._id,
-                tags: ["tag-category2"],
+                parentTags: ["tag-category2"],
                 status: "published",
                 publishDate: 0,
             } as ContentDto,
@@ -455,13 +455,13 @@ describe("baseDatabase.ts", () => {
         const category2 = {
             ...mockCategoryDto,
             _id: "category-2",
-            tags: [mockCategoryDto._id],
+            parentTags: [mockCategoryDto._id],
         } as TagDto;
         const category2Content = {
             ...mockCategoryContentDto,
             _id: "category-2-content",
             parentId: "category-2",
-            tags: [mockCategoryDto._id],
+            parentTags: [mockCategoryDto._id],
         } as ContentDto;
         await db.docs.bulkPut([category2, category2Content]);
 
