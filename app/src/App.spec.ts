@@ -69,7 +69,6 @@ describe("App", () => {
             shallow: true,
         });
 
-        // Wait for the setTimeout and watch to trigger
         await waitForExpect(() => {
             expect(notificationStore.removeNotification).toHaveBeenCalledWith("offlineBanner");
         });
