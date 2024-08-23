@@ -169,4 +169,25 @@ describe("EditAclByGroup.vue", () => {
         expect(wrapper.text()).toContain(mockGroupDtoPublicContent._id);
         expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
     });
+
+    it("checks if acl entries are disabled when no assign permission", async () => {
+        delete accessMap.value["group-public-content"].group?.assign;
+
+        const wrapper = mount(EditAclByGroup, {
+            props: {
+                group: mockGroupDtoPublicContent,
+                assignedGroup: mockGroupDtoPublicContent,
+                originalGroup: mockGroupDtoPublicContent,
+                availableGroups: [
+                    mockGroupDtoPublicContent,
+                    mockGroupDtoPublicEditors,
+                    mockGroupDtoPublicUsers,
+                    mockGroupDtoSuperAdmins,
+                ],
+                disabled: false,
+            },
+        });
+
+        expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
+    });
 });
