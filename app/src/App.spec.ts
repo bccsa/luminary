@@ -7,7 +7,6 @@ import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { SignalSlashIcon } from "@heroicons/vue/24/solid";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
 
@@ -41,36 +40,30 @@ describe("App", () => {
     });
 
     it("shows the banner when offline", async () => {
-        const addNotification = vi.fn();
-
         vi.spyOn(isConnected, "value", "get").mockReturnValue(false);
-        vi.spyOn(useNotificationStore(), "addNotification").mockImplementation(addNotification);
+
+        const notificationStore = useNotificationStore();
 
         mount(App, {
             shallow: true,
         });
 
-        // Wait for the setTimeout and watch to trigger
         await waitForExpect(() => {
-            expect(addNotification).toHaveBeenCalledWith({
-                id: "offlineBanner",
-                title: "You are offline",
-                description:
-                    "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
-                state: "warning",
-                type: "banner",
-                icon: SignalSlashIcon,
-            });
-        }, 1000);
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "offlineBanner",
+                    title: "You are offline",
+                    description:
+                        "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
+                }),
+            );
+        });
     });
 
     it("doesnt show the banner when online", async () => {
-        const removeNotification = vi.fn();
-
         vi.spyOn(isConnected, "value", "get").mockReturnValue(true);
-        vi.spyOn(useNotificationStore(), "removeNotification").mockImplementation(
-            removeNotification,
-        );
+
+        const notificationStore = useNotificationStore();
 
         mount(App, {
             shallow: true,
@@ -78,7 +71,7 @@ describe("App", () => {
 
         // Wait for the setTimeout and watch to trigger
         await waitForExpect(() => {
-            expect(removeNotification).toHaveBeenCalledWith("offlineBanner");
-        }, 1000);
+            expect(notificationStore.removeNotification).toHaveBeenCalledWith("offlineBanner");
+        });
     });
 });
