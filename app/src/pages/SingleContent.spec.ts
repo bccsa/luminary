@@ -13,9 +13,10 @@ import {
     mockLanguageDtoEng,
     mockCategoryDto,
 } from "@/tests/mockdata";
-import { db, type BaseDocumentDto } from "luminary-shared";
+import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
+import { useNotificationStore } from "@/stores/notification";
 
 const routeReplaceMock = vi.fn();
 vi.mock("vue-router", () => {
@@ -167,8 +168,11 @@ describe("SingleContent", () => {
         appLanguageIdAsRef.value = mockLanguageDtoFra._id;
         initLanguage();
 
+        const notificationStore = useNotificationStore();
+
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.summary);
+            expect(notificationStore.addNotification).not.toHaveBeenCalled();
         });
     });
 });
