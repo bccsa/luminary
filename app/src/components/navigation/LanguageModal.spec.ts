@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
-import { luminary } from "@/main";
+import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 
@@ -18,12 +18,12 @@ describe("LanguageModal.vue", () => {
     });
 
     beforeEach(async () => {
-        await luminary.db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
     });
 
     afterEach(async () => {
-        await luminary.db.docs.clear();
-        await luminary.db.localChanges.clear();
+        await db.docs.clear();
+        await db.localChanges.clear();
     });
 
     it.skip("renders correctly when visible", async () => {

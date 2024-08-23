@@ -1,8 +1,7 @@
 <script setup lang="ts">
 // Helper component to load multiple HorizontalScrollableTagViewer components only after the app langauge is available.
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
-import { type queryOptions, type TagType } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, type queryOptions, type TagType } from "luminary-shared";
 
 type Props = {
     tagType: TagType;
@@ -16,7 +15,7 @@ if (!props.tagQueryOptions.languageId) {
     console.error("Language ID is required as an option for tagQueryOptions");
 }
 
-const categories = luminary.db.tagsWhereTagTypeAsRef(props.tagType, props.tagQueryOptions);
+const categories = db.tagsWhereTagTypeAsRef(props.tagType, props.tagQueryOptions);
 </script>
 
 <template>

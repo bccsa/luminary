@@ -1,5 +1,4 @@
-import { DocType, type LanguageDto } from "luminary-shared";
-import { luminary } from "./main";
+import { db, DocType, type LanguageDto } from "luminary-shared";
 import { readonly, ref, watch } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
@@ -26,7 +25,7 @@ const _appLanguageAsRef = ref<LanguageDto | undefined>();
 export const appLanguageAsRef = readonly(_appLanguageAsRef);
 
 export const initLanguage = () => {
-    const languages = luminary.db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+    const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
     // Set the preferred language to the first language in the list if it is not set
     watch(languages, (newVal) => {

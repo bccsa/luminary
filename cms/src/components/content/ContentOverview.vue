@@ -6,6 +6,7 @@ import { DocumentIcon, PlusIcon } from "@heroicons/vue/20/solid";
 import { TagIcon } from "@heroicons/vue/24/solid";
 import { RouterLink } from "vue-router";
 import {
+    db,
     AclPermission,
     DocType,
     TagType,
@@ -15,7 +16,6 @@ import {
     type Uuid,
     hasAnyPermission,
 } from "luminary-shared";
-import { luminary } from "@/main";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
@@ -32,8 +32,8 @@ const tagType = Object.entries(TagType).some((t) => t[1] == props.tagType)
     ? props.tagType
     : undefined;
 
-const contentParents = luminary.db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, [], tagType);
-const languages = luminary.db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const contentParents = db.whereTypeAsRef<PostDto[] | TagDto[]>(props.docType, [], tagType);
+const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const selectedLanguage = ref<Uuid>("");
 const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),

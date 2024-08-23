@@ -6,11 +6,12 @@ import { createPinia } from "pinia";
 import { createAuth0 } from "@auth0/auth0-vue";
 import * as Sentry from "@sentry/vue";
 
+import { init } from "luminary-shared";
+
 import App from "./App.vue";
 import router from "./router";
-import { createLuminary } from "luminary-shared";
 
-export const luminary = createLuminary({ cms: false });
+init({ cms: false });
 
 const app = createApp(App);
 

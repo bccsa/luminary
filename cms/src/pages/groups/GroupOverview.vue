@@ -2,14 +2,13 @@
 import BasePage from "@/components/BasePage.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import LButton from "@/components/button/LButton.vue";
-import { AclPermission, DocType, hasAnyPermission, type GroupDto } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, AclPermission, DocType, hasAnyPermission, type GroupDto } from "luminary-shared";
 import EditGroup from "@/components/groups/EditGroup.vue";
 import { computed, ref, watch } from "vue";
 
-const dbGroups = luminary.db.toRef<GroupDto[]>(
+const dbGroups = db.toRef<GroupDto[]>(
     () =>
-        luminary.db.docs.where("type").equals(DocType.Group).sortBy("name") as unknown as Promise<
+        db.docs.where("type").equals(DocType.Group).sortBy("name") as unknown as Promise<
             GroupDto[]
         >,
     [],
@@ -33,7 +32,7 @@ watch([newGroups, dbGroups], () => {
 
 const createGroup = async () => {
     const newGroup: GroupDto = {
-        _id: luminary.db.uuid(),
+        _id: db.uuid(),
         type: DocType.Group,
         name: "New group",
         acl: [],

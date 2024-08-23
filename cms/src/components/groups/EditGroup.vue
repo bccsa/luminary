@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, toRaw, watch } from "vue";
 import {
+    db,
     AclPermission,
     DocType,
     isConnected,
     verifyAccess,
     type GroupDto,
 } from "luminary-shared";
-import { luminary } from "@/main";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { DocumentDuplicateIcon, ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
@@ -28,7 +28,7 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const groups = luminary.db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 const editable = ref<GroupDto>(_.cloneDeep(toRaw(props.group)));
 const editableGroupWithoutEmpty = ref<GroupDto>(editable.value);
 const originalGroupWithoutEmpty = ref<GroupDto>(props.group);
@@ -119,7 +119,7 @@ watch(
 );
 
 const isEditingGroupName = ref(false);
-const isLocalChange = luminary.db.isLocalChangeAsRef(props.group._id);
+const isLocalChange = db.isLocalChangeAsRef(props.group._id);
 const groupNameInput = ref<HTMLInputElement>();
 
 const assignedGroups = computed(() => {
@@ -283,9 +283,9 @@ const addAssignedGroup = (selectedGroup: GroupDto) => {
 };
 
 const duplicateGroup = async () => {
-    const duplicatedGroup = { ...toRaw(props.group), _id: luminary.db.uuid() };
+    const duplicatedGroup = { ...toRaw(props.group), _id: db.uuid() };
     duplicatedGroup.name = `${duplicatedGroup.name} - copy`;
-    await luminary.db.upsert<GroupDto>(duplicatedGroup);
+    await db.upsert<GroupDto>(duplicatedGroup);
 };
 
 const copyGroupId = (group: GroupDto) => {
@@ -300,7 +300,7 @@ const copyGroupId = (group: GroupDto) => {
 };
 
 const saveChanges = async () => {
-    luminary.db.upsert<GroupDto>(toRaw(editableGroupWithoutEmpty.value));
+    db.upsert<GroupDto>(toRaw(editableGroupWithoutEmpty.value));
 
     addNotification({
         title: `${editableGroupWithoutEmpty.value.name} changes saved`,

@@ -1,6 +1,5 @@
 import { slugify } from "transliteration";
-import { type Uuid } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, type Uuid } from "luminary-shared";
 
 /**
  * Functions to generate and validate slugs
@@ -40,7 +39,7 @@ export class Slug {
      * Returns true if the slug is unique
      */
     private static async _checkUnique(text: string, documentId: Uuid) {
-        const existingDocWithSlug = await luminary.db.docs.where("slug").equals(text).first();
+        const existingDocWithSlug = await db.docs.where("slug").equals(text).first();
 
         if (existingDocWithSlug && existingDocWithSlug._id != documentId) {
             return false;

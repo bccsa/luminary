@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, afterEach, beforeEach, expect } from "vitest";
+import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import {
     mockCategoryContentDto,
@@ -20,12 +20,14 @@ import {
     type ContentDto,
     type PostDto,
     type TagDto,
+    PublishStatus,
+    BaseDocumentDto,
 } from "../types";
-import { getDatabase } from "./database";
-import { config } from "../config";
+import { cmsvar, database, db } from "./database";
+import { init } from "../createLuminary";
 import { accessMap } from "../permissions/permissions";
-
-const db = getDatabase(config.getCmsFlag());
+import { config } from "../config";
+import { DateTime } from "luxon";
 
 describe("baseDatabase.ts", () => {
     beforeEach(async () => {
@@ -832,5 +834,117 @@ describe("baseDatabase.ts", () => {
                 expect(remainingDocs.find((doc) => doc._id === "group2")).toBeDefined();
             });
         });
+    });
+
+    it("deletes documents when not in cms-mode", async () => {
+        init({ cms: false });
+
+        const now = DateTime.now();
+        const expiredDate = now.minus({ days: 5 }).toMillis();
+        const futureExpiredDate = now.plus({ days: 5 }).toMillis();
+
+        const docs: ContentDto[] = [
+            {
+                _id: "content-post1-eng",
+                type: DocType.Content,
+                parentId: "post-post1",
+                parentType: DocType.Post,
+                updatedTimeUtc: 1704114000000,
+                memberOf: ["group-public-content"],
+                tags: ["tag-category1"],
+                language: "lang-eng",
+                status: PublishStatus.Published,
+                slug: "post1-eng",
+                title: "Post 1",
+                summary: "This is an example post",
+                author: "ChatGPT",
+                text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily\'s eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community\'s beloved guardian"}]}]}',
+                localisedImage: "",
+                audio: "",
+                video: "",
+                publishDate: 1704114000000,
+                expiryDate: expiredDate,
+                image: "test-image.jpg",
+            },
+            {
+                _id: "content-post2-eng",
+                type: DocType.Content,
+                parentId: "post-post2",
+                parentType: DocType.Post,
+                updatedTimeUtc: 1704114000000,
+                memberOf: ["group-public-content"],
+                tags: ["tag-category1"],
+                language: "lang-eng",
+                status: PublishStatus.Published,
+                slug: "post2-eng",
+                title: "Post 2",
+                summary: "This is an example post",
+                author: "ChatGPT",
+                text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily\'s eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community\'s beloved guardian"}]}]}',
+                localisedImage: "",
+                audio: "",
+                video: "",
+                publishDate: 1704114000000,
+                expiryDate: expiredDate,
+                image: "test-image.jpg",
+            },
+            {
+                _id: "content-post3-eng",
+                type: DocType.Content,
+                parentId: "post-post3",
+                parentType: DocType.Post,
+                updatedTimeUtc: 1704114000000,
+                memberOf: ["group-public-content"],
+                tags: ["tag-category1"],
+                language: "lang-eng",
+                status: PublishStatus.Published,
+                slug: "post3-eng",
+                title: "Post 3",
+                summary: "This is an example post",
+                author: "ChatGPT",
+                text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily\'s eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community\'s beloved guardian"}]}]}',
+                localisedImage: "",
+                audio: "",
+                video: "",
+                publishDate: 1704114000000,
+                expiryDate: futureExpiredDate,
+                image: "test-image.jpg",
+            },
+            {
+                _id: "content-post4-eng",
+                type: DocType.Content,
+                parentId: "post-post4",
+                parentType: DocType.Post,
+                updatedTimeUtc: 1704114000000,
+                memberOf: ["group-public-content"],
+                tags: ["tag-category1"],
+                language: "lang-eng",
+                status: PublishStatus.Published,
+                slug: "post3-eng",
+                title: "Post 4",
+                summary: "This is an example post",
+                author: "ChatGPT",
+                text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"In the quiet town of Willowdale, little Lily wept as her beloved cat, Whiskers, went missing. Frantically searching the neighborhood, she stumbled upon Fireman Jake, known for his kind heart. With a reassuring smile, he promised to help. Lily clung to hope as they combed the streets together. Beneath a dusty porch, they found Whiskers, scared but unharmed. Grateful tears filled Lily\'s eyes as Fireman Jake handed her the rescued feline. Their small town echoed with cheers as Lily hugged her furry friend, and from that day forward, Fireman Jake became a hero in her heart and the community\'s beloved guardian"}]}]}',
+                localisedImage: "",
+                audio: "",
+                video: "",
+                publishDate: 1704114000000,
+                expiryDate: expiredDate,
+                image: "test-image.jpg",
+            },
+        ];
+
+        const mockDb = new database();
+
+        await mockDb.docs.clear();
+
+        await mockDb.bulkPut(docs);
+
+        await (mockDb as any).deleteExpired();
+
+        const remainingDocs = await mockDb.docs.toArray();
+
+        expect(config.getCmsFlag()).toBe(false);
+        await expect(remainingDocs).toHaveLength(1);
     });
 });

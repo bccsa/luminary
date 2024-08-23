@@ -5,15 +5,14 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import SingleContent from "./SingleContent.vue";
 import { mockPostDto, mockEnglishContentDto, mockCategoryContentDto } from "@/tests/mockdata";
-import { type BaseDocumentDto } from "luminary-shared";
-import { luminary } from "@/main";
+import { db ,type BaseDocumentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router");
 
 describe("SinglePost", () => {
     beforeEach(() => {
-        luminary.db.docs.bulkPut([
+        db.docs.bulkPut([
             mockPostDto,
             mockEnglishContentDto,
             mockCategoryContentDto,
@@ -23,7 +22,7 @@ describe("SinglePost", () => {
     });
 
     afterEach(() => {
-        luminary.db.docs.clear();
+        db.docs.clear();
     });
 
     it("displays the loading spinner when no content is available", async () => {
@@ -37,7 +36,7 @@ describe("SinglePost", () => {
     });
 
     it("displays the content image", async () => {
-        await luminary.db.docs.update(mockEnglishContentDto._id, { image: "test-image.jpg" });
+        await db.docs.update(mockEnglishContentDto._id, { image: "test-image.jpg" });
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -51,7 +50,7 @@ describe("SinglePost", () => {
     });
 
     it("displays the content video when defined", async () => {
-        await luminary.db.docs.update(mockEnglishContentDto._id, {
+        await db.docs.update(mockEnglishContentDto._id, {
             image: "",
             video: "test-video.mp4",
         });

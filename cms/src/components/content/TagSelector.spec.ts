@@ -4,21 +4,20 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import TagSelector from "./TagSelector.vue";
-import { TagType, type ContentDto, accessMap } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, TagType, type ContentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
 
 describe("TagSelector.vue", () => {
     beforeEach(async () => {
-        await luminary.db.docs.bulkPut([mockData.mockPostDto]);
-        await luminary.db.docs.bulkPut([mockData.mockEnglishContentDto]);
-        await luminary.db.docs.bulkPut([mockData.mockLanguageDtoEng]);
-        await luminary.db.docs.bulkPut([mockData.mockCategoryDto, mockData.mockTopicDto]);
-        await luminary.db.docs.bulkPut([mockData.mockCategoryContentDto, mockData.mockTopicContentDto]);
+        await db.docs.bulkPut([mockData.mockPostDto]);
+        await db.docs.bulkPut([mockData.mockEnglishContentDto]);
+        await db.docs.bulkPut([mockData.mockLanguageDtoEng]);
+        await db.docs.bulkPut([mockData.mockCategoryDto, mockData.mockTopicDto]);
+        await db.docs.bulkPut([mockData.mockCategoryContentDto, mockData.mockTopicContentDto]);
         // Add a second category to the database
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             { ...mockData.mockCategoryDto, _id: "tag-category2" },
             {
                 ...mockData.mockCategoryContentDto,
@@ -35,8 +34,8 @@ describe("TagSelector.vue", () => {
 
     afterEach(async () => {
         // Clear the database after each test
-        await luminary.db.docs.clear();
-        await luminary.db.localChanges.clear();
+        await db.docs.clear();
+        await db.localChanges.clear();
     });
 
     it("displays selected tags", async () => {

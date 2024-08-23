@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { mount } from "@vue/test-utils";
+import { DOMWrapper, mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
@@ -8,11 +8,7 @@ import { ref } from "vue";
 import EditContentBasic from "./EditContentBasic.vue";
 
 import { DateTime } from "luxon";
-import { accessMap, type ContentDto, PublishStatus } from "luminary-shared";
-import { luminary } from "@/main";
-
-import { accessMap, type ContentDto } from "luminary-shared";
-
+import { db, accessMap, type ContentDto, PublishStatus } from "luminary-shared";
 
 describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
@@ -58,7 +54,6 @@ describe("EditContentBasic.vue", () => {
         // Check if the content's summary was updated
         expect(content.value.summary).toBe("Updated Summary");
     });
-
 
     it("sets expiry date when shortcut buttons are clicked", async () => {
         const content = ref<ContentDto>({
@@ -223,7 +218,7 @@ describe("EditContentBasic.vue", () => {
         ) as DOMWrapper<HTMLInputElement>;
 
         // Check if the publish date input field has the correct value
-        expect(publishDateInput.element.value).toBe(luminary.db.toIsoDateTime(content.value.publishDate!));
+        expect(publishDateInput.element.value).toBe(db.toIsoDateTime(content.value.publishDate!));
     });
 
     it("sets the expiry date correctly from the loaded data", async () => {
@@ -242,7 +237,7 @@ describe("EditContentBasic.vue", () => {
         const expiryDateInput = wrapper.find('[name="expiryDate"]') as DOMWrapper<HTMLInputElement>;
 
         // Check if the expiry date input field has the correct value
-        expect(expiryDateInput.element.value).toBe(luminary.db.toIsoDateTime(content.value.expiryDate!));
+        expect(expiryDateInput.element.value).toBe(db.toIsoDateTime(content.value.expiryDate!));
     });
 
     it("sets the status toggle correctly to draft from the loaded data", async () => {

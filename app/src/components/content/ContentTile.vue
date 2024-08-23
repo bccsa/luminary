@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { type ContentDto } from "luminary-shared";
-import { luminary } from "@/main"
+import { db, type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 
@@ -27,7 +26,7 @@ const openContent = () => {
         <img :src="content.image" class="aspect-video rounded-lg object-cover shadow-md" />
         <h3 class="mt-2 text-sm text-zinc-800 dark:text-zinc-50">{{ content.title }}</h3>
         <div v-if="showPublishDate" class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-200">
-            {{ luminary.db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
+            {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
         </div>
     </div>
 </template>

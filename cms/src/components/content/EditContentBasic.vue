@@ -3,12 +3,9 @@ import LInput from "@/components/forms/LInput.vue";
 import LCard from "@/components/common/LCard.vue";
 import { PencilIcon } from "@heroicons/vue/16/solid";
 
-import { PublishStatus, type ContentDto} from "luminary-shared";
-import { luminary } from "@/main";
+import { db, PublishStatus, type ContentDto} from "luminary-shared";
 import { computed, nextTick, ref, watch } from "vue";
 import { DateTime } from "luxon";
-import { PublishStatus, type ContentDto } from "luminary-shared";
-import { nextTick, ref, watch } from "vue";
 import { Slug } from "@/util/slug";
 
 type Props = {
@@ -84,7 +81,7 @@ const validateSlug = async () => {
 const publishDateString = computed({
     get() {
         if (!content.value || !content.value.publishDate) return;
-        return luminary.db.toIsoDateTime(content.value.publishDate) || undefined;
+        return db.toIsoDateTime(content.value.publishDate) || undefined;
     },
     set(val) {
         if (!content.value) return;
@@ -92,14 +89,14 @@ const publishDateString = computed({
             content.value.publishDate = undefined;
             return;
         }
-        content.value.publishDate = luminary.db.fromIsoDateTime(val);
+        content.value.publishDate = db.fromIsoDateTime(val);
     },
 });
 
 const expiryDateString = computed({
     get() {
         if (!content.value || !content.value.expiryDate) return;
-        return luminary.db.toIsoDateTime(content.value.expiryDate) || undefined;
+        return db.toIsoDateTime(content.value.expiryDate) || undefined;
     },
     set(val) {
         if (!content.value) return;
@@ -107,7 +104,7 @@ const expiryDateString = computed({
             content.value.expiryDate = undefined;
             return;
         }
-        content.value.expiryDate = luminary.db.fromIsoDateTime(val);
+        content.value.expiryDate = db.fromIsoDateTime(val);
     },
 });
 

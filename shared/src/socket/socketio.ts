@@ -2,7 +2,7 @@ import { io, Socket } from "socket.io-client";
 import { ref, watch } from "vue";
 import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
 import { accessMap, AccessMap } from "../permissions/permissions";
-import { getDatabase } from "../db/database";
+import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { config } from "../config";
 
@@ -28,7 +28,7 @@ class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
     private isCms: boolean = config.getCmsFlag();
-    private db = getDatabase(this.isCms);
+    private db = db;
     private localChanges = this.db.getLocalChangesAsRef();
 
     /**

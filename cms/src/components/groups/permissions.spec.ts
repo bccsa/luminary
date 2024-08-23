@@ -3,8 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach, afterAll, beforeAll } 
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { mockGroupDtoPublicContent, superAdminAccessMap } from "@/tests/mockdata";
-import { accessMap, AclPermission, DocType, type GroupAclEntryDto } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, accessMap, AclPermission, DocType, type GroupAclEntryDto } from "luminary-shared";
 import {
     hasChangedPermission,
     isPermissionAvailable,
@@ -22,8 +21,8 @@ describe("Group editor permissions (permissions.ts)", () => {
     });
 
     afterEach(() => {
-        luminary.db.docs.clear();
-        luminary.db.localChanges.clear();
+        db.docs.clear();
+        db.localChanges.clear();
         vi.clearAllMocks();
     });
 

@@ -10,8 +10,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, AclPermission, DocType, type GroupDto } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, accessMap, AclPermission, DocType, type GroupDto } from "luminary-shared";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import waitForExpect from "wait-for-expect";
 import EditAclByGroup from "./EditAclByGroup.vue";
@@ -45,8 +44,8 @@ describe("EditAclByGroup.vue", () => {
     });
 
     afterEach(() => {
-        luminary.db.docs.clear();
-        luminary.db.localChanges.clear();
+        db.docs.clear();
+        db.localChanges.clear();
         vi.clearAllMocks();
     });
 
@@ -64,7 +63,7 @@ describe("EditAclByGroup.vue", () => {
             mockGroupDtoPublicUsers,
             mockGroupDtoSuperAdmins,
         ];
-        await luminary.db.docs.bulkPut(availableGroups);
+        await db.docs.bulkPut(availableGroups);
 
         const wrapper = await createWrapper(group, assignedGroup, originalGroup, availableGroups);
 

@@ -3,8 +3,7 @@ import { mount } from "@vue/test-utils";
 import { describe, it, beforeEach, expect, vi, vitest, beforeAll, afterEach } from "vitest";
 import HomePage from "./HomePage.vue";
 import * as auth0 from "@auth0/auth0-vue";
-import { accessMap } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, accessMap } from "luminary-shared";
 import { ref } from "vue";
 import {
     mockCategoryContentDto,
@@ -30,7 +29,7 @@ describe("HomePage.vue", () => {
     });
 
     beforeEach(async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockLanguageDtoEng,
             mockLanguageDtoFra,
             mockLanguageDtoSwa,
@@ -39,8 +38,8 @@ describe("HomePage.vue", () => {
 
     afterEach(async () => {
         vitest.clearAllMocks();
-        await luminary.db.docs.clear();
-        await luminary.db.localChanges.clear();
+        await db.docs.clear();
+        await db.localChanges.clear();
     });
 
     describe("No content notifications", () => {
@@ -70,7 +69,7 @@ describe("HomePage.vue", () => {
 
     describe("Content display tests", () => {
         it("renders pinned categories correctly", async () => {
-            await luminary.db.docs.bulkPut([
+            await db.docs.bulkPut([
                 { ...mockCategoryDto, pinned: true },
                 mockCategoryContentDto,
                 { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
@@ -85,7 +84,7 @@ describe("HomePage.vue", () => {
         });
 
         it("renders unpinned categories correctly", async () => {
-            await luminary.db.docs.bulkPut([
+            await db.docs.bulkPut([
                 { ...mockCategoryDto, pinned: false },
                 mockCategoryContentDto,
                 { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
@@ -100,7 +99,7 @@ describe("HomePage.vue", () => {
         });
 
         it("displays the newest content", async () => {
-            await luminary.db.docs.bulkPut([mockEnglishContentDto, mockPostDto]);
+            await db.docs.bulkPut([mockEnglishContentDto, mockPostDto]);
 
             const wrapper = mount(HomePage);
 
@@ -114,7 +113,7 @@ describe("HomePage.vue", () => {
     describe("Language selection tests", () => {
         it("updates the category title and content when the language is changed", async () => {
             // Mock initial database setup with English content
-            await luminary.db.docs.bulkPut([
+            await db.docs.bulkPut([
                 mockCategoryDto,
                 mockCategoryContentDto,
                 { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },

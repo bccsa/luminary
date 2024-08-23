@@ -11,13 +11,13 @@ import {
 } from "@headlessui/vue";
 import LTag from "../content/LTag.vue";
 import {
+    db,
     DocType,
     type Uuid,
     type GroupDto,
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
-import { luminary } from "@/main"
 
 type Props = {
     disabled?: boolean;
@@ -28,7 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 const groups = defineModel<Uuid[]>("groups");
 
-const availableGroups = luminary.db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 
 const assignableGroups = computed(() =>
     availableGroups.value?.filter((g) =>

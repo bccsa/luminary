@@ -4,6 +4,7 @@ import EditContentParent from "@/components/content/EditContentParent.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
 import {
+    db,
     AclPermission,
     PublishStatus,
     DocType,
@@ -15,7 +16,6 @@ import {
     type Uuid,
     verifyAccess,
 } from "luminary-shared";
-import { luminary } from "@/main";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentStatus from "@/components/content/EditContentStatus.vue";
@@ -42,7 +42,7 @@ const props = defineProps<Props>();
 const { addNotification } = useNotificationStore();
 
 // Generate new parent id if it is a new document
-const parentId = props.id == "new" ? luminary.db.uuid() : props.id;
+const parentId = props.id == "new" ? db.uuid() : props.id;
 const newDocument = props.id == "new";
 
 // Refs
@@ -70,20 +70,20 @@ if (newDocument) {
     }
 } else {
     // Get a copy of the parent document from Indexedb, and host it as a local ref.
-    luminary.db.get<PostDto | TagDto>(parentId).then((p) => {
+    db.get<PostDto | TagDto>(parentId).then((p) => {
         parent.value = p;
         parentPrev.value = _.cloneDeep(p);
     });
 
     // In the same way as the parent document, get a copy of the content documents
-    luminary.db.whereParent(parentId, props.docType).then((doc) => {
+    db.whereParent(parentId, props.docType).then((doc) => {
         contentDocs.value.push(...doc);
         contentDocsPrev.value = _.cloneDeep(doc);
     });
 }
 
 // Languages and language selection
-const languages = luminary.db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
 let _selectedLanguageId = ref<Uuid | undefined>(undefined);
 const selectedLanguageId = computed({
@@ -114,7 +114,7 @@ const selectedContent = computed(() => {
 
 const createTranslation = (language: LanguageDto) => {
     contentDocs.value.push({
-        _id: luminary.db.uuid(),
+        _id: db.uuid(),
         type: DocType.Content,
         updatedTimeUtc: Date.now(),
         memberOf: [],
@@ -147,14 +147,14 @@ const isDirty = computed(
 
 const save = async () => {
     // Save the parent document
-    await luminary.db.upsert(parent.value);
+    await db.upsert(parent.value);
 
     // Save the content documents that changed
     const pList: Promise<any>[] = [];
     contentDocs.value.forEach((c) => {
         const prevContentDoc = contentDocsPrev.value?.find((d) => d._id == c._id);
         if (_.isEqual(c, prevContentDoc)) return;
-        pList.push(luminary.db.upsert(c));
+        pList.push(db.upsert(c));
     });
 
     await Promise.all(pList);
@@ -170,7 +170,7 @@ const save = async () => {
 };
 
 // Local change detection
-const isLocalChange = luminary.db.isLocalChangeAsRef(parentId);
+const isLocalChange = db.isLocalChangeAsRef(parentId);
 
 // Set the title in the browser tab
 let tagTypeString: string = props.tagType as string;

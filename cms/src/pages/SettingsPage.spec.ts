@@ -4,8 +4,7 @@ import { mount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { useNotificationStore } from "@/stores/notification";
-import { getSocket, isConnected } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, getSocket, isConnected } from "luminary-shared";
 
 const requestDataMock = vi.hoisted(() => vi.fn());
 
@@ -34,7 +33,7 @@ describe("purgeLocalDatabase", () => {
 
         await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
 
-        expect(luminary.db.purge).not.toHaveBeenCalled();
+        expect(db.purge).not.toHaveBeenCalled();
         expect(getSocket().requestData).not.toHaveBeenCalled();
         expect(notificationStore.addNotification).toHaveBeenCalledWith(
             expect.objectContaining({ state: "error" }),
@@ -45,7 +44,7 @@ describe("purgeLocalDatabase", () => {
         await wrapper.vm.$nextTick();
         await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
 
-        expect(luminary.db.purge).toHaveBeenCalledOnce();
+        expect(db.purge).toHaveBeenCalledOnce();
         expect(getSocket().requestData).toHaveBeenCalledOnce();
         expect(notificationStore.addNotification).toHaveBeenCalledWith(
             expect.objectContaining({ state: "success" }),

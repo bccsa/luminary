@@ -10,8 +10,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, DocType, isConnected, type GroupDto } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, accessMap, DocType, isConnected, type GroupDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import EditGroup from "./EditGroup.vue";
 
@@ -53,8 +52,8 @@ describe("EditGroup.vue", () => {
     });
 
     afterEach(() => {
-        luminary.db.docs.clear();
-        luminary.db.localChanges.clear();
+        db.docs.clear();
+        db.localChanges.clear();
         vi.clearAllMocks();
     });
 
@@ -63,7 +62,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("displays all ACL groups under the given group", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -80,7 +79,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("displays buttons when changing a value", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -96,7 +95,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("displays a label when there are unsaved changes and the accordion is closed", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -116,7 +115,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("displays a label when there are offline changes", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -130,7 +129,7 @@ describe("EditGroup.vue", () => {
         expect(wrapper.text()).not.toContain("Offline changes");
 
         // Upsert a local change
-        await luminary.db.upsert({ ...mockGroupDtoPublicContent, updatedTimeUtc: 1234 });
+        await db.upsert({ ...mockGroupDtoPublicContent, updatedTimeUtc: 1234 });
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("Offline changes");
@@ -138,7 +137,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("can save changes", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -152,13 +151,13 @@ describe("EditGroup.vue", () => {
         await wrapper.find(saveChangesButton).trigger("click");
 
         await waitForExpect(async () => {
-            const group = await luminary.db.docs.get(mockGroupDtoPublicContent._id);
+            const group = await db.docs.get(mockGroupDtoPublicContent._id);
             expect(group!.acl).not.toEqual(mockGroupDtoPublicContent.acl);
         });
     });
 
     it("can discard all changes", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -176,7 +175,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("can add a new group", async () => {
-        await luminary.db.docs.bulkPut([mockGroupDtoPublicEditors, mockGroupDtoPublicContent]);
+        await db.docs.bulkPut([mockGroupDtoPublicEditors, mockGroupDtoPublicContent]);
 
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
         expect(wrapper.text()).not.toContain("Super Admins");
@@ -190,7 +189,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("can edit the group name", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -222,7 +221,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("duplicate the whole group", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -234,7 +233,7 @@ describe("EditGroup.vue", () => {
         await wrapper.find("button[data-test='duplicateGroup']").trigger("click");
 
         await waitForExpect(async () => {
-            const groups = await (luminary.db.docs
+            const groups = await (db.docs
                 .where({ type: DocType.Group })
                 .toArray() as unknown as Promise<GroupDto[]>);
 
@@ -243,7 +242,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("can copy a group's ID", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -269,7 +268,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("removes an existing group ACL if all permissions are removed", async () => {
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,
@@ -283,7 +282,7 @@ describe("EditGroup.vue", () => {
         await wrapper.find(saveChangesButton).trigger("click");
 
         await waitForExpect(async () => {
-            const group = await luminary.db.docs.get(mockGroupDtoPublicContent._id);
+            const group = await db.docs.get(mockGroupDtoPublicContent._id);
             expect(
                 group!.acl?.some(
                     (g) => g.groupId == "group-public-editors" && g.type == DocType.Post,
@@ -295,7 +294,7 @@ describe("EditGroup.vue", () => {
     it("checks if groups are disabled when no edit permissions", async () => {
         delete accessMap.value["group-public-content"].group?.edit;
 
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
             mockGroupDtoPublicUsers,

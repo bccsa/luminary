@@ -2,8 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { DocType, type ContentDto, accessMap } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, DocType, type ContentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -29,9 +28,9 @@ vi.mock("vue-router", async (importOriginal) => {
 describe("EditContent.vue", () => {
     beforeEach(async () => {
         // seed the fake indexDB with mock datas
-        await luminary.db.docs.bulkPut([mockData.mockPostDto]);
-        await luminary.db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
-        await luminary.db.docs.bulkPut([
+        await db.docs.bulkPut([mockData.mockPostDto]);
+        await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
+        await db.docs.bulkPut([
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
             mockData.mockLanguageDtoSwa,
@@ -45,8 +44,8 @@ describe("EditContent.vue", () => {
 
     afterEach(async () => {
         // Clear the database after each test
-        await luminary.db.docs.clear();
-        await luminary.db.localChanges.clear();
+        await db.docs.clear();
+        await db.localChanges.clear();
     });
 
     it("can load content from the database", async () => {
@@ -91,7 +90,7 @@ describe("EditContent.vue", () => {
 
         // Wait for the save to complete
         await waitForExpect(async () => {
-            const savedDoc = await luminary.db.get<ContentDto>(mockData.mockEnglishContentDto._id);
+            const savedDoc = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
             expect(savedDoc.title).toBe("New Title");
         });
     });
@@ -168,7 +167,7 @@ describe("EditContent.vue", () => {
     });
 
     it("can detect a local change", async () => {
-        await luminary.db.localChanges.put(mockData.mockLocalChange1);
+        await db.localChanges.put(mockData.mockLocalChange1);
 
         const wrapper = mount(EditContent, {
             props: {

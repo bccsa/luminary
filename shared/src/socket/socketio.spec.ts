@@ -5,7 +5,7 @@ import waitForExpect from "wait-for-expect";
 import { mockEnglishContentDto, mockPostDto } from "../tests/mockdata";
 import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
 import { Server } from "socket.io";
-import { getDatabase } from "../db/database";
+import { db } from "../db/database";
 import { AckStatus, ChangeReqDto, DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { config } from "../config";
@@ -20,7 +20,6 @@ vi.mock("../config/config", () => ({
 }));
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const db = getDatabase(config.getCmsFlag());
 
 describe("socketio", () => {
     const socketServer = new Server(12345);

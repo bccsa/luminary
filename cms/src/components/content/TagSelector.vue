@@ -10,6 +10,7 @@ import {
     ComboboxOptions,
 } from "@headlessui/vue";
 import {
+    db,
     AclPermission,
     DocType,
     TagType,
@@ -19,7 +20,6 @@ import {
     type TagDto,
     verifyAccess,
 } from "luminary-shared";
-import { luminary } from "@/main";
 import LTag from "./LTag.vue";
 import { watchDeep } from "@vueuse/core";
 
@@ -34,7 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
 const parent = defineModel<PostDto | TagDto>("parent");
-const tags = luminary.db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
+const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 
 const tagsContent = ref<ContentDto[]>([]);
 watch(tags, async () => {
@@ -48,7 +48,7 @@ watch(tags, async () => {
             pList.push(
                 // We are getting the content as non-reactive, meaning that if someone else would change
                 // the content of an existing tag, it will not automatically update in the tag selector.
-                luminary.db.whereParent(tag._id, DocType.Tag).then((content) => {
+                db.whereParent(tag._id, DocType.Tag).then((content) => {
                     if (content.length == 0) return;
 
                     const preferred = content.find((c) => c.language == props.language?._id);

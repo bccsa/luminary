@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { DocType, type ContentDto } from "luminary-shared";
-import { luminary } from "@/main";
+import { db, DocType, type ContentDto } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
@@ -19,14 +18,14 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const content = luminary.db.getBySlugAsRef<ContentDto>(props.slug);
+const content = db.getBySlugAsRef<ContentDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
 
 watch(
     content,
     async () => {
         if (!content.value) return;
-        tagsContent.value = await luminary.db.whereParent(
+        tagsContent.value = await db.whereParent(
             content.value.tags,
             DocType.Tag,
             content.value.language,
@@ -100,7 +99,7 @@ onMounted(async () => {
             class="mt-1 text-center text-sm text-zinc-500 dark:text-zinc-300"
             v-if="content.publishDate"
         >
-            {{ luminary.db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
+            {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
         </div>
 
         <div class="mt-12 text-justify text-gray-800 dark:text-zinc-100" v-if="content.summary">

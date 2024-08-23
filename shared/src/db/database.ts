@@ -18,6 +18,7 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { config } from "../config";
 
 export type queryOptions = {
     filterOptions?: {
@@ -61,6 +62,8 @@ export type queryOptions = {
     languageId?: Uuid;
 };
 
+export let cmsvar: boolean;
+
 export class database extends Dexie {
     // TODO: Make tables private
     docs!: Table<BaseDocumentDto>;
@@ -68,9 +71,15 @@ export class database extends Dexie {
     private accessMapRef = accessMap;
     private isCms: boolean | undefined = undefined;
 
-    constructor(cms?: boolean) {
+    constructor() {
+        if (config.getCmsFlag() == undefined || config.getCmsFlag() == null) {
+            throw new Error(
+                "Unable to load database - the CMS flag has not been set. The CMS flag should be set before instantiating the database.",
+            );
+        }
         super("luminary-db");
-        this.isCms = cms;
+        this.isCms = config.getCmsFlag();
+        cmsvar = this.isCms;
 
         // Remember to increase the version number below if you change the schema
         this.version(7).stores({
@@ -632,36 +641,29 @@ export class database extends Dexie {
     /**
      * Delete expired documents when not in cms-mode
      */
-    private deleteExpired() {
+    private async deleteExpired() {
         const now = DateTime.now().toMillis();
         if (this.isCms) {
             return;
         } else {
-            this.docs
-                .where("type")
-                .equals(DocType.Content)
-                .toArray()
-                .then((docs: BaseDocumentDto[]) => {
-                    const expiredDocs = docs.filter((doc) => {
-                        const contentDoc = doc as ContentDto;
-                        const expiryMillis = contentDoc.expiryDate;
+            const contentDocs = await this.docs.where("type").equals(DocType.Content).toArray();
+            const expiredDocs = contentDocs.filter((doc) => {
+                const contentDoc = doc as ContentDto;
+                const expiryDate = contentDoc.expiryDate;
 
-                        if (expiryMillis && expiryMillis <= now) {
-                            return true;
-                        }
-                        return false;
-                    });
-
-                    if (expiredDocs.length > 0) {
-                        this.docs
-                            .bulkDelete(expiredDocs.map((doc) => doc._id))
-                            .catch((e) => console.error(`Error: ${e}`));
-                    }
-                })
-                .catch((e) => console.error(`Error: ${e}`));
+                if (expiryDate && expiryDate <= now) return true;
+                return false;
+            });
+            if (expiredDocs.length > 0) {
+                console.info("There are expired Documents...deleting");
+                try {
+                    await this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
+                } catch (e) {
+                    console.error(`Error:   ${e}`);
+                }
+            }
         }
     }
-
     /**
      * Purge the local database
      */
@@ -671,13 +673,4 @@ export class database extends Dexie {
     }
 }
 
-let db: database;
-export function getDatabase(cms: boolean) {
-    if (!db) {
-        if (!cms) {
-            throw new Error("Database requires a cms-flag");
-        }
-        db = new database(cms);
-    }
-    return db;
-}
+export const db = new database();
