@@ -493,6 +493,78 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * Executes the passed callback on all documents in the database. If the document from the database fails to parse as JSON, the callback will be called with an error object { error: err }.
+     */
+    processAllDocs(callback: (doc: any) => void): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const stream = this.db.listAsStream({ include_docs: true });
+
+            stream.on("data", (data) => {
+                const lines = data.toString().split("\r\n");
+                lines.forEach((line) => {
+                    line = line.replace(/,$/, ""); // Remove trailing comma
+
+                    // Check if the line is a valid JSON object
+                    if (line && line.length > 0 && line[0] == "{" && line[line.length - 1] == "}") {
+                        try {
+                            const parsed = JSON.parse(line);
+                            if (parsed.doc) callback(parsed.doc);
+                        } catch (err) {
+                            callback({ parseError: err });
+                        }
+                    }
+                });
+            });
+
+            stream.on("end", () => {
+                resolve(true);
+            });
+
+            stream.on("error", (err) => {
+                reject(err);
+            });
+        });
+    }
+
+    /**
+     * Get the database schema version
+     */
+    getSchemaVersion(): Promise<number> {
+        return new Promise((resolve, reject) => {
+            this.db
+                .get("dbSchema")
+                .then((res) => {
+                    resolve(res.version);
+                })
+                .catch((err) => {
+                    if (err.reason == "missing") {
+                        resolve(0);
+                    } else {
+                        reject(err);
+                    }
+                });
+        });
+    }
+
+    /**
+     * Set the database schema version. This should only be used by upgrade scripts.
+     */
+    setSchemaVersion(version: number): Promise<DbUpsertResult> {
+        return new Promise((resolve, reject) => {
+            this.upsertDoc({
+                _id: "dbSchema",
+                version: version,
+            })
+                .then((res) => {
+                    resolve(res);
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
+    }
+
+    /**
      * Generate a diff between two documents
      * @param doc1
      * @param doc2
