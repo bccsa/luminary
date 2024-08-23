@@ -10,11 +10,6 @@ import waitForExpect from "wait-for-expect";
 import NotFoundPage from "./NotFoundPage.vue";
 
 const routePushMock = vi.hoisted(() => vi.fn());
-// vi.mock("vue-router", () => ({
-//     useRouter: vi.fn().mockImplementation(() => ({
-//         push: routePushMock,
-//     })),
-// }));
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
