@@ -14,6 +14,7 @@
     "audio": null,
     "video": null,
     "publishDate": 1704114000000,
+    "publishDateVisible": true,
     "parentId": "tag-topicB",
     "parentType": "tag",
     "parentTagType": "topic",

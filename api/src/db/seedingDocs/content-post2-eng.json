@@ -13,6 +13,7 @@
     "audio": null,
     "video": null,
     "publishDate": 1704114000000,
+    "publishDateVisible": true,
     "parentId": "post-post2",
     "parentType": "post",
     "parentImage": "image.jpg",

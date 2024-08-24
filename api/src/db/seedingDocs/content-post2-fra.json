@@ -13,6 +13,7 @@
     "localisedImage": null,
     "audio": null,
     "video": null,
+    "publishDateVisible": true,
     "parentId": "post-post2",
     "parentType": "post",
     "parentImage": "image.jpg",
