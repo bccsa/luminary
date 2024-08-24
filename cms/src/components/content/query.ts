@@ -38,7 +38,7 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
             if (!contentDoc.parentId) return false;
             if (contentDoc.type != DocType.Content) return false;
             if (contentDoc.parentType != options.parentType) return false;
-            if (options.tagType && contentDoc.tagType != options.tagType) return false;
+            if (options.tagType && contentDoc.parentTagType != options.tagType) return false;
 
             const translationFilter = translationStatusFilter(
                 contentDoc,
@@ -51,7 +51,7 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
             const tagFilter =
                 !options.tags ||
                 options.tags.length == 0 ||
-                options.tags.some((tagId) => contentDoc.tags.includes(tagId));
+                options.tags.some((tagId) => contentDoc.parentTags.includes(tagId));
             if (!tagFilter) return false;
 
             const publishFilter = publishStatusFilter(contentDoc, options);
