@@ -17,7 +17,7 @@ describe("Content query", () => {
             publishDate: 1,
             expiryDate: Date.now() + 100000,
             status: "draft",
-            tags: ["tag1"],
+            parentTags: ["tag1"],
         } as ContentDto;
         const doc1Fra = {
             ...mockData.mockFrenchContentDto,
@@ -28,7 +28,7 @@ describe("Content query", () => {
             publishDate: 1,
             expiryDate: undefined,
             status: "published",
-            tags: ["tag1"],
+            parentTags: ["tag1"],
         } as ContentDto;
         const doc1Swa = {
             ...mockData.mockEnglishContentDto,
@@ -40,7 +40,7 @@ describe("Content query", () => {
             publishDate: 1,
             expiryDate: Date.now() + 100000,
             status: "draft",
-            tags: ["tag1"],
+            parentTags: ["tag1"],
         } as ContentDto;
         const doc2Eng = {
             ...mockData.mockEnglishContentDto,
@@ -51,7 +51,7 @@ describe("Content query", () => {
             publishDate: 1,
             expiryDate: 2, // expired
             status: "published",
-            tags: ["tag2"],
+            parentTags: ["tag2"],
         } as ContentDto;
         const doc2Fra = {
             ...mockData.mockFrenchContentDto,
@@ -62,7 +62,7 @@ describe("Content query", () => {
             publishDate: Date.now() + 100000, // scheduled
             expiryDate: undefined,
             status: "published",
-            tags: ["tag2"],
+            parentTags: ["tag2"],
         } as ContentDto;
 
         const tag1 = { ...mockData.mockCategoryContentDto, _id: "tag1" } as ContentDto;
@@ -277,7 +277,7 @@ describe("Content query", () => {
             expect(res1.value.some((d) => d._id == "doc2Eng")).toBe(true);
 
             expect(res2.value).toHaveLength(1);
-            expect(res2.value[0].tags.includes("tag1")).toBe(true);
+            expect(res2.value[0].parentTags.includes("tag1")).toBe(true);
         });
     });
 
