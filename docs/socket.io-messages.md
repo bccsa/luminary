@@ -9,3 +9,4 @@
 | changeRequestAck | Acknowledgement of change request                                                                     | API -> client / cms   | Acknowledgement of individual change request with status  |
 | accessMap        | Map with user specific access (depreciated)                                                           | API -> client / cms   | Object                                                    |
 | clientConfig     | Object containing an Access Map (indicating user specific access) and other client configuration data | API -> client / cms   | Object                                                    |
+| apiAuthFailed    | Client authentication with API failed indication. Used to prompt the client to re-authenticate.       | API -> client / cms   |
