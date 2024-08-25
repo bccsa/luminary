@@ -6,9 +6,11 @@ import { useRouter } from "vue-router";
 type Props = {
     content: ContentDto;
     showPublishDate?: boolean;
+    publishDateVisible?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
+    publishDateVisible: true,
 });
 
 const router = useRouter();
@@ -25,7 +27,10 @@ const openContent = () => {
     >
         <img :src="content.parentImage" class="aspect-video rounded-lg object-cover shadow-md" />
         <h3 class="mt-2 text-sm text-zinc-800 dark:text-zinc-50">{{ content.title }}</h3>
-        <div v-if="showPublishDate" class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-200">
+        <div
+            v-if="publishDateVisible && showPublishDate"
+            class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-200"
+        >
             {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
         </div>
     </div>
