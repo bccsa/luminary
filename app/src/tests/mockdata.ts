@@ -21,6 +21,7 @@ export const mockCategoryDto: TagDto = {
     pinned: false,
     image: "test-image.jpg",
     tags: [],
+    publishDateVisible: true,
 };
 
 export const mockTopicDto: TagDto = {
@@ -32,6 +33,7 @@ export const mockTopicDto: TagDto = {
     pinned: false,
     image: "test-image.jpg",
     tags: [],
+    publishDateVisible: true,
 };
 
 export const mockPostDto: PostDto = {
@@ -41,6 +43,7 @@ export const mockPostDto: PostDto = {
     memberOf: ["group-public-content"],
     image: "test-image.jpg",
     tags: ["tag-category1"],
+    publishDateVisible: true,
 };
 
 export const mockEnglishContentDto: ContentDto = {
@@ -64,6 +67,7 @@ export const mockEnglishContentDto: ContentDto = {
     publishDate: 1704114000000,
     expiryDate: undefined,
     parentImage: "test-image.jpg",
+    publishDateVisible: true,
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
@@ -86,6 +90,7 @@ export const mockFrenchContentDto: ContentDto = {
     publishDate: 1704114000000,
     expiryDate: undefined,
     parentImage: "test-image.jpg",
+    publishDateVisible: true,
 };
 export const mockSwahiliContentDto: ContentDto = {
     _id: "content-post1-swa",
@@ -108,6 +113,7 @@ export const mockSwahiliContentDto: ContentDto = {
     publishDate: 1704114000000,
     expiryDate: undefined,
     parentImage: "test-image.jpg",
+    publishDateVisible: true,
 };
 export const mockCategoryContentDto: ContentDto = {
     _id: "content-tag-category1",
@@ -125,6 +131,7 @@ export const mockCategoryContentDto: ContentDto = {
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
     parentImage: "test-image.jpg",
+    publishDateVisible: true,
 };
 
 export const mockTopicContentDto: ContentDto = {
@@ -143,6 +150,7 @@ export const mockTopicContentDto: ContentDto = {
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
     parentImage: "test-image.jpg",
+    publishDateVisible: true,
 };
 
 export const mockLanguageDtoEng: LanguageDto = {
