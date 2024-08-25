@@ -1,17 +1,14 @@
 <script setup lang="ts">
 import { DocType, db, type ContentDto } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
-import { useRouter } from "vue-router";
-import { watchEffectOnceAsync } from "@/util/watchEffectOnce";
 import { appName } from "@/globalConfig";
-
-const router = useRouter();
+import NotFoundPage from "@/pages/NotFoundPage.vue";
 
 type Props = {
     slug: string;
@@ -21,10 +18,25 @@ const props = defineProps<Props>();
 const content = db.getBySlugAsRef<ContentDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
 
+const isExpiredOrScheduled = computed(() => {
+    if (!content.value) return false;
+    return (
+        (content.value.publishDate && content.value.publishDate > Date.now()) ||
+        (content.value.expiryDate && content.value.expiryDate < Date.now())
+    );
+});
+
 watch(
     content,
     async () => {
         if (!content.value) return;
+
+        document.title = isExpiredOrScheduled.value
+            ? `Page not found - ${appName}`
+            : `${content.value.title} - ${appName}`;
+
+        if (isExpiredOrScheduled.value) return;
+
         tagsContent.value = await db.whereParent(
             content.value.tags,
             DocType.Tag,
@@ -54,24 +66,6 @@ const text = computed(() => {
 
     return generateHTML(text, [StarterKit]);
 });
-
-const loadDocumentNameOrRedirect = async () => {
-    if (content.value) {
-        document.title = `${content.value.title} - ${appName}`;
-    } else {
-        await router.push({ name: "home" });
-    }
-};
-
-onMounted(async () => {
-    if (content.value != undefined) {
-        return await loadDocumentNameOrRedirect();
-    }
-
-    await watchEffectOnceAsync(() => content.value != undefined);
-
-    await loadDocumentNameOrRedirect();
-});
 </script>
 
 <template>
@@ -87,6 +81,9 @@ onMounted(async () => {
     <div v-if="isLoading">
         <LoadingSpinner />
     </div>
+
+    <NotFoundPage v-else-if="isExpiredOrScheduled" />
+
     <article v-else class="mx-auto mb-12 max-w-3xl">
         <VideoPlayer v-if="content.video" :content="content" />
         <img v-else :src="content.image" class="w-full rounded-lg object-cover shadow-md" />
