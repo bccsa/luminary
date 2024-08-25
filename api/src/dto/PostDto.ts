@@ -1,5 +1,5 @@
 import { Uuid } from "../enums";
-import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
@@ -21,4 +21,9 @@ export class PostDto extends _contentBaseDto {
     @IsString({ each: true })
     @Expose()
     tags: Uuid[];
+
+    @IsBoolean()
+    @IsOptional()
+    @Expose()
+    publishDateVisible: boolean = true;
 }
