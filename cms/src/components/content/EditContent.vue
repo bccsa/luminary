@@ -56,6 +56,7 @@ const parent = ref<PostDto | TagDto>({
     // memberOf: [],
     image: "",
     tags: [],
+    publishDateVisible: true,
 });
 const isLoading = computed(() => parent.value == undefined);
 const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent document for dirty check
@@ -125,6 +126,7 @@ const createTranslation = (language: LanguageDto) => {
         title: `Translation for ${language.name}`,
         slug: "",
         parentTags: [],
+        publishDateVisible: true,
     });
     selectedLanguageId.value = language._id;
 };
