@@ -25,5 +25,5 @@ export class PostDto extends _contentBaseDto {
     @IsBoolean()
     @IsOptional()
     @Expose()
-    publishDateVisible: boolean = true;
+    publishDateVisible?: boolean;
 }

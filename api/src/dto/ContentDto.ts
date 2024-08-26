@@ -1,4 +1,13 @@
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import {
+    IsArray,
+    IsBoolean,
+    IsEnum,
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    Min,
+} from "class-validator";
 import { DocType, PublishStatus, TagType, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
@@ -108,4 +117,9 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     parentTagType?: TagType;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsBoolean()
+    @Expose()
+    publishDateVisible?: boolean;
 }
