@@ -5,11 +5,10 @@ import {
     DocType,
     type ContentDto,
     type LanguageDto,
-    type PostDto,
-    type TagDto,
     type Uuid,
     AclPermission,
     verifyAccess,
+    TagType,
 } from "luminary-shared";
 import { DateTime } from "luxon";
 import { computed } from "vue";
@@ -19,27 +18,15 @@ import { RouterLink } from "vue-router";
 import LButton from "../button/LButton.vue";
 
 type Props = {
-    parent: PostDto | TagDto;
+    contentDoc: ContentDto;
     parentType: DocType.Post | DocType.Tag;
     languageId: Uuid;
     languages: LanguageDto[];
+    tagType?: TagType;
 };
 const props = defineProps<Props>();
-const content = db.whereParentAsRef(props.parent._id, props.parentType, undefined, []);
-const isLocalChange = db.isLocalChangeAsRef(props.parent._id);
-
-// Get the title in the selected language if available, otherwise use the first available translation
-const title = computed(() => {
-    const preferred = content.value.filter((c) => c.language == props.languageId)[0]?.title;
-
-    if (preferred) return preferred;
-
-    if (content.value[0]) {
-        return content.value[0].title;
-    }
-
-    return "No translations available";
-});
+const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentType, undefined, []);
+const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
 
 // Determine the status of the translation
 const translationStatus = computed(() => {
@@ -67,7 +54,7 @@ const translationStatus = computed(() => {
     <tr>
         <!-- title -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
-            {{ title }}
+            {{ contentDoc.title }}
         </td>
 
         <!-- status -->
@@ -76,31 +63,32 @@ const translationStatus = computed(() => {
         </td>
         <!-- translations -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
-            <div class="flex gap-2" v-if="content.length > 0">
+            <div class="flex gap-2" v-if="contentDocs.length > 0">
                 <RouterLink
                     custom
                     v-for="language in languages"
-                    :key="language.languageCode"
+                    :key="language._id"
                     v-slot="{ navigate }"
                     :to="{
                         name: 'edit',
                         params: {
                             docType: parentType,
-                            tagType: parentType == DocType.Tag ? DocType.Tag : undefined,
-                            id: parent._id,
+                            tagType: contentDoc.tagType,
+                            id: contentDoc.parentId,
                             languageCode: languages.find((l) => l._id == language._id)
                                 ?.languageCode,
                         },
                     }"
                 >
                     <LBadge
-                        @click="translationStatus(content, language) == 'default' ? '' : navigate()"
+                        @click="
+                            translationStatus(contentDocs, language) == 'default' ? '' : navigate()
+                        "
                         type="language"
-                        :with-icon="true"
-                        :variant="translationStatus(content, language)"
+                        :variant="translationStatus(contentDocs, language)"
                         :class="{
                             'cursor-pointer hover:opacity-75':
-                                translationStatus(content, language) !== 'default',
+                                translationStatus(contentDocs, language) !== 'default',
                         }"
                     >
                         {{ language.languageCode }}
@@ -110,17 +98,17 @@ const translationStatus = computed(() => {
         </td>
         <!-- updated -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ db.toDateTime(parent.updatedTimeUtc).toLocaleString(DateTime.DATETIME_MED) }}
+            {{ db.toDateTime(contentDoc.updatedTimeUtc).toLocaleString(DateTime.DATETIME_MED) }}
         </td>
         <!-- actions -->
         <td
             class="flex justify-end whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
         >
             <LButton
-                v-if="verifyAccess(parent.memberOf, parentType, AclPermission.View)"
+                v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
                 variant="tertiary"
                 :icon="
-                    verifyAccess(parent.memberOf, parentType, AclPermission.Edit)
+                    verifyAccess(contentDoc.memberOf, parentType, AclPermission.Edit)
                         ? PencilSquareIcon
                         : EyeIcon
                 "
@@ -129,8 +117,8 @@ const translationStatus = computed(() => {
                     name: 'edit',
                     params: {
                         docType: parentType,
-                        tagType: parentType == DocType.Tag ? (parent as TagDto).tagType : undefined,
-                        id: parent._id,
+                        tagType: contentDoc.tagType,
+                        id: contentDoc.parentId,
                         languageCode: languages.find((l) => l._id == languageId)?.languageCode,
                     },
                 }"

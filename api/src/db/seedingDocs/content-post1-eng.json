@@ -2,10 +2,6 @@
     "_id": "content-post1-eng",
     "type": "content",
     "memberOf": ["group-public-content"],
-    "image": "image.jpg",
-    "tags": ["tag-category1", "tag-topicA"],
-    "parentId": "post-post1",
-    "parentType": "post",
     "language": "lang-eng",
     "status": "published",
     "slug": "post1-eng",
@@ -16,5 +12,9 @@
     "localisedImage": null,
     "audio": null,
     "video": null,
-    "publishDate": 1704114000000
+    "publishDate": 1704114000000,
+    "parentId": "post-post1",
+    "parentType": "post",
+    "parentImage": "image.jpg",
+    "parentTags": ["tag-category1", "tag-topicA"]
 }

@@ -124,7 +124,7 @@ const createTranslation = (language: LanguageDto) => {
         status: PublishStatus.Draft,
         title: `Translation for ${language.name}`,
         slug: "",
-        tags: [],
+        parentTags: [],
     });
     selectedLanguageId.value = language._id;
 };

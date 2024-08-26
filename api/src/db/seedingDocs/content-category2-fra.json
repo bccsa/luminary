@@ -2,10 +2,6 @@
     "_id": "content-category2-fra",
     "type": "content",
     "memberOf": ["group-private-content"],
-    "image": "image.jpg",
-    "tags": [],
-    "parentId": "tag-category2",
-    "parentType": "tag",
     "language": "lang-fra",
     "status": "published",
     "slug": "category2-fra",
@@ -17,5 +13,10 @@
     "localisedImage": null,
     "audio": null,
     "video": null,
-    "publishDate": 1704114000000
+    "publishDate": 1704114000000,
+    "parentId": "tag-category2",
+    "parentType": "tag",
+    "parentTagType": "category",
+    "parentImage": "image.jpg",
+    "parentTags": []
 }

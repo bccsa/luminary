@@ -2,10 +2,6 @@
     "_id": "content-post2-fra",
     "type": "content",
     "memberOf": ["group-private-content"],
-    "image": "image.jpg",
-    "tags": ["tag-category2", "tag-topicB"],
-    "parentId": "post-post2",
-    "parentType": "post",
     "language": "lang-fra",
     "status": "draft",
     "slug": "post2-fra",
@@ -16,5 +12,9 @@
     "seo": "",
     "localisedImage": null,
     "audio": null,
-    "video": null
+    "video": null,
+    "parentId": "post-post2",
+    "parentType": "post",
+    "parentImage": "image.jpg",
+    "parentTags": ["tag-category2", "tag-topicB"]
 }

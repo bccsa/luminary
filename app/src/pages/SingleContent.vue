@@ -38,7 +38,7 @@ watch(
         if (isExpiredOrScheduled.value) return;
 
         tagsContent.value = await db.whereParent(
-            content.value.tags,
+            content.value.parentTags,
             DocType.Tag,
             content.value.language,
         );
@@ -86,7 +86,7 @@ const text = computed(() => {
 
     <article v-else class="mx-auto mb-12 max-w-3xl">
         <VideoPlayer v-if="content.video" :content="content" />
-        <img v-else :src="content.image" class="w-full rounded-lg object-cover shadow-md" />
+        <img v-else :src="content.parentImage" class="w-full rounded-lg object-cover shadow-md" />
 
         <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-zinc-50">
             {{ content.title }}
@@ -111,7 +111,7 @@ const text = computed(() => {
 
         <div
             class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500"
-            v-if="content.tags.length > 0"
+            v-if="content.parentTags.length > 0"
         >
             <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3>
             <div class="flex gap-3">

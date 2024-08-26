@@ -2,10 +2,6 @@
     "_id": "content-post2-eng",
     "type": "content",
     "memberOf": ["group-private-content"],
-    "image": "image.jpg",
-    "tags": ["tag-category2", "tag-topicB"],
-    "parentId": "post-post2",
-    "parentType": "post",
     "language": "lang-eng",
     "status": "published",
     "slug": "post2-eng",
@@ -16,5 +12,9 @@
     "localisedImage": null,
     "audio": null,
     "video": null,
-    "publishDate": 1704114000000
+    "publishDate": 1704114000000,
+    "parentId": "post-post2",
+    "parentType": "post",
+    "parentImage": "image.jpg",
+    "parentTags": ["tag-category2", "tag-topicB"]
 }
