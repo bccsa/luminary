@@ -55,6 +55,7 @@ type EmitEvents = {
     accessMap: (c: AccessMap) => void;
     version: (d: number) => void;
     clientConfig: (e: ClientConfig) => void;
+    apiAuthFailed: () => void;
 };
 
 /**
@@ -177,7 +178,10 @@ export class Socketio implements OnGatewayInit {
 
             if (!jwt) {
                 // Assume that the user's token is expired.
-                // TODO: Prompt the user to re-authenticate instead of assigning public access to the user
+                // Prompt the user to re-authenticate when an invalid token is provided.
+                socket.emit("apiAuthFailed");
+                // Disconnect the client to prevent further communication.
+                socket.disconnect(true);
                 return;
             }
         }

@@ -12,9 +12,35 @@ import NotificationBannerManager from "./components/notifications/NotificationBa
 import { useNotificationStore } from "./stores/notification";
 import { SignalSlashIcon } from "@heroicons/vue/24/solid";
 
-const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
+const { isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 
 initLanguage();
+
+const loginRedirect = async () => {
+    const usedConnection = localStorage.getItem("usedAuth0Connection");
+    const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");
+
+    // Try to login. If this fails (e.g. the user cancels the login), log the user out after the second attempt
+    if (retryCount < 2) {
+        localStorage.setItem("auth0AuthFailedRetryCount", (retryCount + 1).toString());
+        await loginWithRedirect({
+            authorizationParams: {
+                connection: usedConnection ? usedConnection : undefined,
+                redirect_uri: window.location.origin,
+            },
+        });
+        return;
+    }
+
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+    localStorage.removeItem("usedAuth0Connection");
+    await logout({ logoutParams: { returnTo: window.location.origin } });
+};
+
+// Clear the auth0AuthFailedRetryCount if the user logs in successfully (if the app is not redirecting to the login page, we assume the user either logged out or the login was successful)
+setTimeout(() => {
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+}, 10000);
 
 const getToken = async () => {
     if (isAuthenticated.value) {
@@ -22,14 +48,7 @@ const getToken = async () => {
             return await getAccessTokenSilently();
         } catch (err) {
             Sentry.captureException(err);
-            const usedConnection = localStorage.getItem("usedAuth0Connection");
-            await loginWithRedirect({
-                authorizationParams: {
-                    connection: usedConnection ? usedConnection : undefined,
-                    redirect_uri: window.location.origin,
-                },
-            });
-            return;
+            await loginRedirect();
         }
     }
 };
@@ -40,10 +59,18 @@ onBeforeMount(async () => {
 
     // Initialize the socket connection
     try {
-        getSocket({
+        const socket = getSocket({
             apiUrl,
             token,
             cms: true,
+        });
+
+        // handle API authentication failed messages
+        socket.on("apiAuthFailed", async () => {
+            console.error("API authentication failed, redirecting to login");
+            Sentry.captureMessage("API authentication failed, redirecting to login");
+
+            await loginRedirect();
         });
     } catch (err) {
         console.error(err);
