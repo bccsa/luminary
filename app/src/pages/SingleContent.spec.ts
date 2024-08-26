@@ -12,6 +12,7 @@ import {
     mockFrenchContentDto,
     mockLanguageDtoEng,
     mockCategoryDto,
+    mockLanguageDtoSwa,
 } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
@@ -191,6 +192,24 @@ describe("SingleContent", () => {
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.summary);
             expect(notificationStore.addNotification).not.toHaveBeenCalled();
+        });
+    });
+
+    it("shows a notification when the language is not available", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        // simulate language change
+        appLanguageIdAsRef.value = mockLanguageDtoSwa._id;
+
+        const notificationStore = useNotificationStore();
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
+            expect(notificationStore.addNotification).toHaveBeenCalled();
         });
     });
 });
