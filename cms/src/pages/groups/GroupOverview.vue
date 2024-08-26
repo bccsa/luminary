@@ -2,7 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import LButton from "@/components/button/LButton.vue";
-import { AclPermission, db, DocType, hasAnyPermission, type GroupDto } from "luminary-shared";
+import { db, AclPermission, DocType, hasAnyPermission, type GroupDto } from "luminary-shared";
 import EditGroup from "@/components/groups/EditGroup.vue";
 import { computed, ref, watch } from "vue";
 

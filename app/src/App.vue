@@ -43,7 +43,6 @@ onBeforeMount(async () => {
         getSocket({
             apiUrl,
             token,
-            cms: true,
         });
     } catch (err) {
         console.error(err);

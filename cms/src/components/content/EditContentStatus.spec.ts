@@ -208,7 +208,9 @@ describe("EditContentStatus.vue", () => {
         ) as DOMWrapper<HTMLInputElement>;
 
         // Check if the publish date input field has the correct value
-        expect(publishDateInput.element.value).toBe(db.toIsoDateTime(content.value.publishDate!));
+        expect(publishDateInput.element.value).toBe(
+            db.toIsoDateTime(content.value.publishDate!),
+        );
     });
 
     it("sets the expiry date correctly from the loaded data", async () => {
@@ -227,6 +229,8 @@ describe("EditContentStatus.vue", () => {
         const expiryDateInput = wrapper.find('[name="expiryDate"]') as DOMWrapper<HTMLInputElement>;
 
         // Check if the expiry date input field has the correct value
-        expect(expiryDateInput.element.value).toBe(db.toIsoDateTime(content.value.expiryDate!));
+        expect(expiryDateInput.element.value).toBe(
+            db.toIsoDateTime(content.value.expiryDate!),
+        );
     });
 });

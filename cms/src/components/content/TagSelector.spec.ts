@@ -68,7 +68,7 @@ describe("TagSelector.vue", () => {
         await waitForExpect(async () => {
             expect(wrapper.text()).toContain("Category 1");
             expect(wrapper.text()).toContain("Category 2");
-            // This expect is not working. It can be that the fake indexeddb is not filtering the tags as expected, returing Topic A as well.
+            // This expect is not working. It can be that the fake indexedluminary.db is not filtering the tags as expected, returing Topic A as well.
             // expect(wrapper.text()).not.toContain("Topic A");
         });
     });

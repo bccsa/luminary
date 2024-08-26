@@ -2,8 +2,10 @@
 import LInput from "@/components/forms/LInput.vue";
 import LCard from "@/components/common/LCard.vue";
 import { PencilIcon } from "@heroicons/vue/16/solid";
-import { PublishStatus, type ContentDto, db } from "luminary-shared";
-import { nextTick, ref, watch } from "vue";
+
+import { db, PublishStatus, type ContentDto} from "luminary-shared";
+import { computed, nextTick, ref, watch } from "vue";
+import { DateTime } from "luxon";
 import { Slug } from "@/util/slug";
 
 type Props = {
@@ -74,6 +76,106 @@ const validateSlug = async () => {
     if (!content.value) return;
     content.value.slug = await Slug.generate(content.value.slug, content.value._id || "");
 };
+
+// Publish and expiry dates
+const publishDateString = computed({
+    get() {
+        if (!content.value || !content.value.publishDate) return;
+        return db.toIsoDateTime(content.value.publishDate) || undefined;
+    },
+    set(val) {
+        if (!content.value) return;
+        if (!val) {
+            content.value.publishDate = undefined;
+            return;
+        }
+        content.value.publishDate = db.fromIsoDateTime(val);
+    },
+});
+
+const expiryDateString = computed({
+    get() {
+        if (!content.value || !content.value.expiryDate) return;
+        return db.toIsoDateTime(content.value.expiryDate) || undefined;
+    },
+    set(val) {
+        if (!content.value) return;
+        if (!val) {
+            content.value.expiryDate = undefined;
+            return;
+        }
+        content.value.expiryDate = db.fromIsoDateTime(val);
+    },
+});
+
+const selectedExpiryNumber = ref<number | undefined>(undefined);
+const selectedExpiryUnit = ref<string | undefined>(undefined);
+
+const calculateExpiryDate = () => {
+    if (
+        !content.value ||
+        !content.value.publishDate ||
+        !selectedExpiryNumber.value ||
+        !selectedExpiryUnit.value
+    )
+        return;
+
+    switch (selectedExpiryUnit.value) {
+        case "Week":
+            content.value.expiryDate = DateTime.fromMillis(content.value.publishDate)
+                .plus({ weeks: selectedExpiryNumber.value })
+                .toMillis();
+            break;
+        case "Month":
+            content.value.expiryDate = DateTime.fromMillis(content.value.publishDate)
+                .plus({ months: selectedExpiryNumber.value })
+                .toMillis();
+            break;
+        case "Year":
+            content.value.expiryDate = DateTime.fromMillis(content.value.publishDate)
+                .plus({ years: selectedExpiryNumber.value })
+                .toMillis();
+            break;
+        default:
+            console.warn(`Unknown unit: ${selectedExpiryUnit.value}`);
+    }
+    clearExpirySelection();
+};
+
+const setExpiryNumber = (number: number | undefined) => {
+    selectedExpiryNumber.value = number;
+    calculateExpiryDate();
+};
+
+const setExpiryUnit = (unit: string | undefined) => {
+    selectedExpiryUnit.value = unit;
+    calculateExpiryDate();
+};
+
+const clearExpirySelection = () => {
+    selectedExpiryNumber.value = undefined;
+    selectedExpiryUnit.value = undefined;
+};
+
+const clearExpiryDate = () => {
+    if (content.value) content.value.expiryDate = undefined;
+    clearExpirySelection();
+};
+
+// Linked publish and expiry dates
+// const linkedDates = ref<boolean>(false); // future feature
+
+// Publish status
+const publishStatus = computed({
+    get() {
+        if (!content.value) return false;
+        return content.value.status == PublishStatus.Published;
+    },
+    set(val) {
+        if (!content.value) return;
+        content.value.status = val ? PublishStatus.Published : PublishStatus.Draft;
+    },
+});
 </script>
 
 <template>

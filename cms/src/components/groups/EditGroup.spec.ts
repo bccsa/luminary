@@ -10,7 +10,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, db, DocType, isConnected, type GroupDto } from "luminary-shared";
+import { db, accessMap, DocType, isConnected, type GroupDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import EditGroup from "./EditGroup.vue";
 

@@ -4,6 +4,7 @@ import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
 import { accessMap, AccessMap } from "../permissions/permissions";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
+import { config } from "../config";
 
 /**
  * Client configuration type definition
@@ -26,8 +27,9 @@ export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
 class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
-    private localChanges = db.getLocalChangesAsRef();
-    private isCms: boolean;
+    private isCms: boolean = config.getCmsFlag();
+    private db = db;
+    private localChanges = this.db.getLocalChangesAsRef();
 
     /**
      * Create a new socketio instance
@@ -35,11 +37,8 @@ class Socketio {
      * @param cms - CMS mode flag
      * @param token - Access token
      */
-    constructor(apiUrl: string, cms: boolean = false, token?: string) {
-        this.isCms = cms;
-
+    constructor(apiUrl: string, token?: string) {
         this.socket = io(apiUrl, token ? { auth: { token } } : undefined);
-
         this.socket.on("connect", () => {
             isConnected.value = true;
             this.requestData();
@@ -50,8 +49,8 @@ class Socketio {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
-            await db.bulkPut(data.docs);
-            if (data.version != undefined) db.syncVersion = data.version;
+            await this.db.bulkPut(data.docs);
+            if (data.version != undefined) this.db.syncVersion = data.version;
         });
 
         this.socket.on("changeRequestAck", this.handleAck.bind(this));
@@ -106,7 +105,7 @@ class Socketio {
     public requestData() {
         // Request documents that are newer than the last received version
         this.socket.emit("clientDataReq", {
-            version: db.syncVersion,
+            version: this.db.syncVersion,
             cms: this.isCms,
             accessMap: accessMap.value,
         });
@@ -132,7 +131,7 @@ class Socketio {
      * Handle change request acknowledgements from the api
      */
     private async handleAck(ack: ChangeReqAckDto) {
-        await db.applyLocalChangeAck(ack);
+        await this.db.applyLocalChangeAck(ack);
 
         // Push the next local change to api
         clearTimeout(this.retryTimeout);
@@ -147,10 +146,6 @@ type socketConnectionOptions = {
      * Socket.io endpoint URL
      */
     apiUrl?: string;
-    /**
-     * CMS mode flag
-     */
-    cms?: boolean;
     /**
      * Access token
      */
@@ -175,9 +170,8 @@ export function getSocket(options?: socketConnectionOptions) {
         if (!options.apiUrl) {
             throw new Error("Socket connection requires an API URL");
         }
-        if (!options.cms) options.cms = false;
 
-        socket = new Socketio(options.apiUrl, options.cms, options.token);
+        socket = new Socketio(options.apiUrl, options.token);
     } else if (options?.reconnect) socket.reconnect();
 
     return socket;

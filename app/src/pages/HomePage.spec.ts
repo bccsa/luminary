@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { describe, it, beforeEach, expect, vi, vitest, beforeAll, afterEach } from "vitest";
 import HomePage from "./HomePage.vue";
 import * as auth0 from "@auth0/auth0-vue";
-import { accessMap, db } from "luminary-shared";
+import { db, accessMap } from "luminary-shared";
 import { ref } from "vue";
 import {
     mockCategoryContentDto,
@@ -29,7 +29,11 @@ describe("HomePage.vue", () => {
     });
 
     beforeEach(async () => {
-        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await db.docs.bulkPut([
+            mockLanguageDtoEng,
+            mockLanguageDtoFra,
+            mockLanguageDtoSwa,
+        ]);
     });
 
     afterEach(async () => {

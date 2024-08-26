@@ -12,7 +12,7 @@ import {
 import GroupSelector from "./GroupSelector.vue";
 import { Combobox } from "@headlessui/vue";
 import LTag from "../content/LTag.vue";
-import { accessMap, db, DocType } from "luminary-shared";
+import { db, accessMap, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 describe("GroupSelector", () => {

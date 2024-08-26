@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DocType, type PostDto, type TagDto, type Uuid, db } from "luminary-shared";
+import { db, DocType, type PostDto, type TagDto, type Uuid } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
 import { ArrowsUpDownIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/vue/20/solid";
 import LCard from "../common/LCard.vue";

@@ -16,6 +16,7 @@ import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
 const { appName, apiUrl } = useGlobalConfigStore();
+let token;
 
 const getToken = async () => {
     try {
@@ -33,14 +34,13 @@ const getToken = async () => {
 
 onBeforeMount(async () => {
     await waitUntilAuth0IsLoaded();
-    const token = await getToken();
+    token = await getToken();
 
     // Initialize the socket connection
     try {
         getSocket({
             apiUrl,
             token,
-            cms: true,
         });
     } catch (err) {
         console.error(err);

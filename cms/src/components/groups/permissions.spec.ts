@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach, afterAll, beforeAll } 
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import { mockGroupDtoPublicContent, superAdminAccessMap } from "@/tests/mockdata";
-import { accessMap, AclPermission, db, DocType, type GroupAclEntryDto } from "luminary-shared";
+import { db, accessMap, AclPermission, DocType, type GroupAclEntryDto } from "luminary-shared";
 import {
     hasChangedPermission,
     isPermissionAvailable,

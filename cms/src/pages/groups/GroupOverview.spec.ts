@@ -11,7 +11,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, db } from "luminary-shared";
+import { db, accessMap } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router");

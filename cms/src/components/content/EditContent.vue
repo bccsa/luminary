@@ -69,7 +69,7 @@ if (newDocument) {
         (parent.value as TagDto).pinned = false;
     }
 } else {
-    // Get a copy of the parent document from IndexedDB, and host it as a local ref.
+    // Get a copy of the parent document from Indexedb, and host it as a local ref.
     db.get<PostDto | TagDto>(parentId).then((p) => {
         parent.value = p;
         parentPrev.value = _.cloneDeep(p);

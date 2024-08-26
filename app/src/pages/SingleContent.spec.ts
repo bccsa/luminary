@@ -5,7 +5,7 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import SingleContent from "./SingleContent.vue";
 import { mockPostDto, mockEnglishContentDto, mockCategoryContentDto } from "@/tests/mockdata";
-import { db, type BaseDocumentDto } from "luminary-shared";
+import { db ,type BaseDocumentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import NotFoundPage from "./NotFoundPage.vue";
 

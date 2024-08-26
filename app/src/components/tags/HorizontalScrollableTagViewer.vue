@@ -3,7 +3,7 @@ import ContentTile from "@/components/content/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref, watch } from "vue";
 import { useResizeObserver } from "@vueuse/core";
-import { DocType, db, type TagDto, type queryOptions as options } from "luminary-shared";
+import { db, DocType, type TagDto, type queryOptions as options } from "luminary-shared";
 
 type Props = {
     tag?: TagDto;
