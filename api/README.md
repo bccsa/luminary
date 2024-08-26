@@ -14,9 +14,10 @@ The following software is needed to run and/or test the Luminary API:
 For development purposes, CouchDB can be installed as a docker:
 
 ```shell
-docker run -p 5984:5984 -d couchdb
+docker run -p 5984:5984 -d -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=yourpassword couchdb
 ```
-After successfully running couchDB, create a local database via the CouchDB web interface at http://localhost:5984/_utils/
+
+After successfully running CouchDB, create a local database via the CouchDB web interface at http://localhost:5984/\_utils/ using the credentials you set above.
 
 ### S3 storage (MinIO)
 
