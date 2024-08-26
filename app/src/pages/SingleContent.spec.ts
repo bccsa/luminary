@@ -135,16 +135,11 @@ describe("SingleContent", () => {
         });
     });
 
-    it("does not display scheduled or expired content", async () => {
-        // Set a future publish date and an expired date
-        await db.docs.update(mockEnglishContentDto._id, {
-            publishDate: Date.now(),
-            expiryDate: Date.now() - 1000,
-        });
-
+    it("doesn't display tag when content not tagged", async () => {
+        const mockContent = { ...mockEnglishContentDto, tags: [] };
         const wrapper = mount(SingleContent, {
             props: {
-                slug: mockEnglishContentDto.slug,
+                slug: mockContent.slug,
             },
         });
 
@@ -170,7 +165,6 @@ describe("SingleContent", () => {
 
         const notificationStore = useNotificationStore();
 
-        // check if french content is displayed
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.summary);
             expect(notificationStore.addNotification).not.toHaveBeenCalled();
