@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import EditContentValidation from "./EditContentValidation.vue";
-import { XCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 import {
     type PostDto,
     type TagDto,
@@ -43,10 +42,6 @@ const untranslatedLanguages = computed(() => {
         .sort(sortByName);
 });
 
-const isParentDirty = computed(() => {
-    return _.isEqual(parent.value, props.parentPrev);
-});
-
 const createTranslation = (language: LanguageDto) => {
     const newContent: ContentDto = {
         _id: db.uuid(),
@@ -86,8 +81,6 @@ watch(
     [parent, contentDocs],
     ([newParent, newContentDocs]) => {
         if (!newParent) return;
-
-        console.log(newParent.memberOf);
 
         validate(
             "At least one group is required",
@@ -134,30 +127,8 @@ watch(
 </script>
 
 <template>
-    <div class="rounded-md bg-zinc-100 p-2 shadow-inner">
+    <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
-            <div class="flex flex-col">
-                <div class="flex flex-col gap-2" v-if="!isParentDirty">
-                    <span class="text-sm text-zinc-900"> General </span>
-                    <div class="flex items-center gap-2">
-                        <p>
-                            <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-                        </p>
-                        <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
-                    </div>
-                </div>
-
-                <div
-                    v-for="validation in parentValidations.filter((v) => !v.isValid)"
-                    :key="validation.id"
-                    class="flex items-center gap-2"
-                >
-                    <p>
-                        <XCircleIcon class="h-4 w-4 text-red-400" />
-                    </p>
-                    <p class="h-4 text-xs text-zinc-700">{{ validation.message }}</p>
-                </div>
-            </div>
             <div class="flex flex-col gap-2">
                 <EditContentValidation
                     v-for="content in contentDocs"
