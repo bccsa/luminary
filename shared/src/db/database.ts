@@ -71,13 +71,15 @@ export class database extends Dexie {
     constructor() {
         super("luminary-db");
 
-        if (config.getCmsFlag() == undefined || config.getCmsFlag() == null) {
+        const givenCms = config.getConfig()?.cms;
+
+        if (givenCms == undefined || givenCms == null) {
             throw new Error(
                 "Unable to load database - the CMS flag has not been set. The CMS flag should be set before instantiating the database.",
             );
         }
 
-        this.isCms = config.getCmsFlag();
+        this.isCms = givenCms;
 
         // Remember to increase the version number below if you change the schema
         this.version(8).stores({
@@ -627,22 +629,21 @@ export class database extends Dexie {
         const now = DateTime.now().toMillis();
         if (this.isCms) {
             return;
-        } else {
-            const contentDocs = await this.docs.where("type").equals(DocType.Content).toArray();
-            const expiredDocs = contentDocs.filter((doc) => {
-                const contentDoc = doc as ContentDto;
-                const expiryDate = contentDoc.expiryDate;
+        }
+        const contentDocs = await this.docs.where("type").equals(DocType.Content).toArray();
+        const expiredDocs = contentDocs.filter((doc) => {
+            const contentDoc = doc as ContentDto;
+            const expiryDate = contentDoc.expiryDate;
 
-                if (expiryDate && expiryDate <= now) return true;
-                return false;
-            });
-            if (expiredDocs.length > 0) {
-                console.info("There are expired Documents...deleting");
-                try {
-                    await this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
-                } catch (e) {
-                    console.error(`Error:   ${e}`);
-                }
+            if (expiryDate && expiryDate <= now) return true;
+            return false;
+        });
+        if (expiredDocs.length > 0) {
+            console.info("There are expired Documents...deleting");
+            try {
+                await this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
+            } catch (e) {
+                console.error(`Error:   ${e}`);
             }
         }
     }

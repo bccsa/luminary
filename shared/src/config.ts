@@ -1,29 +1,21 @@
-export type SharedConfigT = {
+export type SharedConfig = {
     cms: boolean;
 };
 
 export class Configuration {
-    private config: SharedConfigT;
+    private config: SharedConfig | undefined = undefined;
 
-    constructor(conf: SharedConfigT) {
-        this.config = conf;
-    }
-
-    public setConfig(newConfig: SharedConfigT) {
-        this.config = newConfig;
+    public setConfig(config: SharedConfig) {
+        this.config = config;
     }
 
     public getConfig() {
         return this.config;
     }
-
-    public getCmsFlag() {
-        return this.config.cms;
-    }
 }
 
-export const config: Configuration = new Configuration({ cms: true });
+export const config: Configuration = new Configuration();
 
-export function init(newConfig: SharedConfigT) {
+export function init(newConfig: SharedConfig) {
     config.setConfig(newConfig);
 }

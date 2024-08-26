@@ -1,5 +1,5 @@
-import { type SharedConfigT, config } from "./config";
+import { type SharedConfig, config } from "./config";
 
-export function init(init: SharedConfigT) {
-    config.setConfig({ cms: init.cms });
+export function init(configP: SharedConfig) {
+    config.setConfig({ cms: configP.cms });
 }
