@@ -17,12 +17,7 @@ For development purposes, CouchDB can be installed as a docker:
 docker run -p 5984:5984 -d -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=yourpassword couchdb
 ```
 
-After successfully running couchDB, create a local database via the CouchDB web interface at http://localhost:5984/\_utils/
-
-Here are the database access credentials.
-
-username: admin
-password: yourpassword
+After successfully running CouchDB, create a local database via the CouchDB web interface at http://localhost:5984/\_utils/ using the credentials you set above.
 
 ### S3 storage (MinIO)
 
