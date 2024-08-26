@@ -10,11 +10,9 @@ type Props = {
     title?: string;
     queryOptions: options;
     showPublishDate?: boolean;
-    publishDateVisible: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
-    publishDateVisible: true,
 });
 
 const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
@@ -122,7 +120,6 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                         :key="content._id"
                         :content="content"
                         :show-publish-date="showPublishDate"
-                        :publish-date-visible="content.publishDateVisible !== false"
                         class="w-40 overflow-clip md:w-60"
                     />
                 </div>
