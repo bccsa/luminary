@@ -170,6 +170,7 @@ describe("SingleContent", () => {
 
         const notificationStore = useNotificationStore();
 
+        // check if french content is displayed
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.summary);
             expect(notificationStore.addNotification).not.toHaveBeenCalled();
