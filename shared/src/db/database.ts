@@ -18,6 +18,7 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { config } from "../config";
 
 export type queryOptions = {
     filterOptions?: {
@@ -60,20 +61,31 @@ export type queryOptions = {
     languageId?: Uuid;
 };
 
-class database extends Dexie {
+export class database extends Dexie {
     // TODO: Make tables private
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     private accessMapRef = accessMap;
+    private isCms: boolean | undefined = undefined;
 
     constructor() {
         super("luminary-db");
+
+        if (config.getCmsFlag() == undefined || config.getCmsFlag() == null) {
+            throw new Error(
+                "Unable to load database - the CMS flag has not been set. The CMS flag should be set before instantiating the database.",
+            );
+        }
+
+        this.isCms = config.getCmsFlag();
 
         // Remember to increase the version number below if you change the schema
         this.version(8).stores({
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language], title",
             localChanges: "++id, reqId, docId, status",
         });
+
+        this.deleteExpired();
 
         // Listen for changes to the access map and delete documents that the user no longer has access to
         watch(
@@ -609,6 +621,30 @@ class database extends Dexie {
 
                 await revokedDocs.delete();
             });
+    }
+
+    private async deleteExpired() {
+        const now = DateTime.now().toMillis();
+        if (this.isCms) {
+            return;
+        } else {
+            const contentDocs = await this.docs.where("type").equals(DocType.Content).toArray();
+            const expiredDocs = contentDocs.filter((doc) => {
+                const contentDoc = doc as ContentDto;
+                const expiryDate = contentDoc.expiryDate;
+
+                if (expiryDate && expiryDate <= now) return true;
+                return false;
+            });
+            if (expiredDocs.length > 0) {
+                console.info("There are expired Documents...deleting");
+                try {
+                    await this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
+                } catch (e) {
+                    console.error(`Error:   ${e}`);
+                }
+            }
+        }
     }
 
     /**
