@@ -17,13 +17,17 @@ import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
+import NotFoundPage from "./NotFoundPage.vue";
 
-const routeReplaceMock = vi.fn();
-vi.mock("vue-router", () => {
+const routeReplaceMock = vi.hoisted(() => vi.fn());
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
     return {
-        useRouter: () => ({
+        // @ts-expect-error
+        ...actual,
+        useRouter: vi.fn().mockImplementation(() => ({
             replace: routeReplaceMock,
-        }),
+        })),
     };
 });
 
@@ -145,6 +149,25 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).not.toContain("Tags");
+        });
+    });
+
+    it("does not display scheduled or expired content", async () => {
+        // Set a future publish date and an expired date
+        await db.docs.update(mockEnglishContentDto._id, {
+            publishDate: Date.now(),
+            expiryDate: Date.now() - 1000,
+        });
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.find("article").exists()).toBe(false);
         });
     });
 
