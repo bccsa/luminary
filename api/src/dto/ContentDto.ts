@@ -121,5 +121,5 @@ export class ContentDto extends _contentBaseDto {
     @IsOptional() // Optional as it is set upon change request processing
     @IsBoolean()
     @Expose()
-    publishDateVisible?: boolean;
+    parentPublishDateVisible?: boolean;
 }

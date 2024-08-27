@@ -52,7 +52,7 @@ export async function processChangeRequest(
             if (parentDoc.type == DocType.Tag) {
                 contentDoc.parentTagType = (parentDoc as TagDto).tagType;
             }
-            doc.publishDateVisible = parentDoc.publishDateVisible;
+            contentDoc.parentPublishDateVisible = parentDoc.publishDateVisible;
         }
     }
 
@@ -69,7 +69,7 @@ export async function processChangeRequest(
                     contentDoc.parentTagType = (doc as TagDto).tagType;
                 }
 
-                contentDoc.publishDateVisible = doc.publishDateVisible;
+                contentDoc.parentPublishDateVisible = doc.publishDateVisible;
                 await db.upsertDoc(contentDoc);
             });
         });

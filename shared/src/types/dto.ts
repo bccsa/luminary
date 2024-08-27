@@ -72,7 +72,7 @@ export type ContentDto = ContentBaseDto & {
     parentTags: Uuid[];
     parentImage?: string;
     parentTagType?: TagType;
-    publishDateVisible?: boolean;
+    parentPublishDateVisible?: boolean;
 };
 
 export type ContentMetadataDto = {
