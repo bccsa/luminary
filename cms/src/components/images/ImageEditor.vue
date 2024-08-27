@@ -1,43 +1,53 @@
 <script setup lang="ts">
 import LInput from "../forms/LInput.vue";
-import { computed, defineProps, ref, toRaw } from "vue";
+import { computed, defineProps, ref, toRaw, watch } from "vue";
 import LTextarea from "../forms/LTextarea.vue";
 import LButton from "../button/LButton.vue";
+import LBadge from "../common/LBadge.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
+import GroupSelector from "../groups/GroupSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
 import {
     db,
-    type Uuid,
     type ImageUploadDto,
     type ImageDto,
-    DocType,
     type ImageFileCollectionDto,
     maxUploadFileSize,
+    DocType,
 } from "luminary-shared";
-
-// Note: This control is used in a fully reactive mode as we want to show rendered images as soon as they are uploaded. Mixing non-reactive and reactive modes is difficult to implement.
-
-type Props = {
-    imageId: Uuid;
-};
-const props = defineProps<Props>();
-
-// We need to pass a default document to db.getAsRef to avoid a null reference error when the document is not yet loaded.
-const image = db.getAsRef<ImageDto>(props.imageId, {
-    _id: props.imageId,
-    type: DocType.Image,
-    name: "",
-    description: "",
-    fileCollections: [],
-    memberOf: [],
-    updatedTimeUtc: 0,
-});
+import _ from "lodash";
 
 const { addNotification } = useNotificationStore();
 
-// Computed
+type Props = {
+    image: ImageDto;
+};
+const props = defineProps<Props>();
+
+// TODO: Add permissions validation
+
+const original = db.getAsRef<ImageDto>(props.image._id);
+const editable = ref<ImageDto>(_.cloneDeep(toRaw(props.image)));
+const isDirty = ref(false);
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+const isLocalChange = db.isLocalChangeAsRef(props.image._id);
+
+// update editable when original changes (e.g. when the API processed the save)
+watch(original, () => {
+    if (!isDirty.value && !original.value.uploadData) {
+        editable.value = _.cloneDeep(toRaw(original.value));
+    }
+});
+
+// Dirty checking
+watch(
+    [original, editable],
+    () => {
+        isDirty.value = !_.isEqual(toRaw(original.value), editable.value);
+    },
+    { deep: true, immediate: true },
+);
 
 // Child component refs
 const nameInput = ref<typeof LInput | undefined>(undefined);
@@ -46,9 +56,7 @@ const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 
 // Methods
 const save = () => {
-    const raw = toRaw(image.value);
-    delete raw.uploadData; // do not re-save upload data as this will trigger a re-render of the image in the API.
-    db.upsert<ImageDto>(toRaw(image.value));
+    db.upsert<ImageDto>(toRaw(editable.value), true);
 };
 
 const showFilePicker = () => {
@@ -66,7 +74,7 @@ const upload = () => {
     const file = uploadInput.value!.files[0];
 
     reader.onload = (e) => {
-        if (!image.value.uploadData) image.value.uploadData = [] as ImageUploadDto[];
+        if (!editable.value.uploadData) editable.value.uploadData = [] as ImageUploadDto[];
         const fileData = e.target!.result as ArrayBuffer;
 
         if (fileData.byteLength > maxUploadFileSize.value) {
@@ -78,16 +86,11 @@ const upload = () => {
             return;
         }
 
-        // Save the file data
-        const raw = toRaw(image.value);
-        raw.uploadData = [
-            {
-                fileData,
-                preset: "photo",
-                filename: file.name,
-            },
-        ]; // do not re-save previous upload data as this will trigger a re-render of the image in the API.
-        db.upsert<ImageDto>(toRaw(image.value));
+        editable.value.uploadData.push({
+            filename: file.name,
+            preset: "Original",
+            fileData,
+        });
     };
 
     reader.readAsArrayBuffer(file);
@@ -98,31 +101,88 @@ const upload = () => {
 };
 
 const removeFileCollection = (collection: ImageFileCollectionDto) => {
-    image.value.fileCollections = image.value.fileCollections
+    editable.value.fileCollections = editable.value.fileCollections
         .filter((f) => f !== collection)
         .map((f) => toRaw(f));
-    save();
+};
+
+const removeFileUploadData = (uploadData: ImageUploadDto) => {
+    if (!editable.value.uploadData) return;
+
+    editable.value.uploadData = editable.value.uploadData
+        .filter((f) => f !== uploadData)
+        .map((f) => toRaw(f));
+
+    if (editable.value.uploadData.length == 0) {
+        delete editable.value.uploadData;
+    }
 };
 </script>
 
 <template>
     <div class="flex-col">
-        <label class="text-xs italic text-zinc-500">Changes are applied immediately</label>
+        <div class="flex items-center gap-2">
+            <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
+            <LBadge v-if="isDirty" variant="default"> Unsaved changes </LBadge>
+            <div class="flex-1"></div>
+            <LButton
+                variant="primary"
+                @click="
+                    if (isDirty) {
+                        save();
+                        addNotification({
+                            title: 'Changes saved',
+                            state: 'success',
+                        });
+                    } else {
+                        addNotification({
+                            title: 'No changes to save',
+                            description: 'No changes have been made to the image.',
+                            state: 'info',
+                        });
+                    }
+                "
+                data-test="save-button"
+                >Save</LButton
+            >
+        </div>
+
         <div>
             <LInput
                 ref="nameInput"
-                v-model="image.name"
+                v-model="editable.name"
                 name="fileName"
                 label="Image name"
-                class="mb-2 flex-1"
-                @change="save"
+                class="mb-2"
                 data-test="image-name"
             />
+
+            <LTextarea
+                ref="descriptionInput"
+                name="description"
+                label="Notes"
+                v-model="editable.description"
+                class="mb-2"
+                data-test="image-description"
+            />
+
+            <GroupSelector
+                v-model:groups="editable.memberOf"
+                :disabled="false"
+                :docType="DocType.Image"
+                class="mb-4"
+            />
+
+            <p class="mb-2 text-xs">
+                You can upload several files in different aspect ratios. The most suitable image
+                will automatically be selected based on the aspect ratio of the image element where
+                the image is displayed.
+            </p>
+            <p class="mb-2 text-xs">
+                Uploaded images are automatically scaled for for different screen and display sizes.
+            </p>
             <div class="mb-2 flex items-end gap-4">
                 <div class="flex flex-col">
-                    <label class="mb-3 w-full text-right text-xs text-zinc-900"
-                        >Max size: {{ maxUploadFileSizeMb }}MB</label
-                    >
                     <LButton :icon="ArrowUpOnSquareIcon" class="h-9" @click="showFilePicker"
                         >Upload</LButton
                     >
@@ -137,36 +197,21 @@ const removeFileCollection = (collection: ImageFileCollectionDto) => {
                 </div>
             </div>
         </div>
-        <!-- Selected upload files display area -->
-        <div v-if="image.uploadData" class="mb-2 mt-2 flex gap-2">
-            <div
-                v-for="f in image.uploadData"
-                :key="f.filename"
-                class="group relative flex items-center gap-4 rounded-full border border-zinc-200 bg-zinc-100 pl-1 pr-1 text-xs text-zinc-900"
-            >
-                <span>{{ f.preset }}: {{ f.filename }}</span>
-            </div>
-        </div>
-        <LTextarea
-            ref="descriptionInput"
-            name="description"
-            label="Notes"
-            v-model="image.description"
-            @change="save"
-            data-test="image-description"
-        />
-        <div>
-            <!-- Group selector here -->
-        </div>
 
-        <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">File versions</h3>
+        <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">Image files</h3>
 
         <div class="flex flex-1 flex-wrap gap-4 overflow-x-scroll pt-2" data-test="thumbnail-area">
             <ImageEditorThumbnail
-                v-for="c in image.fileCollections"
+                v-for="c in editable.fileCollections"
                 :imageFileCollection="c"
-                @delete="removeFileCollection"
+                @deleteFileCollection="removeFileCollection"
                 :key="c.aspectRatio"
+            />
+            <ImageEditorThumbnail
+                v-for="u in editable.uploadData"
+                :imageUploadData="u"
+                @deleteUploadData="removeFileUploadData"
+                :key="u.filename"
             />
         </div>
     </div>
