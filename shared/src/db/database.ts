@@ -434,8 +434,10 @@ class Database extends Dexie {
 
     /**
      * Update or insert a document into the database and queue the change to be sent to the API
+     * @param doc - The document to upsert
+     * @param overwiteLocalChanges - If true, the entry in the local changes table will be overwritten with the new change
      */
-    async upsert<T extends BaseDocumentDto>(doc: T) {
+    async upsert<T extends BaseDocumentDto>(doc: T, overwiteLocalChanges = false) {
         // Unwrap the (possibly) reactive object
         const raw = toRaw(doc);
 
@@ -447,6 +449,11 @@ class Database extends Dexie {
             await this.docs.update(raw._id, raw);
         } else {
             await this.docs.put(raw);
+        }
+
+        if (overwiteLocalChanges) {
+            // Delete the previous change from the localChanges table (if any)
+            await this.localChanges.where({ docId: raw._id }).delete();
         }
 
         // Queue the change to be sent to the API
