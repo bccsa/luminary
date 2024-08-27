@@ -14,20 +14,18 @@ const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 const images = db.whereTypeAsRef<ImageDto[]>(DocType.Image, []);
 
 const newImage = async () => {
-    const id = db.uuid();
-    await db.upsert<ImageDto>({
-        _id: id,
+    selectedImage.value = {
+        _id: db.uuid(),
         type: DocType.Image,
         name: "New Image",
         description: "",
         fileCollections: [],
-        memberOf: ["group-private-content"],
+        memberOf: [],
         updatedTimeUtc: Date.now(),
-    });
-    selectedImageId.value = id;
+    };
 };
 
-const selectedImageId = ref<Uuid | undefined>(undefined);
+const selectedImage = ref<ImageDto>();
 </script>
 
 <template>
@@ -45,14 +43,14 @@ const selectedImageId = ref<Uuid | undefined>(undefined);
                         v-for="image in images"
                         :key="image._id"
                         class="cursor-pointer overflow-hidden"
-                        @click="selectedImageId = image._id"
+                        @click="selectedImage = image"
                     >
                         <LImage
                             :image="image"
                             :key="image._id"
                             aspect-ratio="square"
                             size="thumbnail"
-                            class="rounded shadow"
+                            class="rounded-lg shadow"
                             :base-url="baseUrl"
                             :fallback-img="fallbackImg"
                         />
@@ -62,8 +60,8 @@ const selectedImageId = ref<Uuid | undefined>(undefined);
                     </div>
                 </div>
             </LCard>
-            <LCard class="w-1/2" v-if="selectedImageId">
-                <ImageEditor :imageId="selectedImageId" :key="selectedImageId" />
+            <LCard class="w-1/2" v-if="selectedImage">
+                <ImageEditor :image="selectedImage" :key="selectedImage._id" />
             </LCard>
         </div>
     </div>

@@ -35,6 +35,15 @@ let closestAspectRatio = 0;
 
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
+    // Check if there is uploaded image data available and return a blob URL
+    if (props.image.uploadData && props.image.uploadData.length > 0) {
+        return URL.createObjectURL(
+            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
+                type: "image/*",
+            }),
+        );
+    }
+
     if (!props.image.fileCollections || props.image.fileCollections?.length == 0) return "";
 
     // Get the available aspect ratios
