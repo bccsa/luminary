@@ -128,7 +128,6 @@ const createTranslation = (language: LanguageDto) => {
         title: `Translation for ${language.name}`,
         slug: "",
         parentTags: [],
-        publishDateVisible: true,
     });
     selectedLanguageId.value = language._id;
 };

@@ -69,7 +69,6 @@ const createTranslation = (language: LanguageDto) => {
         title: `Translation for ${language.name}`,
         slug: "",
         parentTags: [],
-        publishDateVisible: true,
     };
     contentDocs.value?.push(newContent);
 };
