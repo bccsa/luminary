@@ -324,13 +324,15 @@ describe("EditGroup.vue", () => {
             ] as GroupAclEntryDto[],
         };
 
+        db.docs.bulkPut([groupDoc]);
+
         const wrapper = await createWrapper(groupDoc);
 
         // check that the group ID is shown
         expect(wrapper.text()).toContain("group-not-available");
 
         // check that editing is disabled
-        // expect(wrapper.text()).toContain("No edit access.");
+        expect(wrapper.text()).toContain("No edit access.");
         expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
         expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
     });
