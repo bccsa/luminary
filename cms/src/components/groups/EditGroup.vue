@@ -19,7 +19,6 @@ import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
 import _ from "lodash";
 import { compactAclEntries, validDocTypes } from "./permissions";
-import { ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 
 const { addNotification } = useNotificationStore();
 

@@ -10,7 +10,15 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, db, DocType, isConnected, type GroupDto } from "luminary-shared";
+import {
+    accessMap,
+    AclPermission,
+    db,
+    DocType,
+    isConnected,
+    type GroupAclEntryDto,
+    type GroupDto,
+} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import EditGroup from "./EditGroup.vue";
 
@@ -303,6 +311,27 @@ describe("EditGroup.vue", () => {
 
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
+        expect(wrapper.text()).toContain("No edit access.");
+        expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
+        expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
+    });
+
+    it("shows the assigned group's ID when the assigned group is not available to the user", async () => {
+        const groupDoc = {
+            ...mockGroupDtoPublicContent,
+            acl: [
+                { groupId: "group-not-available", type: "group", permission: [AclPermission.Edit] },
+            ] as GroupAclEntryDto[],
+        };
+
+        db.docs.bulkPut([groupDoc]);
+
+        const wrapper = await createWrapper(groupDoc);
+
+        // check that the group ID is shown
+        expect(wrapper.text()).toContain("group-not-available");
+
+        // check that editing is disabled
         expect(wrapper.text()).toContain("No edit access.");
         expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
         expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);

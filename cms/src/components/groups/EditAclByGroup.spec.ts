@@ -147,6 +147,29 @@ describe("EditAclByGroup.vue", () => {
             },
         });
 
+        // Check that he duplicate ACL button is not present indicating that editing is disabled
+        expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
+    });
+
+    it("checks if acl entries are disabled when no assign permission", async () => {
+        delete accessMap.value["group-public-content"].group?.assign;
+
+        const wrapper = mount(EditAclByGroup, {
+            props: {
+                group: mockGroupDtoPublicContent,
+                assignedGroup: mockGroupDtoPublicContent,
+                originalGroup: mockGroupDtoPublicContent,
+                availableGroups: [
+                    mockGroupDtoPublicContent,
+                    mockGroupDtoPublicEditors,
+                    mockGroupDtoPublicUsers,
+                    mockGroupDtoSuperAdmins,
+                ],
+                disabled: false,
+            },
+        });
+
+        // Check that he duplicate ACL button is not present indicating that editing is disabled
         expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
     });
 });
