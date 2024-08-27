@@ -438,15 +438,7 @@ class database extends Dexie {
         // Unwrap the (possibly) reactive object
         const raw = toRaw(doc);
 
-        // Check if the document already exists in the database
-        const existingDoc = await this.docs.get(raw._id);
-
-        // Update the document in the docs table. This is a preliminary update, as it will eventually be overwritten by the API response
-        if (existingDoc) {
-            await this.docs.update(raw._id, raw);
-        } else {
-            await this.docs.put(raw);
-        }
+        await this.docs.put(raw, raw._id);
 
         if (overwiteLocalChanges) {
             // Delete the previous change from the localChanges table (if any)
