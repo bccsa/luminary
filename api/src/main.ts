@@ -3,6 +3,7 @@ import { AppModule } from "./app.module";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
+import { upgradeDbSchema } from "./db/db.upgrade";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
@@ -20,6 +21,9 @@ async function bootstrap() {
         console.log("Database seeded with default data.");
         process.exit(0);
     }
+
+    // Upgrade database schema if needed
+    await upgradeDbSchema(dbService);
 
     // Initialize permission system
     await PermissionSystem.init(dbService);

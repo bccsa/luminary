@@ -2,10 +2,6 @@
     "_id": "content-category1-eng",
     "type": "content",
     "memberOf": ["group-public-content"],
-    "image": "image.jpg",
-    "tags": [],
-    "parentId": "tag-category1",
-    "parentType": "tag",
     "language": "lang-eng",
     "status": "published",
     "slug": "category1-eng",
@@ -17,5 +13,10 @@
     "localisedImage": null,
     "audio": null,
     "video": null,
-    "publishDate": 1704114000000
+    "publishDate": 1704114000000,
+    "parentId": "tag-category1",
+    "parentType": "tag",
+    "parentTagType": "category",
+    "parentImage": "image.jpg",
+    "parentTags": []
 }

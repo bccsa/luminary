@@ -62,7 +62,7 @@ describe("SingleContent", () => {
     });
 
     it("displays the content image", async () => {
-        await db.docs.update(mockEnglishContentDto._id, { image: "test-image.jpg" });
+        await db.docs.update(mockEnglishContentDto._id, { parentImage: "test-image.jpg" });
 
         const wrapper = mount(SingleContent, {
             props: {

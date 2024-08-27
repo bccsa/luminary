@@ -1,5 +1,5 @@
 import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
-import { DocType, PublishStatus, Uuid } from "../enums";
+import { DocType, PublishStatus, TagType, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
 import { Expose } from "class-transformer";
@@ -82,15 +82,20 @@ export class ContentDto extends _contentBaseDto {
     @IsOptional() // Optional as it is set upon change request processing
     @IsArray()
     @Expose()
-    memberOf: Uuid[];
+    memberOf: Uuid[]; // Even though this field is copied from the parent, the property is not prefixed with "parent" as it is used in database queries in the same was as the parent's field.
 
     @IsOptional() // Optional as it is set upon change request processing
     @IsArray()
     @Expose()
-    tags?: Uuid[];
+    parentTags?: Uuid[];
 
     @IsOptional() // Optional as it is set upon change request processing
     @IsString()
     @Expose()
-    image?: string;
+    parentImage?: string;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @Expose()
+    parentTagType?: TagType;
 }

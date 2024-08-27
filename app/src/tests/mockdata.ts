@@ -50,7 +50,7 @@ export const mockEnglishContentDto: ContentDto = {
     parentType: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
-    tags: ["tag-category1"],
+    parentTags: ["tag-category1"],
     language: "lang-eng",
     status: PublishStatus.Published,
     slug: "post1-eng",
@@ -63,7 +63,7 @@ export const mockEnglishContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    image: "test-image.jpg",
+    parentImage: "test-image.jpg",
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
@@ -72,7 +72,7 @@ export const mockFrenchContentDto: ContentDto = {
     parentType: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
-    tags: ["tag-category1"],
+    parentTags: ["tag-category1"],
     language: "lang-fra",
     status: PublishStatus.Published,
     slug: "post1-fra",
@@ -85,7 +85,7 @@ export const mockFrenchContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    image: "test-image.jpg",
+    parentImage: "test-image.jpg",
 };
 export const mockSwahiliContentDto: ContentDto = {
     _id: "content-post1-swa",
@@ -94,7 +94,7 @@ export const mockSwahiliContentDto: ContentDto = {
     parentType: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
-    tags: ["tag-category1"],
+    parentTags: ["tag-category1"],
     language: "lang-swa",
     status: PublishStatus.Published,
     slug: "post1-swa",
@@ -107,7 +107,7 @@ export const mockSwahiliContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    image: "test-image.jpg",
+    parentImage: "test-image.jpg",
 };
 export const mockCategoryContentDto: ContentDto = {
     _id: "content-tag-category1",
@@ -116,7 +116,7 @@ export const mockCategoryContentDto: ContentDto = {
     parentType: DocType.Tag,
     updatedTimeUtc: 1704114000000,
     memberOf: [],
-    tags: [],
+    parentTags: [],
     language: "lang-eng",
     status: PublishStatus.Published,
     slug: "content-tag-category1",
@@ -124,7 +124,7 @@ export const mockCategoryContentDto: ContentDto = {
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
-    image: "test-image.jpg",
+    parentImage: "test-image.jpg",
 };
 
 export const mockTopicContentDto: ContentDto = {
@@ -134,7 +134,7 @@ export const mockTopicContentDto: ContentDto = {
     parentType: DocType.Tag,
     updatedTimeUtc: 1704114000000,
     memberOf: [],
-    tags: [],
+    parentTags: [],
     language: "lang-eng",
     status: PublishStatus.Published,
     slug: "content-tag-topicA",
@@ -142,7 +142,7 @@ export const mockTopicContentDto: ContentDto = {
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
-    image: "test-image.jpg",
+    parentImage: "test-image.jpg",
 };
 
 export const mockLanguageDtoEng: LanguageDto = {

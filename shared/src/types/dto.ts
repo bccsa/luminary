@@ -20,9 +20,13 @@ export type BaseDocumentDto = {
     docType?: DocType;
     acl?: GroupAclEntryDto[];
     parentType?: DocType.Post | DocType.Tag;
+    parentId?: Uuid;
     tags?: Uuid[];
     pinned?: boolean;
     language?: Uuid;
+    tagType?: TagType;
+    parentTagType?: TagType;
+    parentTags?: Uuid[];
 };
 
 export enum AclPermission {
@@ -65,8 +69,9 @@ export type ContentDto = ContentBaseDto & {
     summary?: string;
     text?: string;
     parentType?: DocType;
-    tags: Uuid[];
-    image?: string;
+    parentTags: Uuid[];
+    parentImage?: string;
+    parentTagType?: TagType;
 };
 
 export type ContentMetadataDto = {

@@ -70,8 +70,8 @@ class database extends Dexie {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(7).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate",
+        this.version(8).stores({
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language], title",
             localChanges: "++id, reqId, docId, status",
         });
 
@@ -245,22 +245,6 @@ class database extends Dexie {
     }
 
     /**
-     * Get IndexedDB documents by their languageId(s)
-     * TODO: Check if used. This query is perhaps not practical.
-     */
-    whereLanguage(languageId: Uuid | Uuid[]) {
-        if (Array.isArray(languageId)) {
-            return this.docs.where("parentId").anyOf(languageId).toArray() as unknown as Promise<
-                ContentDto[]
-            >;
-        }
-
-        return this.docs.where("language").equals(languageId).toArray() as unknown as Promise<
-            ContentDto[]
-        >;
-    }
-
-    /**
      * Check if a tag document is of a certain tag type
      */
     async isTagType(id: Uuid, tagType: TagType) {
@@ -416,7 +400,8 @@ class database extends Dexie {
             if (doc.expiryDate != undefined && doc.expiryDate < Date.now()) return false;
 
             // Optionally filter by tagId
-            if (!doc.tags || (tagId && !doc.tags.some((tag) => tag == tagId))) return false;
+            if (!doc.parentTags || (tagId && !doc.parentTags.some((tag) => tag == tagId)))
+                return false;
 
             return true;
         });

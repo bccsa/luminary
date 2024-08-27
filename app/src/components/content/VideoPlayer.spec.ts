@@ -39,6 +39,6 @@ describe("VideoPlayer", () => {
         expect(srcMock).toHaveBeenCalledWith(
             expect.objectContaining({ src: mockEnglishContentDto.video }),
         );
-        expect(posterMock).toHaveBeenCalledWith(mockEnglishContentDto.image);
+        expect(posterMock).toHaveBeenCalledWith(mockEnglishContentDto.parentImage);
     });
 });

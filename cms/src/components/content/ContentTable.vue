@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { DocType, type PostDto, type TagDto, type Uuid, db } from "luminary-shared";
+import { type LanguageDto, DocType, db } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
 import { ArrowsUpDownIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/vue/20/solid";
 import LCard from "../common/LCard.vue";
-import type { LanguageDto } from "luminary-shared";
+import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "./query";
 
 type Props = {
-    contentParents: PostDto[] | TagDto[];
-    docType: DocType.Post | DocType.Tag;
-    languageId: Uuid;
+    queryOptions: ContentOverviewQueryOptions;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+
+const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
 </script>
 
 <template>
@@ -74,12 +74,13 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
                     </thead>
                     <tbody class="divide-y divide-zinc-200 bg-white">
                         <ContentRow
-                            v-for="contentParent in contentParents"
-                            :key="contentParent._id"
-                            :parent="contentParent"
-                            :parentType="docType"
-                            :languageId="languageId"
+                            v-for="contentDoc in contentDocs"
+                            :key="contentDoc._id"
+                            :contentDoc="contentDoc"
+                            :parentType="queryOptions.parentType"
+                            :languageId="queryOptions.languageId"
                             :languages="languages"
+                            :tagType="queryOptions.tagType"
                         />
                     </tbody>
                 </table>
