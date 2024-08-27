@@ -1,5 +1,5 @@
 import { Uuid } from "../enums";
-import { IsArray, IsBoolean, IsNotEmpty, IsString } from "class-validator";
+import { IsArray, IsOptional, IsBoolean, IsNotEmpty, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
