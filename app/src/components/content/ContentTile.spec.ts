@@ -61,7 +61,7 @@ describe("ContentTile", () => {
     });
 
     it("hides the publishDate is false", async () => {
-        const mockContent = { ...mockEnglishContentDto, publishDateVisible: false };
+        const mockContent = { ...mockEnglishContentDto, parentPublishDateVisible: false };
         const wrapper = mount(ContentTile, {
             props: {
                 content: mockContent,
