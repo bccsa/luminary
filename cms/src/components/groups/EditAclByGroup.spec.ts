@@ -10,14 +10,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import {
-    accessMap,
-    AclPermission,
-    db,
-    DocType,
-    type GroupAclEntryDto,
-    type GroupDto,
-} from "luminary-shared";
+import { accessMap, AclPermission, db, DocType, type GroupDto } from "luminary-shared";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import waitForExpect from "wait-for-expect";
 import EditAclByGroup from "./EditAclByGroup.vue";

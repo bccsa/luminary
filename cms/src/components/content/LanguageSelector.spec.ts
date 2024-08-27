@@ -5,8 +5,7 @@ import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import LanguageSelector2 from "./LanguageSelector.vue";
-import LBadge from "@/components/common/LBadge.vue";
-import { PublishStatus, accessMap } from "luminary-shared";
+import { accessMap } from "luminary-shared";
 
 describe("LanguageSelector.vue", () => {
     beforeAll(async () => {

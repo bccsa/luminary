@@ -2,7 +2,7 @@
 import LInput from "@/components/forms/LInput.vue";
 import LCard from "@/components/common/LCard.vue";
 import { PencilIcon } from "@heroicons/vue/16/solid";
-import { PublishStatus, type ContentDto, db } from "luminary-shared";
+import { PublishStatus, type ContentDto } from "luminary-shared";
 import { nextTick, ref, watch } from "vue";
 import { Slug } from "@/util/slug";
 
