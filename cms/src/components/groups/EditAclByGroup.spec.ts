@@ -147,6 +147,7 @@ describe("EditAclByGroup.vue", () => {
             },
         });
 
+        // Check that he duplicate ACL button is not present indicating that editing is disabled
         expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
     });
 
@@ -168,6 +169,7 @@ describe("EditAclByGroup.vue", () => {
             },
         });
 
+        // Check that he duplicate ACL button is not present indicating that editing is disabled
         expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
     });
 });
