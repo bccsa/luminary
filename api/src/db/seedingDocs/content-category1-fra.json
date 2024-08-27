@@ -14,10 +14,10 @@
     "audio": null,
     "video": null,
     "publishDate": 1704114000000,
-    "publishDateVisible": true,
     "parentId": "tag-category1",
     "parentType": "tag",
     "parentTagType": "category",
     "parentImage": "image.jpg",
-    "parentTags": []
+    "parentTags": [],
+    "parentPublishDateVisible": true
 }

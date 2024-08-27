@@ -13,9 +13,9 @@
     "audio": null,
     "video": null,
     "publishDate": 1704114000000,
-    "publishDateVisible": true,
     "parentId": "post-post1",
     "parentType": "post",
     "parentImage": "image.jpg",
-    "parentTags": ["tag-category1", "tag-topicA"]
+    "parentTags": ["tag-category1", "tag-topicA"],
+    "parentPublishDateVisible": true
 }
