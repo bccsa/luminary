@@ -56,7 +56,6 @@ const parent = ref<PostDto | TagDto>({
     // memberOf: [],
     image: "",
     tags: [],
-    publishDateVisible: true,
 });
 const isLoading = computed(() => parent.value == undefined);
 const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent document for dirty check
