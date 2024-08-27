@@ -37,15 +37,6 @@ const canEdit = computed(() => {
 
     return false;
 });
-
-const publishDateVisible = computed({
-    get: () => parent.value?.publishDateVisible ?? true,
-    set: (val) => {
-        if (parent.value) {
-            parent.value.publishDateVisible = val;
-        }
-    },
-});
 </script>
 
 <template>
@@ -67,7 +58,7 @@ const publishDateVisible = computed({
         <!-- Toggle for Publish Date Visibility -->
         <div class="mb-6 flex items-center justify-between">
             <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="publishDateVisible" :disabled="!canEdit" />
+            <LToggle v-model="parent.publishDateVisible" :disabled="!canEdit" />
         </div>
 
         <LInput
