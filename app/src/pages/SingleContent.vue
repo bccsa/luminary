@@ -127,7 +127,7 @@ const text = computed(() => {
 
         <div
             class="mt-1 text-center text-sm text-zinc-500 dark:text-zinc-300"
-            v-if="content.publishDate && content.publishDateVisible"
+            v-if="content.publishDate && content.parentPublishDateVisible"
         >
             {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
         </div>
