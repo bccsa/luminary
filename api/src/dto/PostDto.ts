@@ -1,5 +1,5 @@
 import { Uuid } from "../enums";
-import { IsArray, IsNotEmpty, IsString } from "class-validator";
+import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
@@ -11,6 +11,11 @@ export class PostDto extends _contentBaseDto {
     @IsString()
     @Expose()
     image: Uuid;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    imageId: Uuid;
 
     @IsArray()
     @IsString({ each: true })

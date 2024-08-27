@@ -1,0 +1,8 @@
+{
+    "_id": "lang-nya",
+    "type": "language",
+    "updatedTimeUtc": 3,
+    "memberOf": ["group-languages"],
+    "languageCode": "nya",
+    "name": "Chichewa"
+}

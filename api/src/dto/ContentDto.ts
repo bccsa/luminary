@@ -79,6 +79,16 @@ export class ContentDto extends _contentBaseDto {
     @Expose()
     expiryDate?: number;
 
+    @IsOptional()
+    @IsString()
+    @Expose()
+    seoTitle?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    seoString?: string;
+
     @IsOptional() // Optional as it is set upon change request processing
     @IsArray()
     @Expose()
