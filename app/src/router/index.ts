@@ -49,7 +49,7 @@ const router = createRouter({
         {
             path: "/:slug",
             component: SingleContent,
-            name: "post",
+            name: "content",
             props: true,
         },
 

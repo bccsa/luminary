@@ -4,31 +4,45 @@ import { mount, shallowMount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import SingleContent from "./SingleContent.vue";
-import { mockPostDto, mockEnglishContentDto, mockCategoryContentDto } from "@/tests/mockdata";
-import { db, type BaseDocumentDto } from "luminary-shared";
+import {
+    mockPostDto,
+    mockEnglishContentDto,
+    mockCategoryContentDto,
+    mockLanguageDtoFra,
+    mockFrenchContentDto,
+    mockLanguageDtoEng,
+    mockCategoryDto,
+    mockLanguageDtoSwa,
+} from "@/tests/mockdata";
+import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
+import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 
-const routePushMock = vi.hoisted(() => vi.fn());
-
+const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         // @ts-expect-error
         ...actual,
-        useRoute: vi.fn().mockImplementation(() => ({
-            push: routePushMock,
+        useRouter: vi.fn().mockImplementation(() => ({
+            replace: routeReplaceMock,
         })),
     };
 });
 
-describe("SinglePost", () => {
+describe("SingleContent", () => {
     beforeEach(() => {
         db.docs.bulkPut([
             mockPostDto,
-            mockEnglishContentDto,
+            mockCategoryDto,
             mockCategoryContentDto,
-        ] as BaseDocumentDto[]);
+            mockEnglishContentDto,
+            mockFrenchContentDto,
+            mockLanguageDtoEng,
+            mockLanguageDtoFra,
+        ]);
 
         setActivePinia(createTestingPinia());
     });
@@ -126,6 +140,19 @@ describe("SinglePost", () => {
         });
     });
 
+    it("doesn't display tag when content not tagged", async () => {
+        const mockContent = { ...mockEnglishContentDto, tags: [] };
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockContent.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).not.toContain("Tags");
+        });
+    });
+
     it("does not display scheduled or expired content", async () => {
         // Set a future publish date and an expired date
         await db.docs.update(mockEnglishContentDto._id, {
@@ -142,6 +169,47 @@ describe("SinglePost", () => {
         await waitForExpect(() => {
             expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
             expect(wrapper.find("article").exists()).toBe(false);
+        });
+    });
+
+    it("switches correctly the content when the language changes", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
+        });
+
+        // simulate language change
+        appLanguageIdAsRef.value = mockLanguageDtoFra._id;
+        initLanguage();
+
+        const notificationStore = useNotificationStore();
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockFrenchContentDto.summary);
+            expect(notificationStore.addNotification).not.toHaveBeenCalled();
+        });
+    });
+
+    it("shows a notification when the language is not available", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        // simulate language change
+        appLanguageIdAsRef.value = mockLanguageDtoSwa._id;
+
+        const notificationStore = useNotificationStore();
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
+            expect(notificationStore.addNotification).toHaveBeenCalled();
         });
     });
 });
