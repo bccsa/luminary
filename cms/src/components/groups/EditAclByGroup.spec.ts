@@ -10,7 +10,14 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, AclPermission, db, DocType, type GroupDto } from "luminary-shared";
+import {
+    accessMap,
+    AclPermission,
+    db,
+    DocType,
+    type GroupAclEntryDto,
+    type GroupDto,
+} from "luminary-shared";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import waitForExpect from "wait-for-expect";
 import EditAclByGroup from "./EditAclByGroup.vue";
@@ -147,26 +154,6 @@ describe("EditAclByGroup.vue", () => {
             },
         });
 
-        expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
-    });
-
-    it("shows the group's ID when the group is not available to the user", async () => {
-        const wrapper = mount(EditAclByGroup, {
-            props: {
-                group: mockGroupDtoPublicContent,
-                assignedGroup: mockGroupDtoPublicContent,
-                originalGroup: mockGroupDtoPublicContent,
-                availableGroups: [
-                    mockGroupDtoPublicContent,
-                    mockGroupDtoPublicEditors,
-                    mockGroupDtoPublicUsers,
-                    mockGroupDtoSuperAdmins,
-                ],
-                disabled: true,
-            },
-        });
-
-        expect(wrapper.text()).toContain(mockGroupDtoPublicContent._id);
         expect(wrapper.html()).not.toContain('div[data-test="duplicateAcl"]');
     });
 

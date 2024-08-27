@@ -51,7 +51,7 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                 <div class="flex items-center justify-between">
                     <div></div>
                     <div class="py-1">
-                        {{ disabled ? assignedGroup._id : assignedGroup.name }}
+                        {{ assignedGroup.name }}
                     </div>
                     <div>
                         <DuplicateGroupAclButton
