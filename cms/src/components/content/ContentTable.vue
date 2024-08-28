@@ -15,11 +15,13 @@ const props = defineProps<Props>();
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
 const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
+
+const emits = defineEmits(["sortByTitle", "sortByUpdated"]);
 </script>
 
 <template>
     <LCard padding="none">
-        <div class="overflow-x-auto rounded-md">
+        <div class="overflow-x-auto rounded-b-md">
             <div class="inline-block min-w-full align-middle">
                 <table class="min-w-full divide-y divide-zinc-200">
                     <thead class="bg-zinc-50">
@@ -31,7 +33,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                             >
                                 <div class="flex items-center gap-2">
                                     Title
-                                    <button aria-label="Sort column">
+                                    <button aria-label="Sort column" @click="onSortByTitle">
                                         <ArrowsUpDownIcon
                                             class="h-5 w-5 text-transparent group-hover:text-zinc-600"
                                             v-if="true"
@@ -58,7 +60,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                             >
                                 <div class="flex items-center gap-2">
                                     Last updated
-                                    <button aria-label="Sort column">
+                                    <button aria-label="Sort column" @click="onSortByUpdated">
                                         <ArrowsUpDownIcon
                                             class="h-5 w-5 text-transparent group-hover:text-zinc-600"
                                             v-if="true"
