@@ -60,7 +60,7 @@ describe("ContentTile", () => {
         expect(wrapper.text()).not.toContain("Jan 1, 2024");
     });
 
-    it("hides the publishDate is false", async () => {
+    it("hides the publishDate if publishDateVisible is false", async () => {
         const mockContent = { ...mockEnglishContentDto, parentPublishDateVisible: false };
         const wrapper = mount(ContentTile, {
             props: {
