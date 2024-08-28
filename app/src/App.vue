@@ -10,7 +10,7 @@ import { apiUrl, initLanguage } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
-import { SignalSlashIcon } from "@heroicons/vue/24/solid";
+import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 
@@ -97,6 +97,30 @@ setTimeout(() => {
 
             if (isConnected.value) {
                 useNotificationStore().removeNotification("offlineBanner");
+            }
+        },
+        { immediate: true },
+    );
+}, 1000);
+
+setTimeout(() => {
+    watch(
+        [isConnected, isAuthenticated],
+        () => {
+            if (isConnected.value && !isAuthenticated.value) {
+                useNotificationStore().addNotification({
+                    id: "accountBanner",
+                    title: "You are missing out !",
+                    description: "Click here to create an account or log in.",
+                    state: "info",
+                    type: "banner",
+                    icon: ExclamationCircleIcon,
+                    routerLink: { name: "login" },
+                });
+            }
+
+            if (isConnected.value && isAuthenticated.value) {
+                useNotificationStore().removeNotification("accountBanner");
             }
         },
         { immediate: true },
