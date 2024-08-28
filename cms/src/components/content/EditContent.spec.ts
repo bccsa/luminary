@@ -7,6 +7,7 @@ import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
 import waitForExpect from "wait-for-expect";
+import { useNotificationStore } from "@/stores/notification";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -64,6 +65,7 @@ describe("EditContent.vue", () => {
     });
 
     it("can save content to the database", async () => {
+        const notificationStore = useNotificationStore();
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -81,17 +83,54 @@ describe("EditContent.vue", () => {
         const titleInput = wrapper.find('input[name="title"]');
         await titleInput.setValue("New Title");
 
-        // Check if the save button is enabled
+        // Click the save button
         const saveButton = wrapper.find('[data-test="save-button"]');
         expect(saveButton.exists()).toBe(true);
-        expect(saveButton.attributes().disabled).toBeUndefined();
-
         await saveButton.trigger("click");
 
         // Wait for the save to complete
         await waitForExpect(async () => {
             const savedDoc = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
             expect(savedDoc.title).toBe("New Title");
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    state: "success",
+                }),
+            );
+        });
+    });
+
+    it("doesn't save when the content is invalid", async () => {
+        const notificationStore = useNotificationStore();
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+            },
+        });
+
+        // Wait for the component to fetch data
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+
+        // Simulate enabling dirty state
+        const titleInput = wrapper.find('input[name="title"]');
+        await titleInput.setValue("");
+
+        // Click the save button
+        wrapper.find('[data-test="save-button"]').trigger("click");
+
+        // Check that the saved version hasn't changed and that an error notification was shown
+        await waitForExpect(async () => {
+            const savedDoc = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
+            expect(savedDoc.title).toBe(mockData.mockEnglishContentDto.title);
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    state: "error",
+                }),
+            );
         });
     });
 
