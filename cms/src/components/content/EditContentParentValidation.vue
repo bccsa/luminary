@@ -12,7 +12,7 @@ import {
     PublishStatus,
     db,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import _ from "lodash";
 import { sortByName } from "@/util/sortByName";
@@ -74,6 +74,12 @@ const setOverallValidation = (id: Uuid, isValid: boolean) => {
     overallIsValid.value = overallValidations.value.every((v) => v.isValid);
 };
 
+const emit = defineEmits(["updateIsValid"]);
+
+watchEffect(() => {
+    emit("updateIsValid", overallIsValid.value);
+});
+
 // Parent validation
 const parentValidations = ref([] as Validation[]);
 const parentIsValid = ref(true);
@@ -95,7 +101,7 @@ watch(
             "image",
             parentValidations.value,
             newParent,
-            () => newParent.image != "" && newParent.image != undefined,
+            () => newParent.image != undefined && newParent.image.trim() != "",
         );
 
         validate(

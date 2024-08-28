@@ -151,7 +151,18 @@ const isDirty = computed(
         !_.isEqual(contentDocs.value, contentDocsPrev.value),
 );
 
+const isValid = ref(true);
+
 const save = async () => {
+    if (!isValid.value) {
+        addNotification({
+            title: "Changes not saved",
+            description: "There are validation errors that prevent saving",
+            state: "error",
+        });
+        return;
+    }
+
     // Save the parent document
     await db.upsert(parent.value);
 
@@ -263,6 +274,7 @@ watch(selectedLanguage, () => {
                         :dirty="isDirty"
                         :contentPrev="contentDocsPrev"
                         :parentPrev="parentPrev"
+                        @updateIsValid="(val) => (isValid = val)"
                     />
                     <EditContentPreview v-if="selectedContent" :content="selectedContent" />
                     <EditContentParent
