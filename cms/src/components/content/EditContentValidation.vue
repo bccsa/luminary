@@ -130,7 +130,6 @@ watch(
             },
         }"
         v-slot="{ isActive }"
-        data-test="edit-button"
     >
         <div
             :class="[
