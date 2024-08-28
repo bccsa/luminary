@@ -77,12 +77,20 @@ if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString =
 
 const titleType = tagTypeString ? tagTypeString : props.docType;
 router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} overview`;
+
+const searchTerm = ref("");
+function handleSearch() {
+    if (searchTerm.value.length > 0) {
+        queryOptions.value.search = searchTerm.value;
+    }
+}
 </script>
 
 <template>
     <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
+                <LInput class="m-2 w-96" name="search" v-model="searchTerm" />
                 <LSelect
                     v-model="selectedLanguage"
                     :options="languageOptions"
@@ -131,7 +139,13 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-
+        <input
+            type="text"
+            class="m-2 w-96"
+            name="search"
+            v-model="searchTerm"
+            @keydown.enter="handleSearch"
+        />
         <ContentTable
             v-if="selectedLanguage"
             :docType="docType"
