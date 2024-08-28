@@ -15,6 +15,8 @@ import {
     type ImageFileCollectionDto,
     maxUploadFileSize,
     DocType,
+    verifyAccess,
+    AclPermission,
 } from "luminary-shared";
 import _ from "lodash";
 
@@ -25,13 +27,17 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-// TODO: Add permissions validation
-
 const original = db.getAsRef<ImageDto>(props.image._id);
 const editable = ref<ImageDto>(_.cloneDeep(toRaw(props.image)));
 const isDirty = ref(false);
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 const isLocalChange = db.isLocalChangeAsRef(props.image._id);
+const canEdit =
+    editable.value.memberOf.length == 0 ||
+    verifyAccess(editable.value.memberOf, DocType.Image, AclPermission.Edit, "all");
+const canAssign = computed(() =>
+    verifyAccess(editable.value.memberOf, DocType.Image, AclPermission.Assign, "any"),
+);
 
 // update editable when original changes (e.g. when the API processed the save)
 watch(original, () => {
@@ -56,7 +62,20 @@ const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 
 // Methods
 const save = () => {
-    db.upsert<ImageDto>(toRaw(editable.value), true);
+    if (isDirty.value) {
+        db.upsert<ImageDto>(toRaw(editable.value), true);
+        addNotification({
+            title: "Changes saved",
+            state: "success",
+        });
+        return;
+    }
+
+    addNotification({
+        title: "No changes to save",
+        description: "No changes have been made to the image.",
+        state: "info",
+    });
 };
 
 const showFilePicker = () => {
@@ -117,6 +136,33 @@ const removeFileUploadData = (uploadData: ImageUploadDto) => {
         delete editable.value.uploadData;
     }
 };
+
+// Data validation
+const nameValidationError = computed(() => {
+    if (!editable.value.name) return "Name is required";
+    return "";
+});
+
+const permissionValidationError = ref("");
+watch(
+    editable,
+    () => {
+        if (
+            canEdit &&
+            (editable.value.memberOf.length == 0 ||
+                !verifyAccess(editable.value.memberOf, DocType.Image, AclPermission.Edit, "all"))
+        ) {
+            permissionValidationError.value = "No group assigned";
+        } else {
+            permissionValidationError.value = "";
+        }
+    },
+    { deep: true },
+);
+
+const validated = computed(() => {
+    return !nameValidationError.value && !permissionValidationError.value;
+});
 </script>
 
 <template>
@@ -126,22 +172,10 @@ const removeFileUploadData = (uploadData: ImageUploadDto) => {
             <LBadge v-if="isDirty" variant="default"> Unsaved changes </LBadge>
             <div class="flex-1"></div>
             <LButton
+                v-if="canEdit"
                 variant="primary"
-                @click="
-                    if (isDirty) {
-                        save();
-                        addNotification({
-                            title: 'Changes saved',
-                            state: 'success',
-                        });
-                    } else {
-                        addNotification({
-                            title: 'No changes to save',
-                            description: 'No changes have been made to the image.',
-                            state: 'info',
-                        });
-                    }
-                "
+                :disabled="!validated"
+                @click="save"
                 data-test="save-button"
                 >Save</LButton
             >
@@ -155,6 +189,9 @@ const removeFileUploadData = (uploadData: ImageUploadDto) => {
                 label="Image name"
                 class="mb-2"
                 data-test="image-name"
+                :required="true"
+                :state="nameValidationError ? 'error' : 'default'"
+                :disabled="!canEdit"
             />
 
             <LTextarea
@@ -164,24 +201,28 @@ const removeFileUploadData = (uploadData: ImageUploadDto) => {
                 v-model="editable.description"
                 class="mb-2"
                 data-test="image-description"
+                :disabled="!canEdit"
             />
 
+            <p class="text-xs text-red-500" v-if="permissionValidationError">
+                {{ permissionValidationError }}
+            </p>
             <GroupSelector
                 v-model:groups="editable.memberOf"
-                :disabled="false"
+                :disabled="!canEdit"
                 :docType="DocType.Image"
                 class="mb-4"
             />
 
             <p class="mb-2 text-xs">
                 You can upload several files in different aspect ratios. The most suitable image
-                will automatically be selected based on the aspect ratio of the image element where
+                will automatically be displayed based on the aspect ratio of the image element where
                 the image is displayed.
             </p>
             <p class="mb-2 text-xs">
-                Uploaded images are automatically scaled for for different screen and display sizes.
+                Uploaded images are automatically scaled for for various screen and display sizes.
             </p>
-            <div class="mb-2 flex items-end gap-4">
+            <div class="mb-2 flex items-end gap-4" v-if="canEdit">
                 <div class="flex flex-col">
                     <LButton :icon="ArrowUpOnSquareIcon" class="h-9" @click="showFilePicker"
                         >Upload</LButton
@@ -198,7 +239,12 @@ const removeFileUploadData = (uploadData: ImageUploadDto) => {
             </div>
         </div>
 
-        <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">Image files</h3>
+        <h3
+            class="mt-4 text-sm font-medium leading-6 text-zinc-900"
+            v-if="editable.fileCollections.length > 0 || editable.uploadData"
+        >
+            Image files
+        </h3>
 
         <div class="flex flex-1 flex-wrap gap-4 overflow-x-scroll pt-2" data-test="thumbnail-area">
             <ImageEditorThumbnail
