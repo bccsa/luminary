@@ -33,6 +33,26 @@ describe("EditContentParent.vue", () => {
         expect(toggle.props("modelValue")).toBe(true);
     });
 
+    it("test the show publishDate toggle", async () => {
+        const parent = ref<PostDto | TagDto>({
+            ...mockData.mockPostDto,
+            publishDateVisible: false,
+        });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                modelValue: parent.value,
+                language: mockData.mockLanguageDtoEng,
+            },
+        });
+
+        // Check if the LToggle component is rendered
+        const toggle = wrapper.findComponent({ name: "LToggle" });
+        expect(toggle.exists()).toBe(true);
+
+        expect(toggle.props("modelValue")).toBe(false);
+    });
+
     it("test the image input", async () => {
         const parent = ref<TagDto>({ ...mockData.mockCategoryDto, image: "image.png" });
         const wrapper = mount(EditContentParent, {

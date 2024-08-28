@@ -104,6 +104,16 @@ describe("SingleContent", () => {
         });
     });
 
+    it("hides the publishDate is false", async () => {
+        const mockContent = { ...mockEnglishContentDto, parentPublishDateVisible: false };
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockContent.slug,
+            },
+        });
+        expect(wrapper.text()).not.toContain("Jan 1, 2024");
+    });
+
     it("displays the summary content", async () => {
         const wrapper = mount(SingleContent, {
             props: {

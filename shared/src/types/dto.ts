@@ -72,6 +72,7 @@ export type ContentDto = ContentBaseDto & {
     parentTags: Uuid[];
     parentImage?: string;
     parentTagType?: TagType;
+    parentPublishDateVisible?: boolean;
 };
 
 export type ContentMetadataDto = {
@@ -87,6 +88,7 @@ export type PostDto = ContentBaseDto & {
     image: string;
     tags: Uuid[];
     metadata?: ContentMetadataDto[];
+    publishDateVisible: boolean;
 };
 
 export type TagDto = PostDto & {

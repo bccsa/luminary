@@ -55,6 +55,12 @@ const canEdit = computed(() => {
             <LToggle v-model="(parent as TagDto).pinned" :disabled="!canEdit" />
         </div>
 
+        <!-- Toggle for Publish Date Visibility -->
+        <div class="mb-6 flex items-center justify-between">
+            <FormLabel>Show publish date</FormLabel>
+            <LToggle v-model="parent.publishDateVisible" :disabled="!canEdit" />
+        </div>
+
         <LInput
             name="parent.image"
             label="Image"

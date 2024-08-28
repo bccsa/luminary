@@ -52,6 +52,7 @@ export async function processChangeRequest(
             if (parentDoc.type == DocType.Tag) {
                 contentDoc.parentTagType = (parentDoc as TagDto).tagType;
             }
+            contentDoc.parentPublishDateVisible = parentDoc.publishDateVisible;
         }
     }
 
@@ -68,6 +69,7 @@ export async function processChangeRequest(
                     contentDoc.parentTagType = (doc as TagDto).tagType;
                 }
 
+                contentDoc.parentPublishDateVisible = doc.publishDateVisible;
                 await db.upsertDoc(contentDoc);
             });
         });

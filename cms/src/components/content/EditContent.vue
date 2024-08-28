@@ -56,6 +56,7 @@ const parent = ref<PostDto | TagDto>({
     // memberOf: [],
     image: "",
     tags: [],
+    publishDateVisible: true,
 });
 const isLoading = computed(() => parent.value == undefined);
 const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent document for dirty check
@@ -67,6 +68,9 @@ if (newDocument) {
     if (props.docType == DocType.Tag) {
         (parent.value as TagDto).tagType = props.tagType as TagType;
         (parent.value as TagDto).pinned = false;
+        (parent.value as TagDto).publishDateVisible = false;
+    } else {
+        (parent.value as PostDto).publishDateVisible = true;
     }
 } else {
     // Get a copy of the parent document from IndexedDB, and host it as a local ref.

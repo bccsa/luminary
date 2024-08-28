@@ -216,6 +216,7 @@ describe("processChangeRequest", () => {
                 memberOf: ["group-public-content", "group-private-content"],
                 image: "test1234.jpg",
                 tags: ["tag1", "tag2"],
+                publishDateVisible: true,
             } as PostDto,
         };
 

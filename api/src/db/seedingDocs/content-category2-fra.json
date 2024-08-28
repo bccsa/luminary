@@ -18,5 +18,6 @@
     "parentType": "tag",
     "parentTagType": "category",
     "parentImage": "image.jpg",
-    "parentTags": []
+    "parentTags": [],
+    "parentPublishDateVisible": true
 }
