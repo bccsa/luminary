@@ -15,6 +15,7 @@ export const changeRequest_post = () => {
             memberOf: ["group-public-content"],
             image: randomString(),
             tags: ["tag-category1", "tag-topicA"],
+            publishDateVisible: true,
         },
     };
 };
@@ -29,6 +30,7 @@ export const changeRequest_tag = () => {
             pinned: false,
             image: randomString(),
             tags: [],
+            publishDateVisible: false,
         },
     };
 };
