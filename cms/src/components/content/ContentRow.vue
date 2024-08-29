@@ -10,7 +10,6 @@ import {
     verifyAccess,
     TagType,
 } from "luminary-shared";
-import { DateTime } from "luxon";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
@@ -34,13 +33,15 @@ const tagsContent = ref<ContentDto[]>([]);
 watch(
     contentDocs,
     async () => {
-        if (!contentDocs.value) return;
+        if (!contentDocs.value || contentDocs.value.length === 0) return;
 
         tagsContent.value = await db.whereParent(
             contentDocs.value[0].parentTags,
             DocType.Tag,
             contentDocs.value[0].language,
         );
+
+        console.log(tagsContent.value[0]);
     },
     { immediate: true },
 );
