@@ -8,11 +8,10 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import { CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { ExclamationCircleIcon, XCircleIcon, ArrowRightIcon } from "@heroicons/vue/16/solid";
 import LBadge, { variants } from "../common/LBadge.vue";
-import { useRouter, RouterLink } from "vue-router";
+import { RouterLink } from "vue-router";
 import _ from "lodash";
-import LCard from "@/components/common/LCard.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
@@ -21,8 +20,6 @@ type Props = {
 };
 const props = defineProps<Props>();
 const content = defineModel<ContentDto>("content");
-const router = useRouter();
-
 const sortedLanguages = computed(() => {
     if (!props.languages) return [];
     return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -39,28 +36,22 @@ const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
 }>();
 
-const statusBadge: ComputedRef<{ title: string; variant: keyof typeof variants }> = computed(() => {
-    if (!content.value) {
+const statusBadge: ComputedRef<
+    (dto: ContentDto | undefined) => { title: string; variant: keyof typeof variants }
+> = computed(() => (dto: ContentDto | undefined) => {
+    if (!dto) {
         return { title: "Unknown", variant: "default" };
     }
 
-    if (
-        content.value.status == PublishStatus.Published &&
-        content.value.publishDate &&
-        content.value.publishDate > Date.now()
-    ) {
+    if (dto.status == PublishStatus.Published && dto.publishDate && dto.publishDate > Date.now()) {
         return { title: "Scheduled", variant: "scheduled" };
     }
 
-    if (
-        content.value.status == PublishStatus.Published &&
-        content.value.expiryDate &&
-        content.value.expiryDate < Date.now()
-    ) {
+    if (dto.status == PublishStatus.Published && dto.expiryDate && dto.expiryDate < Date.now()) {
         return { title: "Expired", variant: "default" };
     }
 
-    if (content.value.status == PublishStatus.Published) {
+    if (dto.status == PublishStatus.Published) {
         return {
             title: "Published",
             variant: "success",
@@ -68,10 +59,14 @@ const statusBadge: ComputedRef<{ title: string; variant: keyof typeof variants }
     }
 
     return {
-        title: capitaliseFirstLetter(content.value.status),
+        title: capitaliseFirstLetter(dto.status),
         variant: "info",
     };
 });
+
+const statusChanged = computed(
+    () => statusBadge.value(props.contentPrev).title != statusBadge.value(content.value).title,
+);
 
 const validations = ref([] as Validation[]);
 
@@ -121,63 +116,71 @@ watch(
 </script>
 
 <template>
-    <LCard padding="none">
-        <RouterLink
-            :to="{
-                name: 'edit',
-                params: {
-                    docType: content?.parentType,
-                    tagType:
-                        content?.parentType == DocType.Tag
-                            ? (content as unknown as TagDto).tagType
-                            : undefined,
-                    id: content?.parentId,
-                    languageCode: languages.find((l) => l._id == content?.language)?.languageCode,
+    <RouterLink
+        :to="{
+            name: 'edit',
+            params: {
+                docType: content?.parentType,
+                tagType:
+                    content?.parentType == DocType.Tag
+                        ? (content as unknown as TagDto).tagType
+                        : undefined,
+                id: content?.parentId,
+                languageCode: languages.find((l) => l._id == content?.language)?.languageCode,
+            },
+        }"
+        v-slot="{ isActive }"
+    >
+        <div
+            :class="[
+                'rounded-md p-4',
+                {
+                    'bg-white  shadow': isActive,
+                    'hover:bg-zinc-50': !isActive,
                 },
-            }"
-            data-test="edit-button"
+            ]"
         >
-            <div>
-                <div class="flex flex-col hover:bg-zinc-100">
-                    <span class="m-2 flex items-center justify-between p-0 text-sm text-zinc-900">
-                        <div class="static">
-                            <CheckCircleIcon
-                                v-if="
-                                    router.currentRoute.value.params.languageCode ==
-                                    usedLanguage?.languageCode
-                                "
-                                class="absolute -left-[-11.3px] -ml-2 h-4 w-4 text-zinc-500"
-                            />
-                            {{ usedLanguage?.name }}
-                        </div>
+            <div class="flex flex-col">
+                <span class="flex items-center justify-between text-sm text-zinc-900">
+                    {{ usedLanguage?.name }}
 
-                        <div class="flex items-center gap-3">
-                            <LBadge withIcon class="-ml-2 w-auto" :variant="statusBadge.variant">
-                                {{ statusBadge.title }}
+                    <div class="flex items-center gap-1">
+                        <template v-if="statusChanged">
+                            <LBadge
+                                withIcon
+                                :variant="statusBadge(contentPrev).variant"
+                                class="opacity-70"
+                            >
+                                {{ statusBadge(contentPrev).title }}
                             </LBadge>
-                        </div>
-                    </span>
+                            <ArrowRightIcon class="h-4 w-4 text-zinc-700" />
+                        </template>
+
+                        <LBadge withIcon :variant="statusBadge(content).variant">
+                            {{ statusBadge(content).title }}
+                        </LBadge>
+                    </div>
+                </span>
+            </div>
+
+            <div v-if="!isValid || isContentDirty" class="mt-2 flex flex-col gap-0.5">
+                <div class="flex items-center gap-1">
+                    <p>
+                        <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                    </p>
+                    <p class="text-xs text-zinc-700">Unsaved changes</p>
+                </div>
+                <div
+                    v-for="validation in validations.filter((v) => !v.isValid)"
+                    :key="validation.id"
+                    class="flex items-center gap-1"
+                >
+                    <p>
+                        <XCircleIcon class="h-4 w-4 text-red-400" />
+                    </p>
+                    <p class="text-xs text-zinc-700">{{ validation.message }}</p>
                 </div>
             </div>
-        </RouterLink>
-
-        <div :class="{ ' bg-zinc-100 px-2 py-1': !isValid || isContentDirty }">
-            <div class="flex items-center gap-2" v-if="!isValid || isContentDirty">
-                <p>
-                    <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-                </p>
-                <p class="h-4 text-xs text-zinc-700">Unsaved changes</p>
-            </div>
-            <div
-                v-for="validation in validations.filter((v) => !v.isValid)"
-                :key="validation.id"
-                class="flex items-center gap-2"
-            >
-                <p>
-                    <XCircleIcon class="h-4 w-4 text-red-400" />
-                </p>
-                <p class="h-4 text-xs text-zinc-700">{{ validation.message }}</p>
-            </div>
         </div>
-    </LCard>
+    </RouterLink>
 </template>

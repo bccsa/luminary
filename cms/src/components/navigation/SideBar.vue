@@ -4,7 +4,6 @@ import {
     DocumentDuplicateIcon,
     TagIcon,
     HomeIcon,
-    // UsersIcon,
     ChevronRightIcon,
     RectangleStackIcon,
 } from "@heroicons/vue/20/solid";
@@ -43,12 +42,6 @@ const navigation = ref<NavigationEntry[]>([
             to: { name: "overview", params: { docType: DocType.Tag, tagType: t[1] } },
         })),
     },
-    // {
-    //     name: "Users",
-    //     to: { name: "users" },
-    //     icon: UsersIcon,
-    //     visible: hasAnyPermission(DocType.User, AclPermission.View),
-    // },
     {
         name: "Groups",
         to: { name: "groups" },
@@ -62,7 +55,7 @@ watch(route, (newRoute) => {
         if (!item.children) return item;
 
         item.children.forEach((subItem) => {
-            if (subItem.to?.name == newRoute.name) {
+            if (subItem.to?.params?.docType == newRoute.params.docType) {
                 item.open = true;
             }
         });

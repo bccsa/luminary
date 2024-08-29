@@ -108,6 +108,7 @@ const clearExpiryDate = () => {
                 :leftValue="PublishStatus.Draft"
                 rightLabel="Publishable"
                 :rightValue="PublishStatus.Published"
+                :disabled="disabled"
             />
             <div class="text-xs text-zinc-700">
                 {{
@@ -118,7 +119,7 @@ const clearExpiryDate = () => {
             </div>
         </div>
 
-        <div class="mt-4 flex flex-col gap-4 sm:flex-row">
+        <div class="mt-6 flex flex-col gap-4 sm:flex-row">
             <!-- Publish date -->
             <LInput
                 name="publishDate"

@@ -7,13 +7,11 @@ type Props = {
     icon?: string | Component | Function;
     padding?: "none" | "normal";
     collapsible?: boolean;
-    showFooter?: boolean; // Workaround for hiding empty footer slot without a solution as https://github.com/vuejs/core/discussions/9393
 };
 
 const props = withDefaults(defineProps<Props>(), {
     padding: "normal",
     collapsible: false,
-    showFooter: false,
 });
 
 const collapsed = ref(false);
@@ -63,8 +61,7 @@ function collapse() {
             >
                 <slot />
             </div>
-            <!-- Using v-show instead of v-if to allow content to allow content to be pre-rendered (needed for content validation) -->
-            <div v-show="showFooter" class="bg-zinc-50 px-4 py-5 sm:px-6">
+            <div v-if="$slots.footer" class="bg-zinc-50 px-4 py-5 sm:px-6">
                 <slot name="footer" />
             </div>
         </div>

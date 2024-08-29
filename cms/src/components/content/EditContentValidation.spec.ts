@@ -23,31 +23,7 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
-// const routePushMock = vi.fn();
-
-// vi.mock("vue-router", async (importOriginal) => {
-//     const actual = await importOriginal();
-//     return {
-//         // @ts-expect-error
-//         ...actual,
-//         useRouter: () => ({
-//             push: routePushMock,
-//         }),
-//     };
-// });
-
 describe("EditContentValidation.vue", () => {
-    it("don't show validation error if no errors", async () => {
-        const wrapper = mount(EditContentValidation, {
-            props: {
-                languages: [mockData.mockLanguageDtoEng],
-                content: mockData.mockEnglishContentDto,
-            },
-        });
-
-        expect(wrapper.text()).not.toContain("There are some errors that prevent saving");
-    });
-
     it("show validation error if no title", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
@@ -152,6 +128,25 @@ describe("EditContentValidation.vue", () => {
 
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("English");
+                expect(wrapper.text()).toContain("Draft");
+            });
+        });
+
+        it("shows the old and new status when it changes", async () => {
+            const wrapper = mount(EditContentValidation, {
+                props: {
+                    languages: [mockData.mockLanguageDtoEng],
+                    content: { ...mockData.mockEnglishContentDto, status: PublishStatus.Draft },
+                    contentPrev: {
+                        ...mockData.mockCategoryContentDto,
+                        status: PublishStatus.Published,
+                    },
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+                expect(wrapper.text()).toContain("Published");
                 expect(wrapper.text()).toContain("Draft");
             });
         });
