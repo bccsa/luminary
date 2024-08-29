@@ -22,6 +22,7 @@ import {
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
+import LInput from "../forms/LInput.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import type { ContentOverviewQueryOptions } from "./query";
@@ -111,7 +112,11 @@ const sortOption = ref<"title" | "updatedTimeUtc" | "publishDate" | "expiryDate"
     undefined,
 );
 
-const handleResetSorting = () => (queryOptions.value.orderBy = undefined);
+const handleResetSorting = () => {
+    searchTerm.value = "";
+    queryOptions.value.search = "";
+    queryOptions.value.orderBy = undefined;
+};
 const handleSortByTitle = () => (queryOptions.value.orderBy = "title");
 const handleSortByUpdated = () => (queryOptions.value.orderBy = "updatedTimeUtc");
 const handleSortAscending = () => (queryOptions.value.orderDirection = "asc");
@@ -136,10 +141,8 @@ const handleAddNewFilter = () => {
     const filterInputEl = document.getElementById("filterInput");
 
     if (filterInput.value) {
-        const input = filterInput.value.trim().toLowerCase();
-        console.log(input);
+        const input = filterInput.value.trim();
         const newInput = input.split(":");
-        console.log(newInput);
 
         const newId =
             filters.value.length > 0
@@ -151,7 +154,6 @@ const handleAddNewFilter = () => {
             filter: newInput[0],
             by: newInput[1] as Filter,
         };
-        console.log(newFilter);
 
         filterInput.value = "";
         filters.value.push(newFilter);
@@ -170,6 +172,9 @@ const handleFilterDelete = async (event: Event) => {
         const currentFilters = [...filters.value];
         filters.value = currentFilters.filter((val) => {
             console.log("Checking filter with ID:", val.id);
+            if (val.filter == "translation") queryOptions.value.translationStatus = "all";
+            else if (val.filter == "type") queryOptions.value.tagType = tagType;
+            else if (val.filter == "status") queryOptions.value.publishStatus = "all";
             return idToDelete !== val.id;
         });
 
@@ -179,19 +184,42 @@ const handleFilterDelete = async (event: Event) => {
     console.log(filters.value);
 };
 
+const handleDeleteAllFilters = () => {
+    filters.value = [];
+    queryOptions.value.publishStatus = "all";
+    queryOptions.value.translationStatus = "all";
+    queryOptions.value.tagType = tagType;
+};
+
 watch(sortOption, () => {
     queryOptions.value.orderBy = sortOption.value;
 });
 
-watch(filters, () => {
+watch(filters.value, () => {
+    console.log("filters changed");
     filters.value.map((filter) => {
-        if (filter.filter == "translation")
+        if (filter.filter == "translation") {
+            console.log(`Filter ${filter.filter} by ${filter.by}`);
             queryOptions.value.translationStatus = filter.by as
                 | "all"
                 | "translated"
                 | "untranslated"
                 | undefined;
-        console.log(filter);
+        } else if (filter.filter == "type") {
+            console.log(`Filter ${filter.filter} by ${filter.by}`);
+            queryOptions.value.tagType = filter.by as TagType;
+        } else if (filter.filter == "tag") {
+            queryOptions.value.tags?.push(filter.by as string);
+        } else if (filter.filter == "status") {
+            console.log(`Filter ${filter.filter} by ${filter.by}`);
+            queryOptions.value.publishStatus = filter.by as
+                | "all"
+                | "published"
+                | "scheduled"
+                | "expired"
+                | "draft"
+                | undefined;
+        }
     });
 });
 
@@ -212,7 +240,6 @@ onClickOutside(filterInputRef, () => {
     <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
-                <LInput class="m-2 w-96" name="search" v-model="searchTerm" />
                 <LSelect
                     v-model="selectedLanguage"
                     :options="languageOptions"
@@ -276,16 +303,16 @@ onClickOutside(filterInputRef, () => {
                 <div>
                     <div class="relative flex h-full gap-1">
                         <button
-                            class="flex h-full w-10 flex-row content-center justify-center rounded-md border-[1px] focus:border-2 focus:border-black focus:outline-none"
+                            class="flex w-10 justify-center rounded-md border-[1px] focus:border-2 focus:border-black focus:outline-none"
                             @click="handleResetSorting"
                         >
-                            <ArrowPathIcon class="w-2/4" />
+                            <ArrowPathIcon class="h-full w-4" />
                         </button>
                         <button
                             class="flex h-full w-10 flex-row content-center justify-center rounded-md border-[1px] focus:border-2 focus:border-black focus:outline-none"
                             @click="() => (showSortOptions = true)"
                         >
-                            <ArrowsUpDownIcon class="w-2/4" />
+                            <ArrowsUpDownIcon class="h-full w-4" />
                         </button>
                         <div
                             ref="sortOptionsRef"
@@ -362,9 +389,9 @@ onClickOutside(filterInputRef, () => {
                     :id="filter.id"
                     @click="handleFilterDelete"
                     class="flex w-max flex-row content-center justify-center gap-1 rounded-xl border-[1px] p-1 px-2"
-                    title="Click to delete filter"
+                    title="Delete filter"
                 >
-                    {{ filter.by }}:{{ filter.filter }}
+                    {{ filter.filter }}:{{ filter.by }}
                 </button>
                 <button
                     id="addFilterBtn"
@@ -373,6 +400,13 @@ onClickOutside(filterInputRef, () => {
                     @click="handleNewFilter"
                 >
                     Add Filter
+                </button>
+                <button
+                    class="flex w-10 justify-center rounded-md border-[1px] focus:border-2 focus:border-black focus:outline-none"
+                    @click="handleDeleteAllFilters"
+                    title="Delete all filters"
+                >
+                    <XMarkIcon class="h-full w-4" />
                 </button>
                 <input
                     ref="filterInputRef"
