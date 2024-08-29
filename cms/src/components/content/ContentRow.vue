@@ -126,7 +126,7 @@ const translationStatus = computed(() => {
 
         <!-- publish date -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ db.formatUnixDate(contentDoc.publishDate) }}
+            {{ contentDoc.publishDate ? db.formatUnixDate(contentDoc.publishDate) : "Not set" }}
         </td>
 
         <!-- expiring date -->
