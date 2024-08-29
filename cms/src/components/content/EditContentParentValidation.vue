@@ -14,7 +14,6 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import _ from "lodash";
 import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
 
