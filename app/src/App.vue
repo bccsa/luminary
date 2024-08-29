@@ -110,7 +110,7 @@ setTimeout(() => {
             if (isConnected.value && !isAuthenticated.value) {
                 useNotificationStore().addNotification({
                     id: "accountBanner",
-                    title: "You are missing out !",
+                    title: "You are missing out!",
                     description: "Click here to create an account or log in.",
                     state: "info",
                     type: "banner",
