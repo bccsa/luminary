@@ -11,7 +11,7 @@ import {
     TagType,
 } from "luminary-shared";
 import { DateTime } from "luxon";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
@@ -27,6 +27,23 @@ type Props = {
 const props = defineProps<Props>();
 const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentType, undefined, []);
 const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
+
+// Get the tags
+const tagsContent = ref<ContentDto[]>([]);
+
+watch(
+    contentDocs,
+    async () => {
+        if (!contentDocs.value) return;
+
+        tagsContent.value = await db.whereParent(
+            contentDocs.value[0].parentTags,
+            DocType.Tag,
+            contentDocs.value[0].language,
+        );
+    },
+    { immediate: true },
+);
 
 // Determine the status of the translation
 const translationStatus = computed(() => {
@@ -96,13 +113,34 @@ const translationStatus = computed(() => {
                 </RouterLink>
             </div>
         </td>
+
+        <!-- tags -->
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+            <div class="flex gap-2">
+                <LBadge v-for="tag in tagsContent" :key="tag._id" type="default" class="text-lg">
+                    {{ tag.title }}
+                </LBadge>
+            </div>
+        </td>
+
+        <!-- publish date -->
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+            {{ db.formatUnixDate(contentDoc.publishDate) }}
+        </td>
+
+        <!-- expiring date -->
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+            {{ contentDoc.expiryDate ? db.formatUnixDate(contentDoc.expiryDate) : "Not set" }}
+        </td>
+
         <!-- updated -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ db.toDateTime(contentDoc.updatedTimeUtc).toLocaleString(DateTime.DATETIME_MED) }}
+            {{ db.formatUnixDate(contentDoc.updatedTimeUtc) }}
         </td>
+
         <!-- actions -->
         <td
-            class="flex justify-end whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+            class="flex justify-end whitespace-nowrap py-2 text-sm font-medium text-zinc-700 sm:pl-3"
         >
             <LButton
                 v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
