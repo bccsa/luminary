@@ -40,8 +40,6 @@ watch(
             DocType.Tag,
             contentDocs.value[0].language,
         );
-
-        console.log(tagsContent.value[0]);
     },
     { immediate: true },
 );
