@@ -52,14 +52,10 @@ switch (props.notification.state) {
 
 <template>
     <div v-if="show" class="inset-x-0 top-0 z-50 text-zinc-900" :class="color">
-        <component
-            :is="notification.routerLink ? RouterLink : 'div'"
-            :to="notification.routerLink"
-            @click="notification.id ? removeNotification(notification.id) : (show = false)"
-        >
+        <component :is="notification.routerLink ? RouterLink : 'div'" :to="notification.routerLink">
             <div class="flex items-center justify-between px-6 py-1">
                 <div class="flex items-center gap-2">
-                    <component :is="icon" class="h-5 min-h-5 w-5 min-w-5" />
+                    <component :is="icon" class="h-5 w-5 min-w-5" />
                     <div class="flex flex-col md:inline-block md:align-middle">
                         <span class="text-md md:text-sm">{{ notification.title }}</span>
                         <span v-if="notification.description" class="text-xs md:ml-3">{{
