@@ -79,7 +79,7 @@ const translationStatus = computed(() => {
         </td>
         <!-- translations -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
-            <div class="flex gap-2" v-if="contentDocs.length > 0">
+            <div class="flex flex-wrap gap-2" v-if="contentDocs.length > 0">
                 <RouterLink
                     custom
                     v-for="language in languages"
@@ -115,7 +115,7 @@ const translationStatus = computed(() => {
 
         <!-- tags -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            <div class="flex gap-2">
+            <div class="flex max-w-xs flex-wrap gap-2">
                 <LBadge v-for="tag in tagsContent" :key="tag._id" type="default" class="text-lg">
                     {{ tag.title }}
                 </LBadge>
