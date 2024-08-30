@@ -8,6 +8,7 @@ import { Server } from "socket.io";
 import { db } from "../db/database";
 import { AckStatus, ChangeReqDto, DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
+import { initLuminaryShared } from "../luminary";
 
 vi.mock("../config/config", () => ({
     config: {
@@ -24,6 +25,8 @@ describe("socketio", () => {
     const socketServer = new Server(12345);
 
     beforeAll(() => {
+        initLuminaryShared({ cms: true });
+
         // initialize the socket client
         const socket = getSocket({
             apiUrl: "http://localhost:12345",

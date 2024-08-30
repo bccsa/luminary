@@ -61,7 +61,7 @@ export type QueryOptions = {
     languageId?: Uuid;
 };
 
-export class Database extends Dexie {
+class Database extends Dexie {
     // TODO: Make tables private
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
