@@ -615,25 +615,21 @@ export class Database extends Dexie {
     }
 
     private async deleteExpired() {
-        const now = DateTime.now().toMillis();
         if (config.cms) {
             return;
         }
+
         const contentDocs = await this.docs.where("type").equals(DocType.Content).toArray();
         const expiredDocs = contentDocs.filter((doc) => {
             const contentDoc = doc as ContentDto;
             const expiryDate = contentDoc.expiryDate;
 
-            if (expiryDate && expiryDate <= now) return true;
+            if (expiryDate && expiryDate <= DateTime.now().toMillis()) return true;
             return false;
         });
+
         if (expiredDocs.length > 0) {
-            console.info("There are expired Documents...deleting");
-            try {
-                await this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
-            } catch (e) {
-                console.error(`Error:   ${e}`);
-            }
+            await this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
         }
     }
 
@@ -646,7 +642,6 @@ export class Database extends Dexie {
     }
 }
 
-// Export a single instance of the database
 export let db: Database;
 
 export function initDatabase() {
