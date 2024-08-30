@@ -20,7 +20,7 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
 
-export type queryOptions = {
+export type QueryOptions = {
     filterOptions?: {
         /**
          * Only return top level tags (i.e. tags that are not tagged with other tags of the same tag type).
@@ -61,25 +61,14 @@ export type queryOptions = {
     languageId?: Uuid;
 };
 
-export class database extends Dexie {
+export class Database extends Dexie {
     // TODO: Make tables private
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     private accessMapRef = accessMap;
-    private isCms: boolean | undefined = undefined;
 
     constructor() {
         super("luminary-db");
-
-        const givenCms = config.getConfig()?.cms;
-
-        if (givenCms == undefined || givenCms == null) {
-            throw new Error(
-                "Unable to load database - the CMS flag has not been set. The CMS flag should be set before instantiating the database.",
-            );
-        }
-
-        this.isCms = givenCms;
 
         // Remember to increase the version number below if you change the schema
         this.version(8).stores({
@@ -270,7 +259,7 @@ export class database extends Dexie {
     /**
      * Get all tags of a certain tag type
      */
-    async tagsWhereTagType(tagType: TagType, options?: queryOptions): Promise<TagDto[]> {
+    async tagsWhereTagType(tagType: TagType, options?: QueryOptions): Promise<TagDto[]> {
         if (!options?.languageId) {
             console.error("Language ID is required");
             return [];
@@ -363,14 +352,14 @@ export class database extends Dexie {
     /**
      * Get all tags of a certain tag type as Vue Ref
      */
-    tagsWhereTagTypeAsRef(tagType: TagType, options?: queryOptions) {
+    tagsWhereTagTypeAsRef(tagType: TagType, options?: QueryOptions) {
         return this.toRef<TagDto[]>(() => this.tagsWhereTagType(tagType, options), []);
     }
 
     /**
      * Get all content documents that are tagged with the passed tag ID. If no tagId is passed, return all posts and tags.
      */
-    async contentWhereTag(tagId?: Uuid, options?: queryOptions) {
+    async contentWhereTag(tagId?: Uuid, options?: QueryOptions) {
         if (options?.filterOptions?.topLevelOnly) {
             console.error("Top level only filter is not applicable to content queries");
             return [];
@@ -439,7 +428,7 @@ export class database extends Dexie {
     /**
      * Get all posts and tags that are tagged with the passed tag ID as Vue Ref
      */
-    contentWhereTagAsRef(tagId?: Uuid, options?: queryOptions) {
+    contentWhereTagAsRef(tagId?: Uuid, options?: QueryOptions) {
         return this.toRef<ContentDto[]>(() => this.contentWhereTag(tagId, options), []);
     }
 
@@ -627,7 +616,7 @@ export class database extends Dexie {
 
     private async deleteExpired() {
         const now = DateTime.now().toMillis();
-        if (this.isCms) {
+        if (config.cms) {
             return;
         }
         const contentDocs = await this.docs.where("type").equals(DocType.Content).toArray();
@@ -658,4 +647,8 @@ export class database extends Dexie {
 }
 
 // Export a single instance of the database
-export const db = new database();
+export let db: Database;
+
+export function initDatabase() {
+    db = new Database();
+}

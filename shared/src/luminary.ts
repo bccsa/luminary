@@ -1,5 +1,7 @@
-import { type SharedConfig, config } from "./config";
+import { initConfig, SharedConfig } from "./config";
+import { initDatabase } from "./db/database";
 
-export function init(configP: SharedConfig) {
-    config.setConfig({ cms: configP.cms });
+export function initLuminaryShared(config: SharedConfig) {
+    initConfig(config);
+    initDatabase();
 }

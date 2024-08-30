@@ -2,20 +2,8 @@ export type SharedConfig = {
     cms: boolean;
 };
 
-export class Configuration {
-    private config: SharedConfig | undefined = undefined;
+export let config: SharedConfig;
 
-    public setConfig(config: SharedConfig) {
-        this.config = config;
-    }
-
-    public getConfig() {
-        return this.config;
-    }
-}
-
-export const config: Configuration = new Configuration();
-
-export function init(newConfig: SharedConfig) {
-    config.setConfig(newConfig);
+export function initConfig(newConfig: SharedConfig) {
+    config = newConfig;
 }

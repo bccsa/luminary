@@ -8,9 +8,9 @@ import * as Sentry from "@sentry/vue";
 
 import App from "./App.vue";
 import router from "./router";
-import { init } from "luminary-shared";
+import { initLuminaryShared } from "luminary-shared";
 
-init({ cms: true });
+initLuminaryShared({ cms: true });
 
 const app = createApp(App);
 
