@@ -56,7 +56,6 @@ describe("EditContent.vue", () => {
                 languageCode: "eng",
             },
         });
-
         // Wait for the component to fetch data
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
