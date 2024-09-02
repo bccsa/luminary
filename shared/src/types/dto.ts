@@ -86,6 +86,7 @@ export type ContentMetadataDto = {
 
 export type PostDto = ContentBaseDto & {
     image: string;
+    imageId?: Uuid;
     tags: Uuid[];
     metadata?: ContentMetadataDto[];
     publishDateVisible: boolean;
