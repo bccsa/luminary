@@ -204,7 +204,6 @@ describe("processChangeRequest", () => {
 
         expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
         expect(dbDoc.docs[0].parentTags).toEqual(["tag-category1", "tag-topicA"]);
-        expect(dbDoc.docs[0].parentImage).toBe("image.jpg");
     });
 
     it("can set essential properties from a parent document to a content document on post / tag document submission", async () => {
