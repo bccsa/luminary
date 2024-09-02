@@ -95,21 +95,24 @@ watch(searchTerm, () => {
 });
 
 watch(selectedSortOption, () => {
-    queryOptions.value.orderBy = selectedSortOption.value as "title" | "updatedTimeUtc" | "publishDate" | "expiryDate";
+    queryOptions.value.orderBy = selectedSortOption.value as
+        | "title"
+        | "updatedTimeUtc"
+        | "publishDate"
+        | "expiryDate";
 });
 
 const handleSortAscending = () => {
     queryOptions.value.orderDirection = "asc";
-}
+};
 
 const handleSortDescending = () => {
     queryOptions.value.orderDirection = "desc";
-}
+};
 
 onClickOutside(sortOptionsAsRef, () => {
     showSortOptions.value = false;
 });
-
 </script>
 
 <template>
@@ -141,8 +144,6 @@ onClickOutside(sortOptionsAsRef, () => {
                 </LButton>
             </div>
         </template>
-        
-        
 
         <!-- TODO: Move empty state to ContentTable as the ContentOverview does not anymore know if there are content documents or not -->
         <!-- <EmptyState
@@ -166,12 +167,13 @@ onClickOutside(sortOptionsAsRef, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-        <div class="flex justify-between rounded-t-md w-full bg-white p-2 h-14">
+        <div class="flex h-14 w-full justify-between rounded-t-md bg-white p-2 shadow-lg">
             <input
                 type="text"
                 class="h-full w-3/4 rounded-md border-none p-4 focus:border-none focus:bg-zinc-200 focus:outline-none focus:ring-0"
                 name="search"
                 placeholder="Search..."
+                data-test="search-input"
                 v-model="searchTerm"
             />
             <div>
@@ -179,6 +181,7 @@ onClickOutside(sortOptionsAsRef, () => {
                     <button
                         class="flex h-full w-10 flex-row content-center justify-center rounded-md border-[1px] focus:border-2 focus:border-black focus:outline-none"
                         @click="() => (showSortOptions = true)"
+                        data-test="sort-toggle-btn"
                     >
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </button>
@@ -186,6 +189,7 @@ onClickOutside(sortOptionsAsRef, () => {
                         ref="sortOptionsAsRef"
                         class="absolute right-0 top-full mt-2 h-max w-40 rounded-lg border border-gray-300 bg-white p-2 shadow-lg"
                         v-if="showSortOptions"
+                        data-test="sort-options-display"
                     >
                         <h4>Sort By:</h4>
                         <div class="flex flex-col">
@@ -196,6 +200,7 @@ onClickOutside(sortOptionsAsRef, () => {
                                     name="sortOption"
                                     value="title"
                                     v-model="selectedSortOption"
+                                    data-test="sort-option-title"
                                 />
                                 Title
                             </label>
@@ -206,6 +211,7 @@ onClickOutside(sortOptionsAsRef, () => {
                                     name="sortOption"
                                     value="expiryDate"
                                     v-model="selectedSortOption"
+                                    data-test="sort-option-expiry-date"
                                 />
                                 Expiry Date
                             </label>
@@ -216,6 +222,7 @@ onClickOutside(sortOptionsAsRef, () => {
                                     name="sortOption"
                                     value="publishDate"
                                     v-model="selectedSortOption"
+                                    data-test="sort-option-publish-date"
                                 />
                                 Publish Date
                             </label>
@@ -226,6 +233,7 @@ onClickOutside(sortOptionsAsRef, () => {
                                     name="sortOption"
                                     value="updatedTimeUtc"
                                     v-model="selectedSortOption"
+                                    data-test="sort-option-last-updated"
                                 />
                                 Last Updated
                             </label>

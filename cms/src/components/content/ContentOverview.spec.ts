@@ -102,6 +102,54 @@ describe("ContentOverview.vue", () => {
         });
     });
 
+    it("should display search input", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        await waitForExpect(() => {
+            const searchInput = wrapper.find('[data-test="search-input"]');
+            expect(searchInput.exists()).toBe(true);
+        });
+    });
+
+    it("should display sort options when sort-button is clicked", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        //data-test="sort-option-title"
+
+        await waitForExpect(async () => {
+            const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
+            expect(sortToggleBtn.exists()).toBe(true);
+            await sortToggleBtn.trigger("click");
+
+            const sortOptionsDiv = wrapper.find('[data-test="sort-options-display"]');
+            expect(sortOptionsDiv.exists()).toBe(true);
+
+            const sortOptionTitle = wrapper.find('[data-test="sort-option-title"]');
+            const sortOptionExpiryDate = wrapper.find('[data-test="sort-option-expiry-date"]');
+            const sortOptionPublishDate = wrapper.find('[data-test="sort-option-publish-date"]');
+            const sortOptionLastUpdated = wrapper.find('[data-test="sort-option-last-updated"]');
+
+            expect(sortOptionTitle.exists()).toBe(true);
+            expect(sortOptionExpiryDate.exists()).toBe(true);
+            expect(sortOptionPublishDate.exists()).toBe(true);
+            expect(sortOptionLastUpdated.exists()).toBe(true);
+        });
+    });
+
     it("can create content", async () => {
         const wrapper = mount(ContentOverview, {
             global: {

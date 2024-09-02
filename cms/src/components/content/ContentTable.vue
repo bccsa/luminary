@@ -24,20 +24,10 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                         <tr>
                             <!-- title -->
                             <th
-                                class="group cursor-pointer py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
                                 @click="false"
                             >
-                                <div class="flex items-center gap-2">
-                                    Title
-                                    <button aria-label="Sort column">
-                                        <ArrowsUpDownIcon
-                                            class="h-5 w-5 text-transparent group-hover:text-zinc-600"
-                                            v-if="true"
-                                        />
-                                        <ArrowUpIcon class="h-5 w-5 text-zinc-600" v-if="false" />
-                                        <ArrowDownIcon class="h-5 w-5 text-zinc-600" v-if="false" />
-                                    </button>
-                                </div>
+                                <div class="flex items-center gap-2">Title</div>
                             </th>
                             <!-- status -->
                             <th
@@ -51,20 +41,10 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                             </th>
                             <!-- updated -->
                             <th
-                                class="group cursor-pointer py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
                                 @click="false"
                             >
-                                <div class="flex items-center gap-2">
-                                    Last updated
-                                    <button aria-label="Sort column">
-                                        <ArrowsUpDownIcon
-                                            class="h-5 w-5 text-transparent group-hover:text-zinc-600"
-                                            v-if="true"
-                                        />
-                                        <ArrowUpIcon class="h-5 w-5 text-zinc-600" v-if="false" />
-                                        <ArrowDownIcon class="h-5 w-5 text-zinc-600" v-if="false" />
-                                    </button>
-                                </div>
+                                <div class="flex items-center gap-2">Last updated</div>
                             </th>
                             <!-- actions -->
                             <th
