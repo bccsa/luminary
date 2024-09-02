@@ -2,6 +2,6 @@
     "_id": "post-post1",
     "type": "post",
     "memberOf": ["group-public-content"],
-    "image": "image.jpg",
+    "image": "",
     "tags": ["tag-category1", "tag-topicA"]
 }
