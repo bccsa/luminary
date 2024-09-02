@@ -30,7 +30,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                             >
                                 <div class="flex items-center gap-2">
                                     Title
-                                    <button aria-label="Sort column" @click="onSortByTitle">
+                                    <button aria-label="Sort column">
                                         <ArrowsUpDownIcon
                                             class="h-5 w-5 text-transparent group-hover:text-zinc-600"
                                             v-if="true"
@@ -57,7 +57,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                             >
                                 <div class="flex items-center gap-2">
                                     Last updated
-                                    <button aria-label="Sort column" @click="onSortByUpdated">
+                                    <button aria-label="Sort column">
                                         <ArrowsUpDownIcon
                                             class="h-5 w-5 text-transparent group-hover:text-zinc-600"
                                             v-if="true"
