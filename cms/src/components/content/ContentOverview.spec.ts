@@ -126,6 +126,32 @@ describe("ContentOverview.vue", () => {
         });
     });
 
+    it("should display filter options and inputs", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        await waitForExpect(async () => {
+            const showFilterOptionsBtn = wrapper.find('[data-test="show-filter-options-btn"]');
+            expect(showFilterOptionsBtn.exists()).toBe(true);
+            await showFilterOptionsBtn.trigger("click");
+
+            const filterOptions = wrapper.find('[data-test="filter-options"]');
+            expect(filterOptions.exists()).toBe(true);
+
+            const filterInputLabels = wrapper.findAll('[data-test="filter-label"]');
+            expect(filterInputLabels.length).toBe(2);
+
+            const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
+            expect(filterInputSelects.length).toBe(2);
+        });
+    });
+
     it("should handle language switching correctly", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
