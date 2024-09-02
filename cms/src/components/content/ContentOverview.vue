@@ -102,12 +102,16 @@ watch(selectedSortOption, () => {
         | "expiryDate";
 });
 
+const sortingAscending = ref(false);
+
 const handleSortAscending = () => {
     queryOptions.value.orderDirection = "asc";
+    sortingAscending.value = true;
 };
 
 const handleSortDescending = () => {
     queryOptions.value.orderDirection = "desc";
+    sortingAscending.value = false;
 };
 
 onClickOutside(sortOptionsAsRef, () => {
@@ -167,10 +171,10 @@ onClickOutside(sortOptionsAsRef, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-        <div class="flex h-14 w-full justify-between rounded-t-md bg-white p-2 shadow-lg">
+        <div class="flex h-14 w-full gap-2 rounded-t-md bg-white p-2 shadow-lg">
             <input
                 type="text"
-                class="h-full w-3/4 rounded-md border-none p-4 focus:border-none focus:bg-zinc-200 focus:outline-none focus:ring-0"
+                class="h-full w-2/4 rounded-md border-[1px] border-zinc-200 p-4 text-sm focus:border-zinc-950 focus:bg-zinc-50 focus:outline-none focus:ring-0"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
@@ -179,7 +183,7 @@ onClickOutside(sortOptionsAsRef, () => {
             <div>
                 <div class="relative flex h-full gap-1">
                     <button
-                        class="flex h-full w-10 flex-row content-center justify-center rounded-md border-[1px] focus:border-2 focus:border-black focus:outline-none"
+                        class="flex h-full w-10 flex-row content-center justify-center rounded-md border-[1px] focus:border-black focus:outline-none"
                         @click="() => (showSortOptions = true)"
                         data-test="sort-toggle-btn"
                     >
@@ -243,12 +247,20 @@ onClickOutside(sortOptionsAsRef, () => {
                             <button
                                 @click="handleSortAscending"
                                 class="flex w-full gap-1 rounded-md p-2 text-zinc-950 hover:bg-zinc-300"
+                                :style="{
+                                    backgroundColor: sortingAscending ? '#18181b' : 'white',
+                                    color: sortingAscending ? 'white' : '#18181b',
+                                }"
                             >
                                 <ArrowUpIcon class="w-6" /> Ascending
                             </button>
                             <button
                                 class="flex w-full gap-1 rounded-md p-2 hover:bg-zinc-300"
                                 @click="handleSortDescending"
+                                :style="{
+                                    backgroundColor: sortingAscending ? 'white' : '#18181b',
+                                    color: sortingAscending ? '#18181b' : 'white',
+                                }"
                             >
                                 <ArrowDownIcon class="w-6" /> Descending
                             </button>
