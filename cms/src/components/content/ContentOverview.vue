@@ -85,15 +85,15 @@ const filterByTranslation = ref(queryOptions.value.translationStatus);
 const filterByTranslationOptions = [
     {
         value: "translated",
-        label: "Translated Documents",
+        label: "Translated",
     },
     {
         value: "untranslated",
-        label: "Untranslated Documents",
+        label: "Untranslated",
     },
     {
         value: "all",
-        label: "All Documents",
+        label: "All",
     },
 ];
 
@@ -101,23 +101,23 @@ const filterByStatus = ref(queryOptions.value.publishStatus);
 const filterByStatusOptions = [
     {
         value: "published",
-        label: "Published Documents",
+        label: "Published",
     },
     {
         value: "scheduled",
-        label: "Scheduled Documents",
+        label: "Scheduled",
     },
     {
         value: "expired",
-        label: "Expired Documents",
+        label: "Expired",
     },
     {
         value: "draft",
-        label: "Drafted Documents",
+        label: "Drafted",
     },
     {
         value: "all",
-        label: "All Documents",
+        label: "All",
     },
 ];
 
@@ -150,7 +150,11 @@ const handleShowFilterOptions = () => {
             <div class="flex gap-4">
                 <button
                     @click="handleShowFilterOptions"
-                    class="rounded-md border-[1px] p-2 px-3"
+                    class="rounded-md border-[1px] p-2 px-3 shadow-sm"
+                    :style="{
+                        backgroundColor: showFilterOptions ? '#18181b' : 'white',
+                        color: showFilterOptions ? 'white' : '#18181b',
+                    }"
                     data-test="show-filter-options-btn"
                 >
                     <FunnelIcon class="w-4" />
@@ -182,17 +186,11 @@ const handleShowFilterOptions = () => {
         </template>
         <div
             data-test="filter-options"
-            class="my-2 h-max rounded-md bg-zinc-200 p-4"
+            class="my-2 h-max rounded-md bg-white p-4 shadow-md"
             v-if="showFilterOptions"
         >
-            <h2
-                data-test="filter-options-title"
-                class="my-2 rounded-md bg-zinc-800 p-1 text-center text-zinc-50"
-            >
-                Filter Items
-            </h2>
             <div class="flex gap-5">
-                <label data-test="filter-label"
+                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label"
                     >Translation
                     <LSelect
                         data-test="filter-select"
@@ -201,7 +199,7 @@ const handleShowFilterOptions = () => {
                     />
                 </label>
 
-                <label data-test="filter-label">
+                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label">
                     Status
                     <LSelect
                         data-test="filter-select"
