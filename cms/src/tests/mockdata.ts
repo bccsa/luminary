@@ -520,6 +520,12 @@ export const superAdminAccessMap = {
             publish: true,
             assign: true,
         },
+        image: {
+            view: true,
+            create: true,
+            edit: true,
+            assign: true,
+        },
     },
     "group-public-content": {
         post: {
@@ -550,6 +556,12 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            assign: true,
+        },
+        image: {
+            view: true,
+            create: true,
+            edit: true,
             assign: true,
         },
     },
@@ -584,6 +596,12 @@ export const superAdminAccessMap = {
             publish: true,
             assign: true,
         },
+        image: {
+            view: true,
+            create: true,
+            edit: true,
+            assign: true,
+        },
     },
     "group-public-editors": {
         post: {
@@ -614,6 +632,12 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            assign: true,
+        },
+        image: {
+            view: true,
+            create: true,
+            edit: true,
             assign: true,
         },
     },
@@ -648,6 +672,12 @@ export const superAdminAccessMap = {
             publish: true,
             assign: true,
         },
+        image: {
+            view: true,
+            create: true,
+            edit: true,
+            assign: true,
+        },
     },
     "group-public-users": {
         post: {
@@ -680,6 +710,12 @@ export const superAdminAccessMap = {
             publish: true,
             assign: true,
         },
+        image: {
+            view: true,
+            create: true,
+            edit: true,
+            assign: true,
+        },
     },
     "group-languages": {
         post: {
@@ -710,6 +746,12 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+        },
+        image: {
+            view: true,
+            create: true,
+            edit: true,
+            assign: true,
         },
     },
 };

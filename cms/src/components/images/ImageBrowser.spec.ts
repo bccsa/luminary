@@ -1,12 +1,12 @@
 import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { db } from "luminary-shared";
+import { accessMap, db } from "luminary-shared";
 import ImageBrowser from "./ImageBrowser.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
-import { mockImageDto } from "@/tests/mockdata";
+import { mockImageDto, superAdminAccessMap } from "@/tests/mockdata";
 
 describe("ImageBrowser", () => {
     beforeAll(async () => {
@@ -26,15 +26,20 @@ describe("ImageBrowser", () => {
         }));
 
         setActivePinia(createTestingPinia());
+        accessMap.value = superAdminAccessMap;
     });
 
     it("can create a new image document", async () => {
         const upsertSpy = vi.spyOn(db, "upsert");
         vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
 
-        const wrapper = mount(ImageBrowser);
+        const wrapper = mount(ImageBrowser, {
+            props: { requiredGroupIds: ["group-public-content"] },
+        });
 
         wrapper.find("[data-test='new-image']").trigger("click");
+        await wrapper.vm.$nextTick();
+        wrapper.find("[data-test='save-button']").trigger("click");
 
         expect(upsertSpy).toHaveBeenCalled();
     });

@@ -17,6 +17,7 @@ import {
     DocType,
     verifyAccess,
     AclPermission,
+    type Uuid,
 } from "luminary-shared";
 import _ from "lodash";
 
@@ -24,6 +25,7 @@ const { addNotification } = useNotificationStore();
 
 type Props = {
     image: ImageDto;
+    requiredGroupIds?: Uuid[];
 };
 const props = defineProps<Props>();
 
@@ -212,6 +214,7 @@ const validated = computed(() => {
                 :disabled="!canEdit"
                 :docType="DocType.Image"
                 class="mb-4"
+                data-test="image-group-selector"
             />
 
             <p class="mb-2 text-xs">
