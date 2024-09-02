@@ -19,6 +19,11 @@
             "permission": ["view"]
         },
         {
+            "type": "image",
+            "groupId": "group-private-users",
+            "permission": ["view"]
+        },
+        {
             "type": "post",
             "groupId": "group-private-editors",
             "permission": ["view", "edit", "translate", "publish"]
@@ -27,6 +32,11 @@
             "type": "tag",
             "groupId": "group-private-editors",
             "permission": ["view", "translate", "assign"]
+        },
+        {
+            "type": "image",
+            "groupId": "group-private-editors",
+            "permission": ["view", "edit", "assign"]
         },
         {
             "type": "group",
