@@ -26,6 +26,7 @@ const { addNotification } = useNotificationStore();
 type Props = {
     image: ImageDto;
     requiredGroupIds?: Uuid[];
+    selectable?: boolean;
 };
 const props = defineProps<Props>();
 
@@ -168,8 +169,16 @@ const validated = computed(() => {
 </script>
 
 <template>
-    <div class="flex-col">
+    <div class="flex-col overflow-y-auto">
         <div class="flex items-center gap-2">
+            <LButton
+                v-if="selectable"
+                variant="primary"
+                :disabled="!canAssign || isDirty"
+                @click="$emit('select', editable._id)"
+                data-test="select-button"
+                >Select</LButton
+            >
             <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
             <LBadge v-if="isDirty" variant="default"> Unsaved changes </LBadge>
             <div class="flex-1"></div>

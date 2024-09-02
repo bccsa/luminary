@@ -10,13 +10,20 @@ import {
     type TagDto,
     type LanguageDto,
     verifyAccess,
+    db,
+    type ImageDto,
 } from "luminary-shared";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import TagSelector from "./TagSelector.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
+import LImage from "../images/LImage.vue";
+import fallbackImg from "../../assets/fallback-image-cms.webp";
+import LDialog from "../common/LDialog.vue";
+import ImageBrowser from "../images/ImageBrowser.vue";
+const baseUrl = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
 type Props = {
     docType: DocType;
@@ -24,6 +31,15 @@ type Props = {
 };
 const props = defineProps<Props>();
 const parent = defineModel<PostDto | TagDto>();
+const openImageDialog = ref(false);
+
+const image = ref<ImageDto>();
+
+watch([parent, openImageDialog], async () => {
+    if (parent.value && parent.value.imageId) {
+        image.value = await db.get<ImageDto>(parent.value.imageId);
+    }
+});
 
 const canEdit = computed(() => {
     if (parent.value) {
@@ -48,6 +64,33 @@ const canEdit = computed(() => {
         v-if="parent"
     >
         <div
+            class="mb-6 cursor-pointer overflow-hidden rounded-lg shadow"
+            @click="openImageDialog = true"
+        >
+            <LImage
+                v-if="image"
+                :image="image"
+                aspectRatio="video"
+                size="post"
+                :baseUrl="baseUrl"
+                :fallbackImg="fallbackImg"
+                class=""
+            />
+
+            <div v-else-if="parent.image" class="relative">
+                <p
+                    class="absolute left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] rounded-lg bg-zinc-100 p-1 text-center text-gray-400 opacity-50"
+                >
+                    Legacy image
+                </p>
+                <img :src="parent.image" />
+            </div>
+
+            <div v-else class="bg-zinc-50 p-10">
+                <p class="text-center text-gray-400">Image not set</p>
+            </div>
+        </div>
+        <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"
         >
@@ -62,6 +105,7 @@ const canEdit = computed(() => {
         </div>
 
         <LInput
+            v-if="!parent.imageId"
             name="parent.image"
             label="Image"
             :icon="LinkIcon"
@@ -107,4 +151,13 @@ const canEdit = computed(() => {
             :key="language?._id"
         />
     </LCard>
+    <LDialog v-model:open="openImageDialog" v-if="parent">
+        <ImageBrowser
+            :selectable="true"
+            @select="
+                openImageDialog = false;
+                parent.imageId = $event;
+            "
+        />
+    </LDialog>
 </template>

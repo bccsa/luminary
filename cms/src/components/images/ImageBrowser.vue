@@ -8,10 +8,9 @@ import ImageEditor from "./ImageEditor.vue";
 import { ref } from "vue";
 import fallbackImg from "../../assets/fallback-image-cms.webp";
 
-// TODO: Implement select event
-
 type Props = {
     requiredGroupIds?: Uuid[];
+    selectable?: boolean;
 };
 const props = defineProps<Props>();
 
@@ -35,7 +34,8 @@ const selectedImage = ref<ImageDto>();
 
 <template>
     <div class="flex h-full flex-1 flex-col">
-        <div class="mb-4 flex">
+        <div class="mb-4 flex items-center">
+            <h3 class="text-base font-semibold leading-6 text-zinc-900">Image browser</h3>
             <div class="flex-1"></div>
             <LButton variant="primary" :icon="PlusIcon" @click="newImage" data-test="new-image"
                 >New Image</LButton
@@ -65,8 +65,13 @@ const selectedImage = ref<ImageDto>();
                     </div>
                 </div>
             </LCard>
-            <LCard class="w-1/2" v-if="selectedImage">
-                <ImageEditor :image="selectedImage" :key="selectedImage._id" />
+            <LCard class="w-80" v-if="selectedImage">
+                <ImageEditor
+                    :image="selectedImage"
+                    :selectable="selectable"
+                    :key="selectedImage._id"
+                    @select="$emit('select', $event as Uuid)"
+                />
             </LCard>
         </div>
     </div>
