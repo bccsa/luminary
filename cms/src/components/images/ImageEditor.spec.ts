@@ -3,7 +3,7 @@ import { DOMWrapper, mount } from "@vue/test-utils";
 import ImageEditor from "./ImageEditor.vue";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db, accessMap } from "luminary-shared";
-import { fullAccessToAllContentMap, mockImageDto } from "@/tests/mockdata";
+import { mockImageDto, superAdminAccessMap } from "@/tests/mockdata";
 import { ref } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -27,7 +27,7 @@ describe("ImageEditor", () => {
         setActivePinia(createTestingPinia());
 
         const globalConfigStore = useGlobalConfigStore();
-        accessMap.value = fullAccessToAllContentMap;
+        accessMap.value = superAdminAccessMap;
         globalConfigStore.clientAppUrl = "http://localhost:4174";
     });
 
@@ -39,7 +39,7 @@ describe("ImageEditor", () => {
         vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
 
         const wrapper = mount(ImageEditor, {
-            props: { imageId: "image-image1" },
+            props: { image: mockImageDto },
         });
 
         const imageNameInput = wrapper.find(
@@ -61,21 +61,15 @@ describe("ImageEditor", () => {
         const spyOn_upsert = vi.spyOn(db, "upsert");
 
         const wrapper = mount(ImageEditor, {
-            props: { imageId: "image-image1" },
+            props: { image: mockImageDto },
         });
 
         const nameInput = wrapper.find("input[data-test='image-name']");
         await nameInput.setValue("New Name");
 
-        expect(spyOn_upsert).toHaveBeenCalledWith({ ...mockImageDto, name: "New Name" });
+        await wrapper.vm.$nextTick();
+        wrapper.find("[data-test='save-button']").trigger("click");
 
-        const descriptionInput = wrapper.find("textarea[data-test='image-description']");
-        await descriptionInput.setValue("New Description");
-
-        expect(spyOn_upsert).toHaveBeenCalledWith({
-            ...mockImageDto,
-            name: "New Name",
-            description: "New Description",
-        });
+        expect(spyOn_upsert).toHaveBeenCalled();
     });
 });

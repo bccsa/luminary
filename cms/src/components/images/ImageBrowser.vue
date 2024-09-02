@@ -10,6 +10,11 @@ import fallbackImg from "../../assets/fallback-image-cms.webp";
 
 // TODO: Implement select event
 
+type Props = {
+    requiredGroupIds?: Uuid[];
+};
+const props = defineProps<Props>();
+
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 const images = db.whereTypeAsRef<ImageDto[]>(DocType.Image, []);
 
@@ -20,7 +25,7 @@ const newImage = async () => {
         name: "New Image",
         description: "",
         fileCollections: [],
-        memberOf: [],
+        memberOf: props.requiredGroupIds ? props.requiredGroupIds : [],
         updatedTimeUtc: Date.now(),
     };
 };
