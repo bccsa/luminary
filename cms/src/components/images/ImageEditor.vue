@@ -175,7 +175,7 @@ const validated = computed(() => {
                 v-if="selectable"
                 variant="primary"
                 :disabled="!canAssign || isDirty"
-                @click="$emit('select', editable._id)"
+                @click="$emit('selectImage', editable._id)"
                 data-test="select-button"
                 >Select</LButton
             >

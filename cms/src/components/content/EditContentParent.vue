@@ -104,16 +104,6 @@ const canEdit = computed(() => {
             <LToggle v-model="parent.publishDateVisible" :disabled="!canEdit" />
         </div>
 
-        <LInput
-            v-if="!parent.imageId"
-            name="parent.image"
-            label="Image"
-            :icon="LinkIcon"
-            placeholder="https://..."
-            :disabled="!canEdit"
-            v-model="parent.image"
-        />
-
         <GroupSelector
             v-model:groups="parent.memberOf"
             :disabled="!canEdit"
@@ -154,10 +144,11 @@ const canEdit = computed(() => {
     <LDialog v-model:open="openImageDialog" v-if="parent">
         <ImageBrowser
             :selectable="true"
-            @select="
+            @selectImage="
                 openImageDialog = false;
                 parent.imageId = $event;
             "
+            :selectedImageId="parent.imageId"
         />
     </LDialog>
 </template>
