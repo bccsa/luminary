@@ -11,6 +11,7 @@ import fallbackImg from "../../assets/fallback-image-cms.webp";
 type Props = {
     requiredGroupIds?: Uuid[];
     selectable?: boolean;
+    selectedImageId?: Uuid;
 };
 const props = defineProps<Props>();
 
@@ -43,12 +44,16 @@ const selectedImage = ref<ImageDto>();
         </div>
         <div class="flex gap-4">
             <LCard class="flex-grow overflow-y-scroll">
-                <div class="flex flex-wrap gap-4">
+                <div class="flex flex-wrap">
                     <div
                         v-for="image in images"
                         :key="image._id"
                         class="cursor-pointer overflow-hidden"
                         @click="selectedImage = image"
+                        :class="[
+                            selectedImageId == image._id ? 'border-zinc-500 bg-zinc-100' : '',
+                            'rounded-lg border-2 border-solid border-transparent  p-2',
+                        ]"
                     >
                         <LImage
                             :image="image"
@@ -58,6 +63,9 @@ const selectedImage = ref<ImageDto>();
                             class="rounded-lg shadow"
                             :base-url="baseUrl"
                             :fallback-img="fallbackImg"
+                            :class="[
+                                selectedImageId == image._id ? ' border-solid border-zinc-500' : '',
+                            ]"
                         />
                         <label>
                             <span class="text-sm">{{ image.name }}</span>
@@ -70,7 +78,7 @@ const selectedImage = ref<ImageDto>();
                     :image="selectedImage"
                     :selectable="selectable"
                     :key="selectedImage._id"
-                    @select="$emit('select', $event as Uuid)"
+                    @selectImage="$emit('selectImage', $event as Uuid)"
                 />
             </LCard>
         </div>
