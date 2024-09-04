@@ -9,12 +9,28 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
+import { mockEnglishContentDto } from "./tests/mockdata";
 
-vi.mock("@auth0/auth0-vue");
+const routeReplaceMock = vi.fn();
+const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}` });
 
 describe("App", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+
+        vi.mock("@auth0/auth0-vue");
+
+        vi.mock("vue-router", async (importOriginal) => {
+            const actual = await importOriginal();
+            return {
+                // @ts-expect-error
+                ...actual,
+                useRouter: vi.fn().mockImplementation(() => ({
+                    currentRoute: currentRouteMock,
+                    replace: routeReplaceMock,
+                })),
+            };
+        });
     });
 
     afterEach(() => {

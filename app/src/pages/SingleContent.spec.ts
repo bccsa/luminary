@@ -19,6 +19,8 @@ import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
+import { ref } from "vue";
+import RelatedContent from "./RelatedContent.vue";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -27,6 +29,7 @@ vi.mock("vue-router", async (importOriginal) => {
         // @ts-expect-error
         ...actual,
         useRouter: vi.fn().mockImplementation(() => ({
+            currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
             replace: routeReplaceMock,
         })),
     };
@@ -136,15 +139,21 @@ describe("SingleContent", () => {
         });
     });
 
-    it("displays tags", async () => {
+    it("displays related content based on parentTags", async () => {
+        const mockContent = {
+            ...mockEnglishContentDto,
+            parentTags: ["tag-category1", "tag-topicA"],
+        };
         const wrapper = mount(SingleContent, {
             props: {
-                slug: mockEnglishContentDto.slug,
+                slug: mockContent.slug,
             },
         });
-
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Category 1");
+            expect(wrapper.findComponent(RelatedContent).exists()).toBe(true);
+            expect(wrapper.findComponent(RelatedContent).props("tagIds")).toEqual(
+                mockEnglishContentDto.parentTags,
+            );
         });
     });
 
