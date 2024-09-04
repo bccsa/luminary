@@ -11,6 +11,7 @@ import { useRouter } from "vue-router";
 import { appLanguageAsRef, appName } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
+import RelatedContent from "./RelatedContent.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
 
@@ -119,7 +120,7 @@ const text = computed(() => {
 
     <NotFoundPage v-else-if="isExpiredOrScheduled" />
 
-    <article v-else class="mx-auto mb-12 max-w-3xl">
+    <article v-else class="mx-auto max-w-3xl">
         <VideoPlayer v-if="content.video" :content="content" />
         <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
 
@@ -149,7 +150,7 @@ const text = computed(() => {
         ></div>
 
         <div
-            class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500"
+            class="mt-6 border-t border-zinc-200 dark:border-zinc-500"
             v-if="content.parentTags.length > 0"
         >
             <h3 class="mb-2 text-sm text-zinc-600 dark:text-slate-200">Tags</h3>
@@ -164,4 +165,5 @@ const text = computed(() => {
             </div>
         </div>
     </article>
+    <RelatedContent v-if="content && content.parentTags" :tagIds="content.parentTags" />
 </template>

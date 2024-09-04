@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { onBeforeMount, watch } from "vue";
+import { computed, onBeforeMount, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { getSocket, isConnected } from "luminary-shared";
@@ -12,8 +12,10 @@ import NotificationBannerManager from "./components/notifications/NotificationBa
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
+import { useRouter } from "vue-router";
 
 const { isAuthenticated, user, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
+const router = useRouter();
 
 initLanguage();
 
@@ -130,6 +132,10 @@ setTimeout(() => {
         { immediate: true },
     );
 }, 1000);
+
+const routeKey = computed(() => {
+    return router.currentRoute.value.fullPath;
+});
 </script>
 
 <template>
