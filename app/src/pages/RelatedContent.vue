@@ -31,7 +31,7 @@ watch(tags, () => {
         :key="tag._id"
         :tag="tag"
         :queryOptions="{
-            filterOptions: { limit: 10, docType: DocType.Post },
+            filterOptions: { docType: DocType.Post },
             languageId: appLanguageIdAsRef,
         }"
         class="mx-auto mb-8 max-w-3xl"
