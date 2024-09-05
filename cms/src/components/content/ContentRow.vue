@@ -15,6 +15,7 @@ import LBadge from "../common/LBadge.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import LButton from "../button/LButton.vue";
+import { DateTime } from "luxon";
 
 type Props = {
     contentDoc: ContentDto;
@@ -69,7 +70,7 @@ const translationStatus = computed(() => {
 <template>
     <tr>
         <!-- title -->
-        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             {{ contentDoc.title }}
         </td>
 
@@ -91,7 +92,7 @@ const translationStatus = computed(() => {
                             docType: parentType,
                             tagType: contentDoc.tagType,
                             id: contentDoc.parentId,
-                            languageCode: languages.find((l) => l._id == language._id)
+                            languageCode: languages.find((l: LanguageDto) => l._id == language._id)
                                 ?.languageCode,
                         },
                     }"
@@ -124,17 +125,21 @@ const translationStatus = computed(() => {
 
         <!-- publish date -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ contentDoc.publishDate ? db.formatUnixDate(contentDoc.publishDate) : "Not set" }}
+            {{ db.toDateTime(contentDoc.publishDate!).toLocaleString(DateTime.DATETIME_SHORT) }}
         </td>
 
         <!-- expiring date -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ contentDoc.expiryDate ? db.formatUnixDate(contentDoc.expiryDate) : "Not set" }}
+            {{
+                contentDoc.expiryDate
+                    ? db.toDateTime(contentDoc.expiryDate).toLocaleString(DateTime.DATETIME_SHORT)
+                    : "Not set"
+            }}
         </td>
 
         <!-- updated -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ db.formatUnixDate(contentDoc.updatedTimeUtc) }}
+            {{ db.toDateTime(contentDoc.updatedTimeUtc).toLocaleString(DateTime.DATETIME_SHORT) }}
         </td>
 
         <!-- actions -->
@@ -156,7 +161,8 @@ const translationStatus = computed(() => {
                         docType: parentType,
                         tagType: contentDoc.tagType,
                         id: contentDoc.parentId,
-                        languageCode: languages.find((l) => l._id == languageId)?.languageCode,
+                        languageCode: languages.find((l: LanguageDto) => l._id == languageId)
+                            ?.languageCode,
                     },
                 }"
                 class="flex justify-end"

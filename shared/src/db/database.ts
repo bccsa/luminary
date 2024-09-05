@@ -489,15 +489,6 @@ class database extends Dexie {
     }
 
     /**
-     * Convert a numeric (UNIX) date to a formatted date string in the format YYYY-MM-DD HH:MM
-     * @param date
-     * @returns
-     */
-    formatUnixDate(date: number): string {
-        return DateTime.fromMillis(date).toFormat("yyyy-MM-dd HH:mm");
-    }
-
-    /**
      * Check if a document is queued in the localChanges table
      */
     isLocalChangeAsRef(docId: Uuid) {
