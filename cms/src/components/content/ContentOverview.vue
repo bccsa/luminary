@@ -138,10 +138,6 @@ watch(filterByStatus, () => {
         | "draft"
         | undefined;
 });
-
-const handleShowFilterOptions = () => {
-    showFilterOptions.value = !showFilterOptions.value;
-};
 </script>
 
 <template>
@@ -149,7 +145,7 @@ const handleShowFilterOptions = () => {
         <template #actions>
             <div class="flex gap-4">
                 <button
-                    @click="handleShowFilterOptions"
+                    @click="() => (showFilterOptions = !showFilterOptions)"
                     class="rounded-md border-[1px] p-2 px-3 shadow-sm"
                     :style="{
                         backgroundColor: showFilterOptions ? '#18181b' : 'white',
