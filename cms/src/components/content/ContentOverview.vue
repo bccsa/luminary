@@ -113,7 +113,7 @@ const filterByStatusOptions = [
     },
     {
         value: "draft",
-        label: "Drafted",
+        label: "Draft",
     },
     {
         value: "all",
