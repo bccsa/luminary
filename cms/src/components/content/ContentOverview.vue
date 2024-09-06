@@ -184,7 +184,7 @@ onClickOutside(sortOptionsAsRef, () => {
                 <div class="relative flex h-full gap-1">
                     <button
                         class="flex h-full w-10 flex-row content-center justify-center rounded-md border-[1px] focus:border-black focus:outline-none"
-                        @click="() => (showSortOptions = true)"
+                        @click="showSortOptions = true"
                         data-test="sort-toggle-btn"
                     >
                         <ArrowsUpDownIcon class="h-full w-4" />
