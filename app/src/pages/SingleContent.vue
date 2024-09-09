@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DocType, db, type ContentDto } from "luminary-shared";
+import { DocType, TagType, type Uuid, db, type ContentDto } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
@@ -24,6 +24,7 @@ const props = defineProps<Props>();
 
 const content = db.getBySlugAsRef<ContentDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
+const selectedTag = ref<Uuid | undefined>();
 
 const isExpiredOrScheduled = computed(() => {
     if (!content.value) return false;
@@ -36,9 +37,7 @@ const isExpiredOrScheduled = computed(() => {
 watch(
     content,
     async () => {
-        if (!content.value) {
-            return;
-        }
+        if (!content.value) return;
 
         document.title = isExpiredOrScheduled.value
             ? `Page not found - ${appName}`
@@ -46,11 +45,15 @@ watch(
 
         if (isExpiredOrScheduled.value) return;
 
+        // Fetch tags associated with the content
         tagsContent.value = await db.whereParent(
             content.value.parentTags,
             DocType.Tag,
             content.value.language,
         );
+
+        // Reset selectedTag when content changes
+        selectedTag.value = content.value.parentTags[0];
     },
     { immediate: true },
 );
@@ -58,9 +61,7 @@ watch(
 watch(
     appLanguageAsRef,
     async () => {
-        if (!content.value) {
-            return;
-        }
+        if (!content.value) return;
 
         if (appLanguageAsRef.value?._id != content.value.language) {
             const contentDocs = await db.whereParent(content.value.parentId);
@@ -82,26 +83,28 @@ watch(
     { immediate: true },
 );
 
-const isLoading = computed(() => {
-    return content.value == undefined;
-});
+const isLoading = computed(() => content.value === undefined);
 
 const text = computed(() => {
     if (!content.value.text) {
         return "";
     }
 
-    let text;
-
-    // Only parse text with TipTap if it's JSON, otherwise we render it out as HTML
+    let parsedText;
     try {
-        text = JSON.parse(content.value.text);
+        parsedText = JSON.parse(content.value.text);
     } catch {
         return content.value.text;
     }
 
     return generateHTML(text, [StarterKit, Link]);
 });
+
+// Function to handle tag selection
+function selectTag(parentId: Uuid) {
+    selectedTag.value = parentId; // Ensure the correct tag is selected
+    console.log(`Selected tagId: ${parentId}`);
+}
 </script>
 
 <template>
@@ -120,7 +123,7 @@ const text = computed(() => {
 
     <NotFoundPage v-else-if="isExpiredOrScheduled" />
 
-    <article v-else class="mx-auto max-w-3xl">
+    <article v-else class="mx-auto mb-12 max-w-3xl">
         <VideoPlayer v-if="content.video" :content="content" />
         <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
 
@@ -149,21 +152,28 @@ const text = computed(() => {
             class="prose prose-zinc mt-6 max-w-3xl text-justify dark:prose-invert"
         ></div>
 
-        <div
-            class="mt-6 border-t border-zinc-200 dark:border-zinc-500"
-            v-if="content.parentTags.length > 0"
-        >
-            <h3 class="mb-2 text-sm text-zinc-600 dark:text-slate-200">Tags</h3>
-            <div class="flex gap-3">
+        <div class="mt-6 pt-6 dark:border-zinc-500" v-if="tagsContent.length > 0">
+            <!-- <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3> -->
+            <div
+                class="flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
+            >
                 <span
-                    v-for="tag in tagsContent"
+                    v-for="tag in tagsContent.filter(
+                        (t: ContentDto) => t.parentTagType == TagType.Category,
+                    )"
                     :key="tag._id"
-                    class="inline-block rounded bg-yellow-300 px-1.5 py-1 text-sm text-yellow-950 shadow"
+                    @click="selectTag(tag.parentId)"
+                    class="me-2 flex cursor-pointer items-center justify-center rounded-t-sm px-1.5 py-1 text-sm hover:bg-yellow-100"
+                    :class="{ ' bg-yellow-400 text-black shadow': selectedTag == tag.parentId }"
                 >
                     {{ tag.title }}
                 </span>
             </div>
         </div>
     </article>
-    <RelatedContent v-if="content && content.parentTags" :tagIds="content.parentTags" />
+    <RelatedContent
+        v-if="content && content.parentTags"
+        :tagIds="content.parentTags"
+        :parentId="selectedTag"
+    />
 </template>
