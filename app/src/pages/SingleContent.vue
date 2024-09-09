@@ -52,8 +52,9 @@ watch(
             content.value.language,
         );
 
-        // Reset selectedTag when content changes
-        selectedTag.value = content.value.parentTags[0];
+        // Reset selectedTag when content changes, set the first tag in the array
+        const categoryTags = tagsContent.value.filter((t) => t.parentTagType == TagType.Category);
+        selectedTag.value = categoryTags.length > 0 ? categoryTags[0].parentId : undefined;
     },
     { immediate: true },
 );
