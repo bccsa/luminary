@@ -122,21 +122,11 @@ const filterByStatusOptions = [
 ];
 
 watch(filterByTranslation, () => {
-    queryOptions.value.translationStatus = filterByTranslation.value as
-        | "all"
-        | "translated"
-        | "untranslated"
-        | undefined;
+    queryOptions.value.translationStatus = filterByTranslation.value;
 });
 
 watch(filterByStatus, () => {
-    queryOptions.value.publishStatus = filterByStatus.value as
-        | "all"
-        | "published"
-        | "scheduled"
-        | "expired"
-        | "draft"
-        | undefined;
+    queryOptions.value.publishStatus = filterByStatus.value;
 });
 </script>
 
@@ -144,17 +134,11 @@ watch(filterByStatus, () => {
     <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
-                <button
-                    @click="() => (showFilterOptions = !showFilterOptions)"
-                    class="rounded-md border-[1px] p-2 px-3 shadow-sm"
-                    :style="{
-                        backgroundColor: showFilterOptions ? '#18181b' : 'white',
-                        color: showFilterOptions ? 'white' : '#18181b',
-                    }"
+                <LButton
                     data-test="show-filter-options-btn"
-                >
-                    <FunnelIcon class="w-4" />
-                </button>
+                    @click="showFilterOptions = !showFilterOptions"
+                    :icon="FunnelIcon"
+                ></LButton>
                 <LSelect
                     v-model="selectedLanguage"
                     :options="languageOptions"
