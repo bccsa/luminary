@@ -44,12 +44,35 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                             <th
                                 class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
                             ></th>
+
                             <!-- translations -->
                             <th
                                 class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
                             >
                                 Translations
                             </th>
+
+                            <!-- tags -->
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                            >
+                                Tags
+                            </th>
+
+                            <!-- publish date -->
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                            >
+                                Publish date
+                            </th>
+
+                            <!-- expiry date -->
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                            >
+                                Expiry date
+                            </th>
+
                             <!-- updated -->
                             <th
                                 class="group cursor-pointer py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
