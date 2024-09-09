@@ -8,7 +8,6 @@ import {
     ArrowUpIcon,
     ArrowDownIcon,
     MagnifyingGlassIcon,
-    CheckIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
