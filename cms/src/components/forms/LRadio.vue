@@ -41,8 +41,9 @@ const radioClasses = cva({
 type RadioProps = VariantProps<typeof radioClasses>;
 
 type Props = {
-    modelValue: string;
-    value: string;
+    modelValue?: string;
+    name?: string;
+    value?: string;
     label?: string;
     variant?: RadioProps["variant"];
     size?: RadioProps["size"];
@@ -68,6 +69,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
     <div class="flex items-center justify-stretch gap-2" :style="$attrs['style'] as StyleValue">
         <input
             type="radio"
+            :name="name"
             :class="twMerge(radioClasses({ variant }))"
             :id="id"
             :disabled="disabled"
