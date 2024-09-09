@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DocType, TagType, type Uuid, db, type ContentDto } from "luminary-shared";
+import { DocType, TagType, db, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
@@ -8,10 +8,11 @@ import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
-import { appLanguageAsRef, appName } from "@/globalConfig";
+import { appLanguageAsRef, appLanguageIdAsRef, appName } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "./RelatedContent.vue";
+import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
 
@@ -25,6 +26,7 @@ const props = defineProps<Props>();
 const content = db.getBySlugAsRef<ContentDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
 const selectedTag = ref<Uuid | undefined>();
+const tagCategory = ref<TagDto[]>([]);
 
 const isExpiredOrScheduled = computed(() => {
     if (!content.value) return false;
@@ -51,6 +53,12 @@ watch(
             DocType.Tag,
             content.value.language,
         );
+
+        const tags = (await db.docs.bulkGet(content.value.parentTags)) as unknown as Promise<
+            TagDto[]
+        >;
+
+        tagCategory.value = (await tags).filter((t) => t.tagType == TagType.Category);
 
         // Reset selectedTag when content changes, set the first tag in the array
         const categoryTags = tagsContent.value.filter((t) => t.parentTagType == TagType.Category);
@@ -128,35 +136,38 @@ function selectTag(parentId: Uuid) {
         <VideoPlayer v-if="content.video" :content="content" />
         <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
 
-        <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
-            {{ content.title }}
-        </h1>
+            <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
+                {{ content.title }}
+            </h1>
 
-        <div
-            class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"
-            v-if="content.publishDate && content.parentPublishDateVisible"
-        >
-            {{
-                content.publishDate
-                    ? db.toDateTime(content.publishDate).toLocaleString(DateTime.DATETIME_MED)
-                    : ""
-            }}
-        </div>
-
-        <div class="mt-12 text-justify text-gray-800 dark:text-slate-100" v-if="content.summary">
-            {{ content.summary }}
-        </div>
-
-        <div
-            v-if="content.text"
-            v-html="text"
-            class="prose prose-zinc mt-6 max-w-3xl text-justify dark:prose-invert"
-        ></div>
-
-        <div class="mt-6 pt-6 dark:border-zinc-500" v-if="tagsContent.length > 0">
-            <!-- <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3> -->
             <div
-                class="flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
+                class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"
+                v-if="content.publishDate && content.parentPublishDateVisible"
+            >
+                {{
+                    content.publishDate
+                        ? db.toDateTime(content.publishDate).toLocaleString(DateTime.DATETIME_MED)
+                        : ""
+                }}
+            </div>
+
+            <div
+                class="mt-12 text-justify text-gray-800 dark:text-slate-100"
+                v-if="content.summary"
+            >
+                {{ content.summary }}
+            </div>
+
+            <div
+                v-if="content.text"
+                v-html="text"
+                class="prose prose-zinc mt-6 max-w-full text-justify dark:prose-invert"
+            ></div>
+        </article>
+
+        <div class="h-full max-w-3xl py-2 lg:mt-0 lg:w-1/4">
+            <div
+                class="mb-5 flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
             >
                 <span
                     v-for="tag in tagsContent.filter(
@@ -170,11 +181,19 @@ function selectTag(parentId: Uuid) {
                     {{ tag.title }}
                 </span>
             </div>
+            <div>
+                <VerticalTagViewer
+                    v-for="tag in tagCategory.filter((t) => t._id == selectedTag)"
+                    :key="tag._id"
+                    :tag="tag"
+                    :queryOptions="{
+                        filterOptions: { docType: DocType.Post },
+                        languageId: appLanguageIdAsRef,
+                    }"
+                />
+            </div>
         </div>
-    </article>
-    <RelatedContent
-        v-if="content && content.parentTags"
-        :tagIds="content.parentTags"
-        :parentId="selectedTag"
-    />
+    </div>
+
+    <RelatedContent v-if="content && content.parentTags" :tagIds="content.parentTags" />
 </template>

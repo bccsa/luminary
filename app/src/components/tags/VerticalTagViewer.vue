@@ -46,49 +46,42 @@ watch(tagContent, () => {
 <template>
     <div>
         <div>
-            <div class="w-full">
-                <RouterLink
-                    v-for="content in taggedDocs"
-                    :key="content._id"
-                    :to="{
-                        name: 'content',
-                        params: { slug: content.slug },
+            <RouterLink
+                v-for="content in taggedDocs"
+                :key="content._id"
+                :to="{
+                    name: 'content',
+                    params: { slug: content.slug },
+                }"
+            >
+                <div
+                    class="flex justify-between border-l-4 border-transparent bg-opacity-20 px-2 py-[2px] transition duration-200 hover:border-opacity-100 hover:bg-yellow-300 hover:bg-opacity-10"
+                    :class="{
+                        ' border-l-4 border-yellow-500 bg-yellow-300 bg-opacity-10':
+                            isContentSelected(content.slug),
                     }"
                 >
-                    <div
-                        class="flex cursor-pointer gap-2 border-l-4 border-transparent bg-opacity-20 p-2 transition duration-200 hover:border-opacity-100 hover:bg-yellow-300 hover:bg-opacity-10"
-                        :class="{
-                            ' border-l-4 border-yellow-500 bg-yellow-300 bg-opacity-10':
-                                isContentSelected(content.slug),
-                        }"
-                    >
-                        <div class="w-1/3 lg:w-1/5">
-                            <div>
-                                <div class="relative overflow-hidden rounded-lg">
-                                    <img
-                                        class="w-full object-cover opacity-100"
-                                        loading="lazy"
-                                        draggable="false"
-                                        :src="content.parentImage"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                        <div class="ml-4 mt-1 w-2/3">
-                            <h1 class="text-base">
-                                {{ content.title }}
-                            </h1>
-                            <div class="mt-1 hidden opacity-70 lg:flex">
-                                <div>
-                                    <p>
-                                        {{ content.summary }}
-                                    </p>
-                                </div>
-                            </div>
+                    <div class="ml-4 mt-1 w-2/3">
+                        <h1 class="text-[0.9rem]">
+                            {{ content.title }}
+                        </h1>
+                        <p class="text-[0.8rem]">
+                            {{ content.summary }}
+                        </p>
+                    </div>
+                    <div class="flex w-1/3 items-center justify-end lg:w-1/5">
+                        <div class="relative overflow-hidden rounded">
+                            <img
+                                class="w-32 object-cover opacity-100"
+                                loading="lazy"
+                                draggable="false"
+                                :src="content.parentImage"
+                            />
                         </div>
                     </div>
-                </RouterLink>
-            </div>
+                </div>
+                <!-- <div class="border-b border-gray-200 pb-4 dark:border-gray-700"></div> -->
+            </RouterLink>
         </div>
     </div>
 </template>
