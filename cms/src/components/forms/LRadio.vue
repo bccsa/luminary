@@ -6,7 +6,7 @@ export default {
 
 <script setup lang="ts">
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
-import { computed, type StyleValue } from "vue";
+import { type StyleValue } from "vue";
 import { useId } from "@/util/useId";
 import { cva, type VariantProps } from "cva";
 import { twMerge } from "tailwind-merge";
