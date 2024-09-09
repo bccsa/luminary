@@ -3,7 +3,13 @@ import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
-import { ArrowsUpDownIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/vue/24/outline";
+import {
+    ArrowsUpDownIcon,
+    ArrowUpIcon,
+    ArrowDownIcon,
+    MagnifyingGlassIcon,
+    CheckIcon,
+} from "@heroicons/vue/24/outline";
 import {
     db,
     AclPermission,
@@ -18,8 +24,11 @@ import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
-import { onClickOutside } from "@vueuse/core";
+import { debouncedWatch, onClickOutside } from "@vueuse/core";
 import type { ContentOverviewQueryOptions } from "./query";
+import LInput from "../forms/LInput.vue";
+import { Menu } from "@headlessui/vue";
+import LRadio from "../forms/LRadio.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -88,11 +97,13 @@ const showSortOptions = ref(false);
 
 const selectedSortOption = ref("updatedTimeUtc");
 
-watch(searchTerm, () => {
-    setTimeout(() => {
+debouncedWatch(
+    searchTerm,
+    () => {
         queryOptions.value.search = searchTerm.value;
-    }, 500);
-});
+    },
+    { debounce: 500 },
+);
 
 watch(selectedSortOption, () => {
     queryOptions.value.orderBy = selectedSortOption.value as
@@ -101,18 +112,6 @@ watch(selectedSortOption, () => {
         | "publishDate"
         | "expiryDate";
 });
-
-const sortingAscending = ref(false);
-
-const handleSortAscending = () => {
-    queryOptions.value.orderDirection = "asc";
-    sortingAscending.value = true;
-};
-
-const handleSortDescending = () => {
-    queryOptions.value.orderDirection = "desc";
-    sortingAscending.value = false;
-};
 
 onClickOutside(sortOptionsAsRef, () => {
     showSortOptions.value = false;
@@ -171,101 +170,82 @@ onClickOutside(sortOptionsAsRef, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-        <div class="flex h-14 w-full gap-2 rounded-t-md bg-white p-2 shadow-lg">
-            <input
+        <div class="flex h-max w-full gap-2 rounded-t-md bg-white p-2 shadow-lg">
+            <LInput
                 type="text"
-                class="h-full w-2/4 rounded-md border-[1px] border-zinc-200 p-4 text-sm focus:border-zinc-950 focus:bg-zinc-50 focus:outline-none focus:ring-0"
+                :icon="MagnifyingGlassIcon"
+                class="flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="searchTerm"
             />
+
             <div>
                 <div class="relative flex h-full gap-1">
-                    <button
-                        class="flex h-full w-10 flex-row content-center justify-center rounded-md border-[1px] focus:border-black focus:outline-none"
-                        @click="showSortOptions = true"
-                        data-test="sort-toggle-btn"
-                    >
+                    <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
-                    </button>
-                    <div
+                    </LButton>
+                    <Menu
+                        as="div"
                         ref="sortOptionsAsRef"
                         class="absolute right-0 top-full mt-2 h-max w-40 rounded-lg border border-gray-300 bg-white p-2 shadow-lg"
                         v-if="showSortOptions"
                         data-test="sort-options-display"
                     >
-                        <h4>Sort By:</h4>
                         <div class="flex flex-col">
-                            <label>
-                                <input
-                                    class="ml-2 text-zinc-800 focus:border-0 focus:outline-none focus:ring-0"
-                                    type="radio"
-                                    name="sortOption"
-                                    value="title"
-                                    v-model="selectedSortOption"
-                                    data-test="sort-option-title"
-                                />
-                                Title
-                            </label>
-                            <label>
-                                <input
-                                    class="ml-2 text-zinc-800 focus:border-0 focus:outline-none focus:ring-0"
-                                    type="radio"
-                                    name="sortOption"
-                                    value="expiryDate"
-                                    v-model="selectedSortOption"
-                                    data-test="sort-option-expiry-date"
-                                />
-                                Expiry Date
-                            </label>
-                            <label>
-                                <input
-                                    class="ml-2 text-zinc-800 focus:border-0 focus:outline-none focus:ring-0"
-                                    type="radio"
-                                    name="sortOption"
-                                    value="publishDate"
-                                    v-model="selectedSortOption"
-                                    data-test="sort-option-publish-date"
-                                />
-                                Publish Date
-                            </label>
-                            <label>
-                                <input
-                                    class="ml-2 text-zinc-800 focus:border-0 focus:outline-none focus:ring-0"
-                                    type="radio"
-                                    name="sortOption"
-                                    value="updatedTimeUtc"
-                                    v-model="selectedSortOption"
-                                    data-test="sort-option-last-updated"
-                                />
-                                Last Updated
-                            </label>
+                            <LRadio
+                                label="Title"
+                                value="title"
+                                v-model:model-value="selectedSortOption"
+                                data-test="sort-option-title"
+                            />
+                            <LRadio
+                                label="Expiry Date"
+                                value="expiryDate"
+                                v-model:model-value="selectedSortOption"
+                                data-test="sort-option-expiry-date"
+                            />
+                            <LRadio
+                                label="Publish Date"
+                                value="publishDate"
+                                v-model:model-value="selectedSortOption"
+                                data-test="sort-option-publish-date"
+                            />
+                            <LRadio
+                                label="Last Updated"
+                                value="updatedTimeUtc"
+                                v-model:model-value="selectedSortOption"
+                                data-test="sort-option-last-updated"
+                            />
                         </div>
                         <hr class="my-2" />
                         <div class="flex flex-col gap-1">
-                            <button
-                                @click="handleSortAscending"
-                                class="flex w-full gap-1 rounded-md p-2 text-zinc-950 hover:bg-zinc-300"
-                                :style="{
-                                    backgroundColor: sortingAscending ? '#18181b' : 'white',
-                                    color: sortingAscending ? 'white' : '#18181b',
-                                }"
+                            <LButton
+                                class="flex justify-stretch"
+                                :class="
+                                    queryOptions.orderDirection == 'asc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                :icon="ArrowUpIcon"
+                                @click="queryOptions.orderDirection = 'asc'"
+                                >Ascending</LButton
                             >
-                                <ArrowUpIcon class="w-6" /> Ascending
-                            </button>
-                            <button
-                                class="flex w-full gap-1 rounded-md p-2 hover:bg-zinc-300"
-                                @click="handleSortDescending"
-                                :style="{
-                                    backgroundColor: sortingAscending ? 'white' : '#18181b',
-                                    color: sortingAscending ? '#18181b' : 'white',
-                                }"
+                            <LButton
+                                class="flex justify-stretch"
+                                :class="
+                                    queryOptions.orderDirection == 'desc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                variant="secondary"
+                                :icon="ArrowDownIcon"
+                                @click="queryOptions.orderDirection = 'desc'"
+                                >Descending</LButton
                             >
-                                <ArrowDownIcon class="w-6" /> Descending
-                            </button>
                         </div>
-                    </div>
+                    </Menu>
                 </div>
             </div>
         </div>
