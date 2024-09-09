@@ -156,6 +156,7 @@ describe("SingleContent", () => {
             expect(wrapper.findComponent(RelatedContent).props("tagIds")).toEqual(
                 mockEnglishContentDto.parentTags,
             );
+            console.log(wrapper.html());
         });
     });
 

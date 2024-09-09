@@ -45,10 +45,7 @@ watch(tagContent, () => {
 
 <template>
     <div>
-        <!-- display list of content that has the same tag -->
-        <div class="pt-5">
-            <!-- tab navigation header -->
-            <div class="flex items-center justify-between">{{ tagTitle }}</div>
+        <div>
             <div class="w-full">
                 <RouterLink
                     v-for="content in taggedDocs"
@@ -78,11 +75,11 @@ watch(tagContent, () => {
                             </div>
                         </div>
                         <div class="ml-4 mt-1 w-2/3">
-                            <h1 class="text-style-title-3 line-clamp-2">
+                            <h1 class="text-base">
                                 {{ content.title }}
                             </h1>
-                            <div class="text-style-body-2 mt-1 hidden opacity-70 lg:flex">
-                                <div class="pointer-events-none line-clamp-2 lg:line-clamp-3">
+                            <div class="mt-1 hidden opacity-70 lg:flex">
+                                <div>
                                     <p>
                                         {{ content.summary }}
                                     </p>
