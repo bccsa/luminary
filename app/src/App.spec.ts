@@ -73,4 +73,28 @@ describe("App", () => {
             expect(notificationStore.removeNotification).toHaveBeenCalledWith("offlineBanner");
         });
     });
+
+    it("shows the banner when not authenticated", async () => {
+        vi.spyOn(isConnected, "value", "get").mockReturnValue(true);
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isLoading: ref(false),
+            isAuthenticated: ref(false),
+        });
+
+        const notificationStore = useNotificationStore();
+
+        mount(App, {
+            shallow: true,
+        });
+
+        await waitForExpect(() => {
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "accountBanner",
+                    title: "You are missing out!",
+                    description: "Click here to create an account or log in.",
+                }),
+            );
+        });
+    });
 });

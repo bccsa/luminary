@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, ref, type FunctionalComponent } from "vue";
+import type { RouteLocationNamedRaw } from "vue-router";
 
 export type Notification = {
     /**
@@ -11,6 +12,7 @@ export type Notification = {
     state: "success" | "error" | "info" | "warning";
     type: "toast" | "banner";
     icon?: FunctionalComponent;
+    routerLink?: RouteLocationNamedRaw;
 };
 
 export const useNotificationStore = defineStore("notification", () => {
