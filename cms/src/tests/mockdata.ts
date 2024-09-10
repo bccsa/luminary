@@ -29,7 +29,7 @@ export const mockTopicDto: TagDto = {
     type: DocType.Tag,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
-    tagType: TagType.Category,
+    tagType: TagType.Topic,
     pinned: false,
     image: "test-image.jpg",
     tags: [],
