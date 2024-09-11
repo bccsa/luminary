@@ -1,21 +1,27 @@
 <script setup lang="ts">
 import ContentTile from "@/components/content/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useResizeObserver } from "@vueuse/core";
-import { DocType, db, type TagDto, type QueryOptions as options } from "luminary-shared";
+import { DocType, db, type TagDto, type Uuid, type queryOptions as options } from "luminary-shared";
 
 type Props = {
     tag?: TagDto;
     title?: string;
     queryOptions: options;
     showPublishDate?: boolean;
+    currentPostId?: Uuid;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
 });
 
 const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
+
+const currentContent = computed(() => {
+    return taggedDocs.value.filter((doc) => doc._id !== props.currentPostId);
+});
+
 const tagContent = props.tag
     ? db.whereParentAsRef(props.tag._id, DocType.Tag, props.queryOptions.languageId, [])
     : ref([]);
@@ -116,7 +122,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-6">
                     <ContentTile
-                        v-for="content in taggedDocs"
+                        v-for="content in currentContent"
                         :key="content._id"
                         :content="content"
                         :show-publish-date="showPublishDate"

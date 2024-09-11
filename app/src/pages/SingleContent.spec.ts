@@ -20,7 +20,7 @@ import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
-import RelatedContent from "./RelatedContent.vue";
+import RelatedContent from "../components/content/RelatedContent.vue";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -151,9 +151,7 @@ describe("SingleContent", () => {
         });
         await waitForExpect(() => {
             expect(wrapper.findComponent(RelatedContent).exists()).toBe(true);
-            expect(wrapper.findComponent(RelatedContent).props("tagIds")).toEqual(
-                mockEnglishContentDto.parentTags,
-            );
+            expect(wrapper.findComponent(RelatedContent).props("tag")).toEqual([mockCategoryDto]);
         });
     });
 
