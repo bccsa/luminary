@@ -40,15 +40,17 @@ onMounted(() => {
 
 <template>
     <Dialog :open="isVisible" @close="emit('close')">
-        <div class="fixed inset-0 bg-gray-800 bg-opacity-50"></div>
-        <div class="fixed inset-0 flex items-center justify-center p-4">
-            <DialogPanel class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-zinc-800">
+        <div class="fixed inset-0 bg-slate-800 bg-opacity-50 backdrop-blur-sm"></div>
+        <div class="fixed inset-0 flex items-center justify-center rounded-lg p-4">
+            <DialogPanel
+                class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-600"
+            >
                 <DialogTitle class="mb-4 text-lg font-semibold">Select Theme</DialogTitle>
                 <div class="divide-y divide-gray-200 dark:divide-zinc-700">
                     <button
                         v-for="theme in themes"
                         :key="theme"
-                        class="flex w-full cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-zinc-600"
+                        class="flex w-full cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-slate-500"
                         @click="selectedTheme = theme"
                         data-test="switch-language-button"
                     >

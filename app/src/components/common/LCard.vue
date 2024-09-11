@@ -27,7 +27,7 @@ function collapse() {
 
 <template>
     <div
-        class="dark:border-zinc overflow-hidden rounded-lg border border-zinc-100 bg-white shadow dark:border-zinc-600 dark:bg-zinc-500"
+        class="dark:border-zinc overflow-hidden rounded-lg border border-zinc-100 bg-white shadow dark:border-slate-600 dark:bg-slate-600"
     >
         <div
             v-if="title || icon"
