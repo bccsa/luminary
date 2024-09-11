@@ -87,8 +87,8 @@ describe("RelatedContent", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("Post 1");
             expect(wrapper.html()).not.toContain("Post 2");
+            expect(wrapper.html()).not.toContain("Post 3");
         });
     });
 });
