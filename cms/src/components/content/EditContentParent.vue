@@ -148,7 +148,7 @@ const canEdit = computed(() => {
                 openImageDialog = false;
                 parent.imageId = $event;
             "
-            :selectedImageId="parent.imageId"
+            :contentImageId="parent.imageId"
         />
     </LDialog>
 </template>

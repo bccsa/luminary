@@ -11,7 +11,7 @@ import fallbackImg from "../../assets/fallback-image-cms.webp";
 type Props = {
     requiredGroupIds?: Uuid[];
     selectable?: boolean;
-    selectedImageId?: Uuid;
+    contentImageId?: Uuid;
 };
 const props = defineProps<Props>();
 
@@ -19,7 +19,7 @@ const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 const images = db.whereTypeAsRef<ImageDto[]>(DocType.Image, []);
 
 const newImage = async () => {
-    selectedImage.value = {
+    contentImage.value = {
         _id: db.uuid(),
         type: DocType.Image,
         name: "New Image",
@@ -30,7 +30,8 @@ const newImage = async () => {
     };
 };
 
-const selectedImage = ref<ImageDto>();
+const contentImage = ref<ImageDto>();
+const userSelectedImageId = ref<Uuid>();
 </script>
 
 <template>
@@ -49,10 +50,15 @@ const selectedImage = ref<ImageDto>();
                         v-for="image in images"
                         :key="image._id"
                         class="cursor-pointer overflow-hidden"
-                        @click="selectedImage = image"
+                        @click="
+                            contentImage = image;
+                            userSelectedImageId = image._id;
+                        "
                         :class="[
-                            selectedImageId == image._id ? 'border-zinc-500 bg-zinc-100' : '',
-                            'rounded-lg border-2 border-solid border-transparent  p-2',
+                            userSelectedImageId == image._id ? 'border-zinc-300 bg-zinc-100' : '',
+                            contentImageId == image._id ? 'border-orange-300 bg-orange-100' : '',
+
+                            'rounded-lg border-2 border-solid border-transparent p-2',
                         ]"
                     >
                         <LImage
@@ -63,9 +69,6 @@ const selectedImage = ref<ImageDto>();
                             class="rounded-lg shadow"
                             :base-url="baseUrl"
                             :fallback-img="fallbackImg"
-                            :class="[
-                                selectedImageId == image._id ? ' border-solid border-zinc-500' : '',
-                            ]"
                         />
                         <label>
                             <span class="text-sm">{{ image.name }}</span>
@@ -73,11 +76,11 @@ const selectedImage = ref<ImageDto>();
                     </div>
                 </div>
             </LCard>
-            <LCard class="w-80" v-if="selectedImage">
+            <LCard class="w-80" v-if="contentImage">
                 <ImageEditor
-                    :image="selectedImage"
+                    :image="contentImage"
                     :selectable="selectable"
-                    :key="selectedImage._id"
+                    :key="contentImage._id"
                     @selectImage="$emit('selectImage', $event as Uuid)"
                 />
             </LCard>
