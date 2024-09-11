@@ -19,7 +19,7 @@ const topicTags = computed(() => tags.value.filter((c: TagDto) => c.tagType === 
 <template>
     <IgnorePagePadding class="bg-zinc-100 pb-1 pt-3 dark:bg-zinc-900">
         <div v-if="topicTags.length">
-            <h1 class="px-3 pb-5 text-lg text-zinc-600 dark:text-zinc-200">Related Content</h1>
+            <h1 class="px-6 pb-5 text-lg text-zinc-600 dark:text-zinc-200">Related Content</h1>
             <div v-if="topicTags.length">
                 <div class="flex max-w-full flex-wrap">
                     <div class="max-w-full">
