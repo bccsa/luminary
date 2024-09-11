@@ -151,7 +151,7 @@ describe("SingleContent", () => {
         });
         await waitForExpect(() => {
             expect(wrapper.findComponent(RelatedContent).exists()).toBe(true);
-            expect(wrapper.findComponent(RelatedContent).props("tag")).toEqual([mockCategoryDto]);
+            expect(wrapper.findComponent(RelatedContent).props("tags")).toEqual([mockCategoryDto]);
         });
     });
 
