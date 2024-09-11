@@ -6,15 +6,14 @@ import { DocType, TagType, type TagDto, type Uuid } from "luminary-shared";
 import { computed, toRefs } from "vue";
 
 type Props = {
-    // rename tag to tags and contentId to currentContentId
-    tag: TagDto[];
-    contentId: Uuid;
+    tags: TagDto[];
+    currentContentId: Uuid;
 };
 const props = defineProps<Props>();
 
-const { tag } = toRefs(props);
+const { tags } = toRefs(props);
 
-const topicTags = computed(() => tag.value.filter((c: TagDto) => c.tagType === TagType.Topic));
+const topicTags = computed(() => tags.value.filter((c: TagDto) => c.tagType === TagType.Topic));
 </script>
 
 <template>
@@ -28,7 +27,7 @@ const topicTags = computed(() => tag.value.filter((c: TagDto) => c.tagType === T
                             v-for="tag in topicTags"
                             :key="tag._id"
                             :tag="tag"
-                            :currentPostId="contentId"
+                            :currentPostId="currentContentId"
                             :queryOptions="{
                                 filterOptions: { docType: DocType.Post },
                                 languageId: appLanguageIdAsRef,

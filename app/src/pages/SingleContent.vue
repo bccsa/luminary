@@ -185,6 +185,7 @@ function selectTag(parentId: Uuid) {
                     {{ tag.title }}
                 </span>
             </div>
+
             <div>
                 <VerticalTagViewer
                     v-for="tag in tagCategory.filter(
@@ -203,7 +204,7 @@ function selectTag(parentId: Uuid) {
 
     <RelatedContent
         v-if="content && tagCategory.length"
-        :contentId="content._id"
-        :tag="tagCategory"
+        :currentContentId="content._id"
+        :tags="tagCategory"
     />
 </template>

@@ -37,8 +37,8 @@ describe("RelatedContent", () => {
     it("doesn't display the current post in the related topic", async () => {
         const wrapper = mount(RelatedContent, {
             props: {
-                tag: [mockTopicDto],
-                contentId: mockEnglishContentDto._id,
+                tags: [mockTopicDto],
+                currentContentId: mockEnglishContentDto._id,
             },
         });
 
@@ -67,8 +67,8 @@ describe("RelatedContent", () => {
 
         const wrapper = mount(RelatedContent, {
             props: {
-                tag: [mockTopicDto],
-                contentId: "content-post3-eng",
+                tags: [mockTopicDto],
+                currentContentId: "content-post3-eng",
             },
         });
 
@@ -81,8 +81,8 @@ describe("RelatedContent", () => {
     it("doesn't display the related posts when there are none", async () => {
         const wrapper = mount(RelatedContent, {
             props: {
-                tag: [mockTopicDto],
-                contentId: mockEnglishContentDto._id,
+                tags: [mockTopicDto],
+                currentContentId: mockEnglishContentDto._id,
             },
         });
 
