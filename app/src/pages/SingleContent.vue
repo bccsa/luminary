@@ -11,7 +11,7 @@ import { useRouter } from "vue-router";
 import { appLanguageAsRef, appLanguageIdAsRef, appName } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
-import RelatedContent from "./RelatedContent.vue";
+import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 
@@ -57,7 +57,7 @@ watch(
             TagDto[]
         >;
 
-        tagCategory.value = (await tags).filter((t) => t.tagType == TagType.Category);
+        tagCategory.value = tags as unknown as TagDto[];
 
         // Reset selectedTag when content changes, set the first tag in the array
         const categoryTags = tagsContent.value.filter((t) => t.parentTagType == TagType.Category);
@@ -187,7 +187,9 @@ function selectTag(parentId: Uuid) {
             </div>
             <div>
                 <VerticalTagViewer
-                    v-for="tag in tagCategory.filter((t) => t._id == selectedTag)"
+                    v-for="tag in tagCategory.filter(
+                        (t) => t.tagType == TagType.Category && t._id == selectedTag,
+                    )"
                     :key="tag._id"
                     :tag="tag"
                     :queryOptions="{
@@ -199,5 +201,9 @@ function selectTag(parentId: Uuid) {
         </div>
     </div>
 
-    <RelatedContent v-if="content && content.parentTags" :tagIds="content.parentTags" />
+    <RelatedContent
+        v-if="content && tagCategory.length"
+        :contentId="content._id"
+        :tag="tagCategory"
+    />
 </template>
