@@ -170,7 +170,7 @@ describe("ContentOverview.vue", () => {
         });
     });
 
-    it.only("sends correct sort options to query options", async () => {
+    it("sends correct sort options to query options", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
