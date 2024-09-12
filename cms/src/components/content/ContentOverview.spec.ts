@@ -9,6 +9,7 @@ import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
+import ContentTable from "./ContentTable.vue";
 
 describe("ContentOverview.vue", () => {
     beforeEach(async () => {
@@ -149,6 +150,47 @@ describe("ContentOverview.vue", () => {
 
             const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
             expect(filterInputSelects.length).toBe(2);
+        });
+    });
+
+    it("should update query options from filter inputs correctly", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        const showFilterOptionsBtn = wrapper.find('[data-test="show-filter-options-btn"]');
+        await showFilterOptionsBtn.trigger("click");
+
+        const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
+
+        await waitForExpect(async () => {
+            const contentTable = wrapper.findComponent(ContentTable);
+
+            await filterInputSelects[0].setValue("translated");
+            expect(contentTable.props('queryOptions').translationStatus).toBe("translated");
+
+            await filterInputSelects[0].setValue("untranslated");
+            expect(contentTable.props('queryOptions').translationStatus).toBe("untranslated");
+
+            await filterInputSelects[0].setValue("all");
+            expect(contentTable.props('queryOptions').translationStatus).toBe("all");
+            
+            await filterInputSelects[1].setValue("published");
+            expect(contentTable.props('queryOptions').publishStatus).toBe("published");
+
+            await filterInputSelects[1].setValue("scheduled");
+            expect(contentTable.props('queryOptions').publishStatus).toBe("scheduled");
+
+            await filterInputSelects[1].setValue("expired");
+            expect(contentTable.props('queryOptions').publishStatus).toBe("expired");
+
+            await filterInputSelects[1].setValue("draft");
+            expect(contentTable.props('queryOptions').publishStatus).toBe("draft");
         });
     });
 
