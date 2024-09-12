@@ -222,6 +222,7 @@ onClickOutside(sortOptionsAsRef, () => {
                         <div class="flex flex-col gap-1">
                             <LButton
                                 class="flex justify-stretch"
+                                data-test="ascending-sort-toggle"
                                 :class="
                                     queryOptions.orderDirection == 'asc'
                                         ? 'bg-zinc-100'
@@ -233,6 +234,7 @@ onClickOutside(sortOptionsAsRef, () => {
                             >
                             <LButton
                                 class="flex justify-stretch"
+                                data-test="descending-sort-toggle"
                                 :class="
                                     queryOptions.orderDirection == 'desc'
                                         ? 'bg-zinc-100'

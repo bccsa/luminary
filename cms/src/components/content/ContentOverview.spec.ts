@@ -188,6 +188,9 @@ describe("ContentOverview.vue", () => {
         const sortOptionPublishDate = wrapper.find('[data-test="sort-option-publish-date"]');
         const sortOptionLastUpdated = wrapper.find('[data-test="sort-option-last-updated"]');
 
+        const sortOptionAscending = wrapper.find('[data-test="ascending-sort-toggle"]');
+        const sortOptionDescending = wrapper.find('[data-test="descending-sort-toggle"]');
+
         await waitForExpect(async () => {
             const contentTable = wrapper.findComponent(ContentTable);
 
@@ -202,6 +205,12 @@ describe("ContentOverview.vue", () => {
 
             await sortOptionLastUpdated.trigger("input");
             expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'updatedTimeUtc' });
+        
+            await sortOptionAscending.trigger("click");
+            expect(contentTable.props('queryOptions')).toMatchObject({ orderDirection: 'asc' });
+
+            await sortOptionDescending.trigger("click");
+            expect(contentTable.props('queryOptions')).toMatchObject({ orderDirection: 'desc' });
         });
     });
 
