@@ -196,25 +196,25 @@ onClickOutside(sortOptionsAsRef, () => {
                             <LRadio
                                 label="Title"
                                 value="title"
-                                v-model:model-value="selectedSortOption"
+                                v-model="selectedSortOption"
                                 data-test="sort-option-title"
                             />
                             <LRadio
                                 label="Expiry Date"
                                 value="expiryDate"
-                                v-model:model-value="selectedSortOption"
+                                v-model="selectedSortOption"
                                 data-test="sort-option-expiry-date"
                             />
                             <LRadio
                                 label="Publish Date"
                                 value="publishDate"
-                                v-model:model-value="selectedSortOption"
+                                v-model="selectedSortOption"
                                 data-test="sort-option-publish-date"
                             />
                             <LRadio
                                 label="Last Updated"
                                 value="updatedTimeUtc"
-                                v-model:model-value="selectedSortOption"
+                                v-model="selectedSortOption"
                                 data-test="sort-option-last-updated"
                             />
                         </div>
