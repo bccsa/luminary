@@ -66,7 +66,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>
 
 <template>
-    <div class="flex items-center justify-stretch gap-2" :style="$attrs['style'] as StyleValue">
+    <div class="flex items-center justify-stretch gap-2" :class="$attrs['class']"  :style="$attrs['style'] as StyleValue">
         <input
             type="radio"
             :name="name"
