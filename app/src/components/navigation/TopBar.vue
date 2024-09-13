@@ -30,8 +30,15 @@ const route = useRoute();
                         </div>
                     </div>
                 </RouterLink>
+                <div class="hidden w-2/3 lg:block">
+                    <RouterLink
+                        :to="{ name: 'topics' }"
+                        class="hidden hover:text-yellow-500 lg:block"
+                        >Topics</RouterLink
+                    >
+                </div>
 
-                <div>
+                <div class="flex items-center gap-4">
                     <ProfileMenu />
                 </div>
             </div>
