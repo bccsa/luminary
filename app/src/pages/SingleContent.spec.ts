@@ -13,6 +13,8 @@ import {
     mockLanguageDtoEng,
     mockCategoryDto,
     mockLanguageDtoSwa,
+    mockTopicContentDto,
+    mockTopicDto,
 } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
@@ -37,9 +39,13 @@ vi.mock("vue-router", async (importOriginal) => {
 
 describe("SingleContent", () => {
     beforeEach(() => {
+        appLanguageIdAsRef.value = mockLanguageDtoEng._id;
+
         db.docs.bulkPut([
             mockPostDto,
             mockCategoryDto,
+            mockTopicDto,
+            mockTopicContentDto,
             mockCategoryContentDto,
             mockEnglishContentDto,
             mockFrenchContentDto,
@@ -140,18 +146,18 @@ describe("SingleContent", () => {
     });
 
     it("displays related content based on parentTags", async () => {
-        const mockContent = {
-            ...mockEnglishContentDto,
+        await db.docs.update(mockEnglishContentDto._id, {
             parentTags: ["tag-category1", "tag-topicA"],
-        };
+        });
+
         const wrapper = mount(SingleContent, {
             props: {
-                slug: mockContent.slug,
+                slug: mockEnglishContentDto.slug,
             },
         });
         await waitForExpect(() => {
             expect(wrapper.findComponent(RelatedContent).exists()).toBe(true);
-            expect(wrapper.findComponent(RelatedContent).props("tags")).toEqual([mockCategoryDto]);
+            expect(wrapper.findComponent(RelatedContent).props("tags")).toEqual([mockTopicDto]);
         });
     });
 
