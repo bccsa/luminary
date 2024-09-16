@@ -90,7 +90,7 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
 
 const searchTerm = ref("");
 
-const sortOptionsAsRef = ref(null);
+const sortOptionsAsRef = ref(undefined);
 
 const showSortOptions = ref(false);
 
