@@ -51,7 +51,7 @@ type Props = {
     disabled?: boolean;
 };
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     context: "default",
     variant: "primary",
     size: "base",
