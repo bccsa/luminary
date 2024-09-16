@@ -103,6 +103,117 @@ describe("ContentOverview.vue", () => {
         });
     });
 
+    it("should display search input", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        await waitForExpect(() => {
+            const searchInput = wrapper.find('[data-test="search-input"]');
+            expect(searchInput.exists()).toBe(true);
+        });
+    });
+
+    it("correctly sends a search query to query options", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        const searchInput = wrapper.find('[data-test="search-input"]');
+
+        await searchInput.setValue("post 1");
+
+        await waitForExpect(() => {
+            const contentTable = wrapper.findComponent(ContentTable);
+
+            expect(contentTable.props('queryOptions')).toMatchObject({ search: 'post 1'});
+        });
+    });
+
+    it("should display sort options when sort-button is clicked", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        await waitForExpect(async () => {
+            const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
+            expect(sortToggleBtn.exists()).toBe(true);
+            await sortToggleBtn.trigger("click");
+
+            const sortOptionsDiv = wrapper.find('[data-test="sort-options-display"]');
+            expect(sortOptionsDiv.exists()).toBe(true);
+
+            const sortOptionTitle = wrapper.find('[data-test="sort-option-title"]');
+            const sortOptionExpiryDate = wrapper.find('[data-test="sort-option-expiry-date"]');
+            const sortOptionPublishDate = wrapper.find('[data-test="sort-option-publish-date"]');
+            const sortOptionLastUpdated = wrapper.find('[data-test="sort-option-last-updated"]');
+
+            expect(sortOptionTitle.exists()).toBe(true);
+            expect(sortOptionExpiryDate.exists()).toBe(true);
+            expect(sortOptionPublishDate.exists()).toBe(true);
+            expect(sortOptionLastUpdated.exists()).toBe(true);
+        });
+    });
+
+    it("sends correct sort options to query options", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
+        await sortToggleBtn.trigger("click");
+
+        const sortOptionTitle = wrapper.find('[data-test="sort-option-title"]');
+        const sortOptionExpiryDate = wrapper.find('[data-test="sort-option-expiry-date"]');
+        const sortOptionPublishDate = wrapper.find('[data-test="sort-option-publish-date"]');
+        const sortOptionLastUpdated = wrapper.find('[data-test="sort-option-last-updated"]');
+
+        const sortOptionAscending = wrapper.find('[data-test="ascending-sort-toggle"]');
+        const sortOptionDescending = wrapper.find('[data-test="descending-sort-toggle"]');
+
+        await waitForExpect(async () => {
+            const contentTable = wrapper.findComponent(ContentTable);
+
+            await sortOptionTitle.trigger("input");
+            expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'title' });
+
+            await sortOptionExpiryDate.trigger("input");
+            expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'expiryDate' });
+
+            await sortOptionPublishDate.trigger("input");
+            expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'publishDate' });
+
+            await sortOptionLastUpdated.trigger("input");
+            expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'updatedTimeUtc' });
+        
+            await sortOptionAscending.trigger("click");
+            expect(contentTable.props('queryOptions')).toMatchObject({ orderDirection: 'asc' });
+
+            await sortOptionDescending.trigger("click");
+            expect(contentTable.props('queryOptions')).toMatchObject({ orderDirection: 'desc' });
+        });
+    });
+
     it("can create content", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
