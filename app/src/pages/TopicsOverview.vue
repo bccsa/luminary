@@ -17,18 +17,18 @@ watchEffect(async () => {
 
 <template>
     <div>
-        <h1 class="mb-8 text-3xl font-medium leading-tight text-zinc-900 md:text-4xl">Topics</h1>
+        <h1 class="mb-8 text-3xl font-medium leading-tight md:text-4xl">Topics</h1>
     </div>
 
     <div class="flex flex-wrap gap-4">
         <div
-            class="h-32 w-full hover:bg-yellow-500 hover:shadow-md hover:shadow-yellow-500 sm:w-1/2 md:w-1/3 lg:w-1/4 xl:w-1/5"
+            class="h-32 w-full sm:w-1/2 md:w-1/3 lg:w-1/4 xl:w-1/5"
             v-for="topic in topicContent"
             :key="topic._id"
         >
             <RouterLink
                 :to="{ name: 'topic-detail', params: { id: topic.parentId } }"
-                class="avoid-inside hover:shadow-outline relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg p-2"
+                class="avoid-inside hover:shadow-outline relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg p-2 transition duration-500 hover:z-40 hover:scale-110"
             >
                 <img
                     :src="topic.parentImage"
