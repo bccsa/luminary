@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { DocType, db, type TagDto, type queryOptions as options } from "luminary-shared";
-import { ref, watch } from "vue";
+import { DocType, db, type TagDto, type Uuid, type queryOptions as options } from "luminary-shared";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -9,6 +9,7 @@ type Props = {
     title?: string;
     queryOptions: options;
     showPublishDate?: boolean;
+    currentPostId?: Uuid;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
@@ -20,6 +21,11 @@ const isContentSelected = (slug: string) => {
 };
 
 const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
+
+const currentContent = computed(() => {
+    return taggedDocs.value.filter((doc) => doc._id !== props.currentPostId);
+});
+
 const tagContent = props.tag
     ? db.whereParentAsRef(props.tag._id, DocType.Tag, props.queryOptions.languageId, [])
     : ref([]);
@@ -47,7 +53,7 @@ watch(tagContent, () => {
     <div>
         <div>
             <RouterLink
-                v-for="content in taggedDocs"
+                v-for="content in currentContent"
                 :key="content._id"
                 :to="{
                     name: 'content',
@@ -55,19 +61,16 @@ watch(tagContent, () => {
                 }"
             >
                 <div
-                    class="flex justify-between border-l-4 border-transparent bg-opacity-20 px-2 py-[2px] transition duration-200 hover:border-opacity-100 hover:bg-yellow-300 hover:bg-opacity-10"
+                    class="flex items-center justify-between border-l-4 border-transparent bg-opacity-20 px-2 py-1 transition duration-200 hover:border-opacity-100 hover:bg-yellow-300 hover:bg-opacity-10"
                     :class="{
                         ' border-l-4 border-yellow-500 bg-yellow-300 bg-opacity-10':
                             isContentSelected(content.slug),
                     }"
                 >
-                    <div class="ml-4 mt-1 w-2/3">
-                        <h1 class="text-[0.9rem]">
+                    <div class="ml-2 w-2/3">
+                        <h1 class="text-sm">
                             {{ content.title }}
                         </h1>
-                        <p class="text-[0.8rem]">
-                            {{ content.summary }}
-                        </p>
                     </div>
                     <div class="flex w-1/3 items-center justify-end lg:w-1/5">
                         <div class="relative overflow-hidden rounded">
