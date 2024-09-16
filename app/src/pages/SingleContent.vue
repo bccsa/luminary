@@ -27,6 +27,7 @@ const content = db.getBySlugAsRef<ContentDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
 const selectedTag = ref<Uuid | undefined>();
 const tagCategory = ref<TagDto[]>([]);
+const hasContent = ref(false);
 
 const isExpiredOrScheduled = computed(() => {
     if (!content.value) return false;
@@ -54,15 +55,17 @@ watch(
             content.value.language,
         );
 
+        const tagCategoryType = tagsContent.value.filter(
+            (t) => t.parentTagType == TagType.Category,
+        );
+
+        selectedTag.value = tagCategoryType[0]?.parentId;
+
         const tags = (await db.docs.bulkGet(content.value.parentTags)) as unknown as Promise<
             TagDto[]
         >;
 
         tagCategory.value = tags as unknown as TagDto[];
-
-        // Reset selectedTag when content changes, set the first tag in the array
-        const categoryTags = tagsContent.value.filter((t) => t.parentTagType == TagType.Category);
-        selectedTag.value = categoryTags.length > 0 ? categoryTags[0].parentId : undefined;
     },
     { immediate: true },
 );
@@ -108,6 +111,21 @@ const text = computed(() => {
 
     return generateHTML(text, [StarterKit, Link]);
 });
+
+// Function to fetch content based on tags
+async function contentForTagsCategories() {
+    const tagIds = tagCategory.value.filter((t) => t.tagType == TagType.Category).map((t) => t._id);
+    const contentPromises = tagIds.map((tagId) =>
+        db.contentWhereTag(tagId, { languageId: appLanguageIdAsRef.value }),
+    );
+
+    const contentDocs = (await Promise.all(contentPromises)).flat();
+
+    hasContent.value = contentDocs.length > 1 ? true : false;
+}
+
+// Watch for changes in tags and refetch content
+watch(tagCategory, contentForTagsCategories, { immediate: true });
 
 // Function to handle tag selection
 function selectTag(parentId: Uuid) {
@@ -165,7 +183,7 @@ function selectTag(parentId: Uuid) {
             ></div>
         </article>
 
-        <div class="h-full max-w-3xl py-2 lg:mt-0 lg:w-1/4">
+        <div v-if="hasContent" class="h-full max-w-3xl py-2 lg:mt-0 lg:w-1/4">
             <div
                 class="mb-5 flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
             >
@@ -202,6 +220,6 @@ function selectTag(parentId: Uuid) {
     <RelatedContent
         v-if="content && tagCategory.length"
         :currentContentId="content._id"
-        :tags="tagCategory"
+        :tags="tagCategory.filter((t) => t.tagType == TagType.Topic)"
     />
 </template>

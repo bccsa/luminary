@@ -2,8 +2,8 @@
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import { DocType, TagType, type TagDto, type Uuid } from "luminary-shared";
-import { computed, toRefs } from "vue";
+import { db, DocType, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
+import { ref, toRefs, watch } from "vue";
 
 type Props = {
     tags: TagDto[];
@@ -12,19 +12,31 @@ type Props = {
 const props = defineProps<Props>();
 
 const { tags } = toRefs(props);
+const content = ref<ContentDto[]>([]);
 
-const topicTags = computed(() => tags.value.filter((c: TagDto) => c.tagType === TagType.Topic));
+// Function to fetch content based on tags
+async function fetchContentForTags() {
+    const tagIds = tags.value.map((t: TagDto) => t._id);
+    const contentPromises = tagIds.map((tagId) =>
+        db.contentWhereTag(tagId, { languageId: appLanguageIdAsRef.value }),
+    );
+
+    content.value = (await Promise.all(contentPromises)).flat();
+}
+
+// Watch for changes in tags and refetch content
+watch(tags, fetchContentForTags, { immediate: true });
 </script>
 
 <template>
-    <IgnorePagePadding class="bg-zinc-100 pb-1 pt-3 dark:bg-zinc-900">
-        <div v-if="topicTags.length">
+    <IgnorePagePadding v-if="content.length > 1" class="bg-zinc-100 pb-1 pt-3 dark:bg-zinc-900">
+        <div>
             <h1 class="px-6 pb-5 text-lg text-zinc-600 dark:text-zinc-200">Related Content</h1>
-            <div v-if="topicTags.length">
+            <div>
                 <div class="flex max-w-full flex-wrap">
                     <div class="max-w-full">
                         <HorizontalScrollableTagViewer
-                            v-for="tag in topicTags"
+                            v-for="tag in tags"
                             :key="tag._id"
                             :tag="tag"
                             :currentPostId="currentContentId"
