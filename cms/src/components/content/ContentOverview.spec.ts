@@ -238,6 +238,73 @@ describe("ContentOverview.vue", () => {
         });
     });
 
+    it("should display filter options and inputs", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        await waitForExpect(async () => {
+            const showFilterOptionsBtn = wrapper.find('[data-test="show-filter-options-btn"]');
+            expect(showFilterOptionsBtn.exists()).toBe(true);
+            await showFilterOptionsBtn.trigger("click");
+
+            const filterOptions = wrapper.find('[data-test="filter-options"]');
+            expect(filterOptions.exists()).toBe(true);
+
+            const filterInputLabels = wrapper.findAll('[data-test="filter-label"]');
+            expect(filterInputLabels.length).toBe(2);
+
+            const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
+            expect(filterInputSelects.length).toBe(2);
+        });
+    });
+
+    it("should update query options from filter inputs correctly", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        const showFilterOptionsBtn = wrapper.find('[data-test="show-filter-options-btn"]');
+        await showFilterOptionsBtn.trigger("click");
+
+        const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
+
+        await waitForExpect(async () => {
+            const contentTable = wrapper.findComponent(ContentTable);
+
+            await filterInputSelects[0].setValue("translated");
+            expect(contentTable.props('queryOptions').translationStatus).toBe("translated");
+
+            await filterInputSelects[0].setValue("untranslated");
+            expect(contentTable.props('queryOptions').translationStatus).toBe("untranslated");
+
+            await filterInputSelects[0].setValue("all");
+            expect(contentTable.props('queryOptions').translationStatus).toBe("all");
+            
+            await filterInputSelects[1].setValue("published");
+            expect(contentTable.props('queryOptions').publishStatus).toBe("published");
+
+            await filterInputSelects[1].setValue("scheduled");
+            expect(contentTable.props('queryOptions').publishStatus).toBe("scheduled");
+
+            await filterInputSelects[1].setValue("expired");
+            expect(contentTable.props('queryOptions').publishStatus).toBe("expired");
+
+            await filterInputSelects[1].setValue("draft");
+            expect(contentTable.props('queryOptions').publishStatus).toBe("draft");
+        });
+    });
+
     it("should handle language switching correctly", async () => {
         const wrapper = mount(ContentOverview, {
             global: {

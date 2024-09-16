@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
-import { PlusIcon } from "@heroicons/vue/20/solid";
+import { PlusIcon, FunnelIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import {
     ArrowsUpDownIcon,
@@ -33,6 +33,7 @@ type Props = {
     docType: DocType.Post | DocType.Tag;
     tagType?: TagType;
 };
+
 const props = defineProps<Props>();
 
 const tagType = Object.entries(TagType).some((t) => t[1] == props.tagType)
@@ -88,6 +89,56 @@ if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString =
 const titleType = tagTypeString ? tagTypeString : props.docType;
 router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} overview`;
 
+const showFilterOptions = ref(false);
+
+const filterByTranslation = ref(queryOptions.value.translationStatus);
+const filterByTranslationOptions = [
+    {
+        value: "translated",
+        label: "Translated",
+    },
+    {
+        value: "untranslated",
+        label: "Untranslated",
+    },
+    {
+        value: "all",
+        label: "All",
+    },
+];
+
+const filterByStatus = ref(queryOptions.value.publishStatus);
+const filterByStatusOptions = [
+    {
+        value: "published",
+        label: "Published",
+    },
+    {
+        value: "scheduled",
+        label: "Scheduled",
+    },
+    {
+        value: "expired",
+        label: "Expired",
+    },
+    {
+        value: "draft",
+        label: "Draft",
+    },
+    {
+        value: "all",
+        label: "All",
+    },
+];
+
+watch(filterByTranslation, () => {
+    queryOptions.value.translationStatus = filterByTranslation.value;
+});
+
+watch(filterByStatus, () => {
+    queryOptions.value.publishStatus = filterByStatus.value;
+});
+
 const searchTerm = ref("");
 
 const sortOptionsAsRef = ref(undefined);
@@ -121,6 +172,11 @@ onClickOutside(sortOptionsAsRef, () => {
     <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
+                <LButton
+                    data-test="show-filter-options-btn"
+                    @click="showFilterOptions = !showFilterOptions"
+                    :icon="FunnelIcon"
+                ></LButton>
                 <LSelect
                     v-model="selectedLanguage"
                     :options="languageOptions"
@@ -146,6 +202,31 @@ onClickOutside(sortOptionsAsRef, () => {
                 </LButton>
             </div>
         </template>
+        <div
+            data-test="filter-options"
+            class="my-2 h-max rounded-md bg-white p-4 shadow-md"
+            v-if="showFilterOptions"
+        >
+            <div class="flex gap-5">
+                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label"
+                    >Translation
+                    <LSelect
+                        data-test="filter-select"
+                        v-model="filterByTranslation"
+                        :options="filterByTranslationOptions"
+                    />
+                </label>
+
+                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label">
+                    Status
+                    <LSelect
+                        data-test="filter-select"
+                        v-model="filterByStatus"
+                        :options="filterByStatusOptions"
+                    />
+                </label>
+            </div>
+        </div>
 
         <!-- TODO: Move empty state to ContentTable as the ContentOverview does not anymore know if there are content documents or not -->
         <!-- <EmptyState
