@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
-import { PlusIcon } from "@heroicons/vue/20/solid";
+import { PlusIcon, FunnelIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
+import {
+    ArrowsUpDownIcon,
+    ArrowUpIcon,
+    ArrowDownIcon,
+    MagnifyingGlassIcon,
+} from "@heroicons/vue/24/outline";
 import {
     db,
     AclPermission,
@@ -17,12 +23,17 @@ import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
+import { debouncedWatch, onClickOutside } from "@vueuse/core";
 import type { ContentOverviewQueryOptions } from "./query";
+import LInput from "../forms/LInput.vue";
+import { Menu } from "@headlessui/vue";
+import LRadio from "../forms/LRadio.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
     tagType?: TagType;
 };
+
 const props = defineProps<Props>();
 
 const tagType = Object.entries(TagType).some((t) => t[1] == props.tagType)
@@ -77,12 +88,95 @@ if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString =
 
 const titleType = tagTypeString ? tagTypeString : props.docType;
 router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} overview`;
+
+const showFilterOptions = ref(false);
+
+const filterByTranslation = ref(queryOptions.value.translationStatus);
+const filterByTranslationOptions = [
+    {
+        value: "translated",
+        label: "Translated",
+    },
+    {
+        value: "untranslated",
+        label: "Untranslated",
+    },
+    {
+        value: "all",
+        label: "All",
+    },
+];
+
+const filterByStatus = ref(queryOptions.value.publishStatus);
+const filterByStatusOptions = [
+    {
+        value: "published",
+        label: "Published",
+    },
+    {
+        value: "scheduled",
+        label: "Scheduled",
+    },
+    {
+        value: "expired",
+        label: "Expired",
+    },
+    {
+        value: "draft",
+        label: "Draft",
+    },
+    {
+        value: "all",
+        label: "All",
+    },
+];
+
+watch(filterByTranslation, () => {
+    queryOptions.value.translationStatus = filterByTranslation.value;
+});
+
+watch(filterByStatus, () => {
+    queryOptions.value.publishStatus = filterByStatus.value;
+});
+
+const searchTerm = ref("");
+
+const sortOptionsAsRef = ref(undefined);
+
+const showSortOptions = ref(false);
+
+const selectedSortOption = ref("updatedTimeUtc");
+
+debouncedWatch(
+    searchTerm,
+    () => {
+        queryOptions.value.search = searchTerm.value;
+    },
+    { debounce: 500 },
+);
+
+watch(selectedSortOption, () => {
+    queryOptions.value.orderBy = selectedSortOption.value as
+        | "title"
+        | "updatedTimeUtc"
+        | "publishDate"
+        | "expiryDate";
+});
+
+onClickOutside(sortOptionsAsRef, () => {
+    showSortOptions.value = false;
+});
 </script>
 
 <template>
     <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
+                <LButton
+                    data-test="show-filter-options-btn"
+                    @click="showFilterOptions = !showFilterOptions"
+                    :icon="FunnelIcon"
+                ></LButton>
                 <LSelect
                     v-model="selectedLanguage"
                     :options="languageOptions"
@@ -108,6 +202,31 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
                 </LButton>
             </div>
         </template>
+        <div
+            data-test="filter-options"
+            class="my-2 h-max rounded-md bg-white p-4 shadow-md"
+            v-if="showFilterOptions"
+        >
+            <div class="flex gap-5">
+                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label"
+                    >Translation
+                    <LSelect
+                        data-test="filter-select"
+                        v-model="filterByTranslation"
+                        :options="filterByTranslationOptions"
+                    />
+                </label>
+
+                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label">
+                    Status
+                    <LSelect
+                        data-test="filter-select"
+                        v-model="filterByStatus"
+                        :options="filterByStatusOptions"
+                    />
+                </label>
+            </div>
+        </div>
 
         <!-- TODO: Move empty state to ContentTable as the ContentOverview does not anymore know if there are content documents or not -->
         <!-- <EmptyState
@@ -131,6 +250,87 @@ router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} over
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
+        <div class="flex h-max w-full gap-2 rounded-t-md bg-white p-2 shadow-lg">
+            <LInput
+                type="text"
+                :icon="MagnifyingGlassIcon"
+                class="flex-grow"
+                name="search"
+                placeholder="Search..."
+                data-test="search-input"
+                v-model="searchTerm"
+            />
+
+            <div>
+                <div class="relative flex h-full gap-1">
+                    <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
+                        <ArrowsUpDownIcon class="h-full w-4" />
+                    </LButton>
+                    <Menu
+                        as="div"
+                        ref="sortOptionsAsRef"
+                        class="absolute right-0 top-full mt-2 h-max w-40 rounded-lg border border-gray-300 bg-white p-2 shadow-lg"
+                        v-if="showSortOptions"
+                        data-test="sort-options-display"
+                    >
+                        <div class="flex flex-col">
+                            <LRadio
+                                label="Title"
+                                value="title"
+                                v-model="selectedSortOption"
+                                data-test="sort-option-title"
+                            />
+                            <LRadio
+                                label="Expiry Date"
+                                value="expiryDate"
+                                v-model="selectedSortOption"
+                                data-test="sort-option-expiry-date"
+                            />
+                            <LRadio
+                                label="Publish Date"
+                                value="publishDate"
+                                v-model="selectedSortOption"
+                                data-test="sort-option-publish-date"
+                            />
+                            <LRadio
+                                label="Last Updated"
+                                value="updatedTimeUtc"
+                                v-model="selectedSortOption"
+                                data-test="sort-option-last-updated"
+                            />
+                        </div>
+                        <hr class="my-2" />
+                        <div class="flex flex-col gap-1">
+                            <LButton
+                                class="flex justify-stretch"
+                                data-test="ascending-sort-toggle"
+                                :class="
+                                    queryOptions.orderDirection == 'asc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                :icon="ArrowUpIcon"
+                                @click="queryOptions.orderDirection = 'asc'"
+                                >Ascending</LButton
+                            >
+                            <LButton
+                                class="flex justify-stretch"
+                                data-test="descending-sort-toggle"
+                                :class="
+                                    queryOptions.orderDirection == 'desc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                variant="secondary"
+                                :icon="ArrowDownIcon"
+                                @click="queryOptions.orderDirection = 'desc'"
+                                >Descending</LButton
+                            >
+                        </div>
+                    </Menu>
+                </div>
+            </div>
+        </div>
 
         <ContentTable
             v-if="selectedLanguage"
