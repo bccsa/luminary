@@ -8,7 +8,7 @@ import { isNotAuthenticatedGuard } from "@/guards/isNotAuthenticatedGuard";
 import SingleContent from "@/pages/SingleContent.vue";
 import { appName } from "@/globalConfig";
 import TopicsOverview from "@/pages/TopicsOverview.vue";
-import TopicsDetails from "@/pages/TopicsDetails.vue";
+import TopicDetail from "@/pages/TopicDetail.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -47,7 +47,7 @@ const router = createRouter({
         },
         {
             path: "/topics/:id",
-            component: TopicsDetails,
+            component: TopicDetail,
             name: "topic-detail",
             props: true,
         },

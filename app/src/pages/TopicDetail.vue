@@ -1,18 +1,23 @@
 <script setup lang="ts">
-import { toRefs } from "vue";
-import { db, DocType, type Uuid } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { ref, watchEffect } from "vue";
+import { db, DocType, type ContentDto, type Uuid } from "luminary-shared";
+import { appLanguageIdAsRef, appName } from "@/globalConfig";
 import { useRouter } from "vue-router";
 import ContentTile from "@/components/content/ContentTile.vue";
 
 const router = useRouter();
 
-const { id } = toRefs(router.currentRoute.value.params);
+const { id } = router.currentRoute.value.params;
 
-const parentTopic = db.whereParentAsRef(id.value as Uuid, DocType.Tag, appLanguageIdAsRef.value);
+const parentTopic = ref<ContentDto[]>([]);
 
-const relatedContent = db.contentWhereTagAsRef(id.value as Uuid, {
+const relatedContent = db.contentWhereTagAsRef(id as Uuid, {
     languageId: appLanguageIdAsRef.value,
+});
+
+watchEffect(async () => {
+    parentTopic.value = await db.whereParent(id, DocType.Tag, appLanguageIdAsRef.value);
+    document.title = `${parentTopic.value[0].title} - ${appName}`;
 });
 </script>
 
