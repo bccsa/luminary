@@ -71,6 +71,7 @@ export type ContentDto = ContentBaseDto & {
     parentType?: DocType;
     parentTags: Uuid[];
     parentImage?: string;
+    parentImageData?: ImageDto;
     parentTagType?: TagType;
     parentPublishDateVisible?: boolean;
 };
@@ -85,8 +86,8 @@ export type ContentMetadataDto = {
 };
 
 export type PostDto = ContentBaseDto & {
-    image: string;
-    imageId?: Uuid;
+    image?: string;
+    imageData?: ImageDto;
     tags: Uuid[];
     metadata?: ContentMetadataDto[];
     publishDateVisible: boolean;
@@ -103,9 +104,7 @@ export type GroupDto = BaseDocumentDto & {
     acl: GroupAclEntryDto[];
 };
 
-export type ImageDto = ContentBaseDto & {
-    name: string;
-    description: string;
+export type ImageDto = {
     fileCollections: ImageFileCollectionDto[];
     uploadData?: ImageUploadDto[];
 };
@@ -126,11 +125,6 @@ export type ImageUploadDto = {
     preset: string;
     filename?: string;
 };
-
-// export type CreateGroupDto = {
-//     name: string;
-//     acl?: GroupAclEntry[];
-// };
 
 export type ChangeReqDto = {
     id: number;
