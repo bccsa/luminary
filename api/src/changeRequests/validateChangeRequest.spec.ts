@@ -163,17 +163,20 @@ describe("validateChangeRequest", () => {
         const changeRequest = {
             id: 42,
             doc: {
-                _id: "image-test",
-                type: "image",
-                name: "Test Image",
+                _id: "post-post1",
+                type: "post",
                 memberOf: ["group-public-content"],
-                files: [],
-                uploadData: [
-                    {
-                        fileData: Buffer.from("some invalid data"),
-                        preset: "default",
-                    },
-                ],
+                tags: ["tag-category1", "tag-topicA"],
+                publishDateVisible: false,
+                imageData: {
+                    fileCollections: [],
+                    uploadData: [
+                        {
+                            fileData: Buffer.from("some invalid data"),
+                            preset: "default",
+                        },
+                    ],
+                },
             },
         };
 
@@ -187,24 +190,29 @@ describe("validateChangeRequest", () => {
         const changeRequest = {
             id: 42,
             doc: {
-                _id: "image-test",
-                type: "image",
-                name: "Test Image",
+                _id: "post-post1",
+                type: "post",
                 memberOf: ["group-public-content"],
-                fileCollections: [
-                    {
-                        aspectRatio: 1,
-                        imageFiles: [{ filename: "unique-file-name", width: 1000, height: 1000 }],
-                    },
-                ],
-                uploadData: [
-                    {
-                        fileData: fs.readFileSync(
-                            path.resolve(__dirname + "/../test/" + "testImage.jpg"),
-                        ),
-                        preset: "default",
-                    },
-                ],
+                tags: ["tag-category1", "tag-topicA"],
+                publishDateVisible: false,
+                imageData: {
+                    fileCollections: [
+                        {
+                            aspectRatio: 1,
+                            imageFiles: [
+                                { filename: "unique-file-name", width: 1000, height: 1000 },
+                            ],
+                        },
+                    ],
+                    uploadData: [
+                        {
+                            fileData: fs.readFileSync(
+                                path.resolve(__dirname + "/../test/" + "testImage.jpg"),
+                            ),
+                            preset: "default",
+                        },
+                    ],
+                },
             },
         };
 

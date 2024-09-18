@@ -24,7 +24,7 @@ export async function processChangeRequest(
         throw new Error(validationResult.error);
     }
 
-    let doc = validationResult.validatedData;
+    const doc = validationResult.validatedData;
 
     // Validate slug
     if (doc.type == DocType.Content) {
@@ -32,10 +32,10 @@ export async function processChangeRequest(
     }
 
     // Process image uploads
-    if (doc.type == DocType.Image) {
-        const prevDoc = await db.getDoc(doc._id);
-        doc = await processImage(doc, prevDoc.docs.length > 0 ? prevDoc.docs[0] : undefined, s3);
-    }
+    // if (doc.type == DocType.Image) {
+    //     const prevDoc = await db.getDoc(doc._id);
+    //     doc = await processImage(doc, prevDoc.docs.length > 0 ? prevDoc.docs[0] : undefined, s3);
+    // }
 
     // Copy essential properties from Post / Tag documents to Content documents
     if (doc.type == DocType.Content) {
@@ -57,6 +57,13 @@ export async function processChangeRequest(
     }
 
     if (doc.type == DocType.Post || doc.type == DocType.Tag) {
+        // Process image uploads
+        if ((doc as PostDto).imageData) {
+            const prevDoc = await db.getDoc(doc._id);
+            const prevImageData = prevDoc.docs.length > 0 ? prevDoc.docs[0].imageData : undefined;
+            await processImage(doc.imageData, prevImageData, s3);
+        }
+
         // Get content documents that are children of the Post / Tag document
         await db.getContentByParentId(doc._id).then((contentDocs) => {
             // Copy essential properties from the Post / Tag document to the child content document
