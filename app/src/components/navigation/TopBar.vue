@@ -2,6 +2,7 @@
 import { PlayCircleIcon, ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRoute, RouterLink } from "vue-router";
+import MainMenu from "./MainMenu.vue";
 
 const route = useRoute();
 </script>
@@ -30,13 +31,8 @@ const route = useRoute();
                         </div>
                     </div>
                 </RouterLink>
-                <div class="hidden w-2/3 lg:block">
-                    <RouterLink
-                        :to="{ name: 'topics' }"
-                        class="hidden hover:text-yellow-500 lg:block"
-                        >Topics</RouterLink
-                    >
-                </div>
+
+                <MainMenu class="hidden w-2/3 gap-2 lg:flex" />
 
                 <div class="flex items-center gap-4">
                     <ProfileMenu />
