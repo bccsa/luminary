@@ -14,7 +14,7 @@ const commonNavigation = computed(() => {
             action: () => router.push({ name: "home" }),
         },
         {
-            name: "Explorer",
+            name: "Explore",
             icon: BookOpenIcon,
             action: () => router.push({ name: "topics" }),
         },
