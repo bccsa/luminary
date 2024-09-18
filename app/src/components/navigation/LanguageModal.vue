@@ -22,11 +22,10 @@ const setLanguage = (language: LanguageDto) => {
 
 <template>
     <Dialog :open="isVisible" @close="emit('close')">
-        <!-- <div class="fixed inset-0 bg-gray-800 bg-opacity-50"></div> -->
         <div class="fixed inset-0 bg-slate-800 bg-opacity-50 backdrop-blur-sm"></div>
         <div class="fixed inset-0 flex items-center justify-center rounded-lg p-2">
             <DialogPanel
-                class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-600"
+                class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-700"
             >
                 <DialogTitle class="mb-4 text-lg font-semibold">Select Language</DialogTitle>
                 <div class="divide-y divide-gray-200 dark:divide-zinc-700">
