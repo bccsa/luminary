@@ -32,10 +32,10 @@ const commonNavigation = computed(() => {
             <div class="flex items-center justify-center gap-1">
                 <component
                     :is="item.icon"
-                    class="h-6 w-6 flex-shrink-0 text-zinc-800 dark:text-white"
+                    class="h-6 w-6 flex-shrink-0 text-zinc-400 dark:text-white"
                     aria-hidden="true"
                 />
-                <h1 class="font-bold">{{ item.name }}</h1>
+                <h1 class="">{{ item.name }}</h1>
             </div>
         </div>
     </div>
