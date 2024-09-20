@@ -40,8 +40,8 @@ onMounted(() => {
 
 <template>
     <Dialog :open="isVisible" @close="emit('close')">
-        <div class="fixed inset-0 bg-slate-800 bg-opacity-50 backdrop-blur-sm"></div>
-        <div class="fixed inset-0 flex items-center justify-center rounded-lg p-4">
+        <div class="fixed inset-0 z-50 bg-slate-800 bg-opacity-50 backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-4">
             <DialogPanel
                 class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-700"
             >

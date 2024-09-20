@@ -9,7 +9,7 @@ const route = useRoute();
 
 <template>
     <header>
-        <div class="z-40 bg-white drop-shadow dark:bg-slate-800">
+        <div class="z-40 bg-white drop-shadow dark:bg-slate-900">
             <div class="flex flex-row items-center justify-between space-x-8 px-6 py-5">
                 <RouterLink to="/" class="flex items-center">
                     <div

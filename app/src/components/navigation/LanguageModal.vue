@@ -22,8 +22,8 @@ const setLanguage = (language: LanguageDto) => {
 
 <template>
     <Dialog :open="isVisible" @close="emit('close')">
-        <div class="fixed inset-0 bg-slate-800 bg-opacity-50 backdrop-blur-sm"></div>
-        <div class="fixed inset-0 flex items-center justify-center rounded-lg p-2">
+        <div class="fixed inset-0 z-50 bg-slate-800 bg-opacity-50 backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">
             <DialogPanel
                 class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-700"
             >
@@ -39,7 +39,7 @@ const setLanguage = (language: LanguageDto) => {
                         <span class="text-sm">{{ language.name }}</span>
                         <CheckCircleIcon
                             v-if="appLanguageIdAsRef === language._id"
-                            class="ml-auto h-6 w-6 text-yellow-500"
+                            class="ml-auto h-6 w-6 text-yellow-300"
                             aria-hidden="true"
                         />
                     </button>
