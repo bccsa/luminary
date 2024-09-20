@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
+import { mount, RouterLinkStub } from "@vue/test-utils";
 
 import DesktopMenu from "./DesktopMenu.vue";
 import { setActivePinia } from "pinia";
