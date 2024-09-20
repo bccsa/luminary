@@ -32,7 +32,7 @@ describe("MainMenu", () => {
     it("navigates to the home page", () => {
         const wrapper = mount(MainMenu);
 
-        const homeMenu = wrapper.find("h1");
+        const homeMenu = wrapper.find("a");
 
         homeMenu.trigger("click");
 
