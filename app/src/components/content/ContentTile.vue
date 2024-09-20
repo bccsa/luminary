@@ -19,11 +19,15 @@ const openContent = () => {
 </script>
 
 <template>
-    <div
-        @click="openContent"
-        class="-m-2 cursor-pointer rounded-md p-2 hover:bg-zinc-50 active:bg-zinc-100 active:shadow-inner dark:hover:bg-zinc-500 dark:active:bg-zinc-400"
-    >
-        <img :src="content.parentImage" class="aspect-video rounded-lg object-cover shadow-md" />
+    <div @click="openContent" class="ease-out-expo group transition hover:brightness-[1.15]">
+        <div
+            class="avoid-inside ease-out-expo -m-2 cursor-pointer rounded-md p-2 transition-transform duration-500 active:shadow-inner group-hover:scale-[101%]"
+        >
+            <img
+                :src="content.parentImage"
+                class="aspect-video rounded-lg object-cover opacity-100 shadow-md"
+            />
+        </div>
         <h3 class="mt-2 text-sm text-zinc-800 dark:text-zinc-50">{{ content.title }}</h3>
         <div
             v-if="showPublishDate && content.parentPublishDateVisible"
