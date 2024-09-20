@@ -10,7 +10,7 @@ type Props = {
     title?: string;
     queryOptions: options;
     showPublishDate?: boolean;
-    currentPostId?: Uuid;
+    currentContentId?: Uuid;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
@@ -19,7 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
 const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
 
 const currentContent = computed(() => {
-    return taggedDocs.value.filter((doc) => doc._id !== props.currentPostId);
+    return taggedDocs.value.filter((doc) => doc._id !== props.currentContentId);
 });
 
 const tagContent = props.tag

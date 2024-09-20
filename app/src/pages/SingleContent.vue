@@ -211,7 +211,6 @@ function selectTag(parentId: Uuid) {
                     )"
                     :key="tag._id"
                     :tag="tag"
-                    :currentPostId="content._id"
                     :queryOptions="{
                         filterOptions: { docType: DocType.Post },
                         languageId: appLanguageIdAsRef,
