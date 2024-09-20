@@ -1,42 +1,35 @@
 <script setup lang="ts">
-import { BookOpenIcon, HomeIcon } from "@heroicons/vue/24/solid";
-
-import { computed } from "vue";
-import { useRouter } from "vue-router";
-
-const router = useRouter();
-
-const commonNavigation = computed(() => {
-    return [
-        {
-            name: "Home",
-            icon: HomeIcon,
-            action: () => router.push({ name: "home" }),
-        },
-        {
-            name: "Explore",
-            icon: BookOpenIcon,
-            action: () => router.push({ name: "topics" }),
-        },
-    ];
-});
+import { commonNavigation } from "./navigationItems";
 </script>
+
 <template>
-    <div>
-        <div
+    <nav>
+        <RouterLink
             v-for="item in commonNavigation"
             :key="item.name"
-            @click="item.action"
-            class="flex w-auto cursor-pointer rounded-md px-2 py-1 hover:bg-zinc-300 dark:hover:bg-zinc-600 lg:flex"
+            :to="item.to"
+            v-slot="{ isActive }"
+            class="flex w-auto cursor-pointer rounded-md px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-600 lg:flex"
         >
-            <div class="flex items-center justify-center gap-1">
+            <div class="flex items-center justify-center gap-1.5">
                 <component
-                    :is="item.icon"
-                    class="h-6 w-6 flex-shrink-0 text-zinc-400 dark:text-white"
+                    :is="isActive ? item.selectedIcon : item.defaultIcon"
+                    :class="[
+                        'h-6 w-6 flex-shrink-0 ',
+                        { 'text-zinc-400 dark:text-zinc-200': !isActive },
+                        { 'text-yellow-600 dark:text-yellow-400': isActive },
+                    ]"
                     aria-hidden="true"
                 />
-                <h1 class="">{{ item.name }}</h1>
+                <div
+                    :class="[
+                        { 'text-zinc-800 dark:text-zinc-100': !isActive },
+                        { 'text-yellow-700 dark:text-yellow-500': isActive },
+                    ]"
+                >
+                    {{ item.name }}
+                </div>
             </div>
-        </div>
-    </div>
+        </RouterLink>
+    </nav>
 </template>
