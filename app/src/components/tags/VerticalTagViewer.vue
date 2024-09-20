@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { DocType, db, type TagDto, type Uuid, type queryOptions as options } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { DocType, db, type TagDto, type queryOptions as options } from "luminary-shared";
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -9,7 +9,6 @@ type Props = {
     title?: string;
     queryOptions: options;
     showPublishDate?: boolean;
-    currentPostId?: Uuid;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
@@ -21,10 +20,6 @@ const isContentSelected = (slug: string) => {
 };
 
 const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
-
-const currentContent = computed(() => {
-    return taggedDocs.value.filter((doc) => doc._id !== props.currentPostId);
-});
 
 const tagContent = props.tag
     ? db.whereParentAsRef(props.tag._id, DocType.Tag, props.queryOptions.languageId, [])
@@ -53,7 +48,7 @@ watch(tagContent, () => {
     <div>
         <div>
             <RouterLink
-                v-for="content in currentContent"
+                v-for="content in taggedDocs"
                 :key="content._id"
                 :to="{
                     name: 'content',
