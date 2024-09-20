@@ -11,7 +11,7 @@ import { commonNavigation } from "./navigationItems";
             v-slot="{ isActive }"
             class="flex w-auto cursor-pointer rounded-md px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-600 lg:flex"
         >
-            <div class="flex items-center justify-center gap-1.5">
+            <span class="flex items-center justify-center gap-1.5">
                 <component
                     :is="isActive ? item.selectedIcon : item.defaultIcon"
                     :class="[
@@ -21,15 +21,15 @@ import { commonNavigation } from "./navigationItems";
                     ]"
                     aria-hidden="true"
                 />
-                <div
+                <span
                     :class="[
                         { 'text-zinc-800 dark:text-zinc-100': !isActive },
                         { 'text-yellow-700 dark:text-yellow-500': isActive },
                     ]"
                 >
                     {{ item.name }}
-                </div>
-            </div>
+                </span>
+            </span>
         </RouterLink>
     </nav>
 </template>
