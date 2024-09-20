@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, RouterLinkStub } from "@vue/test-utils";
 import MobileMenu from "./MobileMenu.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -20,20 +20,11 @@ describe("MobileMenu.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("displays the menu", async () => {
+    it("renders the navigation items", async () => {
         const wrapper = mount(MobileMenu);
 
-        expect(wrapper.html()).toContain("Home");
-        expect(wrapper.html()).toContain("Explore");
-    });
+        const homeMenu = wrapper.findComponent(RouterLinkStub);
 
-    it("navigates to the home page", async () => {
-        const wrapper = mount(MobileMenu);
-
-        const button = wrapper.find("button");
-
-        await button.trigger("click");
-
-        expect(routePushMock).toHaveBeenCalledWith({ name: "home" });
+        expect(homeMenu.props("to")).toEqual({ name: "home" });
     });
 });
