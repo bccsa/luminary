@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 
-import MainMenu from "./MainMenu.vue";
+import DesktopMenu from "./DesktopMenu.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
@@ -13,7 +13,7 @@ vi.mock("vue-router", () => ({
     })),
 }));
 
-describe("MainMenu", () => {
+describe("DesktopMenu", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
     });
@@ -23,7 +23,7 @@ describe("MainMenu", () => {
     });
 
     it("renders the navigation items", async () => {
-        const wrapper = mount(MainMenu);
+        const wrapper = mount(DesktopMenu);
 
         const homeMenu = wrapper.findComponent(RouterLinkStub);
 

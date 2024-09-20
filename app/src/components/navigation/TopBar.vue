@@ -2,7 +2,7 @@
 import { PlayCircleIcon, ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRoute, RouterLink } from "vue-router";
-import MainMenu from "./MainMenu.vue";
+import DesktopMenu from "./DesktopMenu.vue";
 
 const route = useRoute();
 </script>
@@ -32,7 +32,7 @@ const route = useRoute();
                     </div>
                 </RouterLink>
 
-                <MainMenu class="hidden w-2/3 gap-2 lg:flex" />
+                <DesktopMenu class="hidden w-2/3 gap-2 lg:flex" />
 
                 <div class="flex items-center gap-4">
                     <ProfileMenu />
