@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
 import { watch } from "vue";
 import BoldIcon from "./icons/BoldIcon.vue";
 import ItalicIcon from "./icons/ItalicIcon.vue";
@@ -21,6 +22,10 @@ const editor = useEditor({
             heading: {
                 levels: [2, 3, 4, 5, 6],
             },
+        }),
+        Link.configure({
+            autolink: true,
+            openOnClick: false,
         }),
     ],
     onUpdate: () => (text.value = JSON.stringify(editor.value?.getJSON())),
