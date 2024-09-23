@@ -16,10 +16,6 @@ watchEffect(async () => {
 </script>
 
 <template>
-    <div>
-        <h1 class="mb-8 text-3xl font-medium leading-tight md:text-4xl">Topics</h1>
-    </div>
-
     <div class="flex flex-wrap gap-4">
         <div
             class="ease-out-expo group aspect-video h-32 w-full transition hover:brightness-[1.15] sm:w-1/2 md:w-1/3 lg:w-1/4 xl:w-1/5"
