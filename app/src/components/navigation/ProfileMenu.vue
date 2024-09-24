@@ -81,7 +81,7 @@ const userNavigation = computed(() => {
             </div>
             <span class="hidden lg:flex lg:items-center">
                 <span
-                    class="ml-4 text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
+                    class="ml-4 whitespace-nowrap text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
                     aria-hidden="true"
                     v-if="isAuthenticated"
                     >{{ user?.name }}</span

@@ -15,7 +15,7 @@ const route = useRoute();
                     <div
                         class="mr-4 border-r border-zinc-400 pr-4"
                         :class="{
-                            hidden: route.name == 'home',
+                            hidden: route.name == 'home' || route.name == 'explore',
                             'lg:hidden': route.name != 'home',
                         }"
                     >
@@ -25,7 +25,7 @@ const route = useRoute();
                         class="flex items-center gap-2 text-xl hover:text-zinc-600 dark:hover:text-zinc-200"
                     >
                         <PlayCircleIcon class="h-8 w-8 text-yellow-500" />
-                        <div class="hidden items-center gap-1 min-[380px]:flex">
+                        <div class="hidden items-center gap-1 whitespace-nowrap min-[380px]:flex">
                             <span class="font-semibold">BCC Africa</span>
                             <span>App</span>
                         </div>

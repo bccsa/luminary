@@ -133,7 +133,7 @@ setTimeout(() => {
     <TopBar class="sticky top-0 z-40" />
     <NotificationBannerManager />
 
-    <main class="px-6 pt-4">
+    <main class="px-6 pb-[90px] pt-4">
         <RouterView />
     </main>
 
