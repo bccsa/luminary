@@ -142,7 +142,7 @@ const routeKey = computed(() => {
     <TopBar class="sticky top-0 z-40" />
     <NotificationBannerManager />
 
-    <main class="my-16 px-6 pt-4">
+    <main class="mb-16 px-6 pt-4">
         <RouterView v-slot="{ Component }">
             <component :is="Component" :key="routeKey" />
         </RouterView>
