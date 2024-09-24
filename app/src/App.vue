@@ -139,12 +139,14 @@ const routeKey = computed(() => {
 </script>
 
 <template>
-    <div class="fixed flex h-dvh w-full flex-col">
-        <TopBar class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50" />
-        <NotificationBannerManager />
-        <main class="flex-1 overflow-y-scroll px-6 py-4 dark:bg-slate-900">
-            <RouterView />
-        </main>
+    <TopBar class="sticky top-0 z-40" />
+    <NotificationBannerManager />
+
+    <main class="my-16 px-6 pt-4">
+        <RouterView v-slot="{ Component }">
+            <component :is="Component" :key="routeKey" />
+        </RouterView>
+    </main>
 
         <MobileMenu
             class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
