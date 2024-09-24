@@ -62,6 +62,7 @@ export async function processChangeRequest(
             const prevDoc = await db.getDoc(doc._id);
             const prevImageData = prevDoc.docs.length > 0 ? prevDoc.docs[0].imageData : undefined;
             await processImage(doc.imageData, prevImageData, s3);
+            delete doc.image; // Remove the legacy image field
         }
 
         // Get content documents that are children of the Post / Tag document
