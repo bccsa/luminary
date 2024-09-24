@@ -7,7 +7,7 @@ import ItalicIcon from "./icons/ItalicIcon.vue";
 import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
-// Install extension link from tiptap
+import Link from "@tiptap/extension-link";
 
 type Props = {
     disabled: boolean;
@@ -22,6 +22,9 @@ const editor = useEditor({
             heading: {
                 levels: [2, 3, 4, 5, 6],
             },
+        }),
+        Link.configure({
+            openOnClick: false,
         }),
     ],
     onUpdate: () => (text.value = JSON.stringify(editor.value?.getJSON())),
