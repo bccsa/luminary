@@ -38,11 +38,11 @@ const router = createRouter({
             beforeEnter: isNotAuthenticatedGuard,
         },
         {
-            path: "/topics",
+            path: "/explore",
             component: TopicsOverview,
-            name: "topics",
+            name: "explore",
             meta: {
-                title: "Topics",
+                title: "Explore",
             },
         },
         {

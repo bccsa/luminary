@@ -15,6 +15,6 @@ export const commonNavigation = [
         name: "Explore",
         defaultIcon: BookOpenIcon,
         selectedIcon: FilledBookOpenIcon,
-        to: { name: "topics" },
+        to: { name: "explore" },
     },
 ];
