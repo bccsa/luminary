@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentTile from "@/components/content/ContentTile.vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
 import { db, DocType, TagType, type ContentDto } from "luminary-shared";
 import { ref, watchEffect } from "vue";
@@ -17,7 +18,13 @@ watchEffect(async () => {
 
 <template>
     <div class="flex flex-wrap gap-4">
-        <div
+        <ContentTile
+            v-for="topic in topicContent"
+            :key="topic._id"
+            :content="topic"
+            class="w-40 overflow-clip md:w-60"
+        />
+        <!-- <div
             class="ease-out-expo group aspect-video h-32 w-full transition hover:brightness-[1.15] sm:w-1/2 md:w-1/3 lg:w-1/4 xl:w-1/5"
             v-for="topic in topicContent"
             :key="topic._id"
@@ -38,6 +45,6 @@ watchEffect(async () => {
                     {{ topic.title }}
                 </h6>
             </RouterLink>
-        </div>
+        </div> -->
     </div>
 </template>

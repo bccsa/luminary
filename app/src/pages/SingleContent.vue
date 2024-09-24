@@ -25,8 +25,8 @@ const props = defineProps<Props>();
 
 const content = db.getBySlugAsRef<ContentDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
-const selectedTag = ref<Uuid | undefined>();
-const tagCategory = ref<TagDto[]>([]);
+const selectedTagId = ref<Uuid | undefined>();
+const tags = ref<TagDto[]>([]);
 const hasContent = ref(false);
 
 const isExpiredOrScheduled = computed(() => {
@@ -48,24 +48,18 @@ watch(
 
         if (isExpiredOrScheduled.value) return;
 
-        // Fetch tags associated with the content
-        tagsContent.value = await db.whereParent(
-            content.value.parentTags,
-            DocType.Tag,
-            content.value.language,
-        );
+        const tagIds = content.value.parentTags.concat([content.value.parentId]); // Include this content's parent ID to include content tagged with the parent (if the parent is a tag document).
 
-        const tagCategoryType = tagsContent.value.filter(
+        // Fetch tags associated with the content
+        tagsContent.value = await db.whereParent(tagIds, DocType.Tag, content.value.language);
+
+        const categoryTagsContent = tagsContent.value.filter(
             (t) => t.parentTagType == TagType.Category,
         );
 
-        selectedTag.value = tagCategoryType[0]?.parentId;
+        selectedTagId.value = categoryTagsContent[0]?.parentId;
 
-        const tags = (await db.docs.bulkGet(content.value.parentTags)) as unknown as Promise<
-            TagDto[]
-        >;
-
-        tagCategory.value = tags as unknown as TagDto[];
+        tags.value = (await db.docs.bulkGet(tagIds)) as TagDto[];
     },
     { immediate: true },
 );
@@ -114,8 +108,8 @@ const text = computed(() => {
 
 // Function to fetch content based on tags
 async function contentForTagsCategories() {
-    const tagIds = tagCategory.value.filter((t) => t.tagType == TagType.Category).map((t) => t._id);
-    const contentPromises = tagIds.map((tagId) =>
+    const categoryTags = tags.value.filter((t) => t.tagType == TagType.Category).map((t) => t._id);
+    const contentPromises = categoryTags.map((tagId) =>
         db.contentWhereTag(tagId, { languageId: appLanguageIdAsRef.value }),
     );
 
@@ -125,23 +119,24 @@ async function contentForTagsCategories() {
 }
 
 // Watch for changes in tags and refetch content
-watch(tagCategory, contentForTagsCategories, { immediate: true });
+watch(tags, contentForTagsCategories, { immediate: true });
 
 // Function to handle tag selection
 function selectTag(parentId: Uuid) {
-    selectedTag.value = parentId; // Ensure the correct tag is selected
+    selectedTagId.value = parentId; // Ensure the correct tag is selected
     console.log(`Selected tagId: ${parentId}`);
 }
 </script>
 
 <template>
     <div class="hidden lg:block">
-        <RouterLink
-            to="/"
-            class="-mx-2 mb-1 inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
+        <div
+            @click="router.back()"
+            class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
         >
-            <ArrowLeftIcon class="h-4 w-4" /> Back
-        </RouterLink>
+            <ArrowLeftIcon class="h-4 w-4" />
+            Back
+        </div>
     </div>
 
     <div v-if="isLoading">
@@ -194,7 +189,7 @@ function selectTag(parentId: Uuid) {
                     :key="tag._id"
                     @click="selectTag(tag.parentId)"
                     class="me-2 flex cursor-pointer items-center justify-center rounded-t-sm px-1.5 py-1 text-sm hover:bg-yellow-100"
-                    :class="{ ' bg-yellow-400 text-black shadow': selectedTag == tag.parentId }"
+                    :class="{ ' bg-yellow-400 text-black shadow': selectedTagId == tag.parentId }"
                 >
                     {{ tag.title }}
                 </span>
@@ -202,8 +197,8 @@ function selectTag(parentId: Uuid) {
 
             <div>
                 <VerticalTagViewer
-                    v-for="tag in tagCategory.filter(
-                        (t) => t.tagType == TagType.Category && t._id == selectedTag,
+                    v-for="tag in tags.filter(
+                        (t) => t.tagType == TagType.Category && t._id == selectedTagId,
                     )"
                     :key="tag._id"
                     :tag="tag"
@@ -217,8 +212,8 @@ function selectTag(parentId: Uuid) {
     </div>
 
     <RelatedContent
-        v-if="content && tagCategory.length"
+        v-if="content && tags.length"
         :currentContentId="content._id"
-        :tags="tagCategory.filter((t) => t.tagType == TagType.Topic)"
+        :tags="tags.filter((t) => t.tagType == TagType.Topic)"
     />
 </template>
