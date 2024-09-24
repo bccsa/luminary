@@ -172,11 +172,6 @@ onClickOutside(sortOptionsAsRef, () => {
     <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
-                <LButton
-                    data-test="show-filter-options-btn"
-                    @click="showFilterOptions = !showFilterOptions"
-                    :icon="FunnelIcon"
-                ></LButton>
                 <LSelect
                     v-model="selectedLanguage"
                     :options="languageOptions"
@@ -263,6 +258,11 @@ onClickOutside(sortOptionsAsRef, () => {
 
             <div>
                 <div class="relative flex h-full gap-1">
+                    <LButton
+                        data-test="show-filter-options-btn"
+                        @click="showFilterOptions = !showFilterOptions"
+                        :icon="FunnelIcon"
+                    ></LButton>
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </LButton>
