@@ -7,6 +7,7 @@ import ItalicIcon from "./icons/ItalicIcon.vue";
 import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
+// Install extension link from tiptap
 
 type Props = {
     disabled: boolean;
