@@ -7,7 +7,7 @@ import LoginPage from "@/pages/LoginPage.vue";
 import { isNotAuthenticatedGuard } from "@/guards/isNotAuthenticatedGuard";
 import SingleContent from "@/pages/SingleContent.vue";
 import { appName } from "@/globalConfig";
-import TopicsOverview from "@/pages/TopicsOverview.vue";
+import ExplorePage from "@/pages/ExplorePage.vue";
 import TopicDetail from "@/pages/TopicDetail.vue";
 
 const router = createRouter({
@@ -39,7 +39,7 @@ const router = createRouter({
         },
         {
             path: "/explore",
-            component: TopicsOverview,
+            component: ExplorePage,
             name: "explore",
             meta: {
                 title: "Explore",
