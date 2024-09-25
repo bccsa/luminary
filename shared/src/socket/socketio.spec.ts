@@ -1,6 +1,5 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest";
-import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
 import { mockEnglishContentDto, mockPostDto } from "../tests/mockdata";
 import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
@@ -72,7 +71,7 @@ describe("socketio", () => {
         await db.localChanges.bulkPut([localChange1, localChange2]);
 
         // Check that the server should not receive the second localChange, but only the first
-        await wait(4000);
+        await wait(2000);
         expect(changeReq.id).not.toEqual(1235);
     });
 
