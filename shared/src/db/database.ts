@@ -505,13 +505,6 @@ class database extends Dexie {
     }
 
     /**
-     * Get all local changes as Vue Ref
-     */
-    getLocalChangesAsRef() {
-        return this.toRef<LocalChangeDto[]>(() => this.getLocalChanges(), []);
-    }
-
-    /**
      * Get all local changes
      */
     getLocalChanges() {
