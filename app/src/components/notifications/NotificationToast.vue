@@ -87,7 +87,7 @@ switch (props.notification.state) {
                                     ? removeNotification(notification.id)
                                     : (show = false)
                             "
-                            class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            class="inline-flex rounded-md text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                             data-test="toast"
                         >
                             <span class="sr-only">Close</span>

@@ -106,7 +106,7 @@ const text = computed(() => {
     <div class="hidden lg:block">
         <RouterLink
             to="/"
-            class="-mx-2 mb-1 inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
+            class="-mx-2 mb-1 inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
         >
             <ArrowLeftIcon class="h-4 w-4" /> Back
         </RouterLink>
@@ -122,18 +122,18 @@ const text = computed(() => {
         <VideoPlayer v-if="content.video" :content="content" />
         <img v-else :src="content.parentImage" class="w-full rounded-lg object-cover shadow-md" />
 
-        <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-zinc-50">
+        <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
             {{ content.title }}
         </h1>
 
         <div
-            class="mt-1 text-center text-sm text-zinc-500 dark:text-zinc-300"
+            class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"
             v-if="content.publishDate && content.parentPublishDateVisible"
         >
             {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
         </div>
 
-        <div class="mt-12 text-justify text-gray-800 dark:text-zinc-100" v-if="content.summary">
+        <div class="mt-12 text-justify text-gray-800 dark:text-slate-100" v-if="content.summary">
             {{ content.summary }}
         </div>
 
@@ -147,7 +147,7 @@ const text = computed(() => {
             class="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-500"
             v-if="content.parentTags.length > 0"
         >
-            <h3 class="mb-2 text-sm text-zinc-600 dark:text-zinc-200">Tags</h3>
+            <h3 class="mb-2 text-sm text-zinc-600 dark:text-slate-200">Tags</h3>
             <div class="flex gap-3">
                 <span
                     v-for="tag in tagsContent"

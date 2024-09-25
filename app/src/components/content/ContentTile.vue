@@ -28,10 +28,10 @@ const openContent = () => {
                 class="aspect-video rounded-lg object-cover opacity-100 shadow-md"
             />
         </div>
-        <h3 class="mt-2 text-sm text-zinc-800 dark:text-zinc-50">{{ content.title }}</h3>
+        <h3 class="mt-2 text-sm text-zinc-800 dark:text-slate-50">{{ content.title }}</h3>
         <div
             v-if="showPublishDate && content.parentPublishDateVisible"
-            class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-200"
+            class="mt-0.5 text-xs text-zinc-500 dark:text-slate-200"
         >
             {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
         </div>

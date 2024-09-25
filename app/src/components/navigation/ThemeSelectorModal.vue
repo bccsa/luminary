@@ -46,11 +46,11 @@ onMounted(() => {
                 class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-700"
             >
                 <DialogTitle class="mb-4 text-lg font-semibold">Select Theme</DialogTitle>
-                <div class="divide-y divide-gray-200 dark:divide-zinc-700">
+                <div class="divide-y divide-zinc-200 dark:divide-slate-600">
                     <button
                         v-for="theme in themes"
                         :key="theme"
-                        class="flex w-full cursor-pointer items-center p-3 hover:bg-gray-100 dark:hover:bg-slate-500"
+                        class="flex w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
                         @click="selectedTheme = theme"
                         data-test="switch-language-button"
                     >

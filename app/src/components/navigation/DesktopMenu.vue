@@ -16,14 +16,14 @@ import { commonNavigation } from "./navigationItems";
                     :is="isActive ? item.selectedIcon : item.defaultIcon"
                     :class="[
                         'h-6 w-6 flex-shrink-0 ',
-                        { 'text-zinc-400 dark:text-zinc-200': !isActive },
+                        { 'text-zinc-400 dark:text-slate-200': !isActive },
                         { 'text-yellow-600 dark:text-yellow-400': isActive },
                     ]"
                     aria-hidden="true"
                 />
                 <span
                     :class="[
-                        { 'text-zinc-800 dark:text-zinc-100': !isActive },
+                        { 'text-zinc-800 dark:text-slate-100': !isActive },
                         { 'text-yellow-700 dark:text-yellow-500': isActive },
                     ]"
                 >
