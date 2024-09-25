@@ -6,6 +6,7 @@ import { ImageUploadDto } from "../../dto/ImageUploadDto";
 import { S3Service } from "../../s3/s3.service";
 import { processChangeRequest } from "../../changeRequests/processChangeRequest";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
+import { GroupDto } from "src/dto/GroupDto";
 
 /**
  * Upgrade the database schema from version 2 to 3
@@ -15,6 +16,9 @@ export default async function (db: DbService, s3: S3Service) {
     const schemaVersion = await db.getSchemaVersion();
     if (schemaVersion == 2) {
         console.info("Upgrading database schema from version 2 to 3");
+        const groupQuery = await db.getGroups();
+        const groupIds = groupQuery.docs.map((group: GroupDto) => group._id);
+
         await db.processAllDocs(async (doc: any) => {
             if (!doc) {
                 return;
@@ -25,15 +29,18 @@ export default async function (db: DbService, s3: S3Service) {
             }
             if (doc.type && (doc.type == "post" || doc.type == "tag")) {
                 const d: PostDto | TagDto = doc;
-                if (d.imageData != undefined && d.image) {
+                if (!d.imageData && d.image) {
                     try {
                         const res = await fetch(d.image);
-                        const buffer = await res.arrayBuffer();
+                        const buffer = Buffer.from(await res.arrayBuffer());
                         d.imageData = new ImageDto();
-                        d.imageData.uploadData = [new ImageUploadDto()];
-                        d.imageData.uploadData[0].fileData = buffer;
+                        d.imageData.uploadData = [];
+                        d.imageData.uploadData.push({
+                            fileData: buffer,
+                            preset: "photo",
+                        } as ImageUploadDto);
                     } catch (e) {
-                        console.error(`Unable to download image: ${e}`);
+                        console.error(`Unable to download image ${d.image} for ${d._id}: ${e}`);
                     }
                 }
                 delete d.image;
@@ -46,12 +53,16 @@ export default async function (db: DbService, s3: S3Service) {
                     await processChangeRequest(
                         "Database schema upgrade from version 2 to 3",
                         changeReq,
-                        ["group-super-admins"],
+                        groupIds,
                         db,
                         s3,
                     );
                 } catch (e) {
-                    console.error(`Unable to process change request: ${e}`);
+                    let message = e.message;
+                    if (e.errors && e.errors.length > 0) {
+                        message += "\n" + e.errors.join("\n");
+                    }
+                    console.error(`Unable to process change request for ${d._id}. ${message}`);
                 }
             }
         });

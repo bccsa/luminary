@@ -10,7 +10,7 @@ export class ImageUploadDto {
     @IsNotEmpty()
     @IsImage()
     @Expose()
-    fileData?: ArrayBuffer;
+    fileData: ArrayBuffer;
 
     @IsString()
     @IsNotEmpty()

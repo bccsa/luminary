@@ -24,11 +24,11 @@ async function bootstrap() {
         process.exit(0);
     }
 
-    // Upgrade database schema if needed
-    await upgradeDbSchema(dbService, s3Service);
-
     // Initialize permission system
     await PermissionSystem.init(dbService);
+
+    // Upgrade database schema if needed
+    await upgradeDbSchema(dbService, s3Service);
 
     app.enableCors({
         origin: [
