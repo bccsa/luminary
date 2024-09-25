@@ -29,7 +29,7 @@ import { DateTime } from "luxon";
 
 describe("Database", () => {
     beforeAll(async () => {
-        initLuminaryShared({ cms: false });
+        initLuminaryShared({ cms: true });
     });
 
     beforeEach(async () => {
@@ -855,7 +855,7 @@ describe("Database", () => {
             },
             {
                 ...mockSwahiliContentDto,
-                expiryDate: expiredDate,
+                expiryDate: futureExpiredDate,
             },
             {
                 ...mockEnglishContentDto,
@@ -863,10 +863,14 @@ describe("Database", () => {
             },
         ];
 
+        await db.docs.clear();
         await db.docs.bulkPut(docs);
 
-        waitForExpect(async () => {
-            expect((await db.docs.toArray()).length).toHaveLength(1);
-        });
+        (await db.docs.toArray()).every((val) => console.log(val));
+
+        await (db as any).deleteExpired();
+
+        const remainingDocs = await db.docs.toArray();
+        expect(remainingDocs).toHaveLength(2);
     });
 });
