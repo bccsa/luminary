@@ -44,6 +44,7 @@ class Socketio {
         this.socket.on("connect", () => {
             isConnected.value = true;
             this.requestData();
+            this.processChangeReqLock = false; // reset process log on connection
         });
 
         this.socket.on("disconnect", () => {
@@ -65,13 +66,13 @@ class Socketio {
         // watch for local changes
         watch(
             [isConnected, this.localChanges],
-            async ([isConnected, localChanges]) => {
-                if (!localChanges) return;
-                if (localChanges.length == 0) return;
+            async () => {
+                if (!this.localChanges.value) return;
+                if (this.localChanges.value.length == 0) return;
                 if (this.processChangeReqLock) return;
-                if (!isConnected) return;
+                if (!isConnected.value) return;
 
-                this.pushLocalChange(localChanges[0]);
+                this.pushLocalChange(this.localChanges.value[0]);
             },
             { immediate: true },
         );
