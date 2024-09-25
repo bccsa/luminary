@@ -71,29 +71,29 @@ const userNavigation = computed(() => {
         <MenuButton class="-m-1.5 flex items-center p-1.5">
             <span class="sr-only">Open user menu</span>
             <img
-                class="h-8 w-8 rounded-full bg-zinc-50"
+                class="h-8 w-8 rounded-full bg-slate-50"
                 :src="user?.picture"
                 v-if="isAuthenticated && user?.picture"
                 alt=""
             />
             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300" v-else>
-                <UserIcon class="h-6 w-6 text-zinc-600 dark:text-zinc-100" />
+                <UserIcon class="h-6 w-6 text-zinc-600 dark:text-slate-100" />
             </div>
             <span class="hidden lg:flex lg:items-center">
                 <span
-                    class="ml-4 text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
+                    class="ml-4 whitespace-nowrap text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
                     aria-hidden="true"
                     v-if="isAuthenticated"
                     >{{ user?.name }}</span
                 >
                 <span
-                    class="ml-2 text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50"
+                    class="ml-2 text-sm font-semibold leading-6 text-zinc-900 dark:text-slate-50"
                     aria-hidden="true"
                     v-else
                     >Menu</span
                 >
                 <ChevronDownIcon
-                    class="h-5 w-5 text-zinc-400 dark:text-zinc-100"
+                    class="h-5 w-5 text-zinc-400 dark:text-slate-100"
                     aria-hidden="true"
                 />
             </span>
@@ -107,19 +107,19 @@ const userNavigation = computed(() => {
             leave-to-class="transform opacity-0 scale-95"
         >
             <MenuItems
-                class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-zinc-700"
+                class="absolute right-0 z-10 mb-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
             >
                 <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
                     <button
                         :class="[
-                            active ? 'bg-zinc-50 dark:bg-zinc-800' : '',
-                            'flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-zinc-500',
+                            active ? 'bg-zinc-50 dark:bg-slate-800' : '',
+                            'flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600',
                         ]"
                         @click="item.action"
                     >
                         <component
                             :is="item.icon"
-                            class="h-5 w-5 flex-shrink-0 text-zinc-500"
+                            class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
                             aria-hidden="true"
                         />
                         <div class="flex flex-col">

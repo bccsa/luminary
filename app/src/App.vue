@@ -11,6 +11,7 @@ import NotificationToastManager from "./components/notifications/NotificationToa
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
+import MobileMenu from "./components/navigation/MobileMenu.vue";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 
@@ -129,12 +130,17 @@ setTimeout(() => {
 </script>
 
 <template>
-    <TopBar class="sticky top-0 z-40" />
-    <NotificationBannerManager />
+    <div class="fixed flex h-screen w-full flex-col">
+        <TopBar class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50" />
+        <NotificationBannerManager />
+        <main class="flex-1 overflow-y-scroll px-6 py-4 dark:bg-slate-900">
+            <RouterView />
+        </main>
 
-    <main class="px-6 pt-4">
-        <RouterView />
-    </main>
+        <MobileMenu
+            class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
+        />
+    </div>
 
     <Teleport to="body">
         <NotificationToastManager />

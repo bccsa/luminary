@@ -27,7 +27,7 @@ function collapse() {
 
 <template>
     <div
-        class="dark:border-zinc overflow-hidden rounded-lg border border-zinc-100 bg-white shadow dark:border-zinc-600 dark:bg-zinc-500"
+        class="dark:border-zinc overflow-hidden rounded-lg border border-zinc-100 bg-white shadow dark:border-slate-800 dark:bg-slate-800"
     >
         <div
             v-if="title || icon"
@@ -41,21 +41,21 @@ function collapse() {
                 <component
                     v-if="icon"
                     :is="icon"
-                    class="h-4 w-4 text-zinc-600 dark:text-zinc-200"
+                    class="h-4 w-4 text-zinc-600 dark:text-slate-200"
                 />
-                <h3 class="text-lg font-semibold leading-6 text-zinc-900 dark:text-zinc-100">
+                <h3 class="text-lg font-semibold leading-6 text-zinc-900 dark:text-slate-100">
                     {{ title }}
                 </h3>
             </div>
             <button v-if="collapsible">
                 <ChevronDownIcon
                     v-if="collapsed"
-                    class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
+                    class="h-5 w-5 text-zinc-600 dark:text-slate-300"
                     title="Open card content"
                 />
                 <ChevronUpIcon
                     v-if="!collapsed"
-                    class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
+                    class="h-5 w-5 text-zinc-600 dark:text-slate-300"
                     title="Collapse card content"
                 />
             </button>
