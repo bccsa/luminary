@@ -117,7 +117,7 @@ watch(audioMode, (mode) => {
 </style>
 
 <template>
-    <div class="relative mb-2 rounded-lg bg-zinc-100 shadow-md dark:bg-zinc-800">
+    <div class="relative mb-2 rounded-lg bg-zinc-100 shadow-md dark:bg-slate-800">
         <div class="video-player">
             <video
                 playsinline

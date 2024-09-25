@@ -53,7 +53,7 @@ switch (props.notification.state) {
 <template>
     <div
         v-if="show && notification.type == 'toast'"
-        class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5"
+        class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-slate-700"
     >
         <component
             :is="notification.routerLink ? RouterLink : 'div'"
@@ -72,8 +72,10 @@ switch (props.notification.state) {
                         />
                     </div>
                     <div class="ml-3 w-0 flex-1 pt-0.5">
-                        <p class="text-sm font-medium text-zinc-900">{{ notification.title }}</p>
-                        <p class="mt-1 text-sm text-zinc-500">
+                        <p class="text-sm font-medium text-zinc-900 dark:text-white">
+                            {{ notification.title }}
+                        </p>
+                        <p class="mt-1 text-sm text-zinc-500 dark:text-white">
                             {{ notification.description }}
                         </p>
                     </div>
@@ -85,7 +87,7 @@ switch (props.notification.state) {
                                     ? removeNotification(notification.id)
                                     : (show = false)
                             "
-                            class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            class="inline-flex rounded-md text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                             data-test="toast"
                         >
                             <span class="sr-only">Close</span>

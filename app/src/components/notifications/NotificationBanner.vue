@@ -51,7 +51,7 @@ switch (props.notification.state) {
 </script>
 
 <template>
-    <div v-if="show" class="inset-x-0 top-0 z-50 text-zinc-900" :class="color">
+    <div v-if="show" class="inset-x-0 text-zinc-900" :class="color">
         <div class="flex items-center justify-between px-6 py-1">
             <component
                 :is="notification.routerLink ? RouterLink : 'div'"
