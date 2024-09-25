@@ -65,7 +65,7 @@ const upload = () => {
 
         parent.value.imageData.uploadData.push({
             filename: file.name,
-            preset: "Original",
+            preset: "photo",
             fileData,
         });
     };
