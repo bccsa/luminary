@@ -97,6 +97,8 @@ const text = computed(() => {
     }
 
     let parsedText;
+
+    // Only parse text with TipTap if it's JSON, otherwise we render it out as HTML
     try {
         parsedText = JSON.parse(content.value.text);
     } catch {
