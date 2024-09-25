@@ -26,8 +26,9 @@ export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
 class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
-    private localChanges = db.getLocalChangesAsRef();
+    private localChanges = ref<LocalChangeDto[]>();
     private isCms: boolean;
+    private processChangeReqLock: boolean = false;
 
     /**
      * Create a new socketio instance
@@ -43,6 +44,7 @@ class Socketio {
         this.socket.on("connect", () => {
             isConnected.value = true;
             this.requestData();
+            this.processChangeReqLock = false; // reset process log on connection
         });
 
         this.socket.on("disconnect", () => {
@@ -64,20 +66,21 @@ class Socketio {
         // watch for local changes
         watch(
             [isConnected, this.localChanges],
-            async ([isConnected, localChanges], [wasConnected]) => {
-                if (!localChanges || localChanges.length == 0) {
-                    return;
-                }
+            async () => {
+                if (!this.localChanges.value) return;
+                if (this.localChanges.value.length == 0) return;
+                if (this.processChangeReqLock) return;
+                if (!isConnected.value) return;
 
-                if (
-                    (isConnected && !wasConnected && localChanges.length > 0) ||
-                    (isConnected && localChanges.length == 1)
-                ) {
-                    this.pushLocalChange(localChanges[0]);
-                }
+                this.pushLocalChange(this.localChanges.value[0]);
             },
             { immediate: true },
         );
+
+        // update localChanges from DB
+        setInterval(async () => {
+            this.localChanges.value = await db.getLocalChanges();
+        }, 500);
     }
 
     /**
@@ -126,6 +129,7 @@ class Socketio {
      * Push a single local change to the api
      */
     private async pushLocalChange(localChange: LocalChangeDto) {
+        this.processChangeReqLock = true;
         if (this.retryTimeout) {
             clearTimeout(this.retryTimeout);
         }
@@ -143,11 +147,14 @@ class Socketio {
      */
     private async handleAck(ack: ChangeReqAckDto) {
         await db.applyLocalChangeAck(ack);
+        this.localChanges.value = await db.getLocalChanges();
 
         // Push the next local change to api
         clearTimeout(this.retryTimeout);
         if (this.localChanges.value.length > 1) {
             this.pushLocalChange(this.localChanges.value[0]);
+        } else {
+            this.processChangeReqLock = false;
         }
     }
 }

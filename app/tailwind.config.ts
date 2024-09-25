@@ -24,5 +24,6 @@ export default {
             },
         },
     },
+    // @ts-expect-error
     plugins: [twScrollbarHide, require("@tailwindcss/typography")],
 } satisfies Config;

@@ -22,7 +22,7 @@ withDefaults(defineProps<Props>(), {
 
 const variants = {
     primary:
-        "bg-yellow-300 ring-1 shadow-sm text-yellow-900 ring-yellow-400/60 hover:bg-yellow-400/90 active:bg-yellow-500/80 disabled:bg-yellow-200 disabled:text-yellow-500 disabled:ring-yellow-200",
+        "bg-yellow-500 ring-1 shadow-sm text-yellow-950 ring-yellow-600/60 hover:bg-yellow-400/90 active:bg-yellow-500/80 disabled:bg-yellow-200 disabled:text-yellow-500 disabled:ring-yellow-200",
     secondary:
         "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-100 active:bg-zinc-200/70 disabled:bg-zinc-100 disabled:text-zinc-500",
     tertiary:
