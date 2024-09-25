@@ -25,10 +25,11 @@ import {
 import { db } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
+import { DateTime } from "luxon";
 
 describe("Database", () => {
     beforeAll(async () => {
-        initLuminaryShared({ cms: true });
+        initLuminaryShared({ cms: false });
     });
 
     beforeEach(async () => {
@@ -836,40 +837,36 @@ describe("Database", () => {
             });
         });
     });
-    // it("deletes expired documents when not in cms-mode", async () => {
-    //     init({ cms: false });
+    it.only("deletes expired documents when not in cms-mode", async () => {
+        initLuminaryShared({ cms: false });
 
-    //     const now = DateTime.now();
-    //     const expiredDate = now.minus({ days: 5 }).toMillis();
-    //     const futureExpiredDate = now.plus({ days: 5 }).toMillis();
+        const now = DateTime.now();
+        const expiredDate = now.minus({ days: 5 }).toMillis();
+        const futureExpiredDate = now.plus({ days: 5 }).toMillis();
 
-    //     const docs: ContentDto[] = [
-    //         {
-    //             ...mockEnglishContentDto,
-    //             expiryDate: expiredDate,
-    //         },
-    //         {
-    //             ...mockFrenchContentDto,
-    //             expiryDate: expiredDate,
-    //         },
-    //         {
-    //             ...mockSwahiliContentDto,
-    //             expiryDate: expiredDate,
-    //         },
-    //         {
-    //             ...mockEnglishContentDto,
-    //             expiryDate: futureExpiredDate,
-    //         },
-    //     ];
+        const docs: ContentDto[] = [
+            {
+                ...mockEnglishContentDto,
+                expiryDate: expiredDate,
+            },
+            {
+                ...mockFrenchContentDto,
+                expiryDate: expiredDate,
+            },
+            {
+                ...mockSwahiliContentDto,
+                expiryDate: expiredDate,
+            },
+            {
+                ...mockEnglishContentDto,
+                expiryDate: futureExpiredDate,
+            },
+        ];
 
-    //     const mockDb = new database();
-    //     await mockDb.docs.clear();
-    //     await mockDb.bulkPut(docs);
+        await db.docs.bulkPut(docs);
 
-    //     await (mockDb as any).deleteExpired();
-
-    //     const remainingDocs = await mockDb.docs.toArray();
-    //     expect(config.getConfig()?.cms).toBe(false);
-    //     await expect(remainingDocs).toHaveLength(1);
-    // });
+        waitForExpect(async () => {
+            expect((await db.docs.toArray()).length).toHaveLength(1);
+        });
+    });
 });
