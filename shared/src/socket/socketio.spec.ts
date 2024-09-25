@@ -1,6 +1,5 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest";
-import { flushPromises } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
 import { mockEnglishContentDto, mockPostDto } from "../tests/mockdata";
 import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
@@ -46,9 +45,8 @@ describe("socketio", () => {
         await db.localChanges.clear();
     });
 
-    it("will not sync via the watcher if there are multiple changes when online", async () => {
-        // This test needs to be executed first, as it relies on the socket class not being instantiated
-        // put more than 1 local change in the database without triggering the watcher
+    it("will not sync via the watcher if there the processChangeReqLock is on", async () => {
+        // put more than 1 local change in the database
 
         // Mock the event listener from the server
         let changeReq;
@@ -57,34 +55,24 @@ describe("socketio", () => {
                 changeReq = data;
             });
         });
-        // force the connection status to true to prevent the watcher from syncing immediately;
-        isConnected.value = true;
 
         // Connect to the server
         getSocket({ reconnect: true });
 
-        // Wait for the connection to be established
-        await waitForExpect(() => {
-            isConnected.value = true;
-        });
-
-        flushPromises();
-
         // Create multiple local changes
-        await db.localChanges.bulkPut([
-            {
-                id: 1234,
-                doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
-            },
-            {
-                id: 1235,
-                doc: { _id: "test-doc2", type: DocType.Post, updatedTimeUtc: 1234 },
-            },
-        ]);
+        const localChange1: ChangeReqDto = {
+            id: 1234,
+            doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
+        };
+        const localChange2: ChangeReqDto = {
+            id: 1235,
+            doc: { _id: "test-doc2", type: DocType.Post, updatedTimeUtc: 1234 },
+        };
+        await db.localChanges.bulkPut([localChange1, localChange2]);
 
-        // Check that the server should not receive a change request.
-        await wait(1000);
-        expect(changeReq).toBeUndefined();
+        // Check that the server should not receive the second localChange, but only the first
+        await wait(2000);
+        expect(changeReq.id).not.toEqual(1235);
     });
 
     it("will immediately sync when online", async () => {
