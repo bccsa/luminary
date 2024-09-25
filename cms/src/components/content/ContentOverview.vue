@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
-import { PlusIcon, FunnelIcon } from "@heroicons/vue/20/solid";
+import { PlusIcon, LanguageIcon, CloudArrowUpIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import {
     ArrowsUpDownIcon,
@@ -50,14 +50,14 @@ const queryOptions = ref<ContentOverviewQueryOptions>({
     languageId: "",
     parentType: props.docType,
     tagType: tagType,
-    translationStatus: "all",
+    translationStatus: "translated",
     orderBy: "updatedTimeUtc",
     orderDirection: "desc",
     pageSize: 20,
     pageIndex: 0,
     tags: [],
     search: "",
-    publishStatus: "all",
+    publishStatus: "published",
 });
 
 const queryKey = computed(() => JSON.stringify(queryOptions.value));
@@ -197,32 +197,6 @@ onClickOutside(sortOptionsAsRef, () => {
                 </LButton>
             </div>
         </template>
-        <div
-            data-test="filter-options"
-            class="my-2 h-max rounded-md bg-white p-4 shadow-md"
-            v-if="showFilterOptions"
-        >
-            <div class="flex gap-5">
-                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label"
-                    >Translation
-                    <LSelect
-                        data-test="filter-select"
-                        v-model="filterByTranslation"
-                        :options="filterByTranslationOptions"
-                    />
-                </label>
-
-                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label">
-                    Status
-                    <LSelect
-                        data-test="filter-select"
-                        v-model="filterByStatus"
-                        :options="filterByStatusOptions"
-                    />
-                </label>
-            </div>
-        </div>
-
         <!-- TODO: Move empty state to ContentTable as the ContentOverview does not anymore know if there are content documents or not -->
         <!-- <EmptyState
             v-if="!contentParents || contentParents.length == 0"
@@ -258,11 +232,18 @@ onClickOutside(sortOptionsAsRef, () => {
 
             <div>
                 <div class="relative flex h-full gap-1">
-                    <LButton
-                        data-test="show-filter-options-btn"
-                        @click="showFilterOptions = !showFilterOptions"
-                        :icon="FunnelIcon"
-                    ></LButton>
+                    <LSelect
+                        data-test="filter-select"
+                        v-model="filterByTranslation"
+                        :options="filterByTranslationOptions"
+                        :icon="LanguageIcon"
+                    />
+                    <LSelect
+                        data-test="filter-select"
+                        v-model="filterByStatus"
+                        :options="filterByStatusOptions"
+                        :icon="CloudArrowUpIcon"
+                    />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </LButton>
