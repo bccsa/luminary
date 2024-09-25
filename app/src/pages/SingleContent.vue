@@ -11,6 +11,7 @@ import { useRouter } from "vue-router";
 import { appLanguageAsRef, appName } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
+import Link from "@tiptap/extension-link";
 
 const router = useRouter();
 
@@ -97,7 +98,7 @@ const text = computed(() => {
         return content.value.text;
     }
 
-    return generateHTML(text, [StarterKit]);
+    return generateHTML(text, [StarterKit, Link]);
 });
 </script>
 

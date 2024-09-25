@@ -18,9 +18,10 @@
     "dependencies": {
         "@auth0/auth0-vue": "^2.3.3",
         "@sentry/vue": "^7.110.1",
+        "@tiptap/extension-link": "^2.7.2",
         "@tiptap/pm": "^2.3.0",
-        "@tiptap/starter-kit": "^2.3.0",
-        "@tiptap/vue-3": "^2.3.0",
+        "@tiptap/starter-kit": "^2.7.2",
+        "@tiptap/vue-3": "^2.7.2",
         "@types/lodash.clonedeep": "^4.5.9",
         "@types/lodash.isequal": "^4.5.8",
         "@vueuse/core": "^10.9.0",
