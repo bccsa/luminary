@@ -837,7 +837,7 @@ describe("Database", () => {
             });
         });
     });
-    it.only("deletes expired documents when not in cms-mode", async () => {
+    it("deletes expired documents when not in cms-mode", async () => {
         initLuminaryShared({ cms: false });
 
         const now = DateTime.now();
