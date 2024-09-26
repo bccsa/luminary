@@ -217,7 +217,7 @@ onClickOutside(sortOptionsAsRef, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-        <div class="flex h-max w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
+        <div class="flex h-max w-full gap-2 rounded-t-md bg-white p-2 shadow-lg">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
