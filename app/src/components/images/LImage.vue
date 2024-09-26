@@ -16,6 +16,7 @@ const aspectRatios = {
     video: "aspect-video",
     square: "aspect-square",
     vertical: "aspect-[9/16]",
+    wide: "aspect-[18/9]",
 };
 
 // Rounded to two decimal places
@@ -23,6 +24,7 @@ const aspectRatioNumbers = {
     video: 1.78,
     square: 1,
     vertical: 0.56,
+    wide: 2,
 };
 
 const thumbnailSize: string = props.aspectRatio == "vertical" ? "w-40 md:w-60" : "h-40 md:h-60";

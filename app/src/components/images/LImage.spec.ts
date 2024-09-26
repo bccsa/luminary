@@ -4,12 +4,11 @@ import LImage from "./LImage.vue";
 import { describe, expect, it, vi } from "vitest";
 import { db } from "luminary-shared";
 import { ref } from "vue";
-import { mockImageDto } from "@/tests/mockdata";
+import { mockImageDto } from "../../tests/mockdata";
 import waitForExpect from "wait-for-expect";
 
 describe("LImage", () => {
     it("displays an image", async () => {
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
         const wrapper = mount(LImage, {
             propsData: {
                 image: mockImageDto,
