@@ -50,14 +50,14 @@ const queryOptions = ref<ContentOverviewQueryOptions>({
     languageId: "",
     parentType: props.docType,
     tagType: tagType,
-    translationStatus: "translated",
+    translationStatus: "all",
     orderBy: "updatedTimeUtc",
     orderDirection: "desc",
     pageSize: 20,
     pageIndex: 0,
     tags: [],
     search: "",
-    publishStatus: "published",
+    publishStatus: "all",
 });
 
 const queryKey = computed(() => JSON.stringify(queryOptions.value));
@@ -88,8 +88,6 @@ if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString =
 
 const titleType = tagTypeString ? tagTypeString : props.docType;
 router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} overview`;
-
-const showFilterOptions = ref(false);
 
 const filterByTranslation = ref(queryOptions.value.translationStatus);
 const filterByTranslationOptions = [
@@ -169,7 +167,7 @@ onClickOutside(sortOptionsAsRef, () => {
 </script>
 
 <template>
-    <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
+    <BasePage :is-full-width="true" :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
                 <LSelect
@@ -219,11 +217,11 @@ onClickOutside(sortOptionsAsRef, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-        <div class="flex h-max w-full gap-2 rounded-t-md bg-white p-2 shadow-lg">
+        <div class="flex h-max w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
-                class="flex-grow"
+                class="mt-[2px] flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
