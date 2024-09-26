@@ -50,18 +50,7 @@ const canEdit = computed(() => {
         collapsible
         v-if="parent"
     >
-        <div class="mb-6 overflow-hidden rounded-lg shadow">
-            <ImageEditor :disabled="!canEdit" v-model:parent="parent" />
-
-            <div v-if="parent.image && !parent.imageData" class="relative">
-                <p
-                    class="absolute left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] rounded-lg bg-zinc-100 p-1 text-center text-gray-400 opacity-50"
-                >
-                    Legacy image
-                </p>
-                <img :src="parent.image" />
-            </div>
-        </div>
+        <ImageEditor :disabled="!canEdit" v-model:parent="parent" />
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"

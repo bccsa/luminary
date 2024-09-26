@@ -53,8 +53,8 @@ describe("EditContentParent.vue", () => {
         expect(toggle.props("modelValue")).toBe(false);
     });
 
-    it("test the image input", async () => {
-        const parent = ref<TagDto>({ ...mockData.mockCategoryDto, image: "image.png" });
+    it("can display an image thumbnail", async () => {
+        const parent = ref<TagDto>({ ...mockData.mockCategoryDto });
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Tag,
@@ -62,12 +62,7 @@ describe("EditContentParent.vue", () => {
             },
         });
 
-        // Check if the input image field is rendered
-        const imageInput = wrapper.find("input[name='parent.image']");
-        expect(imageInput.exists()).toBe(true);
-
-        imageInput.setValue("https://example.com/new-image.png");
-        expect(parent.value.image).toBe("https://example.com/new-image.png");
+        expect(wrapper.html()).toContain("test-image.webp");
     });
 
     it("test to see if Category and selected tags are displayed", async () => {
@@ -97,9 +92,9 @@ describe("EditContentParent.vue", () => {
             },
         });
 
-        // Check if the image input field is not disabled
-        const imageInput = wrapper.find("input[name='parent.image']");
-        expect(imageInput.attributes().disabled).toBeUndefined();
+        // Check if the "show publish date" toggle is not disabled
+        const toggle = wrapper.findComponent({ name: "LToggle" });
+        expect(toggle.props().disabled).toBeFalsy();
     });
 
     it("disables the post editing components when the user does not have access to one of the groups", async () => {
@@ -115,8 +110,8 @@ describe("EditContentParent.vue", () => {
             },
         });
 
-        // Check if the image input field is not disabled
-        const imageInput = wrapper.find("input[name='parent.image']");
-        expect(imageInput.attributes().disabled).toBeDefined();
+        // Check if the "show publish date" toggle is disabled
+        const toggle = wrapper.findComponent({ name: "LToggle" });
+        expect(toggle.props().disabled).toBeTruthy();
     });
 });

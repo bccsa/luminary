@@ -1,10 +1,9 @@
 import "fake-indexeddb/auto";
-import { DOMWrapper, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import ImageEditor from "./ImageEditor.vue";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { db, accessMap } from "luminary-shared";
-import { mockImageDto, superAdminAccessMap } from "@/tests/mockdata";
-import { ref } from "vue";
+import { accessMap } from "luminary-shared";
+import { mockPostDto, superAdminAccessMap } from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -36,40 +35,15 @@ describe("ImageEditor", () => {
     });
 
     it("can render an image document", async () => {
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
+        // vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
 
         const wrapper = mount(ImageEditor, {
-            props: { image: mockImageDto },
+            props: { parent: mockPostDto, disabled: false },
         });
-
-        const imageNameInput = wrapper.find(
-            "input[data-test='image-name']",
-        ) as DOMWrapper<HTMLInputElement>;
-        expect(imageNameInput.element.value).toBe(mockImageDto.name);
-
-        const imageDescriptionInput = wrapper.find(
-            "textarea[data-test='image-description']",
-        ) as DOMWrapper<HTMLTextAreaElement>;
-        expect(imageDescriptionInput.element.value).toBe(mockImageDto.description);
 
         const imageFiles = wrapper.find("div[data-test='thumbnail-area']");
-        expect(imageFiles.html()).toContain(mockImageDto.fileCollections[0].imageFiles[0].filename);
-    });
-
-    it("can save an image document", async () => {
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
-        const spyOn_upsert = vi.spyOn(db, "upsert");
-
-        const wrapper = mount(ImageEditor, {
-            props: { image: mockImageDto },
-        });
-
-        const nameInput = wrapper.find("input[data-test='image-name']");
-        await nameInput.setValue("New Name");
-
-        await wrapper.vm.$nextTick();
-        wrapper.find("[data-test='save-button']").trigger("click");
-
-        expect(spyOn_upsert).toHaveBeenCalled();
+        expect(imageFiles.html()).toContain(
+            mockPostDto.imageData!.fileCollections[0].imageFiles[0].filename,
+        );
     });
 });

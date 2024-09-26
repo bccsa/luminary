@@ -86,7 +86,6 @@ export type ContentMetadataDto = {
 };
 
 export type PostDto = ContentBaseDto & {
-    image?: string;
     imageData?: ImageDto;
     tags: Uuid[];
     metadata?: ContentMetadataDto[];
