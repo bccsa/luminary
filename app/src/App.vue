@@ -130,7 +130,7 @@ setTimeout(() => {
 </script>
 
 <template>
-    <div class="fixed flex h-screen w-full flex-col">
+    <div class="fixed flex h-dvh w-full flex-col">
         <TopBar class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50" />
         <NotificationBannerManager />
         <main class="flex-1 overflow-y-scroll px-6 py-4 dark:bg-slate-900">
