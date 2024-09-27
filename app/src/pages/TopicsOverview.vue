@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import LImage from "@/components/images/LImage.vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
 import { db, DocType, TagType, type ContentDto } from "luminary-shared";
 import { ref, watchEffect } from "vue";
