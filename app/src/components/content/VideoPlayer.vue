@@ -63,7 +63,7 @@ onMounted(() => {
 
     player = videojs(playerElement.value!, options);
 
-    player.poster(px);
+    player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
     player.src({ type: "application/x-mpegURL", src: props.content.video });
 
     // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
