@@ -866,8 +866,6 @@ describe("Database", () => {
         await db.docs.clear();
         await db.docs.bulkPut(docs);
 
-        (await db.docs.toArray()).every((val) => console.log(val));
-
         await (db as any).deleteExpired();
 
         const remainingDocs = await db.docs.toArray();
