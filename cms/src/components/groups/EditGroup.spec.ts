@@ -286,7 +286,7 @@ describe("EditGroup.vue", () => {
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         // Group=Public Editors, DocType=Post, Permission=View  -  Clearing this should clear all the permissions, and cause the ACL entry to be deleted
-        await wrapper.findAll('[data-test="permissionCell"]')[18].trigger("click");
+        await wrapper.findAll('[data-test="permissionCell"]')[12].trigger("click");
         await wrapper.find(saveChangesButton).trigger("click");
 
         await waitForExpect(async () => {
