@@ -30,7 +30,7 @@ vi.mock("video.js", () => {
 
 describe("VideoPlayer", () => {
     it("renders the poster image", async () => {
-        mount(VideoPlayer, {
+        const wrapper = mount(VideoPlayer, {
             props: {
                 content: mockEnglishContentDto,
             },
@@ -39,6 +39,12 @@ describe("VideoPlayer", () => {
         expect(srcMock).toHaveBeenCalledWith(
             expect.objectContaining({ src: mockEnglishContentDto.video }),
         );
-        expect(posterMock).toHaveBeenCalledWith(mockEnglishContentDto.parentImage);
+
+        // Check that the default poster image is set to a transparent pixel
+        expect(posterMock).toHaveBeenCalledWith("/src/components/content/px.png");
+
+        expect(wrapper.html()).toContain(
+            mockEnglishContentDto.parentImageData?.fileCollections[0].imageFiles[0].filename,
+        );
     });
 });

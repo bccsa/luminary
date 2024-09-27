@@ -105,7 +105,20 @@ export const mockEnglishContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockFrenchContentDto: ContentDto = {
@@ -128,7 +141,20 @@ export const mockFrenchContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockSwahiliContentDto: ContentDto = {
@@ -151,7 +177,20 @@ export const mockSwahiliContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockCategoryContentDto: ContentDto = {
@@ -169,7 +208,20 @@ export const mockCategoryContentDto: ContentDto = {
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 
@@ -188,7 +240,20 @@ export const mockTopicContentDto: ContentDto = {
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 
