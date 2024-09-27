@@ -31,12 +31,6 @@ export async function processChangeRequest(
         doc.slug = await validateSlug(doc.slug, doc._id, db);
     }
 
-    // Process image uploads
-    // if (doc.type == DocType.Image) {
-    //     const prevDoc = await db.getDoc(doc._id);
-    //     doc = await processImage(doc, prevDoc.docs.length > 0 ? prevDoc.docs[0] : undefined, s3);
-    // }
-
     // Copy essential properties from Post / Tag documents to Content documents
     if (doc.type == DocType.Content) {
         const parentQuery = await db.getDoc(doc.parentId);
@@ -47,7 +41,7 @@ export async function processChangeRequest(
             const contentDoc = doc as ContentDto;
             contentDoc.memberOf = parentDoc.memberOf;
             contentDoc.parentTags = parentDoc.tags;
-            contentDoc.parentImage = parentDoc.image;
+            contentDoc.parentImageData = parentDoc.imageData;
 
             if (parentDoc.type == DocType.Tag) {
                 contentDoc.parentTagType = (parentDoc as TagDto).tagType;
@@ -71,7 +65,7 @@ export async function processChangeRequest(
             contentDocs.docs.forEach(async (contentDoc: ContentDto) => {
                 contentDoc.memberOf = doc.memberOf;
                 contentDoc.parentTags = doc.tags;
-                contentDoc.parentImage = doc.image;
+                contentDoc.parentImageData = doc.imageData;
 
                 if (doc.type == DocType.Tag) {
                     contentDoc.parentTagType = (doc as TagDto).tagType;

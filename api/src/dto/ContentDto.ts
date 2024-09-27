@@ -111,7 +111,7 @@ export class ContentDto extends _contentBaseDto {
 
     @IsOptional() // Optional as it is set upon change request processing. No need to validate the field as it is set by the system.
     @Expose()
-    parentImageData?: ImageDto[];
+    parentImageData?: ImageDto;
 
     @IsOptional() // Optional as it is set upon change request processing. Included for backward compatibility.
     @IsString()
