@@ -70,25 +70,14 @@ export type ContentDto = ContentBaseDto & {
     text?: string;
     parentType?: DocType;
     parentTags: Uuid[];
-    parentImage?: string;
     parentImageData?: ImageDto;
     parentTagType?: TagType;
     parentPublishDateVisible?: boolean;
 };
 
-export type ContentMetadataDto = {
-    contentId: Uuid;
-    languageId: Uuid;
-    title: string;
-    status: PublishStatus;
-    publishDate?: number;
-    expiryDate?: number;
-};
-
 export type PostDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
-    metadata?: ContentMetadataDto[];
     publishDateVisible: boolean;
 };
 

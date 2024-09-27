@@ -105,7 +105,20 @@ export const mockEnglishContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockFrenchContentDto: ContentDto = {
@@ -128,7 +141,20 @@ export const mockFrenchContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockSwahiliContentDto: ContentDto = {
@@ -151,7 +177,20 @@ export const mockSwahiliContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockCategoryContentDto: ContentDto = {
@@ -169,7 +208,20 @@ export const mockCategoryContentDto: ContentDto = {
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: false,
 };
 
@@ -188,7 +240,20 @@ export const mockTopicContentDto: ContentDto = {
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: false,
 };
 
@@ -538,12 +603,6 @@ export const superAdminAccessMap = {
             publish: true,
             assign: true,
         },
-        image: {
-            view: true,
-            create: true,
-            edit: true,
-            assign: true,
-        },
     },
     "group-public-content": {
         post: {
@@ -574,12 +633,6 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
-            assign: true,
-        },
-        image: {
-            view: true,
-            create: true,
-            edit: true,
             assign: true,
         },
     },
@@ -614,12 +667,6 @@ export const superAdminAccessMap = {
             publish: true,
             assign: true,
         },
-        image: {
-            view: true,
-            create: true,
-            edit: true,
-            assign: true,
-        },
     },
     "group-public-editors": {
         post: {
@@ -650,12 +697,6 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
-            assign: true,
-        },
-        image: {
-            view: true,
-            create: true,
-            edit: true,
             assign: true,
         },
     },
@@ -690,12 +731,6 @@ export const superAdminAccessMap = {
             publish: true,
             assign: true,
         },
-        image: {
-            view: true,
-            create: true,
-            edit: true,
-            assign: true,
-        },
     },
     "group-public-users": {
         post: {
@@ -728,12 +763,6 @@ export const superAdminAccessMap = {
             publish: true,
             assign: true,
         },
-        image: {
-            view: true,
-            create: true,
-            edit: true,
-            assign: true,
-        },
     },
     "group-languages": {
         post: {
@@ -764,12 +793,6 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
-        },
-        image: {
-            view: true,
-            create: true,
-            edit: true,
-            assign: true,
         },
     },
 };

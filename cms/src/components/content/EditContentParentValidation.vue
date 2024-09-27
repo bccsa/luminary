@@ -103,7 +103,8 @@ watch(
             () =>
                 newParent.imageData != undefined &&
                 (newParent.imageData.fileCollections.length > 0 ||
-                    newParent.imageData.uploadData?.length > 0),
+                    (Array.isArray(newParent.imageData.uploadData) &&
+                        newParent.imageData.uploadData?.length > 0)),
         );
 
         validate(
