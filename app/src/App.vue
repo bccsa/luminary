@@ -139,7 +139,7 @@ const routeKey = computed(() => {
 </script>
 
 <template>
-    <div class="fixed flex h-screen w-full flex-col">
+    <div class="fixed flex h-dvh w-full flex-col">
         <TopBar class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50" />
         <NotificationBannerManager />
 
