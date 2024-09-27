@@ -10,7 +10,7 @@ import { GroupDto } from "src/dto/GroupDto";
 
 /**
  * Upgrade the database schema from version 2 to 3
- * Add publishDateVisible field to PostDto and TagDto documents
+ * Update image field to imageData field in PostDto and TagDto documents and upload images to S3
  */
 export default async function (db: DbService, s3: S3Service) {
     const schemaVersion = await db.getSchemaVersion();
