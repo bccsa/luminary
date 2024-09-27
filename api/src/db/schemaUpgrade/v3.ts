@@ -29,8 +29,10 @@ export default async function (db: DbService, s3: S3Service) {
             }
             if (doc.type && (doc.type == "post" || doc.type == "tag")) {
                 const d: PostDto | TagDto = doc;
+                // @ts-expect-error - image is not defined in the dto, but it might still be in the database
                 if (!d.imageData && d.image) {
                     try {
+                        // @ts-expect-error - image is not defined in the dto, but it might still be in the database
                         const res = await fetch(d.image);
                         const buffer = Buffer.from(await res.arrayBuffer());
                         d.imageData = new ImageDto();
@@ -40,9 +42,11 @@ export default async function (db: DbService, s3: S3Service) {
                             preset: "photo",
                         } as ImageUploadDto);
                     } catch (e) {
+                        // @ts-expect-error - image is not defined in the dto, but it might still be in the database
                         console.error(`Unable to download image ${d.image} for ${d._id}: ${e}`);
                     }
                 }
+                // @ts-expect-error - image is not defined in the dto, but it might still be in the database
                 delete d.image;
 
                 const changeReq = new ChangeReqDto();
