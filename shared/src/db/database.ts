@@ -18,8 +18,9 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { config } from "../config";
 
-export type queryOptions = {
+export type QueryOptions = {
     filterOptions?: {
         /**
          * Only return top level tags (i.e. tags that are not tagged with other tags of the same tag type).
@@ -60,7 +61,7 @@ export type queryOptions = {
     languageId?: Uuid;
 };
 
-class database extends Dexie {
+class Database extends Dexie {
     // TODO: Make tables private
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
@@ -74,6 +75,8 @@ class database extends Dexie {
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language], title",
             localChanges: "++id, reqId, docId, status",
         });
+
+        this.deleteExpired();
 
         // Listen for changes to the access map and delete documents that the user no longer has access to
         watch(
@@ -256,7 +259,7 @@ class database extends Dexie {
     /**
      * Get all tags of a certain tag type
      */
-    async tagsWhereTagType(tagType: TagType, options?: queryOptions): Promise<TagDto[]> {
+    async tagsWhereTagType(tagType: TagType, options?: QueryOptions): Promise<TagDto[]> {
         if (!options?.languageId) {
             console.error("Language ID is required");
             return [];
@@ -349,14 +352,14 @@ class database extends Dexie {
     /**
      * Get all tags of a certain tag type as Vue Ref
      */
-    tagsWhereTagTypeAsRef(tagType: TagType, options?: queryOptions) {
+    tagsWhereTagTypeAsRef(tagType: TagType, options?: QueryOptions) {
         return this.toRef<TagDto[]>(() => this.tagsWhereTagType(tagType, options), []);
     }
 
     /**
      * Get all content documents that are tagged with the passed tag ID. If no tagId is passed, return all posts and tags.
      */
-    async contentWhereTag(tagId?: Uuid, options?: queryOptions) {
+    async contentWhereTag(tagId?: Uuid, options?: QueryOptions) {
         if (options?.filterOptions?.topLevelOnly) {
             console.error("Top level only filter is not applicable to content queries");
             return [];
@@ -425,7 +428,7 @@ class database extends Dexie {
     /**
      * Get all posts and tags that are tagged with the passed tag ID as Vue Ref
      */
-    contentWhereTagAsRef(tagId?: Uuid, options?: queryOptions) {
+    contentWhereTagAsRef(tagId?: Uuid, options?: QueryOptions) {
         return this.toRef<ContentDto[]>(() => this.contentWhereTag(tagId, options), []);
     }
 
@@ -608,6 +611,25 @@ class database extends Dexie {
             });
     }
 
+    private async deleteExpired() {
+        if (config.cms) {
+            return;
+        }
+
+        const contentDocs = await this.docs.where("type").equals(DocType.Content).toArray();
+        const expiredDocs = contentDocs.filter((doc) => {
+            const contentDoc = doc as ContentDto;
+            const expiryDate = contentDoc.expiryDate;
+
+            if (expiryDate && expiryDate <= DateTime.now().toMillis()) return true;
+            return false;
+        });
+
+        if (expiredDocs.length > 0) {
+            await this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
+        }
+    }
+
     /**
      * Purge the local database
      */
@@ -617,5 +639,8 @@ class database extends Dexie {
     }
 }
 
-// Export a single instance of the database
-export const db = new database();
+export let db: Database;
+
+export function initDatabase() {
+    db = new Database();
+}
