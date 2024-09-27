@@ -18,9 +18,6 @@ import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import ImageEditor from "../images/ImageEditor.vue";
 
-// Remove from env?
-// const baseUrl = import.meta.env.VITE_CLIENT_IMAGES_URL;
-
 type Props = {
     docType: DocType;
     language?: LanguageDto;

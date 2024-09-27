@@ -12,6 +12,7 @@ import { appLanguageAsRef, appName } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import Link from "@tiptap/extension-link";
+import LImage from "@/components/images/LImage.vue";
 
 const router = useRouter();
 
@@ -120,7 +121,13 @@ const text = computed(() => {
 
     <article v-else class="mx-auto mb-12 max-w-3xl">
         <VideoPlayer v-if="content.video" :content="content" />
-        <img v-else :src="content.parentImage" class="w-full rounded-lg object-cover shadow-md" />
+        <LImage
+            v-else-if="content.parentImageData"
+            :image="content.parentImageData"
+            aspectRatio="video"
+            size="post"
+            fallbackImg="/img/fallback.jpg"
+        />
 
         <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
             {{ content.title }}

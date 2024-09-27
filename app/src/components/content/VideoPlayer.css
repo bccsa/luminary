@@ -1,5 +1,9 @@
+.video-js {
+    @apply !bg-transparent;
+}
+
 .video-player {
-    @apply aspect-video;
+    @apply aspect-video !bg-transparent;
 }
 
 .video-player .vjs-tech {

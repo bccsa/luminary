@@ -8,9 +8,10 @@ const props = defineProps<{
     image: ImageDto;
     aspectRatio: keyof typeof aspectRatios;
     size: keyof typeof sizes;
-    baseUrl: string;
     fallbackImg: string;
 }>();
+
+const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
 const aspectRatios = {
     video: "aspect-video",
@@ -27,9 +28,8 @@ const aspectRatioNumbers = {
     wide: 2,
 };
 
-const thumbnailSize: string = props.aspectRatio == "vertical" ? "w-40 md:w-60" : "h-40 md:h-60";
 const sizes = {
-    thumbnail: thumbnailSize,
+    thumbnail: "w-36 md:w-52",
     post: "w-full",
 };
 
@@ -67,7 +67,7 @@ const srcset1 = computed(() => {
         .filter((collection) => collection.aspectRatio == closestAspectRatio)
         .map((collection) => {
             return collection.imageFiles
-                .map((f) => `${props.baseUrl}/${f.filename} ${f.width}w`)
+                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
                 .join(", ");
         })
         .join(", ");
@@ -81,7 +81,7 @@ const srcset2 = computed(() => {
         .filter((collection) => collection.aspectRatio != closestAspectRatio)
         .map((collection) => {
             return collection.imageFiles
-                .map((f) => `${props.baseUrl}/${f.filename} ${f.width}w`)
+                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
                 .join(", ");
         })
         .join(", ");
@@ -95,41 +95,43 @@ const showImageElement2 = computed(() => !imageElement2Error.value && srcset2.va
 </script>
 
 <template>
-    <div
-        :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
-        :class="[
-            aspectRatios[aspectRatio],
-            sizes[size],
-            'overflow-clip bg-cover bg-center object-cover object-center',
-        ]"
-    >
-        <img
-            v-if="showImageElement1"
-            src=""
-            :srcset="srcset1"
+    <div :class="sizes[size]">
+        <div
+            :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
                 aspectRatios[aspectRatio],
-                sizes[size],
-                'bg-cover bg-center object-cover object-center',
+                'w-full overflow-clip rounded-lg bg-cover bg-center object-cover shadow',
             ]"
-            alt=""
-            data-test="image-element1"
-            loading="lazy"
-            @onerror="imageElement1Error = true"
-        />
-        <img
-            v-if="showImageElement2"
-            src=""
-            :srcset="srcset2"
-            :class="[
-                aspectRatios[aspectRatio],
-                sizes[size],
-                'bg-cover bg-center object-cover object-center',
-            ]"
-            alt=""
-            data-test="image-element2"
-            loading="lazy"
-            @onerror="imageElement2Error = true"
-        />
+        >
+            <img
+                v-if="showImageElement1"
+                src=""
+                :srcset="srcset1"
+                :class="[
+                    aspectRatios[aspectRatio],
+                    sizes[size],
+                    'bg-cover bg-center object-cover object-center',
+                ]"
+                alt=""
+                data-test="image-element1"
+                loading="lazy"
+                @onerror="imageElement1Error = true"
+            />
+            <img
+                v-if="showImageElement2"
+                src=""
+                :srcset="srcset2"
+                :class="[
+                    aspectRatios[aspectRatio],
+                    sizes[size],
+                    'bg-cover bg-center object-cover object-center',
+                ]"
+                alt=""
+                data-test="image-element2"
+                loading="lazy"
+                @onerror="imageElement2Error = true"
+            />
+        </div>
+        <slot></slot>
     </div>
 </template>

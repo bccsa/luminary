@@ -5,6 +5,8 @@ import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import type Player from "video.js/dist/types/player";
 import type { ContentDto } from "luminary-shared";
+import px from "./px.png";
+import LImage from "../images/LImage.vue";
 
 type Props = {
     content: ContentDto;
@@ -61,7 +63,7 @@ onMounted(() => {
 
     player = videojs(playerElement.value!, options);
 
-    player.poster(props.content.parentImage);
+    player.poster(px);
     player.src({ type: "application/x-mpegURL", src: props.content.video });
 
     // @ts-expect-error 2024-04-12 Workaround to get type checking to pass as we are not getting the mobileUi types import to work
@@ -117,8 +119,16 @@ watch(audioMode, (mode) => {
 </style>
 
 <template>
-    <div class="relative mb-2 rounded-lg bg-zinc-100 shadow-md dark:bg-slate-800">
-        <div class="video-player">
+    <div class="relative mb-2 rounded-lg bg-transparent">
+        <LImage
+            v-if="content.parentImageData"
+            :image="content.parentImageData"
+            aspectRatio="video"
+            size="post"
+            fallbackImg="/img/fallback.jpg"
+        />
+
+        <div class="video-player absolute bottom-0 left-0 right-0 top-0">
             <video
                 playsinline
                 ref="playerElement"
