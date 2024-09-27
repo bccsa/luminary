@@ -126,7 +126,6 @@ const text = computed(() => {
             :image="content.parentImageData"
             aspectRatio="video"
             size="post"
-            fallbackImg="/img/fallback.jpg"
         />
 
         <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">

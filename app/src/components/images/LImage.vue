@@ -3,12 +3,12 @@
 
 import { computed, ref } from "vue";
 import { type ImageDto } from "luminary-shared";
+import fallbackImg from "../../assets/fallbackImage.webp";
 
 const props = defineProps<{
     image: ImageDto;
     aspectRatio: keyof typeof aspectRatios;
     size: keyof typeof sizes;
-    fallbackImg: string;
 }>();
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
@@ -91,7 +91,9 @@ const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
 const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.value != "");
-const showImageElement2 = computed(() => !imageElement2Error.value && srcset2.value != "");
+const showImageElement2 = computed(
+    () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
+);
 </script>
 
 <template>
@@ -115,7 +117,7 @@ const showImageElement2 = computed(() => !imageElement2Error.value && srcset2.va
                 alt=""
                 data-test="image-element1"
                 loading="lazy"
-                @onerror="imageElement1Error = true"
+                @error="imageElement1Error = true"
             />
             <img
                 v-if="showImageElement2"
@@ -129,7 +131,7 @@ const showImageElement2 = computed(() => !imageElement2Error.value && srcset2.va
                 alt=""
                 data-test="image-element2"
                 loading="lazy"
-                @onerror="imageElement2Error = true"
+                @error="imageElement2Error = true"
             />
         </div>
         <slot></slot>

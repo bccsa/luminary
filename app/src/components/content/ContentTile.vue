@@ -29,7 +29,6 @@ const openContent = () => {
                 :image="content.parentImageData"
                 aspectRatio="video"
                 size="thumbnail"
-                fallbackImg="/img/fallback.jpg"
             >
                 <div class="w-full">
                     <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
