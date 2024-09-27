@@ -47,7 +47,7 @@ const canEdit = computed(() => {
         collapsible
         v-if="parent"
     >
-        <ImageEditor :disabled="!canEdit" v-model:parent="parent" />
+        <ImageEditor :disabled="!canEdit" v-model:parent="parent" class="mb-4" />
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"
