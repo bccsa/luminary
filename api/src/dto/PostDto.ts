@@ -9,11 +9,6 @@ import { ImageDto } from "./ImageDto";
  */
 export class PostDto extends _contentBaseDto {
     @IsOptional()
-    @IsString()
-    @Expose()
-    image?: string;
-
-    @IsOptional()
     @ValidateNested()
     @Type(() => ImageDto)
     @Expose()
