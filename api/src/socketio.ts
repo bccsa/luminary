@@ -331,6 +331,8 @@ export class Socketio implements OnGatewayInit {
         changeRequest: ChangeReqDto,
         message?: string,
     ) {
+        if (!changeRequest) changeRequest = { id: undefined, doc: undefined };
+
         const ack: ChangeReqAckDto = {
             id: changeRequest.id,
             ack: status,
