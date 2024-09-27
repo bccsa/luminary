@@ -2,7 +2,6 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { ContentDto } from "../dto/ContentDto";
-import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
 import { LanguageDto } from "../dto/LanguageDto";
 import { PostDto } from "../dto/PostDto";
@@ -19,7 +18,6 @@ import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 const DocTypeMap = {
     content: ContentDto,
     group: GroupDto,
-    groupAclEntry: GroupAclEntryDto,
     language: LanguageDto,
     post: PostDto,
     tag: TagDto,
