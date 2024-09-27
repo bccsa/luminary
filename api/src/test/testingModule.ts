@@ -69,7 +69,7 @@ export async function createTestingModule(testName: string) {
                             return {
                                 endpoint: process.env.S3_ENDPOINT ?? "localhost",
                                 port: parseInt(process.env.S3_PORT, 10) ?? 9000,
-                                useSSL: process.env.S3_USE_SSL === "true" ?? false,
+                                useSSL: process.env.S3_USE_SSL === "true",
                                 accessKey: process.env.S3_ACCESS_KEY,
                                 secretKey: process.env.S3_SECRET_KEY,
                             } as S3Config;
