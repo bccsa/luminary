@@ -1,4 +1,3 @@
-import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
@@ -28,6 +27,11 @@ vi.mock("vue-router", async (importOriginal) => {
 
 describe("EditContent.vue", () => {
     beforeEach(async () => {
+        // Set up the Pinia store before each test
+        setActivePinia(createTestingPinia());
+        await db.docs.clear();
+        await db.localChanges.clear();
+
         // seed the fake indexDB with mock datas
         await db.docs.bulkPut([mockData.mockPostDto]);
         await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
@@ -36,9 +40,6 @@ describe("EditContent.vue", () => {
             mockData.mockLanguageDtoFra,
             mockData.mockLanguageDtoSwa,
         ]);
-
-        // Set up the Pinia store before each test
-        setActivePinia(createTestingPinia());
 
         accessMap.value = mockData.fullAccessToAllContentMap;
     });
@@ -57,7 +58,6 @@ describe("EditContent.vue", () => {
                 languageCode: "eng",
             },
         });
-
         // Wait for the component to fetch data
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
