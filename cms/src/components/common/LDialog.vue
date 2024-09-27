@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from "@headlessui/vue";
-import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-import LButton from "../button/LButton.vue";
 
 type Props = {
     title?: string;

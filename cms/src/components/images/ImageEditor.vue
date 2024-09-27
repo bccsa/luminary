@@ -22,14 +22,6 @@ defineProps<Props>();
 const parent = defineModel<PostDto | TagDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
-// Move to higher level component - check if needed?
-// // update editable when original changes (e.g. when the API processed the save)
-// watch(original, () => {
-//     if (!isDirty.value && !original.value.uploadData) {
-//         parent.value.imageData = _.cloneDeep(toRaw(original.value));
-//     }
-// });
-
 // HTML element refs
 const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 
