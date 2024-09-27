@@ -15,7 +15,6 @@
     "publishDate": 1704114000000,
     "parentId": "post-post1",
     "parentType": "post",
-    "parentImage": "image.jpg",
     "parentTags": ["tag-category1", "tag-topicA"],
     "parentPublishDateVisible": true
 }

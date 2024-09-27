@@ -2,7 +2,6 @@
     "_id": "post-post1",
     "type": "post",
     "memberOf": ["group-public-content"],
-    "image": "",
     "tags": ["tag-category1", "tag-topicA"],
     "publishDateVisible": true
 }
