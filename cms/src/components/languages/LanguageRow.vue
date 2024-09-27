@@ -4,12 +4,13 @@ import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
+import { RouterLink } from "vue-router";
 
-type props = {
+type Props = {
     languagesDoc: LanguageDto;
 };
 
-defineProps<props>();
+defineProps<Props>();
 </script>
 
 <template>
@@ -17,6 +18,11 @@ defineProps<props>();
         <!-- name -->
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             {{ languagesDoc.name }}
+        </td>
+
+        <!-- status -->
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+            <LBadge variant="warning"> Offline changes </LBadge>
         </td>
 
         <!-- languag code -->
@@ -41,6 +47,8 @@ defineProps<props>();
                         ? PencilSquareIcon
                         : EyeIcon
                 "
+                :is="RouterLink"
+                :to="{ name: 'edit language', params: { id: languagesDoc._id } }"
                 class="flex justify-end"
                 data-test="edit-button"
             ></LButton>
