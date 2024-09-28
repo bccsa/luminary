@@ -33,7 +33,11 @@ const openContent = () => {
             v-if="showPublishDate && content.parentPublishDateVisible"
             class="mt-0.5 text-xs text-zinc-500 dark:text-slate-200"
         >
-            {{ db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) }}
+            {{
+                content.publishDate
+                    ? db.toDateTime(content.publishDate).toLocaleString(DateTime.DATETIME_MED)
+                    : ""
+            }}
         </div>
     </div>
 </template>
