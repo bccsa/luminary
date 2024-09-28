@@ -460,6 +460,7 @@ class Database extends Dexie {
      * Convert a numeric (UNIX) date to a DateTime object
      */
     toDateTime(date: number) {
+        if (!date) return undefined;
         return DateTime.fromMillis(date).setLocale(navigator.language || "en-US");
     }
 
@@ -469,6 +470,7 @@ class Database extends Dexie {
      * @returns
      */
     toIsoDateTime(date: number) {
+        if (!date) return undefined;
         return DateTime.fromMillis(date)
             .setLocale(navigator.language || "en-US")
             .toISO({
@@ -481,6 +483,7 @@ class Database extends Dexie {
      * Convert a DateTime object to a numeric (UNIX) date
      */
     fromDateTime(date: DateTime) {
+        if (!date) return undefined;
         return date.setLocale(navigator.language || "en-US").toMillis();
     }
 
@@ -490,6 +493,7 @@ class Database extends Dexie {
      * @returns
      */
     fromIsoDateTime(date: string) {
+        if (!date) return undefined;
         return DateTime.fromISO(date)
             .setLocale(navigator.language || "en-US")
             .toMillis();
