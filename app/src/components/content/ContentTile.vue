@@ -35,7 +35,7 @@ const openContent = () => {
         >
             {{
                 content.publishDate
-                    ? db.toDateTime(content.publishDate!).toLocaleString(DateTime.DATETIME_MED) // Type checking fails to see that we are already checking if content.publishDate is valid.
+                    ? db.toDateTime(content.publishDate).toLocaleString(DateTime.DATETIME_MED)
                     : ""
             }}
         </div>
