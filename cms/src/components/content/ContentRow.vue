@@ -127,7 +127,9 @@ const translationStatus = computed(() => {
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             {{
                 contentDoc.publishDate
-                    ? db.toDateTime(contentDoc.publishDate).toLocaleString(DateTime.DATETIME_SHORT)
+                    ? db
+                          .toDateTime(contentDoc.publishDate!) // Type checking fails to see that we are already checking if content.publishDate is valid.
+                          .toLocaleString(DateTime.DATETIME_SHORT)
                     : "Not set"
             }}
         </td>
@@ -136,14 +138,22 @@ const translationStatus = computed(() => {
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             {{
                 contentDoc.expiryDate
-                    ? db.toDateTime(contentDoc.expiryDate).toLocaleString(DateTime.DATETIME_SHORT)
+                    ? db
+                          .toDateTime(contentDoc.expiryDate!) // Type checking fails to see that we are already checking if content.expiryDate is valid.
+                          .toLocaleString(DateTime.DATETIME_SHORT)
                     : "Not set"
             }}
         </td>
 
         <!-- updated -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ db.toDateTime(contentDoc.updatedTimeUtc).toLocaleString(DateTime.DATETIME_SHORT) }}
+            {{
+                contentDoc.updatedTimeUtc
+                    ? db
+                          .toDateTime(contentDoc.updatedTimeUtc!) // Type checking fails to see that we are already checking if content.publishDate is valid.
+                          .toLocaleString(DateTime.DATETIME_SHORT)
+                    : "Not set"
+            }}
         </td>
 
         <!-- actions -->
