@@ -5,7 +5,8 @@ import LButton from "@/components/button/LButton.vue";
 import { AclPermission, DocType, hasAnyPermission, type LanguageDto } from "luminary-shared";
 import { computed, ref } from "vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import CreateLanguageModal from "@/components/languages/CreateLanguageModal.vue";
+import CreateLanguageModal from "@/components/languages/CreateOrEditLanguageModal.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
 
@@ -25,14 +26,11 @@ const closeModal = () => {
 // Handle after a new language is created
 const handleLanguageCreated = (newLanguage: LanguageDto) => {
     closeModal();
-    console.log("New language created:", newLanguage);
-    // Optionally reload the language table or add the new language to the table
-};
-
-const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
-    console.log("Language updated:", updatedLanguage);
-
-    // Optionally reload the language table or update the language in the table
+    useNotificationStore().addNotification({
+        title: `${newLanguage.name} language created`,
+        description: `The new language has been created successfully`,
+        state: "success",
+    });
 };
 </script>
 
@@ -59,7 +57,6 @@ const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
             :isVisible="isModalVisible"
             @close="closeModal"
             @created="handleLanguageCreated"
-            @updated="handleLanguageUpdated"
         />
     </BasePage>
 </template>
