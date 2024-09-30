@@ -217,18 +217,18 @@ onClickOutside(sortOptionsAsRef, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-        <div class="flex h-max w-full gap-2 rounded-t-md bg-white p-2 shadow-lg">
+        <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
-                class="mt-[2px] flex-grow"
+                class="flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="searchTerm"
             />
 
-            <div>
+            <div class="h-full">
                 <div class="relative flex h-full gap-1">
                     <LSelect
                         data-test="filter-select"

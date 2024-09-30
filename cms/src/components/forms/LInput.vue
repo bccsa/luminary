@@ -89,7 +89,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
         <FormLabel v-if="label" :for="id" :required="required" class="mb-2">
             {{ label }}
         </FormLabel>
-        <div class="relative flex rounded-md shadow-sm">
+        <div class="relative flex h-full rounded-md shadow-sm">
             <div
                 v-if="icon"
                 class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"

@@ -61,8 +61,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             </div>
             <select
                 v-model="model"
-                class="block w-full justify-items-center rounded-md border-0 px-3 py-2 pl-10 pr-10 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-inset hover:bg-zinc-50 focus:ring-2 disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
-                :class="states[state]"
+                class="block h-full w-full justify-items-center rounded-md border-0 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-inset hover:bg-zinc-50 focus:ring-2 disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
+                :class="[states[state], icon ? 'px-3 py-2 pl-10 pr-10' : '']"
                 :id="id"
                 :disabled="disabled"
                 :required="required"
