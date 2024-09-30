@@ -4,6 +4,7 @@ import { db, DocType, type LanguageDto } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
+import _ from "lodash";
 
 // Props for visibility and language to edit
 type Props = {
@@ -12,8 +13,14 @@ type Props = {
 };
 const props = defineProps<Props>();
 
+// Track the previous state for dirty checking
+const previousLanguage = ref<LanguageDto | null>(null);
+
 // Emit events to close the modal and trigger creation or update
 const emit = defineEmits(["close", "created", "updated"]);
+
+// Check if we are in edit mode (if a language is passed)
+const isEditMode = computed(() => !!props.language);
 
 // New language or edited language object
 const newLanguage = ref<LanguageDto>({
@@ -31,23 +38,22 @@ watch(
     (newLang) => {
         if (newLang) {
             newLanguage.value = { ...newLang };
+            previousLanguage.value = _.cloneDeep(newLang); // Clone the language for dirty checking
         } else {
             // Reset to a new language if no language is passed (create mode)
             newLanguage.value = {
                 _id: db.uuid(),
-                name: "",
+                name: "New language",
                 languageCode: "",
                 memberOf: [],
                 type: DocType.Language,
                 updatedTimeUtc: Date.now(),
             };
+            previousLanguage.value = null; // Reset previous state for new language
         }
     },
     { immediate: true },
 );
-
-// Check if we are in edit mode (if a language is passed)
-const isEditMode = computed(() => !!props.language);
 
 // Function to handle creation or update
 const saveLanguage = async () => {
@@ -70,6 +76,23 @@ const saveLanguage = async () => {
     }
 
     closeModal();
+};
+
+// Dirty checking logic
+const isDirty = computed(() => {
+    if (isEditMode.value && newLanguage.value && previousLanguage.value) {
+        return !_.isEqual(newLanguage.value, previousLanguage.value);
+    }
+    return validateForm(); // Always validate fields in create mode
+});
+
+// Form validation to check if all fields are filled
+const validateForm = () => {
+    return (
+        newLanguage.value.name.trim() !== "" &&
+        newLanguage.value.languageCode.trim() !== "" &&
+        newLanguage.value.memberOf.length > 0
+    );
 };
 
 // Function to close the modal
@@ -109,7 +132,7 @@ const closeModal = () => {
 
             <div class="flex justify-end gap-4 pt-5">
                 <LButton variant="secondary" @click="closeModal">Cancel</LButton>
-                <LButton variant="primary" @click="saveLanguage">
+                <LButton variant="primary" @click="saveLanguage" :disabled="!isDirty">
                     {{ isEditMode ? "Save Changes" : "Create" }}
                 </LButton>
             </div>

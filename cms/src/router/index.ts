@@ -83,6 +83,12 @@ const router = createRouter({
                         },
                     ],
                 },
+                {
+                    path: "languages",
+                    name: "languages",
+                    component: () => import("../components/languages/LanguagesPage.vue"),
+                },
+
                 // {
                 //     path: "users",
                 //     name: "users",

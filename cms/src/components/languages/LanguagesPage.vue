@@ -37,7 +37,7 @@ const handleLanguageCreated = (newLanguage: LanguageDto) => {
 <template>
     <BasePage title="Language overview">
         <template #actions>
-            <div class="flex gap-4">
+            <div class="flex gap-4" v-if="canCreateNew">
                 <LButton
                     v-if="canCreateNew"
                     variant="primary"
