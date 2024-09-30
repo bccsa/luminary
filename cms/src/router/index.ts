@@ -86,7 +86,7 @@ const router = createRouter({
                 {
                     path: "languages",
                     name: "languages",
-                    component: () => import("../components/languages/LanguagesPage.vue"),
+                    component: () => import("../components/languages/LanguagePage.vue"),
                 },
 
                 // {

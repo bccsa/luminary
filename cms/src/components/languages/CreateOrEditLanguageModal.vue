@@ -80,9 +80,9 @@ const saveLanguage = async () => {
 
 // Dirty checking logic
 const isDirty = computed(() => {
-    if (isEditMode.value && newLanguage.value && previousLanguage.value) {
-        return !_.isEqual(newLanguage.value, previousLanguage.value);
-    }
+    // if (isEditMode.value && newLanguage.value && previousLanguage.value) {
+    //     return !_.isEqual(newLanguage.value, previousLanguage.value);
+    // }
     return validateForm(); // Always validate fields in create mode
 });
 
