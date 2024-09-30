@@ -23,7 +23,6 @@ async function fetchContentForTags() {
     );
 
     content.value = (await Promise.all(contentPromises)).flat();
-    console.log(content.value);
 }
 
 // Watch for changes in tags and refetch content
