@@ -4,23 +4,50 @@ import { db, DocType, type LanguageDto, type Uuid } from "luminary-shared";
 import { useRouter } from "vue-router";
 import LInput from "../forms/LInput.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
-// import LButton from "../button/LButton.vue";
-import LBadge from "../common/LBadge.vue";
+import LButton from "../button/LButton.vue";
+import { computed, ref } from "vue";
+import _ from "lodash";
+import { useNotificationStore } from "@/stores/notification";
 
+// Router and current language
 const router = useRouter();
-
 const { id } = router.currentRoute.value.params;
-const currentLanguage = db.getAsRef(id as Uuid) as unknown as LanguageDto;
+const currentLanguage = ref<LanguageDto | undefined>(undefined);
+const currentLanguagePrev = ref<LanguageDto | undefined>(undefined);
 
-const isLocalChange = db.isLocalChangeAsRef(currentLanguage._id);
+// Fetch current language from the database
+db.get<LanguageDto>(id as Uuid).then((lang) => {
+    currentLanguage.value = lang;
+    currentLanguagePrev.value = _.cloneDeep(lang);
+});
+
+// Track changes (dirty checking)
+const isDirty = computed(() => !_.isEqual(currentLanguage.value, currentLanguagePrev.value));
+
+// Save logic
+const save = async () => {
+    if (!currentLanguage.value) return;
+
+    await db.upsert(currentLanguage.value);
+
+    // Update the previous version after save
+    currentLanguagePrev.value = _.cloneDeep(currentLanguage.value);
+
+    // Optionally, show a notification here (e.g., "Language saved successfully")
+    useNotificationStore().addNotification({
+        title: `${currentLanguage.value.name} saved`,
+        description: `The changes has been saved successfully`,
+        state: "success",
+    });
+};
 </script>
 
 <template>
     <BasePage v-if="currentLanguage" :title="`${currentLanguage.name}`">
         <template #actions>
-            <LBadge v-if="isLocalChange" variant="warning" class="mr-4">Offline changes</LBadge>
-
-            <!-- <LButton type="button" data-test="save-button" variant="primary"> Save </LButton> -->
+            <LButton type="button" variant="primary" @click="save" :disabled="!isDirty">
+                Save
+            </LButton>
         </template>
         <div class="b-4">
             <LInput

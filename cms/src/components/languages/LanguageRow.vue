@@ -22,7 +22,7 @@ defineProps<Props>();
 
         <!-- status -->
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
-            <LBadge variant="warning"> Offline changes </LBadge>
+            <!-- <LBadge variant="warning"> Offline changes </LBadge> -->
         </td>
 
         <!-- languag code -->
