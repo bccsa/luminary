@@ -109,7 +109,9 @@ const text = computed(() => {
 
 // Function to fetch content based on tags
 async function contentForTagsCategories() {
-    const categoryTags = tags.value.filter((t) => t.tagType == TagType.Category).map((t) => t._id);
+    const categoryTags = tags.value
+        .filter((t) => t && t.tagType && t.tagType == TagType.Category)
+        .map((t) => t._id);
     const contentPromises = categoryTags.map((tagId) =>
         db.contentWhereTag(tagId, { languageId: appLanguageIdAsRef.value }),
     );
@@ -215,6 +217,6 @@ function selectTag(parentId: Uuid) {
     <RelatedContent
         v-if="content && tags.length"
         :currentContentId="content._id"
-        :tags="tags.filter((t) => t.tagType == TagType.Topic)"
+        :tags="tags.filter((t) => t && t.tagType && t.tagType == TagType.Topic)"
     />
 </template>

@@ -84,7 +84,7 @@ describe("SingleContent", () => {
 
     it("displays the content video when defined", async () => {
         await db.docs.update(mockEnglishContentDto._id, {
-            image: "",
+            parentImage: "",
             video: "test-video.mp4",
         });
 
