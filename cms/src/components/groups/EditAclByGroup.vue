@@ -82,6 +82,8 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                     </tr>
                 </thead>
                 <tbody>
+                    <!-- :aclEntry is a defineModel in EditAclEntry.
+                    Using "v-model:aclEntry" causes the error: "eslint: 'v-model' directives cannot update the iteration variable 'aclEntry' itself." -->
                     <EditAclEntry
                         v-for="aclEntry in group?.acl
                             .filter(

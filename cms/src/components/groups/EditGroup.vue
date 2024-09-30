@@ -458,7 +458,7 @@ const saveChanges = async () => {
                         <EditAclByGroup
                             v-for="assignedGroup in assignedGroups"
                             :key="assignedGroup._id"
-                            :group="editable"
+                            v-model:group="editable"
                             :assignedGroup="assignedGroup"
                             :originalGroup="group"
                             :availableGroups="availableGroups"
