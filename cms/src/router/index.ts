@@ -83,16 +83,6 @@ const router = createRouter({
                         },
                     ],
                 },
-                {
-                    path: "languages",
-                    name: "languages",
-                    component: () => import("../components/languages/LanguagesPage.vue"),
-                },
-                {
-                    path: "languages/edit/:id",
-                    name: "edit language",
-                    component: () => import("../components/languages/EditLanguage.vue"),
-                },
                 // {
                 //     path: "users",
                 //     name: "users",
