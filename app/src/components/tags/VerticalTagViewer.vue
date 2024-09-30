@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DocType, db, type TagDto, type queryOptions as options } from "luminary-shared";
+import { DocType, db, type TagDto, type QueryOptions as options } from "luminary-shared";
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
