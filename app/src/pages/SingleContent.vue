@@ -148,7 +148,7 @@ function selectTag(parentId: Uuid) {
 
     <NotFoundPage v-else-if="isExpiredOrScheduled" />
 
-    <article v-else class="mx-auto mb-12 max-w-3xl">
+    <article v-else class="mb-12 w-full lg:w-3/4 lg:max-w-3xl">
         <VideoPlayer v-if="content.video" :content="content" />
         <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
 
@@ -181,7 +181,7 @@ function selectTag(parentId: Uuid) {
             ></div>
         </article>
 
-        <div v-if="hasContent" class="h-full max-w-3xl py-2 lg:mt-0 lg:w-1/4">
+        <div v-if="hasContent" class="h-full w-full py-2 lg:mt-0 lg:w-1/4 lg:max-w-3xl">
             <div
                 class="mb-5 flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
             >
@@ -191,8 +191,10 @@ function selectTag(parentId: Uuid) {
                     )"
                     :key="tag._id"
                     @click="selectTag(tag.parentId)"
-                    class="me-2 flex cursor-pointer items-center justify-center rounded-t-sm px-1.5 py-1 text-sm hover:bg-yellow-100"
-                    :class="{ ' bg-yellow-400 text-black shadow': selectedTagId == tag.parentId }"
+                    class="me-2 flex cursor-pointer items-center justify-center rounded-t-sm px-1.5 py-1 text-sm hover:bg-yellow-200"
+                    :class="{
+                        ' bg-yellow-100 text-black shadow': selectedTagId == tag.parentId,
+                    }"
                 >
                     {{ tag.title }}
                 </span>
