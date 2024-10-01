@@ -127,7 +127,6 @@ watch(tags, contentForTagsCategories, { immediate: true });
 // Function to handle tag selection
 function selectTag(parentId: Uuid) {
     selectedTagId.value = parentId; // Ensure the correct tag is selected
-    console.log(`Selected tagId: ${parentId}`);
 }
 </script>
 
