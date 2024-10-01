@@ -13,16 +13,30 @@ type Props = {
 const props = defineProps<Props>();
 
 const { tags } = toRefs(props);
-const content = ref<ContentDto[]>([]);
+const contentForTag = ref<Record<string, ContentDto[]>>({}); // Store content for each tag
 
 // Function to fetch content based on tags
 async function fetchContentForTags() {
-    const tagIds = tags.value.map((t: TagDto) => t._id);
-    const contentPromises = tagIds.map((tagId) =>
-        db.contentWhereTag(tagId, { languageId: appLanguageIdAsRef.value }),
+    const tagContent = await Promise.all(
+        tags.value.map(async (tag: TagDto) => {
+            const content = await db.contentWhereTag(tag._id, {
+                languageId: appLanguageIdAsRef.value,
+            });
+            return {
+                tagId: tag._id,
+                content: content.filter((item) => item._id !== props.currentContentId), // Filter out current content
+            };
+        }),
     );
 
-    content.value = (await Promise.all(contentPromises)).flat();
+    // Create a mapping of tagId to content array
+    contentForTag.value = tagContent.reduce(
+        (acc, { tagId, content }) => {
+            acc[tagId] = content;
+            return acc;
+        },
+        {} as Record<string, ContentDto[]>,
+    );
 }
 
 // Watch for changes in tags and refetch content
@@ -30,16 +44,18 @@ watch(tags, fetchContentForTags, { immediate: true });
 </script>
 
 <template>
-    <IgnorePagePadding v-if="content.length > 0" class="bg-yellow-500/5 pb-1 pt-3 dark:bg-zinc-900">
+    <IgnorePagePadding
+        v-if="Object.keys(contentForTag).length > 0"
+        class="bg-yellow-500/5 pb-1 pt-3 dark:bg-zinc-900"
+    >
         <div>
-            <div>
-                <h1 class="px-6 pb-5 text-lg text-zinc-600 dark:text-zinc-200">Related</h1>
-
-                <div class="flex max-w-full flex-wrap">
-                    <div class="max-w-full">
+            <h1 class="px-6 pb-5 text-lg text-zinc-600 dark:text-zinc-200">Related</h1>
+            <div class="flex max-w-full flex-wrap">
+                <div class="max-w-full">
+                    <template v-for="tag in tags" :key="tag._id">
+                        <!-- Only show if content exists for the tag and the content length is greater than 0 -->
                         <HorizontalScrollableTagViewer
-                            v-for="tag in tags"
-                            :key="tag._id"
+                            v-if="contentForTag[tag._id] && contentForTag[tag._id].length > 0"
                             :tag="tag"
                             :currentContentId="currentContentId"
                             :queryOptions="{
@@ -48,7 +64,7 @@ watch(tags, fetchContentForTags, { immediate: true });
                             }"
                             class="mb-5 max-w-full"
                         />
-                    </div>
+                    </template>
                 </div>
             </div>
         </div>
