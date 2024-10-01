@@ -559,7 +559,7 @@ class Database extends Dexie {
                     return false;
                 }
 
-                // The AclMap already indicates if the user has view access to the group, so we only need to check that the group document is listed in the AclMap
+                // The AclMap already indicates if the user has view access to the group, so we only need to check that the group document is not listed in the AclMap
                 return !groupIds.includes(group._id);
             });
         }
