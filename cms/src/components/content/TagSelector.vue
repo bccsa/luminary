@@ -28,6 +28,7 @@ type Props = {
     language?: LanguageDto;
     label?: string;
     disabled?: boolean;
+    icon?: Component | Function;
 };
 const props = withDefaults(defineProps<Props>(), {
     label: "Tags",
