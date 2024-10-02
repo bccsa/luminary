@@ -6,6 +6,7 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db } from "luminary-shared";
 import { fullAccessToAllContentMap, mockLanguageDtoEng } from "@/tests/mockdata";
+import { DateTime } from "luxon";
 
 describe("LanguageRow.vue", () => {
     beforeEach(async () => {
@@ -29,6 +30,10 @@ describe("LanguageRow.vue", () => {
 
         expect(wrapper.html()).toContain("English");
         expect(wrapper.html()).toContain("ENG");
-        expect(wrapper.html()).toContain("1/1/2024, 2:00 PM"); // this test might fail if the date format changes
+        expect(wrapper.html()).toContain(
+            db
+                .toDateTime(mockLanguageDtoEng.updatedTimeUtc)
+                .toLocaleString(DateTime.DATETIME_SHORT),
+        );
     });
 });
