@@ -164,6 +164,8 @@ watch(selectedSortOption, () => {
 onClickOutside(sortOptionsAsRef, () => {
     showSortOptions.value = false;
 });
+
+const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 </script>
 
 <template>
