@@ -226,6 +226,7 @@ onClickOutside(sortOptionsAsRef, () => {
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="searchTerm"
+                :full-height="true"
             />
 
             <div class="h-full">
