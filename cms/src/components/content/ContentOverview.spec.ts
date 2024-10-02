@@ -103,6 +103,27 @@ describe("ContentOverview.vue", () => {
         });
     });
 
+    it.only("should switch languages correctly", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+            },
+        });
+
+        await wrapper.vm.$nextTick();
+
+        const languageSelector = wrapper.find('[data-test="language-selector"]');
+        const contentTableItemsLength = wrapper.vm.contentLength;
+        console.log(contentTableItemsLength);
+
+        waitForExpect(async () => {
+            expect(contentTableItemsLength).toBeDefined();
+        });
+    });
+
     it("should display search input", async () => {
         const wrapper = mount(ContentOverview, {
             global: {

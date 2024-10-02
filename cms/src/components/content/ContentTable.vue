@@ -3,6 +3,7 @@ import { type LanguageDto, DocType, db } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
 import LCard from "../common/LCard.vue";
 import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "./query";
+import { watch } from "vue";
 
 type Props = {
     queryOptions: ContentOverviewQueryOptions;
@@ -10,8 +11,12 @@ type Props = {
 const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const contentLength = defineModel("contentLength");
 
 const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
+watch(contentDocs, (docs) => {
+    contentLength.value = docs.length;
+});
 </script>
 
 <template>
