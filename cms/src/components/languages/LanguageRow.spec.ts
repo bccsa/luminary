@@ -30,6 +30,8 @@ describe("LanguageRow.vue", () => {
 
         expect(wrapper.html()).toContain("English");
         expect(wrapper.html()).toContain("ENG");
+
+        // check if the updated time is formatted correctly according the systems settings
         expect(wrapper.html()).toContain(
             db
                 .toDateTime(mockLanguageDtoEng.updatedTimeUtc)
