@@ -4,7 +4,7 @@ import { db, DocType, type LanguageDto } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
-import _ from "lodash";
+import * as _ from "lodash";
 
 // Props for visibility and language to edit
 type Props = {
@@ -80,9 +80,6 @@ const saveLanguage = async () => {
 
 // Dirty checking logic
 const isDirty = computed(() => {
-    // if (isEditMode.value && newLanguage.value && previousLanguage.value) {
-    //     return !_.isEqual(newLanguage.value, previousLanguage.value);
-    // }
     return validateForm(); // Always validate fields in create mode
 });
 
