@@ -559,13 +559,8 @@ class Database extends Dexie {
                     return false;
                 }
 
-                // Check if the group is NOT a member of the given groupIds
-                return !group.acl.some(
-                    (acl) =>
-                        acl.type === DocType.Group &&
-                        groupIds.includes(acl.groupId) &&
-                        acl.permission.some((p) => p === "view"),
-                );
+                // The AclMap already indicates if the user has view access to the group, so we only need to check that the group document is not listed in the AclMap
+                return !groupIds.includes(group._id);
             });
         }
 

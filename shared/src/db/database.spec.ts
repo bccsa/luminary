@@ -781,37 +781,24 @@ describe("Database", () => {
         it("removes documents with acl field when access to a group is revoked", async () => {
             const docs = [
                 {
-                    _id: "group1", // Should be removed as it is not a member of 'group-public-users'
+                    _id: "group-private-users", // Should be removed as it is not 'group-public-users'
                     type: DocType.Group,
                     acl: [
                         {
                             type: DocType.Group,
-                            groupId: "group-private-users",
+                            groupId: "g1",
                             permission: [AclPermission.View],
                         },
                     ],
                     updatedTimeUtc: 0,
                 },
                 {
-                    _id: "group2", // Should be kept as it is a member of 'group-public-users'
+                    _id: "group-public-users", // Should be kept as it is 'group-public-users'
                     type: DocType.Group,
                     acl: [
                         {
                             type: DocType.Group,
-                            groupId: "group-public-users",
-                            permission: [AclPermission.View],
-                        },
-                    ],
-                    updatedTimeUtc: 0,
-                },
-                {
-                    _id: "group3", // Should be removed as it is not a member of 'group-public-users'
-                    type: DocType.Change,
-                    docType: DocType.Group,
-                    acl: [
-                        {
-                            type: DocType.Group,
-                            groupId: "group-private-users",
+                            groupId: "g2",
                             permission: [AclPermission.View],
                         },
                     ],
@@ -833,7 +820,7 @@ describe("Database", () => {
             await waitForExpect(async () => {
                 const remainingDocs = await db.docs.toArray();
                 expect(remainingDocs).toHaveLength(1);
-                expect(remainingDocs.find((doc) => doc._id === "group2")).toBeDefined();
+                expect(remainingDocs.find((doc) => doc._id === "group-public-users")).toBeDefined();
             });
         });
     });
