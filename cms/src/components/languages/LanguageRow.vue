@@ -72,7 +72,6 @@ const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
             class="flex justify-end whitespace-nowrap py-2 text-sm font-medium text-zinc-700 sm:pl-3"
         >
             <LButton
-                v-if="verifyAccess(languagesDoc.memberOf, DocType.Language, AclPermission.View)"
                 variant="tertiary"
                 :icon="
                     verifyAccess(languagesDoc.memberOf, DocType.Language, AclPermission.Edit)
@@ -81,7 +80,6 @@ const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
                 "
                 @click="openEditModal"
                 class="flex justify-end"
-                data-test="edit-button"
             ></LButton>
         </td>
     </tr>

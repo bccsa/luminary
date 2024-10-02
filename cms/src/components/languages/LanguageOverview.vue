@@ -43,6 +43,7 @@ const handleLanguageCreated = (newLanguage: LanguageDto) => {
                     variant="primary"
                     :icon="PlusIcon"
                     @click="openCreateModal"
+                    name="createLanguageBtn"
                 >
                     Create Language
                 </LButton>

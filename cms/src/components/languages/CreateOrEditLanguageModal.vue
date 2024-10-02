@@ -25,9 +25,9 @@ const isEditMode = computed(() => !!props.language);
 // New language or edited language object
 const newLanguage = ref<LanguageDto>({
     _id: db.uuid(), // Generate new ID for create mode
-    name: "New Language",
+    name: "",
     languageCode: "",
-    memberOf: [],
+    memberOf: ["group-languages"],
     type: DocType.Language,
     updatedTimeUtc: Date.now(),
 });
@@ -43,9 +43,9 @@ watch(
             // Reset to a new language if no language is passed (create mode)
             newLanguage.value = {
                 _id: db.uuid(),
-                name: "New language",
+                name: "",
                 languageCode: "",
-                memberOf: [],
+                memberOf: ["group-languages"],
                 type: DocType.Language,
                 updatedTimeUtc: Date.now(),
             };
@@ -125,11 +125,20 @@ const closeModal = () => {
                 placeholder="Enter language code"
             />
 
-            <GroupSelector v-model:groups="newLanguage.memberOf" :docType="DocType.Language" />
+            <GroupSelector
+                name="memberOf"
+                v-model:groups="newLanguage.memberOf"
+                :docType="DocType.Language"
+            />
 
             <div class="flex justify-end gap-4 pt-5">
-                <LButton variant="secondary" @click="closeModal">Cancel</LButton>
-                <LButton variant="primary" @click="saveLanguage" :disabled="!isDirty">
+                <LButton variant="secondary" data-test="cancel" @click="closeModal">Cancel</LButton>
+                <LButton
+                    variant="primary"
+                    data-test="save-button"
+                    @click="saveLanguage"
+                    :disabled="!isDirty"
+                >
                     {{ isEditMode ? "Save Changes" : "Create" }}
                 </LButton>
             </div>
