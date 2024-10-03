@@ -46,7 +46,7 @@ watch(tags, fetchContentForTags, { immediate: true });
 <template>
     <IgnorePagePadding
         v-if="Object.keys(contentForTag).length > 0"
-        class="bg-yellow-500/5 pb-1 pt-3 dark:bg-zinc-900"
+        class="bg-yellow-500/5 pb-1 pt-3"
     >
         <div>
             <h1 class="px-6 pb-5 text-lg text-zinc-600 dark:text-zinc-200">Related</h1>

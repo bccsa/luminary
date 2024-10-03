@@ -56,9 +56,10 @@ watch(tagContent, () => {
                 }"
             >
                 <div
-                    class="flex items-center justify-between border-l-4 border-transparent px-2 py-1 transition duration-200 hover:bg-yellow-100 dark:hover:text-slate-900"
+                    class="flex items-center justify-between px-2 py-1 transition duration-200 hover:border-l-4 hover:border-yellow-500 hover:bg-yellow-200 dark:hover:border-yellow-800 dark:hover:bg-yellow-200 dark:hover:text-slate-900"
                     :class="{
-                        ' border-yellow-500 bg-yellow-50': isContentSelected(content.slug),
+                        ' border-l-4 border-yellow-500 bg-yellow-100  dark:border-yellow-800 dark:bg-yellow-300':
+                            isContentSelected(content.slug),
                     }"
                 >
                     <div class="ml-2 w-2/3">

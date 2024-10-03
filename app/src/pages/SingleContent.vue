@@ -192,7 +192,8 @@ function selectTag(parentId: Uuid) {
                     @click="selectTag(tag.parentId)"
                     class="me-2 flex cursor-pointer items-center justify-center rounded-t-sm px-1.5 py-1 text-sm hover:bg-yellow-200"
                     :class="{
-                        ' bg-yellow-100 text-black shadow': selectedTagId == tag.parentId,
+                        ' bg-yellow-100 text-black shadow dark:bg-yellow-300':
+                            selectedTagId == tag.parentId,
                     }"
                 >
                     {{ tag.title }}
