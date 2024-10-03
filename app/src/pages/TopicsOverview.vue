@@ -26,10 +26,11 @@ watchEffect(async () => {
                 :to="{ name: 'topic-detail', params: { id: topic.parentId } }"
                 class="avoid-inside hover:shadow-outline ease-out-expo relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg p-2 transition-transform duration-500 group-hover:scale-[101%]"
             >
-                <img
+                <!-- Commented out to fix build / test issues. This component will be changed in another PR -->
+                <!-- <img
                     :src="topic.parentImage"
                     class="absolute h-full w-full object-cover object-center opacity-100 transition"
-                />
+                /> -->
                 <div class="absolute inset-0 bg-black opacity-50"></div>
                 <h6
                     class="z-10 content-end break-words text-center text-sm font-bold leading-tight text-white"

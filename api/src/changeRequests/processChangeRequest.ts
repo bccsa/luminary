@@ -24,17 +24,11 @@ export async function processChangeRequest(
         throw new Error(validationResult.error);
     }
 
-    let doc = validationResult.validatedData;
+    const doc = validationResult.validatedData;
 
     // Validate slug
     if (doc.type == DocType.Content) {
         doc.slug = await validateSlug(doc.slug, doc._id, db);
-    }
-
-    // Process image uploads
-    if (doc.type == DocType.Image) {
-        const prevDoc = await db.getDoc(doc._id);
-        doc = await processImage(doc, prevDoc.docs.length > 0 ? prevDoc.docs[0] : undefined, s3);
     }
 
     // Copy essential properties from Post / Tag documents to Content documents
@@ -47,7 +41,7 @@ export async function processChangeRequest(
             const contentDoc = doc as ContentDto;
             contentDoc.memberOf = parentDoc.memberOf;
             contentDoc.parentTags = parentDoc.tags;
-            contentDoc.parentImage = parentDoc.image;
+            contentDoc.parentImageData = parentDoc.imageData;
 
             if (parentDoc.type == DocType.Tag) {
                 contentDoc.parentTagType = (parentDoc as TagDto).tagType;
@@ -57,13 +51,21 @@ export async function processChangeRequest(
     }
 
     if (doc.type == DocType.Post || doc.type == DocType.Tag) {
+        // Process image uploads
+        if ((doc as PostDto).imageData) {
+            const prevDoc = await db.getDoc(doc._id);
+            const prevImageData = prevDoc.docs.length > 0 ? prevDoc.docs[0].imageData : undefined;
+            await processImage(doc.imageData, prevImageData, s3);
+            delete doc.image; // Remove the legacy image field
+        }
+
         // Get content documents that are children of the Post / Tag document
         await db.getContentByParentId(doc._id).then((contentDocs) => {
             // Copy essential properties from the Post / Tag document to the child content document
             contentDocs.docs.forEach(async (contentDoc: ContentDto) => {
                 contentDoc.memberOf = doc.memberOf;
                 contentDoc.parentTags = doc.tags;
-                contentDoc.parentImage = doc.image;
+                contentDoc.parentImageData = doc.imageData;
 
                 if (doc.type == DocType.Tag) {
                     contentDoc.parentTagType = (doc as TagDto).tagType;

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import LInput from "@/components/forms/LInput.vue";
 import LCard from "@/components/common/LCard.vue";
-import { Cog6ToothIcon, LinkIcon } from "@heroicons/vue/20/solid";
+import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
 import {
     TagType,
     DocType,
@@ -17,6 +16,7 @@ import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
+import ImageEditor from "../images/ImageEditor.vue";
 
 type Props = {
     docType: DocType;
@@ -47,6 +47,7 @@ const canEdit = computed(() => {
         collapsible
         v-if="parent"
     >
+        <ImageEditor :disabled="!canEdit" v-model:parent="parent" class="mb-4" />
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"
@@ -60,15 +61,6 @@ const canEdit = computed(() => {
             <FormLabel>Show publish date</FormLabel>
             <LToggle v-model="parent.publishDateVisible" :disabled="!canEdit" />
         </div>
-
-        <LInput
-            name="parent.image"
-            label="Image"
-            :icon="LinkIcon"
-            placeholder="https://..."
-            :disabled="!canEdit"
-            v-model="parent.image"
-        />
 
         <GroupSelector
             v-model:groups="parent.memberOf"

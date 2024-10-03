@@ -4,6 +4,7 @@ import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
+import { S3Service } from "./s3/s3.service";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
@@ -11,6 +12,7 @@ async function bootstrap() {
     });
 
     const dbService = app.get(DbService);
+    const s3Service = app.get(S3Service);
 
     // Create or update database design docs on api startup
     await upsertDesignDocs(dbService);
@@ -22,11 +24,11 @@ async function bootstrap() {
         process.exit(0);
     }
 
-    // Upgrade database schema if needed
-    await upgradeDbSchema(dbService);
-
     // Initialize permission system
     await PermissionSystem.init(dbService);
+
+    // Upgrade database schema if needed
+    await upgradeDbSchema(dbService, s3Service);
 
     app.enableCors({
         origin: [

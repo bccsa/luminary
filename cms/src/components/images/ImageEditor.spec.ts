@@ -1,10 +1,9 @@
 import "fake-indexeddb/auto";
-import { DOMWrapper, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import ImageEditor from "./ImageEditor.vue";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { db, accessMap } from "luminary-shared";
-import { fullAccessToAllContentMap, mockImageDto } from "@/tests/mockdata";
-import { ref } from "vue";
+import { accessMap } from "luminary-shared";
+import { mockPostDto, superAdminAccessMap } from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -27,7 +26,7 @@ describe("ImageEditor", () => {
         setActivePinia(createTestingPinia());
 
         const globalConfigStore = useGlobalConfigStore();
-        accessMap.value = fullAccessToAllContentMap;
+        accessMap.value = superAdminAccessMap;
         globalConfigStore.clientAppUrl = "http://localhost:4174";
     });
 
@@ -36,46 +35,15 @@ describe("ImageEditor", () => {
     });
 
     it("can render an image document", async () => {
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
+        // vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
 
         const wrapper = mount(ImageEditor, {
-            props: { imageId: "image-image1" },
+            props: { parent: mockPostDto, disabled: false },
         });
-
-        const imageNameInput = wrapper.find(
-            "input[data-test='image-name']",
-        ) as DOMWrapper<HTMLInputElement>;
-        expect(imageNameInput.element.value).toBe(mockImageDto.name);
-
-        const imageDescriptionInput = wrapper.find(
-            "textarea[data-test='image-description']",
-        ) as DOMWrapper<HTMLTextAreaElement>;
-        expect(imageDescriptionInput.element.value).toBe(mockImageDto.description);
 
         const imageFiles = wrapper.find("div[data-test='thumbnail-area']");
-        expect(imageFiles.html()).toContain(mockImageDto.fileCollections[0].imageFiles[0].filename);
-    });
-
-    it("can save an image document", async () => {
-        vi.spyOn(db, "getAsRef").mockReturnValue(ref(mockImageDto));
-        const spyOn_upsert = vi.spyOn(db, "upsert");
-
-        const wrapper = mount(ImageEditor, {
-            props: { imageId: "image-image1" },
-        });
-
-        const nameInput = wrapper.find("input[data-test='image-name']");
-        await nameInput.setValue("New Name");
-
-        expect(spyOn_upsert).toHaveBeenCalledWith({ ...mockImageDto, name: "New Name" });
-
-        const descriptionInput = wrapper.find("textarea[data-test='image-description']");
-        await descriptionInput.setValue("New Description");
-
-        expect(spyOn_upsert).toHaveBeenCalledWith({
-            ...mockImageDto,
-            name: "New Name",
-            description: "New Description",
-        });
+        expect(imageFiles.html()).toContain(
+            mockPostDto.imageData!.fileCollections[0].imageFiles[0].filename,
+        );
     });
 });

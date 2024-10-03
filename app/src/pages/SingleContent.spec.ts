@@ -62,8 +62,6 @@ describe("SingleContent", () => {
     });
 
     it("displays the content image", async () => {
-        await db.docs.update(mockEnglishContentDto._id, { parentImage: "test-image.jpg" });
-
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -71,7 +69,7 @@ describe("SingleContent", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("test-image.jpg");
+            expect(wrapper.html()).toContain("test-image.webp");
         });
     });
 
@@ -92,7 +90,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("displays the pusblish date content", async () => {
+    it("displays the publish date", async () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -104,7 +102,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("hides the publishDate is false", async () => {
+    it("hides the publishDate if publishDateVisible is false", async () => {
         const mockContent = { ...mockEnglishContentDto, parentPublishDateVisible: false };
         const wrapper = mount(SingleContent, {
             props: {

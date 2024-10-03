@@ -39,7 +39,6 @@ export default async function (db: DbService) {
 
                     // Set replicated fields
                     doc.parentTags = parent.tags;
-                    doc.parentImage = parent.image;
 
                     if (parent.type == "tag") {
                         const tag = parent as TagDto;

@@ -15,7 +15,6 @@ import LCard from "@/components/common/LCard.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import LTable from "@/components/common/LTable.vue";
 import LTabs from "@/components/common/LTabs.vue";
-import ImageBrowser from "@/components/images/ImageBrowser.vue";
 
 // Input
 const input = ref("Test value");
@@ -305,10 +304,6 @@ const items = [
                     <LButton variant="muted" :icon="DocumentDuplicateIcon"></LButton>
                     <LButton variant="muted" :icon="DocumentDuplicateIcon" size="lg"></LButton>
                 </div>
-            </LCard>
-
-            <LCard title="Image Browser">
-                <ImageBrowser />
             </LCard>
         </div>
     </BasePage>

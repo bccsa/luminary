@@ -120,7 +120,6 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                         :key="content._id"
                         :content="content"
                         :show-publish-date="showPublishDate"
-                        class="w-40 overflow-clip md:w-60"
                     />
                 </div>
             </div>

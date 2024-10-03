@@ -2,6 +2,6 @@
     "_id": "post-post2",
     "type": "post",
     "memberOf": ["group-private-content"],
-    "image": "image.jpg",
-    "tags": ["tag-category2", "tag-topicB"]
+    "tags": ["tag-category2", "tag-topicB"],
+    "publishDateVisible": true
 }

@@ -9,18 +9,16 @@ import { ImageFileCollectionDto } from "../dto/ImageFileCollectionDto";
 const imageSizes = [180, 360, 640, 1280, 2560];
 
 /**
- * Processes an image upload by resizing the image and uploading it to S3
+ * Processes an embedded image upload by resizing the image and uploading it to S3
  */
 export async function processImage(
     image: ImageDto,
-    prevDoc: ImageDto,
+    prevImage: ImageDto | undefined,
     s3: S3Service,
-): Promise<ImageDto> {
-    const resultImage = JSON.parse(JSON.stringify({ ...image, uploadData: undefined })) as ImageDto;
-
-    // Remove files that were removed from the image
-    if (prevDoc) {
-        const removedFiles = prevDoc?.fileCollections.flatMap((collection) => {
+): Promise<void> {
+    if (prevImage) {
+        // Remove files that were removed from the image
+        const removedFiles = prevImage.fileCollections.flatMap((collection) => {
             return collection.imageFiles.filter(
                 (file) =>
                     !image.fileCollections.some((f) =>
@@ -35,14 +33,12 @@ export async function processImage(
                 removedFiles.map((file) => file.filename),
             );
         }
-    }
 
-    // Remove file objects that were added to the image: Only the API may add image files. A client can occasionally submit "new" image files,
-    // but this usually will happen if an offline client saved changes to an image which had file objects removed by onother client.
-    // When the offline client comes online, it's change request will then contain file objects that were previously removed, and
-    // as such need to be ignored.
-    if (prevDoc) {
-        resultImage.fileCollections = prevDoc.fileCollections.filter((collection) =>
+        // Remove file objects that were added to the image: Only the API may add image files. A client can occasionally submit "new" image files,
+        // but this usually will happen if an offline client saved changes to an image which had file objects removed by another client.
+        // When the offline client comes online, it's change request will then contain file objects that were previously removed, and
+        // as such need to be ignored.
+        image.fileCollections = prevImage.fileCollections.filter((collection) =>
             // Only include collections from the previous document that are also in the new document
             image.fileCollections.some((c) =>
                 c.imageFiles.some((f) => collection.imageFiles[0]?.filename === f.filename),
@@ -50,28 +46,27 @@ export async function processImage(
         );
     }
 
-    const promises: Promise<any>[] = [];
-    image.uploadData?.forEach((uploadData) => {
-        promises.push(processImageUpload(uploadData, s3, resultImage));
-    });
-
-    await Promise.all(promises).catch(async (err) => {
-        // Attempt to clear uploaded files before throwing error
-        const keys = resultImage.fileCollections.flatMap((collection) => {
-            return collection.imageFiles.map((file) => file.filename);
+    // Upload new files
+    if (image.uploadData) {
+        const promises: Promise<any>[] = [];
+        image.uploadData?.forEach((uploadData) => {
+            promises.push(processImageUpload(uploadData, s3, image));
         });
-        await s3.removeObjects(s3.imageBucket, keys);
-        throw err;
-    });
 
-    return resultImage;
+        await Promise.all(promises).catch(async (err) => {
+            // Attempt to clear uploaded files before throwing error
+            const keys = image.fileCollections.flatMap((collection) => {
+                return collection.imageFiles.map((file) => file.filename);
+            });
+            await s3.removeObjects(s3.imageBucket, keys);
+            throw err;
+        });
+
+        delete image.uploadData; // Remove upload data after processing
+    }
 }
 
-async function processImageUpload(
-    uploadData: ImageUploadDto,
-    s3: S3Service,
-    resultImage: ImageDto,
-) {
+async function processImageUpload(uploadData: ImageUploadDto, s3: S3Service, image: ImageDto) {
     let preset = uploadData?.preset || "default";
     if (
         preset != "default" &&
@@ -98,7 +93,7 @@ async function processImageUpload(
 
     await Promise.all(promises);
 
-    resultImage.fileCollections.push(resultImageCollection);
+    image.fileCollections.push(resultImageCollection);
 }
 
 async function processQuality(

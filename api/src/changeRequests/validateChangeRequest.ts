@@ -2,7 +2,6 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { ContentDto } from "../dto/ContentDto";
-import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
 import { LanguageDto } from "../dto/LanguageDto";
 import { PostDto } from "../dto/PostDto";
@@ -12,7 +11,6 @@ import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
 import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
-import { ImageDto } from "../dto/ImageDto";
 
 /**
  * DocType to DTO map
@@ -20,12 +18,10 @@ import { ImageDto } from "../dto/ImageDto";
 const DocTypeMap = {
     content: ContentDto,
     group: GroupDto,
-    groupAclEntry: GroupAclEntryDto,
     language: LanguageDto,
     post: PostDto,
     tag: TagDto,
     user: UserDto,
-    image: ImageDto,
 };
 
 /**

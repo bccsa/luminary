@@ -57,7 +57,9 @@ describe("HorizontalScrollableTagViewer", () => {
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
-            expect(wrapper.html()).toContain(mockEnglishContentDto.parentImage);
+            expect(wrapper.html()).toContain(
+                mockEnglishContentDto.parentImageData?.fileCollections[0].imageFiles[0].filename,
+            );
         });
     });
 });

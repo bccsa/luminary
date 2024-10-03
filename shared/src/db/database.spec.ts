@@ -520,6 +520,25 @@ describe("Database", () => {
         expect(post).toEqual(mockPostDto);
     });
 
+    it("can overwrite a local (offline) change request with a new one", async () => {
+        // Queue a local change
+        await db.upsert(mockPostDto);
+        const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).toArray();
+        expect(localChange.length).toBe(1);
+
+        // Queue a new local change
+        const newPost = { ...mockPostDto, title: "New Title" };
+        await db.upsert(newPost, true);
+        const newLocalChange = await db.localChanges
+            .where("docId")
+            .equals(mockPostDto._id)
+            .toArray();
+
+        // Check that only one local change exists and it is the new one
+        expect(newLocalChange.length).toBe(1);
+        expect(newLocalChange[0].doc).toEqual(newPost);
+    });
+
     it("can apply a successful change request acknowledgement", async () => {
         // Queue a local change
         await db.upsert(mockPostDto);

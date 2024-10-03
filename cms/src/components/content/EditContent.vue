@@ -54,9 +54,7 @@ const parent = ref<PostDto | TagDto>({
     _id: parentId,
     type: props.docType,
     updatedTimeUtc: 0,
-    memberOf: ["group-private-content"], // temporary - this should not be hard coded - remove when groups are implemented
-    // memberOf: [],
-    image: "",
+    memberOf: [],
     tags: [],
     publishDateVisible: true,
 });

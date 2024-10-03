@@ -4,6 +4,6 @@
     "memberOf": ["group-public-content"],
     "tagType": "topic",
     "pinned": false,
-    "image": "image.jpg",
-    "tags": []
+    "tags": [],
+    "publishDateVisible": false
 }

@@ -15,7 +15,6 @@
     "video": null,
     "parentId": "post-post2",
     "parentType": "post",
-    "parentImage": "image.jpg",
     "parentTags": ["tag-category2", "tag-topicB"],
     "parentPublishDateVisible": true
 }

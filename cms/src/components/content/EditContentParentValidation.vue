@@ -100,7 +100,11 @@ watch(
             "image",
             parentValidations.value,
             newParent,
-            () => newParent.image != undefined && newParent.image.trim() != "",
+            () =>
+                newParent.imageData != undefined &&
+                (newParent.imageData.fileCollections.length > 0 ||
+                    (Array.isArray(newParent.imageData.uploadData) &&
+                        newParent.imageData.uploadData?.length > 0)),
         );
 
         validate(

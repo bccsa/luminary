@@ -8,6 +8,7 @@ import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
 
 vi.mock("@auth0/auth0-vue");
+const routePushMock = vi.fn();
 
 vi.mock("vue-router", async () => {
     const actual = await vi.importActual("vue-router");
@@ -17,6 +18,9 @@ vi.mock("vue-router", async () => {
         useRoute: vi.fn().mockImplementation(() => ({
             name: "home",
         })),
+        useRouter: () => ({
+            push: routePushMock,
+        }),
     };
 });
 

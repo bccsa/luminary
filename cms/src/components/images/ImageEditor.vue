@@ -1,55 +1,29 @@
 <script setup lang="ts">
-import LInput from "../forms/LInput.vue";
-import { computed, defineProps, ref, toRaw } from "vue";
-import LTextarea from "../forms/LTextarea.vue";
+import { computed, ref, toRaw } from "vue";
 import LButton from "../button/LButton.vue";
 import { ArrowUpOnSquareIcon } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import { useNotificationStore } from "@/stores/notification";
 import {
-    db,
-    type Uuid,
     type ImageUploadDto,
-    type ImageDto,
-    DocType,
     type ImageFileCollectionDto,
     maxUploadFileSize,
+    type PostDto,
+    type TagDto,
 } from "luminary-shared";
-
-// Note: This control is used in a fully reactive mode as we want to show rendered images as soon as they are uploaded. Mixing non-reactive and reactive modes is difficult to implement.
-
-type Props = {
-    imageId: Uuid;
-};
-const props = defineProps<Props>();
-
-// We need to pass a default document to db.getAsRef to avoid a null reference error when the document is not yet loaded.
-const image = db.getAsRef<ImageDto>(props.imageId, {
-    _id: props.imageId,
-    type: DocType.Image,
-    name: "",
-    description: "",
-    fileCollections: [],
-    memberOf: [],
-    updatedTimeUtc: 0,
-});
 
 const { addNotification } = useNotificationStore();
 
-// Computed
+type Props = {
+    disabled: boolean;
+};
+defineProps<Props>();
+
+const parent = defineModel<PostDto | TagDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
-// Child component refs
-const nameInput = ref<typeof LInput | undefined>(undefined);
-const descriptionInput = ref<typeof LInput | undefined>(undefined);
+// HTML element refs
 const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
-
-// Methods
-const save = () => {
-    const raw = toRaw(image.value);
-    delete raw.uploadData; // do not re-save upload data as this will trigger a re-render of the image in the API.
-    db.upsert<ImageDto>(toRaw(image.value));
-};
 
 const showFilePicker = () => {
     // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
@@ -66,7 +40,10 @@ const upload = () => {
     const file = uploadInput.value!.files[0];
 
     reader.onload = (e) => {
-        if (!image.value.uploadData) image.value.uploadData = [] as ImageUploadDto[];
+        if (!parent.value) return;
+        if (!parent.value.imageData) parent.value.imageData = { fileCollections: [] };
+        if (!parent.value.imageData.uploadData) parent.value.imageData.uploadData = [];
+
         const fileData = e.target!.result as ArrayBuffer;
 
         if (fileData.byteLength > maxUploadFileSize.value) {
@@ -78,16 +55,11 @@ const upload = () => {
             return;
         }
 
-        // Save the file data
-        const raw = toRaw(image.value);
-        raw.uploadData = [
-            {
-                fileData,
-                preset: "photo",
-                filename: file.name,
-            },
-        ]; // do not re-save previous upload data as this will trigger a re-render of the image in the API.
-        db.upsert<ImageDto>(toRaw(image.value));
+        parent.value.imageData.uploadData.push({
+            filename: file.name,
+            preset: "photo",
+            fileData,
+        });
     };
 
     reader.readAsArrayBuffer(file);
@@ -98,31 +70,39 @@ const upload = () => {
 };
 
 const removeFileCollection = (collection: ImageFileCollectionDto) => {
-    image.value.fileCollections = image.value.fileCollections
+    if (!parent.value?.imageData?.fileCollections) return;
+
+    parent.value.imageData.fileCollections = parent.value.imageData.fileCollections
         .filter((f) => f !== collection)
         .map((f) => toRaw(f));
-    save();
+};
+
+const removeFileUploadData = (uploadData: ImageUploadDto) => {
+    if (!parent.value?.imageData?.uploadData) return;
+
+    parent.value.imageData.uploadData = parent.value.imageData.uploadData
+        .filter((f) => f !== uploadData)
+        .map((f) => toRaw(f));
+
+    if (parent.value.imageData.uploadData.length == 0) {
+        delete parent.value.imageData.uploadData;
+    }
 };
 </script>
 
 <template>
-    <div class="flex-col">
-        <label class="text-xs italic text-zinc-500">Changes are applied immediately</label>
+    <div class="flex-col overflow-y-auto">
         <div>
-            <LInput
-                ref="nameInput"
-                v-model="image.name"
-                name="fileName"
-                label="Image name"
-                class="mb-2 flex-1"
-                @change="save"
-                data-test="image-name"
-            />
-            <div class="mb-2 flex items-end gap-4">
+            <p class="mb-2 text-xs">
+                You can upload several files in different aspect ratios. The most suitable image
+                will automatically be displayed based on the aspect ratio of the image element where
+                the image is displayed.
+            </p>
+            <p class="mb-2 text-xs">
+                Uploaded images are automatically scaled for for various screen and display sizes.
+            </p>
+            <div class="mb-2 flex items-end gap-4" v-if="!disabled">
                 <div class="flex flex-col">
-                    <label class="mb-3 w-full text-right text-xs text-zinc-900"
-                        >Max size: {{ maxUploadFileSizeMb }}MB</label
-                    >
                     <LButton :icon="ArrowUpOnSquareIcon" class="h-9" @click="showFilePicker"
                         >Upload</LButton
                     >
@@ -137,37 +117,33 @@ const removeFileCollection = (collection: ImageFileCollectionDto) => {
                 </div>
             </div>
         </div>
-        <!-- Selected upload files display area -->
-        <div v-if="image.uploadData" class="mb-2 mt-2 flex gap-2">
+
+        <div
+            v-if="
+                parent &&
+                parent.imageData &&
+                (parent.imageData.fileCollections.length > 0 || parent.imageData.uploadData)
+            "
+        >
+            <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">Image files</h3>
+
             <div
-                v-for="f in image.uploadData"
-                :key="f.filename"
-                class="group relative flex items-center gap-4 rounded-full border border-zinc-200 bg-zinc-100 pl-1 pr-1 text-xs text-zinc-900"
+                class="flex flex-1 flex-wrap gap-4 overflow-x-scroll pt-2"
+                data-test="thumbnail-area"
             >
-                <span>{{ f.preset }}: {{ f.filename }}</span>
+                <ImageEditorThumbnail
+                    v-for="c in parent.imageData.fileCollections"
+                    :imageFileCollection="c"
+                    @deleteFileCollection="removeFileCollection"
+                    :key="c.aspectRatio"
+                />
+                <ImageEditorThumbnail
+                    v-for="u in parent.imageData.uploadData"
+                    :imageUploadData="u"
+                    @deleteUploadData="removeFileUploadData"
+                    :key="u.filename"
+                />
             </div>
-        </div>
-        <LTextarea
-            ref="descriptionInput"
-            name="description"
-            label="Notes"
-            v-model="image.description"
-            @change="save"
-            data-test="image-description"
-        />
-        <div>
-            <!-- Group selector here -->
-        </div>
-
-        <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">File versions</h3>
-
-        <div class="flex flex-1 flex-wrap gap-4 overflow-x-scroll pt-2" data-test="thumbnail-area">
-            <ImageEditorThumbnail
-                v-for="c in image.fileCollections"
-                :imageFileCollection="c"
-                @delete="removeFileCollection"
-                :key="c.aspectRatio"
-            />
         </div>
     </div>
 </template>

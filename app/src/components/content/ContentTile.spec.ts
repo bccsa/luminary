@@ -25,7 +25,7 @@ describe("ContentTile", () => {
             },
         });
         expect(wrapper.find("img").exists()).toBe(true);
-        expect(wrapper.find("img").attributes("src")).toBe("test-image.jpg");
+        expect(wrapper.find("img").attributes("srcset")).toContain("test-image.webp");
     });
 
     it("renders a tile for a post", async () => {

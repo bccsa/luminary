@@ -30,44 +30,41 @@ describe("S3ImageHandler", () => {
 
     it("can process and upload an image", async () => {
         const image = new ImageDto();
-        image.name = "testImage";
         image.uploadData = [
             {
                 fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
                 preset: "default",
             },
         ];
-        const resImage = await processImage(image, undefined, service);
-        expect(resImage).toBeDefined();
+        await processImage(image, undefined, service);
 
         // Check if all files are uploaded
         const pList = [];
-        for (const file of resImage.fileCollections.flatMap((c) => c.imageFiles)) {
+        for (const file of image.fileCollections.flatMap((c) => c.imageFiles)) {
             expect(file.filename).toBeDefined();
             pList.push(service.getObject(service.imageBucket, file.filename));
         }
         const res = await Promise.all(pList);
         expect(res.some((r) => r == undefined)).toBeFalsy();
 
-        resImages.push(resImage);
+        resImages.push(image);
     });
 
     it("can delete a removed image version from S3", async () => {
         const image = new ImageDto();
-        image.name = "testImage2";
         image.uploadData = [
             {
                 fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
                 preset: "default",
             },
         ];
-        let resImage = await processImage(image, undefined, service);
+        await processImage(image, undefined, service);
 
         // Remove the first file collection
         const prevDoc = new ImageDto();
-        prevDoc.fileCollections = JSON.parse(JSON.stringify(resImage.fileCollections));
+        prevDoc.fileCollections = JSON.parse(JSON.stringify(image.fileCollections));
         image.fileCollections.shift();
-        resImage = await processImage(image, prevDoc, service);
+        await processImage(image, prevDoc, service);
 
         // Check if the first fileCollection's files are removed from S3
         for (const file of prevDoc.fileCollections[0].imageFiles) {
@@ -76,55 +73,53 @@ describe("S3ImageHandler", () => {
             expect(error).toBeDefined();
         }
 
-        resImages.push(resImage);
+        resImages.push(image);
     });
 
     it("discards user-added file objects", async () => {
         const image = new ImageDto();
-        image.name = "testImage3";
         image.uploadData = [
             {
                 fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
                 preset: "default",
             },
         ];
-        const res = await processImage(image, undefined, service);
+        await processImage(image, undefined, service);
 
-        const image2 = JSON.parse(JSON.stringify(res)) as ImageDto;
+        const image2 = JSON.parse(JSON.stringify(image)) as ImageDto;
         image2.fileCollections[0].imageFiles.push({ filename: "invalid", height: 1, width: 1 });
 
-        const resImage = await processImage(image2, res, service);
+        await processImage(image2, image, service);
 
         // Check if the client-added file data is removed
         expect(
-            resImage.fileCollections[0].imageFiles.some((f) => f.filename == "invalid"),
+            image2.fileCollections[0].imageFiles.some((f) => f.filename == "invalid"),
         ).toBeFalsy();
 
-        resImages.push(resImage);
+        resImages.push(image);
     });
 
     it("discards user-added file collection objects", async () => {
         const image = new ImageDto();
-        image.name = "testImage4";
         image.uploadData = [
             {
                 fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
                 preset: "default",
             },
         ];
-        const res = await processImage(image, undefined, service);
+        await processImage(image, undefined, service);
 
-        const image2 = JSON.parse(JSON.stringify(res)) as ImageDto;
+        const image2 = JSON.parse(JSON.stringify(image)) as ImageDto;
         image2.fileCollections.push({
             aspectRatio: 1,
             imageFiles: [{ filename: "invalid", height: 1, width: 1 }],
         });
 
-        const resImage = await processImage(image2, res, service);
+        await processImage(image2, image, service);
 
         // Check if the client-added file collection is removed
-        expect(resImage.fileCollections.length).toBe(1);
+        expect(image2.fileCollections.length).toBe(1);
 
-        resImages.push(resImage);
+        resImages.push(image);
     });
 });

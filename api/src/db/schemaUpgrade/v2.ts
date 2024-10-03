@@ -7,7 +7,7 @@ import { DbService } from "../db.service";
 export default async function (db: DbService) {
     const schemaVersion = await db.getSchemaVersion();
     if (schemaVersion == 1) {
-        console.info("Upgrading database schema from version 0 to 1");
+        console.info("Upgrading database schema from version 1 to 2");
 
         await db.processAllDocs(async (doc: any) => {
             if (!doc) {

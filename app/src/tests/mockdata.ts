@@ -19,9 +19,22 @@ export const mockCategoryDto: TagDto = {
     memberOf: ["group-public-content"],
     tagType: TagType.Category,
     pinned: false,
-    image: "test-image.jpg",
+    imageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     tags: [],
-    publishDateVisible: true,
+    publishDateVisible: false,
 };
 
 export const mockTopicDto: TagDto = {
@@ -31,9 +44,22 @@ export const mockTopicDto: TagDto = {
     memberOf: ["group-public-content"],
     tagType: TagType.Category,
     pinned: false,
-    image: "test-image.jpg",
+    imageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     tags: [],
-    publishDateVisible: true,
+    publishDateVisible: false,
 };
 
 export const mockPostDto: PostDto = {
@@ -41,7 +67,20 @@ export const mockPostDto: PostDto = {
     type: DocType.Post,
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
-    image: "test-image.jpg",
+    imageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     tags: ["tag-category1"],
     publishDateVisible: true,
 };
@@ -66,7 +105,20 @@ export const mockEnglishContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockFrenchContentDto: ContentDto = {
@@ -89,7 +141,20 @@ export const mockFrenchContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockSwahiliContentDto: ContentDto = {
@@ -112,7 +177,20 @@ export const mockSwahiliContentDto: ContentDto = {
     video: "",
     publishDate: 1704114000000,
     expiryDate: undefined,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 export const mockCategoryContentDto: ContentDto = {
@@ -130,7 +208,20 @@ export const mockCategoryContentDto: ContentDto = {
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 
@@ -149,7 +240,20 @@ export const mockTopicContentDto: ContentDto = {
     summary: "Example tag",
     text: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A category"}]}]}',
     publishDate: 1704114000000,
-    parentImage: "test-image.jpg",
+    parentImageData: {
+        fileCollections: [
+            {
+                aspectRatio: 1.5,
+                imageFiles: [
+                    {
+                        width: 180,
+                        height: 120,
+                        filename: "test-image.webp",
+                    },
+                ],
+            },
+        ],
+    } as ImageDto,
     parentPublishDateVisible: true,
 };
 
@@ -180,12 +284,6 @@ export const mockLanguageDtoSwa: LanguageDto = {
 };
 
 export const mockImageDto: ImageDto = {
-    _id: "image-image1",
-    type: DocType.Image,
-    name: "Image 1",
-    description: "An image",
-    updatedTimeUtc: Date.now(),
-    memberOf: ["group-private-content"],
     fileCollections: [
         {
             aspectRatio: 1.5,

@@ -12,6 +12,7 @@ import { DocType, PublishStatus, TagType, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
 import { Expose } from "class-transformer";
+import { ImageDto } from "./ImageDto";
 
 /**
  * Database structured Content object
@@ -108,7 +109,11 @@ export class ContentDto extends _contentBaseDto {
     @Expose()
     parentTags?: Uuid[];
 
-    @IsOptional() // Optional as it is set upon change request processing
+    @IsOptional() // Optional as it is set upon change request processing. No need to validate the field as it is set by the system.
+    @Expose()
+    parentImageData?: ImageDto;
+
+    @IsOptional() // Optional as it is set upon change request processing. Included for backward compatibility.
     @IsString()
     @Expose()
     parentImage?: string;
