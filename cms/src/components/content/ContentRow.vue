@@ -100,7 +100,6 @@ const translationStatus = computed(() => {
                             translationStatus(contentDocs, language) == 'default' ? '' : navigate()
                         "
                         type="language"
-                        withIcon
                         :variant="translationStatus(contentDocs, language)"
                         :class="{
                             'cursor-pointer hover:opacity-75':
