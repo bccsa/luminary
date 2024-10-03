@@ -48,7 +48,7 @@ const statusBadge: ComputedRef<
     }
 
     if (dto.status == PublishStatus.Published && dto.expiryDate && dto.expiryDate < Date.now()) {
-        return { title: "Expired", variant: "default" };
+        return { title: "Expired", variant: "error" };
     }
 
     if (dto.status == PublishStatus.Published) {

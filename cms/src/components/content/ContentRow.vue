@@ -54,6 +54,22 @@ const translationStatus = computed(() => {
             return "default";
         }
 
+        if (
+            item.status == PublishStatus.Published &&
+            item.publishDate &&
+            item.publishDate > Date.now()
+        ) {
+            return "scheduled";
+        }
+
+        if (
+            item.status == PublishStatus.Published &&
+            item.expiryDate &&
+            item.expiryDate < Date.now()
+        ) {
+            return "error";
+        }
+
         if (item.status == PublishStatus.Published) {
             return "success";
         }
@@ -100,6 +116,7 @@ const translationStatus = computed(() => {
                             translationStatus(contentDocs, language) == 'default' ? '' : navigate()
                         "
                         type="language"
+                        withIcon
                         :variant="translationStatus(contentDocs, language)"
                         :class="{
                             'cursor-pointer hover:opacity-75':
