@@ -10,7 +10,7 @@ vi.mock("vue-router");
 
 describe("HorizontalScrollableTagViewer", () => {
     beforeEach(async () => {
-        await db.docs.bulkPut([mockCategoryContentDto, mockCategoryDto]);
+        await db.docs.bulkPut([mockCategoryContentDto, mockCategoryDto, mockEnglishContentDto]);
     });
 
     afterEach(async () => {
@@ -40,7 +40,9 @@ describe("HorizontalScrollableTagViewer", () => {
             },
         });
 
-        expect(wrapper.text()).toContain("Newest Content");
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Newest Content");
+        });
     });
 
     // This test is showing a Vue warn in the console.
