@@ -39,7 +39,7 @@ watch(
         tagsContent.value = await db.whereParent(
             contentDocs.value[0].parentTags,
             DocType.Tag,
-            contentDocs.value[0].language,
+            props.languageId,
         );
     },
     { immediate: true },
@@ -61,8 +61,6 @@ const translationStatus = computed(() => {
         if (item.status == PublishStatus.Draft) {
             return "info";
         }
-
-        return "default";
     };
 });
 </script>
@@ -102,6 +100,7 @@ const translationStatus = computed(() => {
                             translationStatus(contentDocs, language) == 'default' ? '' : navigate()
                         "
                         type="language"
+                        withIcon
                         :variant="translationStatus(contentDocs, language)"
                         :class="{
                             'cursor-pointer hover:opacity-75':
