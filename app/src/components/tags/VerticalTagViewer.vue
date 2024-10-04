@@ -55,22 +55,16 @@ watch(tagContent, () => {
                     params: { slug: content.slug },
                 }"
             >
+                <!-- add a transparent border if the content is not selected -->
+                <!-- push tto the right -->
                 <div
-                    class="flex items-center justify-between px-2 py-1 transition duration-200 hover:border-l-4 hover:border-yellow-500 hover:bg-yellow-200 dark:hover:border-yellow-800 dark:hover:bg-yellow-200 dark:hover:text-slate-900"
+                    class="flex items-center border-l-4 border-transparent px-1 py-1 transition duration-200 hover:border-transparent hover:bg-yellow-100 dark:hover:bg-yellow-100/25"
                     :class="{
-                        ' border-l-4 border-yellow-500 bg-yellow-100  dark:border-yellow-800 dark:bg-yellow-300':
+                        ' border-l-4 border-yellow-500 bg-yellow-100/50  dark:border-yellow-800 dark:bg-yellow-100/10':
                             isContentSelected(content.slug),
                     }"
                 >
-                    <div class="ml-2 w-2/3">
-                        <h1
-                            class="text-sm"
-                            :class="{ 'text-black': isContentSelected(content.slug) }"
-                        >
-                            {{ content.title }}
-                        </h1>
-                    </div>
-                    <div class="flex w-1/3 items-center justify-end lg:w-1/5">
+                    <div class="flex w-2/3 items-center justify-end lg:w-1/5">
                         <div class="relative overflow-hidden rounded">
                             <img
                                 class="w-32 object-cover opacity-100"
@@ -79,6 +73,11 @@ watch(tagContent, () => {
                                 :src="content.parentImage"
                             />
                         </div>
+                    </div>
+                    <div class="ml-2 w-1/3">
+                        <h1 class="text-sm">
+                            {{ content.title }}
+                        </h1>
                     </div>
                 </div>
             </RouterLink>
