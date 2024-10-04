@@ -39,7 +39,7 @@ watch(
         tagsContent.value = await db.whereParent(
             contentDocs.value[0].parentTags,
             DocType.Tag,
-            contentDocs.value[0].language,
+            props.languageId,
         );
     },
     { immediate: true },
@@ -61,8 +61,6 @@ const translationStatus = computed(() => {
         if (item.status == PublishStatus.Draft) {
             return "info";
         }
-
-        return "default";
     };
 });
 </script>
