@@ -67,7 +67,7 @@ const translationStatus = computed(() => {
             item.expiryDate &&
             item.expiryDate < Date.now()
         ) {
-            return "error";
+            return "expired";
         }
 
         if (item.status == PublishStatus.Published) {
