@@ -64,7 +64,7 @@ watch(tagContent, () => {
                             isContentSelected(content.slug),
                     }"
                 >
-                    <div class="flex w-2/3 items-center justify-end lg:w-1/5">
+                    <div class="flex items-center lg:w-1/5">
                         <div class="relative overflow-hidden rounded">
                             <img
                                 class="w-32 object-cover opacity-100"
