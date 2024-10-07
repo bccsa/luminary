@@ -24,6 +24,7 @@ type Props = {
     required?: boolean;
     disabled?: boolean;
     icon?: Component | Function;
+    fullHeight?: boolean;
     leftAddOn?: string;
     rightAddOn?: string;
 };
@@ -33,6 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
     size: "base",
     required: false,
     disabled: false,
+    fullHeight: false,
 });
 
 // Expose the focus method to parent components.
@@ -89,7 +91,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
         <FormLabel v-if="label" :for="id" :required="required" class="mb-2">
             {{ label }}
         </FormLabel>
-        <div class="relative flex rounded-md shadow-sm">
+        <div class="relative flex rounded-md shadow-sm" :class="fullHeight ? 'h-full' : ''">
             <div
                 v-if="icon"
                 class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"

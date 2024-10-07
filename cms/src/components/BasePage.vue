@@ -11,12 +11,14 @@ type Props = {
     backLinkLocation?: RouteLocationRaw;
     backLinkText?: string;
     backLinkParams?: Record<string, string | undefined>;
+    isFullWidth?: boolean;
 };
 
 withDefaults(defineProps<Props>(), {
     loading: false,
     centered: false,
     backLinkText: "Back",
+    isFullWidth: false,
 });
 </script>
 
@@ -26,7 +28,7 @@ withDefaults(defineProps<Props>(), {
         enter-from-class="opacity-0"
         enter-to-class="opacity-100"
     >
-        <div v-if="!loading" class="mx-auto max-w-7xl">
+        <div v-if="!loading" :class="isFullWidth ? 'mx-0 w-full' : 'mx-auto max-w-7xl'">
             <RouterLink
                 v-if="backLinkLocation"
                 :to="backLinkLocation"

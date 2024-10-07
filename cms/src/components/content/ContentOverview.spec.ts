@@ -136,7 +136,7 @@ describe("ContentOverview.vue", () => {
         await waitForExpect(() => {
             const contentTable = wrapper.findComponent(ContentTable);
 
-            expect(contentTable.props('queryOptions')).toMatchObject({ search: 'post 1'});
+            expect(contentTable.props("queryOptions")).toMatchObject({ search: "post 1" });
         });
     });
 
@@ -195,22 +195,22 @@ describe("ContentOverview.vue", () => {
             const contentTable = wrapper.findComponent(ContentTable);
 
             await sortOptionTitle.trigger("input");
-            expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'title' });
+            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "title" });
 
             await sortOptionExpiryDate.trigger("input");
-            expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'expiryDate' });
+            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "expiryDate" });
 
             await sortOptionPublishDate.trigger("input");
-            expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'publishDate' });
+            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "publishDate" });
 
             await sortOptionLastUpdated.trigger("input");
-            expect(contentTable.props('queryOptions')).toMatchObject({ orderBy: 'updatedTimeUtc' });
-        
+            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "updatedTimeUtc" });
+
             await sortOptionAscending.trigger("click");
-            expect(contentTable.props('queryOptions')).toMatchObject({ orderDirection: 'asc' });
+            expect(contentTable.props("queryOptions")).toMatchObject({ orderDirection: "asc" });
 
             await sortOptionDescending.trigger("click");
-            expect(contentTable.props('queryOptions')).toMatchObject({ orderDirection: 'desc' });
+            expect(contentTable.props("queryOptions")).toMatchObject({ orderDirection: "desc" });
         });
     });
 
@@ -249,16 +249,6 @@ describe("ContentOverview.vue", () => {
         });
 
         await waitForExpect(async () => {
-            const showFilterOptionsBtn = wrapper.find('[data-test="show-filter-options-btn"]');
-            expect(showFilterOptionsBtn.exists()).toBe(true);
-            await showFilterOptionsBtn.trigger("click");
-
-            const filterOptions = wrapper.find('[data-test="filter-options"]');
-            expect(filterOptions.exists()).toBe(true);
-
-            const filterInputLabels = wrapper.findAll('[data-test="filter-label"]');
-            expect(filterInputLabels.length).toBe(2);
-
             const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
             expect(filterInputSelects.length).toBe(2);
         });
@@ -274,34 +264,31 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        const showFilterOptionsBtn = wrapper.find('[data-test="show-filter-options-btn"]');
-        await showFilterOptionsBtn.trigger("click");
-
         const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
 
         await waitForExpect(async () => {
             const contentTable = wrapper.findComponent(ContentTable);
 
             await filterInputSelects[0].setValue("translated");
-            expect(contentTable.props('queryOptions').translationStatus).toBe("translated");
+            expect(contentTable.props("queryOptions").translationStatus).toBe("translated");
 
             await filterInputSelects[0].setValue("untranslated");
-            expect(contentTable.props('queryOptions').translationStatus).toBe("untranslated");
+            expect(contentTable.props("queryOptions").translationStatus).toBe("untranslated");
 
             await filterInputSelects[0].setValue("all");
-            expect(contentTable.props('queryOptions').translationStatus).toBe("all");
-            
+            expect(contentTable.props("queryOptions").translationStatus).toBe("all");
+
             await filterInputSelects[1].setValue("published");
-            expect(contentTable.props('queryOptions').publishStatus).toBe("published");
+            expect(contentTable.props("queryOptions").publishStatus).toBe("published");
 
             await filterInputSelects[1].setValue("scheduled");
-            expect(contentTable.props('queryOptions').publishStatus).toBe("scheduled");
+            expect(contentTable.props("queryOptions").publishStatus).toBe("scheduled");
 
             await filterInputSelects[1].setValue("expired");
-            expect(contentTable.props('queryOptions').publishStatus).toBe("expired");
+            expect(contentTable.props("queryOptions").publishStatus).toBe("expired");
 
             await filterInputSelects[1].setValue("draft");
-            expect(contentTable.props('queryOptions').publishStatus).toBe("draft");
+            expect(contentTable.props("queryOptions").publishStatus).toBe("draft");
         });
     });
 

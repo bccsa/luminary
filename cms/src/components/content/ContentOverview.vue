@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
-import { PlusIcon, FunnelIcon } from "@heroicons/vue/20/solid";
+import { PlusIcon, LanguageIcon, CloudArrowUpIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import {
     ArrowsUpDownIcon,
@@ -89,8 +89,6 @@ if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString =
 const titleType = tagTypeString ? tagTypeString : props.docType;
 router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} overview`;
 
-const showFilterOptions = ref(false);
-
 const filterByTranslation = ref(queryOptions.value.translationStatus);
 const filterByTranslationOptions = [
     {
@@ -169,14 +167,9 @@ onClickOutside(sortOptionsAsRef, () => {
 </script>
 
 <template>
-    <BasePage :title="`${capitaliseFirstLetter(titleType)} overview`">
+    <BasePage :is-full-width="true" :title="`${capitaliseFirstLetter(titleType)} overview`">
         <template #actions>
             <div class="flex gap-4">
-                <LButton
-                    data-test="show-filter-options-btn"
-                    @click="showFilterOptions = !showFilterOptions"
-                    :icon="FunnelIcon"
-                ></LButton>
                 <LSelect
                     v-model="selectedLanguage"
                     :options="languageOptions"
@@ -202,32 +195,6 @@ onClickOutside(sortOptionsAsRef, () => {
                 </LButton>
             </div>
         </template>
-        <div
-            data-test="filter-options"
-            class="my-2 h-max rounded-md bg-white p-4 shadow-md"
-            v-if="showFilterOptions"
-        >
-            <div class="flex gap-5">
-                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label"
-                    >Translation
-                    <LSelect
-                        data-test="filter-select"
-                        v-model="filterByTranslation"
-                        :options="filterByTranslationOptions"
-                    />
-                </label>
-
-                <label class="inline-flex items-center gap-1 text-sm" data-test="filter-label">
-                    Status
-                    <LSelect
-                        data-test="filter-select"
-                        v-model="filterByStatus"
-                        :options="filterByStatusOptions"
-                    />
-                </label>
-            </div>
-        </div>
-
         <!-- TODO: Move empty state to ContentTable as the ContentOverview does not anymore know if there are content documents or not -->
         <!-- <EmptyState
             v-if="!contentParents || contentParents.length == 0"
@@ -250,7 +217,7 @@ onClickOutside(sortOptionsAsRef, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-        <div class="flex h-max w-full gap-2 rounded-t-md bg-white p-2 shadow-lg">
+        <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
@@ -259,10 +226,23 @@ onClickOutside(sortOptionsAsRef, () => {
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="searchTerm"
+                :full-height="true"
             />
 
-            <div>
+            <div class="h-full">
                 <div class="relative flex h-full gap-1">
+                    <LSelect
+                        data-test="filter-select"
+                        v-model="filterByTranslation"
+                        :options="filterByTranslationOptions"
+                        :icon="LanguageIcon"
+                    />
+                    <LSelect
+                        data-test="filter-select"
+                        v-model="filterByStatus"
+                        :options="filterByStatusOptions"
+                        :icon="CloudArrowUpIcon"
+                    />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </LButton>
