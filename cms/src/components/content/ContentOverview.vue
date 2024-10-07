@@ -17,6 +17,7 @@ import {
     type LanguageDto,
     type Uuid,
     hasAnyPermission,
+    type TagDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
