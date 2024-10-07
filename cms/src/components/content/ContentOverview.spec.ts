@@ -160,6 +160,7 @@ describe("ContentOverview.vue", () => {
         await wrapper.vm.$nextTick();
 
         await waitForExpect(async () => {
+            //@ts-ignore as this code is valid
             wrapper.vm.selectedLanguage = "lang-eng";
 
             const contentTable = await wrapper.findComponent(ContentTable);
@@ -169,12 +170,14 @@ describe("ContentOverview.vue", () => {
             const contentRows = await contentTable.findAll('[data-test="content-row"]');
             expect(contentRows.length).toBe(3);
 
+            //@ts-ignore as this code is valid
             wrapper.vm.selectedLanguage = "lang-fra";
             const updatedFrenchContentRows = await contentTable.findAll(
                 '[data-test="content-row"]',
             );
             expect(updatedFrenchContentRows.length).toBe(3);
 
+            //@ts-ignore as this code is valid
             wrapper.vm.selectedLanguage = "lang-swa";
             const updatedSwahiliContentRows = await contentTable.findAll(
                 '[data-test="content-row"]',
