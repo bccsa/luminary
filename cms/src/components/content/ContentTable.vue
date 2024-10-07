@@ -11,12 +11,8 @@ type Props = {
 const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const contentLength = defineModel("contentLength");
 
 const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
-watch(contentDocs, (docs) => {
-    contentLength.value = docs.length;
-});
 </script>
 
 <template>
@@ -82,6 +78,7 @@ watch(contentDocs, (docs) => {
                     <tbody class="divide-y divide-zinc-200 bg-white">
                         <ContentRow
                             v-for="contentDoc in contentDocs"
+                            data-test="content-row"
                             :key="contentDoc._id"
                             :contentDoc="contentDoc"
                             :parentType="queryOptions.parentType"

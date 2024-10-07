@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
-import { db, accessMap, DocType } from "luminary-shared";
+import { db, accessMap, DocType, type ContentDto } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
@@ -104,6 +104,50 @@ describe("ContentOverview.vue", () => {
     });
 
     it.only("should switch languages correctly", async () => {
+        await db.docs.clear();
+        const docs: ContentDto[] = [
+            {
+                ...mockData.mockEnglishContentDto,
+                _id: "content-post1-eng",
+            },
+            {
+                ...mockData.mockFrenchContentDto,
+                _id: "content-post2-fra",
+            },
+            {
+                ...mockData.mockSwahiliContentDto,
+                _id: "content-post3-swa",
+            },
+            {
+                ...mockData.mockEnglishContentDto,
+                _id: "content-post4-eng",
+            },
+            {
+                ...mockData.mockFrenchContentDto,
+                title: "some-mock-french-post",
+                _id: "content-post5-fra",
+            },
+            {
+                ...mockData.mockSwahiliContentDto,
+                title: "some-mock-swahili-post",
+                _id: "content-post6-swa",
+            },
+            {
+                ...mockData.mockEnglishContentDto,
+                _id: "content-post7-eng",
+            },
+            {
+                ...mockData.mockFrenchContentDto,
+                _id: "content-post8-fra",
+            },
+            {
+                ...mockData.mockSwahiliContentDto,
+                _id: "content-post9-swa",
+            },
+        ];
+
+        await db.docs.bulkPut(docs);
+
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
@@ -115,12 +159,27 @@ describe("ContentOverview.vue", () => {
 
         await wrapper.vm.$nextTick();
 
-        const languageSelector = wrapper.find('[data-test="language-selector"]');
-        const contentTableItemsLength = wrapper.vm.contentLength;
-        console.log(contentTableItemsLength);
+        await waitForExpect(async () => {
+            wrapper.vm.selectedLanguage = "lang-eng";
 
-        waitForExpect(async () => {
-            expect(contentTableItemsLength).toBeDefined();
+            const contentTable = await wrapper.findComponent(ContentTable);
+
+            await wrapper.vm.$nextTick();
+
+            const contentRows = await contentTable.findAll('[data-test="content-row"]');
+            expect(contentRows.length).toBe(3);
+
+            wrapper.vm.selectedLanguage = "lang-fra";
+            const updatedFrenchContentRows = await contentTable.findAll(
+                '[data-test="content-row"]',
+            );
+            expect(updatedFrenchContentRows.length).toBe(3);
+
+            wrapper.vm.selectedLanguage = "lang-swa";
+            const updatedSwahiliContentRows = await contentTable.findAll(
+                '[data-test="content-row"]',
+            );
+            expect(updatedSwahiliContentRows.length).toBe(3);
         });
     });
 

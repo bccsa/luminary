@@ -46,10 +46,6 @@ const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
 
-const contentInContentTableLength = ref(0);
-
-defineExpose({ contentInContentTableLength });
-
 const queryOptions = ref<ContentOverviewQueryOptions>({
     languageId: "",
     parentType: props.docType,
@@ -319,12 +315,12 @@ onClickOutside(sortOptionsAsRef, () => {
 
         <ContentTable
             v-if="selectedLanguage"
-            v-model:contentLength="contentInContentTableLength"
             :docType="docType"
             :tagType="tagType"
             :languageId="selectedLanguage"
             :key="queryKey"
             :queryOptions="queryOptions"
+            data-test="content-table"
         />
     </BasePage>
 </template>
