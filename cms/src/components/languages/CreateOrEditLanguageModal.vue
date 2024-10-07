@@ -27,7 +27,7 @@ const newLanguage = ref<LanguageDto>({
     _id: db.uuid(), // Generate new ID for create mode
     name: "",
     languageCode: "",
-    memberOf: ["group-languages"],
+    memberOf: [],
     type: DocType.Language,
     updatedTimeUtc: Date.now(),
 });
@@ -75,7 +75,7 @@ const saveLanguage = async () => {
         emit("created", clonedLanguage); // Emit create event if creating
     }
 
-    closeModal();
+    emit("close");
 };
 
 // Dirty checking logic
@@ -90,11 +90,6 @@ const validateForm = () => {
         newLanguage.value.languageCode.trim() !== "" &&
         newLanguage.value.memberOf.length > 0
     );
-};
-
-// Function to close the modal
-const closeModal = () => {
-    emit("close");
 };
 </script>
 
@@ -132,7 +127,9 @@ const closeModal = () => {
             />
 
             <div class="flex justify-end gap-4 pt-5">
-                <LButton variant="secondary" data-test="cancel" @click="closeModal">Cancel</LButton>
+                <LButton variant="secondary" data-test="cancel" @click="emit('close')"
+                    >Cancel</LButton
+                >
                 <LButton
                     variant="primary"
                     data-test="save-button"

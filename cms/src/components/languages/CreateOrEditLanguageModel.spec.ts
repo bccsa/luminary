@@ -27,8 +27,8 @@ describe("CreateOrEditLanguageModal.vue", () => {
         await db.localChanges.clear();
     });
 
-    describe("on create mode", () => {
-        it("display modal on create mode", async () => {
+    describe("create mode", () => {
+        it("can display modal in create mode", async () => {
             const wrapper = mount(CreateOrEditLanguageModal, {
                 props: {
                     isVisible: true,
@@ -45,7 +45,7 @@ describe("CreateOrEditLanguageModal.vue", () => {
             expect(wrapper.html()).toContain("Create");
         });
 
-        it("enable save button if form fields are filled", async () => {
+        it("can enable save button if form fields are filled", async () => {
             const wrapper = mount(CreateOrEditLanguageModal, {
                 props: {
                     isVisible: true,
@@ -62,8 +62,8 @@ describe("CreateOrEditLanguageModal.vue", () => {
         });
     });
 
-    describe("on edit mode", () => {
-        it("displays modal on edit mode", async () => {
+    describe("edit mode", () => {
+        it("can display the modal in edit mode", async () => {
             const wrapper = mount(CreateOrEditLanguageModal, {
                 props: {
                     isVisible: true,
