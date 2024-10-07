@@ -53,7 +53,7 @@ const deleteMessage = `Are you sure you want to delete the image file?`;
 <template>
     <div>
         <div class="group relative" @mouseover="hover = true" @mouseleave="hover = false">
-            <img :srcset="srcset" class="h-36 rounded-lg shadow" />
+            <img :srcset="srcset" class="h-16 rounded-lg shadow" />
             <TrashIcon
                 class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
                 v-show="hover"
