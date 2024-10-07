@@ -103,7 +103,7 @@ describe("ContentOverview.vue", () => {
         });
     });
 
-    it.only("should switch languages correctly", async () => {
+    it("should switch languages correctly", async () => {
         await db.docs.clear();
         const docs: ContentDto[] = [
             {
