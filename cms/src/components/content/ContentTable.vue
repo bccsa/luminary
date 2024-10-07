@@ -3,7 +3,6 @@ import { type LanguageDto, DocType, db } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
 import LCard from "../common/LCard.vue";
 import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "./query";
-import { watch } from "vue";
 
 type Props = {
     queryOptions: ContentOverviewQueryOptions;
