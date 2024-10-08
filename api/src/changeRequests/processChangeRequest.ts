@@ -46,6 +46,10 @@ export async function processChangeRequest(
             if (parentDoc.type == DocType.Tag) {
                 contentDoc.parentTagType = (parentDoc as TagDto).tagType;
             }
+
+            if (parentDoc.type == DocType.Post) {
+                contentDoc.parentTagType = (parentDoc as PostDto).postType;
+            }
             contentDoc.parentPublishDateVisible = parentDoc.publishDateVisible;
         }
     }
@@ -69,6 +73,10 @@ export async function processChangeRequest(
 
                 if (doc.type == DocType.Tag) {
                     contentDoc.parentTagType = (doc as TagDto).tagType;
+                }
+
+                if (doc.type == DocType.Post) {
+                    contentDoc.parentTagType = (doc as PostDto).postType;
                 }
 
                 contentDoc.parentPublishDateVisible = doc.publishDateVisible;
