@@ -8,6 +8,7 @@ import {
     ArrowUpIcon,
     ArrowDownIcon,
     MagnifyingGlassIcon,
+    TagIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
@@ -27,8 +28,10 @@ import router from "@/router";
 import { debouncedWatch, onClickOutside } from "@vueuse/core";
 import type { ContentOverviewQueryOptions } from "./query";
 import LInput from "../forms/LInput.vue";
-import { Menu } from "@headlessui/vue";
+import { Combobox, Menu } from "@headlessui/vue";
 import LRadio from "../forms/LRadio.vue";
+import LChecklist from "../forms/LChecklist.vue";
+import TagSelector from "./TagSelector.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -235,6 +238,7 @@ const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 
             <div class="h-full">
                 <div class="relative flex h-full gap-1">
+                    <LChecklist :options="filterByTranslationOptions" :icon="TagIcon" />
                     <LSelect
                         data-test="filter-select"
                         v-model="filterByTranslation"
