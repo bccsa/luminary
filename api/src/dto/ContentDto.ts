@@ -8,7 +8,7 @@ import {
     IsString,
     Min,
 } from "class-validator";
-import { DocType, PublishStatus, TagType, Uuid } from "../enums";
+import { DocType, PostType, PublishStatus, TagType, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
 import { Expose } from "class-transformer";
@@ -121,7 +121,7 @@ export class ContentDto extends _contentBaseDto {
     @IsOptional() // Optional as it is set upon change request processing
     @IsString()
     @Expose()
-    parentTagType?: TagType;
+    parentTagType?: TagType | PostType;
 
     @IsOptional() // Optional as it is set upon change request processing
     @IsBoolean()
