@@ -6,6 +6,7 @@ export const variants = {
     error: "bg-red-100 text-red-700 ring-red-200",
     info: "bg-blue-100 text-blue-700 ring-blue-200",
     scheduled: "bg-purple-100 text-purple-700 ring-purple-200",
+    expired: "bg-cyan-100 text-cyan-700 ring-cyan-200",
 };
 </script>
 
@@ -16,6 +17,7 @@ import {
     EllipsisHorizontalCircleIcon,
     ExclamationCircleIcon,
     XCircleIcon,
+    NoSymbolIcon,
 } from "@heroicons/vue/16/solid";
 import { computed, type Component } from "vue";
 
@@ -45,6 +47,8 @@ const defaultIcon = computed(() => {
             return ExclamationCircleIcon;
         case "error":
             return ExclamationCircleIcon;
+        case "expired":
+            return NoSymbolIcon;
         default:
             return XCircleIcon;
     }
