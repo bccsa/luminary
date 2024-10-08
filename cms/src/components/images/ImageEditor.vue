@@ -147,18 +147,20 @@ const handleDrop = (e: DragEvent) => {
 
         <!-- Drag and Drop Area or File Picker -->
         <div
-            class="mb-4 mt-2 flex min-h-36 flex-col justify-center rounded-md border-2 border-dashed border-gray-300 p-6 transition duration-150 ease-in-out"
+            class="mb-4 mt-2 flex min-h-36 flex-col justify-center rounded-md border-2 border-dashed border-gray-300 p-3 transition duration-150 ease-in-out"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"
             @drop="handleDrop"
-            :class="{ ' border-blue-500 bg-blue-50': isDragging }"
+            :class="{
+                ' border-blue-500 bg-blue-50': isDragging,
+            }"
         >
             <div class="flex flex-col items-center justify-center">
-                <p v-if="isDragging" class="mt-1 text-sm">Drop your files here</p>
+                <p v-if="isDragging" class="text-sm">Drop your files here</p>
                 <div v-else>
                     <LButton :icon="ArrowUpOnSquareIcon" @click="showFilePicker">
-                        Drag & Drop or Click to Upload
+                        Drop image file or click to Upload
                     </LButton>
                     <input
                         ref="uploadInput"
@@ -180,11 +182,7 @@ const handleDrop = (e: DragEvent) => {
                 "
             >
                 <div v-if="!isDragging">
-                    <!-- <h3 class="mt-4 text-sm font-medium leading-6 text-zinc-900">
-                        Uploaded image files
-                    </h3> -->
-
-                    <div class="flex flex-1 flex-wrap gap-2 pt-2" data-test="thumbnail-area">
+                    <div class="flex flex-1 flex-wrap gap-2 pt-5" data-test="thumbnail-area">
                         <!-- Display file collections as thumbnails -->
                         <ImageEditorThumbnail
                             v-for="c in parent.imageData.fileCollections"
