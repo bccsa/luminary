@@ -1,5 +1,13 @@
-import { Uuid } from "../enums";
-import { IsArray, IsOptional, IsBoolean, IsString, ValidateNested } from "class-validator";
+import { PostType, Uuid } from "../enums";
+import {
+    IsArray,
+    IsOptional,
+    IsBoolean,
+    IsString,
+    ValidateNested,
+    IsNotEmpty,
+    IsEnum,
+} from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose, Type } from "class-transformer";
 import { ImageDto } from "./ImageDto";
@@ -22,4 +30,9 @@ export class PostDto extends _contentBaseDto {
     @IsBoolean()
     @Expose()
     publishDateVisible: boolean;
+
+    @IsNotEmpty()
+    @IsEnum(PostType)
+    @Expose()
+    postType: PostType;
 }
