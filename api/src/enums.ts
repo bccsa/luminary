@@ -79,3 +79,11 @@ export enum TagType {
     Topic = "topic",
     AudioPlaylist = "audioPlaylist",
 }
+
+/**
+ * Post Type used in Post documents
+ */
+export enum PostType {
+    Blog = "blog",
+    Page = "page",
+}
