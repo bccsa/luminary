@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, toRaw } from "vue";
 import LButton from "../button/LButton.vue";
-import { ArrowUpOnSquareIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
+import {
+    ArrowUpOnSquareIcon,
+    ExclamationCircleIcon,
+    QuestionMarkCircleIcon,
+} from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import { useNotificationStore } from "@/stores/notification";
 import {
@@ -12,7 +16,7 @@ import {
     type TagDto,
 } from "luminary-shared";
 
-const { addNotification } = useNotificationStore();
+const { notifications, addNotification } = useNotificationStore();
 
 type Props = {
     disabled: boolean;
@@ -20,6 +24,7 @@ type Props = {
 defineProps<Props>();
 
 const parent = defineModel<PostDto | TagDto>("parent");
+maxUploadFileSize.value = 250000;
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
 // HTML element refs
@@ -27,6 +32,8 @@ const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 const isDragging = ref(false);
 const dragCounter = ref(0);
 const showHelp = ref(false);
+const showFailureMessage = ref(false);
+const failureMessage = ref<string | undefined>(undefined);
 
 const showFilePicker = () => {
     // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
@@ -48,12 +55,15 @@ const handleFiles = (files: FileList | null) => {
                     description: `Image file size is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`,
                     state: "error",
                 });
+                failureMessage.value = `Image file size is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
                 return;
             }
 
             if (!parent.value) return;
             if (!parent.value.imageData) parent.value.imageData = { fileCollections: [] };
             if (!parent.value.imageData.uploadData) parent.value.imageData.uploadData = [];
+
+            failureMessage.value = "";
 
             parent.value.imageData.uploadData.push({
                 filename: file.name,
@@ -125,15 +135,30 @@ const handleDrop = (e: DragEvent) => {
     <div class="flex-col overflow-y-auto">
         <div class="flex justify-between">
             <span class="text-sm font-medium leading-6 text-zinc-900">Image</span>
-            <button
-                class="flex cursor-pointer items-center gap-1 rounded-md"
-                @click="showHelp = !showHelp"
-            >
-                <QuestionMarkCircleIcon class="h-5 w-5" />
-            </button>
+            <div class="flex">
+                <button
+                    v-if="failureMessage"
+                    class="flex cursor-pointer items-center gap-1 rounded-md"
+                    @click="showFailureMessage = !showFailureMessage"
+                    :title="failureMessage"
+                >
+                    <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
+                </button>
+                <button
+                    class="flex cursor-pointer items-center gap-1 rounded-md"
+                    @click="showHelp = !showHelp"
+                >
+                    <QuestionMarkCircleIcon class="h-5 w-5" />
+                </button>
+            </div>
         </div>
 
         <!-- Description and Instructions -->
+        <div v-if="showFailureMessage">
+            <p class="my-2 text-xs text-red-600">
+                {{ failureMessage }}
+            </p>
+        </div>
         <div v-if="showHelp">
             <p class="my-2 text-xs">
                 You can upload several files in different aspect ratios. The most suitable image
