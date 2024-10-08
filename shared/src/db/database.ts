@@ -6,6 +6,7 @@ import {
     ContentDto,
     DocType,
     LocalChangeDto,
+    PostType,
     PublishStatus,
     TagDto,
     TagType,
@@ -187,7 +188,7 @@ class Database extends Dexie {
     whereTypeAsRef<T extends BaseDocumentDto[]>(
         docType: DocType,
         initialValue?: T,
-        tagType?: TagType,
+        tagType?: TagType | PostType,
     ) {
         if (tagType) {
             return this.toRef<T>(
