@@ -24,7 +24,6 @@ type Props = {
 defineProps<Props>();
 
 const parent = defineModel<PostDto | TagDto>("parent");
-maxUploadFileSize.value = 250000;
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
 // HTML element refs
@@ -50,11 +49,6 @@ const handleFiles = (files: FileList | null) => {
             const fileData = e.target!.result as ArrayBuffer;
 
             if (fileData.byteLength > maxUploadFileSize.value) {
-                addNotification({
-                    title: `Invalid image file size`,
-                    description: `Image file size is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`,
-                    state: "error",
-                });
                 failureMessage.value = `Image file size is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
                 return;
             }
