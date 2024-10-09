@@ -154,6 +154,7 @@ describe("processChangeRequest", () => {
                 image: "test1234.jpg",
                 tags: ["tag1", "tag2"],
                 publishDateVisible: true,
+                postType: "blog",
             } as PostDto,
         };
 
