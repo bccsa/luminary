@@ -175,6 +175,7 @@ onClickOutside(sortOptionsAsRef, () => {
                     :options="languageOptions"
                     :required="true"
                     size="lg"
+                    data-test="language-selector"
                 />
                 <LButton
                     v-if="canCreateNew"
@@ -319,6 +320,7 @@ onClickOutside(sortOptionsAsRef, () => {
             :languageId="selectedLanguage"
             :key="queryKey"
             :queryOptions="queryOptions"
+            data-test="content-table"
         />
     </BasePage>
 </template>

@@ -77,6 +77,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                     <tbody class="divide-y divide-zinc-200 bg-white">
                         <ContentRow
                             v-for="contentDoc in contentDocs"
+                            data-test="content-row"
                             :key="contentDoc._id"
                             :contentDoc="contentDoc"
                             :parentType="queryOptions.parentType"
