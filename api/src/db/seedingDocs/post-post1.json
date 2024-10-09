@@ -3,5 +3,6 @@
     "type": "post",
     "memberOf": ["group-public-content"],
     "tags": ["tag-category1", "tag-topicA"],
-    "publishDateVisible": true
+    "publishDateVisible": true,
+    "postType": "blog"
 }
