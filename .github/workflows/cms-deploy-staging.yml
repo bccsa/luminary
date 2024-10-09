@@ -41,6 +41,7 @@ jobs:
           echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
           echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
           echo VITE_CLIENT_APP_URL="${{ vars.VITE_CLIENT_APP_URL }}" >> .env
+          echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
         working-directory: cms
 
       - name: Build Docker container
