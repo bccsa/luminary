@@ -16,8 +16,6 @@ import {
     type TagDto,
 } from "luminary-shared";
 
-const { addNotification } = useNotificationStore();
-
 type Props = {
     disabled: boolean;
 };
