@@ -16,5 +16,6 @@
     "parentId": "post-post2",
     "parentType": "post",
     "parentTags": ["tag-category2", "tag-topicB"],
+    "parentPostType": "page",
     "parentPublishDateVisible": true
 }
