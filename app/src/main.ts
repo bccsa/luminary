@@ -9,6 +9,7 @@ import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 import { initLuminaryShared } from "luminary-shared";
+import VueMatomo from "vue-matomo";
 
 initLuminaryShared({ cms: false });
 
@@ -39,5 +40,27 @@ app.use(
         useRefreshTokens: true,
     }),
 );
+
+// Matomo Analytics
+app.use(VueMatomo, {
+    host: import.meta.env.VITE_ANALYTICS_HOST,
+    siteId: import.meta.env.VITE_ANALYTICS_SITEID,
+    router: router,
+});
+
+// Start analytics on initial load
+window._paq.push(["setCustomUrl", window.location.href]);
+window._paq.push(["setDocumentTitle", document.title]);
+window._paq.push(["trackPageView"]);
+window._paq.push(["trackVisibleContentImpressions"]);
+
+// register matomo service worker
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register(
+            `src/analytics/service-worker.js?matomo_server=${import.meta.env.VITE_ANALYTICS_HOST}`,
+        );
+    });
+}
 
 app.mount("#app");
