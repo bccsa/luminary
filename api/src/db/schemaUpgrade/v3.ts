@@ -64,7 +64,7 @@ export default async function (db: DbService, s3: S3Service) {
                 } catch (e) {
                     let message = e.message;
                     if (e.errors && e.errors.length > 0) {
-                        message += "\n" + e.errors.join("\n");
+                        message += "; " + e.errors.join("; ");
                     }
                     console.error(`Unable to process change request for ${d._id}. ${message}`);
                 }
