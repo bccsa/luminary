@@ -16,6 +16,7 @@ export const changeRequest_post = () => {
             image: randomString(),
             tags: ["tag-category1", "tag-topicA"],
             publishDateVisible: true,
+            postType: "blog",
         },
     };
 };
