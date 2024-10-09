@@ -10,6 +10,7 @@ import {
     // GroupDto,
     TagType,
     PublishStatus,
+    PostType,
 } from "../types";
 
 export const mockCategoryDto: TagDto = {
@@ -83,6 +84,7 @@ export const mockPostDto: PostDto = {
     } as ImageDto,
     tags: ["tag-category1"],
     publishDateVisible: true,
+    postType: PostType.Blog,
 };
 
 export const mockEnglishContentDto: ContentDto = {
