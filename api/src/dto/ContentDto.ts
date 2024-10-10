@@ -109,6 +109,11 @@ export class ContentDto extends _contentBaseDto {
     @Expose()
     parentTags?: Uuid[];
 
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsArray()
+    @Expose()
+    parentPosts?: Uuid[];
+
     @IsOptional() // Optional as it is set upon change request processing. No need to validate the field as it is set by the system.
     @Expose()
     parentImageData?: ImageDto;
