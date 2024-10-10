@@ -1,10 +1,10 @@
 {
-    "_id": "content-post1-eng",
+    "_id": "content-page1-eng",
     "type": "content",
     "memberOf": ["group-public-content"],
     "language": "lang-eng",
     "status": "published",
-    "slug": "post1-eng",
+    "slug": "page1-eng",
     "title": "Post 1",
     "summary": "This is an example post",
     "author": "ChatGPT",
@@ -13,9 +13,9 @@
     "audio": null,
     "video": null,
     "publishDate": 1704114000000,
-    "parentId": "post-post1",
-    "parentType": "post",
+    "parentId": "post-page1",
+    "parentType": "page",
     "parentTags": ["tag-category1", "tag-topicA"],
-    "parentPostType": "blog",
+    "parentPostType": "page",
     "parentPublishDateVisible": true
 }

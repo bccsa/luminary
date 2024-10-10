@@ -8,7 +8,7 @@ import {
     IsString,
     Min,
 } from "class-validator";
-import { DocType, PublishStatus, TagType, Uuid } from "../enums";
+import { DocType, PostType, PublishStatus, TagType, Uuid } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { IsOptionalIf } from "../validation/IsOptionalIf";
 import { Expose } from "class-transformer";
@@ -109,6 +109,11 @@ export class ContentDto extends _contentBaseDto {
     @Expose()
     parentTags?: Uuid[];
 
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsArray()
+    @Expose()
+    parentPosts?: Uuid[];
+
     @IsOptional() // Optional as it is set upon change request processing. No need to validate the field as it is set by the system.
     @Expose()
     parentImageData?: ImageDto;
@@ -122,6 +127,11 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     parentTagType?: TagType;
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @Expose()
+    parentPostType?: PostType;
 
     @IsOptional() // Optional as it is set upon change request processing
     @IsBoolean()
