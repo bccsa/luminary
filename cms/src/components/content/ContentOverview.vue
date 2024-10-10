@@ -19,8 +19,9 @@ import {
     type Uuid,
     hasAnyPermission,
     type TagDto,
+    type ContentDto,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -169,7 +170,27 @@ onClickOutside(sortOptionsAsRef, () => {
     showSortOptions.value = false;
 });
 
-const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
+const tags = db.whereTypeAsRef(DocType.Tag);
+const tagsToDisplay = ref<any[]>([]);
+const tagsSelected = ref([]);
+watch(tags, () => {
+    tags.value.map((tag) => {
+        console.log(tag);
+        const tagContent: Ref<ContentDto[]> = db.whereParentAsRef(tag._id, DocType.Tag);
+        console.log(tagContent.value);
+        tagsToDisplay.value.push({
+            value: tag._id,
+            label: tag._id,
+            isChecked: false,
+        });
+    });
+});
+watch(tagsSelected.value, () => {
+    const tags = tagsSelected.value.map((tag: any) => {
+        return tag.value;
+    });
+    queryOptions.value.tags = [...tags];
+});
 </script>
 
 <template>
@@ -237,8 +258,13 @@ const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
             />
 
             <div class="h-full">
-                <div class="relative flex h-full gap-1">
-                    <LChecklist :options="filterByTranslationOptions" :icon="TagIcon" />
+                <div class="relative flex gap-1">
+                    <LChecklist
+                        :options="tagsToDisplay"
+                        :icon="TagIcon"
+                        v-model="tagsSelected"
+                        placeholder="Select Tags"
+                    />
                     <LSelect
                         data-test="filter-select"
                         v-model="filterByTranslation"

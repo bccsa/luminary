@@ -1,25 +1,28 @@
 <script setup lang="ts">
-import { ref, type Component } from "vue";
+import { type Component } from "vue";
 import { Combobox, ComboboxButton, ComboboxOptions } from "@headlessui/vue";
-import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
+import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import { useId } from "@/util/useId";
 import FormLabel from "../forms/FormLabel.vue";
 import FormMessage from "../forms/FormMessage.vue";
 
-type Option = { label: string; value: string; disabled?: boolean };
+type Option = { label: string; value: string; isChecked: boolean; disabled?: boolean };
 
 type Props = {
     options: Option[];
     state?: keyof typeof states;
     label?: string;
+    placeholder?: string;
     disabled?: boolean;
     required?: boolean;
     icon?: Component | Function;
 };
 
 const props = withDefaults(defineProps<Props>(), {
+    placeholder: "Select Options",
     disabled: false,
     required: false,
+    state: "default",
 });
 
 const states = {
@@ -27,15 +30,27 @@ const states = {
     error: "text-red-900 bg-red-50 ring-red-300 focus:ring-red-500",
 };
 
-const selectedValues = ref<string[]>([]);
+const selectedValues = defineModel<Option[]>("modelValue", { default: () => [] });
 const id = `l-checkbox-select-${useId()}`;
 
-const toggleOption = (value: string) => {
-    if (selectedValues.value.includes(value)) {
-        selectedValues.value = selectedValues.value.filter((v) => v !== value);
+const toggleOption = (option: Option) => {
+    const index = selectedValues.value.findIndex((v) => v.value === option.value);
+
+    if (index > -1) {
+        // Remove option if already selected
+        selectedValues.value.splice(index, 1);
     } else {
-        selectedValues.value.push(value);
+        // Add option if not selected
+        selectedValues.value.push(option);
     }
+
+    props.options.forEach((opt) => {
+        opt.isChecked = selectedValues.value.some((v) => v.value === opt.value);
+    });
+};
+
+const isOptionSelected = (option: Option) => {
+    return selectedValues.value.some((v) => v.value === option.value);
 };
 </script>
 
@@ -44,26 +59,26 @@ const toggleOption = (value: string) => {
         <FormLabel :for="id" class="block text-sm font-medium leading-6 text-zinc-900">
             {{ props.label }}
         </FormLabel>
-        <Combobox as="div" nullable :disabled="props.disabled">
-            <div class="relative mt-2">
+        <Combobox class="h-full" as="div" nullable :disabled="props.disabled">
+            <div class="relative mt-2 h-full">
                 <ComboboxButton
-                    class="h-full w-full rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm"
+                    class="h-full w-full cursor-default rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:bg-zinc-100 focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm"
                 >
-                    <div class="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <div class="absolute inset-y-0 left-0 flex h-full items-center pl-3">
                         <component
                             v-if="props.icon"
                             :is="props.icon"
                             :class="{
-                                'text-zinc-400': props.state == 'default' && !props.disabled,
-                                'text-zinc-300': props.state == 'default' && props.disabled,
-                                'text-red-400': props.state == 'error',
+                                'text-zinc-400': props.state === 'default' && !props.disabled,
+                                'text-zinc-300': props.state === 'default' && props.disabled,
+                                'text-red-400': props.state === 'error',
                             }"
                             class="h-5 w-5"
                         />
                     </div>
-                    <span class="flex-1">Select options</span>
+                    <span class="flex-1">{{ placeholder }}</span>
                     <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                        <ChevronUpDownIcon class="h-5 w-5 text-zinc-400" aria-hidden="true" />
+                        <ChevronDownIcon class="h-5 w-5 text-zinc-400" aria-hidden="true" />
                     </div>
                 </ComboboxButton>
 
@@ -76,16 +91,20 @@ const toggleOption = (value: string) => {
                     leave-to-class="transform scale-95 opacity-0"
                 >
                     <ComboboxOptions
-                        class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+                        class="absolute z-10 mt-1 max-h-48 w-max overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
                     >
-                        <div v-for="option in props.options" :key="option.value">
+                        <div
+                            v-for="option in props.options"
+                            :key="option.value"
+                            @click.stop="toggleOption(option)"
+                        >
                             <div
-                                @click.stop="toggleOption(option.value)"
                                 class="flex cursor-default select-none items-center py-2 pl-3 pr-9"
                             >
                                 <input
                                     type="checkbox"
-                                    :checked="selectedValues.includes(option.value)"
+                                    :id="option.label"
+                                    :checked="isOptionSelected(option)"
                                     class="mr-2"
                                     readonly
                                 />
