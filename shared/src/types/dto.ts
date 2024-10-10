@@ -70,6 +70,7 @@ export type ContentDto = ContentBaseDto & {
     text?: string;
     parentType?: DocType;
     parentTags: Uuid[];
+    parentPosts?: Uuid[];
     parentImageData?: ImageDto;
     parentTagType?: TagType;
     parentPostType?: PostType;
