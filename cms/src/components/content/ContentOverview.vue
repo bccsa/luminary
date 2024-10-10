@@ -8,6 +8,7 @@ import {
     ArrowUpIcon,
     ArrowDownIcon,
     MagnifyingGlassIcon,
+    TagIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
@@ -17,8 +18,10 @@ import {
     type LanguageDto,
     type Uuid,
     hasAnyPermission,
+    type TagDto,
+    type ContentDto,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -26,8 +29,10 @@ import router from "@/router";
 import { debouncedWatch, onClickOutside } from "@vueuse/core";
 import type { ContentOverviewQueryOptions } from "./query";
 import LInput from "../forms/LInput.vue";
-import { Menu } from "@headlessui/vue";
+import { Combobox, Menu } from "@headlessui/vue";
 import LRadio from "../forms/LRadio.vue";
+import LChecklist from "../forms/LChecklist.vue";
+import TagSelector from "./TagSelector.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -164,6 +169,28 @@ watch(selectedSortOption, () => {
 onClickOutside(sortOptionsAsRef, () => {
     showSortOptions.value = false;
 });
+
+const tags = db.whereTypeAsRef(DocType.Tag);
+const tagsToDisplay = ref<any[]>([]);
+const tagsSelected = ref([]);
+watch(tags, () => {
+    tags.value.map((tag) => {
+        console.log(tag);
+        const tagContent: Ref<ContentDto[]> = db.whereParentAsRef(tag._id, DocType.Tag);
+        console.log(tagContent.value);
+        tagsToDisplay.value.push({
+            value: tag._id,
+            label: tag._id,
+            isChecked: false,
+        });
+    });
+});
+watch(tagsSelected.value, () => {
+    const tags = tagsSelected.value.map((tag: any) => {
+        return tag.value;
+    });
+    queryOptions.value.tags = [...tags];
+});
 </script>
 
 <template>
@@ -231,7 +258,13 @@ onClickOutside(sortOptionsAsRef, () => {
             />
 
             <div class="h-full">
-                <div class="relative flex h-full gap-1">
+                <div class="relative flex gap-1">
+                    <LChecklist
+                        :options="tagsToDisplay"
+                        :icon="TagIcon"
+                        v-model="tagsSelected"
+                        placeholder="Select Tags"
+                    />
                     <LSelect
                         data-test="filter-select"
                         v-model="filterByTranslation"
