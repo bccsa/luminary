@@ -9,6 +9,7 @@ import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 import { initLuminaryShared } from "luminary-shared";
+// @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
 
 initLuminaryShared({ cms: false });
@@ -49,10 +50,13 @@ app.use(VueMatomo, {
 });
 
 // Start analytics on initial load
-window._paq.push(["setCustomUrl", window.location.href]);
-window._paq.push(["setDocumentTitle", document.title]);
-window._paq.push(["trackPageView"]);
-window._paq.push(["trackVisibleContentImpressions"]);
+// @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+window._paq.push(
+    ["setCustomUrl", window.location.href],
+    ["setDocumentTitle", document.title],
+    ["trackPageView"],
+    ["trackVisibleContentImpressions"],
+);
 
 // register matomo service worker
 if ("serviceWorker" in navigator) {

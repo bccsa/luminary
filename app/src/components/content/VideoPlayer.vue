@@ -90,8 +90,14 @@ onMounted(() => {
     player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
 
     // start video player analytics on mounted
-    window._paq.push(["MediaAnalytics::enableMediaAnalytics"]);
-    window._paq.push(["MediaAnalytics::scanForMedia", window.document]);
+    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+    if (window && window._paq) {
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        window._paq.push(
+            ["MediaAnalytics::enableMediaAnalytics"],
+            ["MediaAnalytics::scanForMedia", window.document],
+        );
+    }
 });
 
 onUnmounted(() => {
