@@ -40,8 +40,8 @@ jobs:
           echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
           echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
           echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
-          echo VITE_API_URL="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
-          echo VITE_API_URL="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
+          echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
+          echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
         working-directory: app
 
       - name: Build Docker container
