@@ -13,7 +13,7 @@ import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 
-const { isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
+const { isAuthenticated, user, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 
 initLanguage();
 
@@ -44,6 +44,9 @@ setTimeout(() => {
 }, 10000);
 
 const getToken = async () => {
+    // add UserId to analytics if the user is auth
+    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+    window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
     if (isAuthenticated.value) {
         try {
             return await getAccessTokenSilently();

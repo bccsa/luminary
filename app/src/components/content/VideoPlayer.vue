@@ -88,6 +88,16 @@ onMounted(() => {
 
     // Get player user active states
     player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
+
+    // start video player analytics on mounted
+    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+    if (window._paq) {
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        window._paq.push(
+            ["MediaAnalytics::enableMediaAnalytics"],
+            ["MediaAnalytics::scanForMedia", window.document],
+        );
+    }
 });
 
 onUnmounted(() => {
@@ -136,6 +146,7 @@ watch(audioMode, (mode) => {
                 controls
                 preload="auto"
                 data-setup="{}"
+                v-bind:data-matomo-title="props.content.title"
             ></video>
         </div>
 
