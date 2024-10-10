@@ -43,28 +43,41 @@ app.use(
 );
 
 // Matomo Analytics
-app.use(VueMatomo, {
-    host: import.meta.env.VITE_ANALYTICS_HOST,
-    siteId: import.meta.env.VITE_ANALYTICS_SITEID,
-    router: router,
-});
+if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID)
+    app.use(VueMatomo, {
+        host: import.meta.env.VITE_ANALYTICS_HOST,
+        siteId: import.meta.env.VITE_ANALYTICS_SITEID,
+        router: router,
+    });
 
 // Start analytics on initial load
 // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-window._paq.push(
-    ["setCustomUrl", window.location.href],
-    ["setDocumentTitle", document.title],
-    ["trackPageView"],
-    ["trackVisibleContentImpressions"],
-);
+if (window._paq)
+    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+    window._paq.push(
+        ["setCustomUrl", window.location.href],
+        ["setDocumentTitle", document.title],
+        ["trackPageView"],
+        ["trackVisibleContentImpressions"],
+    );
 
 // register matomo service worker
-if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-        navigator.serviceWorker.register(
-            `src/analytics/service-worker.js?matomo_server=${import.meta.env.VITE_ANALYTICS_HOST}`,
-        );
-    });
+if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID) {
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+            navigator.serviceWorker.register(
+                `src/analytics/service-worker.js?matomo_server=${import.meta.env.VITE_ANALYTICS_HOST}`,
+            );
+        });
+    }
+} else {
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (const registration of registrations) {
+                registration.unregister();
+            }
+        });
+    }
 }
 
 app.mount("#app");
