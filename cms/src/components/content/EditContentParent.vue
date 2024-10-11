@@ -9,6 +9,7 @@ import {
     type TagDto,
     type LanguageDto,
     verifyAccess,
+    PostType,
 } from "luminary-shared";
 import { computed } from "vue";
 import TagSelector from "./TagSelector.vue";
@@ -70,9 +71,20 @@ const canEdit = computed(() => {
         />
 
         <TagSelector
+            v-if="docType == DocType.Post"
+            v-model="(parent as PostDto).postType"
+            :language="language"
+            :postOrTagType="PostType.Blog"
+            label="Post type"
+            class="mt-6"
+            :disabled="!canEdit"
+            :key="language?._id"
+        />
+
+        <TagSelector
             v-model:parent="parent"
             :language="language"
-            :tagType="TagType.Category"
+            :postOrTagType="TagType.Category"
             label="Categories"
             class="mt-6"
             :disabled="!canEdit"
@@ -82,7 +94,7 @@ const canEdit = computed(() => {
         <TagSelector
             v-model:parent="parent"
             :language="language"
-            :tagType="TagType.Topic"
+            :postOrTagType="TagType.Topic"
             label="Topics"
             class="mt-6"
             :disabled="!canEdit"
@@ -92,7 +104,7 @@ const canEdit = computed(() => {
         <TagSelector
             v-model:parent="parent"
             :language="language"
-            :tagType="TagType.AudioPlaylist"
+            :postOrTagType="TagType.AudioPlaylist"
             label="Audio Playlists"
             class="mt-6"
             :disabled="!canEdit"

@@ -19,12 +19,14 @@ import {
     type PostDto,
     type TagDto,
     verifyAccess,
+    PostType,
+    ContentParentDto,
 } from "luminary-shared";
 import LTag from "./LTag.vue";
 import { watchDeep } from "@vueuse/core";
 
 type Props = {
-    tagType: TagType;
+    postOrTagType: PostType | TagType;
     language?: LanguageDto;
     label?: string;
     disabled?: boolean;
@@ -34,7 +36,11 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
 const parent = defineModel<PostDto | TagDto>("parent");
-const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
+const tags = db.whereTypeAsRef<TagDto[] | PostDto[]>(
+    typeof props.postOrTagType == typeof PostType ? DocType.Post : DocType.Tag,
+    [],
+    props.postOrTagType,
+);
 
 const tagsContent = ref<ContentDto[]>([]);
 watch(tags, async () => {
@@ -78,7 +84,7 @@ const filteredTagsContent = computed(() =>
           }),
 );
 
-const selectedTagsByType = ref<TagDto[]>([]);
+const selectedTagsByType = ref<ContentParentDto[]>([]);
 watchDeep([parent, tags], () => {
     if (!parent.value) return;
     // The tags list is already filtered by the tagType
@@ -105,6 +111,7 @@ const isTagSelected = computed(() => {
             nullable
             :disabled="disabled"
         >
+            {{ posts }}
             <ComboboxLabel class="block text-sm font-medium leading-6 text-zinc-900">
                 {{ label }}
             </ComboboxLabel>

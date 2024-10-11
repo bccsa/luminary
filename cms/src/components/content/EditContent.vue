@@ -17,6 +17,8 @@ import {
     type TagDto,
     type Uuid,
     verifyAccess,
+    ContentParentDto,
+    PostType,
 } from "luminary-shared";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
@@ -37,7 +39,7 @@ type Props = {
     id: Uuid;
     languageCode?: string;
     docType: DocType.Post | DocType.Tag;
-    tagType?: keyof TagType;
+    tagType?: keyof TagType | keyof PostType;
 };
 const props = defineProps<Props>();
 
@@ -50,7 +52,7 @@ const newDocument = props.id == "new";
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
-const parent = ref<PostDto | TagDto>({
+const parent = ref<ContentParentDto>({
     _id: parentId,
     type: props.docType,
     updatedTimeUtc: 0,
@@ -59,7 +61,7 @@ const parent = ref<PostDto | TagDto>({
     publishDateVisible: true,
 });
 const isLoading = computed(() => parent.value == undefined);
-const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent document for dirty check
+const parentPrev = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
 const contentDocs = ref<ContentDto[]>([]);
 const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 
@@ -71,10 +73,11 @@ if (newDocument) {
         (parent.value as TagDto).publishDateVisible = false;
     } else {
         (parent.value as PostDto).publishDateVisible = true;
+        (parent.value as PostDto).postType = PostType.Blog;
     }
 } else {
     // Get a copy of the parent document from IndexedDB, and host it as a local ref.
-    db.get<PostDto | TagDto>(parentId).then((p) => {
+    db.get<ContentParentDto>(parentId).then((p) => {
         parent.value = p;
         parentPrev.value = _.cloneDeep(p);
     });

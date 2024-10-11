@@ -6,6 +6,7 @@ import {
     ContentDto,
     DocType,
     LocalChangeDto,
+    PostType,
     PublishStatus,
     TagDto,
     TagType,
@@ -71,8 +72,8 @@ class Database extends Dexie {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(8).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language], title",
+        this.version(9).stores({
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], [type+postType], publishDate, expiryDate, [type+language], title",
             localChanges: "++id, reqId, docId, status",
         });
 
@@ -181,19 +182,29 @@ class Database extends Dexie {
     /**
      * Get all IndexedDB documents of a certain type as Vue Ref
      * @param initialValue - The initial value of the ref while waiting for the query to complete
-     * @param tagType - Optional: The tag type to filter by (only used for tags)
+     * @param postOrTagType - Optional: The tag type to filter by (only used for tags)
      * TODO: Add pagination
      */
     whereTypeAsRef<T extends BaseDocumentDto[]>(
         docType: DocType,
         initialValue?: T,
-        tagType?: TagType,
+        postOrTagType?: PostType | TagType,
     ) {
-        if (tagType) {
+        if (postOrTagType) {
+            if (typeof postOrTagType === typeof TagType) {
+                return this.toRef<T>(
+                    () =>
+                        this.docs
+                            .where({ type: docType, tagType: postOrTagType as TagType })
+                            .toArray() as unknown as Promise<T>,
+                    initialValue,
+                );
+            }
+
             return this.toRef<T>(
                 () =>
                     this.docs
-                        .where({ type: docType, tagType: tagType })
+                        .where({ type: docType, postType: postOrTagType as PostType })
                         .toArray() as unknown as Promise<T>,
                 initialValue,
             );
