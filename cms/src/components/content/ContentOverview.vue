@@ -174,29 +174,42 @@ const tags = db.whereTypeAsRef(DocType.Tag);
 const tagsToDisplay = ref<any[]>([]);
 const tagsSelected = ref([]);
 const tagsContent = ref<ContentDto[]>([]);
-watch(tags, () => {
-    const tagIds = tags.value.map((t) => t._id);
+debouncedWatch(
+    tags,
+    async () => {
+        const tagIds = tags.value.map((t) => t._id);
 
-    tagIds.forEach(async () => {
-        tagsContent.value = await db.whereParent(tagIds, DocType.Tag); // add languageId
-    });
-
-    // tags.value.map((tag) => {
-    //     console.log(tag);
-    //     const tagContent: Ref<ContentDto[]> = db.whereParentAsRef(tag._id, DocType.Tag);
-    //     console.log(tagContent.value);
-    //     tagsToDisplay.value.push({
-    //         value: tag._id,
-    //         label: tag._id,
-    //         isChecked: false,
-    //     });
-    // });
-});
+        tagsContent.value = await db.whereParent(tagIds, DocType.Tag, selectedLanguage.value); // add languageId
+        tagsContent.value.map((tagContent) =>
+            tagsToDisplay.value.push({
+                label: tagContent.title,
+                value: tagContent._id,
+                isChecked: false,
+            }),
+        );
+    },
+    { debounce: 1 },
+);
 watch(tagsSelected.value, () => {
-    const tags = tagsSelected.value.map((tag: any) => {
-        return tag.value;
+    const tagValues = tagsSelected.value.map(
+        (t: { label: string; value: string; isChecked: boolean }) => t.value,
+    );
+    console.log(tagValues);
+
+    tagsSelected.value.forEach((t: { label: string; value: string; isChecked: boolean }) => {
+        if (t.isChecked) {
+            const index = tagsToDisplay.value.findIndex((tag) => tag.value === t.value);
+
+            if (index > -1) {
+                const [tagToMove] = tagsToDisplay.value.splice(index, 1);
+
+                tagsToDisplay.value.unshift(tagToMove);
+            }
+        }
     });
-    queryOptions.value.tags = [...tags];
+
+    queryOptions.value.tags = [...tagValues];
+    console.log("tags in query", queryOptions.value.tags);
 });
 </script>
 
@@ -252,7 +265,6 @@ watch(tagsSelected.value, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
-        {{ tagsContent }}
         <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
             <LInput
                 type="text"
