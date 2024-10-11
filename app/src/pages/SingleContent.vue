@@ -121,12 +121,7 @@ const text = computed(() => {
 
     <article v-else class="mx-auto mb-12 max-w-3xl">
         <VideoPlayer v-if="content.video" :content="content" />
-        <LImage
-            v-else-if="content.parentImageData"
-            :image="content.parentImageData"
-            aspectRatio="video"
-            size="post"
-        />
+        <LImage :image="content.parentImageData" aspectRatio="video" size="post" />
 
         <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
             {{ content.title }}

@@ -6,7 +6,7 @@ import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
 
 const props = defineProps<{
-    image: ImageDto;
+    image?: ImageDto;
     aspectRatio: keyof typeof aspectRatios;
     size: keyof typeof sizes;
 }>();
@@ -38,7 +38,7 @@ let closestAspectRatio = 0;
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
     // Check if there is uploaded image data available and return a blob URL
-    if (props.image.uploadData && props.image.uploadData.length > 0) {
+    if (props.image?.uploadData && props.image.uploadData.length > 0) {
         return URL.createObjectURL(
             new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
                 type: "image/*",
@@ -46,7 +46,7 @@ const srcset1 = computed(() => {
         );
     }
 
-    if (!props.image.fileCollections || props.image.fileCollections?.length == 0) return "";
+    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
 
     // Get the available aspect ratios
     const aspectRatios = props.image.fileCollections
@@ -75,7 +75,7 @@ const srcset1 = computed(() => {
 
 // Source set for the secondary image element (used if the primary image element fails to load) with the non-preferred aspect ratios
 const srcset2 = computed(() => {
-    if (!props.image.fileCollections || props.image.fileCollections?.length == 0) return "";
+    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
 
     return props.image.fileCollections
         .filter((collection) => collection.aspectRatio != closestAspectRatio)
