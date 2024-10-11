@@ -146,10 +146,10 @@ function selectTag(parentId: Uuid) {
     </div>
 
     <NotFoundPage v-else-if="isExpiredOrScheduled" />
-
-    <article v-else class="mb-12 w-full lg:w-3/4 lg:max-w-3xl">
-        <VideoPlayer v-if="content.video" :content="content" />
-        <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
+    <div v-else class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
+        <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl">
+            <VideoPlayer v-if="content.video" :content="content" />
+            <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
 
             <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
                 {{ content.title }}
@@ -182,7 +182,7 @@ function selectTag(parentId: Uuid) {
 
         <div v-if="hasContent" class="h-full w-full py-2 lg:mt-0 lg:w-1/4 lg:max-w-3xl">
             <div
-                class="mb-5 flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
+                class="mb-2 flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
             >
                 <span
                     v-for="tag in tagsContent.filter(
@@ -199,20 +199,17 @@ function selectTag(parentId: Uuid) {
                     {{ tag.title }}
                 </span>
             </div>
-
-            <div>
-                <VerticalTagViewer
-                    v-for="tag in tags.filter(
-                        (t) => t.tagType == TagType.Category && t._id == selectedTagId,
-                    )"
-                    :key="tag._id"
-                    :tag="tag"
-                    :queryOptions="{
-                        filterOptions: { docType: DocType.Post },
-                        languageId: appLanguageIdAsRef,
-                    }"
-                />
-            </div>
+            <VerticalTagViewer
+                v-for="tag in tags.filter(
+                    (t) => t.tagType == TagType.Category && t._id == selectedTagId,
+                )"
+                :key="tag._id"
+                :tag="tag"
+                :queryOptions="{
+                    filterOptions: { docType: DocType.Post },
+                    languageId: appLanguageIdAsRef,
+                }"
+            />
         </div>
     </div>
 

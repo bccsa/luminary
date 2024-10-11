@@ -2,6 +2,7 @@
 import { DocType, db, type TagDto, type QueryOptions as options } from "luminary-shared";
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import LImage from "../images/LImage.vue";
 
 const router = useRouter();
 type Props = {
@@ -64,13 +65,13 @@ watch(tagContent, () => {
                             isContentSelected(content.slug),
                     }"
                 >
-                    <div class="flex items-center lg:w-1/5">
+                    <div class="flex items-center">
                         <div class="relative overflow-hidden rounded">
-                            <img
-                                class="w-32 object-cover opacity-100"
-                                loading="lazy"
-                                draggable="false"
-                                :src="content.parentImage"
+                            <LImage
+                                v-if="content.parentImageData"
+                                :image="content.parentImageData"
+                                aspectRatio="video"
+                                size="small"
                             />
                         </div>
                     </div>
