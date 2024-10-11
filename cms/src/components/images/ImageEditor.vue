@@ -7,7 +7,6 @@ import {
     QuestionMarkCircleIcon,
 } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
-import { useNotificationStore } from "@/stores/notification";
 import {
     type ImageUploadDto,
     type ImageFileCollectionDto,
