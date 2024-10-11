@@ -194,7 +194,6 @@ watch(tagsSelected.value, () => {
     const tagValues = tagsSelected.value.map(
         (t: { label: string; value: string; isChecked: boolean }) => t.value,
     );
-    console.log(tagValues);
 
     tagsSelected.value.forEach((t: { label: string; value: string; isChecked: boolean }) => {
         if (t.isChecked) {
@@ -209,7 +208,6 @@ watch(tagsSelected.value, () => {
     });
 
     queryOptions.value.tags = [...tagValues];
-    console.log("tags in query", queryOptions.value.tags);
 });
 </script>
 
@@ -281,9 +279,10 @@ watch(tagsSelected.value, () => {
                 <div class="relative flex gap-1">
                     <LChecklist
                         :options="tagsToDisplay"
+                        :searchable="true"
                         :icon="TagIcon"
                         v-model="tagsSelected"
-                        placeholder="Select Tags"
+                        placeholder="Search tags..."
                     />
                     <LSelect
                         data-test="filter-select"
