@@ -173,17 +173,24 @@ onClickOutside(sortOptionsAsRef, () => {
 const tags = db.whereTypeAsRef(DocType.Tag);
 const tagsToDisplay = ref<any[]>([]);
 const tagsSelected = ref([]);
+const tagsContent = ref<ContentDto[]>([]);
 watch(tags, () => {
-    tags.value.map((tag) => {
-        console.log(tag);
-        const tagContent: Ref<ContentDto[]> = db.whereParentAsRef(tag._id, DocType.Tag);
-        console.log(tagContent.value);
-        tagsToDisplay.value.push({
-            value: tag._id,
-            label: tag._id,
-            isChecked: false,
-        });
+    const tagIds = tags.value.map((t) => t._id);
+
+    tagIds.forEach(async () => {
+        tagsContent.value = await db.whereParent(tagIds, DocType.Tag); // add languageId
     });
+
+    // tags.value.map((tag) => {
+    //     console.log(tag);
+    //     const tagContent: Ref<ContentDto[]> = db.whereParentAsRef(tag._id, DocType.Tag);
+    //     console.log(tagContent.value);
+    //     tagsToDisplay.value.push({
+    //         value: tag._id,
+    //         label: tag._id,
+    //         isChecked: false,
+    //     });
+    // });
 });
 watch(tagsSelected.value, () => {
     const tags = tagsSelected.value.map((tag: any) => {
@@ -245,6 +252,7 @@ watch(tagsSelected.value, () => {
             :buttonPermission="canCreateNew"
             data-test="no-content"
         /> -->
+        {{ tagsContent }}
         <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
             <LInput
                 type="text"
