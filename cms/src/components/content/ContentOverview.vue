@@ -257,7 +257,7 @@ watch(tagsSelected.value, () => {
                 :full-height="true"
             />
 
-            <div class="h-full">
+            <div class="">
                 <div class="relative flex gap-1">
                     <LChecklist
                         :options="tagsToDisplay"

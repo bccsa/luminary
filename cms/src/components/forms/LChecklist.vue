@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { type Component } from "vue";
+import { type Component, type StyleValue } from "vue";
 import { Combobox, ComboboxButton, ComboboxOptions } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import { useId } from "@/util/useId";
 import FormLabel from "../forms/FormLabel.vue";
 import FormMessage from "../forms/FormMessage.vue";
+import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 
 type Option = { label: string; value: string; isChecked: boolean; disabled?: boolean };
 
 type Props = {
     options: Option[];
+    searchable?: boolean;
     state?: keyof typeof states;
     label?: string;
     placeholder?: string;
@@ -19,6 +21,7 @@ type Props = {
 };
 
 const props = withDefaults(defineProps<Props>(), {
+    searchable: false,
     placeholder: "Select Options",
     disabled: false,
     required: false,
@@ -52,19 +55,23 @@ const toggleOption = (option: Option) => {
 const isOptionSelected = (option: Option) => {
     return selectedValues.value.some((v) => v.value === option.value);
 };
+const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>
 
 <template>
-    <div class="h-full">
-        <FormLabel :for="id" class="block text-sm font-medium leading-6 text-zinc-900">
-            {{ props.label }}
-        </FormLabel>
-        <Combobox class="h-full" as="div" nullable :disabled="props.disabled">
-            <div class="relative mt-2 h-full">
+    <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
+        <Combobox
+            class="h-full"
+            as="div"
+            nullable
+            :disabled="props.disabled"
+            v-bind="attrsWithoutStyles"
+        >
+            <div class="relative h-full">
                 <ComboboxButton
                     class="h-full w-full cursor-default rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:bg-zinc-100 focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm"
                 >
-                    <div class="absolute inset-y-0 left-0 flex h-full items-center pl-3">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3">
                         <component
                             v-if="props.icon"
                             :is="props.icon"
@@ -78,7 +85,7 @@ const isOptionSelected = (option: Option) => {
                     </div>
                     <span class="flex-1">{{ placeholder }}</span>
                     <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                        <ChevronDownIcon class="h-5 w-5 text-zinc-400" aria-hidden="true" />
+                        <ChevronDownIcon class="h-5 w-5 text-zinc-700" aria-hidden="true" />
                     </div>
                 </ComboboxButton>
 
