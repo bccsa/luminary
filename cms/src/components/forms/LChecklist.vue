@@ -63,14 +63,19 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
 const showOptions = ref(false);
 
-debouncedWatch(query, () => {
-    if (query.value.length > 1) {
+const getQuery = (query: string) => {
+    if (query.length > 1) {
+        showOptions.value = true;
         givenOptions.value = givenOptions.value.filter((option) =>
-            option.label.toLowerCase().includes(query.value.toLowerCase()),
+            option.label.toLowerCase().match(query.toLowerCase()),
         );
     } else {
         givenOptions.value = props.options;
     }
+};
+
+debouncedWatch(query, () => {
+    getQuery(query.value);
 });
 const optionsAsRef = ref(undefined);
 onClickOutside(optionsAsRef, () => (showOptions.value = false));
@@ -113,6 +118,7 @@ onClickOutside(optionsAsRef, () => (showOptions.value = false));
                             class="w-full border-0 bg-inherit p-0 focus:ring-0 group-hover:bg-zinc-50"
                             v-model="query"
                             @click="showOptions = true"
+                            @keydown.enter="getQuery(query)"
                             tabindex="-1"
                         />
 

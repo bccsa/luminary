@@ -277,13 +277,6 @@ watch(tagsSelected.value, () => {
 
             <div class="">
                 <div class="relative flex gap-1">
-                    <LChecklist
-                        :options="tagsToDisplay"
-                        :searchable="true"
-                        :icon="TagIcon"
-                        v-model="tagsSelected"
-                        placeholder="Search tags..."
-                    />
                     <LSelect
                         data-test="filter-select"
                         v-model="filterByTranslation"
@@ -295,6 +288,13 @@ watch(tagsSelected.value, () => {
                         v-model="filterByStatus"
                         :options="filterByStatusOptions"
                         :icon="CloudArrowUpIcon"
+                    />
+                    <LChecklist
+                        :options="tagsToDisplay"
+                        :searchable="true"
+                        :icon="TagIcon"
+                        v-model="tagsSelected"
+                        placeholder="Search tags..."
                     />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />

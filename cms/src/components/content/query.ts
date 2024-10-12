@@ -33,7 +33,7 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
     return res
         .filter((doc) => {
             const contentDoc = doc as ContentDto;
-
+            console.log("query options recieved:", options);
             // Filter documents by type
             if (!contentDoc.parentId) return false;
             if (contentDoc.type != DocType.Content) return false;
