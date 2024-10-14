@@ -180,13 +180,13 @@ debouncedWatch(
         const tagIds = tags.value.map((t) => t._id);
 
         tagsContent.value = await db.whereParent(tagIds, DocType.Tag, selectedLanguage.value);
-        tagsContent.value.map((tagContent) =>
+        tagsContent.value.forEach(async (tagContent) => {
             tagsToDisplay.value.push({
                 label: tagContent.title,
-                value: tagContent._id,
+                value: tagContent.parentId,
                 isChecked: false,
-            }),
-        );
+            });
+        });
     },
     { debounce: 1 },
 );

@@ -15,7 +15,6 @@ export type ContentOverviewQueryOptions = {
 };
 
 async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
-    console.log("Tags recieved by query:", options.tags);
     if (!options.orderBy) options.orderBy = "updatedTimeUtc";
     if (!options.orderDirection) options.orderDirection = "desc";
     if (!options.pageSize) options.pageSize = 20;
@@ -53,7 +52,6 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
                 options.tags.length == 0 ||
                 options.tags.some((tagId) => contentDoc.parentTags.includes(tagId));
             if (!tagFilter) return false;
-            console.log("tagFilter variable is:", tagFilter);
 
             const publishFilter = publishStatusFilter(contentDoc, options);
             if (!publishFilter) return false;
