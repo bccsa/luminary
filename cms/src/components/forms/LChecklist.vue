@@ -13,7 +13,6 @@ type Props = {
     options: Option[];
     searchable?: boolean;
     state?: keyof typeof states;
-    label?: string;
     placeholder?: string;
     disabled?: boolean;
     required?: boolean;
@@ -83,7 +82,12 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             :disabled="state === 'error'"
             v-bind="attrsWithoutStyles"
         >
-            <div class="h-full" @click="showOptions = !showOptions" :disabled="state === 'error'">
+            <div
+                class="h-full"
+                @click="showOptions = !showOptions"
+                :disabled="state === 'error'"
+                data-test="main-div"
+            >
                 <div class="absolute inset-y-0 left-0 flex h-full items-center pl-3">
                     <component
                         v-if="props.icon"
@@ -130,6 +134,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     :disabled="state === 'error'"
                     v-if="showOptions"
                     class="absolute left-0 z-10 mt-2 max-h-48 w-max overflow-auto rounded-md bg-white px-1 py-2 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+                    data-test="options-div"
                 >
                     <div
                         v-for="option in givenOptions"
@@ -154,9 +159,5 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 </div>
             </transition>
         </div>
-
-        <FormMessage v-if="$slots.default" :id="`${id}-message`">
-            <slot />
-        </FormMessage>
     </div>
 </template>
