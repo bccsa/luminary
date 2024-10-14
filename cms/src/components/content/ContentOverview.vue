@@ -179,7 +179,7 @@ debouncedWatch(
     async () => {
         const tagIds = tags.value.map((t) => t._id);
 
-        tagsContent.value = await db.whereParent(tagIds, DocType.Tag, selectedLanguage.value); // add languageId
+        tagsContent.value = await db.whereParent(tagIds, DocType.Tag, selectedLanguage.value);
         tagsContent.value.map((tagContent) =>
             tagsToDisplay.value.push({
                 label: tagContent.title,
@@ -192,7 +192,8 @@ debouncedWatch(
 );
 watch(tagsSelected.value, () => {
     const tagValues = tagsSelected.value.map(
-        (t: { label: string; value: string; isChecked: boolean }) => t.value,
+        (t: { label: string; value: string; isChecked: boolean }) =>
+            t.value.toLowerCase().trim().toString(),
     );
 
     tagsSelected.value.forEach((t: { label: string; value: string; isChecked: boolean }) => {
