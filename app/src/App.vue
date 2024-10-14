@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { onBeforeMount, watch } from "vue";
+import { computed, onBeforeMount, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { getSocket, isConnected } from "luminary-shared";
@@ -12,8 +12,10 @@ import NotificationBannerManager from "./components/notifications/NotificationBa
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
+import { useRouter } from "vue-router";
 
 const { isAuthenticated, user, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
+const router = useRouter();
 
 initLanguage();
 
@@ -130,16 +132,22 @@ setTimeout(() => {
         { immediate: true },
     );
 }, 1000);
+
+const routeKey = computed(() => {
+    return router.currentRoute.value.fullPath;
+});
 </script>
 
 <template>
     <div class="fixed flex h-dvh w-full flex-col">
         <TopBar class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50" />
         <NotificationBannerManager />
-        <main class="flex-1 overflow-y-scroll px-6 py-4 dark:bg-slate-900">
-            <RouterView />
-        </main>
 
+        <main class="flex-1 overflow-y-scroll px-6 pt-4 dark:bg-slate-900">
+            <RouterView v-slot="{ Component }">
+                <component :is="Component" :key="routeKey" />
+            </RouterView>
+        </main>
         <MobileMenu
             class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
         />

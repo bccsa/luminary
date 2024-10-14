@@ -3,6 +3,7 @@ import { TrashIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import LModal from "@/components/common/LModal.vue";
 import type { ImageFileCollectionDto, ImageUploadDto } from "luminary-shared";
+import fallbackImage from "@/assets/fallback-image-cms.webp";
 
 type Props = {
     imageFileCollection?: ImageFileCollectionDto;
@@ -48,12 +49,20 @@ const cancelDelete = () => {
 };
 
 const deleteMessage = `Are you sure you want to delete the image file?`;
+
+const imageElementError = ref(false);
 </script>
 
 <template>
     <div>
         <div class="group relative" @mouseover="hover = true" @mouseleave="hover = false">
-            <img :srcset="srcset" class="h-16 rounded-sm shadow" />
+            <img
+                v-if="!imageElementError"
+                :srcset="srcset"
+                class="h-16 rounded-sm shadow"
+                @error="imageElementError = true"
+            />
+            <img v-else class="h-16 rounded-sm shadow" :src="fallbackImage" />
             <TrashIcon
                 class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
                 v-show="hover"

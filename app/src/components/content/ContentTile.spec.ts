@@ -77,7 +77,7 @@ describe("ContentTile", () => {
             },
         });
 
-        await wrapper.trigger("click");
+        await wrapper.findAll("div")[0].trigger("click");
 
         expect(routePushMock).toHaveBeenCalledWith({
             name: "content",

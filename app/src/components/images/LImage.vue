@@ -29,8 +29,15 @@ const aspectRatioNumbers = {
 };
 
 const sizes = {
+    small: "w-20 md:w-24",
     thumbnail: "w-36 md:w-52",
     post: "w-full",
+};
+
+const rounding = {
+    small: "rounded-sm",
+    thumbnail: "rounded-lg",
+    post: "rounded-lg",
 };
 
 let closestAspectRatio = 0;
@@ -102,7 +109,8 @@ const showImageElement2 = computed(
             :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
                 aspectRatios[aspectRatio],
-                'w-full overflow-clip rounded-lg bg-cover bg-center object-cover shadow',
+                rounding[size],
+                'w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
             <img

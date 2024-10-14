@@ -13,12 +13,16 @@ import {
     mockLanguageDtoEng,
     mockCategoryDto,
     mockLanguageDtoSwa,
+    mockTopicContentDto,
+    mockTopicDto,
 } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
+import { ref } from "vue";
+import RelatedContent from "../components/content/RelatedContent.vue";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -27,6 +31,7 @@ vi.mock("vue-router", async (importOriginal) => {
         // @ts-expect-error
         ...actual,
         useRouter: vi.fn().mockImplementation(() => ({
+            currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
             replace: routeReplaceMock,
         })),
     };
@@ -34,9 +39,13 @@ vi.mock("vue-router", async (importOriginal) => {
 
 describe("SingleContent", () => {
     beforeEach(() => {
+        appLanguageIdAsRef.value = mockLanguageDtoEng._id;
+
         db.docs.bulkPut([
             mockPostDto,
             mockCategoryDto,
+            mockTopicDto,
+            mockTopicContentDto,
             mockCategoryContentDto,
             mockEnglishContentDto,
             mockFrenchContentDto,
@@ -75,7 +84,7 @@ describe("SingleContent", () => {
 
     it("displays the content video when defined", async () => {
         await db.docs.update(mockEnglishContentDto._id, {
-            image: "",
+            parentImage: "",
             video: "test-video.mp4",
         });
 
@@ -136,15 +145,19 @@ describe("SingleContent", () => {
         });
     });
 
-    it("displays tags", async () => {
+    it("displays related content based on parentTags", async () => {
+        await db.docs.update(mockEnglishContentDto._id, {
+            parentTags: ["tag-category1", "tag-topicA"],
+        });
+
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
-
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Category 1");
+            expect(wrapper.findComponent(RelatedContent).exists()).toBe(true);
+            expect(wrapper.findComponent(RelatedContent).props("tags")).toEqual([mockTopicDto]);
         });
     });
 
