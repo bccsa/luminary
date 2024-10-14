@@ -100,11 +100,6 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 <input
                     v-if="searchable"
                     :placeholder="props.placeholder"
-                    :class="{
-                        'text-zinc-400': props.state === 'default' && !props.disabled,
-                        'text-zinc-300': props.state === 'default' && props.disabled,
-                        'text-red-400': props.state === 'error',
-                    }"
                     class="h-full w-full border-0 bg-inherit p-0 text-sm focus:ring-0 group-hover:bg-zinc-50"
                     v-model="query"
                     @input="
