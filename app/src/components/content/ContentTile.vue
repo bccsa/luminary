@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { db, DocType, type ContentDto } from "luminary-shared";
+import { db, type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import LImage from "../images/LImage.vue";
@@ -45,25 +45,4 @@ const openContent = () => {
             </LImage>
         </div>
     </div>
-
-    <!-- <div
-        v-else
-        class="ease-out-expo group flex aspect-video h-32 w-full flex-wrap transition hover:brightness-[1.15] sm:w-1/2 md:w-1/3 lg:w-1/4 xl:w-1/5"
-    >
-        <div
-            class="avoid-inside hover:shadow-outline ease-out-expo relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg p-2 transition-transform duration-500 group-hover:scale-[101%]"
-            @click="openContent"
-        >
-            <img
-                :src="content.parentImage"
-                class="absolute h-full w-full object-cover object-center opacity-100 transition"
-            />
-            <div class="absolute inset-0 bg-black opacity-50"></div>
-            <h6
-                class="z-10 content-end break-words text-center text-sm font-bold leading-tight text-white"
-            >
-                {{ content.title }}
-            </h6>
-        </div>
-    </div> -->
 </template>
