@@ -8,6 +8,7 @@ import { db, TagType, type ContentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
+import { reactive } from "vue";
 
 describe("TagSelector.vue", () => {
     beforeEach(async () => {
@@ -105,8 +106,8 @@ describe("TagSelector.vue", () => {
         });
     });
 
-    it.skip("can add tags to the passed Parent document", async () => {
-        const parent = { ...mockData.mockPostDto, tags: [] };
+    it("can add tags to the passed Parent document", async () => {
+        const parent = reactive({ ...mockData.mockPostDto, tags: [] });
         const wrapper = mount(TagSelector, {
             props: {
                 tagType: TagType.Category,

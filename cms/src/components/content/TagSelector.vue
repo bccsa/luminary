@@ -104,6 +104,7 @@ const isTagSelected = computed(() => {
             "
             nullable
             :disabled="disabled"
+            data-test="tag-selector"
         >
             <ComboboxLabel class="block text-sm font-medium leading-6 text-zinc-900">
                 {{ label }}
@@ -145,6 +146,7 @@ const isTagSelected = computed(() => {
                             v-slot="{ active, disabled }"
                         >
                             <li
+                                @click="console.log('li', 'clicked')"
                                 :class="[
                                     'relative cursor-default select-none py-2 pl-3 pr-9',
                                     { 'bg-zinc-100': active },
