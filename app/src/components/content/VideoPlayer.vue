@@ -7,6 +7,7 @@ import type Player from "video.js/dist/types/player";
 import type { ContentDto } from "luminary-shared";
 import px from "./px.png";
 import LImage from "../images/LImage.vue";
+import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/globalConfig";
 
 type Props = {
     content: ContentDto;
@@ -98,6 +99,26 @@ onMounted(() => {
             ["MediaAnalytics::scanForMedia", window.document],
         );
     }
+
+    // Save player progress if greater than 60 seconds
+    player.on("timeupdate", () => {
+        const currentTime = player.currentTime() || 0;
+        if (player.options_.liveui === true || !props.content.video || currentTime < 60) return;
+        setMediaProgress(props.content.video, props.content._id, currentTime);
+    });
+
+    // Get and apply the player saved progress (rewind 30 seconds)
+    player.on("ready", () => {
+        if (!props.content.video) return;
+        const progress = getMediaProgress(props.content.video, props.content._id);
+        if (progress > 60) player.currentTime(progress - 30);
+    });
+
+    // Remove player progress on ended
+    player.on("ended", () => {
+        if (!props.content.video) return;
+        removeMediaProgress(props.content.video, props.content._id);
+    });
 });
 
 onUnmounted(() => {
