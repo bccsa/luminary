@@ -6,6 +6,7 @@ export type Notification = {
     title: string;
     description?: string;
     state?: "success" | "error" | "info";
+    timer?: number;
 };
 
 export const useNotificationStore = defineStore("notification", () => {
@@ -25,9 +26,12 @@ export const useNotificationStore = defineStore("notification", () => {
             });
         }, 100);
 
-        setTimeout(() => {
-            notifications.value = notifications.value.filter((n) => n.id != notificationId);
-        }, 2000);
+        setTimeout(
+            () => {
+                notifications.value = notifications.value.filter((n) => n.id != notificationId);
+            },
+            notification.timer ? notification.timer : 2000,
+        );
     };
 
     return { notifications, addNotification };

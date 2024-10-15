@@ -13,6 +13,7 @@ import * as Sentry from "@sentry/vue";
 import router from "./router";
 import { getSocket } from "luminary-shared";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
+import { useNotificationStore } from "./stores/notification";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 const { appName, apiUrl } = useGlobalConfigStore();
@@ -70,6 +71,17 @@ onBeforeMount(async () => {
             Sentry.captureMessage("API authentication failed, redirecting to login");
 
             await loginRedirect();
+        });
+
+        socket.on("changeRequestAck", (data: any) => {
+            if (data.ack == "rejected") {
+                useNotificationStore().addNotification({
+                    title: `Changed request: ${data.ack}`,
+                    description: data.message,
+                    state: "error",
+                    timer: 4000,
+                });
+            }
         });
     } catch (err) {
         console.error(err);
