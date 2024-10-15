@@ -64,6 +64,38 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("reverts changes to the original content", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+            },
+        });
+
+        await waitForExpect(() => {
+            const titleInput = wrapper.find('input[name="title"]');
+            expect((titleInput.element as HTMLInputElement).value).toBe(
+                mockData.mockEnglishContentDto.title,
+            );
+        });
+
+        const titleInput = wrapper.find('input[name="title"]');
+        await titleInput.setValue("New Title");
+
+        expect((titleInput.element as HTMLInputElement).value).toBe("New Title");
+
+        const revertButton = wrapper.find('[data-test="revert-changes-button"]');
+        expect(revertButton.exists()).toBe(true);
+        await revertButton.trigger("click");
+
+        await waitForExpect(() => {
+            expect((titleInput.element as HTMLInputElement).value).toBe(
+                mockData.mockEnglishContentDto.title,
+            );
+        });
+    });
+
     it("can save content to the database", async () => {
         const notificationStore = useNotificationStore();
         const wrapper = mount(EditContent, {

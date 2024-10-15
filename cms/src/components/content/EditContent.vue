@@ -184,6 +184,20 @@ const save = async () => {
     contentDocsPrev.value = _.cloneDeep(contentDocs.value);
 };
 
+const revertChanges = () => {
+    // Restore the parent document to the previous version
+    parent.value = _.cloneDeep(parentPrev.value!);
+
+    // Restore the content documents to the previous versions
+    contentDocs.value = _.cloneDeep(contentDocsPrev.value!);
+
+    addNotification({
+        title: `${capitaliseFirstLetter(titleType)} reverted`,
+        description: `The changes to the ${titleType} have been reverted`,
+        state: "info",
+    });
+};
+
 const isLocalChange = db.isLocalChangeAsRef(parentId);
 
 // Set the title in the browser tab
@@ -230,10 +244,20 @@ watch(selectedLanguage, () => {
     >
         <template #actions>
             <LBadge v-if="isLocalChange" variant="warning" class="mr-4">Offline changes</LBadge>
-
-            <LButton type="button" @click="save" data-test="save-button" variant="primary">
-                Save
-            </LButton>
+            <div class="flex gap-1">
+                <LButton
+                    type="button"
+                    @click="revertChanges"
+                    data-test="revert-changes-button"
+                    variant="tertiary"
+                    title="Revert Changes"
+                >
+                    Revert
+                </LButton>
+                <LButton type="button" @click="save" data-test="save-button" variant="primary">
+                    Save
+                </LButton>
+            </div>
         </template>
         <div class="relative grid grid-cols-3 gap-8">
             <div class="col-span-3 md:col-span-2">
