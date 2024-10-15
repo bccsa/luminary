@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, type Component, type StyleValue } from "vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
-import { useId } from "@/util/useId";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { onClickOutside } from "@vueuse/core";
 
@@ -32,7 +31,6 @@ const states = {
 
 const givenOptions = ref(props.options);
 const selectedValues = defineModel<Option[]>("modelValue", { default: () => [] });
-const id = `l-checkbox-select-${useId()}`;
 
 const toggleOption = (option: Option) => {
     const index = selectedValues.value.findIndex((v) => v.value === option.value);
@@ -73,7 +71,6 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 <template>
     <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
         <div
-            :id="id"
             class="group relative h-full w-full cursor-default rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:bg-zinc-50 focus:ring-2 focus:ring-zinc-950 sm:text-sm"
             @focus="showOptions = true"
             @blur="showOptions = false"
