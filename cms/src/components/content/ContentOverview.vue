@@ -192,8 +192,7 @@ debouncedWatch(
 );
 watch(tagsSelected.value, () => {
     const tagValues = tagsSelected.value.map(
-        (t: { label: string; value: string; isChecked: boolean }) =>
-            t.value.toLowerCase().trim().toString(),
+        (t: { label: string; value: string; isChecked: boolean }) => t.value.trim().toString(),
     );
 
     tagsSelected.value.forEach((t: { label: string; value: string; isChecked: boolean }) => {
@@ -209,6 +208,7 @@ watch(tagsSelected.value, () => {
     });
 
     queryOptions.value.tags = [...tagValues];
+    console.log(queryOptions.value.tags);
 });
 </script>
 
