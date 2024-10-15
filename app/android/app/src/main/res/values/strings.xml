@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">ActiveChristianity</string>
-    <string name="title_activity_main">ActiveChristianity</string>
-    <string name="package_name">africa.activechristianity.app</string>
-    <string name="custom_url_scheme">africa.activechristianity.app</string>
-</resources>
