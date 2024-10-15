@@ -2,10 +2,8 @@
 import { ref, watch, type Component, type StyleValue } from "vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import { useId } from "@/util/useId";
-import FormLabel from "../forms/FormLabel.vue";
-import FormMessage from "../forms/FormMessage.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
-import { debouncedWatch, onClickOutside } from "@vueuse/core";
+import { onClickOutside } from "@vueuse/core";
 
 type Option = { label: string; value: string; isChecked: boolean; disabled?: boolean };
 

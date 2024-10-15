@@ -18,7 +18,6 @@ import {
     type LanguageDto,
     type Uuid,
     hasAnyPermission,
-    type TagDto,
     type ContentDto,
 } from "luminary-shared";
 import { computed, ref, watch, type Ref } from "vue";
@@ -29,10 +28,9 @@ import router from "@/router";
 import { debouncedWatch, onClickOutside } from "@vueuse/core";
 import type { ContentOverviewQueryOptions } from "./query";
 import LInput from "../forms/LInput.vue";
-import { Combobox, Menu } from "@headlessui/vue";
+import { Menu } from "@headlessui/vue";
 import LRadio from "../forms/LRadio.vue";
 import LChecklist from "../forms/LChecklist.vue";
-import TagSelector from "./TagSelector.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -208,7 +206,6 @@ watch(tagsSelected.value, () => {
     });
 
     queryOptions.value.tags = [...tagValues];
-    console.log(queryOptions.value.tags);
 });
 </script>
 
