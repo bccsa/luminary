@@ -118,14 +118,13 @@ describe("TagSelector.vue", () => {
 
         await wrapper.find("input").setValue("Category 1");
 
-        // wait for the tag element to be loaded
         let tag;
         await waitForExpect(() => {
             tag = wrapper.find("li");
             expect(tag.exists()).toBe(true);
         });
 
-        await tag!.trigger("click"); // The trigger function fails to work here, so the test is skipped for now
+        await tag!.trigger("click");
 
         expect(parent.tags).toContain("tag-category1");
     });

@@ -90,18 +90,25 @@ const isTagSelected = computed(() => {
         return parent.value?.tags.some((t) => t == tagId);
     };
 });
+
+const onTagSelected = (tagContent: ContentDto) => {
+    if (!tagContent || !parent.value?.tags) return;
+    if (!parent.value.tags.includes(tagContent.parentId)) {
+        parent.value.tags = [...parent.value.tags, tagContent.parentId];
+    }
+};
+
+const onTagClick = (tagContent: ContentDto) => {
+    // Emit the value to trigger `update:modelValue`
+    onTagSelected(tagContent);
+};
 </script>
 
 <template>
     <div>
         <Combobox
             as="div"
-            @update:modelValue="
-                (tagContent: ContentDto) => {
-                    if (!tagContent) return;
-                    parent?.tags.push(tagContent.parentId);
-                }
-            "
+            @update:modelValue="onTagSelected"
             nullable
             :disabled="disabled"
             data-test="tag-selector"
@@ -143,10 +150,10 @@ const isTagSelected = computed(() => {
                             :value="content"
                             :disabled="isTagSelected(content.parentId)"
                             as="template"
-                            v-slot="{ active, disabled }"
+                            v-slot="{ active, disabled, selected }"
                         >
                             <li
-                                @click="console.log('li', 'clicked')"
+                                @click="onTagClick(content)"
                                 :class="[
                                     'relative cursor-default select-none py-2 pl-3 pr-9',
                                     { 'bg-zinc-100': active },
