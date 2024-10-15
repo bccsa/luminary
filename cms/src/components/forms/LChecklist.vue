@@ -84,7 +84,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
         >
             <div
                 class="h-full"
-                @click="showOptions = !showOptions"
+                @click="showOptions = true"
                 :disabled="state === 'error'"
                 data-test="main-div"
             >
