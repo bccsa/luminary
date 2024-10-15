@@ -73,6 +73,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 <template>
     <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
         <div
+            :id="id"
             class="group relative h-full w-full cursor-default rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:bg-zinc-50 focus:ring-2 focus:ring-zinc-950 sm:text-sm"
             @focus="showOptions = true"
             @blur="showOptions = false"
