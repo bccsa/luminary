@@ -71,7 +71,7 @@ describe("processChangeRequest", () => {
 
     it("can validate a unique slug for a content document that does not exists", async () => {
         const changeRequest = changeRequest_content();
-        changeRequest.doc.parentId = "post-post1";
+        changeRequest.doc.parentId = "post-blog1";
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = "this-is-a-test-slug";
 
@@ -84,7 +84,7 @@ describe("processChangeRequest", () => {
 
     it("can validate a unique slug for a content document that exists", async () => {
         const changeRequest = changeRequest_content();
-        changeRequest.doc.parentId = "post-post1";
+        changeRequest.doc.parentId = "post-blog1";
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = "this-is-a-test-slug";
 
@@ -99,14 +99,14 @@ describe("processChangeRequest", () => {
     it("can rectify a non-unique slug by appending a random number to the end of the slug", async () => {
         // ensure that the slug is already in use
         const changeRequest1 = changeRequest_content();
-        changeRequest1.doc.parentId = "post-post1";
+        changeRequest1.doc.parentId = "post-blog1";
         changeRequest1.doc._id = "test-slug-1";
         changeRequest1.doc.slug = "this-is-a-test-slug";
         await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
 
         // Create a new change request with the same slug
         const changeRequest2 = changeRequest_content();
-        changeRequest2.doc.parentId = "post-post1";
+        changeRequest2.doc.parentId = "post-blog1";
         changeRequest2.doc._id = "test-slug-2";
         changeRequest2.doc.slug = "this-is-a-test-slug";
 
@@ -119,7 +119,7 @@ describe("processChangeRequest", () => {
 
     it("can automatically rectify a non-valid slug", async () => {
         const changeRequest = changeRequest_content();
-        changeRequest.doc.parentId = "post-post1";
+        changeRequest.doc.parentId = "post-blog1";
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = 'Invalid Slug! 123 無效的 Bør ikke være tilladt "#$%&/()=?`';
 
@@ -132,7 +132,7 @@ describe("processChangeRequest", () => {
 
     it("can set essential properties from a parent document to a content document on content document submission", async () => {
         const changeRequest = changeRequest_content();
-        changeRequest.doc.parentId = "post-post1";
+        changeRequest.doc.parentId = "post-blog1";
         changeRequest.doc._id = "test-essential-properties";
         changeRequest.doc.memberOf = undefined;
         changeRequest.doc.parentTags = undefined;
@@ -148,7 +148,7 @@ describe("processChangeRequest", () => {
         const changeRequest: ChangeReqDto = {
             id: 86,
             doc: {
-                _id: "post-post1",
+                _id: "post-blog1",
                 type: "post",
                 memberOf: ["group-public-content", "group-private-content"],
                 image: "test1234.jpg",
