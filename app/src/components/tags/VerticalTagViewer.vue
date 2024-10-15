@@ -56,8 +56,6 @@ watch(tagContent, () => {
                     params: { slug: content.slug },
                 }"
             >
-                <!-- add a transparent border if the content is not selected -->
-                <!-- push tto the right -->
                 <div
                     class="flex items-center border-l-4 border-transparent px-1 py-1 transition duration-200 hover:border-transparent hover:bg-yellow-100 dark:hover:bg-yellow-100/25"
                     :class="{
@@ -74,8 +72,8 @@ watch(tagContent, () => {
                             />
                         </div>
                     </div>
-                    <div class="ml-2 w-1/3">
-                        <h1 class="text-sm">
+                    <div class="ml-2 w-2/3">
+                        <h1 class="truncate text-sm">
                             {{ content.title }}
                         </h1>
                     </div>
