@@ -150,7 +150,7 @@ const onTagClick = (tagContent: ContentDto) => {
                             :value="content"
                             :disabled="isTagSelected(content.parentId)"
                             as="template"
-                            v-slot="{ active, disabled, selected }"
+                            v-slot="{ active, disabled }"
                         >
                             <li
                                 @click="onTagClick(content)"
