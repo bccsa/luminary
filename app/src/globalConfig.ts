@@ -1,4 +1,4 @@
-import { db, DocType, type LanguageDto } from "luminary-shared";
+import { db, DocType, type LanguageDto, type Uuid } from "luminary-shared";
 import { readonly, ref, watch } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
@@ -45,4 +45,66 @@ export const initLanguage = () => {
             );
         }
     });
+};
+
+export type mediaProgressEntry = {
+    mediaId: string;
+    contentId: Uuid;
+    progress: number;
+};
+
+const _mediaProgress = JSON.parse(
+    localStorage.getItem("mediaProgress") || "[]",
+) as mediaProgressEntry[];
+
+/**
+ * Get the playback progress of a media item.
+ * @param mediaId - The media unique identifier
+ * @param contentId - The content document ID.
+ * @returns - Playback progress in seconds
+ */
+export const getMediaProgress = (mediaId: string, contentId: Uuid) => {
+    return (
+        _mediaProgress.find((p) => p.mediaId === mediaId && p.contentId === contentId)?.progress ||
+        0
+    );
+};
+
+/**
+ * Set the playback progress of a media item.
+ * @param mediaId - The media unique identifier
+ * @param contentId - The content document ID.
+ * @param progress - Playback progress in seconds
+ */
+export const setMediaProgress = (mediaId: string, contentId: Uuid, progress: number) => {
+    const index = _mediaProgress.findIndex(
+        (p) => p.mediaId === mediaId && p.contentId === contentId,
+    );
+    if (index >= 0) {
+        _mediaProgress.splice(index, 1);
+    }
+
+    _mediaProgress.push({ mediaId, contentId, progress });
+
+    // Only keep the last 10 progress entries
+    while (_mediaProgress.length > 10) {
+        _mediaProgress.shift();
+    }
+
+    localStorage.setItem("mediaProgress", JSON.stringify(_mediaProgress));
+};
+
+/**
+ * Remove the playback progress of a media item.
+ * @param mediaId - The media unique identifier
+ * @param contentId - The content document ID.
+ */
+export const removeMediaProgress = (mediaId: string, contentId: Uuid) => {
+    const index = _mediaProgress.findIndex(
+        (p) => p.mediaId === mediaId && p.contentId === contentId,
+    );
+    if (index >= 0) {
+        _mediaProgress.splice(index, 1);
+        localStorage.setItem("mediaProgress", JSON.stringify(_mediaProgress));
+    }
 };
