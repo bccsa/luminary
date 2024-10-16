@@ -1,0 +1,8 @@
+{
+    "_id": "post-blog2",
+    "type": "post",
+    "memberOf": ["group-private-content"],
+    "tags": ["tag-category1", "tag-topicA"],
+    "publishDateVisible": true,
+    "postType": "blog"
+}
