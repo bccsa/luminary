@@ -186,7 +186,7 @@ debouncedWatch(
             });
         });
     },
-    { debounce: 1 },
+    { debounce: 100 },
 );
 watch(tagsSelected.value, () => {
     const tagValues = tagsSelected.value.map(
