@@ -186,6 +186,14 @@ const save = async () => {
 
 const revertChanges = () => {
     // Restore the parent document to the previous version
+    if (_.isEqual(contentDocs.value, contentDocsPrev.value)) {
+        addNotification({
+            title: "No changes",
+            description: `There were no changes to revert`,
+            state: "error",
+        });
+        return;
+    }
     parent.value = _.cloneDeep(parentPrev.value!);
 
     // Restore the content documents to the previous versions
@@ -249,7 +257,7 @@ watch(selectedLanguage, () => {
                     type="button"
                     @click="revertChanges"
                     data-test="revert-changes-button"
-                    variant="tertiary"
+                    variant="secondary"
                     title="Revert Changes"
                 >
                     Revert
