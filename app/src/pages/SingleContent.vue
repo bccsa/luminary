@@ -146,7 +146,8 @@ function selectTag(parentId: Uuid) {
     </div>
 
     <NotFoundPage v-else-if="isExpiredOrScheduled" errorType="content" />
-    <div class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
+
+    <div v-else class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
         <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl">
             <VideoPlayer v-if="content.video" :content="content" />
             <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
