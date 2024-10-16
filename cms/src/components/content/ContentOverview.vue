@@ -20,7 +20,7 @@ import {
     hasAnyPermission,
     type ContentDto,
 } from "luminary-shared";
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -172,31 +172,30 @@ const tags = db.whereTypeAsRef(DocType.Tag);
 const tagsToDisplay = ref<any[]>([]);
 const tagsSelected = ref([]);
 const tagsContent = ref<ContentDto[]>([]);
-debouncedWatch(
-    [tags, selectedLanguage],
-    async () => {
-        const tagIds = tags.value.map((t) => t._id);
+watch([tags, selectedLanguage], async () => {
+    if (!tags.value || tags.value.length === 0) {
+        return;
+    }
+    const tagIds = tags.value!.map((t) => t._id);
 
-        tagsContent.value = await db.whereParent(tagIds, DocType.Tag, selectedLanguage.value);
+    tagsContent.value = await db.whereParent(tagIds, DocType.Tag, selectedLanguage.value);
 
-        tagsContent.value.forEach((tagContent) => {
-            const existingTagIndex = tagsToDisplay.value.findIndex(
-                (tag) => tag.value === tagContent.parentId,
-            );
+    tagsContent.value.forEach((tagContent) => {
+        const existingTagIndex = tagsToDisplay.value.findIndex(
+            (tag) => tag.value === tagContent.parentId,
+        );
 
-            if (existingTagIndex === -1) {
-                tagsToDisplay.value.push({
-                    label: tagContent.title,
-                    value: tagContent.parentId,
-                    isChecked: false,
-                });
-            } else {
-                tagsToDisplay.value[existingTagIndex].label = tagContent.title;
-            }
-        });
-    },
-    { debounce: 100 },
-);
+        if (existingTagIndex === -1) {
+            tagsToDisplay.value.push({
+                label: tagContent.title,
+                value: tagContent.parentId,
+                isChecked: false,
+            });
+        } else {
+            tagsToDisplay.value[existingTagIndex].label = tagContent.title;
+        }
+    });
+});
 watch(tagsSelected.value, () => {
     const tagValues = tagsSelected.value.map(
         (t: { label: string; value: string; isChecked: boolean }) => t.value.trim().toString(),
