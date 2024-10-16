@@ -8,6 +8,7 @@ import { db, TagType, type ContentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
+import { reactive } from "vue";
 
 describe("TagSelector.vue", () => {
     beforeEach(async () => {
@@ -105,8 +106,8 @@ describe("TagSelector.vue", () => {
         });
     });
 
-    it.skip("can add tags to the passed Parent document", async () => {
-        const parent = { ...mockData.mockPostDto, tags: [] };
+    it("can add tags to the passed Parent document", async () => {
+        const parent = reactive({ ...mockData.mockPostDto, tags: [] });
         const wrapper = mount(TagSelector, {
             props: {
                 tagType: TagType.Category,
@@ -117,14 +118,13 @@ describe("TagSelector.vue", () => {
 
         await wrapper.find("input").setValue("Category 1");
 
-        // wait for the tag element to be loaded
         let tag;
         await waitForExpect(() => {
             tag = wrapper.find("li");
             expect(tag.exists()).toBe(true);
         });
 
-        await tag!.trigger("click"); // The trigger function fails to work here, so the test is skipped for now
+        await tag!.trigger("click");
 
         expect(parent.tags).toContain("tag-category1");
     });
