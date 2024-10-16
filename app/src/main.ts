@@ -3,11 +3,12 @@ import "./assets/main.css";
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 
-import { createAuth0 } from "@auth0/auth0-vue";
+// import { createAuth0 } from "@auth0/auth0-vue";
 import * as Sentry from "@sentry/vue";
 
 import App from "./App.vue";
 import router from "./router";
+import setupAuth from "./auth";
 import { initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
@@ -28,19 +29,13 @@ app.use(createPinia());
 
 app.use(router);
 
-app.use(
-    createAuth0({
-        domain: import.meta.env.VITE_AUTH0_DOMAIN,
-        clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
-        authorizationParams: {
-            audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-            redirect_uri: window.location.origin,
-            scope: "openid profile email offline_access",
-        },
-        cacheLocation: "localstorage",
-        useRefreshTokens: true,
-    }),
-);
+// auth0
+async function g() {
+    const oauth = await setupAuth(app, router);
+    app.use(oauth);
+}
+
+g();
 
 // Matomo Analytics
 if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID)
