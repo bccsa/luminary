@@ -292,6 +292,7 @@ watch(tagsSelected.value, () => {
                         :searchable="true"
                         :icon="TagIcon"
                         v-model="tagsSelected"
+                        @clear-selected-values="queryOptions.tags = []"
                         placeholder="Search tags..."
                     />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
@@ -300,7 +301,7 @@ watch(tagsSelected.value, () => {
                     <Menu
                         as="div"
                         ref="sortOptionsAsRef"
-                        class="absolute right-0 top-full mt-2 h-max w-40 rounded-lg border border-gray-300 bg-white p-2 shadow-lg"
+                        class="absolute right-0 top-full h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                         v-if="showSortOptions"
                         data-test="sort-options-display"
                     >

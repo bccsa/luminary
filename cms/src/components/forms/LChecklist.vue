@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, type Component, type StyleValue } from "vue";
-import { ChevronDownIcon } from "@heroicons/vue/20/solid";
+import { ChevronDownIcon, XMarkIcon } from "@heroicons/vue/20/solid";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { onClickOutside } from "@vueuse/core";
 
@@ -65,13 +65,20 @@ watch(query, () => {
     );
 });
 
+const emit = defineEmits(["clear-selected-values"]);
+
+const clearSelectedValues = () => {
+    selectedValues.value = [];
+    emit("clear-selected-values");
+};
+
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>
 
 <template>
     <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
         <div
-            class="group relative h-full w-full cursor-default rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:bg-zinc-50 focus:ring-2 focus:ring-zinc-950 sm:text-sm"
+            class="group relative h-full w-64 cursor-default rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:bg-zinc-50 focus:ring-2 focus:ring-zinc-950 sm:text-sm"
             @focus="showOptions = true"
             @blur="showOptions = false"
             tabindex="0"
@@ -113,6 +120,12 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
                 <span v-if="!searchable" class="flex-1">{{ placeholder }}</span>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <XMarkIcon
+                        @click="clearSelectedValues"
+                        v-if="selectedValues.length > 0"
+                        class="h-5 w-5 cursor-pointer text-zinc-700"
+                        aria-hidden="true"
+                    />
                     <ChevronDownIcon class="h-5 w-5 text-zinc-700" aria-hidden="true" />
                 </div>
             </div>
@@ -129,7 +142,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     ref="optionsAsRef"
                     :disabled="state === 'error'"
                     v-if="showOptions"
-                    class="absolute left-0 z-10 mt-2 max-h-48 w-max overflow-auto rounded-md bg-white px-1 py-2 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+                    class="absolute left-0 z-10 mt-2 max-h-48 w-64 overflow-auto rounded-md bg-white px-1 py-2 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
                     data-test="options-div"
                 >
                     <div
@@ -150,7 +163,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                             class="mr-1 rounded-lg"
                             readonly
                         />
-                        <span class="block truncate">{{ option.label }}</span>
+                        <span class="block whitespace-pre-wrap">{{ option.label }}</span>
                     </div>
                 </div>
             </transition>
