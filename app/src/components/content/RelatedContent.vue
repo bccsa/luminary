@@ -63,6 +63,7 @@ watch(tags, fetchContentForTags, { immediate: true });
                                 languageId: appLanguageIdAsRef,
                             }"
                             class="mb-5 max-w-full"
+                            :related="true"
                         />
                     </template>
                 </div>
