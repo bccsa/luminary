@@ -49,7 +49,7 @@ watch(tags, fetchContentForTags, { immediate: true });
         class="bg-yellow-500/5 pb-1 pt-3"
     >
         <div>
-            <h1 class="px-6 pb-5 text-lg text-zinc-600 dark:text-zinc-200">Related</h1>
+            <h1 class="px-6 text-lg text-zinc-600 dark:text-zinc-200">Related</h1>
             <div class="flex max-w-full flex-wrap">
                 <div class="max-w-full">
                     <template v-for="tag in tags" :key="tag._id">
