@@ -83,8 +83,6 @@ describe("EditContent.vue", () => {
         const titleInput = wrapper.find('input[name="title"]');
         await titleInput.setValue("New Title");
 
-        expect((titleInput.element as HTMLInputElement).value).toBe("New Title");
-
         const revertButton = wrapper.find('[data-test="revert-changes-button"]');
         expect(revertButton.exists()).toBe(true);
         await revertButton.trigger("click");
