@@ -173,17 +173,26 @@ const tagsToDisplay = ref<any[]>([]);
 const tagsSelected = ref([]);
 const tagsContent = ref<ContentDto[]>([]);
 debouncedWatch(
-    tags,
+    [tags, selectedLanguage],
     async () => {
         const tagIds = tags.value.map((t) => t._id);
 
         tagsContent.value = await db.whereParent(tagIds, DocType.Tag, selectedLanguage.value);
-        tagsContent.value.forEach(async (tagContent) => {
-            tagsToDisplay.value.push({
-                label: tagContent.title,
-                value: tagContent.parentId,
-                isChecked: false,
-            });
+
+        tagsContent.value.forEach((tagContent) => {
+            const existingTagIndex = tagsToDisplay.value.findIndex(
+                (tag) => tag.value === tagContent.parentId,
+            );
+
+            if (existingTagIndex === -1) {
+                tagsToDisplay.value.push({
+                    label: tagContent.title,
+                    value: tagContent.parentId,
+                    isChecked: false,
+                });
+            } else {
+                tagsToDisplay.value[existingTagIndex].label = tagContent.title;
+            }
         });
     },
     { debounce: 100 },
