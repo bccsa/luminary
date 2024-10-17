@@ -13,7 +13,7 @@ import {
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import GroupSelector from "../groups/GroupSelector.vue";
-import { ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
+import { ComboboxInput } from "@headlessui/vue";
 
 describe("CreateOrEditLanguageModal.vue", () => {
     beforeEach(async () => {
@@ -48,15 +48,13 @@ describe("CreateOrEditLanguageModal.vue", () => {
             expect(wrapper.html()).toContain("Create");
         });
 
-        it.only("can enable save button if form fields are filled", async () => {
+        it("can enable save button if form fields are filled", async () => {
             const wrapper = mount(CreateOrEditLanguageModal, {
                 props: {
                     isVisible: true,
                 },
             });
 
-            // TODO: Set group membership and check if the save button is enabled
-            // Clear the input fields to simulate an empty form
             await wrapper.find("[name='languageName']").setValue("Afrikaans");
             await wrapper.find("[name='languageCode']").setValue("afr");
 
@@ -91,22 +89,6 @@ describe("CreateOrEditLanguageModal.vue", () => {
 
             // check if the button has the right text
             expect(wrapper.html()).toContain("Save Changes");
-        });
-
-        it("disables save button if form fields are not filled", async () => {
-            const wrapper = mount(CreateOrEditLanguageModal, {
-                props: {
-                    isVisible: true,
-                },
-            });
-
-            // Clear the input fields to simulate an empty form
-            await wrapper.find("[name='languageName']").setValue("");
-            await wrapper.find("[name='languageCode']").setValue("");
-
-            // Assert that the save button is disabled
-            const saveButton = wrapper.find("[data-test='save-button']");
-            // expect(saveButton.attributes("disabled")).toBeFalsy();
         });
     });
 
