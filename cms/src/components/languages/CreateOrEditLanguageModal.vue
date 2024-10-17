@@ -120,7 +120,11 @@ const validateForm = () => {
                 placeholder="Enter language code"
             />
 
-            <GroupSelector v-model:groups="newLanguage.memberOf" :docType="DocType.Language" />
+            <GroupSelector
+                v-model:groups="newLanguage.memberOf"
+                :docType="DocType.Language"
+                data-test="group-selector"
+            />
 
             <div class="flex justify-end gap-4 pt-5">
                 <LButton variant="secondary" data-test="cancel" @click="emit('close')"

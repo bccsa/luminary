@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Component } from "vue";
+import { type Component } from "vue";
 import { cva, type VariantProps } from "cva";
 import { twMerge } from "tailwind-merge";
 
