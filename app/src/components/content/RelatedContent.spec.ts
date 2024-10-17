@@ -38,7 +38,7 @@ describe("RelatedContent", () => {
         const wrapper = mount(RelatedContent, {
             props: {
                 tags: [mockTopicDto],
-                currentContentId: mockEnglishContentDto._id,
+                currentContent: mockEnglishContentDto,
             },
         });
 
@@ -68,7 +68,12 @@ describe("RelatedContent", () => {
         const wrapper = mount(RelatedContent, {
             props: {
                 tags: [mockTopicDto],
-                currentContentId: "content-post3-eng",
+                currentContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-post3-eng",
+                    title: "Post 3",
+                    parentTags: [mockTopicDto._id],
+                },
             },
         });
 
@@ -82,7 +87,7 @@ describe("RelatedContent", () => {
         const wrapper = mount(RelatedContent, {
             props: {
                 tags: [mockTopicDto],
-                currentContentId: mockEnglishContentDto._id,
+                currentContent: mockEnglishContentDto,
             },
         });
 

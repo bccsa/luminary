@@ -215,7 +215,7 @@ function selectTag(parentId: Uuid) {
 
     <RelatedContent
         v-if="content && tags.length"
-        :currentContentId="content._id"
+        :currentContent="content"
         :tags="tags.filter((t) => t && t.tagType && t.tagType == TagType.Topic)"
     />
 </template>
