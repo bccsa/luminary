@@ -92,12 +92,19 @@ const isTagSelected = computed(() => {
 });
 
 const onTagSelected = (tagContent: ContentDto) => {
+    /*The action that should happen if @update:modelValue is triggered in "Combobox"
+      This was implemented inline but moved here to make it a function that can be triggered.
+    */
     if (!tagContent || !parent.value?.tags) return;
     if (!parent.value.tags.includes(tagContent.parentId)) {
         parent.value.tags = [...parent.value.tags, tagContent.parentId];
     }
 };
 
+/* This function was implemented for the @click on the "li" 
+   that was triggered in the test but didn't trigger the "update:modelValue"
+   in the headlessUI combobox. So the "parent.tags" remained *[]*
+   This method ensures that "update:modelValue" is triggered. */
 const onTagClick = (tagContent: ContentDto) => {
     // Emit the value to trigger `update:modelValue`
     onTagSelected(tagContent);
