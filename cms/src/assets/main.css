@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 100 900; /* Inter variable font weights */
+    font-display: swap;
+    src: url("./InterVariable.woff2") format("woff2");
+}
