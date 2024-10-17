@@ -56,6 +56,8 @@ describe("CreateOrEditLanguageModal.vue", () => {
             await wrapper.find("[name='languageName']").setValue("Afrikaans");
             await wrapper.find("[name='languageCode']").setValue("afr");
 
+            // TODO: Set group membership and check if the save button is enabled
+
             // Assert that the save button is disabled
             const saveButton = wrapper.find("[data-test='save-button']");
             expect(saveButton.attributes("disabled")).toBeUndefined();
