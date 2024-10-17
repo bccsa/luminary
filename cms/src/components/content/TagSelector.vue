@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Component } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import {
     Combobox,
@@ -28,6 +28,7 @@ type Props = {
     language?: LanguageDto;
     label?: string;
     disabled?: boolean;
+    icon?: Component | Function;
 };
 const props = withDefaults(defineProps<Props>(), {
     label: "Tags",
