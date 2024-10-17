@@ -92,6 +92,22 @@ describe("CreateOrEditLanguageModal.vue", () => {
         });
     });
 
+    it.skip("disables save button if form fields are not filled", async () => {
+        const wrapper = mount(CreateOrEditLanguageModal, {
+            props: {
+                isVisible: true,
+            },
+        });
+
+        // Clear the input fields to simulate an empty form
+        await wrapper.find("[name='languageName']").setValue("");
+        await wrapper.find("[name='languageCode']").setValue("");
+
+        // Assert that the save button is disabled
+        const saveButton = wrapper.find("[data-test='save-button']");
+        expect(saveButton.attributes("disabled")).toBe(true);
+    });
+
     it("emits close event when cancel button is clicked", async () => {
         const wrapper = mount(CreateOrEditLanguageModal, {
             props: {
