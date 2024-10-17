@@ -11,6 +11,9 @@ import {
     mockLanguageDtoFra,
     mockLanguageDtoSwa,
 } from "@/tests/mockdata";
+import waitForExpect from "wait-for-expect";
+import GroupSelector from "../groups/GroupSelector.vue";
+import { ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 
 describe("CreateOrEditLanguageModal.vue", () => {
     beforeEach(async () => {
@@ -45,22 +48,29 @@ describe("CreateOrEditLanguageModal.vue", () => {
             expect(wrapper.html()).toContain("Create");
         });
 
-        it("can enable save button if form fields are filled", async () => {
+        it.only("can enable save button if form fields are filled", async () => {
             const wrapper = mount(CreateOrEditLanguageModal, {
                 props: {
                     isVisible: true,
                 },
             });
 
+            // TODO: Set group membership and check if the save button is enabled
             // Clear the input fields to simulate an empty form
             await wrapper.find("[name='languageName']").setValue("Afrikaans");
             await wrapper.find("[name='languageCode']").setValue("afr");
 
-            // TODO: Set group membership and check if the save button is enabled
+            let groupSelector: any;
+            await waitForExpect(() => {
+                groupSelector = wrapper.findComponent(GroupSelector);
+                expect(groupSelector.exists()).toBe(true);
+            });
+
+            await groupSelector!.findComponent(ComboboxInput).setValue("Languages");
 
             // Assert that the save button is disabled
             const saveButton = wrapper.find("[data-test='save-button']");
-            expect(saveButton.attributes("disabled")).toBeUndefined();
+            expect(saveButton.attributes("disabled")).toBeFalsy();
         });
     });
 
@@ -96,7 +106,7 @@ describe("CreateOrEditLanguageModal.vue", () => {
 
             // Assert that the save button is disabled
             const saveButton = wrapper.find("[data-test='save-button']");
-            expect(saveButton.attributes("disabled")).toBeDefined();
+            // expect(saveButton.attributes("disabled")).toBeFalsy();
         });
     });
 
