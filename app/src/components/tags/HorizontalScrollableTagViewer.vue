@@ -98,7 +98,10 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
         </h2>
 
         <div class="relative">
-            <div class="group absolute left-0 top-0 h-full cursor-pointer px-6" @click="spinLeft()">
+            <div
+                class="group absolute left-0 top-0 z-10 h-full cursor-pointer px-6"
+                @click="spinLeft()"
+            >
                 <ArrowLeftCircleIcon
                     v-if="showLeftSpin"
                     class="mt-7 h-10 w-10 text-zinc-100 opacity-80 group-hover:opacity-90 md:mt-10 md:h-14 md:w-14"
@@ -106,7 +109,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
                 />
             </div>
             <div
-                class="group absolute right-0 top-0 h-full cursor-pointer px-6"
+                class="group absolute right-0 top-0 z-10 h-full cursor-pointer px-6"
                 @click="spinRight()"
             >
                 <ArrowRightCircleIcon
