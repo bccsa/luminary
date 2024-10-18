@@ -2,18 +2,19 @@
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import { db, DocType, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
-import { ref, toRefs, watch } from "vue";
+import { db, DocType, TagType, type ContentDto, type TagDto } from "luminary-shared";
+import { computed, ref, toRefs, watch } from "vue";
 
 type Props = {
     tags: TagDto[];
     title?: string;
-    currentContentId: Uuid;
+    currentContent: ContentDto;
 };
 const props = defineProps<Props>();
 
 const { tags } = toRefs(props);
 const contentForTag = ref<Record<string, ContentDto[]>>({}); // Store content for each tag
+const isTopic = computed(() => props.currentContent.parentTagType !== TagType.Topic);
 
 // Function to fetch content based on tags
 async function fetchContentForTags() {
@@ -24,7 +25,7 @@ async function fetchContentForTags() {
             });
             return {
                 tagId: tag._id,
-                content: content.filter((item) => item._id !== props.currentContentId), // Filter out current content
+                content: content.filter((item) => item._id !== props.currentContent._id), // Filter out current content
             };
         }),
     );
@@ -49,7 +50,7 @@ watch(tags, fetchContentForTags, { immediate: true });
         class="bg-yellow-500/5 pb-1 pt-3"
     >
         <div>
-            <h1 class="px-6 pb-5 text-lg text-zinc-600 dark:text-zinc-200">Related</h1>
+            <h1 v-if="isTopic" class="px-6 text-xl text-zinc-800 dark:text-zinc-200">Related</h1>
             <div class="flex max-w-full flex-wrap">
                 <div class="max-w-full">
                     <template v-for="tag in tags" :key="tag._id">
@@ -57,12 +58,16 @@ watch(tags, fetchContentForTags, { immediate: true });
                         <HorizontalScrollableTagViewer
                             v-if="contentForTag[tag._id] && contentForTag[tag._id].length > 0"
                             :tag="tag"
-                            :currentContentId="currentContentId"
+                            :currentContentId="currentContent._id"
                             :queryOptions="{
                                 filterOptions: { docType: DocType.Post },
                                 languageId: appLanguageIdAsRef,
                             }"
                             class="mb-5 max-w-full"
+                            :class="{
+                                'mt-3': !isTopic,
+                            }"
+                            :hideTitle="!(tag._id == currentContent._id)"
                         />
                     </template>
                 </div>
