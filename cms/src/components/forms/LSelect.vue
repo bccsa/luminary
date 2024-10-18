@@ -5,7 +5,7 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, watch, type Component, type StyleValue } from "vue";
+import { type Component, type StyleValue } from "vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { useId } from "@/util/useId";
 import FormLabel from "./FormLabel.vue";
