@@ -18,6 +18,15 @@ describe("HorizontalScrollableTagViewer", () => {
         vi.clearAllMocks();
     });
 
+    it("displays appropriate message when there is no content in current language.", async () => {
+        const wrapper = mount(HorizontalScrollableTagViewer, {
+            props: {
+                tag: mockCategoryDto,
+                queryOptions: { languageId: "lang-eng" },
+            },
+        });
+    });
+
     it("displays the title and the summary of the passed TagDto", async () => {
         const wrapper = mount(HorizontalScrollableTagViewer, {
             props: {
