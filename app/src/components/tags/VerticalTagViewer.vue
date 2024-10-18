@@ -68,7 +68,6 @@ watch(tagContent, () => {
                     <div class="flex items-center">
                         <div class="relative overflow-hidden rounded">
                             <LImage
-                                v-if="content.parentImageData"
                                 :image="content.parentImageData"
                                 aspectRatio="video"
                                 size="small"
