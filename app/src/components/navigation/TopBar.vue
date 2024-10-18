@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { PlayCircleIcon, ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
-import { useRoute, RouterLink } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 
 const route = useRoute();
+const router = useRouter();
 </script>
 
 <template>
     <header>
         <div class="z-40 bg-zinc-100 dark:bg-slate-800">
             <div class="flex flex-row items-center justify-between space-x-8 px-6 py-5">
-                <RouterLink to="/" class="flex items-center">
+                <div @click="router.back()" class="flex items-center">
                     <div
                         class="mr-4 border-r border-zinc-400 pr-4"
                         :class="{
@@ -30,7 +31,7 @@ const route = useRoute();
                             <span>App</span>
                         </div>
                     </div>
-                </RouterLink>
+                </div>
 
                 <DesktopMenu class="hidden w-2/3 gap-2 lg:flex" />
 
