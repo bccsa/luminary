@@ -46,6 +46,15 @@ watch(tagContent, () => {
     tagTitle.value = "No translation found";
 });
 
+watch(currentContent, () => {
+    if (currentContent.value.length > 0) {
+        return;
+    }
+    tagTitle.value = "Content Unavailable in Selected Language.";
+    tagSummary.value =
+        "We are currently working on providing content in your preferred language. In the meantime, feel free to explore available content in other languages.";
+});
+
 const spinLeft = () => {
     if (scrollElement.value) scrollElement.value.scrollLeft -= 100;
 };
@@ -94,7 +103,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
     <div :class="['select-none', { 'mb-5  bg-yellow-500/5 pb-1 pt-3': tag?.pinned }]">
         <h2 v-if="!hideTitle" class="truncate px-6">
             {{ tagTitle }}
-            <span class="ml-1 text-sm text-zinc-500 dark:text-slate-200">
+            <span class="text-sm text-zinc-500 dark:text-slate-200">
                 {{ tagSummary }}
             </span>
         </h2>

@@ -8,6 +8,7 @@ import {
     ArrowUpIcon,
     ArrowDownIcon,
     MagnifyingGlassIcon,
+    TagIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
@@ -17,6 +18,7 @@ import {
     type LanguageDto,
     type Uuid,
     hasAnyPermission,
+    type ContentDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
@@ -28,6 +30,7 @@ import type { ContentOverviewQueryOptions } from "./query";
 import LInput from "../forms/LInput.vue";
 import { Menu } from "@headlessui/vue";
 import LRadio from "../forms/LRadio.vue";
+import LChecklist from "../forms/LChecklist.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -164,6 +167,54 @@ watch(selectedSortOption, () => {
 onClickOutside(sortOptionsAsRef, () => {
     showSortOptions.value = false;
 });
+
+const tags = db.whereTypeAsRef(DocType.Tag);
+const tagsToDisplay = ref<any[]>([]);
+const tagsSelected = ref([]);
+const tagsContent = ref<ContentDto[]>([]);
+watch([tags, selectedLanguage], async () => {
+    if (!tags.value || tags.value.length === 0) {
+        return;
+    }
+    const tagIds = tags.value!.map((t) => t._id);
+
+    tagsContent.value = await db.whereParent(tagIds, DocType.Tag, selectedLanguage.value);
+
+    tagsContent.value.forEach((tagContent) => {
+        const existingTagIndex = tagsToDisplay.value.findIndex(
+            (tag) => tag.value === tagContent.parentId,
+        );
+
+        if (existingTagIndex === -1) {
+            tagsToDisplay.value.push({
+                label: tagContent.title,
+                value: tagContent.parentId,
+                isChecked: false,
+            });
+        } else {
+            tagsToDisplay.value[existingTagIndex].label = tagContent.title;
+        }
+    });
+});
+watch(tagsSelected.value, () => {
+    const tagValues = tagsSelected.value.map(
+        (t: { label: string; value: string; isChecked: boolean }) => t.value.trim().toString(),
+    );
+
+    tagsSelected.value.forEach((t: { label: string; value: string; isChecked: boolean }) => {
+        if (t.isChecked) {
+            const index = tagsToDisplay.value.findIndex((tag) => tag.value === t.value);
+
+            if (index > -1) {
+                const [tagToMove] = tagsToDisplay.value.splice(index, 1);
+
+                tagsToDisplay.value.unshift(tagToMove);
+            }
+        }
+    });
+
+    queryOptions.value.tags = [...tagValues];
+});
 </script>
 
 <template>
@@ -230,8 +281,8 @@ onClickOutside(sortOptionsAsRef, () => {
                 :full-height="true"
             />
 
-            <div class="h-full">
-                <div class="relative flex h-full gap-1">
+            <div class="">
+                <div class="relative flex gap-1">
                     <LSelect
                         data-test="filter-select"
                         v-model="filterByTranslation"
@@ -244,13 +295,21 @@ onClickOutside(sortOptionsAsRef, () => {
                         :options="filterByStatusOptions"
                         :icon="CloudArrowUpIcon"
                     />
+                    <LChecklist
+                        :options="tagsToDisplay"
+                        :searchable="true"
+                        :icon="TagIcon"
+                        v-model="tagsSelected"
+                        @clear-selected-values="queryOptions.tags = []"
+                        placeholder="Search tags..."
+                    />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </LButton>
                     <Menu
                         as="div"
                         ref="sortOptionsAsRef"
-                        class="absolute right-0 top-full mt-2 h-max w-40 rounded-lg border border-gray-300 bg-white p-2 shadow-lg"
+                        class="absolute right-0 top-full mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                         v-if="showSortOptions"
                         data-test="sort-options-display"
                     >

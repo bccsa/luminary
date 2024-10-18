@@ -18,6 +18,21 @@ describe("HorizontalScrollableTagViewer", () => {
         vi.clearAllMocks();
     });
 
+    it("displays appropriate message when there is no content in current language.", async () => {
+        const wrapper = mount(HorizontalScrollableTagViewer, {
+            props: {
+                tag: mockCategoryDto,
+                queryOptions: { languageId: "lang-test" },
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(
+                "No translation found We are currently working on providing content in your preferred language. In the meantime, feel free to explore available content in other languages.",
+            );
+        });
+    });
+
     it("displays the title and the summary of the passed TagDto", async () => {
         const wrapper = mount(HorizontalScrollableTagViewer, {
             props: {
