@@ -202,7 +202,7 @@ const revertChanges = () => {
     addNotification({
         title: `${capitaliseFirstLetter(titleType)} reverted`,
         description: `The changes to the ${titleType} have been reverted`,
-        state: "info",
+        state: "success",
     });
 };
 
