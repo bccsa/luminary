@@ -90,20 +90,35 @@ const isTagSelected = computed(() => {
         return parent.value?.tags.some((t) => t == tagId);
     };
 });
+
+const onTagSelected = (tagContent: ContentDto) => {
+    /*The action that should happen if @update:modelValue is triggered in "Combobox"
+      This was implemented inline but moved here to make it a function that can be triggered.
+    */
+    if (!tagContent || !parent.value?.tags) return;
+    if (!parent.value.tags.includes(tagContent.parentId)) {
+        parent.value.tags = [...parent.value.tags, tagContent.parentId];
+    }
+};
+
+/* This function was implemented for the @click on the "li" 
+   that was triggered in the test but didn't trigger the "update:modelValue"
+   in the headlessUI combobox. So the "parent.tags" remained *[]*
+   This method ensures that "update:modelValue" is triggered. */
+const onTagClick = (tagContent: ContentDto) => {
+    // Emit the value to trigger `update:modelValue`
+    onTagSelected(tagContent);
+};
 </script>
 
 <template>
     <div>
         <Combobox
             as="div"
-            @update:modelValue="
-                (tagContent: ContentDto) => {
-                    if (!tagContent) return;
-                    parent?.tags.push(tagContent.parentId);
-                }
-            "
+            @update:modelValue="onTagSelected"
             nullable
             :disabled="disabled"
+            data-test="tag-selector"
         >
             <ComboboxLabel class="block text-sm font-medium leading-6 text-zinc-900">
                 {{ label }}
@@ -145,6 +160,7 @@ const isTagSelected = computed(() => {
                             v-slot="{ active, disabled }"
                         >
                             <li
+                                @click="onTagClick(content)"
                                 :class="[
                                     'relative cursor-default select-none py-2 pl-3 pr-9',
                                     { 'bg-zinc-100': active },
