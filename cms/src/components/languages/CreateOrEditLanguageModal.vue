@@ -45,7 +45,7 @@ watch(
                 _id: db.uuid(),
                 name: "",
                 languageCode: "",
-                memberOf: ["group-languages"],
+                memberOf: [],
                 type: DocType.Language,
                 updatedTimeUtc: Date.now(),
             };
@@ -121,9 +121,9 @@ const validateForm = () => {
             />
 
             <GroupSelector
-                name="memberOf"
                 v-model:groups="newLanguage.memberOf"
                 :docType="DocType.Language"
+                data-test="group-selector"
             />
 
             <div class="flex justify-end gap-4 pt-5">
