@@ -207,6 +207,7 @@ function selectTag(parentId: Uuid) {
                 :tag="tag"
                 :queryOptions="{
                     filterOptions: { docType: DocType.Post },
+                    sortOptions: { sortBy: 'publishDate', sortOrder: 'desc' },
                     languageId: appLanguageIdAsRef,
                 }"
             />
