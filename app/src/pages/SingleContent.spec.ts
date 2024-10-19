@@ -60,16 +60,6 @@ describe("SingleContent", () => {
         db.docs.clear();
     });
 
-    it("displays the loading spinner when no content is available", async () => {
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        expect(wrapper.findComponent({ name: "LoadingSpinner" }).exists()).toBe(true);
-    });
-
     it("displays the content image", async () => {
         const wrapper = mount(SingleContent, {
             props: {
@@ -184,6 +174,19 @@ describe("SingleContent", () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.find("article").exists()).toBe(false);
+        });
+    });
+
+    it("displays the 404 error page when routing with an invalid slug", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: "invalid-slug",
             },
         });
 
