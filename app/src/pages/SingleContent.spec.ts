@@ -196,6 +196,20 @@ describe("SingleContent", () => {
         });
     });
 
+    it("displays the 404 error page when content has a draft status", async () => {
+        const draftContent = { ...mockEnglishContentDto, status: "draft" };
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: draftContent.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.find("article").exists()).toBe(false);
+        });
+    });
+
     it("switches correctly the content when the language changes", async () => {
         const wrapper = mount(SingleContent, {
             props: {

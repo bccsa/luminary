@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { DocType, TagType, db, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
+import {
+    DocType,
+    PublishStatus,
+    TagType,
+    db,
+    type ContentDto,
+    type TagDto,
+    type Uuid,
+} from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
@@ -148,7 +156,9 @@ function selectTag(parentId: Uuid) {
         </div>
     </div>
 
-    <NotFoundPage v-if="isContentNotFound || isExpiredOrScheduled" />
+    <NotFoundPage
+        v-if="isContentNotFound || isExpiredOrScheduled || content.status == PublishStatus.Draft"
+    />
 
     <div v-else class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
         <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl">
