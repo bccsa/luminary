@@ -43,6 +43,7 @@ watch(
     async () => {
         if (!content.value) return;
 
+        // This is for meta data
         useHead({
             title: content.value.title,
             meta: [
