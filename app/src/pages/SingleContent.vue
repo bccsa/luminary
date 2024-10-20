@@ -15,6 +15,7 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
+import { useHead } from "@vueuse/head";
 
 const router = useRouter();
 
@@ -41,6 +42,16 @@ watch(
     content,
     async () => {
         if (!content.value) return;
+
+        useHead({
+            title: content.value.title,
+            meta: [
+                {
+                    name: "summary",
+                    content: content.value.summary,
+                },
+            ],
+        });
 
         document.title = isExpiredOrScheduled.value
             ? `Page not found - ${appName}`
