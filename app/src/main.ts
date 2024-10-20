@@ -11,6 +11,7 @@ import router from "./router";
 import { initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
+import { createHead } from "@vueuse/head";
 
 initLuminaryShared({ cms: false });
 
@@ -25,6 +26,8 @@ if (import.meta.env.PROD) {
 }
 
 app.use(createPinia());
+
+app.use(createHead());
 
 app.use(router);
 
