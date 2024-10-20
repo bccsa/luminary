@@ -10,6 +10,7 @@ import {
     type GroupDto,
     TagType,
     PublishStatus,
+    PostType,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -83,6 +84,7 @@ export const mockPostDto: PostDto = {
     } as ImageDto,
     tags: ["tag-category1"],
     publishDateVisible: true,
+    postType: PostType.Blog,
 };
 
 export const mockEnglishContentDto: ContentDto = {
@@ -120,6 +122,7 @@ export const mockEnglishContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    parentPostType: PostType.Blog,
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
@@ -156,6 +159,7 @@ export const mockFrenchContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    parentPostType: PostType.Blog,
 };
 export const mockSwahiliContentDto: ContentDto = {
     _id: "content-post1-swa",
@@ -192,6 +196,7 @@ export const mockSwahiliContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    parentPostType: PostType.Blog,
 };
 export const mockCategoryContentDto: ContentDto = {
     _id: "content-tag-category1",
