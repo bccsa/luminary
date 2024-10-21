@@ -8,8 +8,24 @@ import { createTestingPinia } from "@pinia/testing";
 import LoadingSpinner from "./components/LoadingSpinner.vue";
 import { setActivePinia } from "pinia";
 import waitForExpect from "wait-for-expect";
+import { getSocket } from "luminary-shared";
+import { useNotificationStore } from "./stores/notification";
+import { router } from "./router";
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@auth0/auth0-vue", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as Object),
+        useAuth0: vi.fn(),
+    };
+});
+
+const addNotification = vi.fn();
+vi.mock("./stores/notification", () => ({
+    useNotificationStore: vi.fn(() => ({
+        addNotification,
+    })),
+}));
 
 describe("App", () => {
     beforeEach(() => {
@@ -47,6 +63,50 @@ describe("App", () => {
 
         await waitForExpect(() => {
             expect(getAccessTokenSilently).toHaveBeenCalledOnce();
+        });
+    });
+
+    it("displays notification when change request fails", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isLoading: ref(false),
+            isAuthenticated: ref(true),
+            getAccessTokenSilently: vi.fn().mockResolvedValue("mockToken"),
+        });
+
+        mount(App, {
+            global: {
+                plugins: [router],
+            },
+        });
+
+        const socket = getSocket();
+
+        const changeRequestAckHandler = vi.fn((data) => {
+            if (data.ack === "rejected") {
+                const notificationStore = useNotificationStore();
+                notificationStore.addNotification({
+                    title: "Saving changes to server failed.",
+                    description: `Your recent request to save changes has failed. The changes have been reverted, both in your CMS and on the server. Error message: ${data.message}`,
+                    state: "error",
+                    timer: 60000,
+                });
+            }
+        });
+
+        socket.on("changeRequestAck", changeRequestAckHandler);
+        changeRequestAckHandler({
+            ack: "rejected",
+            message: "Server error",
+        });
+
+        await waitForExpect(() => {
+            expect(addNotification).toHaveBeenCalledWith({
+                title: "Saving changes to server failed.",
+                description:
+                    "Your recent request to save changes has failed. The changes have been reverted, both in your CMS and on the server. Error message: Server error",
+                state: "error",
+                timer: 60000,
+            });
         });
     });
 });
