@@ -11,11 +11,9 @@ type Props = {
     queryOptions: options;
     showPublishDate?: boolean;
     currentContentId?: Uuid;
-    hideTitle?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
-    hideTitle: false,
 });
 
 const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
@@ -101,7 +99,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
 
 <template>
     <div :class="['select-none', { 'mb-5  bg-yellow-500/5 pb-1 pt-3': tag?.pinned }]">
-        <h2 v-if="!hideTitle" class="truncate px-6">
+        <h2 class="truncate px-6">
             {{ tagTitle }}
             <span class="text-sm text-zinc-500 dark:text-slate-200">
                 {{ tagSummary }}
