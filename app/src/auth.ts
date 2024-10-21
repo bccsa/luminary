@@ -40,26 +40,25 @@ export default async function setupAuth(app: App<Element>, router: Router) {
     async function redirectCallback(_url: string) {
         const url = new URL(_url);
         console.log(url);
-        if (
-            url.searchParams.has("state") &&
-            (url.searchParams.has("code") || url.searchParams.has("error"))
-        ) {
-            if (url.searchParams.has("error")) {
-                const error = url.searchParams.get("error");
-                console.error(error);
-                alert(error);
-            } else {
-                await oauth.handleRedirectCallback(url.toString()).catch(() => null);
-                await Browser.close().catch(() => void 0);
 
-                const to = getRedirectTo() || "/";
-                location.href = to;
+        if (!url.searchParams.has("state")) return false;
 
-                return true;
-            }
+        if (url.searchParams.has("error")) {
+            const error = url.searchParams.get("error");
+            console.error(error);
+            alert(error);
+            return false;
         }
 
-        return false;
+        if (!url.searchParams.has("code")) return false;
+
+        await oauth.handleRedirectCallback(url.toString()).catch(() => null);
+        await Browser.close().catch(() => void 0);
+
+        const to = getRedirectTo() || "/";
+        location.href = to;
+
+        return true;
     }
 
     // Handle redirects, if user needs to login and open the app via link with slug
@@ -99,15 +98,13 @@ export default async function setupAuth(app: App<Element>, router: Router) {
         }
     } else {
         CapApp.addListener("appUrlOpen", async ({ url }) => {
-            console.log(url + "\n98");
-            if ((await redirectCallback(url)) === false) {
-                const parsedUrl = new URL(url);
-                const parsedPath = parsedUrl.href.replace(parsedUrl.origin, "");
+            if ((await redirectCallback(url)) === true) return;
+            const parsedUrl = new URL(url);
+            const parsedPath = parsedUrl.href.replace(parsedUrl.origin, "");
 
-                storeRedirectTo(parsedPath);
-                if (oauth.isAuthenticated.value && location.pathname !== parsedPath) {
-                    router.push(parsedPath).catch(() => {});
-                }
+            storeRedirectTo(parsedPath);
+            if (oauth.isAuthenticated.value && location.pathname !== parsedPath) {
+                router.push(parsedPath).catch(() => {});
             }
         });
     }
@@ -135,12 +132,13 @@ export default async function setupAuth(app: App<Element>, router: Router) {
                     if (platform === "ios") {
                         await AuthBrowser.open({ url });
                         location.reload();
-                    } else {
-                        await Browser.open({
-                            url,
-                            windowName: "_self",
-                        });
+                        return
                     }
+                    await Browser.open({
+                        url,
+                        windowName: "_self",
+                    });
+                    
                 } catch (error) {
                     console.error("Auth Browser open error on logout", error);
                     alert(error);
@@ -166,12 +164,13 @@ export default async function setupAuth(app: App<Element>, router: Router) {
 
                         console.log(result);
                         await redirectCallback(result.result);
-                    } else {
-                        await Browser.open({
-                            url,
-                            windowName: "_self",
-                        });
-                    }
+                        return
+                    } 
+                    await Browser.open({
+                        url,
+                        windowName: "_self",
+                    });
+            
                 } catch (error) {
                     console.error("Auth Browser open error on login", error);
                     alert(error);
