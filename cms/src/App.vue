@@ -76,10 +76,10 @@ onBeforeMount(async () => {
         socket.on("changeRequestAck", (data: any) => {
             if (data.ack == "rejected") {
                 useNotificationStore().addNotification({
-                    title: `Changed request: ${data.ack}`,
-                    description: data.message,
+                    title: "Saving changes to server failed.",
+                    description: `Your recent request to save changes has failed. The changes have been reverted, both in your CMS and on the server. Error message: ${data.message}`,
                     state: "error",
-                    timer: 4000,
+                    timer: 60000,
                 });
             }
         });
