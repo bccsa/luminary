@@ -56,10 +56,8 @@ watch(tagContent, () => {
                     params: { slug: content.slug },
                 }"
             >
-                <!-- add a transparent border if the content is not selected -->
-                <!-- push tto the right -->
                 <div
-                    class="flex items-center border-l-4 border-transparent px-1 py-1 transition duration-200 hover:border-transparent hover:bg-yellow-100 dark:hover:bg-yellow-100/25"
+                    class="flex items-center space-x-4 border-l-4 border-transparent px-1 py-1 transition duration-200 hover:border-transparent hover:bg-yellow-100 dark:hover:bg-yellow-100/25"
                     :class="{
                         ' border-l-4 border-yellow-500 bg-yellow-100/50  dark:border-yellow-800 dark:bg-yellow-100/10':
                             isContentSelected(content.slug),
@@ -74,8 +72,8 @@ watch(tagContent, () => {
                             />
                         </div>
                     </div>
-                    <div class="ml-2 w-1/3">
-                        <h1 class="text-sm">
+                    <div class="ml-2 w-2/3">
+                        <h1 class="line-clamp-2 text-sm">
                             {{ content.title }}
                         </h1>
                     </div>
