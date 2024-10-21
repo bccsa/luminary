@@ -73,7 +73,7 @@ watch(tagContent, () => {
                         </div>
                     </div>
                     <div class="ml-2 w-2/3">
-                        <h1 class="truncate text-sm">
+                        <h1 class="line-clamp-2 text-sm">
                             {{ content.title }}
                         </h1>
                     </div>
