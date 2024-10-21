@@ -9,6 +9,7 @@ import {
     type TagDto,
     type LanguageDto,
     verifyAccess,
+    type ContentParentDto,
 } from "luminary-shared";
 import { computed } from "vue";
 import TagSelector from "./TagSelector.vue";
@@ -17,13 +18,14 @@ import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import ImageEditor from "../images/ImageEditor.vue";
+import PostSelector from "./PostSelector.vue";
 
 type Props = {
     docType: DocType;
     language?: LanguageDto;
 };
 const props = defineProps<Props>();
-const parent = defineModel<PostDto | TagDto>();
+const parent = defineModel<ContentParentDto>();
 
 const canEdit = computed(() => {
     if (parent.value) {
@@ -61,6 +63,14 @@ const canEdit = computed(() => {
             <FormLabel>Show publish date</FormLabel>
             <LToggle v-model="parent.publishDateVisible" :disabled="!canEdit" />
         </div>
+
+        <PostSelector
+            v-if="docType == DocType.Post"
+            v-model:postType="(parent as PostDto).postType"
+            label="Post type"
+            :disabled="!canEdit"
+            class="mb-6"
+        />
 
         <GroupSelector
             v-model:groups="parent.memberOf"

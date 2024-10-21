@@ -195,6 +195,7 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-public-content"],
                 tags: ["tag-category1", "tag-topicA"],
                 publishDateVisible: false,
+                postType: "blog",
                 imageData: {
                     fileCollections: [
                         {

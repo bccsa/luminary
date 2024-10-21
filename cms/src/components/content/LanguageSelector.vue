@@ -2,11 +2,11 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import LBadge from "@/components/common/LBadge.vue";
-import { type ContentDto, type LanguageDto, type PostDto, type TagDto } from "luminary-shared";
+import { type ContentDto, type ContentParentDto, type LanguageDto } from "luminary-shared";
 import { ArrowRightIcon } from "@heroicons/vue/16/solid";
 
 type Props = {
-    parent?: PostDto | TagDto;
+    parent?: ContentParentDto;
     content?: ContentDto[];
     languages: LanguageDto[];
 };

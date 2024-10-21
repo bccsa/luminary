@@ -17,6 +17,7 @@ import {
     type TagDto,
     type Uuid,
     verifyAccess,
+    type ContentParentDto,
 } from "luminary-shared";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
@@ -50,7 +51,7 @@ const newDocument = props.id == "new";
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
-const parent = ref<PostDto | TagDto>({
+const parent = ref<ContentParentDto>({
     _id: parentId,
     type: props.docType,
     updatedTimeUtc: 0,
@@ -59,7 +60,7 @@ const parent = ref<PostDto | TagDto>({
     publishDateVisible: true,
 });
 const isLoading = computed(() => parent.value == undefined);
-const parentPrev = ref<PostDto | TagDto>(); // Previous version of the parent document for dirty check
+const parentPrev = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
 const contentDocs = ref<ContentDto[]>([]);
 const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 
