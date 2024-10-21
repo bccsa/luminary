@@ -11,7 +11,7 @@ const content = defineModel<ContentDto>("content");
 </script>
 
 <template>
-    <LCard title="Seo settings" collapsible v-if="content">
+    <LCard collapsible v-if="content">
         <!-- Title Seo -->
         <LInput name="seo-title" label="Title" :disabled="disabled" v-model="content.seoTitle" />
 
