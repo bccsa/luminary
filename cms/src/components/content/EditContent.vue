@@ -251,20 +251,22 @@ watch(selectedLanguage, () => {
         v-if="parent"
     >
         <template #actions>
-            <LBadge v-if="isLocalChange" variant="warning" class="mr-4">Offline changes</LBadge>
-            <div class="flex gap-1">
-                <LButton
-                    type="button"
-                    @click="revertChanges"
-                    data-test="revert-changes-button"
-                    variant="secondary"
-                    title="Revert Changes"
-                >
-                    Revert
-                </LButton>
-                <LButton type="button" @click="save" data-test="save-button" variant="primary">
-                    Save
-                </LButton>
+            <div class="flex gap-2">
+                <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
+                <div class="flex gap-1">
+                    <LButton
+                        type="button"
+                        @click="revertChanges"
+                        data-test="revert-changes-button"
+                        variant="secondary"
+                        title="Revert Changes"
+                    >
+                        Revert
+                    </LButton>
+                    <LButton type="button" @click="save" data-test="save-button" variant="primary">
+                        Save
+                    </LButton>
+                </div>
             </div>
         </template>
         <div class="relative grid grid-cols-3 gap-8">
