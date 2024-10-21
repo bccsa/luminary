@@ -14,7 +14,7 @@ const content = defineModel<ContentDto>("content");
 
 const activeTab = ref(0);
 const tabs = [
-    { title: "Basic ", component: ContentBasic },
+    { title: "General ", component: ContentBasic },
     { title: "SEO ", component: ContentSEO },
 ];
 </script>
