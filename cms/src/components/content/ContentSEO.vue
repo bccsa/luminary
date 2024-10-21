@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import LCard from "@/components/common/LCard.vue";
 import { type ContentDto } from "luminary-shared";
 
 type Props = {
@@ -11,7 +10,7 @@ const content = defineModel<ContentDto>("content");
 </script>
 
 <template>
-    <LCard collapsible v-if="content">
+    <div v-if="content">
         <!-- Title Seo -->
         <LInput name="seo-title" label="Title" :disabled="disabled" v-model="content.seoTitle" />
 
@@ -23,5 +22,5 @@ const content = defineModel<ContentDto>("content");
             :disabled="disabled"
             v-model="content.seoString"
         />
-    </LCard>
+    </div>
 </template>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import LCard from "@/components/common/LCard.vue";
 import { PencilIcon } from "@heroicons/vue/16/solid";
 import { PublishStatus, type ContentDto } from "luminary-shared";
 import { nextTick, ref, watch } from "vue";
@@ -77,7 +76,7 @@ const validateSlug = async () => {
 </script>
 
 <template>
-    <LCard collapsible v-if="content">
+    <div v-if="content">
         <!-- Title -->
         <LInput
             name="title"
@@ -129,5 +128,5 @@ const validateSlug = async () => {
             :disabled="disabled"
             v-model="content.summary"
         />
-    </LCard>
+    </div>
 </template>
