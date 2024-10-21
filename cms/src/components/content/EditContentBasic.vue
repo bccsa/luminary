@@ -14,16 +14,16 @@ const content = defineModel<ContentDto>("content");
 
 const activeTab = ref(0);
 const tabs = [
-    { title: "Basic translation ", component: ContentBasic },
+    { title: "Basic ", component: ContentBasic },
     { title: "SEO ", component: ContentSEO },
 ];
 </script>
 
 <template>
-    <LCard title="Basic translation settings" collapsible padding="normal" v-if="content">
+    <LCard title="General Settings" collapsible v-if="content">
         <!-- Tab Navigation -->
-        <div class="border-b">
-            <nav class="flex space-x-4 px-4 py-2">
+        <div>
+            <nav class="flex space-x-4">
                 <button
                     v-for="(tab, index) in tabs"
                     :key="tab.title"
@@ -40,7 +40,7 @@ const tabs = [
         </div>
 
         <!-- Tab Content -->
-        <div class="p-4">
+        <div class="py-4">
             <component :is="tabs[activeTab].component" :disabled="disabled" :content="content" />
         </div>
     </LCard>
