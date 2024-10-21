@@ -1,13 +1,26 @@
-import { IsString } from "class-validator";
-import { ContentDto } from "./ContentDto";
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { Expose } from "class-transformer";
-import { GroupDto } from "./GroupDto";
+import { _contentBaseDto } from "./_contentBaseDto";
+import { RedirectType } from "src/enums";
 
-export class RedirectDto extends ContentDto {
+export class RedirectDto extends _contentBaseDto {
+    @IsNotEmpty()
+    @IsEnum(RedirectType)
+    @Expose()
+    redirectType: RedirectType;
+
     @IsString()
+    @IsNotEmpty()
     @Expose()
-    redirectSlug: string;
+    fromSlug: string;
 
+    @IsString()
+    @IsOptional()
     @Expose()
-    membership: GroupDto;
+    toSlug: string;
+
+    @IsString()
+    @IsOptional()
+    @Expose()
+    toUrl: string;
 }
