@@ -65,7 +65,7 @@ function switchTab(index: number) {
         <div v-show="!collapsed" data-test="collapsible-container">
             <!-- Tab Navigation -->
             <div v-if="tabs?.length" class="border-b">
-                <nav class="flex space-x-4 px-4 py-2">
+                <nav class="flex space-x-4">
                     <button
                         v-for="(tab, index) in tabs"
                         :key="tab.title"
@@ -81,7 +81,7 @@ function switchTab(index: number) {
                 </nav>
             </div>
             <!-- Tab Content -->
-            <div v-if="tabs?.length" class="p-4">
+            <div v-if="tabs?.length">
                 <component
                     v-if="typeof tabs[activeTab]?.content !== 'string'"
                     :is="tabs[activeTab]?.content"
