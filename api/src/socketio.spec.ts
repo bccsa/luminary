@@ -169,14 +169,9 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_post(),
                     });
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    // ******** TMP *****
                     expect(res.docs.length).toBe(2);
                     expect(res.docs[0].type).toBe("user");
                     expect(res.docs[1].type).toBe("post");
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs[2].type).toBe("change");
                 });
 
                 it("Tag documents: emits two data socket.io events after change request submission", async () => {
@@ -185,14 +180,9 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_tag(),
                     });
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    // ******** TMP *****
                     expect(res.docs.length).toBe(2);
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                     expect(res.docs.some((d) => d.type == "tag")).toBe(true);
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.some((d) => d.type == "change")).toBe(true);
                 });
 
                 it("Content documents: emits two data socket.io events after change request submission", async () => {
@@ -201,14 +191,9 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_content(),
                     });
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    // ******** TMP *****
                     expect(res.docs.length).toBe(2);
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                     expect(res.docs.some((d) => d.type == "content")).toBe(true);
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.some((d) => d.type == "change")).toBe(true);
                 });
 
                 it("Language documents: emits two data socket.io events after change request submission", async () => {
@@ -217,14 +202,9 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_language(),
                     });
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    // ******** TMP *****
                     expect(res.docs.length).toBe(2);
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                     expect(res.docs.some((d) => d.type == "language")).toBe(true);
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.some((d) => d.type == "change")).toBe(true);
                 });
 
                 it("Group documents: emits two data socket.io events after change request submission", async () => {
@@ -233,14 +213,9 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_group(),
                     });
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.length).toBe(2 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    // ******** TMP *****
                     expect(res.docs.length).toBe(2);
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                     expect(res.docs.some((d) => d.type == "group")).toBe(true);
-                    // ******************* tmp disable changeDoc, until it will be implimented on the CMS (ATM the changeDoc's only slow down the api) ********************
-                    // expect(res.docs.some((d) => d.type == "change")).toBe(true);
                 });
             });
 
