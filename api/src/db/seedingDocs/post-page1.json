@@ -1,7 +1,8 @@
 {
-    "_id": "post-post1",
+    "_id": "post-page1",
     "type": "post",
     "memberOf": ["group-public-content"],
     "tags": ["tag-category1", "tag-topicA"],
-    "publishDateVisible": true
+    "publishDateVisible": true,
+    "postType": "page"
 }

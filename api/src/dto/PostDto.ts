@@ -1,25 +1,14 @@
-import { Uuid } from "../enums";
-import { IsArray, IsOptional, IsBoolean, IsString, ValidateNested } from "class-validator";
-import { _contentBaseDto } from "./_contentBaseDto";
-import { Expose, Type } from "class-transformer";
-import { ImageDto } from "./ImageDto";
+import { PostType } from "../enums";
+import { IsNotEmpty, IsEnum } from "class-validator";
+import { Expose } from "class-transformer";
+import { _contentParentDto } from "./_contentParentDto";
 
 /**
  * Database structured Post object
  */
-export class PostDto extends _contentBaseDto {
-    @IsOptional()
-    @ValidateNested()
-    @Type(() => ImageDto)
+export class PostDto extends _contentParentDto {
+    @IsNotEmpty()
+    @IsEnum(PostType)
     @Expose()
-    imageData?: ImageDto;
-
-    @IsArray()
-    @IsString({ each: true })
-    @Expose()
-    tags: Uuid[];
-
-    @IsBoolean()
-    @Expose()
-    publishDateVisible: boolean;
+    postType: PostType;
 }
