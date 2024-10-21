@@ -182,7 +182,7 @@ class Database extends Dexie {
     /**
      * Get all IndexedDB documents of a certain type as Vue Ref
      * @param initialValue - The initial value of the ref while waiting for the query to complete
-     * @param postOrTagType - Optional: The tag type to filter by (only used for tags)
+     * @param postOrTagType - Optional: The tag type or post type to filter by
      * TODO: Add pagination
      */
     whereTypeAsRef<T extends BaseDocumentDto[]>(
