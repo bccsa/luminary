@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { DocType, TagType, db, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
+import {
+    DocType,
+    PublishStatus,
+    TagType,
+    db,
+    type ContentDto,
+    type TagDto,
+    type Uuid,
+} from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
-import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -10,11 +17,11 @@ import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import { appLanguageAsRef, appLanguageIdAsRef, appName } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
-import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
+import NotFoundPage from "./NotFoundPage.vue";
 
 const router = useRouter();
 
@@ -36,6 +43,9 @@ const isExpiredOrScheduled = computed(() => {
         (content.value.expiryDate && content.value.expiryDate < Date.now())
     );
 });
+
+// Check if content exists
+const isContentNotFound = computed(() => content.value === undefined);
 
 watch(
     content,
@@ -89,8 +99,6 @@ watch(
     { immediate: true },
 );
 
-const isLoading = computed(() => content.value === undefined);
-
 const text = computed(() => {
     if (!content.value.text) {
         return "";
@@ -141,11 +149,10 @@ function selectTag(parentId: Uuid) {
         </div>
     </div>
 
-    <div v-if="isLoading">
-        <LoadingSpinner />
-    </div>
+    <NotFoundPage
+        v-if="isContentNotFound || isExpiredOrScheduled || content.status == PublishStatus.Draft"
+    />
 
-    <NotFoundPage v-else-if="isExpiredOrScheduled" />
     <div v-else class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
         <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl">
             <VideoPlayer v-if="content.video" :content="content" />
