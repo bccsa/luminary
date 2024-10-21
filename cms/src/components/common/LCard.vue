@@ -82,7 +82,11 @@ function switchTab(index: number) {
             </div>
             <!-- Tab Content -->
             <div v-if="tabs?.length" class="p-4">
-                <component :is="tabs[activeTab]?.content" />
+                <component
+                    v-if="typeof tabs[activeTab]?.content !== 'string'"
+                    :is="tabs[activeTab]?.content"
+                />
+                <div v-else v-html="tabs[activeTab]?.content"></div>
             </div>
             <!-- Default Slot Content -->
             <div
