@@ -24,7 +24,7 @@
         "@capacitor/core": "^6.0.0",
         "@capacitor/ios": "^6.0.0",
         "@headlessui/vue": "^1.7.19",
-        "@sentry/vue": "^7.110.1",
+        "@sentry/vue": "^8.35.0",
         "@tiptap/extension-link": "^2.7.2",
         "@tiptap/html": "^2.3.0",
         "@tiptap/starter-kit": "^2.3.0",
