@@ -32,7 +32,6 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
-import EditContentSeo from "./EditContentSeo.vue";
 
 type Props = {
     id: Uuid;
@@ -290,7 +289,6 @@ watch(selectedLanguage, () => {
                         :disabled="!canTranslate"
                     />
                     <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentSeo v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>
