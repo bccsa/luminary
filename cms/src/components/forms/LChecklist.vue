@@ -8,6 +8,7 @@ type Option = { label: string; value: string; isChecked: boolean; disabled?: boo
 
 type Props = {
     options: Option[];
+    state?: "default" | "error";
     searchable?: boolean;
     placeholder?: string;
     disabled?: boolean;
