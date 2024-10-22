@@ -20,8 +20,6 @@ import { PermissionMap, getJwtPermission, parsePermissionMap } from "./jwt/jwtPe
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { RedirectDto } from "./dto/RedirectDto";
-
 /**
  * Data request from client type definition
  */
@@ -311,17 +309,6 @@ export class Socketio implements OnGatewayInit {
             .catch((err) => {
                 this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
             });
-    }
-
-    @SubscribeMessage("redirectRequest")
-    async redirectRequest(
-        @MessageBody() redirect: RedirectDto,
-        @ConnectedSocket() socket: ClientSocket,
-    ) {
-        //TODO
-        /*
-            Create a function that processes a redirect request with the database
-        */
     }
 
     /**
