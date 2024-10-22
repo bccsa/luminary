@@ -20,7 +20,6 @@ import { PermissionMap, getJwtPermission, parsePermissionMap } from "./jwt/jwtPe
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-
 /**
  * Data request from client type definition
  */

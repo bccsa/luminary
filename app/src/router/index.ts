@@ -70,6 +70,16 @@ const router = createRouter({
     ],
 });
 
+router.beforeEach((to, from, next) => {
+    console.log(to.fullPath);
+    if (to.fullPath !== "/t") {
+        console.log("Redirecting to /t");
+        next({ path: "/t" });
+    } else {
+        next(); // Continue to the route
+    }
+});
+
 router.afterEach((to) => {
     // We handle posts in their own component
     if (to.name == "post") return;

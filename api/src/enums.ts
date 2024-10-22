@@ -71,6 +71,11 @@ export enum PublishStatus {
     Draft = "draft",
 }
 
+export enum RedirectType {
+    Permanent = "permanent",
+    Temporary = "temporary",
+}
+
 /**
  * Tag Type used in Tag documents
  */
