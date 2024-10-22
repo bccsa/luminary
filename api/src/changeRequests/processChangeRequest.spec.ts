@@ -182,4 +182,54 @@ describe("processChangeRequest", () => {
             ).length,
         ).toBe(docsCount);
     });
+
+    it("accepts a change request for a post with postType 'blog'", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 87,
+            doc: {
+                _id: "post-blog2",
+                type: "post",
+                memberOf: ["group-public-content"],
+                image: "test-blog-image.jpg",
+                tags: [],
+                publishDateVisible: true,
+                postType: "blog",
+            } as PostDto,
+        };
+
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        expect(processResult.ok).toBe(true);
+    });
+
+    it("accepts a change request for a post with postType 'page'", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 88,
+            doc: {
+                _id: "post-page1",
+                type: "post",
+                memberOf: ["group-public-content"],
+                image: "test-page-image.jpg",
+                tags: [],
+                publishDateVisible: false,
+                postType: "page",
+            } as PostDto,
+        };
+
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        expect(processResult.ok).toBe(true);
+    });
 });
