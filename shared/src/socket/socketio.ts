@@ -56,7 +56,9 @@ class Socketio {
             if (data.version != undefined) db.syncVersion = data.version;
         });
 
-        this.socket.on("changeRequestAck", this.handleAck.bind(this));
+        this.socket.on("changeRequestAck", this.handleChangeRequestAck.bind(this));
+
+        this.socket.on("redirectRequestAck", this.handleRedirectRequestAck.bind(this));
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.accessMap) accessMap.value = c.accessMap;
@@ -145,7 +147,7 @@ class Socketio {
     /**
      * Handle change request acknowledgements from the api
      */
-    private async handleAck(ack: ChangeReqAckDto) {
+    private async handleChangeRequestAck(ack: ChangeReqAckDto) {
         await db.applyLocalChangeAck(ack);
         this.localChanges.value = await db.getLocalChanges();
 
