@@ -343,9 +343,9 @@ const saveChanges = async () => {
                                 !hasChangedGroupName && open && !disabled,
                         },
                     ]"
-                    @click="(e) => startEditingGroupName(e, open)"
                     :title="open ? 'Edit group name' : ''"
                     data-test="groupName"
+                    @click="(e) => startEditingGroupName(e, open)"
                 >
                     <RectangleStackIcon
                         :class="[
@@ -366,17 +366,17 @@ const saveChanges = async () => {
                 </div>
                 <LInput
                     v-else
-                    size="sm"
                     ref="groupNameInput"
-                    name="groupName"
                     v-model="editable.name"
+                    size="sm"
+                    name="groupName"
+                    class="mr-4 grow"
+                    data-test="groupNameInput"
                     @blur="finishEditingGroupName"
                     @keyup.enter="finishEditingGroupName"
                     @keydown.enter.stop
                     @keydown.space.stop
                     @click.stop
-                    class="mr-4 grow"
-                    data-test="groupNameInput"
                 />
                 <div class="flex items-center gap-4">
                     <div v-if="isDirty && open && !disabled" class="-my-2 flex items-center gap-2">
@@ -384,26 +384,26 @@ const saveChanges = async () => {
                             variant="tertiary"
                             size="sm"
                             context="danger"
-                            @click.prevent="discardChanges"
                             data-test="discardChanges"
+                            @click.prevent="discardChanges"
                         >
                             Discard changes
                         </LButton>
                         <LButton
                             v-if="hasEditPermission"
                             size="sm"
-                            @click.prevent="saveChanges"
                             data-test="saveChanges"
+                            @click.prevent="saveChanges"
                         >
                             Save changes
                         </LButton>
                     </div>
 
                     <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>
-                    <LBadge v-if="isEmpty" variant="warning" withIcon>
+                    <LBadge v-if="isEmpty" variant="warning" with-icon>
                         The group does not have any access configured
                     </LBadge>
-                    <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
+                    <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" with-icon>
                         Saving disabled: The group would not be editable</LBadge
                     >
                     <LBadge v-if="isLocalChange && !isConnected" variant="warning">
@@ -422,8 +422,8 @@ const saveChanges = async () => {
                         size="sm"
                         title="Duplicate"
                         :icon="DocumentDuplicateIcon"
-                        @click="duplicateGroup"
                         data-test="duplicateGroup"
+                        @click="duplicateGroup"
                     />
                     <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
                 </div>
@@ -459,9 +459,9 @@ const saveChanges = async () => {
                             v-for="assignedGroup in assignedGroups"
                             :key="assignedGroup._id"
                             v-model:group="editable"
-                            :assignedGroup="assignedGroup"
-                            :originalGroup="group"
-                            :availableGroups="availableGroups"
+                            :assigned-group="assignedGroup"
+                            :original-group="group"
+                            :available-groups="availableGroups"
                             :disabled="disabled"
                         />
                     </TransitionGroup>
@@ -478,8 +478,8 @@ const saveChanges = async () => {
                             variant="tertiary"
                             size="sm"
                             context="default"
-                            @click.prevent="() => copyGroupId(group)"
                             data-test="copyGroupId"
+                            @click.prevent="() => copyGroupId(group)"
                         >
                             Copy ID
                         </LButton>
@@ -488,6 +488,6 @@ const saveChanges = async () => {
             </transition>
         </Disclosure>
 
-        <ConfirmBeforeLeavingModal :isDirty="isDirty" />
+        <ConfirmBeforeLeavingModal :is-dirty="isDirty" />
     </div>
 </template>

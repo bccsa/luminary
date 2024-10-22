@@ -100,14 +100,14 @@ const clearExpiryDate = () => {
 </script>
 
 <template>
-    <LCard title="Status" collapsible v-if="content">
+    <LCard v-if="content" title="Status" collapsible>
         <div class="flex flex-col items-center gap-2">
             <LTextToggle
                 v-model="content.status"
-                leftLabel="Draft"
-                :leftValue="PublishStatus.Draft"
-                rightLabel="Publishable"
-                :rightValue="PublishStatus.Published"
+                left-label="Draft"
+                :left-value="PublishStatus.Draft"
+                right-label="Publishable"
+                :right-value="PublishStatus.Published"
                 :disabled="disabled"
             />
             <div class="text-xs text-zinc-700">
@@ -122,22 +122,22 @@ const clearExpiryDate = () => {
         <div class="mt-6 flex flex-col gap-4 sm:flex-row">
             <!-- Publish date -->
             <LInput
+                v-model="publishDateString"
                 name="publishDate"
                 label="Publish date"
                 class="sm:w-1/2"
                 type="datetime-local"
                 :disabled="disabled"
-                v-model="publishDateString"
             />
 
             <!-- Expiry date -->
             <LInput
+                v-model="expiryDateString"
                 name="expiryDate"
                 label="Expiry date"
                 class="group sm:w-1/2"
                 type="datetime-local"
                 :disabled="disabled"
-                v-model="expiryDateString"
             >
                 <!-- Expiry date shortcut buttons -->
                 <div class="flex w-full cursor-pointer flex-wrap gap-1">
@@ -149,8 +149,8 @@ const clearExpiryDate = () => {
                         :class="{
                             '!bg-black !text-white': selectedExpiryNumber === 1,
                         }"
-                        @click="setExpiryNumber(1)"
                         :disabled="disabled"
+                        @click="setExpiryNumber(1)"
                     >
                         1
                     </LButton>
@@ -160,8 +160,8 @@ const clearExpiryDate = () => {
                         variant="secondary"
                         class="flex-1"
                         :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
-                        @click="setExpiryNumber(2)"
                         :disabled="disabled"
+                        @click="setExpiryNumber(2)"
                     >
                         2
                     </LButton>
@@ -171,8 +171,8 @@ const clearExpiryDate = () => {
                         variant="secondary"
                         class="flex-1"
                         :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
-                        @click="setExpiryNumber(3)"
                         :disabled="disabled"
+                        @click="setExpiryNumber(3)"
                     >
                         3
                     </LButton>
@@ -182,8 +182,8 @@ const clearExpiryDate = () => {
                         variant="secondary"
                         class="flex-1"
                         :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
-                        @click="setExpiryNumber(6)"
                         :disabled="disabled"
+                        @click="setExpiryNumber(6)"
                     >
                         6
                     </LButton>
@@ -193,9 +193,9 @@ const clearExpiryDate = () => {
                         variant="secondary"
                         class="flex-1"
                         :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
-                        @click="setExpiryUnit('Week')"
                         data-test="W"
                         :disabled="disabled"
+                        @click="setExpiryUnit('Week')"
                     >
                         W
                     </LButton>
@@ -205,8 +205,8 @@ const clearExpiryDate = () => {
                         variant="secondary"
                         class="flex-1"
                         :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
-                        @click="setExpiryUnit('Month')"
                         :disabled="disabled"
+                        @click="setExpiryUnit('Month')"
                     >
                         M
                     </LButton>
@@ -216,8 +216,8 @@ const clearExpiryDate = () => {
                         variant="secondary"
                         class="flex-1"
                         :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
-                        @click="setExpiryUnit('Year')"
                         :disabled="disabled"
+                        @click="setExpiryUnit('Year')"
                     >
                         Y
                     </LButton>
@@ -227,8 +227,8 @@ const clearExpiryDate = () => {
                         variant="secondary"
                         :icon="BackspaceIcon"
                         class="flex-1"
-                        @click="clearExpiryDate()"
                         :disabled="disabled"
+                        @click="clearExpiryDate()"
                     >
                     </LButton>
                 </div>

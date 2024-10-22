@@ -32,13 +32,13 @@ withDefaults(
         <p class="mt-1 text-sm text-zinc-500">{{ description }}</p>
         <div class="mt-6">
             <LButton
-                v-if="buttonText && (buttonAction || buttonLink) && buttonPermission"
-                @click="buttonAction ? buttonAction() : ''"
                 :is="buttonLink ? RouterLink : 'button'"
+                v-if="buttonText && (buttonAction || buttonLink) && buttonPermission"
                 :to="buttonLink"
                 :icon="PlusIcon"
                 variant="primary"
                 size="lg"
+                @click="buttonAction ? buttonAction() : ''"
             >
                 {{ buttonText }}
             </LButton>

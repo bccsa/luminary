@@ -54,8 +54,8 @@ const canCreateGroup = computed(() => {
                 v-if="combinedGroups && combinedGroups.length > 0 && canCreateGroup"
                 variant="primary"
                 :icon="PlusIcon"
-                @click="createGroup"
                 data-test="createGroupButton"
+                @click="createGroup"
             >
                 Create group
             </LButton>

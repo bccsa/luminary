@@ -59,8 +59,8 @@ const close = () => {
                         >
                             <div class="sm:flex sm:items-start">
                                 <div
-                                    class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
                                     v-if="context == 'danger'"
+                                    class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
                                 >
                                     <ExclamationTriangleIcon
                                         class="h-6 w-6 text-red-600"
@@ -80,7 +80,7 @@ const close = () => {
                                         {{ title }}
                                     </DialogTitle>
 
-                                    <div class="mt-2" v-if="description">
+                                    <div v-if="description" class="mt-2">
                                         <p class="text-sm text-zinc-500">
                                             {{ description }}
                                         </p>
@@ -90,18 +90,18 @@ const close = () => {
                             <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                                 <span class="block sm:ml-3">
                                     <LButton
-                                        @click="primaryAction()"
                                         variant="primary"
                                         class="inline-flex w-full sm:w-auto"
                                         :context="context"
+                                        @click="primaryAction()"
                                     >
                                         {{ primaryButtonText }}
                                     </LButton>
                                 </span>
                                 <LButton
-                                    @click="secondaryAction()"
-                                    class="inline-flex w-full sm:w-auto"
                                     v-if="secondaryAction && secondaryButtonText"
+                                    class="inline-flex w-full sm:w-auto"
+                                    @click="secondaryAction()"
                                 >
                                     {{ secondaryButtonText }}
                                 </LButton>

@@ -68,7 +68,7 @@ const defaultIcon = computed(() => {
             },
         ]"
     >
-        <component :is="icon || defaultIcon" class="-ml-0.5 mr-1 h-3 w-3" v-if="withIcon" />
+        <component :is="icon || defaultIcon" v-if="withIcon" class="-ml-0.5 mr-1 h-3 w-3" />
         <slot />
     </span>
 </template>

@@ -130,8 +130,8 @@ const handleDrop = (e: DragEvent) => {
                 <button
                     v-if="failureMessage"
                     class="flex cursor-pointer items-center gap-1 rounded-md"
-                    @click="showFailureMessage = !showFailureMessage"
                     :title="failureMessage"
+                    @click="showFailureMessage = !showFailureMessage"
                 >
                     <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
                 </button>
@@ -164,13 +164,13 @@ const handleDrop = (e: DragEvent) => {
         <!-- Drag and Drop Area or File Picker -->
         <div
             class="mb-4 mt-2 flex min-h-36 flex-col justify-center rounded-md border-2 border-dashed border-gray-300 p-3 transition duration-150 ease-in-out"
+            :class="{
+                ' border-blue-500 bg-blue-50': isDragging,
+            }"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"
             @drop="handleDrop"
-            :class="{
-                ' border-blue-500 bg-blue-50': isDragging,
-            }"
         >
             <div class="flex flex-col items-center justify-center">
                 <p v-if="isDragging" class="text-sm">Drop your files here</p>
@@ -183,9 +183,9 @@ const handleDrop = (e: DragEvent) => {
                         type="file"
                         class="mb-4 hidden"
                         accept="image/jpeg, image/png, image/webp"
-                        @change="upload"
                         data-test="image-upload"
                         multiple
+                        @change="upload"
                     />
                 </div>
             </div>
@@ -202,17 +202,17 @@ const handleDrop = (e: DragEvent) => {
                         <!-- Display file collections as thumbnails -->
                         <ImageEditorThumbnail
                             v-for="c in parent.imageData.fileCollections"
-                            :imageFileCollection="c"
-                            @deleteFileCollection="removeFileCollection"
                             :key="c.aspectRatio"
+                            :image-file-collection="c"
+                            @delete-file-collection="removeFileCollection"
                         />
 
                         <!-- Display uploaded image data as thumbnails -->
                         <ImageEditorThumbnail
                             v-for="u in parent.imageData.uploadData"
-                            :imageUploadData="u"
-                            @deleteUploadData="removeFileUploadData"
                             :key="u.filename"
+                            :image-upload-data="u"
+                            @delete-upload-data="removeFileUploadData"
                         />
                     </div>
                 </div>

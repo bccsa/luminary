@@ -51,7 +51,7 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
                         <LanguageRow
                             v-for="language in languages"
                             :key="language._id"
-                            :languagesDoc="language"
+                            :languages-doc="language"
                         />
                     </tbody>
                 </table>

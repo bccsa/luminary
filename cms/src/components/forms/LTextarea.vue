@@ -82,6 +82,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <textarea
+                :id="id"
                 class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
                 :class="[
                     sizes[size],
@@ -93,14 +94,13 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'pr-10': state == 'error',
                     },
                 ]"
-                :id="id"
                 :value="modelValue"
                 :disabled="disabled"
                 :required="required"
                 :placeholder="placeholder"
-                @input="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
+                @input="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
             ></textarea>
             <span
                 v-if="rightAddOn"
@@ -118,9 +118,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
         </div>
         <p
             v-if="$slots.default"
+            :id="`${id}-message`"
             class="mt-2 text-sm"
             :class="{ 'text-zinc-600': state == 'default', 'text-red-600': state == 'error' }"
-            :id="`${id}-message`"
         >
             <slot />
         </p>

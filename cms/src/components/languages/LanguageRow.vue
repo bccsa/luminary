@@ -80,8 +80,8 @@ const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
                         ? PencilSquareIcon
                         : EyeIcon
                 "
-                @click="openEditModal"
                 class="flex justify-end"
+                @click="openEditModal"
             ></LButton>
         </td>
     </tr>
@@ -89,7 +89,7 @@ const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
     <!-- Modal for editing the language -->
     <CreateLanguageModal
         v-if="isModalVisible"
-        :isVisible="isModalVisible"
+        :is-visible="isModalVisible"
         :language="languagesDoc"
         @close="closeModal"
         @updated="handleLanguageUpdated"

@@ -105,25 +105,25 @@ const validateForm = () => {
             </h2>
 
             <LInput
+                v-model="newLanguage.name"
                 label="Name"
                 name="languageName"
-                v-model="newLanguage.name"
                 class="mb-4 w-full"
                 placeholder="Enter language name"
             />
 
             <LInput
+                v-model="newLanguage.languageCode"
                 label="Code"
                 name="languageCode"
-                v-model="newLanguage.languageCode"
                 class="mb-4 w-full"
                 placeholder="Enter language code"
             />
 
             <GroupSelector
-                name="memberOf"
                 v-model:groups="newLanguage.memberOf"
-                :docType="DocType.Language"
+                name="memberOf"
+                :doc-type="DocType.Language"
             />
 
             <div class="flex justify-end gap-4 pt-5">
@@ -133,8 +133,8 @@ const validateForm = () => {
                 <LButton
                     variant="primary"
                     data-test="save-button"
-                    @click="saveLanguage"
                     :disabled="!isDirty"
+                    @click="saveLanguage"
                 >
                     {{ isEditMode ? "Save Changes" : "Create" }}
                 </LButton>

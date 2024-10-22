@@ -77,13 +77,13 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                     <tbody class="divide-y divide-zinc-200 bg-white">
                         <ContentRow
                             v-for="contentDoc in contentDocs"
-                            data-test="content-row"
                             :key="contentDoc._id"
-                            :contentDoc="contentDoc"
-                            :parentType="queryOptions.parentType"
-                            :languageId="queryOptions.languageId"
+                            data-test="content-row"
+                            :content-doc="contentDoc"
+                            :parent-type="queryOptions.parentType"
+                            :language-id="queryOptions.languageId"
                             :languages="languages"
-                            :tagType="queryOptions.tagType"
+                            :tag-type="queryOptions.tagType"
                         />
                     </tbody>
                 </table>

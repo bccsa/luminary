@@ -92,10 +92,10 @@ watch(route, (newRoute) => {
                         <li v-for="item in navigation" :key="item.name">
                             <RouterLink
                                 v-if="item.visible && !item.children && item.to"
+                                v-slot="{ isActive }"
                                 :to="item.to"
                                 active-class="bg-zinc-200 text-zinc-950"
                                 class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
-                                v-slot="{ isActive }"
                             >
                                 <component
                                     :is="item.icon"
@@ -105,7 +105,7 @@ watch(route, (newRoute) => {
                                 />
                                 {{ item.name }}
                             </RouterLink>
-                            <Disclosure as="div" v-else-if="item.visible" v-slot="{ open }">
+                            <Disclosure v-else-if="item.visible" v-slot="{ open }" as="div">
                                 <DisclosureButton
                                     :class="[
                                         'flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700',
@@ -129,10 +129,10 @@ watch(route, (newRoute) => {
                                     />
                                 </DisclosureButton>
                                 <DisclosurePanel
+                                    v-show="open || item.open"
                                     as="ul"
                                     class="mt-1 space-y-1 px-2"
                                     static
-                                    v-show="open || item.open"
                                 >
                                     <li v-for="subItem in item.children" :key="subItem.name">
                                         <DisclosureButton

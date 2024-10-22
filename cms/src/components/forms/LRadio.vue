@@ -68,16 +68,16 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 <template>
     <div class="flex items-center justify-stretch gap-2" :class="$attrs['class']"  :style="$attrs['style'] as StyleValue">
         <input
+            :id="id"
             type="radio"
             :name="name"
             :class="twMerge(radioClasses({ variant }))"
-            :id="id"
             :disabled="disabled"
             :value="value"
             :checked="modelValue == value"
-            @input="emit('update:modelValue', value)"
             v-bind="attrsWithoutStyles"
+            @input="emit('update:modelValue', value)"
         />
-        <FormLabel class="" :for="id" v-if="label">{{ label }}</FormLabel>
+        <FormLabel v-if="label" class="" :for="id">{{ label }}</FormLabel>
     </div>
 </template>

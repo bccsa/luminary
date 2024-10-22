@@ -141,11 +141,11 @@ watch(
             <div class="flex flex-col gap-2">
                 <EditContentValidation
                     v-for="content in contentDocs"
+                    :key="content._id"
                     :content="content"
                     :languages="languages"
-                    :key="content._id"
-                    @isValid="(val) => setOverallValidation(content._id, val)"
-                    :contentPrev="contentPrev?.find((c) => c._id == content._id)"
+                    :content-prev="contentPrev?.find((c) => c._id == content._id)"
+                    @is-valid="(val) => setOverallValidation(content._id, val)"
                 />
             </div>
             <div class="flex justify-center">

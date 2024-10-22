@@ -47,14 +47,14 @@ const selectGroup = (group: GroupDto) => {
                     class="absolute right-0 z-20 mt-2 w-52 origin-top-left divide-y divide-zinc-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
                 >
                     <div class="px-1 py-1">
-                        <MenuItem v-slot="{ active }" v-for="group in groups" :key="group._id">
+                        <MenuItem v-for="group in groups" v-slot="{ active }" :key="group._id">
                             <button
                                 :class="[
                                     'group flex w-full items-center rounded-md px-2 py-2 text-sm',
                                     { 'bg-zinc-100': active },
                                 ]"
-                                @click="() => selectGroup(group)"
                                 data-test="selectGroupIcon"
+                                @click="() => selectGroup(group)"
                             >
                                 {{ group.name }}
                             </button>

@@ -33,8 +33,8 @@ const updateValue = (newValue: string) => {
                 { 'text-zinc-900': !disabled && modelValue == leftValue },
                 { 'text-zinc-700 ': !disabled && modelValue != leftValue },
             ]"
-            @click="updateValue(leftValue)"
             data-test="text-toggle-left-value"
+            @click="updateValue(leftValue)"
         >
             {{ leftLabel }}
         </button>
@@ -46,8 +46,8 @@ const updateValue = (newValue: string) => {
                 { 'text-zinc-900': !disabled && modelValue == leftValue },
                 { 'text-zinc-700 ': !disabled && modelValue != leftValue },
             ]"
-            @click="updateValue(rightValue)"
             data-test="text-toggle-right-value"
+            @click="updateValue(rightValue)"
         >
             {{ rightLabel }}
         </button>

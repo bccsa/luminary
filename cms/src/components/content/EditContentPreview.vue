@@ -22,12 +22,12 @@ const liveUrl = computed(() => {
 
 <template>
     <LCard
+        v-if="content && content.status == PublishStatus.Published"
         title="View"
         :icon="EyeIcon"
-        v-if="content && content.status == PublishStatus.Published"
         data-test="livePreview"
     >
-        <LButton :icon="ArrowTopRightOnSquareIcon" iconRight is="a" :href="liveUrl" target="_blank"
+        <LButton is="a" :icon="ArrowTopRightOnSquareIcon" icon-right :href="liveUrl" target="_blank"
             >View live version</LButton
         >
     </LCard>

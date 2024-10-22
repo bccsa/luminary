@@ -114,9 +114,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <input
+                :id="id"
                 ref="input"
                 v-model="value"
-                v-on="validationListeners"
                 :class="[
                     sizes[size],
                     states[computedState],
@@ -128,13 +128,13 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     },
                     'block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
                 ]"
-                :id="id"
                 :name="name"
                 :disabled="disabled"
                 :required="required"
                 :placeholder="placeholder"
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
+                v-on="validationListeners"
             />
             <span
                 v-if="rightAddOn"
@@ -152,8 +152,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
         </div>
         <FormMessage
             v-if="$slots.default || errorMessage"
-            :state="computedState"
             :id="`${id}-message`"
+            :state="computedState"
         >
             <template v-if="errorMessage">{{ renderErrorMessage(errorMessage) }}</template>
             <slot v-else-if="$slots.default" />

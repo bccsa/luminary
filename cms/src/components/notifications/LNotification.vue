@@ -22,14 +22,14 @@ const show = ref(true);
             <div class="flex items-start">
                 <div class="flex-shrink-0">
                     <CheckCircleIcon
+                        v-if="notification.state == 'success'"
                         class="h-6 w-6 text-green-400"
                         aria-hidden="true"
-                        v-if="notification.state == 'success'"
                     />
                     <ExclamationCircleIcon
+                        v-if="notification.state == 'error'"
                         class="h-6 w-6 text-red-400"
                         aria-hidden="true"
-                        v-if="notification.state == 'error'"
                     />
                 </div>
                 <div class="ml-3 w-0 flex-1 pt-0.5">
@@ -41,8 +41,8 @@ const show = ref(true);
                 <div class="ml-4 flex flex-shrink-0">
                     <button
                         type="button"
-                        @click="show = false"
                         class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="show = false"
                     >
                         <span class="sr-only">Close</span>
                         <XMarkIcon class="h-5 w-5" aria-hidden="true" />
