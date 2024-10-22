@@ -16,6 +16,11 @@ export enum PublishStatus {
     Published = "published",
 }
 
+export enum RedirectType {
+    Permanent = "permanent",
+    Temporary = "temporary",
+}
+
 export enum TagType {
     AudioPlaylist = "audioPlaylist",
     Category = "category",
