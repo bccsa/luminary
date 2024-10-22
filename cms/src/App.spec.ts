@@ -80,7 +80,11 @@ describe("App", () => {
         });
 
         await waitForExpect(() => {
-            const socket = getSocket();
+            const socket = getSocket({
+                apiUrl: "test",
+                cms: true,
+                token: "test-token",
+            });
 
             const changeRequestAckHandler = vi.fn((data) => {
                 if (data.ack === "rejected") {
