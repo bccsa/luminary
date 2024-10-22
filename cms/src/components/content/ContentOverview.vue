@@ -161,6 +161,7 @@ onClickOutside(sortOptionsAsRef, () => {
 });
 
 const tags = db.whereTypeAsRef(DocType.Tag);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const tagsToDisplay = ref<any[]>([]);
 const tagsSelected = ref([]);
 const tagsContent = ref<ContentDto[]>([]);

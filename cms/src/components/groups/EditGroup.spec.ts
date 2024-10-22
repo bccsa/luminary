@@ -259,7 +259,7 @@ describe("EditGroup.vue", () => {
 
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
         let clipboardContents = "";
-        // @ts-ignore
+        // @ts-expect-error
         window.__defineGetter__("navigator", function () {
             return {
                 clipboard: {

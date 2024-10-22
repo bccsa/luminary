@@ -15,8 +15,6 @@ describe("EditContentParent.vue", () => {
         accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
-    afterEach(async () => {});
-
     it("test the tag pinned toggle", async () => {
         const parent = ref<TagDto>({ ...mockData.mockCategoryDto, pinned: true });
         const wrapper = mount(EditContentParent, {

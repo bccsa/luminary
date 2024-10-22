@@ -39,7 +39,7 @@ const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 
 const tagsContent = ref<ContentDto[]>([]);
 watch(tags, async () => {
-    const pList: any[] = [];
+    const pList: Promise<void | ContentDto[]>[] = [];
     tags.value.forEach((tag) => {
         // Filter tags based on access before proceeding, and exclude the the tag itself (if parent is a tag)
         if (

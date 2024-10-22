@@ -31,7 +31,7 @@ const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
 
 const showFilePicker = () => {
-    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
+    // @ts-expect-error - it seems as if the type definition for showPicker is missing in the file input element.
     uploadInput.value!.showPicker();
 };
 
@@ -66,13 +66,13 @@ const handleFiles = (files: FileList | null) => {
     });
 
     // Reset the file input
-    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
+    // @ts-expect-error - it seems as if the type definition for showPicker is missing in the file input element.
     uploadInput.value!.value = "";
 };
 
 const upload = () => {
     if (!uploadInput.value) return;
-    // @ts-ignore - it seems as if the type definition for files is missing in the file input element.
+    // @ts-expect-error - it seems as if the type definition for files is missing in the file input element.
     handleFiles(uploadInput.value!.files);
 };
 

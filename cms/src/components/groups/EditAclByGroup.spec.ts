@@ -125,7 +125,7 @@ describe("EditAclByGroup.vue", () => {
 
         // Assert that the event is emitted when clicking a group
         expect(wrapper.emitted("select")?.length).toBe(1);
-        // @ts-ignore
+        // @ts-expect-error
         expect(wrapper.emitted("select")![0][0].name).toEqual("Public Content");
     });
 

@@ -5,6 +5,7 @@ export type Column = {
     sortable?: boolean;
     sortMethod?: (a: Item, b: Item) => number;
 };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Item = any;
 export type SortDirection = "ascending" | "descending";
 </script>

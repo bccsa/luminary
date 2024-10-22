@@ -168,7 +168,7 @@ const save = async () => {
     await db.upsert(parent.value);
 
     // Save the content documents that changed
-    const pList: Promise<any>[] = [];
+    const pList: Promise<void>[] = [];
     contentDocs.value.forEach((c) => {
         const prevContentDoc = contentDocsPrev.value?.find((d) => d._id == c._id);
         if (_.isEqual(c, prevContentDoc)) return;
