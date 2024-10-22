@@ -15,7 +15,7 @@ export default [
             "*.config.js",
             "*.config.ts",
             "vitest.setup.ts",
-            "*.spec.ts",
+            "**/*.spec.ts",
         ],
     },
     {
@@ -41,13 +41,16 @@ export default [
     eslintConfigPrettier,
     {
         rules: {
-            "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+            "@typescript-eslint/consistent-type-definitions": ["error", "type"], // Default disallows type, this disallows interfaces
             "vue/valid-v-slot": [
+                // Allow modifiers
                 "error",
                 {
                     allowModifiers: true,
                 },
             ],
+            "@typescript-eslint/no-unsafe-function-type": "warn", // Until all instances are fixed, reduce to a warning
+            "no-undef": "off", // Not needed with TypeScript
         },
     },
 ];
