@@ -79,27 +79,27 @@ describe("App", () => {
             },
         });
 
-        const socket = getSocket();
-
-        const changeRequestAckHandler = vi.fn((data) => {
-            if (data.ack === "rejected") {
-                const notificationStore = useNotificationStore();
-                notificationStore.addNotification({
-                    title: "Saving changes to server failed.",
-                    description: `Your recent request to save changes has failed. The changes have been reverted, both in your CMS and on the server. Error message: ${data.message}`,
-                    state: "error",
-                    timer: 60000,
-                });
-            }
-        });
-
-        socket.on("changeRequestAck", changeRequestAckHandler);
-        changeRequestAckHandler({
-            ack: "rejected",
-            message: "Server error",
-        });
-
         await waitForExpect(() => {
+            const socket = getSocket();
+
+            const changeRequestAckHandler = vi.fn((data) => {
+                if (data.ack === "rejected") {
+                    const notificationStore = useNotificationStore();
+                    notificationStore.addNotification({
+                        title: "Saving changes to server failed.",
+                        description: `Your recent request to save changes has failed. The changes have been reverted, both in your CMS and on the server. Error message: ${data.message}`,
+                        state: "error",
+                        timer: 60000,
+                    });
+                }
+            });
+
+            socket.on("changeRequestAck", changeRequestAckHandler);
+            changeRequestAckHandler({
+                ack: "rejected",
+                message: "Server error",
+            });
+
             expect(addNotification).toHaveBeenCalledWith({
                 title: "Saving changes to server failed.",
                 description:
