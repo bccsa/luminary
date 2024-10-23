@@ -15,6 +15,7 @@ import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import ImageEditor from "../images/ImageEditor.vue";
+import LCombobox from "../forms/LCombobox.vue";
 
 type Props = {
     docType: DocType;
@@ -66,6 +67,8 @@ const pinned = computed({
             :docType="docType"
             class="mt-6"
         />
+
+        <LCombobox />
 
         <TagSelector
             v-model:parent="parent"
