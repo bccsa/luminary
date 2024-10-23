@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import LCard from "@/components/common/LCard.vue";
 import LTabs from "@/components/common/LTabs.vue";
-import EditContentBasic from "./EditContentBasic.vue";
-import EditContentSeo from "./EditContentSeo.vue";
+import EditContentBasic from "@/components/content/EditContentBasic.vue";
+import EditContentSeo from "@/components/content/EditContentSeo.vue";
 import { ref } from "vue";
 import type { ContentDto } from "luminary-shared";
 
