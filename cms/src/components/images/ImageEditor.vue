@@ -11,8 +11,7 @@ import {
     type ImageUploadDto,
     type ImageFileCollectionDto,
     maxUploadFileSize,
-    type PostDto,
-    type TagDto,
+    type ContentParentDto,
 } from "luminary-shared";
 
 type Props = {
@@ -20,7 +19,7 @@ type Props = {
 };
 defineProps<Props>();
 
-const parent = defineModel<PostDto | TagDto>("parent");
+const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
 // HTML element refs
