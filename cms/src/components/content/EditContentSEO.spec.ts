@@ -5,7 +5,7 @@ import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { ref } from "vue";
-import EditContentSeo from "./EditContentSEO.vue";
+import EditContentSeo from "./EditContentSeo.vue";
 import { accessMap, type ContentDto } from "luminary-shared";
 
 describe("EditContentSeo.vue", () => {

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import LCard from "@/components/common/LCard.vue";
 import LTabs from "@/components/common/LTabs.vue";
-import ContentBasic from "./EditContentBasic.vue";
-import ContentSEO from "./EditContentSEO.vue";
+import EditContentBasic from "./EditContentBasic.vue";
+import EditContentSeo from "./EditContentSeo.vue";
 import { ref } from "vue";
 import type { ContentDto } from "luminary-shared";
 
@@ -15,8 +15,8 @@ const content = defineModel<ContentDto>("content");
 
 const currentTab = ref("basic"); // Default tab key
 const tabs = [
-    { title: "Basic", key: "basic", component: ContentBasic },
-    { title: "SEO", key: "seo", component: ContentSEO },
+    { title: "Basic", key: "basic", component: EditContentBasic },
+    { title: "Seo", key: "seo", component: EditContentSeo },
 ];
 </script>
 
