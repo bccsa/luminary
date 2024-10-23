@@ -68,8 +68,6 @@ const pinned = computed({
             class="mt-6"
         />
 
-        <LCombobox />
-
         <TagSelector
             v-model:parent="parent"
             :language="language"
