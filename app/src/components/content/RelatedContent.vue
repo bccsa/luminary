@@ -67,7 +67,6 @@ watch(tags, fetchContentForTags, { immediate: true });
                             :class="{
                                 'mt-3': !isTopic,
                             }"
-                            :hideTitle="!(tag._id == currentContent._id)"
                         />
                     </template>
                 </div>
