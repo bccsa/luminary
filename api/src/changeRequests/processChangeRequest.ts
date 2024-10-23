@@ -41,6 +41,10 @@ export async function processChangeRequest(
             contentDoc.parentTags = parentDoc.tags;
             contentDoc.parentImageData = parentDoc.imageData;
 
+            if (parentDoc.type == DocType.Post) {
+                contentDoc.parentPostType = (parentDoc as PostDto).postType;
+            }
+
             if (parentDoc.type == DocType.Tag) {
                 contentDoc.parentTagType = (parentDoc as TagDto).tagType;
             }
@@ -64,6 +68,10 @@ export async function processChangeRequest(
                 contentDoc.memberOf = doc.memberOf;
                 contentDoc.parentTags = doc.tags;
                 contentDoc.parentImageData = doc.imageData;
+
+                if (doc.type == DocType.Post) {
+                    contentDoc.parentPostType = (doc as PostDto).postType;
+                }
 
                 if (doc.type == DocType.Tag) {
                     contentDoc.parentTagType = (doc as TagDto).tagType;
