@@ -19,6 +19,7 @@ export type Configuration = {
     database?: DatabaseConfig;
     sync?: SyncConfig;
     socketIo?: SocketIoConfig;
+    cors: string[];
 };
 
 export type S3Config = {
@@ -61,4 +62,5 @@ export default () =>
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.SOCKETIO_MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
+        cors: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : [],
     }) as Configuration;

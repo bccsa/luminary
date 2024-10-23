@@ -31,12 +31,7 @@ async function bootstrap() {
     await upgradeDbSchema(dbService, s3Service);
 
     app.enableCors({
-        origin: [
-            "http://localhost:4174",
-            "http://localhost:4175",
-            "https://app2.bcc.africa",
-            "https://admin.app2.bcc.africa",
-        ],
+        origin: process.env.
     });
     await app.listen(process.env.PORT);
 }
