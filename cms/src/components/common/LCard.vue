@@ -2,17 +2,11 @@
 import { ref, type Component } from "vue";
 import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/vue/20/solid";
 
-type Tab = {
-    title: string;
-    content: string | Component;
-};
-
 type Props = {
     title?: string;
     icon?: string | Component | Function;
     padding?: "none" | "normal";
     collapsible?: boolean;
-    tabs?: Tab[];
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -21,17 +15,13 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const collapsed = ref(false);
-const activeTab = ref(0);
 
 function collapse() {
     if (!props.collapsible) {
         return;
     }
-    collapsed.value = !collapsed.value;
-}
 
-function switchTab(index: number) {
-    activeTab.value = index;
+    collapsed.value = !collapsed.value;
 }
 </script>
 
@@ -63,34 +53,7 @@ function switchTab(index: number) {
             </button>
         </div>
         <div v-show="!collapsed" data-test="collapsible-container">
-            <!-- Tab Navigation -->
-            <div v-if="tabs?.length" class="border-b">
-                <nav class="flex space-x-4">
-                    <button
-                        v-for="(tab, index) in tabs"
-                        :key="tab.title"
-                        @click="switchTab(index)"
-                        :class="{
-                            'border-blue-600 text-blue-600': activeTab === index,
-                            'border-transparent text-gray-500': activeTab !== index,
-                        }"
-                        class="border-b-2 px-3 py-2 text-sm font-medium"
-                    >
-                        {{ tab.title }}
-                    </button>
-                </nav>
-            </div>
-            <!-- Tab Content -->
-            <div v-if="tabs?.length">
-                <component
-                    v-if="typeof tabs[activeTab]?.content !== 'string'"
-                    :is="tabs[activeTab]?.content"
-                />
-                <div v-else v-html="tabs[activeTab]?.content"></div>
-            </div>
-            <!-- Default Slot Content -->
             <div
-                v-else
                 :class="{
                     'px-4 py-5 sm:px-6': padding == 'normal',
                     'pt-5': padding == 'none' && title,
