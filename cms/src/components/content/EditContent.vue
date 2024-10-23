@@ -23,7 +23,7 @@ import {
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentStatus from "@/components/content/EditContentStatus.vue";
-import EditContentBasic from "@/components/content/EditContentBasic.vue";
+import EditContentGeneral from "@/components/content/EditContentGeneral.vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentPreview from "@/components/content/EditContentPreview.vue";
@@ -286,7 +286,10 @@ watch(selectedLanguage, () => {
                         v-model:content="selectedContent"
                         :disabled="!canTranslate"
                     />
-                    <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
+                    <EditContentGeneral
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslate"
+                    />
                     <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>

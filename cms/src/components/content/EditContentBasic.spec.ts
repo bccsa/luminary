@@ -5,10 +5,10 @@ import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { ref } from "vue";
-import EditContentSeo from "./ContentSEO.vue";
+import EditContentBasic from "./EditContentBasic.vue";
 import { accessMap, type ContentDto } from "luminary-shared";
 
-describe("EditContentSeo.vue", () => {
+describe("EditContentBasic.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
@@ -19,9 +19,9 @@ describe("EditContentSeo.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("can update the seo title", async () => {
+    it("can update the title", async () => {
         const content = ref<ContentDto>(mockData.mockEnglishContentDto);
-        const wrapper = mount(EditContentSeo, {
+        const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
                 content: content.value,
@@ -29,16 +29,16 @@ describe("EditContentSeo.vue", () => {
         });
 
         // Find and update the title input field
-        const titleInput = wrapper.find('[name="seo-title"]');
-        await titleInput.setValue("Updated Seo Title");
+        const titleInput = wrapper.find('[name="title"]');
+        await titleInput.setValue("Updated Title");
 
         // Check if the content's title was updated
-        expect(content.value.seoTitle).toBe("Updated Seo Title");
+        expect(content.value.title).toBe("Updated Title");
     });
 
-    it("can update the seo summary", async () => {
+    it("can update the summary", async () => {
         const content = ref<ContentDto>(mockData.mockEnglishContentDto);
-        const wrapper = mount(EditContentSeo, {
+        const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
                 content: content.value,
@@ -46,10 +46,10 @@ describe("EditContentSeo.vue", () => {
         });
 
         // Find and update the summary input field
-        const summaryInput = wrapper.find('[name="seo-summary"]');
-        await summaryInput.setValue("Updated Seo Summary");
+        const summaryInput = wrapper.find('[name="summary"]');
+        await summaryInput.setValue("Updated Summary");
 
         // Check if the content's summary was updated
-        expect(content.value.seoString).toBe("Updated Seo Summary");
+        expect(content.value.summary).toBe("Updated Summary");
     });
 });
