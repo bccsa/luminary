@@ -106,7 +106,7 @@ describe("App", () => {
         expect(addNotification).toHaveBeenCalledWith({
             title: "Saving changes to server failed.",
             description:
-                "Your recent request to save changes has failed. The changes have been reverted, both in your CMS and on the server. Error message: Server error",
+                "Your recent request to save changes has failed. The changes have been reverted. Error message: Server error",
             state: "error",
             timer: 60000,
         });
