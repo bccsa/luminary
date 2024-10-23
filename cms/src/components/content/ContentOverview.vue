@@ -169,6 +169,7 @@ onClickOutside(sortOptionsAsRef, () => {
 });
 
 const tags = db.whereTypeAsRef(DocType.Tag);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const tagsToDisplay = ref<any[]>([]);
 const tagsSelected = ref([]);
 const tagsContent = ref<ContentDto[]>([]);
@@ -229,10 +230,10 @@ watch(tagsSelected.value, () => {
                     data-test="language-selector"
                 />
                 <LButton
+                    :is="RouterLink"
                     v-if="canCreateNew"
                     variant="primary"
                     :icon="PlusIcon"
-                    :is="RouterLink"
                     :to="{
                         name: `edit`,
                         params: {
@@ -271,71 +272,71 @@ watch(tagsSelected.value, () => {
         /> -->
         <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
             <LInput
+                v-model="searchTerm"
                 type="text"
                 :icon="MagnifyingGlassIcon"
                 class="flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
-                v-model="searchTerm"
                 :full-height="true"
             />
 
             <div class="">
                 <div class="relative flex gap-1">
                     <LSelect
-                        data-test="filter-select"
                         v-model="filterByTranslation"
+                        data-test="filter-select"
                         :options="filterByTranslationOptions"
                         :icon="LanguageIcon"
                     />
                     <LSelect
-                        data-test="filter-select"
                         v-model="filterByStatus"
+                        data-test="filter-select"
                         :options="filterByStatusOptions"
                         :icon="CloudArrowUpIcon"
                     />
                     <LChecklist
+                        v-model="tagsSelected"
                         :options="tagsToDisplay"
                         :searchable="true"
                         :icon="TagIcon"
-                        v-model="tagsSelected"
-                        @clear-selected-values="queryOptions.tags = []"
                         placeholder="Search tags..."
+                        @clear-selected-values="queryOptions.tags = []"
                     />
-                    <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
+                    <LButton data-test="sort-toggle-btn" @click="() => (showSortOptions = true)">
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </LButton>
                     <Menu
-                        as="div"
-                        ref="sortOptionsAsRef"
-                        class="absolute right-0 top-full mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                         v-if="showSortOptions"
+                        ref="sortOptionsAsRef"
+                        as="div"
+                        class="absolute right-0 top-full mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                         data-test="sort-options-display"
                     >
                         <div class="flex flex-col">
                             <LRadio
+                                v-model="selectedSortOption"
                                 label="Title"
                                 value="title"
-                                v-model="selectedSortOption"
                                 data-test="sort-option-title"
                             />
                             <LRadio
+                                v-model="selectedSortOption"
                                 label="Expiry Date"
                                 value="expiryDate"
-                                v-model="selectedSortOption"
                                 data-test="sort-option-expiry-date"
                             />
                             <LRadio
+                                v-model="selectedSortOption"
                                 label="Publish Date"
                                 value="publishDate"
-                                v-model="selectedSortOption"
                                 data-test="sort-option-publish-date"
                             />
                             <LRadio
+                                v-model="selectedSortOption"
                                 label="Last Updated"
                                 value="updatedTimeUtc"
-                                v-model="selectedSortOption"
                                 data-test="sort-option-last-updated"
                             />
                         </div>
@@ -374,11 +375,11 @@ watch(tagsSelected.value, () => {
 
         <ContentTable
             v-if="selectedLanguage"
-            :docType="docType"
-            :tagType="tagType"
-            :languageId="selectedLanguage"
             :key="queryKey"
-            :queryOptions="queryOptions"
+            :doc-type="docType"
+            :tag-type="tagType"
+            :language-id="selectedLanguage"
+            :query-options="queryOptions"
             data-test="content-table"
         />
     </BasePage>

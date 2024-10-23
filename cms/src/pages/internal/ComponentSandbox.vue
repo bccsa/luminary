@@ -121,37 +121,37 @@ const items = [
             <LCard title="Form elements" collapsible>
                 <div class="flex flex-col gap-4">
                     <LInput
+                        v-model="input"
                         name="input"
                         label="Normal input"
                         placeholder="Placeholder"
-                        v-model="input"
                         required
                         class="w-1/2"
                         :icon="EnvelopeIcon"
                     />
                     <LInput
+                        v-model="input"
                         name="input"
                         label="Normal input"
                         placeholder="Placeholder"
-                        v-model="input"
                         required
                         class="w-1/2"
                     />
                     <LInput
+                        v-model="input"
                         name="input"
                         label="With addons"
                         placeholder="Placeholder"
-                        v-model="input"
                         required
                         class="w-1/2"
-                        leftAddOn="$"
-                        rightAddOn="USD"
+                        left-add-on="$"
+                        right-add-on="USD"
                     />
                     <LInput
+                        v-model="input"
                         name="input"
                         label="Disabled input"
                         placeholder="Placeholder"
-                        v-model="input"
                         disabled
                         class="w-1/2"
                         :icon="EnvelopeIcon"
@@ -159,10 +159,10 @@ const items = [
                         With a bottom text
                     </LInput>
                     <LInput
+                        v-model="input"
                         name="input"
                         label="Error input"
                         placeholder="Placeholder"
-                        v-model="input"
                         class="w-1/2"
                         state="error"
                         :icon="EnvelopeIcon"
@@ -170,24 +170,24 @@ const items = [
                         This input is invalid
                     </LInput>
                     <LInput
+                        v-model="input"
                         name="input"
                         label="With addons"
                         placeholder="Placeholder"
-                        v-model="input"
                         required
                         class="w-1/2"
-                        leftAddOn="$"
-                        rightAddOn="USD"
+                        left-add-on="$"
+                        right-add-on="USD"
                         state="error"
                     >
                         This input is invalid
                     </LInput>
 
-                    <LTextarea label="Textarea" v-model="input" class="w-1/2" />
+                    <LTextarea v-model="input" label="Textarea" class="w-1/2" />
 
                     <LSelect
-                        :options="languageOptions"
                         v-model="selectedLanguage"
+                        :options="languageOptions"
                         label="Select a language"
                         class="mt-6 w-1/2"
                     >
@@ -195,9 +195,9 @@ const items = [
                     </LSelect>
 
                     <LSelect
+                        v-model="selectedLanguage"
                         state="error"
                         :options="languageOptions"
-                        v-model="selectedLanguage"
                         label="Error select"
                         class="w-1/2"
                     >
@@ -205,9 +205,9 @@ const items = [
                     </LSelect>
 
                     <LSelect
+                        v-model="selectedLanguage"
                         disabled
                         :options="languageOptions"
-                        v-model="selectedLanguage"
                         label="Disabled select"
                         class="w-1/2"
                     />
@@ -222,13 +222,13 @@ const items = [
 
             <LCard padding="none">
                 <LTable
+                    v-model:current-page="currentPage"
+                    v-model:sort-by="sortBy"
+                    v-model:sort-direction="sortDirection"
                     :columns="columns"
                     :items="items"
                     paginate
-                    v-model:currentPage="currentPage"
-                    :itemsPerPage="2"
-                    v-model:sortBy="sortBy"
-                    v-model:sortDirection="sortDirection"
+                    :items-per-page="2"
                 >
                     <template #item.translations="{ translations }">
                         <span class="flex gap-2">
@@ -249,7 +249,7 @@ const items = [
             </LCard>
 
             <LCard title="Tabs">
-                <LTabs :tabs="tabs" v-model:currentTab="selectedTab">
+                <LTabs v-model:current-tab="selectedTab" :tabs="tabs">
                     <LButton variant="tertiary" :icon="PlusIcon">Add translation</LButton>
                 </LTabs>
             </LCard>
@@ -264,12 +264,12 @@ const items = [
                     <LBadge variant="scheduled">Scheduled</LBadge>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <LBadge type="language" withIcon>eng</LBadge>
-                    <LBadge type="language" withIcon variant="success">fra</LBadge>
-                    <LBadge type="language" withIcon variant="warning">swa</LBadge>
-                    <LBadge type="language" withIcon variant="error">nya</LBadge>
-                    <LBadge type="language" withIcon variant="info">spa</LBadge>
-                    <LBadge type="language" withIcon variant="scheduled">zul</LBadge>
+                    <LBadge type="language" with-icon>eng</LBadge>
+                    <LBadge type="language" with-icon variant="success">fra</LBadge>
+                    <LBadge type="language" with-icon variant="warning">swa</LBadge>
+                    <LBadge type="language" with-icon variant="error">nya</LBadge>
+                    <LBadge type="language" with-icon variant="info">spa</LBadge>
+                    <LBadge type="language" with-icon variant="scheduled">zul</LBadge>
                 </div>
             </LCard>
 

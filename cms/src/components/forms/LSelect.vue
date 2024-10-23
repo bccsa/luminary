@@ -60,18 +60,18 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 />
             </div>
             <select
+                :id="id"
                 v-model="model"
                 class="block h-full w-full justify-items-center rounded-md border-0 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-inset hover:bg-zinc-50 focus:ring-2 disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
                 :class="[states[state], icon ? 'px-3 py-2 pl-10 pr-10' : '']"
-                :id="id"
                 :disabled="disabled"
                 :required="required"
                 v-bind="attrsWithoutStyles"
             >
                 <option
-                    class="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm text-zinc-700"
                     v-for="(option, key) in options"
                     :key="key"
+                    class="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm text-zinc-700"
                     :value="option.value"
                     :disabled="option.disabled"
                 >
@@ -79,7 +79,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 </option>
             </select>
         </div>
-        <FormMessage v-if="$slots.default" :state="state" :id="`${id}-message`">
+        <FormMessage v-if="$slots.default" :id="`${id}-message`" :state="state">
             <slot />
         </FormMessage>
     </div>

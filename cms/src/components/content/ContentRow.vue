@@ -94,12 +94,12 @@ const translationStatus = computed(() => {
         </td>
         <!-- translations -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
-            <div class="flex flex-wrap gap-2" v-if="contentDocs.length > 0">
+            <div v-if="contentDocs.length > 0" class="flex flex-wrap gap-2">
                 <RouterLink
-                    custom
                     v-for="language in languages"
                     :key="language._id"
                     v-slot="{ navigate }"
+                    custom
                     :to="{
                         name: 'edit',
                         params: {
@@ -112,16 +112,16 @@ const translationStatus = computed(() => {
                     }"
                 >
                     <LBadge
-                        @click="
-                            translationStatus(contentDocs, language) == 'default' ? '' : navigate()
-                        "
                         type="language"
-                        withIcon
+                        with-icon
                         :variant="translationStatus(contentDocs, language)"
                         :class="{
                             'cursor-pointer hover:opacity-75':
                                 translationStatus(contentDocs, language) !== 'default',
                         }"
+                        @click="
+                            translationStatus(contentDocs, language) == 'default' ? '' : navigate()
+                        "
                     >
                         {{ language.languageCode }}
                     </LBadge>
@@ -172,6 +172,7 @@ const translationStatus = computed(() => {
             class="flex justify-end whitespace-nowrap py-2 text-sm font-medium text-zinc-700 sm:pl-3"
         >
             <LButton
+                :is="RouterLink"
                 v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
                 variant="tertiary"
                 :icon="
@@ -179,7 +180,6 @@ const translationStatus = computed(() => {
                         ? PencilSquareIcon
                         : EyeIcon
                 "
-                :is="RouterLink"
                 :to="{
                     name: 'edit',
                     params: {

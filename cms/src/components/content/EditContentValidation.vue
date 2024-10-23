@@ -32,9 +32,7 @@ const usedLanguage = computed(() => {
 
 const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
 
-const emit = defineEmits<{
-    (e: "isValid", value: boolean): void;
-}>();
+const emit = defineEmits<(e: "isValid", value: boolean) => void>();
 
 const statusBadge: ComputedRef<
     (dto: ContentDto | undefined) => { title: string; variant: keyof typeof variants }
@@ -117,6 +115,7 @@ watch(
 
 <template>
     <RouterLink
+        v-slot="{ isActive }"
         :to="{
             name: 'edit',
             params: {
@@ -129,7 +128,6 @@ watch(
                 languageCode: languages.find((l) => l._id == content?.language)?.languageCode,
             },
         }"
-        v-slot="{ isActive }"
     >
         <div
             :class="[
@@ -147,7 +145,7 @@ watch(
                     <div class="flex items-center gap-1">
                         <template v-if="statusChanged">
                             <LBadge
-                                withIcon
+                                with-icon
                                 :variant="statusBadge(contentPrev).variant"
                                 class="opacity-70"
                             >
@@ -156,7 +154,7 @@ watch(
                             <ArrowRightIcon class="h-4 w-4 text-zinc-700" />
                         </template>
 
-                        <LBadge withIcon :variant="statusBadge(content).variant">
+                        <LBadge with-icon :variant="statusBadge(content).variant">
                             {{ statusBadge(content).title }}
                         </LBadge>
                     </div>

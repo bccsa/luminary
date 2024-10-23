@@ -166,7 +166,7 @@ const save = async () => {
     await db.upsert(parent.value);
 
     // Save the content documents that changed
-    const pList: Promise<any>[] = [];
+    const pList: Promise<void>[] = [];
     contentDocs.value.forEach((c) => {
         const prevContentDoc = contentDocsPrev.value?.find((d) => d._id == c._id);
         if (_.isEqual(c, prevContentDoc)) return;
@@ -238,18 +238,18 @@ watch(selectedLanguage, () => {
         </div>
     </div>
     <BasePage
+        v-if="parent"
         :title="selectedContent ? selectedContent.title : `Edit ${titleType}`"
         :icon="DocumentIcon"
         :loading="isLoading"
-        :backLinkLocation="{ name: 'overview' }"
-        :backLinkText="`${capitaliseFirstLetter(titleType)} overview`"
-        :backLinkParams="{
+        :back-link-location="{ name: 'overview' }"
+        :back-link-text="`${capitaliseFirstLetter(titleType)} overview`"
+        :back-link-params="{
             docType: docType,
             tagType: tagType ? tagType.toString() : undefined,
             parentId: parent._id,
             languageCode: languageCode,
         }"
-        v-if="parent"
     >
         <template #actions>
             <div class="flex gap-2">
@@ -257,14 +257,14 @@ watch(selectedLanguage, () => {
                 <div class="flex gap-1">
                     <LButton
                         type="button"
-                        @click="revertChanges"
                         data-test="revert-changes-button"
                         variant="secondary"
                         title="Revert Changes"
+                        @click="revertChanges"
                     >
                         Revert
                     </LButton>
-                    <LButton type="button" @click="save" data-test="save-button" variant="primary">
+                    <LButton type="button" data-test="save-button" variant="primary" @click="save">
                         Save
                     </LButton>
                 </div>
@@ -280,11 +280,11 @@ watch(selectedLanguage, () => {
                     `"
                     data-test="no-content"
                     ><LanguageSelector
+                        v-model="selectedLanguageId"
                         :parent="parent"
                         :content="contentDocs"
                         :languages="languages"
-                        v-model="selectedLanguageId"
-                        @createTranslation="createTranslation"
+                        @create-translation="createTranslation"
                 /></EmptyState>
                 <div v-else class="space-y-6">
                     <EditContentStatus
@@ -297,28 +297,28 @@ watch(selectedLanguage, () => {
                 </div>
             </div>
             <!-- Sidebar -->
-            <div class="col-span-3 md:col-span-1" v-if="parent">
+            <div v-if="parent" class="col-span-3 md:col-span-1">
                 <div class="sticky top-20 space-y-6">
                     <EditContentParentValidation
                         v-if="contentDocs"
                         v-model:parent="parent"
-                        v-model:contentDocs="contentDocs"
+                        v-model:content-docs="contentDocs"
                         :languages="languages"
                         :dirty="isDirty"
-                        :contentPrev="contentDocsPrev"
-                        :parentPrev="parentPrev"
-                        @updateIsValid="(val) => (isValid = val)"
+                        :content-prev="contentDocsPrev"
+                        :parent-prev="parentPrev"
+                        @update-is-valid="(val) => (isValid = val)"
                     />
                     <EditContentPreview v-if="selectedContent" :content="selectedContent" />
                     <EditContentParent
                         v-if="parent"
-                        :docType="props.docType"
-                        :language="selectedLanguage"
                         v-model="parent"
+                        :doc-type="props.docType"
+                        :language="selectedLanguage"
                     />
                 </div>
             </div>
         </div>
     </BasePage>
-    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
+    <ConfirmBeforeLeavingModal :is-dirty="isDirty" />
 </template>

@@ -36,7 +36,7 @@ const deleteLocalData = async () => {
                 deleting all local data. Depending on the amount of available data, it can take some
                 time before all data is available again.
             </div>
-            <LButton @click="deleteLocalData" data-test="deleteLocalDatabase">
+            <LButton data-test="deleteLocalDatabase" @click="deleteLocalData">
                 Delete local cache
             </LButton>
         </LCard>

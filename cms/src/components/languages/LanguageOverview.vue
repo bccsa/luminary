@@ -37,13 +37,13 @@ const handleLanguageCreated = (newLanguage: LanguageDto) => {
 <template>
     <BasePage title="Language overview">
         <template #actions>
-            <div class="flex gap-4" v-if="canCreateNew">
+            <div v-if="canCreateNew" class="flex gap-4">
                 <LButton
                     v-if="canCreateNew"
                     variant="primary"
                     :icon="PlusIcon"
-                    @click="openCreateModal"
                     name="createLanguageBtn"
+                    @click="openCreateModal"
                 >
                     Create Language
                 </LButton>
@@ -55,7 +55,7 @@ const handleLanguageCreated = (newLanguage: LanguageDto) => {
         <!-- Include the modal -->
         <CreateLanguageModal
             v-if="isModalVisible"
-            :isVisible="isModalVisible"
+            :is-visible="isModalVisible"
             @close="closeModal"
             @created="handleLanguageCreated"
         />

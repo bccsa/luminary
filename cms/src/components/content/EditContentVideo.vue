@@ -14,25 +14,25 @@ const content = defineModel<ContentDto>("content");
 
 <template>
     <LButton
+        v-if="content && content?.video == undefined && !disabled"
         type="button"
         variant="tertiary"
         :icon="VideoCameraIcon"
-        v-if="content && content?.video == undefined && !disabled"
-        @click="content.video = ''"
         data-test="addVideo"
+        @click="content.video = ''"
     >
         Add Video
     </LButton>
     <LCard
+        v-if="content?.video != undefined"
         title="Video"
         :icon="VideoCameraIcon"
         collapsible
-        v-if="content?.video != undefined"
         data-test="videoContent"
     >
         <LInput
-            name="video"
             v-model="content.video"
+            name="video"
             :icon="LinkIcon"
             placeholder="https://..."
             :disabled="disabled"

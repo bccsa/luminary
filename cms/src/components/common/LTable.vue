@@ -5,6 +5,7 @@ export type Column = {
     sortable?: boolean;
     sortMethod?: (a: Item, b: Item) => number;
 };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Item = any;
 export type SortDirection = "ascending" | "descending";
 </script>
@@ -121,7 +122,6 @@ function sort(column: Column) {
                         <th
                             v-for="(column, index) in columns"
                             :key="column.key"
-                            @click="sort(column)"
                             scope="col"
                             class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900"
                             :class="{
@@ -129,6 +129,7 @@ function sort(column: Column) {
                                 'sm:pl-3': index != 0,
                                 'cursor-pointer': column.sortable !== false,
                             }"
+                            @click="sort(column)"
                         >
                             <div
                                 class="flex items-center gap-2"
@@ -140,16 +141,16 @@ function sort(column: Column) {
 
                                 <button v-if="column.sortable !== false" aria-label="Sort column">
                                     <ArrowsUpDownIcon
-                                        class="h-5 w-5 text-transparent group-hover:text-zinc-600"
                                         v-if="sortBy !== column.key"
+                                        class="h-5 w-5 text-transparent group-hover:text-zinc-600"
                                     />
                                     <ArrowUpIcon
-                                        class="h-5 w-5 text-zinc-600"
                                         v-if="sortBy == column.key && sortDirection == 'ascending'"
+                                        class="h-5 w-5 text-zinc-600"
                                     />
                                     <ArrowDownIcon
-                                        class="h-5 w-5 text-zinc-600"
                                         v-if="sortBy == column.key && sortDirection == 'descending'"
+                                        class="h-5 w-5 text-zinc-600"
                                     />
                                 </button>
                             </div>
@@ -179,7 +180,7 @@ function sort(column: Column) {
                         </td>
                     </tr>
                 </tbody>
-                <tfoot class="bg-zinc-50 text-sm" v-if="paginate">
+                <tfoot v-if="paginate" class="bg-zinc-50 text-sm">
                     <tr>
                         <td :colspan="columns.length" class="py-3 pl-4 pr-3 sm:pl-6">
                             <div
@@ -198,12 +199,12 @@ function sort(column: Column) {
                                     <button
                                         v-for="page in pages"
                                         :key="page"
-                                        @click="setCurrentPage(page)"
                                         class="page mx-0.5 cursor-pointer rounded-md px-2.5 py-1 text-zinc-800 hover:bg-zinc-200 active:bg-zinc-300"
                                         :class="{
                                             'bg-zinc-200 font-medium text-zinc-900 ring-1 ring-inset ring-zinc-300/80':
                                                 page == currentPage,
                                         }"
+                                        @click="setCurrentPage(page)"
                                     >
                                         <span class="sr-only">Go to page</span>
                                         {{ page }}

@@ -39,7 +39,7 @@ const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 
 const tagsContent = ref<ContentDto[]>([]);
 watch(tags, async () => {
-    const pList: any[] = [];
+    const pList: Promise<void | ContentDto[]>[] = [];
     tags.value.forEach((tag) => {
         // Filter tags based on access before proceeding, and exclude the the tag itself (if parent is a tag)
         if (
@@ -116,10 +116,10 @@ const onTagClick = (tagContent: ContentDto) => {
     <div>
         <Combobox
             as="div"
-            @update:modelValue="onTagSelected"
             nullable
             :disabled="disabled"
             data-test="tag-selector"
+            @update:model-value="onTagSelected"
         >
             <ComboboxLabel class="block text-sm font-medium leading-6 text-zinc-900">
                 {{ label }}
@@ -130,8 +130,8 @@ const onTagClick = (tagContent: ContentDto) => {
                         'w-full rounded-md border-0 bg-white py-1.5 pl-3 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400  focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6',
                         { 'hover:ring-zinc-400': !disabled, 'bg-zinc-100': disabled },
                     ]"
-                    @change="query = $event.target.value"
                     placeholder="Type to select..."
+                    @change="query = $event.target.value"
                 />
                 <ComboboxButton
                     class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
@@ -155,19 +155,19 @@ const onTagClick = (tagContent: ContentDto) => {
                         <ComboboxOption
                             v-for="content in filteredTagsContent"
                             :key="content.parentId"
+                            v-slot="{ active, disabled }"
                             :value="content"
                             :disabled="isTagSelected(content.parentId)"
                             as="template"
-                            v-slot="{ active, disabled }"
                         >
                             <li
-                                @click="onTagClick(content)"
                                 :class="[
                                     'relative cursor-default select-none py-2 pl-3 pr-9',
                                     { 'bg-zinc-100': active },
                                     { 'text-zinc-900': active && !disabled },
                                     { 'text-zinc-500': disabled },
                                 ]"
+                                @click="onTagClick(content)"
                             >
                                 <span class="block truncate" data-test="tag-selector">
                                     {{ content.title }}
@@ -193,13 +193,13 @@ const onTagClick = (tagContent: ContentDto) => {
                 <LTag
                     v-for="tag in selectedTagsByType"
                     :key="tag._id"
+                    :disabled="disabled"
                     @remove="
                         () => {
                             if (!parent) return;
                             parent.tags = parent.tags.filter((t) => t != tag._id);
                         }
                     "
-                    :disabled="disabled"
                 >
                     {{ tagsContent.find((tc) => tc.parentId == tag._id)?.title }}
                 </LTag>

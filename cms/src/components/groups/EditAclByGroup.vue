@@ -55,10 +55,10 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                     </div>
                     <div>
                         <DuplicateGroupAclButton
-                            :groups="availableGroups"
-                            @select="duplicateGroup"
-                            data-test="duplicateAcl"
                             v-if="!disabled"
+                            :groups="availableGroups"
+                            data-test="duplicateAcl"
+                            @select="duplicateGroup"
                         />
                     </div>
                 </div>
@@ -96,9 +96,9 @@ const duplicateGroup = (targetGroup: GroupDto) => {
                                 if (a.type > b.type) return 1;
                                 return 0;
                             })"
-                        :aclEntry="aclEntry"
                         :key="aclEntry.type"
-                        :originalGroup="originalGroup"
+                        :acl-entry="aclEntry"
+                        :original-group="originalGroup"
                         :disabled="disabled"
                     />
                 </tbody>

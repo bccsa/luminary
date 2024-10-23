@@ -77,14 +77,14 @@ const validateSlug = async () => {
 </script>
 
 <template>
-    <LCard title="Basic translation settings" collapsible v-if="content">
+    <LCard v-if="content" title="Basic translation settings" collapsible>
         <!-- Title -->
         <LInput
+            v-model="content.title"
             name="title"
             label="Title"
             required
             :disabled="disabled"
-            v-model="content.title"
             @blur="validateSlug"
         />
 
@@ -99,23 +99,23 @@ const validateSlug = async () => {
             >
             <LInput
                 v-show="isEditingSlug"
-                :disabled="disabled"
                 ref="slugInput"
+                v-model="content.slug"
+                :disabled="disabled"
                 name="slug"
                 size="sm"
                 class="w-full"
-                v-model="content.slug"
                 @blur="
                     isEditingSlug = false;
                     validateSlug();
                 "
             />
             <button
-                data-test="editSlugButton"
                 v-if="!isEditingSlug && !disabled"
-                @click="startEditingSlug"
+                data-test="editSlugButton"
                 class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
                 title="Edit slug"
+                @click="startEditingSlug"
             >
                 <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
             </button>
@@ -123,11 +123,11 @@ const validateSlug = async () => {
 
         <!-- Summary -->
         <LInput
+            v-model="content.summary"
             name="summary"
             label="Summary"
             class="mt-4"
             :disabled="disabled"
-            v-model="content.summary"
         />
     </LCard>
 </template>

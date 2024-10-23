@@ -30,12 +30,12 @@ if (isDevMode) {
         <MenuButton class="-m-1.5 flex items-center p-1.5">
             <span class="sr-only">Open user menu</span>
             <img
+                v-if="user?.picture"
                 class="h-8 w-8 rounded-full bg-zinc-50"
                 :src="user.picture"
-                v-if="user?.picture"
                 alt=""
             />
-            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300" v-else>
+            <div v-else class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300">
                 <UserIcon class="h-6 w-6 text-zinc-600" />
             </div>
             <span class="hidden lg:flex lg:items-center">

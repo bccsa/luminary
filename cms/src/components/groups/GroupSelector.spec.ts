@@ -71,7 +71,7 @@ describe("GroupSelector", () => {
 
     it("hides groups to which the user does not have document edit access", async () => {
         // Remove assign access to the Public Users group
-        // @ts-ignore
+        // @ts-expect-error
         accessMap.value[mockGroupDtoPublicUsers._id].post.edit = false;
 
         const wrapper = mount(GroupSelector, {

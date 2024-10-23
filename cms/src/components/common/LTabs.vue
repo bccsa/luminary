@@ -44,7 +44,6 @@ const id = useId().toString();
                 <nav class="-mb-px hidden space-x-8 sm:flex" aria-label="Tabs">
                     <span
                         v-for="tab in tabs"
-                        @click="emit('update:currentTab', tab.key)"
                         :key="tab.key"
                         :class="[
                             tab.key == currentTab
@@ -53,6 +52,7 @@ const id = useId().toString();
                             'flex cursor-pointer items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium',
                         ]"
                         :aria-current="tab.key == currentTab ? 'page' : undefined"
+                        @click="emit('update:currentTab', tab.key)"
                     >
                         <component
                             :is="tab.icon"
@@ -63,11 +63,11 @@ const id = useId().toString();
                         {{ tab.title }}
                     </span>
                 </nav>
-                <div class="mt-3 sm:mt-0" v-if="$slots.default"><slot /></div>
+                <div v-if="$slots.default" class="mt-3 sm:mt-0"><slot /></div>
             </div>
         </div>
         <div>
-            <slot :name="`tab-${index + 1}`" v-for="(tab, index) in tabs" />
+            <slot v-for="(tab, index) in tabs" :name="`tab-${index + 1}`" />
         </div>
     </div>
 </template>

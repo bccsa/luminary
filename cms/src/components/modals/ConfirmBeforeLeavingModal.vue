@@ -47,9 +47,9 @@ const leave = async () => {
         context="danger"
         title="Are you sure you want to leave the page?"
         description="You have unsaved changes. If you leave now these changes will be discarded."
-        primaryButtonText="Discard changes"
-        secondaryButtonText="Stay on page"
-        :primaryAction="leave"
-        :secondaryAction="closeWithoutLeaving"
+        primary-button-text="Discard changes"
+        secondary-button-text="Stay on page"
+        :primary-action="leave"
+        :secondary-action="closeWithoutLeaving"
     />
 </template>

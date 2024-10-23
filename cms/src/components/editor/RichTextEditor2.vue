@@ -55,16 +55,16 @@ watch(
 
 <template>
     <div class="-mx-4 px-4">
-        <div class="flex gap-4" v-if="!disabled">
+        <div v-if="!disabled" class="flex gap-4">
             <div class="flex pb-2">
                 <button
                     :class="[
                         'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
                         { 'bg-zinc-300': editor?.isActive('bold') },
                     ]"
-                    @click="editor?.chain().focus().toggleBold().run()"
                     title="Bold"
                     type="button"
+                    @click="editor?.chain().focus().toggleBold().run()"
                 >
                     <BoldIcon class="h-5 w-5" />
                 </button>
@@ -73,9 +73,9 @@ watch(
                         'bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
                         { 'bg-zinc-300': editor?.isActive('italic') },
                     ]"
-                    @click="editor?.chain().focus().toggleItalic().run()"
                     title="Italic"
                     type="button"
+                    @click="editor?.chain().focus().toggleItalic().run()"
                 >
                     <ItalicIcon class="h-5 w-5" />
                 </button>
@@ -84,9 +84,9 @@ watch(
                         'rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
                         { 'bg-zinc-300': editor?.isActive('strike') },
                     ]"
-                    @click="editor?.chain().focus().toggleStrike().run()"
                     title="Strikethrough"
                     type="button"
+                    @click="editor?.chain().focus().toggleStrike().run()"
                 >
                     <StrikethroughIcon class="h-5 w-5" />
                 </button>
@@ -97,9 +97,9 @@ watch(
                         'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
                         { 'bg-zinc-300': editor?.isActive('bulletList') },
                     ]"
-                    @click="editor?.chain().focus().toggleBulletList().run()"
                     title="Bullet list"
                     type="button"
+                    @click="editor?.chain().focus().toggleBulletList().run()"
                 >
                     <BulletlistIcon class="h-5 w-5" />
                 </button>
@@ -109,9 +109,9 @@ watch(
                         'rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300',
                         { 'bg-zinc-300': editor?.isActive('orderedList') },
                     ]"
-                    @click="editor?.chain().focus().toggleOrderedList().run()"
                     title="Numbered list"
                     type="button"
+                    @click="editor?.chain().focus().toggleOrderedList().run()"
                 >
                     <NumberedListIcon class="h-5 w-5" />
                 </button>

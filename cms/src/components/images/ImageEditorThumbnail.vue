@@ -64,8 +64,8 @@ const imageElementError = ref(false);
             />
             <img v-else class="h-16 rounded-sm shadow" :src="fallbackImage" />
             <TrashIcon
-                class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
                 v-show="hover"
+                class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
                 title="Delete file version"
                 @click="showModal = true"
             />
@@ -75,10 +75,10 @@ const imageElementError = ref(false);
         v-model:open="showModal"
         title="Delete file version"
         :description="deleteMessage"
-        :primaryAction="deleteFile"
-        primaryButtonText="Delete"
-        :secondaryAction="cancelDelete"
-        secondaryButtonText="Cancel"
+        :primary-action="deleteFile"
+        primary-button-text="Delete"
+        :secondary-action="cancelDelete"
+        secondary-button-text="Cancel"
         context="danger"
     />
 </template>

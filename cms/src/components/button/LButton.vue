@@ -95,8 +95,8 @@ const iconVariants = {
         :class="twMerge(buttonClasses({ variant, size, context }))"
     >
         <component
-            v-if="icon"
             :is="icon"
+            v-if="icon"
             class="order-2 h-5 w-5"
             :class="{
                 [iconVariants[variant]]: $slots.default,

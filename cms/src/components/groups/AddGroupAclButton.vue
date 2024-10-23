@@ -28,7 +28,7 @@ const selectGroup = (group: GroupDto) => {
                 <MenuButton
                     :as="LButton"
                     :icon="ChevronDownIcon"
-                    iconRight
+                    icon-right
                     data-test="addGroupButton"
                 >
                     Add access
@@ -48,8 +48,8 @@ const selectGroup = (group: GroupDto) => {
                 >
                     <div class="px-1 py-1">
                         <MenuItem
-                            v-slot="{ active }"
                             v-for="group in groups.sort(sortByName)"
+                            v-slot="{ active }"
                             :key="group._id"
                         >
                             <button
@@ -57,8 +57,8 @@ const selectGroup = (group: GroupDto) => {
                                     'group flex w-full items-center rounded-md px-2 py-2 text-sm',
                                     { 'bg-zinc-100': active },
                                 ]"
-                                @click="() => selectGroup(group)"
                                 data-test="selectGroupButton"
+                                @click="() => selectGroup(group)"
                             >
                                 {{ group.name }}
                             </button>

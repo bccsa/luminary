@@ -21,23 +21,23 @@ const initializeText = () => {
 
 <template>
     <LButton
+        v-if="!content?.text && !disabled"
         type="button"
         variant="tertiary"
         :icon="DocumentTextIcon"
-        @click="initializeText"
-        v-if="!content?.text && !disabled"
         data-test="addText"
+        @click="initializeText"
     >
         Add text
     </LButton>
     <LCard
+        v-if="content?.text"
         title="Text content"
         :icon="DocumentTextIcon"
         collapsible
-        v-if="content?.text"
         :disabled="disabled"
         data-test="textContent"
     >
-        <RichTextEditor2 v-model="content.text" :disabled="disabled" :key="content._id" />
+        <RichTextEditor2 :key="content._id" v-model="content.text" :disabled="disabled" />
     </LCard>
 </template>

@@ -54,6 +54,7 @@ const setPermission = (aclPermission: AclPermission) => {
                     'bg-yellow-200': hasChangedPermission(aclEntry, aclPermission, originalGroup),
                 },
             ]"
+            data-test="permissionCell"
             @click="
                 () => {
                     if (!disabled && isPermissionAvailable(aclEntry!.type, aclPermission)) {
@@ -61,7 +62,6 @@ const setPermission = (aclPermission: AclPermission) => {
                     }
                 }
             "
-            data-test="permissionCell"
         >
             <template v-if="aclEntry.permission.some((p) => p == aclPermission)">
                 <CheckCircleIcon

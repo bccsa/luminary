@@ -36,7 +36,7 @@ function collapse() {
             @click="collapse"
         >
             <div class="flex items-center gap-2">
-                <component v-if="icon" :is="icon" class="h-4 w-4 text-zinc-600" />
+                <component :is="icon" v-if="icon" class="h-4 w-4 text-zinc-600" />
                 <h3 class="text-sm font-semibold leading-6 text-zinc-900">{{ title }}</h3>
             </div>
             <button v-if="collapsible">

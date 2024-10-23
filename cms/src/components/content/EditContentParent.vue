@@ -41,13 +41,13 @@ const canEdit = computed(() => {
 
 <template>
     <LCard
+        v-if="parent"
         :title="`${capitaliseFirstLetter(docType.toString())} settings`"
         :icon="Cog6ToothIcon"
         class="sticky top-20"
         collapsible
-        v-if="parent"
     >
-        <ImageEditor :disabled="!canEdit" v-model:parent="parent" class="mb-4" />
+        <ImageEditor v-model:parent="parent" :disabled="!canEdit" class="mb-4" />
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"
@@ -65,38 +65,38 @@ const canEdit = computed(() => {
         <GroupSelector
             v-model:groups="parent.memberOf"
             :disabled="!canEdit"
-            :docType="docType"
+            :doc-type="docType"
             class="mt-6"
         />
 
         <TagSelector
+            :key="language?._id"
             v-model:parent="parent"
             :language="language"
-            :tagType="TagType.Category"
+            :tag-type="TagType.Category"
             label="Categories"
             class="mt-6"
             :disabled="!canEdit"
-            :key="language?._id"
         />
 
         <TagSelector
+            :key="language?._id"
             v-model:parent="parent"
             :language="language"
-            :tagType="TagType.Topic"
+            :tag-type="TagType.Topic"
             label="Topics"
             class="mt-6"
             :disabled="!canEdit"
-            :key="language?._id"
         />
 
         <TagSelector
+            :key="language?._id"
             v-model:parent="parent"
             :language="language"
-            :tagType="TagType.AudioPlaylist"
+            :tag-type="TagType.AudioPlaylist"
             label="Audio Playlists"
             class="mt-6"
             :disabled="!canEdit"
-            :key="language?._id"
         />
     </LCard>
 </template>

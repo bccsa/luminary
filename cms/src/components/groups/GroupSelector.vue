@@ -61,13 +61,13 @@ const filteredGroups = computed(() =>
     <div>
         <Combobox
             as="div"
-            @update:modelValue="
+            nullable
+            :disabled="disabled"
+            @update:model-value="
                 (group: GroupDto) => {
                     groups?.push(group._id);
                 }
             "
-            nullable
-            :disabled="disabled"
         >
             <ComboboxLabel class="block text-sm font-medium leading-6 text-zinc-900">
                 Group membership
@@ -78,8 +78,8 @@ const filteredGroups = computed(() =>
                         'w-full rounded-md border-0 bg-white py-1.5 pl-3 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400  focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6',
                         { 'hover:ring-zinc-400': !disabled, 'bg-zinc-100': disabled },
                     ]"
-                    @change="query = $event.target.value"
                     placeholder="Type to select..."
+                    @change="query = $event.target.value"
                 />
                 <ComboboxButton
                     class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
@@ -101,10 +101,10 @@ const filteredGroups = computed(() =>
                         <ComboboxOption
                             v-for="group in filteredGroups"
                             :key="group._id"
+                            v-slot="{ active, disabled }"
                             :value="group"
                             :disabled="isGroupSelected(group._id)"
                             as="template"
-                            v-slot="{ active, disabled }"
                         >
                             <li
                                 :class="[
@@ -136,8 +136,8 @@ const filteredGroups = computed(() =>
                 <LTag
                     v-for="group in selectedGroups"
                     :key="group._id"
-                    @remove="() => groups?.splice(groups?.indexOf(group._id), 1)"
                     :disabled="disabled"
+                    @remove="() => groups?.splice(groups?.indexOf(group._id), 1)"
                 >
                     {{ group.name }}
                 </LTag>

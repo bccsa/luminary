@@ -22,7 +22,7 @@ const emit = defineEmits(["remove"]);
     >
         <div class="flex items-center gap-2">
             <slot />
-            <button @click="emit('remove')" data-test="removeTag" v-if="!disabled" type="button">
+            <button v-if="!disabled" data-test="removeTag" type="button" @click="emit('remove')">
                 <XMarkIcon class="h-4 w-4 text-zinc-400 hover:text-zinc-800" title="Remove tag" />
             </button>
         </div>

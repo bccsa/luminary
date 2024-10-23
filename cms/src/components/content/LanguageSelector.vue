@@ -41,17 +41,17 @@ const emit = defineEmits(["createTranslation"]);
             >
                 <div class="py-1">
                     <MenuItem
-                        v-slot="{ active }"
                         v-for="language in languages"
+                        v-slot="{ active }"
                         :key="language.languageCode"
                     >
                         <button
-                            @click="emit('createTranslation', language)"
                             :class="[
                                 active ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-700',
                                 'group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm',
                             ]"
                             :data-test="`select-language-${language.languageCode}`"
+                            @click="emit('createTranslation', language)"
                         >
                             <span class="flex items-center gap-2">
                                 <LBadge type="language">
