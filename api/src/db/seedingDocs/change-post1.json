@@ -1,7 +1,7 @@
 {
     "_id": "change-post1",
     "type": "change",
-    "docId": "post-blog1",
+    "docId": "post-post1",
     "docType": "post",
     "memberOf": [],
     "acl": [],

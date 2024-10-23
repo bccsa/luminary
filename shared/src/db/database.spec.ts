@@ -17,7 +17,6 @@ import {
     AckStatus,
     AclPermission,
     DocType,
-    PostType,
     TagType,
     type ContentDto,
     type PostDto,
@@ -97,15 +96,6 @@ describe("Database", () => {
 
         await waitForExpect(() => {
             expect(categories.value).toEqual([mockCategoryDto]);
-        });
-    });
-
-    it("can get all documents of a certain type as a ref filtered by post type", async () => {
-        const posts = db.whereTypeAsRef<PostDto[]>(DocType.Post, undefined, PostType.Blog);
-
-        await waitForExpect(() => {
-            console.log(posts.value);
-            expect(posts.value).toEqual([mockPostDto]);
         });
     });
 

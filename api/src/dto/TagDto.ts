@@ -1,12 +1,12 @@
 import { IsBoolean, IsEnum, IsNotEmpty } from "class-validator";
 import { TagType } from "../enums";
 import { Expose } from "class-transformer";
-import { _contentParentDto } from "./_contentParentDto";
+import { PostDto } from "./PostDto";
 
 /**
  * Database structured Tag object
  */
-export class TagDto extends _contentParentDto {
+export class TagDto extends PostDto {
     @IsNotEmpty()
     @IsEnum(TagType)
     @Expose()

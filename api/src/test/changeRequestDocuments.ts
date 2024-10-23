@@ -10,13 +10,12 @@ export const changeRequest_post = () => {
     return {
         id: 42,
         doc: {
-            _id: "test-blog-1",
+            _id: "test-post-1",
             type: "post",
             memberOf: ["group-public-content"],
             image: randomString(),
             tags: ["tag-category1", "tag-topicA"],
             publishDateVisible: true,
-            postType: "blog",
         },
     };
 };
@@ -39,15 +38,15 @@ export const changeRequest_content = () => {
     return {
         id: 44,
         doc: {
-            _id: "content-blog1-eng",
+            _id: "content-post1-eng",
             type: "content",
             memberOf: ["group-public-content"],
-            parentId: "test-blog-1",
+            parentId: "test-post-1",
             language: "lang-eng",
             status: "published",
-            slug: "test-blog1-eng",
-            title: "Blog 1",
-            summary: "This is a test blog",
+            slug: "test-post1-eng",
+            title: "Post 1",
+            summary: "This is a test post",
             author: "",
             text: "Test content",
             seo: "",

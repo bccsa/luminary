@@ -21,8 +21,3 @@ export enum TagType {
     Category = "category",
     Topic = "topic",
 }
-
-export enum PostType {
-    Blog = "blog",
-    Page = "page",
-}
