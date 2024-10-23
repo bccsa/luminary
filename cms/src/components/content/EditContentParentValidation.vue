@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import EditContentValidation from "./EditContentValidation.vue";
 import {
-    type PostDto,
-    type TagDto,
     type ContentDto,
     type Uuid,
     type LanguageDto,
@@ -11,6 +9,7 @@ import {
     verifyAccess,
     PublishStatus,
     db,
+    type ContentParentDto,
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
@@ -20,11 +19,11 @@ import LanguageSelector from "./LanguageSelector.vue";
 type Props = {
     languages: LanguageDto[];
     dirty: boolean;
-    parentPrev: PostDto | TagDto | undefined;
+    parentPrev: ContentParentDto | undefined;
     contentPrev: ContentDto[] | undefined;
 };
 const props = defineProps<Props>();
-const parent = defineModel<PostDto | TagDto>("parent");
+const parent = defineModel<ContentParentDto>("parent");
 const contentDocs = defineModel<ContentDto[]>("contentDocs");
 
 const untranslatedLanguages = computed(() => {
