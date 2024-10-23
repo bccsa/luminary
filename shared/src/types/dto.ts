@@ -68,6 +68,8 @@ export type ContentDto = ContentBaseDto & {
     author?: string;
     summary?: string;
     text?: string;
+    seoTitle?: string;
+    seoString?: string;
     parentType?: DocType;
     parentTags: Uuid[];
     parentImageData?: ImageDto;
