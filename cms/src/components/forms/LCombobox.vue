@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import {
@@ -10,47 +10,115 @@ import {
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
+import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
+import FormLabel from "./FormLabel.vue";
+import LInput from "./LInput.vue";
+import { onClickOutside } from "@vueuse/core";
 
-// type Props = {
-//     disabled?: boolean;
-//     docType: DocType;
-// };
-// const props = withDefaults(defineProps<Props>(), {
-//     disabled: false,
-// });
-// const groups = defineModel<Uuid[]>("groups");
+type Props = {
+    disabled?: boolean;
+    docType: DocType;
+};
+const props = withDefaults(defineProps<Props>(), {
+    disabled: false,
+});
+const groups = defineModel<Uuid[]>("groups");
 
-// const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 
-// const assignableGroups = computed(() =>
-//     availableGroups.value?.filter((g) =>
-//         verifyAccess([g._id], props.docType, AclPermission.Edit, "any"),
-//     ),
-// );
+const assignableGroups = computed(() =>
+    availableGroups.value?.filter((g) =>
+        verifyAccess([g._id], props.docType, AclPermission.Edit, "any"),
+    ),
+);
 
-// const selectedGroups = computed(() =>
-//     availableGroups.value?.filter((g) => groups.value?.includes(g._id)),
-// );
+const selectedGroups = computed(() =>
+    availableGroups.value?.filter((g) => groups.value?.includes(g._id)),
+);
 
-// const isGroupSelected = computed(() => {
-//     return (groupId: string) => {
-//         if (!groups.value) return false;
-//         return groups.value.some((g) => g == groupId);
-//     };
-// });
+const isGroupSelected = computed(() => {
+    return (groupId: string) => {
+        if (!groups.value) return false;
+        return groups.value.some((g) => g == groupId);
+    };
+});
 
-// const query = ref("");
-// const filteredGroups = computed(() =>
-//     query.value === ""
-//         ? assignableGroups.value
-//         : assignableGroups.value.filter((group) => {
-//               return group.name.toLowerCase().includes(query.value.toLowerCase());
-//           }),
-// );
+const query = ref("");
+const filteredGroups = computed(() =>
+    query.value === ""
+        ? assignableGroups.value
+        : assignableGroups.value.filter((group) => {
+              return group.name.toLowerCase().includes(query.value.toLowerCase());
+          }),
+);
+
+const input = ref();
+
+const groupsDisplay = ref();
+const showGroups = ref(true);
+
+const { attrsWithoutStyles } = useAttrsWithoutStyles();
+
+const focusInput = () => {
+    input.value.focus();
+    showGroups.value = !showGroups.value;
+};
+
+onClickOutside(groupsDisplay, () => (showGroups.value = false));
 </script>
 
 <template>
-    <div>
+    <div class="relative" :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
+        <FormLabel> Group Membership </FormLabel>
+        <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
+            <LInput
+                ref="input"
+                class="w-full"
+                placeholder="Type to select..."
+                name="group-search"
+            />
+            <ChevronUpDownIcon
+                @click="focusInput"
+                class="absolute right-2 top-2 h-5 w-5 hover:cursor-pointer"
+            />
+        </div>
+
+        <transition
+            enter-active-class="transition duration-100 ease-out"
+            enter-from-class="transform scale-95 opacity-0"
+            enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-75 ease-out"
+            leave-from-class="transform scale-100 opacity-100"
+            leave-to-class="transform scale-95 opacity-0"
+        >
+            <div
+                ref="groupsDisplay"
+                v-if="showGroups"
+                class="absolute z-10 mt-1 h-48 w-full overflow-y-scroll rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
+            >
+                <ul
+                    v-for="group in filteredGroups"
+                    :key="group._id"
+                    :value="group"
+                    :disabled="isGroupSelected(group._id)"
+                >
+                    <li
+                        class="text-sm hover:bg-zinc-100"
+                        :class="[
+                            'relative cursor-default select-none py-2 pl-3 pr-9',
+                            { 'bg-zinc-100': isGroupSelected(group._id) },
+                            { 'text-zinc-900': !isGroupSelected(group._id) },
+                            { 'text-zinc-500': disabled },
+                        ]"
+                        @click="groups?.push(group._id)"
+                    >
+                        <span class="block truncate" data-test="group-selector">
+                            {{ group.name }}
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </transition>
         <div class="mt-3 flex flex-wrap gap-3">
             <TransitionGroup
                 enter-active-class="transition duration-150 delay-75"
@@ -60,14 +128,14 @@ import {
                 leave-from-class="transform scale-100 opacity-100"
                 leave-to-class="transform scale-90 opacity-0"
             >
-                <!-- <LTag
+                <LTag
                     v-for="group in selectedGroups"
                     :key="group._id"
                     @remove="() => groups?.splice(groups?.indexOf(group._id), 1)"
                     :disabled="disabled"
                 >
                     {{ group.name }}
-                </LTag> -->
+                </LTag>
             </TransitionGroup>
         </div>
         <Transition
@@ -78,9 +146,9 @@ import {
             leave-from-class="transform scale-100 opacity-100 absolute"
             leave-to-class="transform scale-90 opacity-0"
         >
-            <!-- <div v-if="selectedGroups?.length == 0" class="text-xs text-zinc-500">
+            <div v-if="selectedGroups?.length == 0" class="text-xs text-zinc-500">
                 No group selected
-            </div> -->
+            </div>
         </Transition>
     </div>
 </template>
