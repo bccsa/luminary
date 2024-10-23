@@ -55,13 +55,13 @@ const filteredGroups = computed(() =>
 const input = ref();
 
 const groupsDisplay = ref();
-const showGroups = ref(true);
+const showGroups = ref(false);
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
 const focusInput = () => {
-    input.value.focus();
     showGroups.value = !showGroups.value;
+    input.value.focus();
 };
 
 onClickOutside(groupsDisplay, () => (showGroups.value = false));
@@ -77,10 +77,9 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
                 placeholder="Type to select..."
                 name="group-search"
             />
-            <ChevronUpDownIcon
-                @click="focusInput"
-                class="absolute right-2 top-2 h-5 w-5 hover:cursor-pointer"
-            />
+            <button name="options-open-btn" @click="focusInput">
+                <ChevronUpDownIcon class="absolute right-2 top-2 h-5 w-5 hover:cursor-pointer" />
+            </button>
         </div>
 
         <transition
@@ -93,8 +92,9 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
         >
             <div
                 ref="groupsDisplay"
-                v-if="showGroups"
+                v-show="showGroups"
                 class="absolute z-10 mt-1 h-48 w-full overflow-y-scroll rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
+                data-test="groups"
             >
                 <ul
                     v-for="group in filteredGroups"
