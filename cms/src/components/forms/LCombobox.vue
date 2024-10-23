@@ -60,14 +60,14 @@ import {
                 leave-from-class="transform scale-100 opacity-100"
                 leave-to-class="transform scale-90 opacity-0"
             >
-                <LTag
+                <!-- <LTag
                     v-for="group in selectedGroups"
                     :key="group._id"
                     @remove="() => groups?.splice(groups?.indexOf(group._id), 1)"
                     :disabled="disabled"
                 >
                     {{ group.name }}
-                </LTag>
+                </LTag> -->
             </TransitionGroup>
         </div>
         <Transition
@@ -78,9 +78,9 @@ import {
             leave-from-class="transform scale-100 opacity-100 absolute"
             leave-to-class="transform scale-90 opacity-0"
         >
-            <div v-if="selectedGroups?.length == 0" class="text-xs text-zinc-500">
+            <!-- <div v-if="selectedGroups?.length == 0" class="text-xs text-zinc-500">
                 No group selected
-            </div>
+            </div> -->
         </Transition>
     </div>
 </template>
