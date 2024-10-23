@@ -70,8 +70,6 @@ const canEdit = computed(() => {
             class="mt-6"
         />
 
-        <LCombobox />
-
         <TagSelector
             v-model:parent="parent"
             :language="language"
