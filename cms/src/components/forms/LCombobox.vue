@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type StyleValue } from "vue";
+import { computed, ref, watch, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import {
@@ -44,6 +44,11 @@ const isGroupSelected = computed(() => {
 });
 
 const query = ref("");
+
+watch(query, () => {
+    if (query.value.length > 0) showGroups.value = true;
+});
+
 const filteredGroups = computed(() =>
     query.value === ""
         ? assignableGroups.value
@@ -72,6 +77,7 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
         <FormLabel> Group Membership </FormLabel>
         <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
             <LInput
+                v-model="query"
                 ref="input"
                 class="w-full"
                 placeholder="Type to select..."
