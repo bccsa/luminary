@@ -90,7 +90,7 @@ describe("App", () => {
                 const notificationStore = useNotificationStore();
                 notificationStore.addNotification({
                     title: "Saving changes to server failed.",
-                    description: `Your recent request to save changes has failed. The changes have been reverted, both in your CMS and on the server. Error message: ${data.message}`,
+                    description: `Your recent request to save changes has failed. The changes have been reverted. Error message: ${data.message}`,
                     state: "error",
                     timer: 60000,
                 });
