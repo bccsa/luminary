@@ -60,11 +60,11 @@ watch(query, () => {
     );
 });
 
-const emit = defineEmits(["clear-selected-values"]);
+const emit = defineEmits(["clearSelectedValues"]);
 
 const clearSelectedValues = () => {
     selectedValues.value = [];
-    emit("clear-selected-values");
+    emit("clearSelectedValues");
 };
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
