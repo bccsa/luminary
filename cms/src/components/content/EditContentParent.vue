@@ -9,6 +9,7 @@ import {
     type LanguageDto,
     verifyAccess,
     type ContentParentDto,
+    type PostDto,
 } from "luminary-shared";
 import { computed } from "vue";
 import TagSelector from "./TagSelector.vue";
