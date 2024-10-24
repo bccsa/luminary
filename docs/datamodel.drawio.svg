@@ -91,7 +91,7 @@
                                     + parentTagType?: string
                                 </p>
                                 <p style="border-color: var(--border-color); margin: 0px 0px 0px 4px;">
-                                    <br/>
+                                    + parentPinned?: number
                                 </p>
                                 <hr size="1"/>
                                 <p style="margin:0px;margin-left:4px;">
@@ -639,7 +639,7 @@
                                 </p>
                                 <p style="margin:0px;margin-left:4px;">
                                     <span style="background-color: initial;">
-                                        + pinned: boolean
+                                        + pinned: number (0 or 1)
                                     </span>
                                 </p>
                                 <p style="margin:0px;margin-left:4px;">

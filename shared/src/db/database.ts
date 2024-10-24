@@ -73,7 +73,7 @@ class Database extends Dexie {
 
         // Remember to increase the version number below if you change the schema
         this.version(9).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language], title, [type+postType]",
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+parentType+status], [type+language+parentPinned], [type+postType], title, parentPinned",
             localChanges: "++id, reqId, docId, status",
         });
 
@@ -283,8 +283,8 @@ class Database extends Dexie {
 
             // Optionally only include pinned or unpinned tags
             .and((t) => {
-                if (options?.filterOptions?.pinned === true) return t.pinned === true;
-                if (options?.filterOptions?.pinned === false) return t.pinned === false;
+                if (options?.filterOptions?.pinned === true) return t.pinned === 1;
+                if (options?.filterOptions?.pinned === false) return t.pinned === 0;
                 return true;
             })
             .toArray()) as TagDto[];
