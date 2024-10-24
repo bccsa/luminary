@@ -6,6 +6,7 @@ import DesktopMenu from "./DesktopMenu.vue";
 
 const route = useRoute();
 const router = useRouter();
+const BRAND_NAME = import.meta.env.VITE_BRAND_NAME;
 </script>
 
 <template>
@@ -27,7 +28,7 @@ const router = useRouter();
                     >
                         <PlayCircleIcon class="h-8 w-8 text-yellow-500" />
                         <div class="hidden items-center gap-1 whitespace-nowrap min-[300px]:flex">
-                            <span class="font-semibold">BCC Africa</span>
+                            <span class="font-semibold">{{ BRAND_NAME }}</span>
                             <span>App</span>
                         </div>
                     </div>
