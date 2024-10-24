@@ -622,18 +622,7 @@ class Database extends Dexie {
             return;
         }
 
-        const contentDocs = await this.docs.where("type").equals(DocType.Content).toArray();
-        const expiredDocs = contentDocs.filter((doc) => {
-            const contentDoc = doc as ContentDto;
-            const expiryDate = contentDoc.expiryDate;
-
-            if (expiryDate && expiryDate <= DateTime.now().toMillis()) return true;
-            return false;
-        });
-
-        if (expiredDocs.length > 0) {
-            await this.docs.bulkDelete(expiredDocs.map((doc) => doc._id));
-        }
+        await this.docs.where("expiryDate").belowOrEqual(DateTime.now().toMillis()).delete();
     }
 
     /**
