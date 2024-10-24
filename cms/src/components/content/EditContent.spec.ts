@@ -1,7 +1,7 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, type ContentDto, accessMap } from "luminary-shared";
+import { db, DocType, type ContentDto, accessMap, PostType } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -56,6 +56,7 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "eng",
+                tagOrPostType: PostType.Blog,
             },
         });
         // Wait for the component to fetch data
@@ -70,6 +71,7 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "eng",
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -101,6 +103,7 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "eng",
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -137,6 +140,7 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "eng",
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -169,6 +173,7 @@ describe("EditContent.vue", () => {
             props: {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -180,6 +185,7 @@ describe("EditContent.vue", () => {
             props: {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -194,6 +200,7 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "eng",
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -213,6 +220,7 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "eng",
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -227,6 +235,7 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "fra",
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -243,6 +252,7 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 id: mockData.mockPostDto._id,
                 languageCode: "eng",
+                tagOrPostType: PostType.Blog,
             },
         });
 

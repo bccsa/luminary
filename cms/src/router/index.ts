@@ -52,14 +52,14 @@ export const router = createRouter({
                 },
                 // Generic content document edit route
                 {
-                    path: ":docType/edit/:tagType/:id/:languageCode?",
+                    path: ":docType/edit/:tagOrPostType/:id/:languageCode?",
                     name: "edit",
                     component: () => import("../components/content/EditContent.vue"),
                     props: true,
                 },
                 // Generic content document overview route
                 {
-                    path: ":docType/overview/:tagType/:languageCode?",
+                    path: ":docType/overview/:tagOrPostType/:languageCode?",
                     name: "overview",
                     component: () => import("../components/content/ContentOverview.vue"),
                     props: true,
