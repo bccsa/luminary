@@ -16,7 +16,7 @@ const content = defineModel<ContentDto>("content");
 const currentTab = ref("basic"); // Default tab key
 const tabs = [
     { title: "Visible title & summary", key: "visible", component: EditContentBasic },
-    { title: "Seo", key: "seo", component: EditContentSeo },
+    { title: "SEO title & summary", key: "seo", component: EditContentSeo },
 ];
 </script>
 
