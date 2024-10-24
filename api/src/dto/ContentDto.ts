@@ -134,7 +134,7 @@ export class ContentDto extends _contentBaseDto {
     parentPublishDateVisible?: boolean;
 
     @IsOptional() // Optional as it is set upon change request processing
-    @IsBoolean()
+    @IsNumber()
     @Expose()
     parentPinned?: number;
 }
