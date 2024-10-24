@@ -37,6 +37,18 @@ const canEdit = computed(() => {
 
     return false;
 });
+
+// Convert the pinned property to a boolean for the toggle
+const pinned = computed({
+    get() {
+        return (parent.value as TagDto).pinned ? true : false;
+    },
+    set(value: boolean) {
+        if (parent.value) {
+            (parent.value as TagDto).pinned = value ? 1 : 0;
+        }
+    },
+});
 </script>
 
 <template>
@@ -53,7 +65,7 @@ const canEdit = computed(() => {
             class="mb-6 flex items-center justify-between"
         >
             <FormLabel>Pinned</FormLabel>
-            <LToggle v-model="(parent as TagDto).pinned" :disabled="!canEdit" />
+            <LToggle v-model="pinned" :disabled="!canEdit" />
         </div>
 
         <!-- Toggle for Publish Date Visibility -->

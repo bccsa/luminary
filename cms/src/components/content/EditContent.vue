@@ -67,7 +67,7 @@ if (newDocument) {
     // Set default tag properties if it is a new tag
     if (props.docType == DocType.Tag) {
         (parent.value as TagDto).tagType = props.tagType as TagType;
-        (parent.value as TagDto).pinned = false;
+        (parent.value as TagDto).pinned = 0;
         (parent.value as TagDto).publishDateVisible = false;
     } else {
         (parent.value as PostDto).publishDateVisible = true;
