@@ -101,7 +101,7 @@ const validateForm = () => {
         <div class="w-96 rounded-lg bg-white p-6 shadow-lg">
             <!-- Dynamic title based on mode -->
             <h2 class="mb-4 text-xl font-bold">
-                {{ isEditMode ? "Edit Language" : "Create New Language" }}
+                {{ isEditMode ? "Edit language" : "Create new language" }}
             </h2>
 
             <LInput

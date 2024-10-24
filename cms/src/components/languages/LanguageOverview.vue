@@ -45,7 +45,7 @@ const handleLanguageCreated = (newLanguage: LanguageDto) => {
                     @click="openCreateModal"
                     name="createLanguageBtn"
                 >
-                    Create Language
+                    Create language
                 </LButton>
             </div>
         </template>
