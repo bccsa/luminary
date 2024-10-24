@@ -17,10 +17,10 @@ export class RedirectDto extends _contentBaseDto {
     @IsString()
     @IsOptional()
     @Expose()
-    toSlug: string;
+    toSlug?: string;
 
     @IsString()
     @IsOptional()
     @Expose()
-    toUrl: string;
+    toUrl?: string;
 }
