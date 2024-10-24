@@ -15,6 +15,7 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
+import { useHead } from "@vueuse/head";
 
 const router = useRouter();
 
@@ -37,32 +38,56 @@ const isExpiredOrScheduled = computed(() => {
     );
 });
 
-watch(
-    content,
-    async () => {
-        if (!content.value) return;
+watch(content, async () => {
+    if (!content.value) return;
 
-        document.title = isExpiredOrScheduled.value
+    // document.title = isExpiredOrScheduled.value
+    //     ? `Page not found - ${appName}`
+    //     : `${content.value.title} - ${appName}`;
+
+    useHead(() => ({
+        title: isExpiredOrScheduled.value
             ? `Page not found - ${appName}`
-            : `${content.value.title} - ${appName}`;
+            : `${content.value?.title || "Loading"} - ${appName}`,
+        meta: [
+            {
+                name: "description",
+                content: content.value?.seoString || content.value?.summary || "",
+            },
+        ],
+    }));
 
-        if (isExpiredOrScheduled.value) return;
+    // ANOTHER WAY TO SET THE META TAG
 
-        const tagIds = content.value.parentTags.concat([content.value.parentId]); // Include this content's parent ID to include content tagged with the parent (if the parent is a tag document).
+    // const descriptionMetaTag = document.querySelector('meta[name="description"]');
+    // // check if there is a description meta tag
+    // if (descriptionMetaTag) {
+    //     descriptionMetaTag.setAttribute(
+    //         "content",
+    //         content.value.seoString || content.value.summary || "",
+    //     );
+    // } else {
+    //     const metaTag = document.createElement("meta");
+    //     metaTag.setAttribute("name", "description");
+    //     metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
+    //     document.getElementsByTagName("head")[0].appendChild(metaTag);
+    // }
 
-        // Fetch tags associated with the content
-        tagsContent.value = await db.whereParent(tagIds, DocType.Tag, content.value.language);
+    if (isExpiredOrScheduled.value) return;
 
-        const categoryTagsContent = tagsContent.value.filter(
-            (t) => t.parentTagType == TagType.Category,
-        );
+    const tagIds = content.value.parentTags.concat([content.value.parentId]); // Include this content's parent ID to include content tagged with the parent (if the parent is a tag document).
 
-        selectedTagId.value = categoryTagsContent[0]?.parentId;
+    // Fetch tags associated with the content
+    tagsContent.value = await db.whereParent(tagIds, DocType.Tag, content.value.language);
 
-        tags.value = (await db.docs.bulkGet(tagIds)) as TagDto[];
-    },
-    { immediate: true },
-);
+    const categoryTagsContent = tagsContent.value.filter(
+        (t) => t.parentTagType == TagType.Category,
+    );
+
+    selectedTagId.value = categoryTagsContent[0]?.parentId;
+
+    tags.value = (await db.docs.bulkGet(tagIds)) as TagDto[];
+});
 
 watch(
     appLanguageAsRef,
