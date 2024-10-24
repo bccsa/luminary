@@ -8,7 +8,6 @@ import {
     type Uuid,
     AclPermission,
     verifyAccess,
-    TagType,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -22,7 +21,6 @@ type Props = {
     parentType: DocType.Post | DocType.Tag;
     languageId: Uuid;
     languages: LanguageDto[];
-    tagType?: TagType;
 };
 const props = defineProps<Props>();
 const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentType, undefined, []);
@@ -184,7 +182,7 @@ const translationStatus = computed(() => {
                     name: 'edit',
                     params: {
                         docType: parentType,
-                        tagType: contentDoc.tagType,
+                        tagOrPostType: contentDoc.parentTagType || contentDoc.parentPostType,
                         id: contentDoc.parentId,
                         languageCode: languages.find((l: LanguageDto) => l._id == languageId)
                             ?.languageCode,

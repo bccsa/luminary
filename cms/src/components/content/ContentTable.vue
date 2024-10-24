@@ -83,7 +83,6 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                             :parentType="queryOptions.parentType"
                             :languageId="queryOptions.languageId"
                             :languages="languages"
-                            :tagType="queryOptions.tagType"
                         />
                     </tbody>
                 </table>
