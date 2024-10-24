@@ -18,7 +18,7 @@ export const mockCategoryDto: TagDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     tagType: TagType.Category,
-    pinned: false,
+    pinned: 0,
     imageData: {
         fileCollections: [
             {
@@ -43,7 +43,7 @@ export const mockTopicDto: TagDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     tagType: TagType.Topic,
-    pinned: false,
+    pinned: 0,
     imageData: {
         fileCollections: [
             {
