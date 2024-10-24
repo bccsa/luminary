@@ -3,7 +3,7 @@
     "type": "tag",
     "memberOf": ["group-public-content"],
     "tagType": "topic",
-    "pinned": false,
+    "pinned": 0,
     "tags": [],
     "publishDateVisible": false
 }
