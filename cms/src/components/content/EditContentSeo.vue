@@ -12,7 +12,13 @@ const content = defineModel<ContentDto>("content");
 <template>
     <div v-if="content">
         <!-- Title Seo -->
-        <LInput name="seo-title" label="Title" :disabled="disabled" v-model="content.seoTitle" />
+        <LInput
+            name="seo-title"
+            label="Title"
+            :disabled="disabled"
+            :placeholder="content.title"
+            v-model="content.seoTitle"
+        />
 
         <!-- Summary seo-->
         <LInput
@@ -20,6 +26,7 @@ const content = defineModel<ContentDto>("content");
             label="Summary"
             class="mt-4"
             :disabled="disabled"
+            :placeholder="content.summary"
             v-model="content.seoString"
         />
     </div>
