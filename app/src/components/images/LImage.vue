@@ -29,9 +29,9 @@ const aspectRatioNumbers = {
 };
 
 const sizes = {
-    small: "w-20 md:w-24",
-    thumbnail: "w-36 md:w-52",
-    post: "w-full",
+    small: "w-20 max-w-20 md:w-24 md:max-w-24",
+    thumbnail: "w-36 max-w-36 md:w-52 md:max-w-52",
+    post: "w-full max-w-full",
 };
 
 const rounding = {
@@ -74,6 +74,7 @@ const srcset1 = computed(() => {
         .filter((collection) => collection.aspectRatio == closestAspectRatio)
         .map((collection) => {
             return collection.imageFiles
+                .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
                 .join(", ");
         })
@@ -88,6 +89,7 @@ const srcset2 = computed(() => {
         .filter((collection) => collection.aspectRatio != closestAspectRatio)
         .map((collection) => {
             return collection.imageFiles
+                .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
                 .join(", ");
         })
