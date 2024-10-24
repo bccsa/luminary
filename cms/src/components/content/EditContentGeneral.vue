@@ -21,7 +21,7 @@ const tabs = [
 </script>
 
 <template>
-    <LCard title="General settings" collapsible v-if="content">
+    <LCard title="Title & summary" collapsible v-if="content">
         <!-- Tab Navigation using LTabs -->
         <LTabs :tabs="tabs" :currentTab="currentTab" @update:currentTab="currentTab = $event" />
 
