@@ -28,7 +28,7 @@ export const changeRequest_tag = () => {
             type: "tag",
             memberOf: ["group-public-content"],
             tagType: "topic",
-            pinned: false,
+            pinned: 0,
             image: randomString(),
             tags: [],
             publishDateVisible: false,
