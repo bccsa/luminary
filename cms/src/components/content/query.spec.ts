@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
-import { db, DocType, type ContentDto } from "luminary-shared";
+import { db, DocType, PostType, type ContentDto } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { contentOverviewQueryAsRef } from "./query";
@@ -98,6 +98,7 @@ describe("Content query", () => {
             parentType: DocType.Post,
             orderBy: "title",
             orderDirection: "asc",
+            tagOrPostType: PostType.Blog,
         });
 
         const res2 = contentOverviewQueryAsRef({
@@ -105,6 +106,7 @@ describe("Content query", () => {
             parentType: DocType.Post,
             orderBy: "title",
             orderDirection: "asc",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -124,6 +126,7 @@ describe("Content query", () => {
             parentType: DocType.Post,
             orderBy: "title",
             orderDirection: "desc",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -139,6 +142,7 @@ describe("Content query", () => {
             parentType: DocType.Post,
             orderBy: "updatedTimeUtc",
             orderDirection: "asc",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -153,6 +157,7 @@ describe("Content query", () => {
             parentType: DocType.Post,
             orderBy: "publishDate",
             orderDirection: "asc",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -167,6 +172,7 @@ describe("Content query", () => {
             parentType: DocType.Post,
             orderBy: "expiryDate",
             orderDirection: "asc",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -181,6 +187,7 @@ describe("Content query", () => {
             parentType: DocType.Post,
             orderBy: "expiryDate",
             orderDirection: "asc",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -193,6 +200,7 @@ describe("Content query", () => {
         const res1 = contentOverviewQueryAsRef({
             languageId: "lang-swa",
             parentType: DocType.Post,
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -209,6 +217,7 @@ describe("Content query", () => {
             languageId: "lang-swa",
             parentType: DocType.Post,
             translationStatus: "translated",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -222,6 +231,7 @@ describe("Content query", () => {
             languageId: "lang-swa",
             parentType: DocType.Post,
             translationStatus: "untranslated",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -239,6 +249,7 @@ describe("Content query", () => {
             orderDirection: "asc",
             pageSize: 1,
             pageIndex: 0,
+            tagOrPostType: PostType.Blog,
         });
 
         const res2 = contentOverviewQueryAsRef({
@@ -248,6 +259,7 @@ describe("Content query", () => {
             orderDirection: "asc",
             pageSize: 1,
             pageIndex: 1,
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -263,12 +275,14 @@ describe("Content query", () => {
             languageId: "lang-eng",
             parentType: DocType.Post,
             tags: ["tag1", "tag2"],
+            tagOrPostType: PostType.Blog,
         });
 
         const res2 = contentOverviewQueryAsRef({
             languageId: "lang-eng",
             parentType: DocType.Post,
             tags: ["tag1"],
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
@@ -286,12 +300,14 @@ describe("Content query", () => {
             languageId: "lang-eng",
             parentType: DocType.Post,
             search: "Doc 1",
+            tagOrPostType: PostType.Blog,
         });
 
         const res2 = contentOverviewQueryAsRef({
             languageId: "lang-eng",
             parentType: DocType.Post,
             search: "c 2",
+            tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
