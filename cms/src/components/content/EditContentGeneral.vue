@@ -13,7 +13,7 @@ defineProps<Props>();
 
 const content = defineModel<ContentDto>("content");
 
-const currentTab = ref("basic"); // Default tab key
+const currentTab = ref("visible"); // Default tab key
 const tabs = [
     { title: "Visible title & summary", key: "visible", component: EditContentBasic },
     { title: "SEO title & summary", key: "seo", component: EditContentSeo },
