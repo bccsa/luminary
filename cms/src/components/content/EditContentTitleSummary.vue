@@ -2,7 +2,7 @@
 import LCard from "@/components/common/LCard.vue";
 import LTabs from "@/components/common/LTabs.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
-import EditContentSeo from "@/components/content/EditContentSeo.vue";
+import LInput from "@/components/forms/LInput.vue";
 import { ref } from "vue";
 import type { ContentDto } from "luminary-shared";
 
@@ -16,7 +16,7 @@ const content = defineModel<ContentDto>("content");
 const currentTab = ref("visible"); // Default tab key
 const tabs = [
     { title: "Visible title & summary", key: "visible", component: EditContentBasic },
-    { title: "SEO title & summary", key: "seo", component: EditContentSeo },
+    { title: "SEO title & summary", key: "seo" },
 ];
 </script>
 
@@ -28,10 +28,31 @@ const tabs = [
         <!-- Tab Content -->
         <div class="py-4">
             <component
-                :is="tabs.find((tab) => tab.key === currentTab)?.component"
+                v-if="currentTab === 'visible'"
+                :is="EditContentBasic"
                 :disabled="disabled"
                 :content="content"
             />
+            <div v-else-if="currentTab === 'seo'">
+                <!-- Title SEO -->
+                <LInput
+                    name="seo-title"
+                    label="Title"
+                    :disabled="disabled"
+                    :placeholder="content.title"
+                    v-model="content.seoTitle"
+                />
+
+                <!-- Summary SEO -->
+                <LInput
+                    name="seo-summary"
+                    label="Summary"
+                    class="mt-4"
+                    :disabled="disabled"
+                    :placeholder="content.summary"
+                    v-model="content.seoString"
+                />
+            </div>
         </div>
     </LCard>
 </template>
