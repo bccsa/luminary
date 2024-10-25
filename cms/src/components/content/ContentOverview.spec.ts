@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
-import { db, accessMap, DocType, type ContentDto } from "luminary-shared";
+import { db, accessMap, DocType, type ContentDto, PostType } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
@@ -39,6 +39,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -54,6 +55,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -83,6 +85,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -154,6 +157,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -193,6 +197,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -209,6 +214,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -230,6 +236,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -260,6 +267,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -304,6 +312,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -316,7 +325,7 @@ describe("ContentOverview.vue", () => {
 
             expect(linkProps.name).toBe("edit");
             expect(linkProps.params?.docType).toBe("post");
-            expect(linkProps.params?.tagType).toBe("default");
+            expect(linkProps.params?.tagOrPostType).toBe("blog");
             expect(linkProps.params?.id).toBe("new");
         });
     });
@@ -328,6 +337,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -344,6 +354,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 
@@ -382,6 +393,7 @@ describe("ContentOverview.vue", () => {
             },
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
             },
         });
 

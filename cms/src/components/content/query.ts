@@ -1,9 +1,17 @@
-import { db, DocType, TagType, type Uuid, type ContentDto, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    TagType,
+    type Uuid,
+    type ContentDto,
+    PublishStatus,
+    PostType,
+} from "luminary-shared";
 
 export type ContentOverviewQueryOptions = {
     languageId: Uuid;
     parentType: DocType.Post | DocType.Tag;
-    tagType?: TagType;
+    tagOrPostType: TagType | PostType;
     orderBy?: "title" | "updatedTimeUtc" | "publishDate" | "expiryDate";
     orderDirection?: "asc" | "desc";
     translationStatus?: "translated" | "untranslated" | "all";
@@ -37,7 +45,16 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
             if (!contentDoc.parentId) return false;
             if (contentDoc.type != DocType.Content) return false;
             if (contentDoc.parentType != options.parentType) return false;
-            if (options.tagType && contentDoc.parentTagType != options.tagType) return false;
+            if (
+                contentDoc.parentType == DocType.Tag &&
+                contentDoc.parentTagType != options.tagOrPostType
+            )
+                return false;
+            if (
+                contentDoc.parentType == DocType.Post &&
+                contentDoc.parentPostType != options.tagOrPostType
+            )
+                return false;
 
             const translationFilter = translationStatusFilter(
                 contentDoc,

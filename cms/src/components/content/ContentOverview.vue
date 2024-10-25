@@ -19,6 +19,7 @@ import {
     type Uuid,
     hasAnyPermission,
     type ContentDto,
+    PostType,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
@@ -34,14 +35,10 @@ import LChecklist from "../forms/LChecklist.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
-    tagType?: TagType;
+    tagOrPostType: TagType | PostType;
 };
 
 const props = defineProps<Props>();
-
-const tagType = Object.entries(TagType).some((t) => t[1] == props.tagType)
-    ? props.tagType
-    : undefined;
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const selectedLanguage = ref<Uuid>("");
@@ -52,7 +49,7 @@ const languageOptions = computed(() =>
 const queryOptions = ref<ContentOverviewQueryOptions>({
     languageId: "",
     parentType: props.docType,
-    tagType: tagType,
+    tagOrPostType: props.tagOrPostType,
     translationStatus: "all",
     orderBy: "updatedTimeUtc",
     orderDirection: "desc",
@@ -85,12 +82,7 @@ watch(
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
 
-// Set the title
-let tagTypeString: string = tagType as string;
-if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString = "";
-
-const titleType = tagTypeString ? tagTypeString : props.docType;
-router.currentRoute.value.meta.title = `${capitaliseFirstLetter(titleType)} overview`;
+router.currentRoute.value.meta.title = `${capitaliseFirstLetter(props.tagOrPostType)} overview`;
 
 const filterByTranslation = ref(queryOptions.value.translationStatus);
 const filterByTranslationOptions = [
@@ -218,7 +210,7 @@ watch(tagsSelected.value, () => {
 </script>
 
 <template>
-    <BasePage :is-full-width="true" :title="`${capitaliseFirstLetter(titleType)} overview`">
+    <BasePage :is-full-width="true" :title="`${capitaliseFirstLetter(tagOrPostType)} overview`">
         <template #actions>
             <div class="flex gap-4">
                 <LSelect
@@ -237,7 +229,7 @@ watch(tagsSelected.value, () => {
                         name: `edit`,
                         params: {
                             docType: docType,
-                            tagType: tagType ? tagType.toString() : 'default',
+                            tagOrPostType: tagOrPostType,
                             id: 'new',
                         },
                     }"
@@ -374,9 +366,6 @@ watch(tagsSelected.value, () => {
 
         <ContentTable
             v-if="selectedLanguage"
-            :docType="docType"
-            :tagType="tagType"
-            :languageId="selectedLanguage"
             :key="queryKey"
             :queryOptions="queryOptions"
             data-test="content-table"

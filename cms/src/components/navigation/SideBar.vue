@@ -8,11 +8,12 @@ import {
     RectangleStackIcon,
     LanguageIcon,
     DocumentTextIcon,
+    GlobeEuropeAfricaIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { ref, watch } from "vue";
-import { AclPermission, DocType, TagType, hasAnyPermission } from "luminary-shared";
+import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
 
 const { appName, isDevMode } = useGlobalConfigStore();
 const route = useRoute();
@@ -30,9 +31,13 @@ const navigation = ref<NavigationEntry[]>([
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
     {
         name: "Posts",
-        to: { name: "overview", params: { docType: DocType.Post, tagType: "default" } },
         icon: DocumentDuplicateIcon,
+        open: false,
         visible: hasAnyPermission(DocType.Post, AclPermission.View),
+        children: Object.entries(PostType).map((p) => ({
+            name: p[0],
+            to: { name: "overview", params: { docType: DocType.Post, tagOrPostType: p[1] } },
+        })),
     },
     {
         name: "Redirects",
@@ -47,7 +52,7 @@ const navigation = ref<NavigationEntry[]>([
         visible: hasAnyPermission(DocType.Tag, AclPermission.View),
         children: Object.entries(TagType).map((t) => ({
             name: t[0],
-            to: { name: "overview", params: { docType: DocType.Tag, tagType: t[1] } },
+            to: { name: "overview", params: { docType: DocType.Tag, tagOrPostType: t[1] } },
         })),
     },
     {
@@ -59,7 +64,7 @@ const navigation = ref<NavigationEntry[]>([
     {
         name: "Languages",
         to: { name: "languages" },
-        icon: LanguageIcon,
+        icon: GlobeEuropeAfricaIcon,
         visible: hasAnyPermission(DocType.Language, AclPermission.View),
     },
 ]);

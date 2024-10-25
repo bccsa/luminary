@@ -18,6 +18,7 @@ import {
     type Uuid,
     verifyAccess,
     type ContentParentDto,
+    PostType,
 } from "luminary-shared";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
@@ -38,7 +39,7 @@ type Props = {
     id: Uuid;
     languageCode?: string;
     docType: DocType.Post | DocType.Tag;
-    tagType?: keyof TagType;
+    tagOrPostType: TagType | PostType;
 };
 const props = defineProps<Props>();
 
@@ -67,10 +68,11 @@ const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content 
 if (newDocument) {
     // Set default tag properties if it is a new tag
     if (props.docType == DocType.Tag) {
-        (parent.value as TagDto).tagType = props.tagType as TagType;
+        (parent.value as TagDto).tagType = props.tagOrPostType as TagType;
         (parent.value as TagDto).pinned = false;
         (parent.value as TagDto).publishDateVisible = false;
     } else {
+        (parent.value as PostDto).postType = props.tagOrPostType as PostType;
         (parent.value as PostDto).publishDateVisible = true;
     }
 } else {
@@ -176,8 +178,8 @@ const save = async () => {
     await Promise.all(pList);
 
     addNotification({
-        title: `${capitaliseFirstLetter(titleType)} saved`,
-        description: `The ${titleType} was saved successfully`,
+        title: `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
+        description: `The ${props.tagOrPostType} was saved successfully`,
         state: "success",
     });
 
@@ -201,28 +203,21 @@ const revertChanges = () => {
     contentDocs.value = _.cloneDeep(contentDocsPrev.value!);
 
     addNotification({
-        title: `${capitaliseFirstLetter(titleType)} reverted`,
-        description: `The changes to the ${titleType} have been reverted`,
+        title: `${capitaliseFirstLetter(props.tagOrPostType)} reverted`,
+        description: `The changes to the ${props.tagOrPostType} have been reverted`,
         state: "success",
     });
 };
 
 const isLocalChange = db.isLocalChangeAsRef(parentId);
 
-// Set the title in the browser tab
-let tagTypeString: string = props.tagType as string;
-if (!Object.entries(TagType).some((t) => t[1] == tagTypeString)) tagTypeString = "";
-
-const titleType = tagTypeString ? tagTypeString : props.docType;
-router.currentRoute.value.meta.title = `Edit ${titleType}`;
+router.currentRoute.value.meta.title = `Edit ${props.tagOrPostType}`;
 
 // Set the language code in the URL
 watch(selectedLanguage, () => {
     if (selectedLanguage.value) {
         router.replace(
-            `/${props.docType}/edit/${
-                props.tagType ? props.tagType.toString() : "default"
-            }/${parentId}/${selectedLanguage.value?.languageCode}`,
+            `/${props.docType}/edit/${props.tagOrPostType}/${parentId}/${selectedLanguage.value?.languageCode}`,
         );
     }
 });
@@ -238,14 +233,14 @@ watch(selectedLanguage, () => {
         </div>
     </div>
     <BasePage
-        :title="selectedContent ? selectedContent.title : `Edit ${titleType}`"
+        :title="selectedContent ? selectedContent.title : `Edit ${props.tagOrPostType}`"
         :icon="DocumentIcon"
         :loading="isLoading"
         :backLinkLocation="{ name: 'overview' }"
-        :backLinkText="`${capitaliseFirstLetter(titleType)} overview`"
+        :backLinkText="`${capitaliseFirstLetter(tagOrPostType)} overview`"
         :backLinkParams="{
             docType: docType,
-            tagType: tagType ? tagType.toString() : undefined,
+            tagOrPostType: tagOrPostType,
             parentId: parent._id,
             languageCode: languageCode,
         }"
