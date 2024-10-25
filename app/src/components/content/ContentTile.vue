@@ -31,7 +31,7 @@ const openContent = () => {
                     </h3>
                     <div
                         v-if="showPublishDate && content.parentPublishDateVisible"
-                        class="mt-0.5 text-xs text-zinc-500 dark:text-slate-200"
+                        class="mt-0.5 text-xs text-zinc-500 dark:text-slate-400"
                     >
                         {{
                             content.publishDate
