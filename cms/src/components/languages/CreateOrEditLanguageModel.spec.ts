@@ -41,7 +41,7 @@ describe("CreateOrEditLanguageModal.vue", () => {
             const inputLanguageName = wrapper.find("[name='languageName']")
                 .element as HTMLInputElement;
 
-            expect(wrapper.html()).toContain("Create New Language");
+            expect(wrapper.html()).toContain("Create new language");
             expect(inputLanguageName.value).toBe("");
 
             // check if the button has the right text
@@ -84,7 +84,7 @@ describe("CreateOrEditLanguageModal.vue", () => {
             const inputLanguageName = wrapper.find("[name='languageName']")
                 .element as HTMLInputElement;
 
-            expect(wrapper.html()).toContain("Edit Language");
+            expect(wrapper.html()).toContain("Edit language");
             expect(inputLanguageName.value).toBe("English");
 
             // check if the button has the right text

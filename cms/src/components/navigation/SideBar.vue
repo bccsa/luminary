@@ -6,7 +6,7 @@ import {
     HomeIcon,
     ChevronRightIcon,
     RectangleStackIcon,
-    LanguageIcon,
+    GlobeEuropeAfricaIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -56,7 +56,7 @@ const navigation = ref<NavigationEntry[]>([
     {
         name: "Languages",
         to: { name: "languages" },
-        icon: LanguageIcon,
+        icon: GlobeEuropeAfricaIcon,
         visible: hasAnyPermission(DocType.Language, AclPermission.View),
     },
 ]);
