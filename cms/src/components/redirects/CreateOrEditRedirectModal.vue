@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { db, DocType, RedirectType, type RedirectDto } from "luminary-shared";
+import { db, DocType, RedirectDto, RedirectType } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import * as _ from "lodash";
 
-// Props for visibility and language to edit
+// Props for visibility and Redirect to edit
 type Props = {
     isVisible: boolean;
     redirect?: RedirectDto;
@@ -19,41 +19,37 @@ const previousRedirect = ref<RedirectDto | null>(null);
 // Emit events to close the modal and trigger creation or update
 const emit = defineEmits(["close", "created", "updated"]);
 
-// Check if we are in edit mode (if a language is passed)
+// Check if we are in edit mode (if a Redirect is passed)
 const isEditMode = computed(() => !!props.redirect);
 
-// New language or edited language object
+// New Redirect or edited Redirect object
 const newRedirect = ref<RedirectDto>({
     _id: db.uuid(), // Generate new ID for create mode
     fromSlug: "",
-    toSlug: "",
-    toUrl: "",
-    redirectType: RedirectType.Temporary,
+    redirectType: RedirectType.Permanent,
     memberOf: [],
     type: DocType.Redirect,
     updatedTimeUtc: Date.now(),
 });
 
-// Watch the passed `language` prop to set the modal in edit mode
+// Watch the passed `Redirect` prop to set the modal in edit mode
 watch(
     () => props.redirect,
-    (newRedirectDoc) => {
-        if (newRedirectDoc) {
-            newRedirect.value = { ...newRedirectDoc };
-            previousRedirect.value = _.cloneDeep(newRedirect.value); // Clone the language for dirty checking
+    (newLang) => {
+        if (newLang) {
+            newRedirect.value = { ...newLang };
+            previousRedirect.value = _.cloneDeep(newLang); // Clone the Redirect for dirty checking
         } else {
-            // Reset to a new language if no language is passed (create mode)
+            // Reset to a new Redirect if no Redirect is passed (create mode)
             newRedirect.value = {
                 _id: db.uuid(), // Generate new ID for create mode
                 fromSlug: "",
-                toSlug: "",
-                toUrl: "",
-                redirectType: RedirectType.Temporary,
-                memberOf: [],
+                redirectType: RedirectType.Permanent,
+                memberOf: ["group-redirect"],
                 type: DocType.Redirect,
                 updatedTimeUtc: Date.now(),
             };
-            previousRedirect.value = null; // Reset previous state for new language
+            previousRedirect.value = null; // Reset previous state for new Redirect
         }
     },
     { immediate: true },
@@ -70,7 +66,7 @@ const saveRedirect = async () => {
         memberOf: [...newRedirect.value.memberOf],
     };
 
-    // Save the cloned language object to the database
+    // Save the cloned Redirect object to the database
     await db.upsert(clonedRedirect);
 
     if (isEditMode.value) {
@@ -89,7 +85,7 @@ const isDirty = computed(() => {
 
 // Form validation to check if all fields are filled
 const validateForm = () => {
-    return newRedirect.value.fromSlug.trim() !== "";
+    return newRedirect.value.fromSlug.trim() !== "" && newRedirect.value.memberOf.length > 0;
 };
 </script>
 
@@ -105,25 +101,25 @@ const validateForm = () => {
             </h2>
 
             <LInput
-                label="From"
-                name="redirectFromSlug"
-                v-model="newRedirect.fromSlug"
+                label="Name"
+                name="RedirectName"
+                v-model="newRedirect.name"
                 class="mb-4 w-full"
-                placeholder="Enter language name"
+                placeholder="Enter Redirect name"
             />
 
             <LInput
-                label="To"
-                name="languageCode"
-                v-model="newRedirect.toUrl"
+                label="Code"
+                name="RedirectCode"
+                v-model="newRedirect.RedirectCode"
                 class="mb-4 w-full"
-                placeholder="Enter language code"
+                placeholder="Enter Redirect code"
             />
 
             <GroupSelector
                 name="memberOf"
                 v-model:groups="newRedirect.memberOf"
-                :docType="DocType.Language"
+                :docType="DocType.Redirect"
             />
 
             <div class="flex justify-end gap-4 pt-5">

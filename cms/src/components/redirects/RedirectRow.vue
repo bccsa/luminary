@@ -7,6 +7,7 @@ import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 // import CreateLanguageModal from "./CreateOrEditLanguageModal.vue";
 import { useNotificationStore } from "@/stores/notification";
+import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 
 type Props = {
     redirectDoc: RedirectDto;
@@ -48,7 +49,7 @@ const handleRedirectUpdate = (updatedRedirect: RedirectDto) => {
 
 <template>
     <tr>
-        <!-- name -->
+        <!-- From Slug -->
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             {{ redirectDoc.fromSlug }}
         </td>
@@ -59,9 +60,21 @@ const handleRedirectUpdate = (updatedRedirect: RedirectDto) => {
             <LBadge v-if="isLocalChanges" variant="warning">Offline changes</LBadge>
         </td>
 
-        <!-- language code -->
+        <!-- Type -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            <LBadge>{{ redirectDoc.fromSlug.toLocaleUpperCase() }} </LBadge>
+            <LBadge>{{ redirectDoc.redirectType.toLocaleUpperCase() }} </LBadge>
+        </td>
+
+        <!-- To Slug -->
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+            <LBadge>{{
+                redirectDoc.toSlug.length > 0 ? redirectDoc.toSlug.toLocaleUpperCase() : "Not set"
+            }}</LBadge>
+        </td>
+
+        <!-- To Url -->
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+            <LBadge>{{ redirectDoc.toUrl.toLocaleUpperCase() }}</LBadge>
         </td>
 
         <!-- updated -->
@@ -86,12 +99,12 @@ const handleRedirectUpdate = (updatedRedirect: RedirectDto) => {
         </td>
     </tr>
 
-    <!-- Modal for editing the language -->
-    <!-- <CreateLanguageModal
+    <!-- Modal for editing the Redirect -->
+    <CreateOrEditRedirectModal
         v-if="isModalVisible"
         :isVisible="isModalVisible"
-        :language="languagesDoc"
+        :language="redirectDoc"
         @close="closeModal"
-        @updated="handleLanguageUpdated"
-    /> -->
+        @updated="handleRedirectUpdate"
+    />
 </template>

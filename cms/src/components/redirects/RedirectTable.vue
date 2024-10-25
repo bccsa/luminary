@@ -13,12 +13,12 @@ const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
                 <table class="min-w-full divide-y divide-zinc-200">
                     <thead class="bg-zinc-50">
                         <tr>
-                            <!-- name -->
+                            <!-- From Slug -->
                             <th
                                 class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
                                 @click="false"
                             >
-                                <div class="flex items-center gap-2">Name</div>
+                                <div class="flex items-center gap-2">From Slug</div>
                             </th>
 
                             <!-- status -->
@@ -27,11 +27,26 @@ const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
                                 @click="false"
                             ></th>
 
-                            <!-- language code -->
+                            <!-- Redirect Type -->
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                @click="false"
+                            >
+                                Type
+                            </th>
+
+                            <!-- To Slug -->
                             <th
                                 class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
                             >
-                                Code
+                                To Slug
+                            </th>
+
+                            <!-- To Url -->
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                            >
+                                To Url
                             </th>
 
                             <!-- updated -->
@@ -41,6 +56,7 @@ const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
                             >
                                 <div class="flex items-center gap-2">Last updated</div>
                             </th>
+
                             <!-- actions -->
                             <th
                                 class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
