@@ -6,6 +6,7 @@ import {
     ContentDto,
     DocType,
     LocalChangeDto,
+    PostType,
     PublishStatus,
     TagDto,
     TagType,
@@ -72,7 +73,7 @@ class Database extends Dexie {
 
         // Remember to increase the version number below if you change the schema
         this.version(9).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language], title",
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language], title, [type+postType]",
             localChanges: "++id, reqId, docId, status",
         });
 
@@ -181,20 +182,27 @@ class Database extends Dexie {
     /**
      * Get all IndexedDB documents of a certain type as Vue Ref
      * @param initialValue - The initial value of the ref while waiting for the query to complete
-     * @param tagType - Optional: The tag type to filter by (only used for tags)
+     * @param postOrTagType - Optional: The tag type or post type to filter by
      * TODO: Add pagination
      */
     whereTypeAsRef<T extends BaseDocumentDto[]>(
         docType: DocType,
         initialValue?: T,
-        tagType?: TagType,
+        postOrTagType?: TagType | PostType,
     ) {
-        if (tagType) {
+        if (postOrTagType) {
+            // Check if postOrTagType is a TagType by checking if it's included in TagType values
+            const isTagType = Object.values(TagType).includes(postOrTagType as TagType);
+
+            const query = {
+                type: docType,
+                ...(isTagType
+                    ? { tagType: postOrTagType as TagType }
+                    : { postType: postOrTagType as PostType }),
+            };
+
             return this.toRef<T>(
-                () =>
-                    this.docs
-                        .where({ type: docType, tagType: tagType })
-                        .toArray() as unknown as Promise<T>,
+                () => this.docs.where(query).toArray() as unknown as Promise<T>,
                 initialValue,
             );
         }

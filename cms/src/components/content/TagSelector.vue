@@ -16,9 +16,9 @@ import {
     TagType,
     type ContentDto,
     type LanguageDto,
-    type PostDto,
     type TagDto,
     verifyAccess,
+    type ContentParentDto,
 } from "luminary-shared";
 import LTag from "./LTag.vue";
 import { watchDeep } from "@vueuse/core";
@@ -34,7 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
     label: "Tags",
     disabled: false,
 });
-const parent = defineModel<PostDto | TagDto>("parent");
+const parent = defineModel<ContentParentDto>("parent");
 const tags = db.whereTypeAsRef<TagDto[]>(DocType.Tag, [], props.tagType);
 
 const tagsContent = ref<ContentDto[]>([]);

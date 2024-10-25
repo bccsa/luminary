@@ -5,10 +5,10 @@ import {
     TagType,
     DocType,
     AclPermission,
-    type PostDto,
     type TagDto,
     type LanguageDto,
     verifyAccess,
+    type ContentParentDto,
 } from "luminary-shared";
 import { computed } from "vue";
 import TagSelector from "./TagSelector.vue";
@@ -23,7 +23,7 @@ type Props = {
     language?: LanguageDto;
 };
 const props = defineProps<Props>();
-const parent = defineModel<PostDto | TagDto>();
+const parent = defineModel<ContentParentDto>();
 
 const canEdit = computed(() => {
     if (parent.value) {

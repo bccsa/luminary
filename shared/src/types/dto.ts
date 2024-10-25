@@ -1,4 +1,4 @@
-import type { DocType, TagType, PublishStatus, RedirectType } from "../types";
+import type { DocType, TagType, PublishStatus, PostType, RedirectType } from "../types";
 
 export enum AckStatus {
     Accepted = "accepted",
@@ -79,16 +79,21 @@ export type ContentDto = ContentBaseDto & {
     parentTags: Uuid[];
     parentImageData?: ImageDto;
     parentTagType?: TagType;
+    parentPostType?: PostType;
     parentPublishDateVisible?: boolean;
 };
 
-export type PostDto = ContentBaseDto & {
+export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
     publishDateVisible: boolean;
 };
 
-export type TagDto = PostDto & {
+export type PostDto = ContentParentDto & {
+    postType: PostType;
+};
+
+export type TagDto = ContentParentDto & {
     tagType: TagType;
     pinned: boolean;
 };

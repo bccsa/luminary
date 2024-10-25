@@ -13,6 +13,7 @@ import * as Sentry from "@sentry/vue";
 import router from "./router";
 import { getSocket } from "luminary-shared";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
+import { useNotificationStore } from "./stores/notification";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 const { appName, apiUrl } = useGlobalConfigStore();
@@ -71,6 +72,17 @@ onBeforeMount(async () => {
 
             await loginRedirect();
         });
+
+        socket.on("changeRequestAck", (data: any) => {
+            if (data.ack == "rejected") {
+                useNotificationStore().addNotification({
+                    title: "Saving changes to server failed.",
+                    description: `Your recent request to save changes has failed. The changes have been reverted. Error message: ${data.message}`,
+                    state: "error",
+                    timer: 60000,
+                });
+            }
+        });
     } catch (err) {
         console.error(err);
         Sentry.captureException(err);
@@ -81,7 +93,7 @@ const sidebarOpen = ref(false);
 
 const routeKey = computed(() => {
     let routeKey = router.currentRoute.value.fullPath;
-
+    
     // Check if the route is an overview route, and return a unique route key. This will disable component reuse for dynamic routes and allow the component to reload data
     if (routeKey.includes("tag/overview/") || routeKey.includes("post/overview/")) {
         return routeKey;
