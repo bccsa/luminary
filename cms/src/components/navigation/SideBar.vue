@@ -35,6 +35,12 @@ const navigation = ref<NavigationEntry[]>([
         visible: hasAnyPermission(DocType.Post, AclPermission.View),
     },
     {
+        name: "Redirects",
+        to: { name: "redirects" },
+        icon: DocumentTextIcon,
+        visible: hasAnyPermission(DocType.Redirect, AclPermission.View),
+    },
+    {
         name: "Tags",
         icon: TagIcon,
         open: false,
@@ -55,12 +61,6 @@ const navigation = ref<NavigationEntry[]>([
         to: { name: "languages" },
         icon: LanguageIcon,
         visible: hasAnyPermission(DocType.Language, AclPermission.View),
-    },
-    {
-        name: "Redirects",
-        to: { name: "redirects" },
-        icon: DocumentTextIcon,
-        visible: hasAnyPermission(DocType.Redirect, AclPermission.View),
     },
 ]);
 
