@@ -15,8 +15,7 @@ export async function filterAsync<T>(
     callbackfn: (value: T, index: number, array: T[]) => Promise<boolean>,
 ): Promise<T[]> {
     const filterMap = await mapAsync(array, callbackfn);
-    // @ts-expect-error ignore value not used TS error
-    return array.filter((value, index) => filterMap[index]);
+    return array.filter((_, index) => filterMap[index]);
 }
 
 /**
@@ -27,6 +26,5 @@ export async function someAsync<T>(
     callbackfn: (value: T, index: number, array: T[]) => Promise<boolean>,
 ): Promise<boolean> {
     const filterMap = await mapAsync(array, callbackfn);
-    // @ts-expect-error ignore value not used TS error
-    return array.some((value, index) => filterMap[index]);
+    return array.some((_, index) => filterMap[index]);
 }
