@@ -77,6 +77,7 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
         <FormLabel> Group Membership </FormLabel>
         <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
             <LInput
+                @click="showGroups = true"
                 v-model="query"
                 ref="input"
                 class="w-full"
@@ -84,7 +85,9 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
                 name="group-search"
             />
             <button name="options-open-btn" @click="focusInput">
-                <ChevronUpDownIcon class="absolute right-2 top-2 h-5 w-5 hover:cursor-pointer" />
+                <ChevronUpDownIcon
+                    class="absolute right-2 top-2 h-5 w-5 text-zinc-400 hover:cursor-pointer"
+                />
             </button>
         </div>
 
@@ -99,7 +102,7 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
             <div
                 ref="groupsDisplay"
                 v-show="showGroups"
-                class="absolute z-10 mt-1 h-48 w-full overflow-y-scroll rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
+                class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
                 data-test="groups"
             >
                 <ul
@@ -116,7 +119,12 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
                             { 'text-zinc-900': !isGroupSelected(group._id) },
                             { 'text-zinc-500': disabled },
                         ]"
-                        @click="groups?.push(group._id)"
+                        @click="
+                            () => {
+                                groups?.push(group._id);
+                                showGroups = false;
+                            }
+                        "
                     >
                         <span class="block truncate" data-test="group-selector">
                             {{ group.name }}
