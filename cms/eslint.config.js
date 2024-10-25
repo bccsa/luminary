@@ -8,15 +8,7 @@ import pluginVue from "eslint-plugin-vue";
 export default [
     { files: ["**/*.{vue,js,mjs,cjs,ts}"] },
     {
-        ignores: [
-            "dist",
-            ".vite",
-            "node_modules",
-            "*.config.js",
-            "*.config.ts",
-            "vitest.setup.ts",
-            "**/*.spec.ts",
-        ],
+        ignores: ["dist", ".vite", "node_modules", "*.config.js", "*.config.ts", "vitest.setup.ts"],
     },
     {
         linterOptions: { reportUnusedDisableDirectives: true },
@@ -68,6 +60,13 @@ export default [
             "vue/match-component-file-name": "error", // Require component name property to match its file name
             "vue/match-component-import-name": "error", // Require the registered component name to match the imported component name
             "vue/no-duplicate-attr-inheritance": "error", // Enforce inheritAttrs to be set to false when using v-bind="$attrs"
+        },
+    },
+    {
+        files: ["**/*.spec.ts"],
+        rules: {
+            "@typescript-eslint/no-explicit-any": "off",
+            "@typescript-eslint/ban-ts-comment": "off",
         },
     },
 ];

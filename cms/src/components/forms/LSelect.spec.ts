@@ -28,7 +28,7 @@ describe("LSelect", () => {
         expect(wrapper.text()).toContain("Test label");
     });
 
-    it("renders without a label ", () => {
+    it("renders without a label", () => {
         const wrapper = mount(LSelect, { props: { options } });
 
         expect(wrapper.text()).toBe(options[0].label + options[1].label);
