@@ -115,7 +115,15 @@ const pinnedCategories = db.toRef<ContentDto[]>(
             .where({
                 type: DocType.Content,
                 language: appLanguageIdAsRef.value,
+                status: "published",
                 parentPinned: 1,
+            })
+            .filter((c) => {
+                const content = c as ContentDto;
+                if (!content.publishDate) return false;
+                if (content.publishDate > Date.now()) return false;
+                if (content.expiryDate && content.expiryDate < Date.now()) return false;
+                return true;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     [],
@@ -135,10 +143,10 @@ watch(pinnedCategoryIds, async (ids) => {
         .where({
             type: DocType.Content,
             language: appLanguageIdAsRef.value,
+            status: "published",
         })
         .filter((c) => {
             const content = c as ContentDto;
-            if (content.status !== "published") return false;
             if (!content.publishDate) return false;
             if (content.publishDate > Date.now()) return false;
             if (content.expiryDate && content.expiryDate < Date.now()) return false;
@@ -179,8 +187,11 @@ watch(newest50TagIds, async (ids) => {
         .filter((content) => {
             const _content = content as ContentDto;
             if (_content.parentType !== DocType.Tag) return false;
-            if (_content.parentPinned) return false;
             if (!_content.parentTagType) return false;
+            if (!_content.publishDate) return false;
+            if (_content.publishDate > Date.now()) return false;
+            if (_content.expiryDate && _content.expiryDate < Date.now()) return false;
+            if (_content.parentPinned) return false;
             return (
                 _content.parentTagType == TagType.Category &&
                 _content.language === appLanguageIdAsRef.value

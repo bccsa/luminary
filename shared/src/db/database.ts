@@ -73,7 +73,7 @@ class Database extends Dexie {
 
         // Remember to increase the version number below if you change the schema
         this.version(9).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+parentType+status], [type+language+parentPinned], [type+postType], title, parentPinned",
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], title, parentPinned",
             localChanges: "++id, reqId, docId, status",
         });
 
@@ -552,19 +552,9 @@ class Database extends Dexie {
     private whereNotMemberOfAsCollection(groupIds: Array<Uuid>, docType: DocType) {
         // Query groups and group changeDocs
         if (docType === DocType.Group) {
-            return this.docs.filter((group) => {
+            return this.docs.where({ type: docType }).filter((group) => {
                 // Check if the ACL field exists
                 if (!group.acl) return false;
-
-                // Only include groups and group changes
-                if (
-                    !(
-                        group.type === DocType.Group ||
-                        (group.type === DocType.Change && group.docType === DocType.Group)
-                    )
-                ) {
-                    return false;
-                }
 
                 // The AclMap already indicates if the user has view access to the group, so we only need to check that the group document is not listed in the AclMap
                 return !groupIds.includes(group._id);
@@ -572,13 +562,9 @@ class Database extends Dexie {
         }
 
         // Query other documents
-        return this.docs.filter((doc) => {
+        return this.docs.where({ type: docType }).filter((doc) => {
             // Check if the memberOf field exists
             if (!doc.memberOf) return false;
-
-            // Only include documents and document changes of the passed DocType
-            if (!(doc.type === docType || (doc.type === DocType.Change && doc.docType === docType)))
-                return false;
 
             // Check if the document is NOT a member of the given groupIds
             return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
