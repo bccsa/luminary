@@ -288,6 +288,8 @@ describe("Socketio", () => {
                     expect(res.docs.length).toBe(1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                 });
+
+                it("gets historical data for newly accessibles groups", async () => {});
             });
         });
     });
