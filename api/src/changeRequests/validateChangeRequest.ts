@@ -11,6 +11,7 @@ import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
 import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
+import { RedirectDto } from "src/dto/RedirectDto";
 
 /**
  * DocType to DTO map
@@ -22,6 +23,7 @@ const DocTypeMap = {
     post: PostDto,
     tag: TagDto,
     user: UserDto,
+    redirect: RedirectDto,
 };
 
 /**
