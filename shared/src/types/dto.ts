@@ -1,4 +1,4 @@
-import type { DocType, TagType, PublishStatus } from "../types";
+import type { DocType, TagType, PublishStatus, RedirectType } from "../types";
 
 export enum AckStatus {
     Accepted = "accepted",
@@ -46,6 +46,13 @@ export type GroupAclEntryDto = {
 
 export type ContentBaseDto = BaseDocumentDto & {
     memberOf: Uuid[];
+};
+
+export type RedirectDto = ContentBaseDto & {
+    redirectType: RedirectType;
+    fromSlug: string;
+    toSlug?: string;
+    toUrl?: string;
 };
 
 export type LanguageDto = ContentBaseDto & {

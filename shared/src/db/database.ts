@@ -71,7 +71,7 @@ class Database extends Dexie {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(8).stores({
+        this.version(9).stores({
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language], title",
             localChanges: "++id, reqId, docId, status",
         });

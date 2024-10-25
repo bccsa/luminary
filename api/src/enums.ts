@@ -16,6 +16,7 @@ export enum DocType {
     Tag = "tag",
     User = "user",
     Language = "language",
+    Redirect = "redirect",
     Group = "group",
     Change = "change",
 }

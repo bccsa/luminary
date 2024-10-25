@@ -7,6 +7,7 @@ import {
     ChevronRightIcon,
     RectangleStackIcon,
     LanguageIcon,
+    DocumentTextIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -54,6 +55,12 @@ const navigation = ref<NavigationEntry[]>([
         to: { name: "languages" },
         icon: LanguageIcon,
         visible: hasAnyPermission(DocType.Language, AclPermission.View),
+    },
+    {
+        name: "Redirects",
+        to: { name: "redirects" },
+        icon: DocumentTextIcon,
+        visible: hasAnyPermission(DocType.Redirect, AclPermission.View),
     },
 ]);
 

@@ -1,0 +1,8 @@
+{
+    "_id": "redirect-post1",
+    "type": "redirect",
+    "memberOf": ["group-redirects"],
+    "redirectType": "permanent",
+    "fromSlug": "post1-eng",
+    "toSlug": "temp-post1-eng"
+}
