@@ -5,8 +5,13 @@
     "acl": [
         {
             "type": "redirect",
-            "groupId": "group-super-admin",
-            "permission": ["view", "edit", "delete", "assign"]
+            "groupId": "group-public-content",
+            "permission": ["view"]
+        },
+        {
+            "type": "redirect",
+            "groupId": "group-private-content",
+            "permission": ["view"]
         },
         {
             "type": "redirect",
@@ -16,7 +21,7 @@
         {
             "type": "redirect",
             "groupId": "group-private-editors",
-            "permission": ["view", "translate", "delete", "assign"]
+            "permission": ["view", "translate"]
         }
     ]
 }
