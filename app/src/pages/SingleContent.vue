@@ -15,7 +15,6 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
-import { useHead } from "@vueuse/head";
 
 const router = useRouter();
 
@@ -41,37 +40,18 @@ const isExpiredOrScheduled = computed(() => {
 watch(content, async () => {
     if (!content.value) return;
 
-    // document.title = isExpiredOrScheduled.value
-    //     ? `Page not found - ${appName}`
-    //     : `${content.value.title} - ${appName}`;
+    document.title = isExpiredOrScheduled.value
+        ? `Page not found - ${appName}`
+        : `${content.value.title} - ${appName}`;
 
-    useHead(() => ({
-        title: isExpiredOrScheduled.value
-            ? `Page not found - ${appName}`
-            : `${content.value?.title || "Loading"} - ${appName}`,
-        meta: [
-            {
-                name: "description",
-                content: content.value?.seoString || content.value?.summary || "",
-            },
-        ],
-    }));
-
-    // ANOTHER WAY TO SET THE META TAG
-
-    // const descriptionMetaTag = document.querySelector('meta[name="description"]');
-    // // check if there is a description meta tag
-    // if (descriptionMetaTag) {
-    //     descriptionMetaTag.setAttribute(
-    //         "content",
-    //         content.value.seoString || content.value.summary || "",
-    //     );
-    // } else {
-    //     const metaTag = document.createElement("meta");
-    //     metaTag.setAttribute("name", "description");
-    //     metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
-    //     document.getElementsByTagName("head")[0].appendChild(metaTag);
-    // }
+    // Seo meta tag settings
+    [
+        { name: "title", content: content.value.seoTitle || content.value.title || "" },
+        { name: "description", content: content.value.seoString || content.value.summary || "" },
+    ].forEach((attrs) => {
+        const metaTag = Object.assign(document.createElement("meta"), attrs);
+        document.head.appendChild(metaTag);
+    });
 
     if (isExpiredOrScheduled.value) return;
 
