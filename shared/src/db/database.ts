@@ -72,8 +72,8 @@ class Database extends Dexie {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(9).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], title, parentPinned",
+        this.version(10).stores({
+            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             localChanges: "++id, reqId, docId, status",
         });
 
@@ -84,6 +84,7 @@ class Database extends Dexie {
             this.accessMapRef,
             () => {
                 this.deleteRevoked();
+                this.deleteRevoked(true); // Remove change documents
             },
             { immediate: true },
         );
@@ -549,32 +550,41 @@ class Database extends Dexie {
     /**
      * Return a list of documents and change documents of specified DocType that are NOT members of the given groupIds as a Dexie collection
      */
-    private whereNotMemberOfAsCollection(groupIds: Array<Uuid>, docType: DocType) {
+    private whereNotMemberOfAsCollection(
+        groupIds: Array<Uuid>,
+        docType: DocType,
+        changeDocs = false,
+    ) {
         // Query groups and group changeDocs
         if (docType === DocType.Group) {
-            return this.docs.where({ type: docType }).filter((group) => {
-                // Check if the ACL field exists
-                if (!group.acl) return false;
+            return this.docs
+                .where(changeDocs ? { type: DocType.Change, docType } : { type: docType })
+                .filter((group) => {
+                    // Check if the ACL field exists
+                    if (!group.acl) return false;
 
-                // The AclMap already indicates if the user has view access to the group, so we only need to check that the group document is not listed in the AclMap
-                return !groupIds.includes(group._id);
-            });
+                    // The AclMap already indicates if the user has view access to the group, so we only need to check that the group document is not listed in the AclMap
+                    return !groupIds.includes(group._id);
+                });
         }
 
         // Query other documents
-        return this.docs.where({ type: docType }).filter((doc) => {
-            // Check if the memberOf field exists
-            if (!doc.memberOf) return false;
+        return this.docs
+            .where(changeDocs ? { type: DocType.Change, docType } : { type: docType })
+            .filter((doc) => {
+                // Check if the memberOf field exists
+                if (!doc.memberOf) return false;
 
-            // Check if the document is NOT a member of the given groupIds
-            return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
-        });
+                // Check if the document is NOT a member of the given groupIds
+                return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
+            });
     }
 
     /**
      * Delete documents to which access has been revoked
+     * @param changeDocs - If true, deletes change documents instead of regular documents
      */
-    private deleteRevoked() {
+    private deleteRevoked(changeDocs = false) {
         const groupsPerDocType = getAccessibleGroups(AclPermission.View);
 
         Object.values(DocType)
@@ -583,7 +593,11 @@ class Database extends Dexie {
                 let groups = groupsPerDocType[docType as DocType];
                 if (groups === undefined) groups = [];
 
-                const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
+                const revokedDocs = this.whereNotMemberOfAsCollection(
+                    groups,
+                    docType as DocType,
+                    changeDocs,
+                );
 
                 // Delete associated Post and Tag content documents
                 if (docType === DocType.Post || docType === DocType.Tag) {
