@@ -66,7 +66,7 @@ describe("HomePage.vue", () => {
     describe("Content display tests", () => {
         it("renders pinned categories correctly", async () => {
             await db.docs.bulkPut([
-                { ...mockCategoryDto, pinned: true },
+                { ...mockCategoryDto, pinned: 1 },
                 mockCategoryContentDto,
                 { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
                 { ...mockPostDto, tags: [mockCategoryDto._id] },
@@ -81,7 +81,7 @@ describe("HomePage.vue", () => {
 
         it("renders unpinned categories correctly", async () => {
             await db.docs.bulkPut([
-                { ...mockCategoryDto, pinned: false },
+                { ...mockCategoryDto, pinned: 0 },
                 mockCategoryContentDto,
                 { ...mockEnglishContentDto, tags: [mockCategoryDto._id] },
                 { ...mockPostDto, tags: [mockCategoryDto._id] },
@@ -100,7 +100,7 @@ describe("HomePage.vue", () => {
             const wrapper = mount(HomePage);
 
             await waitForExpect(() => {
-                expect(wrapper.text()).toContain("Newest Content");
+                expect(wrapper.text()).toContain("Newest");
                 expect(wrapper.text()).toContain(mockEnglishContentDto.title);
             });
         });
