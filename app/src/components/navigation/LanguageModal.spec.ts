@@ -8,8 +8,8 @@ import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
-    observe() {}
-    disconnect() {}
+    observe() {} // eslint-disable-line @typescript-eslint/no-empty-function
+    disconnect() {} // eslint-disable-line @typescript-eslint/no-empty-function
 };
 
 describe("LanguageModal.vue", () => {

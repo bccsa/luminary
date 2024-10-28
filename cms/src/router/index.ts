@@ -8,6 +8,7 @@ import { AclPermission, DocType, hasAnyPermission } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 
 declare module "vue-router" {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
     interface RouteMeta {
         title?: string;
         canAccess?: { docType: DocType; permission: AclPermission };

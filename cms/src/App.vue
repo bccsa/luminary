@@ -73,6 +73,7 @@ onBeforeMount(async () => {
             await loginRedirect();
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         socket.on("changeRequestAck", (data: any) => {
             if (data.ack == "rejected") {
                 useNotificationStore().addNotification({
@@ -93,7 +94,7 @@ const sidebarOpen = ref(false);
 
 const routeKey = computed(() => {
     let routeKey = router.currentRoute.value.fullPath;
-    
+
     // Check if the route is an overview route, and return a unique route key. This will disable component reuse for dynamic routes and allow the component to reload data
     if (routeKey.includes("tag/overview/") || routeKey.includes("post/overview/")) {
         return routeKey;

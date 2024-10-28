@@ -8,8 +8,8 @@ type Option = { label: string; value: string; isChecked: boolean; disabled?: boo
 
 type Props = {
     options: Option[];
+    state?: "default" | "error";
     searchable?: boolean;
-    state?: keyof typeof states;
     placeholder?: string;
     disabled?: boolean;
     required?: boolean;
@@ -23,11 +23,6 @@ const props = withDefaults(defineProps<Props>(), {
     required: false,
     state: "default",
 });
-
-const states = {
-    default: "text-zinc-900 ring-zinc-300 focus:ring-zinc-950",
-    error: "text-red-900 bg-red-50 ring-red-300 focus:ring-red-500",
-};
 
 const givenOptions = ref(props.options);
 const selectedValues = defineModel<Option[]>("modelValue", { default: () => [] });
@@ -65,11 +60,11 @@ watch(query, () => {
     );
 });
 
-const emit = defineEmits(["clear-selected-values"]);
+const emit = defineEmits(["clearSelectedValues"]);
 
 const clearSelectedValues = () => {
     selectedValues.value = [];
-    emit("clear-selected-values");
+    emit("clearSelectedValues");
 };
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();

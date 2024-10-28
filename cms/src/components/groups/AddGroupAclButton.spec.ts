@@ -45,7 +45,7 @@ describe("AddGroupAclButton", () => {
         await wrapper.find(selectGroupButton).trigger("click");
 
         expect(wrapper.emitted("select")?.length).toBe(1);
-        // @ts-ignore
+        // @ts-expect-error
         expect(wrapper.emitted("select")![0][0].name).toEqual("Public Content");
     });
 });

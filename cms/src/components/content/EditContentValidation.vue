@@ -32,9 +32,7 @@ const usedLanguage = computed(() => {
 
 const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
 
-const emit = defineEmits<{
-    (e: "isValid", value: boolean): void;
-}>();
+const emit = defineEmits<(e: "isValid", value: boolean) => void>();
 
 const statusBadge: ComputedRef<
     (dto: ContentDto | undefined) => { title: string; variant: keyof typeof variants }

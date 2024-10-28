@@ -15,7 +15,7 @@ import { router } from "./router";
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
     return {
-        ...(actual as Object),
+        ...(actual as object),
         useAuth0: vi.fn(),
     };
 });

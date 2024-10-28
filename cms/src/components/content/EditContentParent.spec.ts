@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, afterEach, beforeEach, expect } from "vitest";
+import { describe, it, beforeEach, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
@@ -14,8 +14,6 @@ describe("EditContentParent.vue", () => {
 
         accessMap.value = mockData.fullAccessToAllContentMap;
     });
-
-    afterEach(async () => {});
 
     it("test the tag pinned toggle", async () => {
         const parent = ref<TagDto>({ ...mockData.mockCategoryDto, pinned: 1 });

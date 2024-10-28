@@ -10,7 +10,7 @@ import {
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
-import { ref, watch } from "vue";
+import { ref, watch, type Component } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
 
 const { appName, isDevMode } = useGlobalConfigStore();
@@ -19,7 +19,7 @@ const route = useRoute();
 type NavigationEntry = {
     name: string;
     to?: { name: string; params?: Record<string, string | number> };
-    icon?: any;
+    icon?: Component;
     open?: boolean;
     visible?: boolean;
     children?: NavigationEntry[];
