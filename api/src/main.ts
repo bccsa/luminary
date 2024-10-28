@@ -31,7 +31,7 @@ async function bootstrap() {
     await upgradeDbSchema(dbService, s3Service);
 
     app.enableCors({
-        origin: process.env.ORIGIN,
+        origin: process.env.CORS_ORIGIN,
     });
     await app.listen(process.env.PORT);
 }
