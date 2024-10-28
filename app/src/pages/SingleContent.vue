@@ -42,16 +42,18 @@ watch(content, async () => {
 
     document.title = isExpiredOrScheduled.value
         ? `Page not found - ${appName}`
-        : `${content.value.title} - ${appName}`;
+        : `${content.value.seoTitle ? content.value.seoTitle : content.value.title} - ${appName}`;
 
     // Seo meta tag settings
-    [
-        { name: "title", content: content.value.seoTitle || content.value.title || "" },
-        { name: "description", content: content.value.seoString || content.value.summary || "" },
-    ].forEach((attrs) => {
-        const metaTag = Object.assign(document.createElement("meta"), attrs);
+    let metaTag = document.querySelector("meta[name='description']");
+    if (!metaTag) {
+        // If the meta tag doesn't exist, create it
+        metaTag = document.createElement("meta");
+        metaTag.setAttribute("name", "description");
         document.head.appendChild(metaTag);
-    });
+    }
+    // Update the content attribute
+    metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
 
     if (isExpiredOrScheduled.value) return;
 
