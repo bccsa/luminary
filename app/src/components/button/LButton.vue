@@ -61,6 +61,9 @@ const roundingClasses = {
             'group inline-flex items-center justify-center gap-x-1.5 font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed',
         ]"
     >
+        <template v-if="typeof icon === 'string'">
+            <img :src="icon" alt="Icon" class="order-2 h-5 w-5" />
+        </template>
         <component
             v-if="icon"
             :is="icon"
