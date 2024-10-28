@@ -47,6 +47,7 @@ export async function processChangeRequest(
 
             if (parentDoc.type == DocType.Tag) {
                 contentDoc.parentTagType = (parentDoc as TagDto).tagType;
+                contentDoc.parentPinned = (parentDoc as TagDto).pinned;
             }
             contentDoc.parentPublishDateVisible = parentDoc.publishDateVisible;
         }
@@ -75,6 +76,7 @@ export async function processChangeRequest(
 
                 if (doc.type == DocType.Tag) {
                     contentDoc.parentTagType = (doc as TagDto).tagType;
+                    contentDoc.parentPinned = (doc as TagDto).pinned;
                 }
 
                 contentDoc.parentPublishDateVisible = doc.publishDateVisible;

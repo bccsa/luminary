@@ -1,4 +1,4 @@
-import { PostDto } from "src/dto/PostDto";
+import { PostDto } from "../../dto/PostDto";
 import { DbService } from "../db.service";
 import { DocType, PostType } from "../../enums";
 import { ContentDto } from "../../dto/ContentDto";

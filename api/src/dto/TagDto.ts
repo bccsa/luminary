@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsNotEmpty } from "class-validator";
+import { IsEnum, IsNotEmpty, IsNumber } from "class-validator";
 import { TagType } from "../enums";
 import { Expose } from "class-transformer";
 import { _contentParentDto } from "./_contentParentDto";
@@ -12,8 +12,8 @@ export class TagDto extends _contentParentDto {
     @Expose()
     tagType: TagType;
 
-    @IsBoolean()
+    @IsNumber()
     @IsNotEmpty()
     @Expose()
-    pinned: boolean;
+    pinned: number;
 }

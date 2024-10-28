@@ -22,7 +22,7 @@ export type BaseDocumentDto = {
     parentType?: DocType.Post | DocType.Tag;
     parentId?: Uuid;
     tags?: Uuid[];
-    pinned?: boolean;
+    pinned?: number;
     language?: Uuid;
     tagType?: TagType;
     parentTagType?: TagType;
@@ -74,6 +74,7 @@ export type ContentDto = ContentBaseDto & {
     parentTagType?: TagType;
     parentPostType?: PostType;
     parentPublishDateVisible?: boolean;
+    parentPinned?: number;
 };
 
 export type ContentParentDto = ContentBaseDto & {
@@ -88,7 +89,7 @@ export type PostDto = ContentParentDto & {
 
 export type TagDto = ContentParentDto & {
     tagType: TagType;
-    pinned: boolean;
+    pinned: number;
 };
 
 export type GroupDto = BaseDocumentDto & {

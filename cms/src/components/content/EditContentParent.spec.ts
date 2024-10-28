@@ -18,7 +18,7 @@ describe("EditContentParent.vue", () => {
     afterEach(async () => {});
 
     it("test the tag pinned toggle", async () => {
-        const parent = ref<TagDto>({ ...mockData.mockCategoryDto, pinned: true });
+        const parent = ref<TagDto>({ ...mockData.mockCategoryDto, pinned: 1 });
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Tag,

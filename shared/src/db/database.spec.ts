@@ -160,13 +160,13 @@ describe("Database", () => {
 
     it("can get pinned tags by tag type", async () => {
         // Set pinned to true
-        await db.docs.update(mockCategoryDto._id, { pinned: true });
+        await db.docs.update(mockCategoryDto._id, { pinned: 1 });
 
         const tags = await db.tagsWhereTagType(TagType.Category, {
             filterOptions: { pinned: true },
             languageId: mockLanguageDtoEng._id,
         });
-        expect(tags).toEqual([{ ...mockCategoryDto, pinned: true }]);
+        expect(tags).toEqual([{ ...mockCategoryDto, pinned: 1 }]);
 
         const tags2 = await db.tagsWhereTagType(TagType.Category, {
             filterOptions: { pinned: false },
@@ -178,10 +178,10 @@ describe("Database", () => {
             filterOptions: { pinned: undefined },
             languageId: mockLanguageDtoEng._id,
         });
-        expect(tags3).toEqual([{ ...mockCategoryDto, pinned: true }]);
+        expect(tags3).toEqual([{ ...mockCategoryDto, pinned: 1 }]);
 
         // Set pinned to false
-        await db.docs.update(mockCategoryDto._id, { pinned: false });
+        await db.docs.update(mockCategoryDto._id, { pinned: 0 });
 
         const tags4 = await db.tagsWhereTagType(TagType.Category, {
             filterOptions: { pinned: false },
