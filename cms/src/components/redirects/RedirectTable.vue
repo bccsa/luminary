@@ -4,6 +4,7 @@ import LCard from "../common/LCard.vue";
 import RedirectRow from "./RedirectRow.vue";
 
 const redirects = db.whereTypeAsRef<RedirectDto[]>(DocType.Redirect, []);
+console.log("redirects", redirects.value);
 </script>
 
 <template>

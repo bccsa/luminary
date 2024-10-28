@@ -68,13 +68,15 @@ const handleRedirectUpdate = (updatedRedirect: RedirectDto) => {
         <!-- To Slug -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             <LBadge>{{
-                redirectDoc.toSlug.length > 0 ? redirectDoc.toSlug.toLocaleUpperCase() : "Not set"
+                redirectDoc.toSlug?.length! > 0
+                    ? redirectDoc.toSlug!.toLocaleUpperCase()
+                    : "Not set"
             }}</LBadge>
         </td>
 
         <!-- To Url -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            <LBadge>{{ redirectDoc.toUrl.toLocaleUpperCase() }}</LBadge>
+            <LBadge>{{ redirectDoc.toUrl?.toLocaleUpperCase() }}</LBadge>
         </td>
 
         <!-- updated -->

@@ -47,6 +47,11 @@
             "type": "language",
             "groupId": "group-private-users",
             "permission": ["view"]
+        },
+        {
+            "type": "redirect",
+            "groupId": "group-private-users",
+            "permission": ["view"]
         }
     ]
 }

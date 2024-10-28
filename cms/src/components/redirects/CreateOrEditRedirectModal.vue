@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { db, DocType, RedirectDto, RedirectType } from "luminary-shared";
+import { db, DocType, type RedirectDto, RedirectType } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
@@ -103,7 +103,7 @@ const validateForm = () => {
             <LInput
                 label="Name"
                 name="RedirectName"
-                v-model="newRedirect.name"
+                v-model="newRedirect.toSlug"
                 class="mb-4 w-full"
                 placeholder="Enter Redirect name"
             />
@@ -111,7 +111,7 @@ const validateForm = () => {
             <LInput
                 label="Code"
                 name="RedirectCode"
-                v-model="newRedirect.RedirectCode"
+                v-model="newRedirect.fromSlug"
                 class="mb-4 w-full"
                 placeholder="Enter Redirect code"
             />
