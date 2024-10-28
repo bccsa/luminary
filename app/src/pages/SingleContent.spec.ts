@@ -18,7 +18,7 @@ import {
 } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
+import { appLanguageIdAsRef, appName, initLanguage } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
@@ -232,5 +232,18 @@ describe("SingleContent", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });
+    });
+
+    it("sets the meta data correctly", async () => {
+        mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        const metaDescription = document.head.querySelector("meta[name='description']");
+
+        expect(document.title).toBe(`${mockEnglishContentDto.seoTitle} - ${appName}`);
+        expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoString);
     });
 });
