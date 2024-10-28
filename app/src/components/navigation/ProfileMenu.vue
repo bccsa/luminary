@@ -67,7 +67,7 @@ const userNavigation = computed(() => {
 </script>
 
 <template>
-    <Menu as="div" class="relative">
+    <Menu as="div" class="relative z-50">
         <MenuButton class="-m-1.5 flex items-center p-1.5">
             <span class="sr-only">Open user menu</span>
             <img
