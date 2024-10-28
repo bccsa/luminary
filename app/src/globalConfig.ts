@@ -27,13 +27,21 @@ export const appLanguageAsRef = readonly(_appLanguageAsRef);
 export const initLanguage = () => {
     const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
-    // Set the preferred language to the first language in the list if it is not set
+    // Set the preferred language to the preferred language returned by the browser if it is not set
+    // The language is only set if there is a supported language for it otherwise it defaults to english
     watch(languages, (newVal) => {
         if (
             newVal.length > 0 &&
             (!appLanguageIdAsRef.value || !newVal.some((l) => l._id === appLanguageIdAsRef.value))
         ) {
-            appLanguageIdAsRef.value = newVal[0]._id;
+            const languagePreferredByBrowser = navigator.language;
+            newVal.forEach((val) => {
+                if (val.languageCode == languagePreferredByBrowser) {
+                    appLanguageIdAsRef.value = val._id;
+                } else {
+                    appLanguageIdAsRef.value = "lang-eng";
+                }
+            });
         }
     });
 
