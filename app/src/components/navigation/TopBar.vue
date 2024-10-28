@@ -10,14 +10,13 @@ const router = useRouter();
 const LOGO = import.meta.env.VITE_LOGO;
 const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL;
 
-// Reactive screen size check
 const isSmallScreen = ref(false);
 
 const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL : LOGO));
 
 // Detect screen size on load and window resize
 const updateScreenSize = () => {
-    isSmallScreen.value = window.innerWidth < 300; // Tailwind 'md' breakpoint
+    isSmallScreen.value = window.innerWidth < 300; // Tailwind 'sm' breakpoint
 };
 
 onMounted(() => {
