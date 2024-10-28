@@ -39,8 +39,6 @@ export default async function setupAuth(app: App<Element>, router: Router) {
     // Handle redirects (Save token to local storage)
     async function redirectCallback(_url: string) {
         const url = new URL(_url);
-        console.log(url);
-
         if (!url.searchParams.has("state")) return false;
 
         if (url.searchParams.has("error")) {
@@ -132,13 +130,12 @@ export default async function setupAuth(app: App<Element>, router: Router) {
                     if (platform === "ios") {
                         await AuthBrowser.open({ url });
                         location.reload();
-                        return
+                        return;
                     }
                     await Browser.open({
                         url,
                         windowName: "_self",
                     });
-                    
                 } catch (error) {
                     console.error("Auth Browser open error on logout", error);
                     alert(error);
@@ -161,16 +158,13 @@ export default async function setupAuth(app: App<Element>, router: Router) {
                 try {
                     if (platform === "ios") {
                         const result = await AuthBrowser.open({ url });
-
-                        console.log(result);
                         await redirectCallback(result.result);
-                        return
-                    } 
+                        return;
+                    }
                     await Browser.open({
                         url,
                         windowName: "_self",
                     });
-            
                 } catch (error) {
                     console.error("Auth Browser open error on login", error);
                     alert(error);
