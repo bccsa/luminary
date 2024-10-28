@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 interface ImportMetaEnv {
     readonly VITE_APP_NAME: string;
 
@@ -12,6 +13,7 @@ interface ImportMetaEnv {
     readonly VITE_SENTRY_DSN: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 interface ImportMeta {
     readonly env: ImportMetaEnv;
 }

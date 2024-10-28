@@ -22,7 +22,7 @@ const audioMode = ref<boolean>(false);
 const hasStarted = ref<boolean>(false);
 const showAudioModeToggle = ref<boolean>(true);
 
-let timeout: any;
+let timeout: number;
 function autoHidePlayerControls() {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
@@ -139,16 +139,6 @@ watch(audioMode, (mode) => {
 });
 </script>
 
-<style>
-@import "video.js/dist/video-js.min.css";
-@import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
-@import "VideoPlayer.css";
-
-.audio-mode-toggle {
-    @apply !absolute right-2 top-2;
-}
-</style>
-
 <template>
     <div class="relative mb-2 rounded-lg bg-transparent">
         <LImage
@@ -188,3 +178,13 @@ watch(audioMode, (mode) => {
         </transition>
     </div>
 </template>
+
+<style>
+@import "video.js/dist/video-js.min.css";
+@import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
+@import "VideoPlayer.css";
+
+.audio-mode-toggle {
+    @apply !absolute right-2 top-2;
+}
+</style>

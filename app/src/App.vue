@@ -48,7 +48,7 @@ setTimeout(() => {
 const getToken = async () => {
     // add UserId to analytics if the user is auth
     // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-    window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
+    window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]); // eslint-disable-line @typescript-eslint/no-unused-expressions
     if (isAuthenticated.value) {
         try {
             return await getAccessTokenSilently();

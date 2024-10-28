@@ -79,7 +79,7 @@ export default async function setupAuth(app: App<Element>, router: Router) {
         if (to && to !== "/") {
             try {
                 localStorage.setItem("redirect_to", to);
-            } catch (e) {
+            } catch {
                 // ignore
             }
 
@@ -104,7 +104,7 @@ export default async function setupAuth(app: App<Element>, router: Router) {
 
             storeRedirectTo(parsedPath);
             if (oauth.isAuthenticated.value && location.pathname !== parsedPath) {
-                router.push(parsedPath).catch(() => {});
+                router.push(parsedPath);
             }
         });
     }
@@ -132,13 +132,12 @@ export default async function setupAuth(app: App<Element>, router: Router) {
                     if (platform === "ios") {
                         await AuthBrowser.open({ url });
                         location.reload();
-                        return
+                        return;
                     }
                     await Browser.open({
                         url,
                         windowName: "_self",
                     });
-                    
                 } catch (error) {
                     console.error("Auth Browser open error on logout", error);
                     alert(error);
@@ -164,13 +163,12 @@ export default async function setupAuth(app: App<Element>, router: Router) {
 
                         console.log(result);
                         await redirectCallback(result.result);
-                        return
-                    } 
+                        return;
+                    }
                     await Browser.open({
                         url,
                         windowName: "_self",
                     });
-            
                 } catch (error) {
                     console.error("Auth Browser open error on login", error);
                     alert(error);
