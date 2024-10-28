@@ -4,6 +4,8 @@ import { PencilIcon } from "@heroicons/vue/16/solid";
 import { PublishStatus, type ContentDto } from "luminary-shared";
 import { nextTick, ref, watch } from "vue";
 import { Slug } from "@/util/slug";
+import LCard from "@/components/common/LCard.vue";
+import LTabs from "@/components/common/LTabs.vue";
 
 type Props = {
     disabled: boolean;
@@ -73,60 +75,98 @@ const validateSlug = async () => {
     if (!content.value) return;
     content.value.slug = await Slug.generate(content.value.slug, content.value._id || "");
 };
+
+// Tabs for Title & Summary
+const currentTab = ref("visible"); // Default tab key
+const tabs = [
+    { title: "Visible title & summary", key: "visible" },
+    { title: "SEO title & summary", key: "seo" },
+];
 </script>
 
 <template>
     <div v-if="content">
-        <!-- Title -->
-        <LInput
-            name="title"
-            label="Title"
-            required
-            :disabled="disabled"
-            v-model="content.title"
-            @blur="validateSlug"
-        />
+        <LCard title="Title & Summary" collapsible>
+            <!-- Tab Navigation using LTabs -->
+            <LTabs :tabs="tabs" :currentTab="currentTab" @update:currentTab="currentTab = $event" />
 
-        <!-- Slug -->
-        <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
-            <span class="py-0.5">Slug:</span>
-            <span
-                v-show="!isEditingSlug"
-                data-test="slugSpan"
-                class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
-                >{{ content.slug }}</span
-            >
-            <LInput
-                v-show="isEditingSlug"
-                :disabled="disabled"
-                ref="slugInput"
-                name="slug"
-                size="sm"
-                class="w-full"
-                v-model="content.slug"
-                @blur="
-                    isEditingSlug = false;
-                    validateSlug();
-                "
-            />
-            <button
-                data-test="editSlugButton"
-                v-if="!isEditingSlug && !disabled"
-                @click="startEditingSlug"
-                class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
-                title="Edit slug"
-            >
-                <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
-            </button>
-        </div>
+            <!-- Tab Content -->
+            <div class="py-4">
+                <div v-if="currentTab === 'visible'">
+                    <!-- Title -->
+                    <LInput
+                        name="title"
+                        label="Title"
+                        required
+                        :disabled="disabled"
+                        v-model="content.title"
+                        @blur="validateSlug"
+                    />
 
-        <!-- Summary -->
-        <LInput
-            name="summary"
-            label="Summary"
-            class="mt-4"
-            :disabled="disabled"
-            v-model="content.summary"
-        />
+                    <!-- Slug -->
+                    <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
+                        <span class="py-0.5">Slug:</span>
+                        <span
+                            v-show="!isEditingSlug"
+                            data-test="slugSpan"
+                            class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
+                            >{{ content.slug }}</span
+                        >
+                        <LInput
+                            v-show="isEditingSlug"
+                            :disabled="disabled"
+                            ref="slugInput"
+                            name="slug"
+                            size="sm"
+                            class="w-full"
+                            v-model="content.slug"
+                            @blur="
+                                isEditingSlug = false;
+                                validateSlug();
+                            "
+                        />
+                        <button
+                            data-test="editSlugButton"
+                            v-if="!isEditingSlug && !disabled"
+                            @click="startEditingSlug"
+                            class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
+                            title="Edit slug"
+                        >
+                            <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
+                        </button>
+                    </div>
+
+                    <!-- Summary -->
+                    <LInput
+                        name="summary"
+                        label="Summary"
+                        class="mt-4"
+                        :disabled="disabled"
+                        v-model="content.summary"
+                    />
+                </div>
+
+                <div v-else-if="currentTab === 'seo'">
+                    <!-- Title SEO -->
+                    <LInput
+                        name="seo-title"
+                        label="Title"
+                        :disabled="disabled"
+                        :placeholder="content.title"
+                        v-model="content.seoTitle"
+                    />
+
+                    <!-- Summary SEO -->
+                    <LInput
+                        name="seo-summary"
+                        label="Summary"
+                        class="mt-4"
+                        :disabled="disabled"
+                        :placeholder="content.summary"
+                        v-model="content.seoString"
+                    />
+                </div>
+            </div>
+        </LCard>
     </div>
 </template>
