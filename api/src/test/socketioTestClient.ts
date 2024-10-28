@@ -59,7 +59,10 @@ export const socketioTestClient = (
         if (config.getAccessMap) testClient.on("accessMap", accessMapHandler);
 
         // We need to send a clientDataReq event to the server to get the latest data and subscribe to updates
-        testClient.emit("clientDataReq", { version: config.version, cms: config.cms });
+        testClient.emit("clientDataReq", {
+            version: config.version,
+            cms: config.cms,
+        });
 
         // Emit change request. The server should emit 'data' and 'changeRequestAck' messages in response (captured in the handlers above)
         if (config.changeRequest) {

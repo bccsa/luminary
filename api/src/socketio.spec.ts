@@ -11,6 +11,7 @@ import {
     changeRequest_tag,
 } from "./test/changeRequestDocuments";
 import { DocType } from "./enums";
+import { superAdminAccessMap } from "./test/mockdata";
 
 jest.mock("./configuration", () => {
     const originalModule = jest.requireActual("./configuration");
@@ -289,7 +290,24 @@ describe("Socketio", () => {
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                 });
 
-                it("gets historical data for newly accessibles groups", async () => {});
+                it("gets historical data for newly accessibles groups", async () => {
+                    const limitedAccessMap = { ...superAdminAccessMap };
+                    delete limitedAccessMap["group-private-content"];
+                    delete limitedAccessMap["group-super-admins"];
+                    delete limitedAccessMap["group-private-editors"];
+
+                    const res = await socketioTestClient({
+                        cms: false,
+                        version: Date.now() + 1000000,
+                        getAccessMap: true,
+                        timeout: 4000,
+                    });
+
+                    console.log(res);
+                    expect(res.docs.includes((d) => d["id"] == "group-private-content")).toBe(true);
+                    // Check if the response includes an access map with access to "Group Private Content"
+                    // Check if all private documents are included in the response
+                });
             });
         });
     });
