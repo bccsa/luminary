@@ -105,7 +105,7 @@ const handleRedirectUpdate = (updatedRedirect: RedirectDto) => {
     <CreateOrEditRedirectModal
         v-if="isModalVisible"
         :isVisible="isModalVisible"
-        :language="redirectDoc"
+        :redirect="redirectDoc"
         @close="closeModal"
         @updated="handleRedirectUpdate"
     />

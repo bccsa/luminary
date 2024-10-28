@@ -5,6 +5,8 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import * as _ from "lodash";
+import LTextToggle from "../forms/LTextToggle.vue";
+import { CheckBadgeIcon, CheckCircleIcon } from "@heroicons/vue/20/solid";
 
 // Props for visibility and Redirect to edit
 type Props = {
@@ -44,7 +46,7 @@ watch(
             newRedirect.value = {
                 _id: db.uuid(), // Generate new ID for create mode
                 fromSlug: "",
-                redirectType: RedirectType.Permanent,
+                redirectType: RedirectType.Temporary,
                 memberOf: ["group-redirect"],
                 type: DocType.Redirect,
                 updatedTimeUtc: Date.now(),
@@ -87,6 +89,10 @@ const isDirty = computed(() => {
 const validateForm = () => {
     return newRedirect.value.fromSlug.trim() !== "" && newRedirect.value.memberOf.length > 0;
 };
+
+const redirectTemporary = computed(() => {
+    return newRedirect.value.redirectType == RedirectType.Temporary;
+});
 </script>
 
 <template>
@@ -100,8 +106,24 @@ const validateForm = () => {
                 {{ isEditMode ? "Edit Redirect" : "Create New Redirect" }}
             </h2>
 
+            <div class="mb-3 flex w-full gap-1">
+                <LButton
+                    class="w-1/2"
+                    :icon="redirectTemporary ? CheckCircleIcon : undefined"
+                    @click="newRedirect.redirectType = RedirectType.Temporary"
+                    >Temporary
+                </LButton>
+                <LButton
+                    class="w-1/2"
+                    :icon="redirectTemporary ? undefined : CheckCircleIcon"
+                    @click="newRedirect.redirectType = RedirectType.Permanent"
+                >
+                    Permanent
+                </LButton>
+            </div>
+
             <LInput
-                label="Name"
+                label="From Slug"
                 name="RedirectName"
                 v-model="newRedirect.toSlug"
                 class="mb-4 w-full"

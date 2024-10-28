@@ -89,7 +89,13 @@ type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketD
 })
 @Injectable()
 export class Socketio implements OnGatewayInit {
-    appDocTypes: Array<DocType> = [DocType.Post, DocType.Tag, DocType.Content, DocType.Language];
+    appDocTypes: Array<DocType> = [
+        DocType.Post,
+        DocType.Tag,
+        DocType.Content,
+        DocType.Language,
+        DocType.Redirect,
+    ];
     cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
     permissionMap: PermissionMap;
     config: Configuration;
@@ -202,6 +208,7 @@ export class Socketio implements OnGatewayInit {
     @SubscribeMessage("clientDataReq")
     clientDataReq(@MessageBody() reqData: ClientDataReq, @ConnectedSocket() socket: ClientSocket) {
         // TODO: Do type validation on reqData
+        console.info("Data requested");
 
         // Send client configuration data
         // Get access map and send to client
@@ -216,6 +223,8 @@ export class Socketio implements OnGatewayInit {
         const docTypes = reqData.cms
             ? [...this.cmsDocTypes, ...this.appDocTypes]
             : this.appDocTypes;
+
+        console.info("Doctypes", docTypes);
 
         let from = 0;
         if (reqData.version && typeof reqData.version === "number") from = reqData.version;
