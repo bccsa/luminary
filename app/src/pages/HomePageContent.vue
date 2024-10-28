@@ -93,6 +93,9 @@ setTimeout(() => {
     noContentMessageDelay.value = true;
 }, 3000);
 
+const newestContentLocal = localStorage.getItem("cached_newestContent")
+    ? JSON.parse(localStorage.getItem("cached_newestContent")!)
+    : [];
 const newestContent = db.toRef<ContentDto[]>(
     () =>
         db.docs
@@ -112,14 +115,21 @@ const newestContent = db.toRef<ContentDto[]>(
             })
             .limit(100) // Limit to the newest posts
             .toArray() as unknown as Promise<ContentDto[]>,
-    [],
+    newestContentLocal,
 );
+
+watch(newestContent, (value) => {
+    localStorage.setItem("cached_newestContent", JSON.stringify(value));
+});
 
 const newest10Content = computed(() => newestContent.value.slice(0, 10));
 
 // Get all pinned categories
 // =========================
 
+const pinnedCategoriesLocal = localStorage.getItem("cached_pinnedCategories")
+    ? JSON.parse(localStorage.getItem("cached_pinnedCategories")!)
+    : [];
 // Get pinned categories' content docs
 const pinnedCategories = db.toRef<ContentDto[]>(
     () =>
@@ -138,8 +148,12 @@ const pinnedCategories = db.toRef<ContentDto[]>(
                 return true;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
-    [],
+    pinnedCategoriesLocal,
 );
+
+watch(pinnedCategories, (value) => {
+    localStorage.setItem("cached_pinnedCategories", JSON.stringify(value));
+});
 
 // Map tag IDs of pinned categories
 const pinnedCategoryIds = computed(() => {
@@ -148,7 +162,11 @@ const pinnedCategoryIds = computed(() => {
 });
 
 // Get content tagged with pinned categories
-const pinnedCategoryContent = ref<ContentDto[]>([]);
+const pinnedCategoryContent = ref<ContentDto[]>(
+    localStorage.getItem("cached_pinnedCategoryContent")
+        ? JSON.parse(localStorage.getItem("cached_pinnedCategoryContent")!)
+        : [],
+);
 watch(pinnedCategoryIds, async (ids) => {
     pinnedCategoryContent.value = await (db.docs
         .where({
@@ -168,6 +186,11 @@ watch(pinnedCategoryIds, async (ids) => {
             return false;
         })
         .toArray() as unknown as Promise<ContentDto[]>);
+
+    localStorage.setItem(
+        "cached_pinnedCategoryContent",
+        JSON.stringify(pinnedCategoryContent.value),
+    );
 });
 
 // sort pinned content by category
@@ -186,7 +209,12 @@ const newestUnpinnedTagIds = computed(() => {
         });
 });
 
-const categoriesNewestUnpinnedContent = ref<ContentDto[]>([]); // The unpinned categories of the newest content
+// The unpinned categories of the newest content
+const categoriesNewestUnpinnedContent = ref<ContentDto[]>(
+    localStorage.getItem("cached_categoriesNewestUnpinnedContent")
+        ? JSON.parse(localStorage.getItem("cached_categoriesNewestUnpinnedContent")!)
+        : [],
+);
 watch(newestUnpinnedTagIds, async (ids) => {
     categoriesNewestUnpinnedContent.value = await (db.docs
         .where("parentId")
@@ -205,6 +233,11 @@ watch(newestUnpinnedTagIds, async (ids) => {
             );
         })
         .toArray() as unknown as Promise<ContentDto[]>);
+
+    localStorage.setItem(
+        "cached_categoriesNewestUnpinnedContent",
+        JSON.stringify(categoriesNewestUnpinnedContent.value),
+    );
 });
 
 const unpinnedNewestContentByCategory = contentByCategory(
