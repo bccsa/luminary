@@ -122,6 +122,8 @@ export const mockEnglishContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    seoTitle: "Test Seo Title",
+    seoString: "Test seo summary",
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
