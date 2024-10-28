@@ -84,7 +84,7 @@ class Database extends Dexie {
             this.accessMapRef,
             () => {
                 this.deleteRevoked();
-                this.deleteRevoked(true); // Remove change documents
+                this.deleteRevoked({ changeDocs: true });
             },
             { immediate: true },
         );
@@ -582,9 +582,9 @@ class Database extends Dexie {
 
     /**
      * Delete documents to which access has been revoked
-     * @param changeDocs - If true, deletes change documents instead of regular documents
+     * @param options - changeDocs: If true, deletes change documents instead of regular documents
      */
-    private deleteRevoked(changeDocs = false) {
+    private deleteRevoked(options: { changeDocs: boolean } = { changeDocs: false }) {
         const groupsPerDocType = getAccessibleGroups(AclPermission.View);
 
         Object.values(DocType)
@@ -596,7 +596,7 @@ class Database extends Dexie {
                 const revokedDocs = this.whereNotMemberOfAsCollection(
                     groups,
                     docType as DocType,
-                    changeDocs,
+                    options.changeDocs,
                 );
 
                 // Delete associated Post and Tag content documents

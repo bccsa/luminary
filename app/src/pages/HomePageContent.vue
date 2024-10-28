@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, ref, watch, watchEffect, type Ref } from "vue";
 import { type ContentDto, DocType, TagType, db } from "luminary-shared";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
@@ -24,11 +24,9 @@ const contentByCategory = (
 ): Ref<ContentByCategory[]> => {
     const result = ref<ContentByCategory[]>([]);
 
-    watch([content, categories], ([_content, _categories]) => {
-        _categories.forEach((category) => {
-            // const _res: ContentByCategory[] = [];
-
-            const sorted = _content
+    watchEffect(() => {
+        categories.value.forEach((category) => {
+            const sorted = content.value
                 .filter((c) => c.publishDate && c.parentTags.includes(category.parentId))
                 .sort((a, b) => {
                     if (!a.publishDate) return 1;
@@ -70,21 +68,25 @@ const contentByCategory = (
 
 const { isAuthenticated } = useAuth0();
 
-const hasPosts = db.toRef<boolean>(() =>
-    db.docs
-        .where({ type: DocType.Content, language: appLanguageIdAsRef.value, status: "published" })
-        .filter((c) => {
-            const content = c as ContentDto;
-            if (!content.publishDate) return false;
-            if (content.publishDate > Date.now()) return false;
-            if (content.expiryDate && content.expiryDate < Date.now()) return false;
-            return true;
-        })
-        .first()
-        .then((c) => c != undefined),
+const hasPosts = db.toRef<boolean>(
+    () =>
+        db.docs
+            .where({
+                type: DocType.Content,
+                language: appLanguageIdAsRef.value,
+                status: "published",
+            })
+            .filter((c) => {
+                const content = c as ContentDto;
+                if (!content.publishDate) return false;
+                if (content.publishDate > Date.now()) return false;
+                if (content.expiryDate && content.expiryDate < Date.now()) return false;
+                return true;
+            })
+            .first()
+            .then((c) => c != undefined),
+    true,
 );
-
-// const hasPosts = db.someByTypeAsRef(DocType.Post);
 
 const noContentMessageDelay = ref(false);
 setTimeout(() => {
@@ -100,7 +102,6 @@ const newestContent = db.toRef<ContentDto[]>(
                 const content = c as ContentDto;
                 if (content.type !== DocType.Content) return false;
                 if (content.language !== appLanguageIdAsRef.value) return false;
-                // if (content.parentType !== DocType.Post) return false;
 
                 // Only include published content
                 if (content.status !== "published") return false;
