@@ -57,9 +57,20 @@ watch(content, async () => {
 
     document.title = is404.value
         ? `Page not found - ${appName}`
-        : `${content.value.title} - ${appName}`;
+        : `${content.value.seoTitle ? content.value.seoTitle : content.value.title} - ${appName}`;
 
     if (is404.value) return;
+
+    // Seo meta tag settings
+    let metaTag = document.querySelector("meta[name='description']");
+    if (!metaTag) {
+        // If the meta tag doesn't exist, create it
+        metaTag = document.createElement("meta");
+        metaTag.setAttribute("name", "description");
+        document.head.appendChild(metaTag);
+    }
+    // Update the content attribute
+    metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
 
     const tagIds = content.value.parentTags.concat([content.value.parentId]); // Include this content's parent ID to include content tagged with the parent (if the parent is a tag document).
 
