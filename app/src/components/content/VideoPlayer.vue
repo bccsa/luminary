@@ -8,6 +8,8 @@ import type { ContentDto } from "luminary-shared";
 import px from "./px.png";
 import LImage from "../images/LImage.vue";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/globalConfig";
+import { StatusBar } from "@capacitor/status-bar";
+import { Capacitor } from "@capacitor/core";
 
 type Props = {
     content: ContentDto;
@@ -41,6 +43,13 @@ function playerUserActiveEventHandler() {
     } else {
         showAudioModeToggle.value = false;
     }
+}
+
+// cap hide status bar on android
+function playerFullscreenEventHandler() {
+    if (Capacitor.getPlatform() !== "android") return;
+    if (!player.isFullscreen()) StatusBar.show();
+    if (player.isFullscreen()) StatusBar.hide();
 }
 
 onMounted(() => {
@@ -90,6 +99,9 @@ onMounted(() => {
     // Get player user active states
     player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
 
+    // Get player fullscreen state
+    player.on("fullscreenchange", playerFullscreenEventHandler);
+
     // start video player analytics on mounted
     // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
     if (window._paq) {
@@ -125,6 +137,7 @@ onUnmounted(() => {
     player?.off(["mousemove", "click"], autoHidePlayerControls);
     player?.off("play", playerPlayEventHandler);
     player?.off(["useractive", "userinactive"], playerUserActiveEventHandler);
+    player?.off("fullscreenchange", playerFullscreenEventHandler);
 });
 
 // Set player audio only mode
