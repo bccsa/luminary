@@ -64,6 +64,11 @@ const saveLanguage = async () => {
     // Update the timestamp
     newLanguage.value.updatedTimeUtc = Date.now();
 
+    if (newLanguage.value.default) {
+        const existingDefault = await db.whereParent(newLanguage.value._id);
+        console.log("Existing default:", existingDefault);
+    }
+
     // Deep clone the `memberOf` array to avoid DataCloneError
     const clonedLanguage = {
         ...newLanguage.value,
