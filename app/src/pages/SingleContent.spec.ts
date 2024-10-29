@@ -164,7 +164,25 @@ describe("SingleContent", () => {
         });
     });
 
-    it("does not display scheduled or expired content", async () => {
+    it("displays the 404 error when the content is scheduled", async () => {
+        // Set a future publish date and an expired date
+        await db.docs.update(mockEnglishContentDto._id, {
+            publishDate: Date.now() + 10000,
+        });
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.find("article").exists()).toBe(false);
+        });
+    });
+
+    it("displays the 404 error when the content is expired", async () => {
         // Set a future publish date and an expired date
         await db.docs.update(mockEnglishContentDto._id, {
             publishDate: Date.now(),
@@ -183,19 +201,6 @@ describe("SingleContent", () => {
         });
     });
 
-    it("displays the 404 error page when routing with an invalid slug", async () => {
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: "invalid-slug",
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
-            // expect(wrapper.find("article").exists()).toBe(false);
-        });
-    });
-
     it("displays the 404 error page when content has a draft status", async () => {
         await db.docs.update(mockEnglishContentDto._id, {
             status: "draft",
@@ -204,6 +209,19 @@ describe("SingleContent", () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.find("article").exists()).toBe(false);
+        });
+    });
+
+    it("displays the 404 error page when routing with an invalid slug", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: "invalid-slug",
             },
         });
 
