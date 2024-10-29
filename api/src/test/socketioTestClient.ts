@@ -9,7 +9,7 @@ export type socketioTestRequest = {
     changeRequest?: ChangeReqDto;
     timeout?: number;
     getAccessMap?: boolean;
-    accessMap?: any; // Using 'any' here to accommodate varied structures for permissions data, which may differ based on client requirements or evolve over time.
+    accessMap?: any; // The accessMap is converted to a AccessMap object by the API.
 };
 
 /**
