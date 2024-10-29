@@ -37,32 +37,39 @@ const isExpiredOrScheduled = computed(() => {
     );
 });
 
-watch(
-    content,
-    async () => {
-        if (!content.value) return;
+watch(content, async () => {
+    if (!content.value) return;
 
-        document.title = isExpiredOrScheduled.value
-            ? `Page not found - ${appName}`
-            : `${content.value.title} - ${appName}`;
+    document.title = isExpiredOrScheduled.value
+        ? `Page not found - ${appName}`
+        : `${content.value.seoTitle ? content.value.seoTitle : content.value.title} - ${appName}`;
 
-        if (isExpiredOrScheduled.value) return;
+    // Seo meta tag settings
+    let metaTag = document.querySelector("meta[name='description']");
+    if (!metaTag) {
+        // If the meta tag doesn't exist, create it
+        metaTag = document.createElement("meta");
+        metaTag.setAttribute("name", "description");
+        document.head.appendChild(metaTag);
+    }
+    // Update the content attribute
+    metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
 
-        const tagIds = content.value.parentTags.concat([content.value.parentId]); // Include this content's parent ID to include content tagged with the parent (if the parent is a tag document).
+    if (isExpiredOrScheduled.value) return;
 
-        // Fetch tags associated with the content
-        tagsContent.value = await db.whereParent(tagIds, DocType.Tag, content.value.language);
+    const tagIds = content.value.parentTags.concat([content.value.parentId]); // Include this content's parent ID to include content tagged with the parent (if the parent is a tag document).
 
-        const categoryTagsContent = tagsContent.value.filter(
-            (t) => t.parentTagType == TagType.Category,
-        );
+    // Fetch tags associated with the content
+    tagsContent.value = await db.whereParent(tagIds, DocType.Tag, content.value.language);
 
-        selectedTagId.value = categoryTagsContent[0]?.parentId;
+    const categoryTagsContent = tagsContent.value.filter(
+        (t) => t.parentTagType == TagType.Category,
+    );
 
-        tags.value = (await db.docs.bulkGet(tagIds)) as TagDto[];
-    },
-    { immediate: true },
-);
+    selectedTagId.value = categoryTagsContent[0]?.parentId;
+
+    tags.value = (await db.docs.bulkGet(tagIds)) as TagDto[];
+});
 
 watch(
     appLanguageAsRef,
