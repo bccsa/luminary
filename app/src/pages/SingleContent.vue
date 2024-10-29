@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DocType, TagType, db, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, ref, watch, watchEffect } from "vue";
+import { computed, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -75,28 +75,31 @@ watch(content, async () => {
     tags.value = (await db.docs.bulkGet(tagIds)) as TagDto[];
 });
 
-watchEffect(async () => {
-    if (!content.value) return;
-    if (!content.value.slug) return; // If there is no slug we are still showing the placeholder content
+watch(
+    () => appLanguageAsRef.value,
+    async () => {
+        if (!content.value) return;
+        if (!content.value.slug) return; // If there is no slug we are still showing the placeholder content
 
-    if (appLanguageAsRef.value?._id != content.value.language) {
-        const contentDocs = await db.whereParent(content.value.parentId);
-        const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
+        if (appLanguageAsRef.value?._id != content.value.language) {
+            const contentDocs = await db.whereParent(content.value.parentId);
+            const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
 
-        if (preferred) {
-            content.value = preferred;
-            await router.replace({ name: "content", params: { slug: preferred.slug } });
-            return;
+            if (preferred) {
+                content.value = preferred;
+                await router.replace({ name: "content", params: { slug: preferred.slug } });
+                return;
+            }
+            useNotificationStore().addNotification({
+                id: "translation-not-found",
+                title: "Translation not found",
+                description: `There is no ${appLanguageAsRef.value?.name} translation for this content.`,
+                state: "error",
+                type: "toast",
+            });
         }
-        useNotificationStore().addNotification({
-            id: "translation-not-found",
-            title: "Translation not found",
-            description: `There is no ${appLanguageAsRef.value?.name} translation for this content.`,
-            state: "error",
-            type: "toast",
-        });
-    }
-});
+    },
+);
 
 const text = computed(() => {
     if (!content.value.text) {
