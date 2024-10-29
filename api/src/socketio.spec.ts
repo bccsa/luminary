@@ -315,7 +315,7 @@ describe("Socketio", () => {
                         },
                     };
 
-                    // Indicate to the API that the client only have access to public content
+                    // Indicate to the API that the client only had access to public content
                     const res = await socketioTestClient({
                         cms: false,
                         version: Date.now() + 1000000,
