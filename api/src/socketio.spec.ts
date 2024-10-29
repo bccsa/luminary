@@ -11,7 +11,6 @@ import {
     changeRequest_tag,
 } from "./test/changeRequestDocuments";
 import { DocType } from "./enums";
-import { superAdminAccessMap } from "./test/mockdata";
 
 jest.mock("./configuration", () => {
     const originalModule = jest.requireActual("./configuration");
@@ -290,24 +289,43 @@ describe("Socketio", () => {
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                 });
 
-                it("gets historical data for newly accessibles groups", async () => {
-                    const limitedAccessMap = { ...superAdminAccessMap };
-                    delete limitedAccessMap["group-private-content"];
-                    delete limitedAccessMap["group-super-admins"];
-                    delete limitedAccessMap["group-private-editors"];
+                it("can return historical data to the clients after the client received additional access", async () => {
+                    const publicContentAccessMap = {
+                        "group-public-content": {
+                            post: {
+                                view: true,
+                            },
+                            tag: {
+                                view: true,
+                            },
+                            language: {
+                                view: true,
+                            },
+                        },
+                        "group-languages": {
+                            post: {
+                                view: true,
+                            },
+                            tag: {
+                                view: true,
+                            },
+                            language: {
+                                view: true,
+                            },
+                        },
+                    };
 
+                    // Indicate to the API that the client only have access to public content
                     const res = await socketioTestClient({
                         cms: false,
                         version: Date.now() + 1000000,
                         getAccessMap: true,
-                        timeout: 4000,
+                        accessMap: publicContentAccessMap,
                     });
 
-                    console.log(res);
-
-                    // expect(res.docs.includes((d) => d["id"] == "group-private-content")).toBe(true);
-                    // Check if the response includes an access map with access to "Group Private Content"
-                    // Check if all private documents are included in the response
+                    expect(res.docs.some((d) => d.memberOf.includes("group-private-content"))).toBe(
+                        true,
+                    );
                 });
             });
         });

@@ -9,6 +9,7 @@ export type socketioTestRequest = {
     changeRequest?: ChangeReqDto;
     timeout?: number;
     getAccessMap?: boolean;
+    accessMap?: any;
 };
 
 /**
@@ -62,6 +63,7 @@ export const socketioTestClient = (
         testClient.emit("clientDataReq", {
             version: config.version,
             cms: config.cms,
+            accessMap: config.accessMap,
         });
 
         // Emit change request. The server should emit 'data' and 'changeRequestAck' messages in response (captured in the handlers above)
