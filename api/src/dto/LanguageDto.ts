@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
@@ -15,4 +15,9 @@ export class LanguageDto extends _contentBaseDto {
     @IsString()
     @Expose()
     name: string;
+
+    @IsOptional()
+    @IsBoolean()
+    @Expose()
+    default?: boolean;
 }

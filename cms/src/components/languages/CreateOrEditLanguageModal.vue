@@ -5,6 +5,8 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import * as _ from "lodash";
+import LToggle from "../forms/LToggle.vue";
+import FormLabel from "../forms/FormLabel.vue";
 
 // Props for visibility and language to edit
 type Props = {
@@ -27,6 +29,7 @@ const newLanguage = ref<LanguageDto>({
     _id: db.uuid(), // Generate new ID for create mode
     name: "",
     languageCode: "",
+    default: false,
     memberOf: [],
     type: DocType.Language,
     updatedTimeUtc: Date.now(),
@@ -45,6 +48,7 @@ watch(
                 _id: db.uuid(),
                 name: "",
                 languageCode: "",
+                default: false,
                 memberOf: [],
                 type: DocType.Language,
                 updatedTimeUtc: Date.now(),
@@ -125,6 +129,16 @@ const validateForm = () => {
                 :docType="DocType.Language"
                 data-test="group-selector"
             />
+
+            <div class="mt-2 flex items-center justify-between">
+                <FormLabel for="is-language-default-toggle" class="flex items-center">
+                    Default Language?
+                </FormLabel>
+                <LToggle
+                    name="is-language-default-toggle"
+                    v-model:model-value="newLanguage.default!"
+                />
+            </div>
 
             <div class="flex justify-end gap-4 pt-5">
                 <LButton variant="secondary" data-test="cancel" @click="emit('close')"
