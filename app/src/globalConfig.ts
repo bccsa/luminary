@@ -34,12 +34,25 @@ export const initLanguage = () => {
             newVal.length > 0 &&
             (!appLanguageIdAsRef.value || !newVal.some((l) => l._id === appLanguageIdAsRef.value))
         ) {
+            const languagesPreferredByBrowser = navigator.languages;
             const languagePreferredByBrowser = navigator.language;
+            console.info("Preferred language/languages:?", languagePreferredByBrowser);
             newVal.forEach((val) => {
-                if (val.languageCode == languagePreferredByBrowser) {
-                    appLanguageIdAsRef.value = val._id;
+                if (
+                    languagesPreferredByBrowser.length > 0 &&
+                    languagesPreferredByBrowser.includes(val.languageCode)
+                ) {
+                    languagesPreferredByBrowser.forEach((lang) => {
+                        if (lang == val.languageCode) {
+                            appLanguageIdAsRef.value = val._id;
+                        }
+                    });
                 } else {
-                    appLanguageIdAsRef.value = "lang-eng";
+                    if (val.languageCode == languagePreferredByBrowser) {
+                        appLanguageIdAsRef.value = val._id;
+                    } else {
+                        appLanguageIdAsRef.value = "lang-eng";
+                    }
                 }
             });
         }
