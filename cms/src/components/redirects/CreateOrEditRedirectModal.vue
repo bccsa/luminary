@@ -90,7 +90,13 @@ const validateForm = () => {
     return newRedirect.value.fromSlug.trim() !== "" && newRedirect.value.memberOf.length > 0;
 };
 
+const redirectExplanation = ref("");
 const redirectTemporary = computed(() => {
+    // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+    redirectExplanation.value =
+        newRedirect.value.redirectType == RedirectType.Temporary
+            ? "Temporarily redirect the user"
+            : "Permanently redirect the user";
     return newRedirect.value.redirectType == RedirectType.Temporary;
 });
 </script>
@@ -106,36 +112,46 @@ const redirectTemporary = computed(() => {
                 {{ isEditMode ? "Edit Redirect" : "Create New Redirect" }}
             </h2>
 
-            <div class="mb-3 flex w-full gap-1">
-                <LButton
-                    class="w-1/2"
-                    :icon="redirectTemporary ? CheckCircleIcon : undefined"
-                    @click="newRedirect.redirectType = RedirectType.Temporary"
-                    >Temporary
-                </LButton>
-                <LButton
-                    class="w-1/2"
-                    :icon="redirectTemporary ? undefined : CheckCircleIcon"
-                    @click="newRedirect.redirectType = RedirectType.Permanent"
-                >
-                    Permanent
-                </LButton>
+            <div class="mb-2 flex flex-col items-center">
+                <div class="mb-1 flex w-full gap-1">
+                    <LButton
+                        class="w-1/2"
+                        :icon="redirectTemporary ? CheckCircleIcon : undefined"
+                        @click="newRedirect.redirectType = RedirectType.Temporary"
+                        >Temporary
+                    </LButton>
+                    <LButton
+                        class="w-1/2"
+                        :icon="redirectTemporary ? undefined : CheckCircleIcon"
+                        @click="newRedirect.redirectType = RedirectType.Permanent"
+                    >
+                        Permanent
+                    </LButton>
+                </div>
+                {{ redirectExplanation }}
             </div>
-
             <LInput
-                label="From Slug"
-                name="RedirectName"
-                v-model="newRedirect.toSlug"
+                label="From Slug *"
+                name="RedirectFromSlug"
+                v-model="newRedirect.fromSlug"
                 class="mb-4 w-full"
-                placeholder="Enter Redirect name"
+                placeholder="The slug that will be redirected from.."
             />
 
             <LInput
-                label="Code"
-                name="RedirectCode"
-                v-model="newRedirect.fromSlug"
+                label="To Slug"
+                name="RedirectToSlug"
+                v-model="newRedirect.toSlug"
                 class="mb-4 w-full"
-                placeholder="Enter Redirect code"
+                placeholder="The slug that will be redirected to..."
+            />
+
+            <LInput
+                label="To Url"
+                name="RedirectToUrl"
+                v-model="newRedirect.toUrl"
+                class="mb-4 w-full"
+                placeholder="Url to be redirected to"
             />
 
             <GroupSelector
