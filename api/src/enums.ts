@@ -16,6 +16,7 @@ export enum DocType {
     Tag = "tag",
     User = "user",
     Language = "language",
+    Redirect = "redirect",
     Group = "group",
     Change = "change",
 }
@@ -86,4 +87,12 @@ export enum TagType {
 export enum PostType {
     Blog = "blog",
     Page = "page",
+}
+
+/**
+ * Redirect Type used in Redirect Documents
+ */
+export enum RedirectType {
+    Permanent = "permanent",
+    Temporary = "temporary",
 }
