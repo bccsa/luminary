@@ -12,7 +12,7 @@ export class RedirectDto extends _contentBaseDto {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    fromSlug: string;
+    slug: string;
 
     @IsString()
     @IsOptional()

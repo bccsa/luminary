@@ -50,7 +50,7 @@ export type ContentBaseDto = BaseDocumentDto & {
 
 export type RedirectDto = ContentBaseDto & {
     redirectType: RedirectType;
-    fromSlug: string;
+    slug: string;
     toSlug?: string;
     toUrl?: string;
 };

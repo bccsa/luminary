@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { DocType, TagType, db, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
+import {
+    DocType,
+    type RedirectDto,
+    TagType,
+    db,
+    type ContentDto,
+    type TagDto,
+    type Uuid,
+} from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
@@ -24,6 +32,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const content = db.getBySlugAsRef<ContentDto>(props.slug);
+const redirectDocs = db.getBySlugAsRef<RedirectDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
 const selectedTagId = ref<Uuid | undefined>();
 const tags = ref<TagDto[]>([]);
@@ -41,7 +50,8 @@ watch(
     content,
     async () => {
         if (!content.value) return;
-
+        console.info("DOCUMENTO");
+        console.info('Redirect Documents with a "FROM":', redirectDocs.value);
         document.title = isExpiredOrScheduled.value
             ? `Page not found - ${appName}`
             : `${content.value.title} - ${appName}`;
