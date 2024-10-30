@@ -7,6 +7,7 @@ import {
     ChevronRightIcon,
     RectangleStackIcon,
     GlobeEuropeAfricaIcon,
+    DocumentChartBarIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -36,6 +37,12 @@ const navigation = ref<NavigationEntry[]>([
             name: p[0],
             to: { name: "overview", params: { docType: DocType.Post, tagOrPostType: p[1] } },
         })),
+    },
+    {
+        name: "Redirects",
+        to: { name: "redirects" },
+        icon: DocumentChartBarIcon,
+        visible: hasAnyPermission(DocType.Redirect, AclPermission.View),
     },
     {
         name: "Tags",
