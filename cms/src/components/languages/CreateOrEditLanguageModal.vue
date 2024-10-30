@@ -35,6 +35,8 @@ const newLanguage = ref<LanguageDto>({
     updatedTimeUtc: Date.now(),
 });
 
+let previousDefaultValueForCurrentLanguage = ref<boolean>(newLanguage.value.default!);
+
 // Watch the passed `language` prop to set the modal in edit mode
 watch(
     () => props.language,
@@ -42,6 +44,8 @@ watch(
         if (newLang) {
             newLanguage.value = { ...newLang };
             previousLanguage.value = _.cloneDeep(newLang); // Clone the language for dirty checking
+            previousDefaultValueForCurrentLanguage.value = previousLanguage.value.default!;
+            console.info(previousDefaultValueForCurrentLanguage.value);
         } else {
             // Reset to a new language if no language is passed (create mode)
             newLanguage.value = {
@@ -59,21 +63,33 @@ watch(
     { immediate: true },
 );
 
-// Function to handle creation or update
+const allLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+
 const saveLanguage = async () => {
     // Update the timestamp
     newLanguage.value.updatedTimeUtc = Date.now();
-
-    if (newLanguage.value.default) {
-        const existingDefault = await db.whereParent(newLanguage.value._id);
-        console.log("Existing default:", existingDefault);
-    }
 
     // Deep clone the `memberOf` array to avoid DataCloneError
     const clonedLanguage = {
         ...newLanguage.value,
         memberOf: [...newLanguage.value.memberOf],
     };
+
+    if (newLanguage.value.default) {
+        // Set other languages' `default` to false if the current language is set as default
+        const updateLanguages = allLanguages.value
+            .filter((language) => language._id !== newLanguage.value._id && language.default)
+            .map((language) => {
+                return db.upsert({
+                    ...language,
+                    memberOf: [...newLanguage.value.memberOf],
+                    default: false,
+                });
+            });
+
+        // Wait for all updates to complete before saving the current language
+        await Promise.all(updateLanguages);
+    }
 
     // Save the cloned language object to the database
     await db.upsert(clonedLanguage);
