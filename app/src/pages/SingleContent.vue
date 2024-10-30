@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { DocType, TagType, db, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
+import {
+    DocType,
+    type RedirectDto,
+    TagType,
+    db,
+    type ContentDto,
+    type TagDto,
+    type Uuid,
+} from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
@@ -37,6 +45,7 @@ const content = db.getBySlugAsRef<ContentDto>(props.slug, {
     parentTags: [],
 } as ContentDto);
 
+const redirectDocs = db.getBySlugAsRef<RedirectDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
 const selectedTagId = ref<Uuid | undefined>();
 const tags = ref<TagDto[]>([]);
@@ -54,6 +63,7 @@ const is404 = computed(() => {
 
 watch(content, async () => {
     if (!content.value) return;
+    console.info(redirectDocs.value);
 
     document.title = is404.value
         ? `Page not found - ${appName}`
@@ -152,6 +162,8 @@ function selectTag(parentId: Uuid) {
 </script>
 
 <template>
+    ALL
+    {{ redirectDocs }}
     <div class="hidden lg:block">
         <div
             @click="router.back()"
