@@ -19,6 +19,7 @@ export enum DocType {
     Redirect = "redirect",
     Group = "group",
     Change = "change",
+    Image = "image",
 }
 
 /**
