@@ -145,6 +145,10 @@ const canTranslate = computed(() => {
     );
 });
 
+const canPublish = computed(() => {
+    return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish);
+});
+
 // Dirty check and save
 const isDirty = computed(
     () =>
@@ -159,6 +163,15 @@ const save = async () => {
         addNotification({
             title: "Changes not saved",
             description: "There are validation errors that prevent saving",
+            state: "error",
+        });
+        return;
+    }
+
+    if (!canPublish.value) {
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You do not have permission to save published content",
             state: "error",
         });
         return;
