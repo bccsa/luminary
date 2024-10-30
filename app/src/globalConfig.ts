@@ -36,25 +36,28 @@ export const initLanguage = () => {
         ) {
             const languagesPreferredByBrowser = navigator.languages;
             const languagePreferredByBrowser = navigator.language;
-            console.info("Preferred language/languages:?", languagePreferredByBrowser);
-            newVal.forEach((val) => {
-                if (
-                    languagesPreferredByBrowser.length > 0 &&
-                    languagesPreferredByBrowser.includes(val.languageCode)
-                ) {
-                    languagesPreferredByBrowser.forEach((lang) => {
-                        if (lang == val.languageCode) {
-                            appLanguageIdAsRef.value = val._id;
-                        }
-                    });
-                } else {
-                    if (val.languageCode == languagePreferredByBrowser) {
-                        appLanguageIdAsRef.value = val._id;
-                    } else {
-                        appLanguageIdAsRef.value = "lang-eng";
-                    }
-                }
-            });
+
+            console.info(
+                "Preferred language/languages:?",
+                languagesPreferredByBrowser,
+                languagePreferredByBrowser,
+            );
+
+            // Check for the preferred language in the available languages
+            const preferredLanguageId = newVal.find((l) =>
+                languagesPreferredByBrowser.includes(l.languageCode),
+            )?._id;
+
+            // If a preferred language exists, set it
+            if (preferredLanguageId) {
+                appLanguageIdAsRef.value = preferredLanguageId;
+            } else {
+                // If no preferred language found, check for the first supported language
+                const firstSupportedLanguageId = newVal[0]?._id; // Assuming the first language is the default if none found in preferences
+
+                // Set to first supported or default to English
+                appLanguageIdAsRef.value = firstSupportedLanguageId || "lang-eng";
+            }
         }
     });
 
