@@ -3,6 +3,7 @@ export enum DocType {
     Content = "content",
     Group = "group",
     Language = "language",
+    Redirect = "redirect",
     Image = "image",
     Media = "media",
     MediaDownload = "mediaDownload",
@@ -25,4 +26,9 @@ export enum TagType {
 export enum PostType {
     Blog = "blog",
     Page = "page",
+}
+
+export enum RedirectType {
+    Permanent = "permanent",
+    Temporary = "temporary",
 }
