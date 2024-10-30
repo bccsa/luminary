@@ -19,6 +19,11 @@
             "permission": ["view"]
         },
         {
+            "type": "redirect",
+            "groupId": "group-public-users",
+            "permission": ["view"]
+        },
+        {
             "type": "post",
             "groupId": "group-public-editors",
             "permission": ["view", "edit", "translate", "publish"]
@@ -34,6 +39,11 @@
             "permission": ["view"]
         },
         {
+            "type": "redirect",
+            "groupId": "group-public-editors",
+            "permission": ["view", "translate", "assign"]
+        },
+        {
             "type": "post",
             "groupId": "group-private-users",
             "permission": ["view"]
@@ -45,6 +55,11 @@
         },
         {
             "type": "language",
+            "groupId": "group-private-users",
+            "permission": ["view"]
+        },
+        {
+            "type": "redirect",
             "groupId": "group-private-users",
             "permission": ["view"]
         }
