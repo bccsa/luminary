@@ -45,7 +45,7 @@ function playerUserActiveEventHandler() {
     }
 }
 
-// cap hide status bar on android
+// hide status bar on android for capacitor app
 function playerFullscreenEventHandler() {
     if (Capacitor.getPlatform() !== "android") return;
     if (!player.isFullscreen()) StatusBar.show();
