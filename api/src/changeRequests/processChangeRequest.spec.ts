@@ -45,7 +45,7 @@ describe("processChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "xho",
                 name: "Xhoza",
-                default: false,
+                default: true,
             },
         };
         const changeRequest2 = {
