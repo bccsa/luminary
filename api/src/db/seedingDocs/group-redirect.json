@@ -1,0 +1,27 @@
+{
+    "_id": "group-redirect",
+    "type": "group",
+    "name": "Redirect",
+    "acl": [
+        {
+            "type": "redirect",
+            "groupId": "group-public-content",
+            "permission": ["view"]
+        },
+        {
+            "type": "redirect",
+            "groupId": "group-private-content",
+            "permission": ["view"]
+        },
+        {
+            "type": "redirect",
+            "groupId": "group-public-editors",
+            "permission": ["view", "translate"]
+        },
+        {
+            "type": "redirect",
+            "groupId": "group-private-editors",
+            "permission": ["view", "translate"]
+        }
+    ]
+}
