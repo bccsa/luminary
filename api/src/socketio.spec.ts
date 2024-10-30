@@ -288,6 +288,45 @@ describe("Socketio", () => {
                     expect(res.docs.length).toBe(1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                 });
+
+                it("can return historical data to the clients after the client received additional access", async () => {
+                    const publicContentAccessMap = {
+                        "group-public-content": {
+                            post: {
+                                view: true,
+                            },
+                            tag: {
+                                view: true,
+                            },
+                            language: {
+                                view: true,
+                            },
+                        },
+                        "group-languages": {
+                            post: {
+                                view: true,
+                            },
+                            tag: {
+                                view: true,
+                            },
+                            language: {
+                                view: true,
+                            },
+                        },
+                    };
+
+                    // Indicate to the API that the client only had access to public content
+                    const res = await socketioTestClient({
+                        cms: false,
+                        version: Date.now() + 1000000,
+                        getAccessMap: true,
+                        accessMap: publicContentAccessMap,
+                    });
+
+                    expect(res.docs.some((d) => d.memberOf.includes("group-private-content"))).toBe(
+                        true,
+                    );
+                });
             });
         });
     });
