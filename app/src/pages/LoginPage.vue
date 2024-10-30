@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
-import BccLogo from "@/components/BccLogo.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 
 const { loginWithRedirect } = useAuth0();
@@ -31,13 +30,7 @@ const loginAsGuest = async () => {
     <div class="mx-auto max-w-lg">
         <LCard title="Log in">
             <div class="flex flex-col gap-5">
-                <LButton
-                    @click="loginWithBcc"
-                    variant="bcc"
-                    size="xl"
-                    :icon="BccLogo"
-                    data-test="login-bcc"
-                >
+                <LButton @click="loginWithBcc" variant="bcc" size="xl" data-test="login-bcc">
                     Log in with BCC
                 </LButton>
                 <LButton
