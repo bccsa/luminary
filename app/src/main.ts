@@ -13,6 +13,7 @@ import { initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
+import { loadPlugins } from "./util/pluginLoader";
 
 initLuminaryShared({ cms: false });
 
@@ -79,3 +80,5 @@ if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID
 app.mount("#app");
 
 CapacitorUpdater.notifyAppReady();
+
+loadPlugins();
