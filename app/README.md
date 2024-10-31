@@ -32,6 +32,34 @@ npm run build
 npx cap sync
 ```
 
+### Plugins
+
+Plugins can be used to extend the functionality of Luminary.
+
+#### How to add plugins
+
+-   To add a plugin you need to add the new typescript file in the [plugins folder](./src/plugins/)
+-   To let luminary run the plugin you need to add a env variable VITE_PLUGINS to your env file and add an array of the plugins you want to add
+-   Every plugin class should have a constructor and a Init function
+
+```
+VITE_PLUGINS=["examplePlugin", "examplePlugin2"]
+```
+
+#### Plugin format
+
+```ts
+export class examplePlugin {
+    constructor() {}
+
+    Init() {
+        return "examplePlugin";
+    }
+}
+```
+
+**Important that the filename and the class name is the same**
+
 ## Build for production
 
 The web version of the app can be deployed as a Docker container by building the `Dockerfile`:
