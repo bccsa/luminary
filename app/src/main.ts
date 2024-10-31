@@ -13,6 +13,7 @@ import { initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
+import { loadPlugins } from "./util/pluginLoader";
 
 initLuminaryShared({ cms: false });
 
@@ -79,45 +80,5 @@ if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID
 app.mount("#app");
 
 CapacitorUpdater.notifyAppReady();
-
-/**
- * Dynamic plugin loading
- * @returns
- */
-const loadPlugins = async () => {
-    if (!import.meta.env.VITE_PLUGINS) return;
-
-    const _p: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
-
-    _p.forEach(async (p) => {
-        dynamicLoadPlugin(p);
-    });
-};
-
-export const dynamicLoadPlugin = async (p: string) => {
-    if (!p) return;
-
-    try {
-        const c = await import(`./plugins/${p}.ts`);
-
-        if (!c || !c[p]) {
-            console.log(`Plugin ${p} does not exists or does not have a constructor.`);
-            return;
-        }
-
-        const _c = new c[p]();
-
-        if (!_c.Init) {
-            console.log(`Plugin ${p} does not have a init function.`);
-            return;
-        }
-
-        _c.Init();
-
-        return _c;
-    } catch (err: any) {
-        console.log(err.message);
-    }
-};
 
 loadPlugins();

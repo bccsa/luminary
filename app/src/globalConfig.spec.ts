@@ -11,7 +11,7 @@ import {
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "./tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { dynamicLoadPlugin } from "./main";
+import { dynamicLoadPlugin } from "./util/pluginLoader";
 
 describe("globalConfig.ts", () => {
     beforeAll(async () => {
