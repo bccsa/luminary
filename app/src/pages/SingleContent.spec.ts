@@ -41,7 +41,7 @@ vi.mock("vue-router", async (importOriginal) => {
 describe("SingleContent", () => {
     beforeEach(() => {
         appLanguageIdAsRef.value = mockLanguageDtoEng._id;
-        console.log("BULKPUTTING");
+
         db.docs.bulkPut([
             mockPostDto,
             mockCategoryDto,
