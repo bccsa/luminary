@@ -150,5 +150,4 @@ export type RedirectDto = ContentBaseDto & {
     redirectType: RedirectType;
     slug: string;
     toSlug?: string;
-    toUrl?: string;
 };
