@@ -12,7 +12,6 @@ import setupAuth from "./auth";
 import { initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
-// @ts-expect-error capgo/capacitor-updater does not have a typescript definition file
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
 
 initLuminaryShared({ cms: false });
