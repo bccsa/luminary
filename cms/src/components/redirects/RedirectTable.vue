@@ -42,13 +42,6 @@ console.log("redirects", redirects.value);
                                 To Slug
                             </th>
 
-                            <!-- To Url -->
-                            <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
-                            >
-                                To Url
-                            </th>
-
                             <!-- updated -->
                             <th
                                 class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"

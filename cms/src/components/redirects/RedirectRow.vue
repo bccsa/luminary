@@ -67,13 +67,6 @@ const handleRedirectUpdate = (updatedRedirect: RedirectDto) => {
             }}</LBadge>
         </td>
 
-        <!-- To Url -->
-        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            <LBadge>{{
-                redirectDoc.toUrl?.length! > 0 ? redirectDoc.toUrl!.toLocaleUpperCase() : "HOMEPAGE"
-            }}</LBadge>
-        </td>
-
         <!-- updated -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             {{ db.toDateTime(redirectDoc.updatedTimeUtc).toLocaleString(DateTime.DATETIME_SHORT) }}

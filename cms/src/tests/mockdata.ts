@@ -11,6 +11,8 @@ import {
     TagType,
     PublishStatus,
     PostType,
+    type RedirectDto,
+    RedirectType,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -297,6 +299,16 @@ export const mockLocalChange2: LocalChangeDto = {
     id: 43,
     doc: mockEnglishContentDto,
     docId: "content-post1-eng",
+};
+
+export const mockRedirectDto: RedirectDto = {
+    _id: "redirect-o",
+    memberOf: ["group-redirect"],
+    type: DocType.Redirect,
+    updatedTimeUtc: 0,
+    redirectType: RedirectType.Temporary,
+    slug: "vod",
+    toSlug: "live",
 };
 
 export const mockGroupDtoPrivateContent: GroupDto = {

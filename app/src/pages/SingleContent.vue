@@ -63,7 +63,16 @@ const is404 = computed(() => {
 
 watch(content, async () => {
     if (!content.value) return;
-    console.info(redirectDocs.value);
+
+    if (content.value.type === DocType.Redirect) {
+        //@ts-ignore -- unessasary conversion warning
+        const redirectDoc: RedirectDto = content.value as RedirectDto;
+        if (redirectDoc.toSlug) {
+            router.replace(redirectDoc.toSlug);
+        } else {
+            router.replace("/");
+        }
+    }
 
     document.title = is404.value
         ? `Page not found - ${appName}`

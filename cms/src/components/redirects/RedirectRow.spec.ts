@@ -1,14 +1,14 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import LanguageRow from "./LanguageRow.vue";
+import RedirectRow from "./RedirectRow.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db } from "luminary-shared";
-import { fullAccessToAllContentMap, mockLanguageDtoEng } from "@/tests/mockdata";
+import { fullAccessToAllContentMap, mockRedirectDto } from "@/tests/mockdata";
 import { DateTime } from "luxon";
 
-describe("LanguageRow.vue", () => {
+describe("RedirectRow.vue", () => {
     beforeEach(async () => {
         setActivePinia(createTestingPinia());
 
@@ -21,21 +21,19 @@ describe("LanguageRow.vue", () => {
         await db.localChanges.clear();
     });
 
-    it("should display the passed language", async () => {
-        const wrapper = mount(LanguageRow, {
+    it("should display the passed redirect", async () => {
+        const wrapper = mount(RedirectRow, {
             props: {
-                languagesDoc: mockLanguageDtoEng,
+                redirectDoc: mockRedirectDto,
             },
         });
 
-        expect(wrapper.html()).toContain("English");
-        expect(wrapper.html()).toContain("ENG");
+        expect(wrapper.html()).toContain("vod");
+        expect(wrapper.html()).toContain("LIVE");
 
         // check if the updated time is formatted correctly according the systems settings
         expect(wrapper.html()).toContain(
-            db
-                .toDateTime(mockLanguageDtoEng.updatedTimeUtc)
-                .toLocaleString(DateTime.DATETIME_SHORT),
+            db.toDateTime(mockRedirectDto.updatedTimeUtc).toLocaleString(DateTime.DATETIME_SHORT),
         );
     });
 });
