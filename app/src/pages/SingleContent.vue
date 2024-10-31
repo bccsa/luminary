@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import {
     DocType,
-    type RedirectDto,
     TagType,
     db,
     type ContentDto,
+    type RedirectDto,
     type TagDto,
     type Uuid,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onBeforeMount, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -45,7 +45,6 @@ const content = db.getBySlugAsRef<ContentDto>(props.slug, {
     parentTags: [],
 } as ContentDto);
 
-const redirectDocs = db.getBySlugAsRef<RedirectDto>(props.slug);
 const tagsContent = ref<ContentDto[]>([]);
 const selectedTagId = ref<Uuid | undefined>();
 const tags = ref<TagDto[]>([]);
@@ -65,10 +64,9 @@ watch(content, async () => {
     if (!content.value) return;
 
     if (content.value.type === DocType.Redirect) {
-        //@ts-ignore -- unessasary conversion warning
-        const redirectDoc: RedirectDto = content.value as RedirectDto;
+        const redirectDoc = content.value as unknown as RedirectDto;
         if (redirectDoc.toSlug) {
-            router.replace(redirectDoc.toSlug);
+            router.replace({ name: "content", params: { slug: redirectDoc.toSlug } });
         } else {
             router.replace("/");
         }
