@@ -8,7 +8,6 @@ import * as Sentry from "@sentry/vue";
 
 import App from "./App.vue";
 import router from "./router";
-import setupAuth from "./auth";
 import { initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
@@ -17,7 +16,7 @@ import { loadPlugins } from "./util/pluginLoader";
 
 initLuminaryShared({ cms: false });
 
-const app = createApp(App);
+export const app = createApp(App);
 
 if (import.meta.env.PROD) {
     Sentry.init({
@@ -30,14 +29,6 @@ if (import.meta.env.PROD) {
 app.use(createPinia());
 
 app.use(router);
-
-// auth0
-async function g() {
-    const oauth = await setupAuth(app, router);
-    app.use(oauth);
-}
-
-g();
 
 // Matomo Analytics
 if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID)

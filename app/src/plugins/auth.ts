@@ -4,7 +4,9 @@ import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { type App, watch } from "vue";
 import type { Router } from "vue-router";
-import AuthBrowser from "./util/authBrowser";
+import AuthBrowser from "../util/authBrowser";
+import router from "../router";
+import { app } from "../main";
 
 const appId = import.meta.env.VITE_CAP_APPID;
 const authDomain = import.meta.env.VITE_AUTH0_DOMAIN;
@@ -12,6 +14,17 @@ const authDomain = import.meta.env.VITE_AUTH0_DOMAIN;
 export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;
 };
+
+export class auth {
+    constructor() {
+        this.Init();
+    }
+
+    async Init() {
+        const oauth = await setupAuth(app, router);
+        app.use(oauth);
+    }
+}
 
 export default async function setupAuth(app: App<Element>, router: Router) {
     const app_scheme = `${appId}://${authDomain}/capacitor/${appId}`;
