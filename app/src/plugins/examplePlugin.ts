@@ -1,7 +1,9 @@
 export class examplePlugin {
-    constructor() {}
+    constructor() {
+        this.someFunction();
+    }
 
-    Init() {
-        return "examplePlugin";
+    someFunction() {
+        return "res";
     }
 }

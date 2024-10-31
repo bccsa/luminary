@@ -63,6 +63,6 @@ describe("globalConfig.ts", () => {
 
     it("can dynamically load a plugin", async () => {
         const _c = await dynamicLoadPlugin("examplePlugin");
-        expect(_c.Init()).toBe("examplePlugin");
+        expect(_c.someFunction()).toBe("res");
     });
 });
