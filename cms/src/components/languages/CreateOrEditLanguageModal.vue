@@ -93,6 +93,7 @@ const saveLanguage = async () => {
 
     // Save the cloned language object to the database
     await db.upsert(clonedLanguage);
+    console.log("CLONED:", clonedLanguage);
 
     if (isEditMode.value) {
         emit("updated", clonedLanguage); // Emit update event if editing

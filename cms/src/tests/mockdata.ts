@@ -271,6 +271,7 @@ export const mockLanguageDtoEng: LanguageDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-languages"],
     languageCode: "eng",
+    default: false,
     name: "English",
 };
 export const mockLanguageDtoFra: LanguageDto = {

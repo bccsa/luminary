@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import CreateOrEditLanguageModal from "./CreateOrEditLanguageModal.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { accessMap, db } from "luminary-shared";
+import { accessMap, db, DocType, type LanguageDto } from "luminary-shared";
 import {
     fullAccessToAllContentMap,
     mockLanguageDtoEng,
@@ -14,6 +14,7 @@ import {
 import waitForExpect from "wait-for-expect";
 import GroupSelector from "../groups/GroupSelector.vue";
 import { ComboboxInput } from "@headlessui/vue";
+import LToggle from "../forms/LToggle.vue";
 
 describe("CreateOrEditLanguageModal.vue", () => {
     beforeEach(async () => {
@@ -119,5 +120,46 @@ describe("CreateOrEditLanguageModal.vue", () => {
 
         // Assert the close event was emitted
         expect(wrapper.emitted().close).toBeTruthy();
+    });
+
+    it("resets other languages to not be default when a new default language is selected", async () => {
+        await db.docs.clear();
+
+        const mockLanguageDtoSpa = {
+            _id: "spanish-id",
+            name: "Spanish",
+            languageCode: "spa",
+            default: false,
+            memberOf: [],
+            type: DocType.Language,
+            updatedTimeUtc: Date.now(),
+        };
+
+        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSpa]);
+
+        const wrapper = mount(CreateOrEditLanguageModal, {
+            props: {
+                isVisible: true,
+                language: mockLanguageDtoEng,
+            },
+        });
+
+        await wrapper.findComponent(LToggle).setValue(true);
+
+        await wrapper.find("[data-test='save-button']").trigger("click");
+
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(async () => {
+            const updatedLanguages = await db.docs.where("type").equals(DocType.Language).toArray();
+
+            const spanishLanguage = updatedLanguages.find((lang) => lang._id === "spanish-id");
+            //@ts-ignore
+            expect(spanishLanguage?.default).toBe(false); // Spanish should not be default anymore
+            //@ts-ignore
+            const englishLanguage = updatedLanguages.find((lang) => lang.languageCode === "eng");
+            //@ts-ignore --> Used for unessasary type errors
+            expect(englishLanguage?.default).toBe(true);
+        });
     });
 });
