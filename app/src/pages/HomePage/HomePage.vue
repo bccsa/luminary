@@ -4,5 +4,7 @@ import HomePageContent from "./HomePageContent.vue";
 </script>
 
 <template>
-    <HomePageContent :key="appLanguageIdAsRef" class="mb-4" />
+    <Suspense>
+        <HomePageContent :key="appLanguageIdAsRef" class="mb-4" />
+    </Suspense>
 </template>

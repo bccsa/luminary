@@ -666,6 +666,7 @@ describe("Database", () => {
                 {
                     _id: "doc3",
                     type: DocType.Content, // Test Content documents
+                    memberOf: ["group-private-users"],
                     parentId: "doc1",
                     updatedTimeUtc: 0,
                 },
@@ -679,6 +680,7 @@ describe("Database", () => {
                 {
                     _id: "doc5",
                     type: DocType.Change, // Test change documents of type Content
+                    memberOf: ["group-private-users"],
                     docType: DocType.Content,
                     parentId: "doc2",
                     updatedTimeUtc: 0,
@@ -692,6 +694,7 @@ describe("Database", () => {
                 {
                     _id: "doc7",
                     type: DocType.Content,
+                    memberOf: ["group-private-users", "group-public-users"], // This document should not be removed as it is also a member of 'group-public-users'
                     parentId: "doc6", // This document should not be removed as it's parent is also a member of 'group-public-users'
                     updatedTimeUtc: 0,
                 },
@@ -852,7 +855,39 @@ describe("Database", () => {
                 expect(remainingDocs.find((doc) => doc._id === "group-public-users")).toBeDefined();
             });
         });
+
+        it("clears the query cache when documents are deleted due to access revocation", async () => {
+            const docs = [
+                {
+                    _id: "doc1",
+                    type: DocType.Post, // Test Post documents
+                    memberOf: ["group-private-users"],
+                    updatedTimeUtc: 0,
+                },
+            ];
+            await db.docs.bulkPut(docs);
+
+            // Manually add a query to the cache
+            await db.setQueryCache("test-query", [
+                { ...mockEnglishContentDto, memberOf: ["group-private-content"] },
+            ]);
+
+            // Simulate receiving an accessMap update that only gives access to 'group-public-content'
+            accessMap.value = {
+                "group-public-content": {
+                    [DocType.Post]: {
+                        view: true,
+                    },
+                },
+            };
+
+            await waitForExpect(async () => {
+                const queryCache = await db.queryCache.toArray();
+                expect(queryCache.length).toBe(0);
+            });
+        });
     });
+
     it("deletes expired documents when not in cms-mode", async () => {
         initLuminaryShared({ cms: false });
 

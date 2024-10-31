@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { nextTick } from "vue";
 import NotFoundPage from "../pages/NotFoundPage.vue";
-import HomePage from "../pages/HomePage.vue";
+import HomePage from "../pages/HomePage/HomePage.vue";
 import SettingsPage from "@/pages/SettingsPage.vue";
 import LoginPage from "@/pages/LoginPage.vue";
 import { isNotAuthenticatedGuard } from "@/guards/isNotAuthenticatedGuard";

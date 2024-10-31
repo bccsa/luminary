@@ -27,6 +27,7 @@ export type BaseDocumentDto = {
     tagType?: TagType;
     parentTagType?: TagType;
     parentTags?: Uuid[];
+    parentPinned?: number;
 };
 
 export enum AclPermission {
@@ -138,4 +139,9 @@ export type LocalChangeDto = {
     id: number;
     doc: BaseDocumentDto;
     docId: Uuid;
+};
+
+export type queryCacheDto<T extends BaseDocumentDto> = {
+    id: string;
+    result: T[];
 };

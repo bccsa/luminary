@@ -8,6 +8,7 @@ import {
     LocalChangeDto,
     PostType,
     PublishStatus,
+    queryCacheDto,
     TagDto,
     TagType,
     Uuid,
@@ -20,6 +21,7 @@ import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
+import _ from "lodash";
 
 export type QueryOptions = {
     filterOptions?: {
@@ -63,18 +65,19 @@ export type QueryOptions = {
 };
 
 class Database extends Dexie {
-    // TODO: Make tables private
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
+    queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     private accessMapRef = accessMap;
 
     constructor() {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(10).stores({
+        this.version(11).stores({
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             localChanges: "++id, reqId, docId, status",
+            queryCache: "id",
         });
 
         this.deleteExpired();
@@ -548,6 +551,27 @@ class Database extends Dexie {
     }
 
     /**
+     * Set a query result to the query cache
+     * @param id - Unique ID for the query
+     * @param result - The query result to be stored
+     * @returns True if the query cache has been updated
+     */
+    async setQueryCache<T extends BaseDocumentDto[]>(id: string, result: T) {
+        const prev = await this.queryCache.get(id);
+        if (_.isEqual(prev?.result, result)) return false;
+        await this.queryCache.put({ id, result: toRaw(result) });
+        return true;
+    }
+
+    /**
+     * Get a query result from the query cache
+     * @param id - Unique ID for the query
+     */
+    async getQueryCache<T extends BaseDocumentDto[]>(id: string) {
+        return ((await this.queryCache.get(id))?.result as T) || Array<T>();
+    }
+
+    /**
      * Return a list of documents and change documents of specified DocType that are NOT members of the given groupIds as a Dexie collection
      */
     private whereNotMemberOfAsCollection(
@@ -611,6 +635,11 @@ class Database extends Dexie {
                     const revokedLanguages = await revokedDocs.toArray();
                     const revokedlanguageIds = revokedLanguages.map((l) => l._id);
                     await this.docs.where("language").anyOf(revokedlanguageIds).delete();
+                }
+
+                // Clear the query cache if any documents are to be deleted
+                if ((await revokedDocs.count()) > 0) {
+                    await this.queryCache.clear();
                 }
 
                 await revokedDocs.delete();
