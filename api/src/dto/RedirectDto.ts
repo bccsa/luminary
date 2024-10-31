@@ -19,9 +19,4 @@ export class RedirectDto extends _contentBaseDto {
     @IsOptional()
     @Expose()
     toSlug?: string;
-
-    @IsString()
-    @IsOptional()
-    @Expose()
-    toUrl?: string;
 }
