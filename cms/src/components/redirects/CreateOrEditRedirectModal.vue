@@ -73,8 +73,16 @@ const isDirty = computed(() => {
     return validateForm(); // Always validate fields in create mode
 });
 // Form validation to check if all fields are filled
+const validationError = ref("");
 const validateForm = () => {
-    return newRedirect.value.slug.trim() !== "" && newRedirect.value.memberOf.length > 0;
+    const bothUrlAndToSlugEntered = !(newRedirect.value.toSlug && newRedirect.value.toUrl);
+    if (!bothUrlAndToSlugEntered) validationError.value = "Only one location can be redirected to";
+    else validationError.value = "";
+    return (
+        newRedirect.value.slug.trim() !== "" &&
+        newRedirect.value.memberOf.length > 0 &&
+        bothUrlAndToSlugEntered
+    );
 };
 const redirectExplanation = ref("");
 const redirectTemporary = computed(() => {
@@ -132,20 +140,12 @@ const redirectTemporary = computed(() => {
                 placeholder="The slug that will be redirected to..."
             />
 
-            <LInput
-                label="To Url"
-                name="RedirectToUrl"
-                v-model="newRedirect.toUrl"
-                class="mb-4 w-full"
-                placeholder="Url to be redirected to"
-            />
-
             <GroupSelector
                 name="memberOf"
                 v-model:groups="newRedirect.memberOf"
                 :docType="DocType.Redirect"
             />
-
+            {{ validationError }}
             <div class="flex justify-end gap-4 pt-5">
                 <LButton variant="secondary" data-test="cancel" @click="emit('close')"
                     >Cancel</LButton

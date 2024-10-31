@@ -9,7 +9,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeMount, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -162,8 +162,6 @@ function selectTag(parentId: Uuid) {
 </script>
 
 <template>
-    ALL
-    {{ redirectDocs }}
     <div class="hidden lg:block">
         <div
             @click="router.back()"
