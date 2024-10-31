@@ -74,7 +74,7 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
 
 <template>
     <div class="relative" :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <FormLabel> Group Membership </FormLabel>
+        <FormLabel> Group membership </FormLabel>
         <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
             <LInput
                 @click="showGroups = true"
