@@ -11,7 +11,7 @@ import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
 import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
-import { RedirectDto } from "src/dto/RedirectDto";
+import { RedirectDto } from "../dto/RedirectDto";
 
 /**
  * DocType to DTO map
