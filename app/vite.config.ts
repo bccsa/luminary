@@ -2,7 +2,9 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { viteStaticCopy } from "vite-plugin-static-copy";
-import fs from "fs";
+import util from "util";
+import child_process from "child_process";
+const exec = util.promisify(child_process.exec);
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -19,14 +21,18 @@ export default defineConfig({
         // Load plugins
         {
             name: "Load Plugins For Build",
-            buildStart() {
+            async buildStart() {
                 // load .env file
                 process.env = { ...process.env, ...loadEnv("", process.cwd()) };
                 const pluginPath = process.env.VITE_PLUGIN_PATH;
 
                 if (!pluginPath) return;
                 // copy plugins into plugins folder
-                fs.cpSync(pluginPath, "./src/plugins", { recursive: true });
+                try {
+                    await exec(`cp -R ${pluginPath} ./src/plugins`);
+                } catch (err: any) {
+                    console.log(err.message);
+                }
             },
         },
     ],
