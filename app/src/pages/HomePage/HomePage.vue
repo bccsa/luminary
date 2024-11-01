@@ -59,7 +59,7 @@ setTimeout(() => {
             </div>
         </div>
     </div>
-    <IgnorePagePadding v-else>
+    <IgnorePagePadding v-else class="mb-4">
         <Suspense>
             <HomePageNewest />
         </Suspense>
