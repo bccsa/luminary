@@ -21,7 +21,6 @@ import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
-import _ from "lodash";
 
 export type QueryOptions = {
     filterOptions?: {
@@ -554,13 +553,9 @@ class Database extends Dexie {
      * Set a query result to the query cache
      * @param id - Unique ID for the query
      * @param result - The query result to be stored
-     * @returns True if the query cache has been updated
      */
     async setQueryCache<T extends BaseDocumentDto[]>(id: string, result: T) {
-        const prev = await this.queryCache.get(id);
-        if (_.isEqual(prev?.result, result)) return false;
-        await this.queryCache.put({ id, result: toRaw(result) });
-        return true;
+        return await this.queryCache.put({ id, result: toRaw(result) });
     }
 
     /**

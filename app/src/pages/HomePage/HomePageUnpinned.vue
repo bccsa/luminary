@@ -36,7 +36,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
 );
 
 watch(newest100Content, async (value) => {
-    await db.setQueryCache<ContentDto[]>("homepage_newest100Content", value);
+    db.setQueryCache<ContentDto[]>("homepage_newest100Content", value);
 });
 
 const categoryIds = computed(() =>
