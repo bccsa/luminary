@@ -29,7 +29,7 @@ export default defineConfig({
                 if (!pluginPath) return;
                 // copy plugins into plugins folder
                 try {
-                    await exec(`cp -R ${pluginPath} ./src/plugins`);
+                    await exec(`cp -R ${pluginPath}/* ./src/plugins`);
                 } catch (err: any) {
                     console.log(err.message);
                 }
