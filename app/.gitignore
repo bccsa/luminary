@@ -36,4 +36,3 @@ playwright-report/
 # plugins
 src/plugins/*
 !src/plugins/examplePlugin.ts
-!src/plugins/auth.ts
