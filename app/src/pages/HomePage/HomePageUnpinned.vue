@@ -1,19 +1,27 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { type ContentDto, DocType, db, type Uuid } from "luminary-shared";
+import { computed, watch } from "vue";
+import {
+    type ContentDto,
+    DocType,
+    db,
+    type Uuid,
+    useDexieLiveQueryWithDeps,
+    TagType,
+} from "luminary-shared";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import HomePageUnpinnedContent from "./HomePageUnpinnedContent.vue";
-import _ from "lodash";
+import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
+import { contentByCategory } from "./contentByCategory";
 
-const newest100Content = db.toRef<ContentDto[]>(
-    () =>
+const newest100Content = useDexieLiveQueryWithDeps(
+    appLanguageIdAsRef,
+    (appLanguageId) =>
         db.docs
             .orderBy("publishDate")
             .reverse()
             .filter((c) => {
                 const content = c as ContentDto;
                 if (content.type !== DocType.Content) return false;
-                if (content.language !== appLanguageIdAsRef.value) return false;
+                if (content.language !== appLanguageId) return false;
 
                 // Only include published content
                 if (content.status !== "published") return false;
@@ -24,7 +32,7 @@ const newest100Content = db.toRef<ContentDto[]>(
             })
             .limit(100) // Limit to the newest posts
             .toArray() as unknown as Promise<ContentDto[]>,
-    await db.getQueryCache<ContentDto[]>("homepage_newest100Content"),
+    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_newest100Content") },
 );
 
 watch(newest100Content, async (value) => {
@@ -40,31 +48,47 @@ const categoryIds = computed(() =>
         }),
 );
 
-// Refresh the component when the categoryIds change
-let categoryIds_prev: Uuid[];
-const refreshKey = ref(0);
-watch(categoryIds, async (value) => {
-    value.sort();
-    if (!categoryIds_prev) {
-        categoryIds_prev = value;
-        refreshKey.value++;
-        console.log("a", refreshKey.value);
-        return;
-    }
+const categories = useDexieLiveQueryWithDeps(
+    [categoryIds, appLanguageIdAsRef],
+    ([_categoryIds, appLanguageId]: [Uuid[], Uuid]) =>
+        db.docs
+            .where("parentId")
+            .anyOf(_categoryIds)
+            .filter((content) => {
+                const _content = content as ContentDto;
+                if (_content.parentType !== DocType.Tag) return false;
+                if (!_content.parentTagType) return false;
+                if (!_content.publishDate) return false;
+                if (_content.status !== "published") return false;
+                if (_content.publishDate > Date.now()) return false;
+                if (_content.expiryDate && _content.expiryDate < Date.now()) return false;
+                if (_content.parentPinned) return false;
+                return (
+                    _content.parentTagType == TagType.Category &&
+                    _content.language === appLanguageId
+                );
+            })
+            .toArray() as unknown as Promise<ContentDto[]>,
+    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_unpinnedCategories") },
+);
 
-    if (!_.isEqual(value, categoryIds_prev)) {
-        categoryIds_prev = value;
-        refreshKey.value++;
-        console.log("b", refreshKey.value);
-    }
-});
+watch(
+    () => categories.value,
+    (value) => {
+        db.setQueryCache<ContentDto[]>("homepage_unpinnedCategories", value);
+    },
+);
+
+const unpinnedNewestContentByCategory = contentByCategory(newest100Content, categories);
 </script>
 
 <template>
-    <HomePageUnpinnedContent
-        :newestContent="newest100Content"
-        :categoryIds="categoryIds"
-        v-if="newest100Content.length"
-        :key="refreshKey"
+    <HorizontalContentTileCollection
+        v-for="c in unpinnedNewestContentByCategory"
+        :key="c.category._id"
+        :contentDocs="c.content"
+        :title="c.category.title"
+        :summary="c.category.summary"
+        class="pt-4"
     />
 </template>

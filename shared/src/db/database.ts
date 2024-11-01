@@ -658,7 +658,7 @@ class Database extends Dexie {
      * Purge the local database
      */
     async purge() {
-        await Promise.all([this.docs.clear(), this.localChanges.clear()]);
+        await Promise.all([this.docs.clear(), this.localChanges.clear(), this.queryCache.clear()]);
         this.syncVersion = 0;
     }
 }

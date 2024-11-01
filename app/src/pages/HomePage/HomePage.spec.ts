@@ -17,7 +17,6 @@ import {
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 import HomePagePinned from "./HomePagePinned.vue";
-import HomePageUnpinnedContent from "./HomePageUnpinnedContent.vue";
 
 vi.mock("@auth0/auth0-vue");
 vi.mock("vue-router");
@@ -130,7 +129,7 @@ describe("HomePage.vue", () => {
             const wrapper = mount(HomePage);
 
             await waitForExpect(() => {
-                const unpinnedComponent = wrapper.findComponent(HomePageUnpinnedContent);
+                const unpinnedComponent = wrapper.findComponent(HomePage);
                 expect(unpinnedComponent.exists()).toBe(true);
                 expect(wrapper.text()).toContain(mockCategoryContentDto.title);
             });
