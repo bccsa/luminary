@@ -33,11 +33,12 @@ app.use(router);
 
 // Startup
 async function Startup() {
-    // wait to load plugins before mounting the app
-    await loadPlugins();
     // setup auth0
+    app.config.globalProperties.$auth = null; // Clear existing auth
     const oauth = await auth.setupAuth(app, router);
     app.use(oauth);
+    // wait to load plugins before mounting the app
+    await loadPlugins();
 
     app.mount("#app");
 }
