@@ -16,7 +16,7 @@ import {
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
-import HomePagePinned from "./HomePagePinned.vue";
+import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 
 vi.mock("@auth0/auth0-vue");
 vi.mock("vue-router");

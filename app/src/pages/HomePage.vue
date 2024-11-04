@@ -4,9 +4,9 @@ import { type ContentDto, DocType, db } from "luminary-shared";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
-import HomePagePinned from "./HomePagePinned.vue";
-import HomePageUnpinned from "./HomePageUnpinned.vue";
-import HomePageNewest from "./HomePageNewest.vue";
+import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
+import HomePageUnpinned from "@/components/HomePage/HomePageUnpinned.vue";
+import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 
 const { isAuthenticated } = useAuth0();
 
