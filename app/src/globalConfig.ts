@@ -35,13 +35,6 @@ export const initLanguage = () => {
             (!appLanguageIdAsRef.value || !newVal.some((l) => l._id === appLanguageIdAsRef.value))
         ) {
             const languagesPreferredByBrowser = navigator.languages;
-            const languagePreferredByBrowser = navigator.language;
-
-            console.info(
-                "Preferred language/languages:?",
-                languagesPreferredByBrowser,
-                languagePreferredByBrowser,
-            );
 
             // Check for the preferred language in the available languages
             const preferredLanguageId = newVal.find((l) =>
@@ -55,8 +48,8 @@ export const initLanguage = () => {
                 // If no preferred language found, check for the first supported language
                 const firstSupportedLanguageId = newVal[0]?._id; // Assuming the first language is the default if none found in preferences
 
-                // Set to first supported or default to English
-                appLanguageIdAsRef.value = firstSupportedLanguageId || "lang-eng";
+                // Set to first supported language
+                appLanguageIdAsRef.value = firstSupportedLanguageId;
             }
         }
     });
