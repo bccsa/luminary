@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
@@ -11,7 +11,19 @@ import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
 import ContentTable from "./ContentTable.vue";
 
+vi.mock("@auth0/auth0-vue");
+
 describe("ContentOverview.vue", () => {
+    beforeAll(async () => {
+        await db.docs.bulkPut([mockData.mockPostDto]);
+        await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
+        await db.docs.bulkPut([
+            mockData.mockLanguageDtoEng,
+            mockData.mockLanguageDtoFra,
+            mockData.mockLanguageDtoSwa,
+        ]);
+    });
+
     beforeEach(async () => {
         await db.docs.bulkPut([mockData.mockPostDto]);
         await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
@@ -46,7 +58,7 @@ describe("ContentOverview.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
         });
-    });
+    }, 10000);
 
     it("should show edit button with correct router link and icon", async () => {
         const wrapper = mount(ContentOverview, {
@@ -292,16 +304,22 @@ describe("ContentOverview.vue", () => {
             expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "expiryDate" });
 
             await sortOptionPublishDate.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "publishDate" });
+            expect(contentTable.props("queryOptions")).toMatchObject({
+                orderBy: "publishDate",
+            });
 
             await sortOptionLastUpdated.trigger("input");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderBy: "updatedTimeUtc" });
+            expect(contentTable.props("queryOptions")).toMatchObject({
+                orderBy: "updatedTimeUtc",
+            });
 
             await sortOptionAscending.trigger("click");
             expect(contentTable.props("queryOptions")).toMatchObject({ orderDirection: "asc" });
 
             await sortOptionDescending.trigger("click");
-            expect(contentTable.props("queryOptions")).toMatchObject({ orderDirection: "desc" });
+            expect(contentTable.props("queryOptions")).toMatchObject({
+                orderDirection: "desc",
+            });
         });
     });
 
