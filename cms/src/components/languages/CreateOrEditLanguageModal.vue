@@ -45,7 +45,6 @@ watch(
             newLanguage.value = { ...newLang };
             previousLanguage.value = _.cloneDeep(newLang); // Clone the language for dirty checking
             previousDefaultValueForCurrentLanguage.value = previousLanguage.value.default!;
-            console.info(previousDefaultValueForCurrentLanguage.value);
         } else {
             // Reset to a new language if no language is passed (create mode)
             newLanguage.value = {
@@ -67,8 +66,6 @@ const allLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const isNewLanguageDefault = ref(newLanguage.value.default === 0 ? false : true);
 
 watch(isNewLanguageDefault, (newValue) => {
-    console.info(isNewLanguageDefault.value);
-
     if (!newValue) {
         newLanguage.value.default = 0;
         return;
