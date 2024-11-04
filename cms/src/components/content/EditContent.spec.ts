@@ -1,4 +1,4 @@
-import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
+import { describe, it, afterEach, beforeEach, expect, vi, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { db, DocType, type ContentDto, accessMap, PostType } from "luminary-shared";
@@ -8,6 +8,7 @@ import EditContent from "./EditContent.vue";
 import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 
+vi.mock("@auth0/auth0-vue");
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -22,10 +23,25 @@ vi.mock("vue-router", async (importOriginal) => {
                 },
             },
         }),
+        onBeforeRouteLeave: vi.fn(),
     };
 });
 
+// @ts-expect-error
+window.scrollTo = vi.fn();
+
 describe("EditContent.vue", () => {
+    beforeAll(async () => {
+        // seed the fake indexDB with mock datas
+        await db.docs.bulkPut([mockData.mockPostDto]);
+        await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
+        await db.docs.bulkPut([
+            mockData.mockLanguageDtoEng,
+            mockData.mockLanguageDtoFra,
+            mockData.mockLanguageDtoSwa,
+        ]);
+    });
+
     beforeEach(async () => {
         // Set up the Pinia store before each test
         setActivePinia(createTestingPinia());
@@ -48,6 +64,7 @@ describe("EditContent.vue", () => {
         // Clear the database after each test
         await db.docs.clear();
         await db.localChanges.clear();
+        vi.clearAllMocks();
     });
 
     it("can load content from the database", async () => {

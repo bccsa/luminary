@@ -51,7 +51,13 @@ describe("EditGroup.vue", () => {
         return wrapper;
     };
 
-    beforeAll(() => {
+    beforeAll(async () => {
+        await db.docs.bulkPut([
+            mockGroupDtoPublicContent,
+            mockGroupDtoPublicEditors,
+            mockGroupDtoPublicUsers,
+            mockGroupDtoSuperAdmins,
+        ]);
         accessMap.value = superAdminAccessMap;
     });
 
