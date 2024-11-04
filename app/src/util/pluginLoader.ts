@@ -7,9 +7,12 @@ export const loadPlugins = async () => {
 
     const _p: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
 
+    const _a: any = [];
     _p.forEach(async (p) => {
-        dynamicLoadPlugin(p);
+        _a.push(dynamicLoadPlugin(p));
     });
+
+    await Promise.all(_a);
 };
 
 export const dynamicLoadPlugin = async (p: string) => {

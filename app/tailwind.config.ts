@@ -4,7 +4,7 @@ import twScrollbarHide from "tailwind-scrollbar-hide";
 
 export default {
     darkMode: "class",
-    content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
+    content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}", "!./src/**/node_modules"],
     theme: {
         extend: {
             fontFamily: {

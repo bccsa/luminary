@@ -8,16 +8,15 @@ import * as Sentry from "@sentry/vue";
 
 import App from "./App.vue";
 import router from "./router";
-import setupAuth from "./auth";
+import auth from "./auth";
 import { initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
-import { CapacitorUpdater } from "@capgo/capacitor-updater";
 import { loadPlugins } from "./util/pluginLoader";
 
 initLuminaryShared({ cms: false });
 
-const app = createApp(App);
+export const app = createApp(App);
 
 if (import.meta.env.PROD) {
     Sentry.init({
@@ -31,13 +30,19 @@ app.use(createPinia());
 
 app.use(router);
 
-// auth0
-async function g() {
-    const oauth = await setupAuth(app, router);
+// Startup
+async function Startup() {
+    // setup auth0
+    app.config.globalProperties.$auth = null; // Clear existing auth
+    const oauth = await auth.setupAuth(app, router);
     app.use(oauth);
+    // wait to load plugins before mounting the app
+    await loadPlugins();
+
+    app.mount("#app");
 }
 
-g();
+Startup();
 
 // Matomo Analytics
 if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID)
@@ -76,9 +81,3 @@ if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID
         });
     }
 }
-
-app.mount("#app");
-
-CapacitorUpdater.notifyAppReady();
-
-loadPlugins();
