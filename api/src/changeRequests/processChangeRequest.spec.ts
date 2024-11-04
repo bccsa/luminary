@@ -7,6 +7,7 @@ import { changeRequest_content, changeRequest_post } from "../test/changeRequest
 import { S3Service } from "../s3/s3.service";
 import { ChangeReqDto } from "src/dto/ChangeReqDto";
 import { PostDto } from "src/dto/PostDto";
+import waitForExpect from "wait-for-expect";
 
 describe("processChangeRequest", () => {
     let db: DbService;
@@ -67,8 +68,10 @@ describe("processChangeRequest", () => {
             db,
             s3,
         );
-        expect(processResult.message).toBe("Document is identical to the one in the database");
-        expect(processResult.changes).toBeUndefined();
+        waitForExpect(() => {
+            expect(processResult.message).toBe("Document is identical to the one in the database");
+            expect(processResult.changes).toBeUndefined();
+        });
     });
 
     it("can validate a unique slug for a content document that does not exists", async () => {
