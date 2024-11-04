@@ -53,7 +53,7 @@ export type LanguageDto = ContentBaseDto & {
     type: DocType.Language;
     languageCode: string;
     name: string;
-    default?: boolean;
+    default?: number;
 };
 
 export type ContentDto = ContentBaseDto & {
