@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { db, DocType, type LanguageDto } from "luminary-shared";
+import { AclPermission, db, DocType, verifyAccess, type LanguageDto } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
@@ -24,6 +24,9 @@ const emit = defineEmits(["close", "created", "updated"]);
 // Check if we are in edit mode (if a language is passed)
 const isEditMode = computed(() => !!props.language);
 
+const canEditOrCreate =
+    verifyAccess(["group-private-editors"], DocType.Language, AclPermission.Edit) ||
+    verifyAccess(["group-private-editors"], DocType.Language, AclPermission.Edit);
 // New language or edited language object
 const newLanguage = ref<LanguageDto>({
     _id: db.uuid(), // Generate new ID for create mode
@@ -144,6 +147,7 @@ const validateForm = () => {
                 v-model="newLanguage.name"
                 class="mb-4 w-full"
                 placeholder="Enter language name"
+                :disabled="!canEditOrCreate"
             />
 
             <LInput
@@ -152,12 +156,14 @@ const validateForm = () => {
                 v-model="newLanguage.languageCode"
                 class="mb-4 w-full"
                 placeholder="Enter language code"
+                :disabled="!canEditOrCreate"
             />
 
             <GroupSelector
                 v-model:groups="newLanguage.memberOf"
                 :docType="DocType.Language"
                 data-test="group-selector"
+                :disabled="!canEditOrCreate"
             />
 
             <div class="mt-2 flex items-center justify-between">
@@ -167,6 +173,7 @@ const validateForm = () => {
                 <LToggle
                     name="is-language-default-toggle"
                     v-model:model-value="isNewLanguageDefault"
+                    :disabled="!canEditOrCreate"
                 />
             </div>
 

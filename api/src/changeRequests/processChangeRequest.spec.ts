@@ -45,7 +45,7 @@ describe("processChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "xho",
                 name: "Xhoza",
-                default: true,
+                default: 0,
             },
         };
         const changeRequest2 = {
@@ -56,7 +56,7 @@ describe("processChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "xho",
                 name: "Xhoza",
-                default: true,
+                default: 0,
             },
         };
         await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
