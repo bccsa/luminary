@@ -171,7 +171,7 @@ const save = async () => {
     if (!canPublish.value) {
         addNotification({
             title: "Insufficient Permissions",
-            description: "You do not have permission to save published content",
+            description: "You do not have publish permissions",
             state: "error",
         });
         return;
