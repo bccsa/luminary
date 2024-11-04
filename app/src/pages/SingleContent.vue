@@ -2,7 +2,6 @@
 import { DocType, TagType, db, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
-import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -23,26 +22,44 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const content = db.getBySlugAsRef<ContentDto>(props.slug);
+// Fetch content based on the slug. While waiting for the content to load, show placeholder content.
+const content = db.getBySlugAsRef<ContentDto>(props.slug, {
+    _id: "",
+    type: DocType.Content,
+    updatedTimeUtc: 0,
+    memberOf: [],
+    parentId: "",
+    language: appLanguageIdAsRef.value,
+    status: "published",
+    title: "Loading...",
+    slug: "",
+    publishDate: 0,
+    parentTags: [],
+} as ContentDto);
+
 const tagsContent = ref<ContentDto[]>([]);
 const selectedTagId = ref<Uuid | undefined>();
 const tags = ref<TagDto[]>([]);
 const hasContent = ref(false);
 
-const isExpiredOrScheduled = computed(() => {
-    if (!content.value) return false;
-    return (
-        (content.value.publishDate && content.value.publishDate > Date.now()) ||
-        (content.value.expiryDate && content.value.expiryDate < Date.now())
-    );
+// Todo: Create a isLoading ref in Luminary shared to determine if the content is still loading (waiting for data to stream from the API) before showing a 404 error.
+
+const is404 = computed(() => {
+    if (!content.value) return true; // if the content is not avaiable, it's a 404
+    if (content.value.status != "published") return true; // if the content is not published, it's a 404
+    if (content.value.publishDate && content.value.publishDate > Date.now()) return true; // if the content is scheduled for the future, it's a 404
+    if (content.value.expiryDate && content.value.expiryDate < Date.now()) return true; // if the content is expired, it's a 404
+    return false;
 });
 
 watch(content, async () => {
     if (!content.value) return;
 
-    document.title = isExpiredOrScheduled.value
+    document.title = is404.value
         ? `Page not found - ${appName}`
         : `${content.value.seoTitle ? content.value.seoTitle : content.value.title} - ${appName}`;
+
+    if (is404.value) return;
 
     // Seo meta tag settings
     let metaTag = document.querySelector("meta[name='description']");
@@ -54,8 +71,6 @@ watch(content, async () => {
     }
     // Update the content attribute
     metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
-
-    if (isExpiredOrScheduled.value) return;
 
     const tagIds = content.value.parentTags.concat([content.value.parentId]); // Include this content's parent ID to include content tagged with the parent (if the parent is a tag document).
 
@@ -72,9 +87,10 @@ watch(content, async () => {
 });
 
 watch(
-    appLanguageAsRef,
+    () => appLanguageAsRef.value,
     async () => {
         if (!content.value) return;
+        if (!content.value.slug) return; // If there is no slug we are still showing the placeholder content
 
         if (appLanguageAsRef.value?._id != content.value.language) {
             const contentDocs = await db.whereParent(content.value.parentId);
@@ -86,6 +102,7 @@ watch(
                 return;
             }
             useNotificationStore().addNotification({
+                id: "translation-not-found",
                 title: "Translation not found",
                 description: `There is no ${appLanguageAsRef.value?.name} translation for this content.`,
                 state: "error",
@@ -93,10 +110,7 @@ watch(
             });
         }
     },
-    { immediate: true },
 );
-
-const isLoading = computed(() => content.value === undefined);
 
 const text = computed(() => {
     if (!content.value.text) {
@@ -148,11 +162,7 @@ function selectTag(parentId: Uuid) {
         </div>
     </div>
 
-    <div v-if="isLoading">
-        <LoadingSpinner />
-    </div>
-
-    <NotFoundPage v-else-if="isExpiredOrScheduled" />
+    <NotFoundPage v-if="is404" />
     <div v-else class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
         <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl">
             <VideoPlayer v-if="content.video" :content="content" />
