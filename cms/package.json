@@ -17,7 +17,7 @@
     },
     "dependencies": {
         "@auth0/auth0-vue": "^2.3.3",
-        "@sentry/vue": "^7.110.1",
+        "@sentry/vue": "^8.36.0",
         "@tiptap/extension-link": "^2.7.2",
         "@tiptap/pm": "^2.3.0",
         "@tiptap/starter-kit": "^2.7.2",
