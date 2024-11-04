@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import CreateOrEditLanguageModal from "./CreateOrEditLanguageModal.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { accessMap, db, DocType, type LanguageDto } from "luminary-shared";
+import { accessMap, db, DocType } from "luminary-shared";
 import {
     fullAccessToAllContentMap,
     mockLanguageDtoEng,
