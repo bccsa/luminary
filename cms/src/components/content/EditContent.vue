@@ -137,16 +137,17 @@ const createTranslation = (language: LanguageDto) => {
 };
 
 // Access control
-const canTranslate = computed(() => {
+const canTranslateOrPublish = computed(() => {
     if (!parent.value || !selectedLanguage.value) return false;
     return (
-        verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) &&
-        verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)
+        (verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) &&
+            verifyAccess(
+                selectedLanguage.value.memberOf,
+                DocType.Language,
+                AclPermission.Translate,
+            )) ||
+        verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)
     );
-});
-
-const canPublish = computed(() => {
-    return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish);
 });
 
 // Dirty check and save
@@ -168,10 +169,10 @@ const save = async () => {
         return;
     }
 
-    if (!canPublish.value) {
+    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)) {
         addNotification({
             title: "Insufficient Permissions",
-            description: "You do not have publish permissions",
+            description: "You do not have publish permission",
             state: "error",
         });
         return;
@@ -297,11 +298,20 @@ watch(selectedLanguage, () => {
                 <div v-else class="space-y-6">
                     <EditContentStatus
                         v-model:content="selectedContent"
-                        :disabled="!canTranslate"
+                        :disabled="!canTranslateOrPublish"
                     />
-                    <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
+                    <EditContentBasic
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslateOrPublish"
+                    />
+                    <EditContentText
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslateOrPublish"
+                    />
+                    <EditContentVideo
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslateOrPublish"
+                    />
                 </div>
             </div>
             <!-- Sidebar -->
