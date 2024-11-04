@@ -155,11 +155,11 @@ describe("CreateOrEditLanguageModal.vue", () => {
 
             const spanishLanguage = updatedLanguages.find((lang) => lang._id === "spanish-id");
             //@ts-ignore
-            expect(spanishLanguage?.default).toBe(false); // Spanish should not be default anymore
+            expect(spanishLanguage?.default).toBe(0); // Spanish should not be default anymore
             //@ts-ignore
             const englishLanguage = updatedLanguages.find((lang) => lang.languageCode === "eng");
             //@ts-ignore --> Used for unessasary type errors
-            expect(englishLanguage?.default).toBe(true);
+            expect(englishLanguage?.default).toBe(1);
         });
     });
 });
