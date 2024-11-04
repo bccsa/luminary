@@ -29,13 +29,13 @@ const newLanguage = ref<LanguageDto>({
     _id: db.uuid(), // Generate new ID for create mode
     name: "",
     languageCode: "",
-    default: false,
+    default: 0,
     memberOf: [],
     type: DocType.Language,
     updatedTimeUtc: Date.now(),
 });
 
-let previousDefaultValueForCurrentLanguage = ref<boolean>(newLanguage.value.default!);
+let previousDefaultValueForCurrentLanguage = ref<number>(newLanguage.value.default!);
 
 // Watch the passed `language` prop to set the modal in edit mode
 watch(
@@ -52,7 +52,7 @@ watch(
                 _id: db.uuid(),
                 name: "",
                 languageCode: "",
-                default: false,
+                default: 0,
                 memberOf: [],
                 type: DocType.Language,
                 updatedTimeUtc: Date.now(),
@@ -64,6 +64,18 @@ watch(
 );
 
 const allLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const isNewLanguageDefault = ref(newLanguage.value.default === 0 ? false : true);
+
+watch(isNewLanguageDefault, (newValue) => {
+    console.info(isNewLanguageDefault.value);
+
+    if (!newValue) {
+        newLanguage.value.default = 0;
+        return;
+    } else {
+        newLanguage.value.default! = 1;
+    }
+});
 
 const saveLanguage = async () => {
     // Update the timestamp
@@ -75,15 +87,15 @@ const saveLanguage = async () => {
         memberOf: [...newLanguage.value.memberOf],
     };
 
-    if (newLanguage.value.default) {
+    if (newLanguage.value.default === 1) {
         // Set other languages' `default` to false if the current language is set as default
         const updateLanguages = allLanguages.value
-            .filter((language) => language._id !== newLanguage.value._id && language.default)
+            .filter((language) => language._id !== newLanguage.value._id && language.default === 1)
             .map((language) => {
                 return db.upsert({
                     ...language,
                     memberOf: [...newLanguage.value.memberOf],
-                    default: false,
+                    default: 0,
                 });
             });
 
@@ -93,7 +105,6 @@ const saveLanguage = async () => {
 
     // Save the cloned language object to the database
     await db.upsert(clonedLanguage);
-    console.log("CLONED:", clonedLanguage);
 
     if (isEditMode.value) {
         emit("updated", clonedLanguage); // Emit update event if editing
@@ -158,7 +169,7 @@ const validateForm = () => {
                 </FormLabel>
                 <LToggle
                     name="is-language-default-toggle"
-                    v-model:model-value="newLanguage.default!"
+                    v-model:model-value="isNewLanguageDefault"
                 />
             </div>
 

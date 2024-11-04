@@ -4,5 +4,6 @@
     "updatedTimeUtc": 3,
     "memberOf": ["group-languages"],
     "languageCode": "swa",
-    "name": "Swahili"
+    "name": "Swahili",
+    "default": 0
 }

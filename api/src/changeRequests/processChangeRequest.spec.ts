@@ -262,4 +262,28 @@ describe("processChangeRequest", () => {
             ).length,
         ).toBe(category2Content.docs.length);
     });
+
+    it("changes all other language documents to false if new language doc is selected", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 89,
+            doc: {
+                _id: "lang-eng",
+                type: "language",
+                memberOf: ["group-languages"],
+                languageCode: "eng",
+                name: "English",
+                default: 1,
+            },
+        };
+
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        expect(processResult.ok).toBe(true);
+    });
 });

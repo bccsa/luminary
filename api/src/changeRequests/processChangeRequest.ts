@@ -8,6 +8,7 @@ import { S3Service } from "../s3/s3.service";
 import { PostDto } from "src/dto/PostDto";
 import { TagDto } from "src/dto/TagDto";
 import { ContentDto } from "src/dto/ContentDto";
+import { LanguageDto } from "src/dto/LanguageDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -123,6 +124,18 @@ export async function processChangeRequest(
 
             await db.upsertDoc(d);
         }
+    }
+
+    if (doc.type === DocType.Language) {
+        const langDoc = doc as LanguageDto;
+        if (langDoc.default == 0) return;
+        await db.processAllDocs(async (d: LanguageDto) => {
+            if (d.type === DocType.Language) {
+                if (langDoc._id == d._id) return;
+                d.default = 0;
+                await db.upsertDoc(d);
+            }
+        });
     }
 
     // Insert / update the document in the database

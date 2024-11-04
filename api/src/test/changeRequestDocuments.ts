@@ -68,6 +68,7 @@ export const changeRequest_language = () => {
             memberOf: ["group-languages"],
             languageCode: "test-eng",
             name: "test-English" + randomString(),
+            default: 1,
         },
     };
 };

@@ -4,5 +4,6 @@
     "updatedTimeUtc": 3,
     "memberOf": ["group-languages"],
     "languageCode": "nya",
-    "name": "Chichewa"
+    "name": "Chichewa",
+    "default": 0
 }

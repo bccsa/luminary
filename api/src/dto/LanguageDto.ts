@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
@@ -18,6 +18,7 @@ export class LanguageDto extends _contentBaseDto {
 
     @IsOptional()
     @IsNumber()
+    @IsInt()
     @Expose()
     default?: number;
 }
