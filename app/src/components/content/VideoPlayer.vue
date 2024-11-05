@@ -8,8 +8,6 @@ import type { ContentDto } from "luminary-shared";
 import px from "./px.png";
 import LImage from "../images/LImage.vue";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/globalConfig";
-import { StatusBar } from "@capacitor/status-bar";
-import { Capacitor } from "@capacitor/core";
 
 type Props = {
     content: ContentDto;
@@ -45,13 +43,6 @@ function playerUserActiveEventHandler() {
     }
 }
 
-// hide status bar on android for capacitor app
-function playerFullscreenEventHandler() {
-    if (Capacitor.getPlatform() !== "android") return;
-    if (!player.isFullscreen()) StatusBar.show();
-    if (player.isFullscreen()) StatusBar.hide();
-}
-
 onMounted(() => {
     let options = {
         fluid: false,
@@ -72,6 +63,10 @@ onMounted(() => {
     };
 
     player = videojs(playerElement.value!, options);
+
+    // emit event with player on mount
+    const playerEvent = new CustomEvent("vjsPlayer", { detail: player });
+    window.dispatchEvent(playerEvent);
 
     player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
     player.src({ type: "application/x-mpegURL", src: props.content.video });
@@ -98,9 +93,6 @@ onMounted(() => {
 
     // Get player user active states
     player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
-
-    // Get player fullscreen state
-    player.on("fullscreenchange", playerFullscreenEventHandler);
 
     // start video player analytics on mounted
     // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
@@ -137,7 +129,9 @@ onUnmounted(() => {
     player?.off(["mousemove", "click"], autoHidePlayerControls);
     player?.off("play", playerPlayEventHandler);
     player?.off(["useractive", "userinactive"], playerUserActiveEventHandler);
-    player?.off("fullscreenchange", playerFullscreenEventHandler);
+    // emit event when player is Destroyed
+    const playerDestroyEvent = new Event("vjsPlayerDestroyed");
+    window.dispatchEvent(playerDestroyEvent);
 });
 
 // Set player audio only mode
