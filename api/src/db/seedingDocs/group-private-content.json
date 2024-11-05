@@ -41,7 +41,7 @@
         {
             "type": "redirect",
             "groupId": "group-private-editors",
-            "permission": ["view", "translate", "assign", "edit", "publish"]
+            "permission": ["view", "edit", "publish"]
         }
     ]
 }

@@ -16,12 +16,12 @@
         {
             "type": "redirect",
             "groupId": "group-public-editors",
-            "permission": ["view", "translate"]
+            "permission": ["view", "edit"]
         },
         {
             "type": "redirect",
             "groupId": "group-private-editors",
-            "permission": ["view", "translate"]
+            "permission": ["view", "edit", "publish", "delete"]
         }
     ]
 }
