@@ -11,8 +11,7 @@ import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
 import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
-import { validateAclEntry } from "./aclEntryvalidation";
-import { GroupAclEntryDto } from "src/dto/GroupAclEntryDto";
+import { validateAcl } from "./aclValidation";
 import { RedirectDto } from "../dto/RedirectDto";
 
 /**
@@ -66,13 +65,10 @@ export async function validateChangeRequest(
         return validationResult;
     }
 
-    // check ACL entries for group documents
+    // Validate and compact ACL's in Group Documents
     if (changeRequest.doc.type === DocType.Group) {
-        validateAclEntry(changeRequest.doc, new GroupAclEntryDto());
-        return {
-            validated: false,
-            error: `Submitted "${changeRequest.doc.type}" document validation failed:\nMissing ACL field`,
-        };
+        const groupDoc = changeRequest.doc as GroupDto;
+        groupDoc.acl = validateAcl(groupDoc.acl);
     }
 
     // Replace the included document in the change request with the validated document

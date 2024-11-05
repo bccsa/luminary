@@ -1,9 +1,8 @@
-import { GroupAclEntryDto } from "src/dto/GroupAclEntryDto";
-import { GroupDto } from "src/dto/GroupDto";
-import { AclPermission, DocType } from "src/enums";
+import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
+import { AclPermission, DocType } from "../enums";
 
 // Define permissions per DocType
-export const availablePermissionsPerDocType = {
+const availablePermissionsPerDocType = {
     [DocType.Group]: [
         AclPermission.View,
         AclPermission.Edit,
@@ -36,39 +35,18 @@ export const availablePermissionsPerDocType = {
 };
 
 // Valid DocTypes that can be used for ACL assignments
-export const validDocTypes = Object.keys(availablePermissionsPerDocType) as DocType[];
+const validDocTypes = Object.keys(availablePermissionsPerDocType) as DocType[];
 
 // Check if a permission is available for a given DocType
-export function isPermissionAvailable(docType: DocType, aclPermission: AclPermission): boolean {
+function isPermissionAvailable(docType: DocType, aclPermission: AclPermission): boolean {
     if (!validDocTypes.includes(docType)) return false;
 
     return availablePermissionsPerDocType[docType].includes(aclPermission);
 }
 
-// Check if the ACL entry permission has changed compared to the original group
-export function hasChangedPermission(
-    aclEntry: GroupAclEntryDto,
-    permission: AclPermission,
-    group: GroupDto,
-): boolean {
-    const origAclEntry = group.acl.find(
-        (acl) => acl.groupId == aclEntry.groupId && acl.type == aclEntry.type,
-    );
-
-    if (!origAclEntry) return aclEntry.permission.includes(permission);
-
-    return (
-        origAclEntry.permission.includes(permission) !== aclEntry.permission.includes(permission)
-    );
-}
-
 // Validate an ACL entry and return the validated entry
-export function validateAclEntry(aclEntry: GroupAclEntryDto, prevAclEntry: GroupAclEntryDto): void {
-    if (
-        aclEntry.permission.length &&
-        !aclEntry.permission.includes(AclPermission.View) &&
-        prevAclEntry.permission.length === 0
-    ) {
+function validateAclEntry(aclEntry: GroupAclEntryDto): void {
+    if (aclEntry.permission.length && !aclEntry.permission.includes(AclPermission.View)) {
         aclEntry.permission.push(AclPermission.View);
     }
 
@@ -78,7 +56,6 @@ export function validateAclEntry(aclEntry: GroupAclEntryDto, prevAclEntry: Group
 
     if (
         aclEntry.type == DocType.Group &&
-        prevAclEntry.permission.includes(AclPermission.Assign) &&
         !aclEntry.permission.includes(AclPermission.Assign) &&
         aclEntry.permission.includes(AclPermission.Edit)
     ) {
@@ -99,7 +76,7 @@ export function validateAclEntry(aclEntry: GroupAclEntryDto, prevAclEntry: Group
 }
 
 // Remove ACL entries with no permissions and remove invalid permissions
-export function compactAclEntries(aclEntries: GroupAclEntryDto[]): GroupAclEntryDto[] {
+function compactAclEntries(aclEntries: GroupAclEntryDto[]): GroupAclEntryDto[] {
     return aclEntries.filter((a) => {
         a.permission = a.permission
             .filter((permission) => isPermissionAvailable(a.type, permission))
@@ -107,4 +84,15 @@ export function compactAclEntries(aclEntries: GroupAclEntryDto[]): GroupAclEntry
 
         return a.permission.length > 0 && validDocTypes.includes(a.type);
     });
+}
+
+/**
+ * Validates an ACL and returns the validated & compacted ACL. (This function removes invalid data from an ACL)
+ */
+export function validateAcl(acl: GroupAclEntryDto[]) {
+    const _acl: GroupAclEntryDto[] = JSON.parse(JSON.stringify(acl));
+
+    _acl.forEach((aclEntry) => validateAclEntry(aclEntry));
+    compactAclEntries(_acl);
+    return _acl;
 }
