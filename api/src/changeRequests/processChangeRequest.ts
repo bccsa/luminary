@@ -128,14 +128,15 @@ export async function processChangeRequest(
 
     if (doc.type === DocType.Language) {
         const langDoc = doc as LanguageDto;
-        if (langDoc.default == 0) return;
-        await db.processAllDocs(async (d: LanguageDto) => {
-            if (d.type === DocType.Language) {
-                if (langDoc._id == d._id) return;
-                d.default = 0;
-                await db.upsertDoc(d);
-            }
-        });
+        if (langDoc.default == 1) {
+            await db.processAllDocs(async (d: LanguageDto) => {
+                if (d.type === DocType.Language) {
+                    if (langDoc._id == d._id) return;
+                    d.default = 0;
+                    await db.upsertDoc(d);
+                }
+            });
+        }
     }
 
     // Insert / update the document in the database
