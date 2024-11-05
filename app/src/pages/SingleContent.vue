@@ -107,6 +107,7 @@ watch(
     () => appLanguageAsRef.value,
     async () => {
         if (!content.value) return;
+        if (content.value.type != DocType.Content) return; // Ignore the following logic if this is a redirect
         if (!content.value.slug) return; // If there is no slug we are still showing the placeholder content
 
         if (appLanguageAsRef.value?._id != content.value.language) {

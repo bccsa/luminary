@@ -7,7 +7,7 @@ import {
     ChevronRightIcon,
     RectangleStackIcon,
     GlobeEuropeAfricaIcon,
-    DocumentChartBarIcon,
+    ArrowUturnRightIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { useGlobalConfigStore } from "@/stores/globalConfig";
@@ -39,12 +39,6 @@ const navigation = ref<NavigationEntry[]>([
         })),
     },
     {
-        name: "Redirects",
-        to: { name: "redirects" },
-        icon: DocumentChartBarIcon,
-        visible: hasAnyPermission(DocType.Redirect, AclPermission.View),
-    },
-    {
         name: "Tags",
         icon: TagIcon,
         open: false,
@@ -59,6 +53,12 @@ const navigation = ref<NavigationEntry[]>([
         to: { name: "groups" },
         icon: RectangleStackIcon,
         visible: hasAnyPermission(DocType.Group, AclPermission.View),
+    },
+    {
+        name: "Redirects",
+        to: { name: "redirects" },
+        icon: ArrowUturnRightIcon,
+        visible: hasAnyPermission(DocType.Redirect, AclPermission.View),
     },
     {
         name: "Languages",

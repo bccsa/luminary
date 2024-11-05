@@ -17,7 +17,7 @@ import {
     mockTopicDto,
     mockRedirectDto,
 } from "@/tests/mockdata";
-import { db, DocType, RedirectType } from "luminary-shared";
+import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, appName, initLanguage } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
@@ -305,18 +305,15 @@ describe("SingleContent", () => {
         });
     });
 
-    it.only("redirects to homepage if no address to redirect to is given", async () => {
+    it("redirects to homepage if no address to redirect to is given", async () => {
         const mockRedirect = {
-            _id: "redirect-1",
-            memberOf: ["group-redirect"],
-            type: DocType.Redirect,
-            updatedTimeUtc: 0,
-            redirectType: RedirectType.Temporary,
+            ...mockRedirectDto,
             slug: "music",
-            toSlug: "",
+            toSlug: "test",
+            _id: "redirect-1",
         };
 
-        await db.docs.put(mockRedirect);
+        await db.docs.bulkPut([mockRedirect]);
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -324,11 +321,12 @@ describe("SingleContent", () => {
             },
         });
 
-        await wrapper.vm.$nextTick();
-
         await waitForExpect(() => {
             expect(wrapper.vm.slug).toBe("music");
-            expect(routeReplaceMock).toBeCalledWith("/");
-        }, 100);
+            expect(routeReplaceMock).toBeCalledWith({
+                name: "content",
+                params: { slug: "test" },
+            });
+        });
     });
 });
