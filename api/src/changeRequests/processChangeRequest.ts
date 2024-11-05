@@ -125,7 +125,7 @@ export async function processChangeRequest(
             await db.upsertDoc(d);
         }
     }
-
+    //changes
     if (doc.type === DocType.Language) {
         const langDoc = doc as LanguageDto;
         if (langDoc.default == 1) {
