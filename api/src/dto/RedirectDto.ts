@@ -4,7 +4,6 @@ import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { Expose } from "class-transformer";
 
 export class RedirectDto extends _contentBaseDto {
-    //TODO RedirectType field here
     @IsNotEmpty()
     @IsEnum(RedirectType)
     @Expose()
