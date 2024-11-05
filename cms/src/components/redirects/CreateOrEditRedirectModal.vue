@@ -5,7 +5,6 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import * as _ from "lodash";
-import LTextToggle from "../forms/LTextToggle.vue";
 import { CheckBadgeIcon, CheckCircleIcon } from "@heroicons/vue/20/solid";
 // Props for visibility and Redirect to edit
 type Props = {
