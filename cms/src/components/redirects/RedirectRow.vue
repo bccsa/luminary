@@ -23,34 +23,30 @@ const isModalVisible = ref(false);
             {{ redirectDoc.slug }}
         </td>
 
+        <!-- To Slug -->
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+            {{ redirectDoc.toSlug ?? "HOMEPAGE" }}
+        </td>
+
+        <!-- Type -->
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6">
+            <LBadge>{{ redirectDoc.redirectType.toLocaleUpperCase() }}</LBadge>
+        </td>
+
         <!-- status -->
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             <!-- Optional status handling -->
             <LBadge v-if="isLocalChanges" variant="warning">Offline changes</LBadge>
         </td>
 
-        <!-- Type -->
-        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            <LBadge>{{ redirectDoc.redirectType.toLocaleUpperCase() }}</LBadge>
-        </td>
-
-        <!-- To Slug -->
-        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            <LBadge>{{
-                redirectDoc.toSlug?.length! > 0
-                    ? redirectDoc.toSlug!.toLocaleUpperCase()
-                    : "HOMEPAGE"
-            }}</LBadge>
-        </td>
-
         <!-- updated -->
-        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6">
             {{ db.toDateTime(redirectDoc.updatedTimeUtc).toLocaleString(DateTime.DATETIME_SHORT) }}
         </td>
 
         <!-- actions -->
         <td
-            class="flex justify-end whitespace-nowrap py-2 text-sm font-medium text-zinc-700 sm:pl-3"
+            class="flex justify-end whitespace-nowrap py-2 text-sm font-medium text-zinc-700 sm:pl-6"
         >
             <LButton
                 variant="tertiary"
