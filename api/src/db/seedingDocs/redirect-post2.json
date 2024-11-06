@@ -1,7 +1,7 @@
 {
     "_id": "redirect-post2",
     "type": "redirect",
-    "memberOf": ["group-redirects"],
+    "memberOf": ["group-private-content"],
     "redirectType": "permanent",
     "slug": "post2-eng",
     "toSlug": "temp-post2-eng"

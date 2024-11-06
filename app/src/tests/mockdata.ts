@@ -291,7 +291,7 @@ export const mockLanguageDtoSwa: LanguageDto = {
 
 export const mockRedirectDto: RedirectDto = {
     _id: "redirect-o",
-    memberOf: ["group-redirect"],
+    memberOf: ["group-public-content"],
     type: DocType.Redirect,
     updatedTimeUtc: 0,
     redirectType: RedirectType.Temporary,

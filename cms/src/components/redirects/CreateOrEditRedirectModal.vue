@@ -40,7 +40,7 @@ watch(
                 _id: db.uuid(), // Generate new ID for create mode
                 slug: "",
                 redirectType: RedirectType.Temporary,
-                memberOf: ["group-redirect"],
+                memberOf: [],
                 type: DocType.Redirect,
                 updatedTimeUtc: Date.now(),
             };
