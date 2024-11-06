@@ -5,6 +5,7 @@ import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
+import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -29,7 +30,7 @@ describe("EditContentParentValidation.vue", () => {
     });
 
     // TODO: Test these validations in a different place. https://github.com/bccsa/luminary/issues/313
-    it.skip("passes validation by default", async () => {
+    it("passes validation by default", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -46,16 +47,18 @@ describe("EditContentParentValidation.vue", () => {
             },
         });
 
-        expect(wrapper.html()).not.toContain("At least one group is required");
-        expect(wrapper.html()).not.toContain("The default image must be set");
-        expect(wrapper.html()).not.toContain("At least one translation is required");
+        await waitForExpect(() => {
+            expect(wrapper.html()).not.toContain("At least one group is required");
+            expect(wrapper.html()).not.toContain("The default image must be set");
+            expect(wrapper.html()).not.toContain("At least one translation is required");
 
-        // Check if the save button is enabled
-        const saveButton = wrapper.find('[data-test="save-button"]');
-        expect(saveButton.attributes().disabled).toBeUndefined();
+            // Check if the save button is enabled
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            expect(saveButton.attributes().disabled).toBeUndefined();
+        });
     });
 
-    it.skip("fails validation if no groups are set", async () => {
+    it("fails validation if no groups are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -79,7 +82,7 @@ describe("EditContentParentValidation.vue", () => {
         expect(saveButton.attributes().disabled).toBeDefined();
     });
 
-    it.skip("fails validation if the default image is not set", async () => {
+    it("fails validation if the default image is not set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -103,7 +106,7 @@ describe("EditContentParentValidation.vue", () => {
         expect(saveButton.attributes().disabled).toBeDefined();
     });
 
-    it.skip("fails validation if no translations are set", async () => {
+    it("fails validation if no translations are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -127,7 +130,7 @@ describe("EditContentParentValidation.vue", () => {
         expect(saveButton.attributes().disabled).toBeDefined();
     });
 
-    it.skip("does not display the offline change warning when there are no local changes", async () => {
+    it("does not display the offline change warning when there are no local changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -147,7 +150,7 @@ describe("EditContentParentValidation.vue", () => {
         expect(wrapper.html()).not.toContain("Offline changes");
     });
 
-    it.skip("displays unsaved changes warning when there are changes", async () => {
+    it("displays unsaved changes warning when there are changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -167,7 +170,7 @@ describe("EditContentParentValidation.vue", () => {
         expect(wrapper.html()).toContain("Unsaved changes");
     });
 
-    it.skip("doestn't display warning when there are no changes", async () => {
+    it("doestn't display warning when there are no changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [

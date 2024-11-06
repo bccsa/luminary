@@ -15,6 +15,7 @@ import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
+import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     languages: LanguageDto[];
@@ -142,6 +143,21 @@ watch(
 <template>
     <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
+            <div v-if="!parentIsValid" class="rounded-md bg-zinc-50 p-4 shadow">
+                <span class="text-sm">Errors were found in your {{ parent?.type }}'s settings</span>
+                <div class="flex flex-col gap-0.5">
+                    <div
+                        v-for="validation in parentValidations.filter((v) => !v.isValid)"
+                        :key="validation.id"
+                        class="flex items-center gap-1"
+                    >
+                        <p class="flex items-center gap-1">
+                            <XCircleIcon class="h-4 w-4 text-red-400" />
+                            <span class="text-sm">{{ validation.message }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
             <div class="flex flex-col gap-2">
                 <EditContentValidation
                     v-for="content in contentDocs"
