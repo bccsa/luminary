@@ -29,7 +29,7 @@ describe("RedirectRow.vue", () => {
         });
 
         expect(wrapper.html()).toContain("vod");
-        expect(wrapper.html()).toContain("LIVE");
+        expect(wrapper.html()).toContain("live");
 
         // check if the updated time is formatted correctly according the systems settings
         expect(wrapper.html()).toContain(
