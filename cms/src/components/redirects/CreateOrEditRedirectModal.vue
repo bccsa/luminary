@@ -125,7 +125,7 @@ const validateSlug = (slug: string | undefined) => {
                 v-model="editable.slug"
                 class="mb-4 w-full"
                 placeholder="The slug that will be redirected from.."
-                @change="editable.slug = validateSlug(editable.slug)"
+                @change="editable.slug = validateSlug(editable.slug) || ''"
             />
 
             <LInput
