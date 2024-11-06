@@ -40,7 +40,7 @@ onMounted(() => {
                         <ChevronLeftIcon class="h-6 w-6 text-zinc-600 dark:text-slate-50" />
                     </div>
 
-                    <img :src="logo" />
+                    <img class="h-9" :src="logo" />
                 </div>
 
                 <DesktopMenu class="hidden w-2/3 gap-2 lg:flex" />
