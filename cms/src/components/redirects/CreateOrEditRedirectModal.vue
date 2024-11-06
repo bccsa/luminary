@@ -4,22 +4,21 @@ import { db, DocType, type RedirectDto, RedirectType } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
-import * as _ from "lodash";
+import _ from "lodash";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { useNotificationStore } from "@/stores/notification";
+
 // Props for visibility and Redirect to edit
 type Props = {
     isVisible: boolean;
     redirect?: RedirectDto;
 };
 const props = defineProps<Props>();
-// Track the previous state for dirty checking
-const previousRedirect = ref<RedirectDto | null>(null);
-// Emit events to close the modal and trigger creation or update
-const emit = defineEmits(["close", "created", "updated"]);
-// Check if we are in edit mode (if a Redirect is passed)
-const isEditMode = computed(() => !!props.redirect);
-// New Redirect or edited Redirect object
-const newRedirect = ref<RedirectDto>({
+
+const emit = defineEmits(["close"]);
+const isEditMode = computed(() => props.redirect != undefined);
+
+const editable = ref<RedirectDto>({
     _id: db.uuid(), // Generate new ID for create mode
     slug: "",
     redirectType: RedirectType.Permanent,
@@ -27,63 +26,68 @@ const newRedirect = ref<RedirectDto>({
     type: DocType.Redirect,
     updatedTimeUtc: Date.now(),
 });
+
+// Track the previous state for dirty checking
+const previous = ref<RedirectDto>();
+
 // Watch the passed `Redirect` prop to set the modal in edit mode
 watch(
     () => props.redirect,
-    (newLang) => {
-        if (newLang) {
-            newRedirect.value = { ...newLang };
-            previousRedirect.value = _.cloneDeep(newLang); // Clone the Redirect for dirty checking
+    (redirect) => {
+        if (redirect) {
+            editable.value = _.cloneDeep(redirect);
+            previous.value = { ...redirect }; // Save the previous state for dirty checking
         } else {
             // Reset to a new Redirect if no Redirect is passed (create mode)
-            newRedirect.value = {
+            editable.value = {
                 _id: db.uuid(), // Generate new ID for create mode
                 slug: "",
-                redirectType: RedirectType.Temporary,
+                redirectType: RedirectType.Permanent,
                 memberOf: [],
                 type: DocType.Redirect,
                 updatedTimeUtc: Date.now(),
             };
-            previousRedirect.value = null; // Reset previous state for new Redirect
         }
     },
     { immediate: true },
 );
-// Function to handle creation or update
-const saveRedirect = async () => {
-    // Update the timestamp
-    newRedirect.value.updatedTimeUtc = Date.now();
-    // Deep clone the `memberOf` array to avoid DataCloneError
-    const clonedRedirect = {
-        ...newRedirect.value,
-        memberOf: [...newRedirect.value.memberOf],
-    };
-    // Save the cloned Redirect object to the database
-    await db.upsert(clonedRedirect);
-    if (isEditMode.value) {
-        emit("updated", clonedRedirect); // Emit update event if editing
-    } else {
-        emit("created", clonedRedirect); // Emit create event if creating
-    }
+
+const save = async () => {
+    editable.value.updatedTimeUtc = Date.now();
+    await db.upsert(editable.value);
+
+    useNotificationStore().addNotification({
+        title: isEditMode.value ? `Redirect updated` : `Redirect created`,
+        description: `Redirecting ${editable.value.slug} to ${editable.value.toSlug ?? "HOMEPAGE"}`,
+        state: "success",
+    });
     emit("close");
 };
-// Dirty checking logic
+
 const isDirty = computed(() => {
-    return validateForm(); // Always validate fields in create mode
+    return !_.isEqual(editable.value, previous.value);
 });
-// Form validation to check if all fields are filled
-const validateForm = () => {
-    return newRedirect.value.slug.trim() !== "" && newRedirect.value.memberOf.length > 0;
+
+const canSave = computed(() => {
+    return (
+        editable.value.slug?.trim() !== "" && editable.value.memberOf.length > 0 && isDirty.value
+    );
+});
+
+const isTemporary = computed(() => {
+    return editable.value.redirectType == RedirectType.Temporary;
+});
+
+const redirectExplanation = computed(() => {
+    return isTemporary.value
+        ? "Temporary redirects are used for short-term changes. They are cached by browsers and search engines for a limited time."
+        : "Permanent redirects are used for long-term changes. They are cached indefinitely by browsers and search engines.";
+});
+
+const validateSlug = (slug: string | undefined) => {
+    if (!slug) return undefined;
+    return slug.replace(/[^a-zA-Z0-9-_]/g, "").toLowerCase();
 };
-const redirectExplanation = ref("");
-const redirectTemporary = computed(() => {
-    // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-    redirectExplanation.value =
-        newRedirect.value.redirectType == RedirectType.Temporary
-            ? "Temporarily redirect the user"
-            : "Permanently redirect the user";
-    return newRedirect.value.redirectType == RedirectType.Temporary;
-});
 </script>
 
 <template>
@@ -94,46 +98,48 @@ const redirectTemporary = computed(() => {
         <div class="w-96 rounded-lg bg-white p-6 shadow-lg">
             <!-- Dynamic title based on mode -->
             <h2 class="mb-4 text-xl font-bold">
-                {{ isEditMode ? "Edit Redirect" : "Create New Redirect" }}
+                {{ isEditMode ? "Edit redirect" : "Create new redirect" }}
             </h2>
 
             <div class="mb-2 flex flex-col items-center">
                 <div class="mb-1 flex w-full gap-1">
                     <LButton
                         class="w-1/2"
-                        :icon="redirectTemporary ? CheckCircleIcon : undefined"
-                        @click="newRedirect.redirectType = RedirectType.Temporary"
+                        :icon="isTemporary ? CheckCircleIcon : undefined"
+                        @click="editable.redirectType = RedirectType.Temporary"
                         >Temporary
                     </LButton>
                     <LButton
                         class="w-1/2"
-                        :icon="redirectTemporary ? undefined : CheckCircleIcon"
-                        @click="newRedirect.redirectType = RedirectType.Permanent"
+                        :icon="isTemporary ? undefined : CheckCircleIcon"
+                        @click="editable.redirectType = RedirectType.Permanent"
                     >
                         Permanent
                     </LButton>
                 </div>
-                {{ redirectExplanation }}
+                <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
             </div>
             <LInput
-                label="From Slug *"
+                label="From *"
                 name="RedirectFromSlug"
-                v-model="newRedirect.slug"
+                v-model="editable.slug"
                 class="mb-4 w-full"
                 placeholder="The slug that will be redirected from.."
+                @change="editable.slug = validateSlug(editable.slug)"
             />
 
             <LInput
-                label="To Slug"
+                label="To"
                 name="RedirectToSlug"
-                v-model="newRedirect.toSlug"
+                v-model="editable.toSlug"
                 class="mb-4 w-full"
                 placeholder="The slug that will be redirected to..."
+                @change="editable.toSlug = validateSlug(editable.toSlug)"
             />
 
             <GroupSelector
                 name="memberOf"
-                v-model:groups="newRedirect.memberOf"
+                v-model:groups="editable.memberOf"
                 :docType="DocType.Redirect"
             />
             <div class="flex justify-end gap-4 pt-5">
@@ -143,10 +149,10 @@ const redirectTemporary = computed(() => {
                 <LButton
                     variant="primary"
                     data-test="save-button"
-                    @click="saveRedirect"
-                    :disabled="!isDirty"
+                    @click="save"
+                    :disabled="!canSave"
                 >
-                    {{ isEditMode ? "Save Changes" : "Create" }}
+                    {{ isEditMode ? "Save" : "Create" }}
                 </LButton>
             </div>
         </div>
