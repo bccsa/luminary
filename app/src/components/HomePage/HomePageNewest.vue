@@ -28,13 +28,13 @@ const newest10Content = useDexieLiveQueryWithDeps(
 );
 
 watch(newest10Content, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_newestContent", value);
+    db.setQueryCache<ContentDto[]>("homepage_newestContent", value.value);
 });
 </script>
 
 <template>
     <HorizontalContentTileCollection
-        :contentDocs="newest10Content"
+        :contentDocs="newest10Content.value"
         title="Newest"
         :showPublishDate="true"
     />

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import {
     type ContentDto,
     DocType,
@@ -40,7 +40,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
 );
 
 watch(newest100Content, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_newest100Content", value);
+    db.setQueryCache<ContentDto[]>("homepage_newest100Content", value.value);
 });
 
 const categoryIds = computed(() =>

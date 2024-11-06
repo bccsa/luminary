@@ -38,7 +38,7 @@ const allTopics = useDexieLiveQueryWithDeps(
 );
 
 watch(allTopics, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_newestContent", value);
+    db.setQueryCache<ContentDto[]>("homepage_newestContent", value.value);
 });
 
 // View mode switcher: 'matrix' or 'list'
@@ -74,7 +74,7 @@ const toggleViewMode = () => {
 
         <div v-if="viewMode === 'matrix'" class="flex flex-wrap gap-4">
             <ContentTile
-                v-for="content in allTopics"
+                v-for="content in allTopics.value"
                 :key="content._id"
                 :content="content"
                 :show-publish-date="false"
@@ -82,7 +82,7 @@ const toggleViewMode = () => {
         </div>
 
         <div v-else class="space-y-4">
-            <div v-for="content in allTopics" :key="content._id">
+            <div v-for="content in allTopics.value" :key="content._id">
                 <RouterLink
                     :to="{ name: 'content', params: { slug: content.slug } }"
                     class="flex rounded shadow-md hover:bg-yellow-500/5"
