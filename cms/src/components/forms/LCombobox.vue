@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, type StyleValue } from "vue";
+import { computed, ref, watch, type Ref, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import {
@@ -15,61 +15,52 @@ import FormLabel from "./FormLabel.vue";
 import LInput from "./LInput.vue";
 import { onClickOutside } from "@vueuse/core";
 
+interface Option {
+    id: string | number;
+    label: string;
+    value: string;
+    isSelected: Ref<boolean> | boolean;
+}
+
 type Props = {
     disabled?: boolean;
-    docType: DocType;
+    options: Option[];
 };
+
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
-const groups = defineModel<Uuid[]>("groups");
 
-const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
-
-const assignableGroups = computed(() =>
-    availableGroups.value?.filter((g) =>
-        verifyAccess([g._id], props.docType, AclPermission.Edit, "any"),
-    ),
-);
-
-const selectedGroups = computed(() =>
-    availableGroups.value?.filter((g) => groups.value?.includes(g._id)),
-);
-
-const isGroupSelected = computed(() => {
-    return (groupId: string) => {
-        if (!groups.value) return false;
-        return groups.value.some((g) => g == groupId);
-    };
-});
+const selectedOptions = defineModel<Option[]>("options");
 
 const query = ref("");
 
 watch(query, () => {
-    if (query.value.length > 0) showGroups.value = true;
+    if (query.value.length > 0) showOptions.value = true;
 });
-
-const filteredGroups = computed(() =>
-    query.value === ""
-        ? assignableGroups.value
-        : assignableGroups.value.filter((group) => {
-              return group.name.toLowerCase().includes(query.value.toLowerCase());
-          }),
-);
 
 const input = ref();
 
-const groupsDisplay = ref();
-const showGroups = ref(false);
+const optionsDisplay = ref();
+const showOptions = ref(false);
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
 const focusInput = () => {
-    showGroups.value = !showGroups.value;
+    showOptions.value = !showOptions.value;
     input.value.focus();
 };
 
-onClickOutside(groupsDisplay, () => (showGroups.value = false));
+const selectOption = (id: string | number) => {
+    props.options.forEach((option) => {
+        if (option.id == id && !option.isSelected) {
+            selectedOptions.value?.push({ ...option, isSelected: true });
+        }
+    });
+    showOptions.value = false;
+};
+
+onClickOutside(optionsDisplay, () => (showOptions.value = false));
 </script>
 
 <template>
@@ -77,7 +68,7 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
         <FormLabel> Group membership </FormLabel>
         <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
             <LInput
-                @click="showGroups = true"
+                @click="showOptions = true"
                 v-model="query"
                 ref="input"
                 class="w-full"
@@ -101,30 +92,25 @@ onClickOutside(groupsDisplay, () => (showGroups.value = false));
         >
             <div
                 ref="groupsDisplay"
-                v-show="showGroups"
+                v-show="optionsDisplay"
                 class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
                 data-test="groups"
             >
                 <ul
-                    v-for="group in filteredGroups"
-                    :key="group._id"
-                    :value="group"
-                    :disabled="isGroupSelected(group._id)"
+                    v-for="option in options"
+                    :key="option.id"
+                    :value="option"
+                    :disabled="isOptionSelected(option.id)"
                 >
                     <li
                         class="text-sm hover:bg-zinc-100"
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
-                            { 'bg-zinc-100': isGroupSelected(group._id) },
-                            { 'text-zinc-900': !isGroupSelected(group._id) },
+                            { 'bg-zinc-100': isOptionSelected(option.id) },
+                            { 'text-zinc-900': !isOptionSelected(option.id) },
                             { 'text-zinc-500': disabled },
                         ]"
-                        @click="
-                            () => {
-                                groups?.push(group._id);
-                                showGroups = false;
-                            }
-                        "
+                        @click="selectOption(option.id)"
                     >
                         <span class="block truncate" data-test="group-selector">
                             {{ group.name }}
