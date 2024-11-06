@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ExplorePageTopics from "@/components/Explorepage/ExplorePageTopics.vue";
+import ExplorePageTopics from "@/components/ExplorePage/ExplorePageTopics.vue";
 </script>
 
 <template>
