@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from "vue";
+import { ref, watch } from "vue";
 import {
     type ContentDto,
     DocType,
@@ -36,7 +36,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
 );
 
 watch(pinnedCategories, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value);
+    db.setQueryCache<ContentDto[]>("homepage_pinnedCategories", value.value);
 });
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
@@ -64,7 +64,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
 );
 
 watch(pinnedCategoryContent, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value);
+    db.setQueryCache<ContentDto[]>("homepage_pinnedContent", value.value);
 });
 
 // sort pinned content by category

@@ -12,6 +12,7 @@ import { contentByTopic } from "./contentByTopic";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 // import VerticalTagViewer from "../tags/VerticalTagViewer.vue";
+import { ref } from "vue";
 
 const pinnedTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -36,7 +37,7 @@ const pinnedTopics = useDexieLiveQueryWithDeps(
 );
 
 watch(pinnedTopics, async (value) => {
-    db.setQueryCache<ContentDto[]>("explore_pinnedTopics", value);
+    db.setQueryCache<ContentDto[]>("explore_pinnedTopics", value.value);
 });
 
 const pinnedTopicContent = useDexieLiveQueryWithDeps(
@@ -65,11 +66,11 @@ const pinnedTopicContent = useDexieLiveQueryWithDeps(
 );
 
 watch(pinnedTopicContent, async (value) => {
-    db.setQueryCache<ContentDto[]>("explorepage_pinnedContent", value);
+    db.setQueryCache<ContentDto[]>("explorepage_pinnedContent", value.value);
 });
 
 // sort pinned content by category
-const pinnedContentByTopic = contentByTopic(pinnedTopicContent, pinnedTopics);
+const pinnedContentByTopic = contentByTopic(ref(pinnedTopicContent.value), ref(pinnedTopics.value));
 </script>
 
 <template>

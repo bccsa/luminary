@@ -246,7 +246,7 @@ const selectedCategory = computed(() => {
             <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
 
             <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
-                {{ content.title }}
+                {{ content.value.title }}
             </h1>
 
             <div data-test="bookmark" @click="toggleBookmark">
@@ -262,24 +262,26 @@ const selectedCategory = computed(() => {
 
             <div
                 class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"
-                v-if="content.publishDate && content.parentPublishDateVisible"
+                v-if="content.value.publishDate && content.value.parentPublishDateVisible"
             >
                 {{
-                    content.publishDate
-                        ? db.toDateTime(content.publishDate).toLocaleString(DateTime.DATETIME_MED)
+                    content.value.publishDate
+                        ? db
+                              .toDateTime(content.value.publishDate)
+                              .toLocaleString(DateTime.DATETIME_MED)
                         : ""
                 }}
             </div>
 
             <div
                 class="mt-12 text-justify text-gray-800 dark:text-slate-100"
-                v-if="content.summary"
+                v-if="content.value.summary"
             >
-                {{ content.summary }}
+                {{ content.value.summary }}
             </div>
 
             <div
-                v-if="content.text"
+                v-if="content.value.text"
                 v-html="text"
                 class="prose prose-zinc mt-6 max-w-full text-justify dark:prose-invert"
             ></div>
