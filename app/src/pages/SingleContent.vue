@@ -273,7 +273,7 @@ const selectedCategory = computed(() => {
             <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
 
             <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
-                {{ content.value.title }}
+                {{ content.title }}
             </h1>
 
                         <div

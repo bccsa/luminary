@@ -20,7 +20,7 @@ const categories = db.tagsWhereTagTypeAsRef(props.tagType, props.tagQueryOptions
 
 <template>
     <HorizontalScrollableTagViewer
-        v-for="category in categories.value"
+        v-for="category in categories"
         :key="category._id"
         :tag="category"
         :queryOptions="contentQueryOptions"
