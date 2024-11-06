@@ -37,12 +37,6 @@ watch(topics, async (value) => {
 </script>
 
 <template>
-    <div class="flex flex-wrap gap-4">
-        <ContentTile
-            v-for="topic in topics"
-            :key="topic._id"
-            :content="topic"
-            :showPublishDate="false"
-        />
-    </div>
+    <ExplorePinnedTopics />
+    <AllTopics />
 </template>
