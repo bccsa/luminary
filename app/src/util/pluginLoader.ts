@@ -15,7 +15,7 @@ export const loadPlugins = async () => {
 
         await Promise.all(_a);
     } catch (err: any) {
-        console.log(err.message);
+        console.error(err.message);
     }
 };
 
@@ -26,7 +26,7 @@ export const dynamicLoadPlugin = async (p: string) => {
         const c = await import(`../plugins/${p}.ts`);
 
         if (!c || !c[p]) {
-            console.log(`Plugin ${p} does not exists or does not have a constructor.`);
+            console.error(`Plugin ${p} does not exists or does not have a constructor.`);
             return;
         }
 
@@ -34,6 +34,6 @@ export const dynamicLoadPlugin = async (p: string) => {
 
         return _c;
     } catch (err: any) {
-        console.log(err.message);
+        console.error(err.message);
     }
 };
