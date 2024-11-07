@@ -3,16 +3,20 @@
  * @returns
  */
 export const loadPlugins = async () => {
-    if (!import.meta.env.VITE_PLUGINS) return;
+    try {
+        if (!import.meta.env.VITE_PLUGINS) return;
 
-    const _p: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
+        const _p: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
 
-    const _a: any = [];
-    _p.forEach(async (p) => {
-        _a.push(dynamicLoadPlugin(p));
-    });
+        const _a: any = [];
+        _p.forEach(async (p) => {
+            _a.push(dynamicLoadPlugin(p));
+        });
 
-    await Promise.all(_a);
+        await Promise.all(_a);
+    } catch (err: any) {
+        console.error(err.message);
+    }
 };
 
 export const dynamicLoadPlugin = async (p: string) => {
@@ -22,7 +26,7 @@ export const dynamicLoadPlugin = async (p: string) => {
         const c = await import(`../plugins/${p}.ts`);
 
         if (!c || !c[p]) {
-            console.log(`Plugin ${p} does not exists or does not have a constructor.`);
+            console.error(`Plugin ${p} does not exists or does not have a constructor.`);
             return;
         }
 
@@ -30,6 +34,6 @@ export const dynamicLoadPlugin = async (p: string) => {
 
         return _c;
     } catch (err: any) {
-        console.log(err.message);
+        console.error(err.message);
     }
 };
