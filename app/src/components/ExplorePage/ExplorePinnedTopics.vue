@@ -8,7 +8,7 @@ import {
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import { contentByTopic } from "./contentByTopic";
+import { contentByTopic } from "@/components/ExplorePage/contentByTopic";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 // import VerticalTagViewer from "../tags/VerticalTagViewer.vue";
