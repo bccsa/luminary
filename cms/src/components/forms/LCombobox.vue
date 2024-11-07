@@ -16,13 +16,14 @@ import LInput from "./LInput.vue";
 import { onClickOutside } from "@vueuse/core";
 
 interface Option {
-    id: string | number;
+    id: string;
     label: string;
     value: string;
     isSelected: Ref<boolean> | boolean;
 }
 
 type Props = {
+    label?: string;
     disabled?: boolean;
     options: Option[];
 };
@@ -60,12 +61,18 @@ const selectOption = (id: string | number) => {
     showOptions.value = false;
 };
 
+const isOptionSelected = (id: string) => {
+    return computed(() => {
+        return selectedOptions.value?.includes({ id: id } as Option);
+    });
+};
+
 onClickOutside(optionsDisplay, () => (showOptions.value = false));
 </script>
 
 <template>
     <div class="relative" :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <FormLabel> Group membership </FormLabel>
+        <FormLabel v-if="label"> {{ label }} </FormLabel>
         <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
             <LInput
                 @click="showOptions = true"
@@ -73,7 +80,7 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
                 ref="input"
                 class="w-full"
                 placeholder="Type to select..."
-                name="group-search"
+                name="option-search"
             />
             <button name="options-open-btn" @click="focusInput">
                 <ChevronUpDownIcon
@@ -91,10 +98,10 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
             leave-to-class="transform scale-95 opacity-0"
         >
             <div
-                ref="groupsDisplay"
+                ref="optionsDisplay"
                 v-show="optionsDisplay"
                 class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
-                data-test="groups"
+                data-test="options"
             >
                 <ul
                     v-for="option in options"
@@ -113,7 +120,7 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
                         @click="selectOption(option.id)"
                     >
                         <span class="block truncate" data-test="group-selector">
-                            {{ group.name }}
+                            {{ option.label }}
                         </span>
                     </li>
                 </ul>
@@ -129,12 +136,18 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
                 leave-to-class="transform scale-90 opacity-0"
             >
                 <LTag
-                    v-for="group in selectedGroups"
-                    :key="group._id"
-                    @remove="() => groups?.splice(groups?.indexOf(group._id), 1)"
+                    v-for="option in selectedOptions"
+                    :key="option.id"
+                    @remove="
+                        () =>
+                            selectedOptions?.splice(
+                                options?.indexOf({ id: option.id } as Option),
+                                1,
+                            )
+                    "
                     :disabled="disabled"
                 >
-                    {{ group.name }}
+                    {{ option.label }}
                 </LTag>
             </TransitionGroup>
         </div>
@@ -146,7 +159,7 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
             leave-from-class="transform scale-100 opacity-100 absolute"
             leave-to-class="transform scale-90 opacity-0"
         >
-            <div v-if="selectedGroups?.length == 0" class="text-xs text-zinc-500">
+            <div v-if="selectedOptions?.length == 0" class="text-xs text-zinc-500">
                 No group selected
             </div>
         </Transition>

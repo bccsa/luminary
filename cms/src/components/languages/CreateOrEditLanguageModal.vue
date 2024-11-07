@@ -33,6 +33,8 @@ const newLanguage = ref<LanguageDto>({
     updatedTimeUtc: Date.now(),
 });
 
+let membershipOptions = ref([]);
+
 // Watch the passed `language` prop to set the modal in edit mode
 watch(
     () => props.language,
