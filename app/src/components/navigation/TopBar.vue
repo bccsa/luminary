@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
-import { loadRouteLocation, useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import { computed, onMounted, ref } from "vue";
 
@@ -11,7 +11,6 @@ const LOGO = import.meta.env.VITE_LOGO;
 const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK;
 const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK;
-console.log(LOGO, LOGO_SMALL, LOGO_DARK, LOGO_SMALL_DARK);
 
 const isSmallScreen = ref(false);
 
