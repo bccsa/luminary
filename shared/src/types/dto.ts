@@ -1,4 +1,4 @@
-import type { DocType, TagType, PublishStatus, PostType } from "../types";
+import type { DocType, TagType, PublishStatus, PostType, RedirectType } from "../types";
 
 export enum AckStatus {
     Accepted = "accepted",
@@ -144,4 +144,10 @@ export type LocalChangeDto = {
 export type queryCacheDto<T extends BaseDocumentDto> = {
     id: string;
     result: T[];
+};
+
+export type RedirectDto = ContentBaseDto & {
+    redirectType: RedirectType;
+    slug: string;
+    toSlug?: string;
 };

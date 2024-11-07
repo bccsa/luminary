@@ -31,6 +31,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Publish,
     ],
     [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
+    [DocType.Redirect]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
 };
 
 /**

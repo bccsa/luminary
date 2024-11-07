@@ -88,6 +88,11 @@ export const router = createRouter({
                     name: "languages",
                     component: () => import("../components/languages/LanguageOverview.vue"),
                 },
+                {
+                    path: "redirects",
+                    name: "redirects",
+                    component: () => import("../components/redirects/RedirectOverview.vue"),
+                },
 
                 // {
                 //     path: "users",

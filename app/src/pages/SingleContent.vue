@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { DocType, TagType, db, type ContentDto, type TagDto, type Uuid } from "luminary-shared";
+import {
+    DocType,
+    TagType,
+    db,
+    type ContentDto,
+    type RedirectDto,
+    type TagDto,
+    type Uuid,
+} from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
@@ -55,6 +63,15 @@ const is404 = computed(() => {
 watch(content, async () => {
     if (!content.value) return;
 
+    if (content.value.type === DocType.Redirect) {
+        const redirectDoc = content.value as unknown as RedirectDto;
+        if (redirectDoc.toSlug) {
+            router.replace({ name: "content", params: { slug: redirectDoc.toSlug } });
+        } else {
+            router.replace("/");
+        }
+    }
+
     document.title = is404.value
         ? `Page not found - ${appName}`
         : `${content.value.seoTitle ? content.value.seoTitle : content.value.title} - ${appName}`;
@@ -90,6 +107,7 @@ watch(
     () => appLanguageAsRef.value,
     async () => {
         if (!content.value) return;
+        if (content.value.type != DocType.Content) return; // Ignore the following logic if this is a redirect
         if (!content.value.slug) return; // If there is no slug we are still showing the placeholder content
 
         if (appLanguageAsRef.value?._id != content.value.language) {

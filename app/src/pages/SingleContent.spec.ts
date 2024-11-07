@@ -15,6 +15,7 @@ import {
     mockLanguageDtoSwa,
     mockTopicContentDto,
     mockTopicDto,
+    mockRedirectDto,
 } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
@@ -51,6 +52,7 @@ describe("SingleContent", () => {
             mockFrenchContentDto,
             mockLanguageDtoEng,
             mockLanguageDtoFra,
+            mockRedirectDto,
         ]);
 
         setActivePinia(createTestingPinia());
@@ -283,5 +285,48 @@ describe("SingleContent", () => {
 
         expect(document.title).toBe(`${mockEnglishContentDto.seoTitle} - ${appName}`);
         expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoString);
+    });
+
+    it("redirects correctly", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockRedirectDto.slug,
+            },
+        });
+
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            expect(wrapper.vm.slug).toBe("vod");
+            expect(routeReplaceMock).toBeCalledWith({
+                name: "content",
+                params: { slug: "page1-eng" },
+            });
+        });
+    });
+
+    it("redirects to homepage if no address to redirect to is given", async () => {
+        const mockRedirect = {
+            ...mockRedirectDto,
+            slug: "music",
+            toSlug: "test",
+            _id: "redirect-1",
+        };
+
+        await db.docs.bulkPut([mockRedirect]);
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockRedirect.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.vm.slug).toBe("music");
+            expect(routeReplaceMock).toBeCalledWith({
+                name: "content",
+                params: { slug: "test" },
+            });
+        });
     });
 });

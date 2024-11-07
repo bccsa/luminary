@@ -89,7 +89,13 @@ type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketD
 })
 @Injectable()
 export class Socketio implements OnGatewayInit {
-    appDocTypes: Array<DocType> = [DocType.Post, DocType.Tag, DocType.Content, DocType.Language];
+    appDocTypes: Array<DocType> = [
+        DocType.Post,
+        DocType.Tag,
+        DocType.Content,
+        DocType.Language,
+        DocType.Redirect,
+    ];
     cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
     permissionMap: PermissionMap;
     config: Configuration;
