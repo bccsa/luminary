@@ -3,16 +3,20 @@
  * @returns
  */
 export const loadPlugins = async () => {
-    if (!import.meta.env.VITE_PLUGINS) return;
+    try {
+        if (!import.meta.env.VITE_PLUGINS) return;
 
-    const _p: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
+        const _p: string[] = JSON.parse(import.meta.env.VITE_PLUGINS);
 
-    const _a: any = [];
-    _p.forEach(async (p) => {
-        _a.push(dynamicLoadPlugin(p));
-    });
+        const _a: any = [];
+        _p.forEach(async (p) => {
+            _a.push(dynamicLoadPlugin(p));
+        });
 
-    await Promise.all(_a);
+        await Promise.all(_a);
+    } catch (err: any) {
+        console.log(err.message);
+    }
 };
 
 export const dynamicLoadPlugin = async (p: string) => {
