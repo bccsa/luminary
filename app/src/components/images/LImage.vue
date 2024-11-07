@@ -18,6 +18,7 @@ const aspectRatios = {
     square: "aspect-square",
     vertical: "aspect-[9/16]",
     wide: "aspect-[18/9]",
+    classic: "aspect-[4/3]",
 };
 
 // Rounded to two decimal places
@@ -26,6 +27,7 @@ const aspectRatioNumbers = {
     square: 1,
     vertical: 0.56,
     wide: 2,
+    classic: 1.33,
 };
 
 const sizes = {
