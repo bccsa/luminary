@@ -79,9 +79,12 @@ const pinnedContentByTopic = contentByTopic(pinnedTopicContent, pinnedTopics);
                 <!-- Check if the filtered content has any items -->
                 <HorizontalContentTileCollection
                     v-if="
-                        c.content.filter((content) => content.parentTagType === 'topic').length > 0
+                        c.content.filter((content: ContentDto) => content.parentTagType === 'topic')
+                            .length > 0
                     "
-                    :contentDocs="c.content.filter((content) => content.parentTagType === 'topic')"
+                    :contentDocs="
+                        c.content.filter((content: ContentDto) => content.parentTagType === 'topic')
+                    "
                     :title="c.topic.title"
                     :summary="c.topic.summary"
                     :showPublishDate="false"
