@@ -222,4 +222,34 @@ describe("validateChangeRequest", () => {
         expect(result.validated).toBe(true);
         expect(result.error).toBeUndefined();
     });
+
+    it("fails validation when ACL entries contain invalid permissions", async () => {
+        const changeRequest = {
+            id: 42,
+            doc: {
+                _id: "test-group",
+                type: "group",
+                name: "Test Group",
+                acl: [
+                    {
+                        type: "language",
+                        groupId: "group-public-content",
+                        permission: ["view"],
+                    },
+                    {
+                        type: "language",
+                        groupId: "group-private-content",
+                        permission: ["invalid-permission"], // Invalid permission, should trigger validation error
+                    },
+                ],
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(false);
+        expect(result.error).toContain(
+            "acl[1].permission has failed the following constraints: isEnum",
+        );
+    });
 });

@@ -11,6 +11,7 @@ import { DocType, Uuid } from "../enums";
 import { ValidationResult } from "./ValidationResult";
 import { DbService } from "../db/db.service";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
+import { validateAcl } from "./aclValidation";
 import { RedirectDto } from "../dto/RedirectDto";
 
 /**
@@ -62,6 +63,12 @@ export async function validateChangeRequest(
 
     if (!validationResult.validated) {
         return validationResult;
+    }
+
+    // Validate and compact ACL's in Group Documents
+    if (changeRequest.doc.type === DocType.Group) {
+        const groupDoc = changeRequest.doc as GroupDto;
+        groupDoc.acl = validateAcl(groupDoc.acl);
     }
 
     // Replace the included document in the change request with the validated document
