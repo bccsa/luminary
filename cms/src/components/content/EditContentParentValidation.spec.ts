@@ -53,7 +53,7 @@ describe("EditContentParentValidation.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("The default image must be set");
             expect(wrapper.html()).toContain("At least one group is required");
-        }, 200);
+        });
     });
 
     // TODO: Test these validations in a different place. https://github.com/bccsa/luminary/issues/313
