@@ -144,7 +144,7 @@ watch(
     <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
             <div v-if="!parentIsValid" class="rounded-md bg-zinc-50 p-4 shadow">
-                <span class="text-sm">Errors were found in your {{ parent?.type }}'s settings</span>
+                <span class="text-sm">Errors were found in your {{ parent?.type }}'s settings:</span>
                 <div class="flex flex-col gap-0.5">
                     <div
                         v-for="validation in parentValidations.filter((v) => !v.isValid)"
