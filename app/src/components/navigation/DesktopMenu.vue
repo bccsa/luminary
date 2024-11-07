@@ -9,7 +9,7 @@ import { commonNavigation } from "./navigationItems";
             :key="item.name"
             :to="item.to"
             v-slot="{ isActive }"
-            class="flex w-auto cursor-pointer rounded-md px-2 py-1 hover:bg-zinc-200 dark:hover:bg-slate-700 lg:flex"
+            class="flex cursor-pointer rounded-md px-2 py-1 hover:bg-zinc-200 dark:hover:bg-slate-700"
         >
             <span class="flex items-center justify-center gap-1.5">
                 <component

@@ -14,7 +14,7 @@ import { useGlobalConfigStore } from "@/stores/globalConfig";
 import { ref, watch } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
 
-const { appName, isDevMode } = useGlobalConfigStore();
+const { appName, isDevMode, logo } = useGlobalConfigStore();
 const route = useRoute();
 
 type NavigationEntry = {
@@ -88,7 +88,7 @@ watch(route, (newRoute) => {
         class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-zinc-200 bg-zinc-100 px-6 pb-4"
     >
         <div class="flex h-16 shrink-0 items-center">
-            <img class="w-42" src="@/assets/logo.svg" :alt="appName" />
+            <img class="h-8" :src="logo" :alt="appName" />
             <span
                 v-if="isDevMode"
                 class="ml-2 rounded-lg bg-red-400 px-1 py-0.5 text-sm text-red-950"

@@ -44,7 +44,7 @@ const userNavigation = computed(() => {
             ...commonNavigation.value,
 
             {
-                name: "Sign out",
+                name: "Log out",
                 icon: ArrowRightEndOnRectangleIcon,
                 action: async () => {
                     localStorage.removeItem("usedAuth0Connection");
