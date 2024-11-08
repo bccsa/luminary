@@ -5,7 +5,6 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import * as _ from "lodash";
-import LCombobox from "../forms/LCombobox.vue";
 
 // Props for visibility and language to edit
 type Props = {
@@ -32,8 +31,6 @@ const newLanguage = ref<LanguageDto>({
     type: DocType.Language,
     updatedTimeUtc: Date.now(),
 });
-
-let membershipOptions = ref([]);
 
 // Watch the passed `language` prop to set the modal in edit mode
 watch(
@@ -128,7 +125,6 @@ const validateForm = () => {
                 :docType="DocType.Language"
                 data-test="group-selector"
             />
-            <LCombobox name="" v-model:groups="newLanguage.memberOf" :docType="DocType.Language" />
 
             <div class="flex justify-end gap-4 pt-5">
                 <LButton variant="secondary" data-test="cancel" @click="emit('close')"

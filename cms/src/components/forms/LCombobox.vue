@@ -1,15 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch, type Ref, type StyleValue } from "vue";
+import { ref, watch, type Ref, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
-import {
-    db,
-    DocType,
-    type Uuid,
-    type GroupDto,
-    verifyAccess,
-    AclPermission,
-} from "luminary-shared";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import FormLabel from "./FormLabel.vue";
 import LInput from "./LInput.vue";
@@ -32,7 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
 
-const selectedOptions = defineModel<Option[]>("options");
+const selectedOptions = defineModel<any[]>("selectedOptions");
 
 const query = ref("");
 
@@ -54,7 +46,8 @@ const focusInput = () => {
 
 const selectOption = (id: string | number) => {
     props.options.forEach((option) => {
-        if (option.id == id && !option.isSelected) {
+        const notSelected = !selectedOptions.value?.some((option) => option.id === id);
+        if (option.id == id && notSelected) {
             selectedOptions.value?.push({ ...option, isSelected: true });
         }
     });
@@ -62,9 +55,7 @@ const selectOption = (id: string | number) => {
 };
 
 const isOptionSelected = (id: string) => {
-    return computed(() => {
-        return selectedOptions.value?.includes({ id: id } as Option);
-    });
+    return selectedOptions.value?.some((option) => option.id === id); // Return true if option is selected
 };
 
 onClickOutside(optionsDisplay, () => (showOptions.value = false));
@@ -99,23 +90,24 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
         >
             <div
                 ref="optionsDisplay"
-                v-show="optionsDisplay"
+                v-show="showOptions"
                 class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
                 data-test="options"
             >
-                <ul
-                    v-for="option in options"
-                    :key="option.id"
-                    :value="option"
-                    :disabled="isOptionSelected(option.id)"
-                >
+                <ul>
                     <li
+                        v-for="option in options"
+                        :key="option.id"
+                        :disabled="isOptionSelected(option.id)"
                         class="text-sm hover:bg-zinc-100"
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
-                            { 'bg-zinc-100': isOptionSelected(option.id) },
-                            { 'text-zinc-900': !isOptionSelected(option.id) },
-                            { 'text-zinc-500': disabled },
+                            {
+                                'bg-white text-black hover:bg-zinc-100': !isOptionSelected(
+                                    option.id,
+                                ),
+                            },
+                            { 'text-zinc-500 hover:bg-white': isOptionSelected(option.id) },
                         ]"
                         @click="selectOption(option.id)"
                     >
@@ -141,7 +133,7 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
                     @remove="
                         () =>
                             selectedOptions?.splice(
-                                options?.indexOf({ id: option.id } as Option),
+                                selectedOptions?.indexOf({ id: option.id } as Option),
                                 1,
                             )
                     "
