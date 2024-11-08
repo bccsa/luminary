@@ -22,7 +22,7 @@ if (import.meta.env.PROD) {
     Sentry.init({
         app,
         dsn: import.meta.env.VITE_SENTRY_DSN,
-        integrations: [],
+        integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
     });
 }
 
