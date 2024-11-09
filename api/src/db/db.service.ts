@@ -473,6 +473,25 @@ export class DbService extends EventEmitter {
         });
     }
 
+    getDocsByType(docType: DocType): Promise<DbQueryResult> {
+        return new Promise((resolve, reject) => {
+            const query = {
+                selector: {
+                    type: docType,
+                },
+                limit: Number.MAX_SAFE_INTEGER,
+            };
+            this.db
+                .find(query)
+                .then((res) => {
+                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
+    }
+
     /**
      * Check if a slug is unique
      * @param slug - Slug to be checked

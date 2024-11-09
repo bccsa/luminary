@@ -5,7 +5,7 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
-import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import { useNotificationStore } from "@/stores/notification";
 
 // Props for visibility and Redirect to edit
@@ -70,7 +70,10 @@ const isDirty = computed(() => {
 
 const canSave = computed(() => {
     return (
-        editable.value.slug?.trim() !== "" && editable.value.memberOf.length > 0 && isDirty.value
+        editable.value.slug?.trim() !== "" &&
+        editable.value.memberOf.length > 0 &&
+        isDirty.value &&
+        isSlugUnique.value == true
     );
 });
 
@@ -83,6 +86,24 @@ const redirectExplanation = computed(() => {
         ? "Temporary redirects are used for short-term changes. They are cached by browsers and search engines for a limited time."
         : "Permanent redirects are used for long-term changes. They are cached indefinitely by browsers and search engines.";
 });
+
+const isSlugUnique = ref(true);
+const redirectDocs = db.whereTypeAsRef(DocType.Redirect, []);
+watch(
+    () => editable.value.slug,
+    () => {
+        if (editable.value.slug.length > 0) {
+            //Used for loop to make use of the "break" statement. Doesn't work on "forEach"
+            for (let i = 0; i < redirectDocs.value.length; i++) {
+                const doc: RedirectDto = redirectDocs.value[i];
+                if (doc.slug == editable.value.slug) {
+                    isSlugUnique.value = false;
+                    break;
+                } else isSlugUnique.value = true;
+            }
+        }
+    },
+);
 
 const validateSlug = (slug: string | undefined) => {
     if (!slug) return undefined;
@@ -119,14 +140,21 @@ const validateSlug = (slug: string | undefined) => {
                 </div>
                 <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
             </div>
-            <LInput
-                label="From *"
-                name="RedirectFromSlug"
-                v-model="editable.slug"
-                class="mb-4 w-full"
-                placeholder="The slug that will be redirected from.."
-                @change="editable.slug = validateSlug(editable.slug) || ''"
-            />
+
+            <div class="relative">
+                <LInput
+                    label="From *"
+                    name="RedirectFromSlug"
+                    v-model="editable.slug"
+                    class="mb-4 w-full"
+                    placeholder="The slug that will be redirected from.."
+                    @change="editable.slug = validateSlug(editable.slug) || ''"
+                />
+                <span class="absolute left-12 top-1 flex text-xs text-red-400" v-if="!isSlugUnique"
+                    ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a
+                    redirect</span
+                >
+            </div>
 
             <LInput
                 label="To"
