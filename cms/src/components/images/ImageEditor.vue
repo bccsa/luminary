@@ -123,7 +123,7 @@ const handleDrop = (e: DragEvent) => {
 
 <template>
     <div class="flex-col overflow-y-auto">
-        <div class="flex justify-between">
+        <div :disabled="disabled" class="flex justify-between">
             <span class="text-sm font-medium leading-6 text-zinc-900">Image</span>
             <div class="flex">
                 <button
@@ -174,7 +174,11 @@ const handleDrop = (e: DragEvent) => {
             <div class="flex flex-col items-center justify-center">
                 <p v-if="isDragging" class="text-sm">Drop your files here</p>
                 <div v-else>
-                    <LButton :icon="ArrowUpOnSquareIcon" @click="showFilePicker">
+                    <LButton
+                        :disabled="disabled"
+                        :icon="ArrowUpOnSquareIcon"
+                        @click="showFilePicker"
+                    >
                         Drop image file or click to Upload
                     </LButton>
                     <input
@@ -204,6 +208,7 @@ const handleDrop = (e: DragEvent) => {
                             :imageFileCollection="c"
                             @deleteFileCollection="removeFileCollection"
                             :key="c.aspectRatio"
+                            :editable="!disabled"
                         />
 
                         <!-- Display uploaded image data as thumbnails -->
@@ -212,6 +217,7 @@ const handleDrop = (e: DragEvent) => {
                             :imageUploadData="u"
                             @deleteUploadData="removeFileUploadData"
                             :key="u.filename"
+                            :editable="!disabled"
                         />
                     </div>
                 </div>
