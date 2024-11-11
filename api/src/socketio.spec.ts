@@ -206,7 +206,7 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_language(),
                     });
-                    waitForExpect(() => {
+                    await waitForExpect(async () => {
                         expect(res.docs.length).toBe(2);
                         expect(res.docs.some((d) => d.type == "user")).toBe(true);
                         expect(res.docs.some((d) => d.type == "language")).toBe(true);
@@ -283,7 +283,7 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_language(),
                     });
-                    waitForExpect(() => {
+                    await waitForExpect(async () => {
                         expect(res.docs.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
                         expect(res.docs.some((d) => d.type == "user")).toBe(true);
                         expect(res.docs.some((d) => d.type == "language")).toBe(true);

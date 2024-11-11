@@ -125,15 +125,21 @@ export async function processChangeRequest(
             await db.upsertDoc(d);
         }
     }
-    //changes
+
     if (doc.type === DocType.Language) {
         const langDoc = doc as LanguageDto;
         if (langDoc.default == 1) {
-            await db.processAllDocs(async (d: LanguageDto) => {
-                if (d.type === DocType.Language) {
-                    if (langDoc._id == d._id) return;
-                    d.default = 0;
-                    await db.upsertDoc(d);
+            const languageDocs = await db.getDocsByType(DocType.Language);
+
+            languageDocs.docs.forEach((doc: LanguageDto) => {
+                if (doc.type === DocType.Language) {
+                    if (langDoc._id == doc._id) return;
+                    doc.memberOf.forEach(async (member) => {
+                        if (groupMembership.includes(member)) {
+                            doc.default = 0;
+                            await db.upsertDoc(doc);
+                        }
+                    });
                 }
             });
         }

@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { AclPermission, db, DocType, verifyAccess, type LanguageDto } from "luminary-shared";
+import {
+    accessMap,
+    AclPermission,
+    db,
+    DocType,
+    hasAnyPermission,
+    verifyAccess,
+    type LanguageDto,
+} from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
@@ -24,9 +32,9 @@ const emit = defineEmits(["close", "created", "updated"]);
 // Check if we are in edit mode (if a language is passed)
 const isEditMode = computed(() => !!props.language);
 
-const canEditOrCreate =
-    verifyAccess(["group-private-editors"], DocType.Language, AclPermission.Edit) ||
-    verifyAccess(["group-private-editors"], DocType.Language, AclPermission.Edit);
+const userAccessMap = accessMap.value;
+console.info("access map:", accessMap.value);
+
 // New language or edited language object
 const newLanguage = ref<LanguageDto>({
     _id: db.uuid(), // Generate new ID for create mode
@@ -39,6 +47,16 @@ const newLanguage = ref<LanguageDto>({
 });
 
 let previousDefaultValueForCurrentLanguage = ref<number>(newLanguage.value.default!);
+
+const canEdit = verifyAccess(
+    previousLanguage.value!.memberOf,
+    DocType.Language,
+    AclPermission.Edit,
+);
+
+const canCreate = hasAnyPermission(DocType.Language, AclPermission.Publish);
+
+const canEditOrCreate = canCreate;
 
 // Watch the passed `language` prop to set the modal in edit mode
 watch(
