@@ -51,31 +51,51 @@ const tagsContent = ref<ContentDto[]>([]);
 const selectedTagId = ref<Uuid | undefined>();
 const tags = ref<TagDto[]>([]);
 const hasContent = ref(false);
-const bookmarks = ref<{ [key: string]: { ts: number; slug: string } }>({});
+// const userPreferences = ref<{ [key: string]: { ts: number } }>({});
+
+type Bookmark = { contentId: string; ts: number };
+
+const userPreferences = ref<{ bookmarks: Bookmark[] }>({
+    bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || [],
+});
+
+// const userPreferences = ref<{ bookmarks: Record<string, Bookmark> }>({
+//     bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || {},
+// });
 
 if (localStorage.getItem("bookmarks")) {
-    bookmarks.value = JSON.parse(localStorage.getItem("bookmarks") || "{}");
+    userPreferences.value.bookmarks =
+        JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || {};
 }
 
-// function to toogle bookmark for the current content
+// function to toggle bookmark for the current content
 const toggleBookmark = () => {
     const contentId = content.value._id;
     if (!contentId) return;
 
-    if (bookmarks.value[contentId]) {
-        delete bookmarks.value[contentId];
+    const existingBookmarkIndex = userPreferences.value.bookmarks.findIndex(
+        (bookmark) => bookmark.contentId === contentId,
+    );
+
+    if (existingBookmarkIndex !== -1) {
+        // Remove bookmark
+        userPreferences.value.bookmarks.splice(existingBookmarkIndex, 1);
     } else {
-        bookmarks.value[contentId] = {
+        // Add new bookmark
+        userPreferences.value.bookmarks.push({
+            contentId,
             ts: Date.now(),
-            slug: content.value.slug,
-        };
+        });
     }
 
-    localStorage.setItem("bookmarks", JSON.stringify(bookmarks.value));
+    // Update localStorage with updated userPreferences
+    localStorage.setItem("userPreferences", JSON.stringify(userPreferences.value));
 };
 
-// check if the current content is bookmarked
-const isBookmarked = computed(() => !!bookmarks.value[content.value._id]);
+// Check if current content is bookmarked
+const isBookmarked = computed(() =>
+    userPreferences.value.bookmarks.some((bookmark) => bookmark.contentId === content.value._id),
+);
 
 // Todo: Create a isLoading ref in Luminary shared to determine if the content is still loading (waiting for data to stream from the API) before showing a 404 error.
 
