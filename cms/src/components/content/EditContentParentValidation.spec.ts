@@ -52,7 +52,7 @@ describe("EditContentParentValidation.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("The default image must be set");
-            expect(wrapper.html()).toContain("At least one group is required");
+            expect(wrapper.html()).toContain("At least one group membership is required");
         });
     });
 
@@ -75,7 +75,7 @@ describe("EditContentParentValidation.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("At least one group is required");
+            expect(wrapper.html()).not.toContain("At least one group membership is required");
             expect(wrapper.html()).not.toContain("The default image must be set");
             expect(wrapper.html()).not.toContain("At least one translation is required");
 
@@ -102,7 +102,7 @@ describe("EditContentParentValidation.vue", () => {
             },
         });
 
-        expect(wrapper.html()).toContain("At least one group is required");
+        expect(wrapper.html()).toContain("At least one group membership is required");
 
         // Check if the save button is disabled
         const saveButton = wrapper.find('[data-test="save-button"]');
