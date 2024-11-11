@@ -5,6 +5,7 @@ import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
+import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -28,6 +29,33 @@ describe("EditContentParentValidation.vue", () => {
         setActivePinia(createTestingPinia());
     });
 
+    it("displays parent validation errors correctly when neccesary", async () => {
+        const wrapper = mount(EditContentParentValidation, {
+            props: {
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                dirty: true,
+                parent: {
+                    ...mockData.mockPostDto,
+                    memberOf: [],
+                    imageData: { fileCollections: [], uploadData: [] },
+                },
+                contentDocs: [mockData.mockEnglishContentDto],
+                localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("The default image must be set");
+            expect(wrapper.html()).toContain("At least one group membership is required");
+        });
+    });
+
     // TODO: Test these validations in a different place. https://github.com/bccsa/luminary/issues/313
     it.skip("passes validation by default", async () => {
         const wrapper = mount(EditContentParentValidation, {
@@ -46,13 +74,15 @@ describe("EditContentParentValidation.vue", () => {
             },
         });
 
-        expect(wrapper.html()).not.toContain("At least one group is required");
-        expect(wrapper.html()).not.toContain("The default image must be set");
-        expect(wrapper.html()).not.toContain("At least one translation is required");
+        await waitForExpect(() => {
+            expect(wrapper.html()).not.toContain("At least one group membership is required");
+            expect(wrapper.html()).not.toContain("The default image must be set");
+            expect(wrapper.html()).not.toContain("At least one translation is required");
 
-        // Check if the save button is enabled
-        const saveButton = wrapper.find('[data-test="save-button"]');
-        expect(saveButton.attributes().disabled).toBeUndefined();
+            // Check if the save button is enabled
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            expect(saveButton.attributes().disabled).toBeUndefined();
+        });
     });
 
     it.skip("fails validation if no groups are set", async () => {
@@ -72,7 +102,7 @@ describe("EditContentParentValidation.vue", () => {
             },
         });
 
-        expect(wrapper.html()).toContain("At least one group is required");
+        expect(wrapper.html()).toContain("At least one group membership is required");
 
         // Check if the save button is disabled
         const saveButton = wrapper.find('[data-test="save-button"]');

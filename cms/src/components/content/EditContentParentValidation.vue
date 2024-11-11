@@ -15,6 +15,7 @@ import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
+import { XCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     languages: LanguageDto[];
@@ -87,7 +88,7 @@ watch(
         if (!newParent) return;
 
         validate(
-            "At least one group is required",
+            "At least one group membership is required",
             "groups",
             parentValidations.value,
             newParent,
@@ -142,6 +143,23 @@ watch(
 <template>
     <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
+            <div v-if="!parentIsValid" class="mb-2 rounded-md bg-zinc-50 p-4 shadow">
+                <span class="text-sm"
+                    >Errors were found in your {{ parent?.type }}'s settings:</span
+                >
+                <div class="mt-1 flex flex-col gap-0.5">
+                    <div
+                        v-for="validation in parentValidations.filter((v) => !v.isValid)"
+                        :key="validation.id"
+                        class="-mb-[1px] flex items-center gap-1"
+                    >
+                        <p class="flex items-center gap-1">
+                            <XCircleIcon class="h-[18px] text-red-400" />
+                            <span class="text-xs text-zinc-700">{{ validation.message }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
             <div class="flex flex-col gap-2">
                 <EditContentValidation
                     v-for="content in contentDocs"
