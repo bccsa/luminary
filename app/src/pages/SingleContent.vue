@@ -51,17 +51,12 @@ const tagsContent = ref<ContentDto[]>([]);
 const selectedTagId = ref<Uuid | undefined>();
 const tags = ref<TagDto[]>([]);
 const hasContent = ref(false);
-// const userPreferences = ref<{ [key: string]: { ts: number } }>({});
 
 type Bookmark = { contentId: string; ts: number };
 
 const userPreferences = ref<{ bookmarks: Bookmark[] }>({
     bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || [],
 });
-
-// const userPreferences = ref<{ bookmarks: Record<string, Bookmark> }>({
-//     bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || {},
-// });
 
 if (localStorage.getItem("bookmarks")) {
     userPreferences.value.bookmarks =
@@ -89,7 +84,7 @@ const toggleBookmark = () => {
     }
 
     // Update localStorage with updated userPreferences
-    localStorage.setItem("userPreferences", JSON.stringify(userPreferences.value));
+    localStorage.setItem("userPreferences", JSON.stringify(userPreferences.value.bookmarks));
 };
 
 // Check if current content is bookmarked
