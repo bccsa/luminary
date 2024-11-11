@@ -225,6 +225,7 @@ function selectTag(parentId: Uuid) {
                     '': !isBookmarked,
                     'text-yellow-500 dark:text-blue-400': isBookmarked,
                 }"
+                data-test="bookmark-icon"
             />
 
             <div

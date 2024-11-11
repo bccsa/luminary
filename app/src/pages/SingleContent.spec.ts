@@ -24,6 +24,7 @@ import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
+import { BookmarkIcon } from "@heroicons/vue/24/solid";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -34,6 +35,7 @@ vi.mock("vue-router", async (importOriginal) => {
         useRouter: vi.fn().mockImplementation(() => ({
             currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
             replace: routeReplaceMock,
+            back: vi.fn(),
         })),
     };
 });
@@ -327,6 +329,31 @@ describe("SingleContent", () => {
                 name: "content",
                 params: { slug: "test" },
             });
+        });
+    });
+
+    // Need to find a way to mock the localstorage
+    it.skip("can bookmark content", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(async () => {
+            const bookmarkIcon = wrapper.findComponent(BookmarkIcon);
+            expect(bookmarkIcon.exists()).toBe(true);
+
+            await bookmarkIcon.trigger("click");
+
+            expect(localStorage.getItem("bookmarks")).toBe(
+                JSON.stringify({
+                    [mockEnglishContentDto._id]: {
+                        ts: expect.any(Number),
+                        slug: mockEnglishContentDto.slug,
+                    },
+                }),
+            );
         });
     });
 });
