@@ -22,6 +22,8 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
+import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
+import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
 
 const router = useRouter();
 
@@ -49,6 +51,31 @@ const tagsContent = ref<ContentDto[]>([]);
 const selectedTagId = ref<Uuid | undefined>();
 const tags = ref<TagDto[]>([]);
 const hasContent = ref(false);
+const bookmarks = ref<{ [key: string]: { ts: number; slug: string } }>({});
+
+if (localStorage.getItem("bookmarks")) {
+    bookmarks.value = JSON.parse(localStorage.getItem("bookmarks") || "{}");
+}
+
+// function to toogle bookmark for the current content
+const toggleBookmark = () => {
+    const contentId = content.value._id;
+    if (!contentId) return;
+
+    if (bookmarks.value[contentId]) {
+        delete bookmarks.value[contentId];
+    } else {
+        bookmarks.value[contentId] = {
+            ts: Date.now(),
+            slug: content.value.slug,
+        };
+    }
+
+    localStorage.setItem("bookmarks", JSON.stringify(bookmarks.value));
+};
+
+// check if the current content is bookmarked
+const isBookmarked = computed(() => !!bookmarks.value[content.value._id]);
 
 // Todo: Create a isLoading ref in Luminary shared to determine if the content is still loading (waiting for data to stream from the API) before showing a 404 error.
 
@@ -189,6 +216,16 @@ function selectTag(parentId: Uuid) {
             <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
                 {{ content.title }}
             </h1>
+
+            <component
+                :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                @click="toggleBookmark"
+                class="mx-auto mt-2 h-6 w-6 cursor-pointer"
+                :class="{
+                    '': !isBookmarked,
+                    'text-yellow-500 dark:text-blue-400': isBookmarked,
+                }"
+            />
 
             <div
                 class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"
