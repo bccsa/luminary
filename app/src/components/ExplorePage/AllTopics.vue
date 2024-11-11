@@ -4,9 +4,8 @@ import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-share
 import { appLanguageIdAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import LImage from "../images/LImage.vue";
-import ContentTile from "../content/ContentTile.vue";
 import { RouterLink } from "vue-router";
-import { ListBulletIcon, MagnifyingGlassIcon, Squares2X2Icon } from "@heroicons/vue/24/solid";
+import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
 
 const allTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -41,14 +40,6 @@ watch(allTopics, async (value) => {
     db.setQueryCache<ContentDto[]>("homepage_newestContent", value);
 });
 
-// View mode switcher: 'matrix' or 'list'
-const viewMode = ref<"matrix" | "list">("matrix");
-
-// Function to toggle between matrix and list views
-const toggleViewMode = () => {
-    viewMode.value = viewMode.value === "matrix" ? "list" : "matrix";
-};
-
 // Reactive search term
 const searchTerm = ref("");
 
@@ -66,8 +57,8 @@ const filteredTopics = computed(() => {
 </script>
 
 <template>
-    <div v-if="allTopics">
-        <div class="mb-4 mt-12 flex justify-between">
+    <div v-if="allTopics" class="mx-32">
+        <div class="mb-4 mt-12">
             <div class="relative w-2/3">
                 <MagnifyingGlassIcon
                     class="absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500"
@@ -77,19 +68,8 @@ const filteredTopics = computed(() => {
                     name="input"
                     type="text"
                     placeholder="Search..."
-                    class="w-full rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
+                    class="w-80 rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
                 />
-            </div>
-
-            <div
-                class="flex cursor-pointer items-center justify-center gap-1"
-                @click="toggleViewMode"
-            >
-                <component
-                    :is="viewMode === 'matrix' ? ListBulletIcon : Squares2X2Icon"
-                    class="h-4 w-4"
-                />
-                <p class="text-sm">{{ viewMode === "matrix" ? "List" : "Matrix" }}</p>
             </div>
         </div>
 
@@ -101,20 +81,11 @@ const filteredTopics = computed(() => {
             No results found for "{{ searchTerm }}"
         </div>
 
-        <div v-if="viewMode === 'matrix'" class="flex flex-wrap gap-4">
-            <ContentTile
-                v-for="content in filteredTopics"
-                :key="content._id"
-                :content="content"
-                :show-publish-date="false"
-            />
-        </div>
-
-        <div v-else class="space-y-4">
+        <div class="space-y-4">
             <div
                 v-for="content in filteredTopics"
                 :key="content._id"
-                class="border-b border-gray-300 last:border-0 dark:border-gray-700"
+                class="flex border-b border-gray-300 last:border-0 dark:border-gray-700"
             >
                 <RouterLink
                     :to="{ name: 'content', params: { slug: content.slug } }"
