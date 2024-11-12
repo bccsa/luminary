@@ -7,7 +7,6 @@ import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageUnpinned from "@/components/HomePage/HomePageUnpinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
-import LModal from "@/components/form/LModal.vue";
 
 const { isAuthenticated } = useAuth0();
 
