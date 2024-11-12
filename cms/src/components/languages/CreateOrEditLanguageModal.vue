@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import {
-    accessMap,
     AclPermission,
     db,
     DocType,
@@ -32,9 +31,6 @@ const emit = defineEmits(["close", "created", "updated"]);
 // Check if we are in edit mode (if a language is passed)
 const isEditMode = computed(() => !!props.language);
 
-const userAccessMap = accessMap.value;
-console.info("access map:", accessMap.value);
-
 // New language or edited language object
 const newLanguage = ref<LanguageDto>({
     _id: db.uuid(), // Generate new ID for create mode
@@ -48,15 +44,11 @@ const newLanguage = ref<LanguageDto>({
 
 let previousDefaultValueForCurrentLanguage = ref<number>(newLanguage.value.default!);
 
-const canEdit = verifyAccess(
-    previousLanguage.value!.memberOf,
-    DocType.Language,
-    AclPermission.Edit,
-);
+const canEdit = verifyAccess(newLanguage.value?.memberOf!, DocType.Language, AclPermission.Edit);
 
 const canCreate = hasAnyPermission(DocType.Language, AclPermission.Publish);
 
-const canEditOrCreate = canCreate;
+const canEditOrCreate = canEdit || canCreate;
 
 // Watch the passed `language` prop to set the modal in edit mode
 watch(
