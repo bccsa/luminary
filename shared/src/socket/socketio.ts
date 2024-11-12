@@ -52,7 +52,9 @@ class Socketio {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
+            console.log("data", Date.now());
             await db.bulkPut(data.docs);
+            console.log("data processed", Date.now());
             if (data.version != undefined) db.syncVersion = data.version;
         });
 
@@ -118,6 +120,7 @@ class Socketio {
      */
     public requestData() {
         // Request documents that are newer than the last received version
+        console.log("clientDataReq", Date.now());
         this.socket.emit("clientDataReq", {
             version: db.syncVersion,
             cms: this.isCms,
