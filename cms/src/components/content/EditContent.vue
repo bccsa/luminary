@@ -139,15 +139,35 @@ const createTranslation = (language: LanguageDto) => {
 // Access control
 const canTranslateOrPublish = computed(() => {
     if (!parent.value || !selectedLanguage.value) return false;
-    return (
-        (verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) &&
-            verifyAccess(
-                selectedLanguage.value.memberOf,
-                DocType.Language,
-                AclPermission.Translate,
-            )) ||
-        verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)
-    );
+
+    // Disable edit access if the user does not have publish permission
+    if (contentDocsPrev.value) {
+        const prevContentDoc = contentDocsPrev.value.find(
+            (d) => d.language == selectedLanguageId.value,
+        );
+        if (
+            prevContentDoc &&
+            prevContentDoc.status == PublishStatus.Published &&
+            !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)
+        )
+            return false;
+    }
+
+    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate)) return false;
+    if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
+        return false;
+    return true;
+});
+
+const canEditParent = computed(() => {
+    if (parent.value) {
+        // Allow editing if the parent is not part of any group to allow the editor to set a group
+        if (parent.value.memberOf.length == 0) return true;
+
+        return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Edit, "all");
+    }
+
+    return false;
 });
 
 // Dirty check and save
@@ -333,6 +353,7 @@ watch(selectedLanguage, () => {
                         :docType="props.docType"
                         :language="selectedLanguage"
                         v-model="parent"
+                        :disabled="!canEditParent"
                     />
                 </div>
             </div>

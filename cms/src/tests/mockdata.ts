@@ -13,6 +13,7 @@ import {
     PostType,
     type RedirectDto,
     RedirectType,
+    type AccessMap,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -961,7 +962,7 @@ export const viewAccessToAllContentMap = {
     },
 };
 
-export const translateAccessToAllContent = {
+export const translateAccessToAllContentMap = {
     "group-private-content": {
         post: { view: true, translate: true },
         tag: { view: true, translate: true },
@@ -977,4 +978,4 @@ export const translateAccessToAllContent = {
         tag: { view: true, translate: true },
         language: { view: true, translate: true },
     },
-};
+} as AccessMap;

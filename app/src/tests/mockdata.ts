@@ -472,7 +472,7 @@ export const viewAccessToAllContentMap = {
     },
 };
 
-export const translateAccessToAllContent = {
+export const translateAccessToAllContentMap = {
     "group-private-content": {
         post: { view: true, translate: true },
         tag: { view: true, translate: true },
