@@ -256,6 +256,11 @@ export class Socketio implements OnGatewayInit {
                     const response: ApiDataResponse = { docs: res.docs };
                     if (res.version) response.version = res.version;
 
+                    if (res.docs.length > 20) {
+                        socket.compress(true).emit("data", response);
+                        return;
+                    }
+
                     socket.emit("data", response);
                 }
             })
@@ -280,7 +285,13 @@ export class Socketio implements OnGatewayInit {
                 })
                 .then((res: DbQueryResult) => {
                     if (res.docs) {
-                        socket.emit("data", { docs: res.docs });
+                        const response: ApiDataResponse = { docs: res.docs };
+
+                        if (res.docs.length > 20) {
+                            socket.compress(true).emit("data", response);
+                            return;
+                        }
+                        socket.emit("data", response);
                     }
                 })
                 .catch((err) => {
