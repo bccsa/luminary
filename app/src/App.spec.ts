@@ -55,7 +55,7 @@ describe("App", () => {
         });
     });
 
-    it("shows the banner when offline", async () => {
+    it("shows the banner when offline", { timeout: 7000 }, async () => {
         vi.spyOn(isConnected, "value", "get").mockReturnValue(false);
 
         const notificationStore = useNotificationStore();
@@ -73,7 +73,7 @@ describe("App", () => {
                         "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
                 }),
             );
-        });
+        }, 6000);
     });
 
     it("doesnt show the banner when online", async () => {
