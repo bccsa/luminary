@@ -137,12 +137,37 @@ const createTranslation = (language: LanguageDto) => {
 };
 
 // Access control
-const canTranslate = computed(() => {
+const canTranslateOrPublish = computed(() => {
     if (!parent.value || !selectedLanguage.value) return false;
-    return (
-        verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) &&
-        verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)
-    );
+
+    // Disable edit access if the user does not have publish permission
+    if (contentDocsPrev.value) {
+        const prevContentDoc = contentDocsPrev.value.find(
+            (d) => d.language == selectedLanguageId.value,
+        );
+        if (
+            prevContentDoc &&
+            prevContentDoc.status == PublishStatus.Published &&
+            !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)
+        )
+            return false;
+    }
+
+    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate)) return false;
+    if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
+        return false;
+    return true;
+});
+
+const canEditParent = computed(() => {
+    if (parent.value) {
+        // Allow editing if the parent is not part of any group to allow the editor to set a group
+        if (parent.value.memberOf.length == 0) return true;
+
+        return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Edit, "all");
+    }
+
+    return false;
 });
 
 // Dirty check and save
@@ -159,6 +184,15 @@ const save = async () => {
         addNotification({
             title: "Changes not saved",
             description: "There are validation errors that prevent saving",
+            state: "error",
+        });
+        return;
+    }
+
+    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)) {
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You do not have publish permission",
             state: "error",
         });
         return;
@@ -284,11 +318,20 @@ watch(selectedLanguage, () => {
                 <div v-else class="space-y-6">
                     <EditContentStatus
                         v-model:content="selectedContent"
-                        :disabled="!canTranslate"
+                        :disabled="!canTranslateOrPublish"
                     />
-                    <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
+                    <EditContentBasic
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslateOrPublish"
+                    />
+                    <EditContentText
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslateOrPublish"
+                    />
+                    <EditContentVideo
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslateOrPublish"
+                    />
                 </div>
             </div>
             <!-- Sidebar -->
@@ -310,6 +353,7 @@ watch(selectedLanguage, () => {
                         :docType="props.docType"
                         :language="selectedLanguage"
                         v-model="parent"
+                        :disabled="!canEditParent"
                     />
                 </div>
             </div>
