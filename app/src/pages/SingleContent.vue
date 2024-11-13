@@ -22,6 +22,8 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
+import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
+import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
 
 const router = useRouter();
 
@@ -59,6 +61,26 @@ const is404 = computed(() => {
     if (content.value.expiryDate && content.value.expiryDate < Date.now()) return true; // if the content is expired, it's a 404
     return false;
 });
+
+const userPreferences = ref<{ bookmarks: { [key: string]: { ts: number } } }>({
+    bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || {},
+});
+// Function to toggle bookmark for the current content
+const toggleBookmark = () => {
+    const contentId = content.value._id;
+    if (!contentId) return;
+    if (userPreferences.value.bookmarks[contentId]) {
+        delete userPreferences.value.bookmarks[contentId];
+    } else {
+        userPreferences.value.bookmarks[contentId] = {
+            ts: Date.now(),
+        };
+    }
+    localStorage.setItem("userPreferences", JSON.stringify(userPreferences.value));
+};
+
+// Check if the current content is bookmarked
+const isBookmarked = computed(() => !!userPreferences.value.bookmarks[content.value._id]);
 
 watch(content, async () => {
     if (!content.value) return;
@@ -189,6 +211,15 @@ function selectTag(parentId: Uuid) {
             <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
                 {{ content.title }}
             </h1>
+
+            <component
+                :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                @click="toggleBookmark"
+                class="mx-auto mt-2 h-6 w-6 cursor-pointer"
+                :class="{
+                    'text-yellow-500': isBookmarked,
+                }"
+            />
 
             <div
                 class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"
