@@ -116,10 +116,10 @@ class Socketio {
      * connection to the server, but in some cases it may be necessary to request it manually
      * (e.g. after clearing local data).
      */
-    public requestData() {
+    public async requestData() {
         // Request documents that are newer than the last received version
         this.socket.emit("clientDataReq", {
-            version: db.syncVersion,
+            version: await db.syncVersion,
             cms: this.isCms,
             accessMap: accessMap.value,
         });

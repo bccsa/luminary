@@ -12,6 +12,7 @@ import {
     TagDto,
     TagType,
     Uuid,
+    luminaryInternalsDto,
 } from "../types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
@@ -67,16 +68,18 @@ class Database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
+    luminaryInternals!: Table<luminaryInternalsDto>;
     private accessMapRef = accessMap;
 
     constructor() {
         super("luminary-db");
 
         // Remember to increase the version number below if you change the schema
-        this.version(13).stores({
+        this.version(14).stores({
             docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned, [type+parentTagType+language+status]",
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
+            luminaryInternals: "id",
         });
 
         this.deleteExpired();
@@ -103,14 +106,20 @@ class Database extends Dexie {
      * Set the sync version as received from the api
      */
     set syncVersion(value: number) {
-        localStorage.setItem("syncVersion", value.toString());
+        this.luminaryInternals.put({ id: "syncVersion", value: value.toString() }, "syncVersion");
     }
 
     /**
      * Get the stored sync version
      */
-    get syncVersion(): number {
-        return parseInt(localStorage.getItem("syncVersion") || "0");
+    get syncVersion(): any {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise(async (resolve) => {
+            const _v: luminaryInternalsDto = (await this.luminaryInternals.get(
+                "syncVersion",
+            )) as luminaryInternalsDto;
+            resolve((_v && _v.value && parseInt(_v.value)) || 0);
+        });
     }
 
     /**

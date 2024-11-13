@@ -630,7 +630,7 @@ describe("Database", () => {
         const doc = await db.get<PostDto>(mockPostDto._id);
         expect(localChange).toBeDefined();
         expect(doc).toEqual(mockPostDto);
-        expect(localStorage.getItem("syncVersion")).toBe("123");
+        expect(await db.syncVersion).toBe(123);
 
         // Purge the local database
         await db.purge();
@@ -644,8 +644,7 @@ describe("Database", () => {
         expect(docs.length).toBe(0);
 
         // Check that the sync version is reset
-        expect(localStorage.getItem("syncVersion")).toBe("0");
-        expect(db.syncVersion).toBe(0);
+        expect(await db.syncVersion).toBe(0);
     });
 
     describe("revoked documents", () => {

@@ -135,9 +135,9 @@ describe("socketio", () => {
     });
 
     it("can set the sync version", async () => {
-        localStorage.setItem("syncVersion", "0");
-        await waitForExpect(() => {
-            expect(db.syncVersion).toBe(0);
+        db.syncVersion = 0;
+        await waitForExpect(async () => {
+            expect(await db.syncVersion).toBe(0);
         });
 
         socketServer.on("connection", (socket) => {
@@ -145,9 +145,8 @@ describe("socketio", () => {
         });
         getSocket({ reconnect: true });
 
-        await waitForExpect(() => {
-            expect(db.syncVersion).toBe(42);
-            expect(localStorage.getItem("syncVersion")).toBe("42");
+        await waitForExpect(async () => {
+            expect(await db.syncVersion).toBe(42);
         });
     });
 
@@ -177,13 +176,12 @@ describe("socketio", () => {
 
         getSocket({ reconnect: true });
 
-        let lastUpdatedTime = localStorage.getItem("syncVersion");
-        if (typeof lastUpdatedTime !== "string") lastUpdatedTime = "0";
+        const lastUpdatedTime: number = await db.syncVersion;
 
         await waitForExpect(() => {
             expect(clientDataReq).toEqual({
                 accessMap: {},
-                version: Number.parseInt(lastUpdatedTime),
+                version: lastUpdatedTime,
                 cms: true,
             });
         });
@@ -215,8 +213,7 @@ describe("socketio", () => {
     it("can manually request data from the api", async () => {
         getSocket({ reconnect: true });
 
-        let lastUpdatedTime = localStorage.getItem("syncVersion");
-        if (typeof lastUpdatedTime !== "string") lastUpdatedTime = "0";
+        const lastUpdatedTime: number = await db.syncVersion;
 
         let clientDataReq;
         socketServer.on("connection", (socket) => {
@@ -228,7 +225,7 @@ describe("socketio", () => {
         await waitForExpect(() => {
             expect(clientDataReq).toEqual({
                 accessMap: {},
-                version: Number.parseInt(lastUpdatedTime),
+                version: lastUpdatedTime,
                 cms: true,
             });
         });
@@ -248,7 +245,7 @@ describe("socketio", () => {
             );
         });
 
-        expect(localStorage.getItem("syncVersion")).toEqual("42");
+        expect(await db.syncVersion).toEqual(42);
     });
 
     it("sends a change request if there are local changes", async () => {
