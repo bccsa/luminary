@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { computed, onBeforeMount, watch } from "vue";
+import { computed, onBeforeMount, ref, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { getSocket, isConnected } from "luminary-shared";
@@ -13,6 +13,8 @@ import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 import { useRouter } from "vue-router";
+import LModal from "./components/form/LModal.vue";
+import LButton from "./components/button/LButton.vue";
 
 const { isAuthenticated, user, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 const router = useRouter();
@@ -133,6 +135,44 @@ setTimeout(() => {
     );
 }, 1000);
 
+// This const should be removed as we added it already in the bookmark feature
+const userPreferences = JSON.parse(localStorage.getItem("userPreferences") || "{}");
+const showModal = ref(false);
+
+setTimeout(() => {
+    watch(
+        userPreferences.privatePolicyState,
+        () => {
+            if (!userPreferences.privatePolicyState) {
+                useNotificationStore().addNotification({
+                    id: "privacy-policy-banner",
+                    type: "banner",
+                    state: "info",
+                    title: "Privacy Policy",
+                    description: "By using this app, you agree to our privacy policy.",
+                    routerLink: () => (showModal.value = true),
+                });
+            }
+        },
+
+        { immediate: true },
+    );
+}, 1000);
+
+function acceptPrivacyPolicy() {
+    userPreferences.privatePolicyState = true;
+    showModal.value = false;
+    localStorage.setItem(
+        "userPreferences",
+        JSON.stringify({ ...userPreferences, privatePolicyState: true }),
+    );
+    showModal.value = false;
+}
+
+function declinePrivacyPolicy() {
+    showModal.value = false;
+}
+
 const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
 });
@@ -158,4 +198,19 @@ const routeKey = computed(() => {
     <Teleport to="body">
         <NotificationToastManager />
     </Teleport>
+
+    <LModal :isVisible="showModal" heading="Privacy Policy" @close="declinePrivacyPolicy">
+        <p class="mt-4 text-gray-700 dark:text-slate-300">
+            By using this app, you agree to our
+            <RouterLink
+                :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
+                class="text-blue-600 underline dark:text-yellow-400"
+                >privacy policy</RouterLink
+            >. <br />Do you want to help us improve it by accepting it ?
+        </p>
+        <div class="mt-6 flex justify-end space-x-3 pt-4">
+            <LButton variant="secondary" @click="declinePrivacyPolicy"> Decline </LButton>
+            <LButton variant="primary" @click="acceptPrivacyPolicy"> Accept </LButton>
+        </div>
+    </LModal>
 </template>
