@@ -3,6 +3,8 @@ import { watch } from "vue";
 import {
     type ContentDto,
     DocType,
+    PostType,
+    TagType,
     type Uuid,
     db,
     useDexieLiveQueryWithDeps,
@@ -50,6 +52,9 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 if (!content.publishDate) return false;
                 if (content.publishDate > Date.now()) return false;
                 if (content.expiryDate && content.expiryDate < Date.now()) return false;
+
+                if (content.parentPostType && content.parentPostType == PostType.Page) return false;
+                if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
 
                 for (const tagId of content.parentTags) {
                     if (pinnedCategories.some((p) => p.parentId == tagId)) return true;
