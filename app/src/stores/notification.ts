@@ -12,7 +12,8 @@ export type Notification = {
     state: "success" | "error" | "info" | "warning";
     type: "toast" | "banner";
     icon?: FunctionalComponent;
-    routerLink?: RouteLocationNamedRaw;
+    // set also router link as custom function
+    routerLink?: RouteLocationNamedRaw | (() => void);
 };
 
 export const useNotificationStore = defineStore("notification", () => {
