@@ -13,10 +13,12 @@ describe("LModal", () => {
                 },
             });
 
+            const body = document.querySelector("body");
+
             await wrapper.vm.$nextTick();
 
             await waitForExpect(() => {});
-            expect(wrapper.html()).toContain("Test a Heading");
+            expect(body!.innerHTML).toContain("Test Heading");
         });
     });
 });
