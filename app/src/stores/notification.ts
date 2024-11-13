@@ -12,7 +12,7 @@ export type Notification = {
     state: "success" | "error" | "info" | "warning";
     type: "toast" | "banner";
     icon?: FunctionalComponent;
-    routerLink?: RouteLocationNamedRaw;
+    routerLink?: RouteLocationNamedRaw | (() => void);
     timeout?: number;
 };
 
