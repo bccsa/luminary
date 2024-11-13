@@ -112,7 +112,7 @@ class Database extends Dexie {
     /**
      * Get the stored sync version
      */
-    get syncVersion(): any {
+    get syncVersion(): Promise<number> {
         // eslint-disable-next-line no-async-promise-executor
         return new Promise(async (resolve) => {
             const _v: luminaryInternalsDto = (await this.luminaryInternals.get(
