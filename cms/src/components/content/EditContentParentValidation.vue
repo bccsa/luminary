@@ -15,7 +15,7 @@ import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
-import { XCircleIcon } from "@heroicons/vue/20/solid";
+import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     languages: LanguageDto[];
@@ -145,6 +145,15 @@ watch(
 <template>
     <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
+            <div
+                v-if="!canTranslateOrPublish || !canEdit"
+                class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
+            >
+                <span v-if="!canTranslateOrPublish" class="flex gap-1 text-xs text-zinc-600">
+                    <ExclamationCircleIcon class="h-4 text-red-400" /> You do not have permission to
+                    translate and/or publish content.</span
+                >
+            </div>
             <div v-if="!parentIsValid" class="mb-2 rounded-md bg-zinc-50 p-4 shadow">
                 <span class="text-sm"
                     >Errors were found in your {{ parent?.type }}'s settings:</span

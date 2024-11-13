@@ -316,10 +316,7 @@ watch(selectedLanguage, () => {
                         v-model="selectedLanguageId"
                         @createTranslation="createTranslation"
                 /></EmptyState>
-                <!-- <span v-if="!canTranslate" class="flex gap-1 text-xs text-zinc-600">
-                    <ExclamationCircleIcon class="h-4 text-red-400" /> You do not have permission to
-                    translate content.</span
-                > -->
+
                 <div v-else class="space-y-6">
                     <EditContentStatus
                         v-model:content="selectedContent"
