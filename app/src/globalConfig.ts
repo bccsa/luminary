@@ -108,3 +108,7 @@ export const removeMediaProgress = (mediaId: string, contentId: Uuid) => {
         localStorage.setItem("mediaProgress", JSON.stringify(_mediaProgress));
     }
 };
+
+export const userPreferences = ref<{ bookmarks: { [key: string]: { ts: number } } }>({
+    bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || {},
+});

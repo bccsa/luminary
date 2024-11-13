@@ -24,6 +24,7 @@ import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
 import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
+import { userPreferences } from "@/globalConfig";
 
 const router = useRouter();
 
@@ -62,9 +63,6 @@ const is404 = computed(() => {
     return false;
 });
 
-const userPreferences = ref<{ bookmarks: { [key: string]: { ts: number } } }>({
-    bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || {},
-});
 // Function to toggle bookmark for the current content
 const toggleBookmark = () => {
     const contentId = content.value._id;
