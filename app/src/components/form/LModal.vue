@@ -16,10 +16,10 @@ const emit = defineEmits(["close"]);
                 <div class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-700">
                     <h2 class="mb-4 text-lg font-semibold">{{ heading }}</h2>
                     <div class="divide-y divide-zinc-200 dark:divide-slate-600">
-                        <slot name="header"></slot>
+                        <slot></slot>
                     </div>
                     <div class="mt-4">
-                        <slot name="footer">Default content for footer</slot>
+                        <slot name="footer"></slot>
                     </div>
                 </div>
             </div>
