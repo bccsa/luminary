@@ -8,6 +8,7 @@ import fallbackImage from "@/assets/fallback-image-cms.webp";
 type Props = {
     imageFileCollection?: ImageFileCollectionDto;
     imageUploadData?: ImageUploadDto;
+    disbaled?: boolean;
 };
 const props = defineProps<Props>();
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
@@ -65,7 +66,7 @@ const imageElementError = ref(false);
             <img v-else class="h-16 rounded-sm shadow" :src="fallbackImage" />
             <TrashIcon
                 class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
-                v-show="hover"
+                v-show="hover && disbaled"
                 title="Delete file version"
                 @click="showModal = true"
             />
