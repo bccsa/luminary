@@ -11,7 +11,7 @@ import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { computed, ref } from "vue";
-import { LanguageIcon, SunIcon } from "@heroicons/vue/24/solid";
+import { LanguageIcon, ShieldCheckIcon, SunIcon } from "@heroicons/vue/24/solid";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
 import { BookmarkIcon } from "@heroicons/vue/16/solid";
@@ -40,6 +40,11 @@ const commonNavigation = computed(() => {
             name: "Bookmarks",
             icon: BookmarkIcon,
             action: () => router.push({ name: "bookmarks" }),
+        },
+        {
+            name: "Privacy",
+            icon: ShieldCheckIcon,
+            action: () => router.push({ name: "content", params: { slug: "privacy-policy" } }),
         },
     ];
 });
