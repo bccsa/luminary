@@ -17,6 +17,8 @@ import {
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 
 vi.mock("@auth0/auth0-vue");
 vi.mock("vue-router");
@@ -28,6 +30,7 @@ describe("HomePage.vue", () => {
     });
 
     beforeEach(async () => {
+        setActivePinia(createTestingPinia());
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(true),
         });
