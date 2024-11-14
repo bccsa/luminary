@@ -23,8 +23,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 describe("socketio", () => {
     const socketServer = new Server(12345);
 
-    beforeAll(() => {
-        initLuminaryShared({ cms: true });
+    beforeAll(async () => {
+        await initLuminaryShared({ cms: true }, "parentId, language, [type+docType]");
 
         // initialize the socket client
         const socket = getSocket({

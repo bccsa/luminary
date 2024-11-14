@@ -14,8 +14,6 @@ import { initLuminaryShared } from "luminary-shared";
 import VueMatomo from "vue-matomo";
 import { loadPlugins } from "./util/pluginLoader";
 
-initLuminaryShared({ cms: false });
-
 export const app = createApp(App);
 
 if (import.meta.env.PROD) {
@@ -32,6 +30,9 @@ app.use(router);
 
 // Startup
 async function Startup() {
+    const docsIndex: string =
+        "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+language+status], [type+language+status+parentPinned], [type+docType]";
+    await initLuminaryShared({ cms: false }, docsIndex);
     // setup auth0
     app.config.globalProperties.$auth = null; // Clear existing auth
     const oauth = await auth.setupAuth(app, router);

@@ -21,6 +21,7 @@ import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
+const dbName: string = "luminary-db";
 
 export type QueryOptions = {
     filterOptions?: {
@@ -69,12 +70,25 @@ class Database extends Dexie {
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     private accessMapRef = accessMap;
 
-    constructor() {
-        super("luminary-db");
+    /**
+     * Luminary Shared Database class
+     * @param dbVersion - Current Dexie DB version
+     * @param docsIndex - App spesific Index
+     */
+    constructor(dbVersion: number, docsIndex: string) {
+        super(dbName);
 
+        const index: string = concatIndex("_id", docsIndex);
+        const version: number = bumpDBVersion(
+            (dbVersion >= 10 && dbVersion / 10) || 1,
+            localStorage.getItem("dexie.docsIndex") || "",
+            index,
+        );
+
+        // NOTE: Only _id needs to stay in the shared library, all the other fields can be moved to the cms / app
         // Remember to increase the version number below if you change the schema
-        this.version(13).stores({
-            docs: "_id, type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned, [type+parentTagType+language+status]",
+        this.version(version).stores({
+            docs: index,
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
         });
@@ -660,6 +674,65 @@ class Database extends Dexie {
 
 export let db: Database;
 
-export function initDatabase() {
-    db = new Database();
+export async function initDatabase(docsIndex: string = "") {
+    const _v: number = await getDbVersion();
+    db = new Database(_v, docsIndex);
 }
+
+/**
+ * Get IndexDB version before DB class is initialized
+ * @returns IndexDB Version
+ */
+export const getDbVersion = async () => {
+    // supress DatabaseClosedError
+    window.addEventListener("unhandledrejection", (ev) => {
+        if (ev.reason.name === "DatabaseClosedError") {
+            ev.preventDefault();
+        }
+    });
+
+    const request = indexedDB.open(dbName);
+    return new Promise((resolve) => {
+        request.onsuccess = (event: any) => {
+            const db = event.target.result;
+            const version: number = (db && db.version) || 0;
+            db.addEventListener("close", () => {});
+            db.close();
+            resolve(version);
+        };
+    }) as unknown as Promise<number>;
+};
+
+/**
+ * Concatinate Shared Library index with the external index, to avoid having duplicate indexes
+ * @param index1 - Shared Library Index
+ * @param index2 - External Index
+ * @returns
+ */
+const concatIndex = (index1: string, index2: string) => {
+    const i1: string[] = index1.split(",");
+    const i2: string[] = index2.split(",");
+    const i3: any = {};
+    i1.forEach((i) => {
+        if (i) i3[i] = i;
+    });
+    i2.forEach((i) => {
+        if (i) i3[i] = i;
+    });
+
+    return Object.values(i3).toString();
+};
+
+/**
+ * Compare current DB index with new DB index to determine if the DB version should be updated
+ * @param dbVersion - Current DB version
+ * @param oldIndex - Current DB docs index
+ * @param newIndex - New DB docs index
+ * @returns
+ */
+const bumpDBVersion = (dbVersion: number, oldIndex: string, newIndex: string) => {
+    if (oldIndex.trim() == newIndex.trim()) return dbVersion;
+    localStorage.setItem("dexie.docsIndex", newIndex);
+    console.log(`dbVersion updated from ${dbVersion} to ${dbVersion + 1}`);
+    return dbVersion + 1;
+};
