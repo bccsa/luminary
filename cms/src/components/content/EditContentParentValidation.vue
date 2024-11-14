@@ -149,9 +149,13 @@ watch(
                 v-if="!canTranslateOrPublish || !canEdit"
                 class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
             >
-                <span v-if="!canTranslateOrPublish" class="flex gap-1 text-xs text-zinc-600">
+                <span v-if="!canTranslateOrPublish" class="mb-1 flex gap-1 text-xs text-zinc-600">
                     <ExclamationCircleIcon class="h-4 text-red-400" /> You do not have permission to
                     translate and/or publish content.</span
+                >
+                <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
+                    <ExclamationCircleIcon class="h-4 text-red-400" /> You do not have permission to
+                    edit content.</span
                 >
             </div>
             <div v-if="!parentIsValid" class="mb-2 rounded-md bg-zinc-50 p-4 shadow">
