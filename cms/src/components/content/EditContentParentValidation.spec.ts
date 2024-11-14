@@ -47,12 +47,45 @@ describe("EditContentParentValidation.vue", () => {
                 localChange: false,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [mockData.mockEnglishContentDto],
+                canEdit: true,
+                canTranslateOrPublish: true,
             },
         });
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("The default image must be set");
             expect(wrapper.html()).toContain("At least one group membership is required");
+        });
+    });
+
+    it("displays permission message to user", async () => {
+        const wrapper = mount(EditContentParentValidation, {
+            props: {
+                languages: [
+                    mockData.mockLanguageDtoEng,
+                    mockData.mockLanguageDtoFra,
+                    mockData.mockLanguageDtoSwa,
+                ],
+                dirty: true,
+                parent: {
+                    ...mockData.mockPostDto,
+                    memberOf: [],
+                    imageData: { fileCollections: [], uploadData: [] },
+                },
+                contentDocs: [mockData.mockEnglishContentDto],
+                localChange: false,
+                parentPrev: mockData.mockPostDto,
+                contentPrev: [mockData.mockEnglishContentDto],
+                canEdit: false,
+                canTranslateOrPublish: false,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(
+                "You do not have permission to translate and/or publish content.",
+            );
+            expect(wrapper.html()).toContain("You do not have permission to edit content.");
         });
     });
 
@@ -71,6 +104,8 @@ describe("EditContentParentValidation.vue", () => {
                 localChange: false,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [mockData.mockEnglishContentDto],
+                canEdit: true,
+                canTranslateOrPublish: true,
             },
         });
 
@@ -99,6 +134,8 @@ describe("EditContentParentValidation.vue", () => {
                 localChange: false,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [mockData.mockEnglishContentDto],
+                canEdit: true,
+                canTranslateOrPublish: true,
             },
         });
 
@@ -123,6 +160,8 @@ describe("EditContentParentValidation.vue", () => {
                 localChange: false,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [mockData.mockEnglishContentDto],
+                canEdit: true,
+                canTranslateOrPublish: true,
             },
         });
 
@@ -147,6 +186,8 @@ describe("EditContentParentValidation.vue", () => {
                 localChange: false,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [mockData.mockEnglishContentDto],
+                canEdit: true,
+                canTranslateOrPublish: true,
             },
         });
 
@@ -171,6 +212,8 @@ describe("EditContentParentValidation.vue", () => {
                 localChange: false,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [mockData.mockEnglishContentDto],
+                canEdit: true,
+                canTranslateOrPublish: true,
             },
         });
 
@@ -191,6 +234,8 @@ describe("EditContentParentValidation.vue", () => {
                 localChange: true,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [],
+                canEdit: true,
+                canTranslateOrPublish: true,
             },
         });
 
@@ -211,6 +256,8 @@ describe("EditContentParentValidation.vue", () => {
                 localChange: false,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [mockData.mockEnglishContentDto],
+                canEdit: true,
+                canTranslateOrPublish: true,
             },
         });
 
