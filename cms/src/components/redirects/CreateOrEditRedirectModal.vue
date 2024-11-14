@@ -7,6 +7,7 @@ import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import { useNotificationStore } from "@/stores/notification";
+import { Slug } from "@/util/slug";
 
 // Props for visibility and Redirect to edit
 type Props = {
@@ -88,19 +89,16 @@ const redirectExplanation = computed(() => {
 });
 
 const isSlugUnique = ref(true);
-const redirectDocs = db.whereTypeAsRef(DocType.Redirect, []);
 watch(
     () => editable.value.slug,
-    () => {
+    async () => {
         if (editable.value.slug.length > 0) {
-            //Used for loop to make use of the "break" statement. Doesn't work on "forEach"
-            for (let i = 0; i < redirectDocs.value.length; i++) {
-                const doc: RedirectDto = redirectDocs.value[i];
-                if (doc.slug == editable.value.slug) {
-                    isSlugUnique.value = false;
-                    break;
-                } else isSlugUnique.value = true;
-            }
+            const slugIsUnique = await Slug._checkUnique(
+                editable.value.slug,
+                editable.value._id,
+                DocType.Redirect,
+            );
+            isSlugUnique.value = slugIsUnique ? slugIsUnique : false;
         }
     },
 );

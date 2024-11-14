@@ -1,5 +1,5 @@
 import { slugify } from "transliteration";
-import { db, type Uuid } from "luminary-shared";
+import { db, DocType, type Uuid } from "luminary-shared";
 
 /**
  * Functions to generate and validate slugs
@@ -38,8 +38,18 @@ export class Slug {
     /**
      * Returns true if the slug is unique
      */
-    private static async _checkUnique(text: string, documentId: Uuid) {
-        const existingDocWithSlug = await db.docs.where("slug").equals(text).first();
+    public static async _checkUnique(text: string, documentId: Uuid, docType?: DocType) {
+        let existingDocWithSlug;
+
+        if (docType) {
+            existingDocWithSlug = await db.docs
+                .where("slug")
+                .equals(text)
+                .and((doc) => doc.type === docType)
+                .first();
+        } else {
+            existingDocWithSlug = await db.docs.where("slug").equals(text).first();
+        }
 
         if (existingDocWithSlug && existingDocWithSlug._id != documentId) {
             return false;
