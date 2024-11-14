@@ -24,6 +24,8 @@ import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
+import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
+import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -34,6 +36,7 @@ vi.mock("vue-router", async (importOriginal) => {
         useRouter: vi.fn().mockImplementation(() => ({
             currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
             replace: routeReplaceMock,
+            back: vi.fn(),
         })),
     };
 });
@@ -327,6 +330,23 @@ describe("SingleContent", () => {
                 name: "content",
                 params: { slug: "test" },
             });
+        });
+    });
+
+    it("can bookmark a content", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(async () => {
+            const bookmarkIcon = wrapper.findComponent(BookmarkIconOutline);
+            bookmarkIcon.trigger("click");
+
+            // We need to find a way to check if the content has been bookmarked in the localStorage
+            const bookmarkIconSolid = wrapper.findComponent(BookmarkIconSolid);
+            expect(bookmarkIconSolid.exists()).toBe(true);
         });
     });
 });
