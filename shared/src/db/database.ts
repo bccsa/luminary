@@ -684,13 +684,6 @@ export async function initDatabase(docsIndex: string = "") {
  * @returns IndexDB Version
  */
 export const getDbVersion = async () => {
-    // supress DatabaseClosedError
-    window.addEventListener("unhandledrejection", (ev) => {
-        if (ev.reason.name === "DatabaseClosedError") {
-            ev.preventDefault();
-        }
-    });
-
     const request = indexedDB.open(dbName);
     return new Promise((resolve) => {
         request.onsuccess = (event: any) => {
@@ -736,3 +729,11 @@ const bumpDBVersion = (dbVersion: number, oldIndex: string, newIndex: string) =>
     console.log(`dbVersion updated from ${dbVersion} to ${dbVersion + 1}`);
     return dbVersion + 1;
 };
+
+// suppress DatabaseClosedError - this is not an error, but just a message that says the database has been closed
+// but the message comes through as a error, that is why it needs to be suppressed
+window.addEventListener("unhandledrejection", (ev) => {
+    if (ev.reason.name === "DatabaseClosedError") {
+        ev.preventDefault();
+    }
+});
