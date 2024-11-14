@@ -22,6 +22,8 @@ type Props = {
     dirty: boolean;
     parentPrev: ContentParentDto | undefined;
     contentPrev: ContentDto[] | undefined;
+    canEdit: boolean;
+    canTranslateOrPublish: boolean;
 };
 const props = defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");

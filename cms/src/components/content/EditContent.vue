@@ -34,6 +34,7 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
+import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     id: Uuid;
@@ -315,6 +316,10 @@ watch(selectedLanguage, () => {
                         v-model="selectedLanguageId"
                         @createTranslation="createTranslation"
                 /></EmptyState>
+                <!-- <span v-if="!canTranslate" class="flex gap-1 text-xs text-zinc-600">
+                    <ExclamationCircleIcon class="h-4 text-red-400" /> You do not have permission to
+                    translate content.</span
+                > -->
                 <div v-else class="space-y-6">
                     <EditContentStatus
                         v-model:content="selectedContent"
@@ -338,6 +343,8 @@ watch(selectedLanguage, () => {
             <div class="col-span-3 md:col-span-1" v-if="parent">
                 <div class="sticky top-20 space-y-6">
                     <EditContentParentValidation
+                        :can-translate-or-publish="canTranslateOrPublish"
+                        :can-edit="canEditParent"
                         v-if="contentDocs"
                         v-model:parent="parent"
                         v-model:contentDocs="contentDocs"
