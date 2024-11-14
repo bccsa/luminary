@@ -7,8 +7,14 @@ import {
     setMediaProgress,
     getMediaProgress,
     removeMediaProgress,
+    userPreferences,
 } from "@/globalConfig";
-import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "./tests/mockdata";
+import {
+    mockEnglishContentDto,
+    mockLanguageDtoEng,
+    mockLanguageDtoFra,
+    mockLanguageDtoSwa,
+} from "./tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { dynamicLoadPlugin } from "./util/pluginLoader";
@@ -16,6 +22,7 @@ import { dynamicLoadPlugin } from "./util/pluginLoader";
 describe("globalConfig.ts", () => {
     beforeAll(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await db.docs.bulkPut([mockEnglishContentDto]);
         initLanguage();
     });
     afterAll(async () => {
@@ -64,5 +71,16 @@ describe("globalConfig.ts", () => {
     it("can dynamically load a plugin", async () => {
         const _c = await dynamicLoadPlugin("examplePlugin");
         expect(_c.someFunction()).toBe("res");
+    });
+
+    it("can initialize the userPreferences", async () => {
+        expect(userPreferences.value).toEqual({ bookmarks: {} });
+    });
+
+    it("can set the userPreferences", async () => {
+        userPreferences.value = { bookmarks: { "content-post1-eng": { ts: Date.now() } } };
+        expect(userPreferences.value).toEqual({
+            bookmarks: { "content-post1-eng": { ts: Date.now() } },
+        });
     });
 });

@@ -109,6 +109,9 @@ export const removeMediaProgress = (mediaId: string, contentId: Uuid) => {
     }
 };
 
+/**
+ * The user preferences.
+ */
 export const userPreferences = ref<{ bookmarks: { [key: string]: { ts: number } } }>({
     bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || {},
 });
