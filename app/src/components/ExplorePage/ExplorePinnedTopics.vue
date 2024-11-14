@@ -86,9 +86,10 @@ const pinnedContentByTopic = contentByTopic(pinnedTopicContent, pinnedTopics);
                         c.content.filter((content: ContentDto) => content.parentTagType === 'topic')
                     "
                     :title="c.topic.title"
+                    aspectRatio="classic"
                     :summary="c.topic.summary"
                     :showPublishDate="false"
-                    class="bg-yellow-500/10 pb-3 pt-4 dark:bg-yellow-500/5"
+                    class="pb-3 pt-4"
                 />
             </template>
         </IgnorePagePadding>

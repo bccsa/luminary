@@ -37,7 +37,7 @@ const sizes = {
 };
 
 const rounding = {
-    small: "rounded-sm",
+    small: "rounded-md",
     thumbnail: "rounded-lg",
     post: "md:rounded-lg",
 };

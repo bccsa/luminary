@@ -57,9 +57,9 @@ const filteredTopics = computed(() => {
 </script>
 
 <template>
-    <div v-if="allTopics" class="mx-32">
-        <div class="mb-4 mt-12">
-            <div class="relative w-2/3">
+    <div v-if="allTopics" class="lg:mx-32">
+        <div class="mb-4 mt-6">
+            <div class="relative">
                 <MagnifyingGlassIcon
                     class="absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500"
                 />
@@ -68,7 +68,7 @@ const filteredTopics = computed(() => {
                     name="input"
                     type="text"
                     placeholder="Search..."
-                    class="w-80 rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
+                    class="w-full rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
                 />
             </div>
         </div>
@@ -85,15 +85,15 @@ const filteredTopics = computed(() => {
             <div
                 v-for="content in filteredTopics"
                 :key="content._id"
-                class="flex border-b border-gray-300 last:border-0 dark:border-gray-700"
+                class="flex dark:border-gray-700"
             >
                 <RouterLink
                     :to="{ name: 'content', params: { slug: content.slug } }"
                     class="flex w-full justify-between rounded hover:bg-yellow-500/10"
                 >
-                    <div class="p-2">
+                    <div class="my-auto p-2">
                         <h3 class="">{{ content.title }}</h3>
-                        <p class="text-sm">{{ content.summary }}</p>
+                        <p v-if="content.summary" class="text-sm">{{ content.summary }}</p>
                     </div>
                     <LImage
                         :image="content.parentImageData"
