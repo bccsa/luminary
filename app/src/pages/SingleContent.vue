@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
     DocType,
+    PostType,
     TagType,
     db,
     type ContentDto,
@@ -211,6 +212,7 @@ function selectTag(parentId: Uuid) {
             </h1>
 
             <component
+                v-if="!(content.parentPostType && content.parentPostType == PostType.Page)"
                 :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
                 @click="toggleBookmark"
                 class="mx-auto mt-2 h-6 w-6 cursor-pointer"
