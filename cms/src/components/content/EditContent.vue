@@ -34,7 +34,6 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
-import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     id: Uuid;
