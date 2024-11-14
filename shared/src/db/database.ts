@@ -21,6 +21,7 @@ import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
+import { SharedConfig } from "../config";
 const dbName: string = "luminary-db";
 
 export type QueryOptions = {
@@ -674,7 +675,7 @@ class Database extends Dexie {
 
 export let db: Database;
 
-export async function initDatabase(docsIndex: string = "") {
+export async function initDatabase({ docsIndex }: SharedConfig) {
     const _v: number = await getDbVersion();
     db = new Database(_v, docsIndex);
 }

@@ -30,10 +30,11 @@ import { DateTime } from "luxon";
 
 describe("Database", async () => {
     beforeAll(async () => {
-        await initLuminaryShared(
-            { cms: true },
-            "type, parentId, language, publishDate, [type+tagType], [type+docType], [type+postType]",
-        );
+        await initLuminaryShared({
+            cms: true,
+            docsIndex:
+                "type, parentId, language, publishDate, [type+tagType], [type+docType], [type+postType]",
+        });
     });
 
     beforeEach(async () => {
@@ -891,7 +892,10 @@ describe("Database", async () => {
     });
 
     it("deletes expired documents when not in cms-mode", async () => {
-        initLuminaryShared({ cms: false }, "parentId, language, expiryDate, [type+docType]");
+        initLuminaryShared({
+            cms: false,
+            docsIndex: "parentId, language, expiryDate, [type+docType]",
+        });
 
         const now = DateTime.now();
         const expiredDate = now.minus({ days: 5 }).toMillis();
@@ -928,10 +932,10 @@ describe("Database", async () => {
     it("upgrade indexdb version by changing the docs index", async () => {
         const _v1 = await getDbVersion();
         // update db index schema
-        await initLuminaryShared(
-            { cms: false },
-            "parentId, language, expiryDate, [type+docType], type",
-        );
+        await initLuminaryShared({
+            cms: false,
+            docsIndex: "parentId, language, expiryDate, [type+docType], type",
+        });
         const _v2 = await getDbVersion();
 
         expect(_v1).toBeLessThan(_v2);

@@ -24,7 +24,7 @@ describe("socketio", () => {
     const socketServer = new Server(12345);
 
     beforeAll(async () => {
-        await initLuminaryShared({ cms: true }, "parentId, language, [type+docType]");
+        await initLuminaryShared({ cms: true, docsIndex: "parentId, language, [type+docType]" });
 
         // initialize the socket client
         const socket = getSocket({

@@ -1,7 +1,7 @@
 import { initConfig, SharedConfig } from "./config";
 import { initDatabase } from "./db/database";
 
-export async function initLuminaryShared(config: SharedConfig, docsIndex: string = "") {
+export async function initLuminaryShared(config: SharedConfig) {
     initConfig(config);
-    await initDatabase(docsIndex);
+    await initDatabase(config);
 }

@@ -30,9 +30,11 @@ app.use(router);
 
 // Startup
 async function Startup() {
-    const docsIndex: string =
-        "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+language+status], [type+language+status+parentPinned], [type+docType]";
-    await initLuminaryShared({ cms: false }, docsIndex);
+    await initLuminaryShared({
+        cms: false,
+        docsIndex:
+            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+language+status], [type+language+status+parentPinned], [type+docType]",
+    });
     // setup auth0
     app.config.globalProperties.$auth = null; // Clear existing auth
     const oauth = await auth.setupAuth(app, router);
