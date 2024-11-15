@@ -1,5 +1,5 @@
 import { validateChangeRequest } from "./validateChangeRequest";
-import { DbService } from "../db/db.service";
+import { DbService, DbUpsertResult } from "../db/db.service";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { DocType, Uuid } from "../enums";
 import { validateSlug } from "./validateSlug";
@@ -54,9 +54,10 @@ export async function processChangeRequest(
     }
 
     if (doc.type == DocType.Post || doc.type == DocType.Tag) {
+        const prevDoc = await db.getDoc(doc._id);
+
         // Process image uploads
         if ((doc as PostDto).imageData) {
-            const prevDoc = await db.getDoc(doc._id);
             const prevImageData = prevDoc.docs.length > 0 ? prevDoc.docs[0].imageData : undefined;
             await processImage(doc.imageData, prevImageData, s3);
             delete doc.image; // Remove the legacy image field
@@ -83,6 +84,48 @@ export async function processChangeRequest(
                 await db.upsertDoc(contentDoc);
             });
         });
+
+        // tag caching to the taggedDocs / parentTaggedDocs property of tag / content documents. This is done to improve client query performance.
+        const prevTags = prevDoc.docs.length ? (prevDoc.docs[0] as PostDto | TagDto).tags : [];
+        const addedTags = (doc as PostDto | TagDto).tags.filter((tag) => !prevTags.includes(tag));
+        const removedTags = prevTags.filter((tag) => !(doc as PostDto | TagDto).tags.includes(tag));
+        const changedTags = addedTags
+            .concat(removedTags)
+            .filter((tag, index, self) => self.indexOf(tag) === index);
+        const tagDocs = changedTags.length
+            ? (await db.getDocs(changedTags, [DocType.Tag])).docs
+            : [];
+        const tagDocsContent = changedTags.length
+            ? (await db.getContentByParentId(changedTags)).docs
+            : [];
+        const updatedDocs = tagDocs.concat(tagDocsContent);
+
+        const pList: Promise<DbUpsertResult>[] = [];
+        updatedDocs.forEach(async (d) => {
+            let taggedDocsArray: Uuid[];
+            let tagId: Uuid;
+            if (d.type == DocType.Tag) {
+                const tag = d as TagDto;
+                tag.taggedDocs = tag.taggedDocs || [];
+                taggedDocsArray = tag.taggedDocs;
+                tagId = tag._id;
+            } else {
+                const content = d as ContentDto;
+                content.parentTaggedDocs = content.parentTaggedDocs || [];
+                taggedDocsArray = content.parentTaggedDocs;
+                tagId = content.parentId;
+            }
+
+            if (addedTags.includes(tagId)) taggedDocsArray.push(doc._id);
+
+            if (removedTags.includes(tagId)) {
+                const index = taggedDocsArray.indexOf(doc._id);
+                if (index > -1) taggedDocsArray.splice(index, 1);
+            }
+
+            pList.push(db.upsertDoc(d));
+        });
+        await Promise.all(pList);
     }
 
     // Insert / update the document in the database

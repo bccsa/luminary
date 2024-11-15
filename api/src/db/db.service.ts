@@ -450,15 +450,19 @@ export class DbService extends EventEmitter {
 
     /**
      * Get all content documents with a specific parent ID
-     * @param parentId
+     * @param parentId - Single or array of parent IDs
      * @returns
      */
-    getContentByParentId(parentId: Uuid): Promise<DbQueryResult> {
+    getContentByParentId(parentId: Uuid | Uuid[]): Promise<DbQueryResult> {
+        if (!Array.isArray(parentId)) parentId = [parentId];
+
         return new Promise((resolve, reject) => {
             const query = {
                 selector: {
                     type: "content",
-                    parentId: parentId,
+                    parentId: {
+                        $in: parentId,
+                    },
                 },
                 limit: Number.MAX_SAFE_INTEGER,
             };

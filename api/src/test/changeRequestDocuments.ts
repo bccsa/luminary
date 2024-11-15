@@ -10,7 +10,7 @@ export const changeRequest_post = () => {
     return {
         id: 42,
         doc: {
-            _id: "test-blog-1",
+            _id: "post-blog1",
             type: "post",
             memberOf: ["group-public-content"],
             image: randomString(),
@@ -42,7 +42,7 @@ export const changeRequest_content = () => {
             _id: "content-blog1-eng",
             type: "content",
             memberOf: ["group-public-content"],
-            parentId: "test-blog-1",
+            parentId: "post-blog1",
             language: "lang-eng",
             status: "published",
             slug: "test-blog1-eng",
