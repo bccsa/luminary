@@ -23,8 +23,6 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
 
-//const selected = ref<Array<string | number>>([])
-
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions");
 
 const optionsList = computed(() =>
@@ -113,9 +111,7 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
                     @click="
                         () => {
                             if (!selectedOptions?.includes(option.id)) {
-                                console.log('ADDED');
                                 selectedOptions?.push(option.id);
-                                console.log(selectedOptions);
                             }
                         }
                     "
