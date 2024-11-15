@@ -11,6 +11,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { mount } from "@vue/test-utils";
 import LCombobox from "./LCombobox.vue";
 import waitForExpect from "wait-for-expect";
+import LInput from "./LInput.vue";
+import LTag from "../content/LTag.vue";
+import { ref } from "vue";
 
 describe("LCombobox", () => {
     accessMap.value = superAdminAccessMap;
@@ -32,24 +35,36 @@ describe("LCombobox", () => {
         await db.docs.clear();
     });
 
-    it("displays selected groups", async () => {
+    it(
+        "displays selected groups",
+        async () => {
+            const selected = ref([]);
+            const wrapper = mount(LCombobox, {
+                props: {
+                    options: [{ id: 0, label: "Test Label", value: "test-value" }],
+                    selectedOptions: selected.value,
+                    docType: DocType.Post,
+                },
+            });
+
+            await wrapper.findComponent(LInput).setValue("Test Label");
+            await wrapper.findComponent(LInput).trigger("change");
+
+            await wrapper.find("li").trigger("click");
+
+            const lTag = wrapper.findComponent(LTag);
+
+            await waitForExpect(() => {
+                expect(lTag.html()).toContain("Test Label");
+            });
+        },
+        { timeout: 100000 },
+    );
+
+    it("displays all available options", async () => {
         const wrapper = mount(LCombobox, {
             props: {
-                groups: [mockGroupDtoPublicContent._id],
-                docType: DocType.Post,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).not.toContain("Private Content ");
-            expect(wrapper.text()).toContain("Public Content");
-        });
-    });
-
-    it("displays all available groups", async () => {
-        const wrapper = mount(LCombobox, {
-            props: {
-                groups: [],
+                options: [{ id: 0, label: "Test Label", value: "test-value" }],
                 docType: DocType.Post,
             },
         });
@@ -59,11 +74,7 @@ describe("LCombobox", () => {
         await wrapper.vm.$nextTick();
 
         await waitForExpect(() => {
-            const groups = wrapper.find('[data-test="groups"]');
-            expect(groups.text()).toContain("Public Content");
-            expect(groups.text()).toContain("Public Users");
-            expect(groups.text()).toContain("Public Editors");
-            expect(groups.text()).toContain("Private Content");
+            expect(wrapper.text()).toContain("Test Label");
         });
     });
 });

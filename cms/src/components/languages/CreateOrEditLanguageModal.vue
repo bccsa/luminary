@@ -5,6 +5,7 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import * as _ from "lodash";
+import LCombobox from "../forms/LCombobox.vue";
 
 // Props for visibility and language to edit
 type Props = {
@@ -91,6 +92,26 @@ const validateForm = () => {
         newLanguage.value.memberOf.length > 0
     );
 };
+
+const filterByTranslationOptions = [
+    {
+        id: 0,
+        value: "translated",
+        label: "Translated",
+    },
+    {
+        id: 1,
+        value: "untranslated",
+        label: "Untranslated",
+    },
+    {
+        id: 2,
+        value: "all",
+        label: "All",
+    },
+];
+
+const selected = ref([]);
 </script>
 
 <template>
@@ -103,6 +124,8 @@ const validateForm = () => {
             <h2 class="mb-4 text-xl font-bold">
                 {{ isEditMode ? "Edit language" : "Create new language" }}
             </h2>
+
+            <LCombobox :options="filterByTranslationOptions" v-model:selected-options="selected" />
 
             <LInput
                 label="Name"
