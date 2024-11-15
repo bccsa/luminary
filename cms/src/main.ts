@@ -17,7 +17,7 @@ const app = createApp(App);
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
     if (favicon) {
-        favicon.href = import.meta.env.VITE_FAVICON_URL;
+        favicon.href = import.meta.env.VITE_LOGO_FAVICON;
     }
 }
 
