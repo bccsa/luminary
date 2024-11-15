@@ -136,7 +136,7 @@ watch(
                 'rounded-md p-4',
                 {
                     'bg-white  shadow': isActive,
-                    'hover:bg-zinc-50': !isActive,
+                    'border bg-zinc-50 hover:bg-stone-100': !isActive,
                 },
             ]"
         >

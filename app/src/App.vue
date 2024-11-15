@@ -107,7 +107,7 @@ setTimeout(() => {
         },
         { immediate: true },
     );
-}, 1000);
+}, 5000);
 
 setTimeout(() => {
     watch(

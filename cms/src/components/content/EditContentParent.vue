@@ -4,10 +4,8 @@ import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
 import {
     TagType,
     DocType,
-    AclPermission,
     type TagDto,
     type LanguageDto,
-    verifyAccess,
     type ContentParentDto,
 } from "luminary-shared";
 import { computed } from "vue";
@@ -21,22 +19,10 @@ import ImageEditor from "../images/ImageEditor.vue";
 type Props = {
     docType: DocType;
     language?: LanguageDto;
+    disabled: boolean;
 };
-const props = defineProps<Props>();
+defineProps<Props>();
 const parent = defineModel<ContentParentDto>();
-
-const canEdit = computed(() => {
-    if (parent.value) {
-        if (parent.value.memberOf == undefined || parent.value.memberOf.length == 0) {
-            // Allow editing if the parent is not part of any group to allow the editor to set a group
-            return true;
-        }
-
-        return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Edit, "all");
-    }
-
-    return false;
-});
 
 // Convert the pinned property to a boolean for the toggle
 const pinned = computed({
@@ -59,24 +45,24 @@ const pinned = computed({
         collapsible
         v-if="parent"
     >
-        <ImageEditor :disabled="!canEdit" v-model:parent="parent" class="mb-4" />
+        <ImageEditor :disabled="disabled" v-model:parent="parent" class="mb-4" />
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"
         >
             <FormLabel>Pinned</FormLabel>
-            <LToggle v-model="pinned" :disabled="!canEdit" />
+            <LToggle v-model="pinned" :disabled="disabled" />
         </div>
 
         <!-- Toggle for Publish Date Visibility -->
         <div class="mb-6 flex items-center justify-between">
             <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="parent.publishDateVisible" :disabled="!canEdit" />
+            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
         </div>
 
         <GroupSelector
             v-model:groups="parent.memberOf"
-            :disabled="!canEdit"
+            :disabled="disabled"
             :docType="docType"
             class="mt-6"
         />
@@ -87,7 +73,7 @@ const pinned = computed({
             :tagType="TagType.Category"
             label="Categories"
             class="mt-6"
-            :disabled="!canEdit"
+            :disabled="disabled"
             :key="language?._id"
         />
 
@@ -97,7 +83,7 @@ const pinned = computed({
             :tagType="TagType.Topic"
             label="Topics"
             class="mt-6"
-            :disabled="!canEdit"
+            :disabled="disabled"
             :key="language?._id"
         />
 
@@ -107,7 +93,7 @@ const pinned = computed({
             :tagType="TagType.AudioPlaylist"
             label="Audio Playlists"
             class="mt-6"
-            :disabled="!canEdit"
+            :disabled="disabled"
             :key="language?._id"
         />
     </LCard>

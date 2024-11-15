@@ -1,5 +1,6 @@
 export type SharedConfig = {
     cms: boolean;
+    docsIndex: string;
 };
 
 export let config: SharedConfig;

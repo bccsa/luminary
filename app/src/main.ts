@@ -29,7 +29,7 @@ if (import.meta.env.PROD) {
     Sentry.init({
         app,
         dsn: import.meta.env.VITE_SENTRY_DSN,
-        integrations: [],
+        integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
     });
 }
 
@@ -39,6 +39,11 @@ app.use(router);
 
 // Startup
 async function Startup() {
+    await initLuminaryShared({
+        cms: false,
+        docsIndex:
+            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+language+status], [type+language+status+parentPinned], [type+docType]",
+    });
     // setup auth0
     app.config.globalProperties.$auth = null; // Clear existing auth
     const oauth = await auth.setupAuth(app, router);

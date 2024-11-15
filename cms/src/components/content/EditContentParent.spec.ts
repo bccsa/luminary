@@ -23,6 +23,7 @@ describe("EditContentParent.vue", () => {
             props: {
                 docType: DocType.Tag,
                 modelValue: parent.value,
+                disabled: false,
             },
         });
 
@@ -43,6 +44,7 @@ describe("EditContentParent.vue", () => {
                 docType: DocType.Post,
                 modelValue: parent.value,
                 language: mockData.mockLanguageDtoEng,
+                disabled: false,
             },
         });
 
@@ -59,6 +61,7 @@ describe("EditContentParent.vue", () => {
             props: {
                 docType: DocType.Tag,
                 modelValue: parent.value,
+                disabled: false,
             },
         });
 
@@ -72,6 +75,7 @@ describe("EditContentParent.vue", () => {
                 docType: DocType.Post,
                 modelValue: parent.value,
                 language: mockData.mockLanguageDtoEng,
+                disabled: false,
             },
         });
 
@@ -80,38 +84,5 @@ describe("EditContentParent.vue", () => {
         expect(wrapper.text()).toContain("Audio Playlists");
 
         // TODO: Check why the selected categories are not displayed
-    });
-
-    it("enables the post editing components when no groups are set", async () => {
-        const parent = ref<PostDto>({ ...mockData.mockPostDto, memberOf: [] });
-        const wrapper = mount(EditContentParent, {
-            props: {
-                docType: DocType.Post,
-                modelValue: parent.value,
-                language: mockData.mockLanguageDtoEng,
-            },
-        });
-
-        // Check if the "show publish date" toggle is not disabled
-        const toggle = wrapper.findComponent({ name: "LToggle" });
-        expect(toggle.props().disabled).toBeFalsy();
-    });
-
-    it("disables the post editing components when the user does not have access to one of the groups", async () => {
-        const parent = ref<PostDto>({
-            ...mockData.mockPostDto,
-            memberOf: ["group-public-content", "a-group-to-which-the-user-does-not-have-access"],
-        });
-        const wrapper = mount(EditContentParent, {
-            props: {
-                docType: DocType.Post,
-                modelValue: parent.value,
-                language: mockData.mockLanguageDtoEng,
-            },
-        });
-
-        // Check if the "show publish date" toggle is disabled
-        const toggle = wrapper.findComponent({ name: "LToggle" });
-        expect(toggle.props().disabled).toBeTruthy();
     });
 });
