@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import {
-    AclPermission,
-    db,
-    DocType,
-    hasAnyPermission,
-    verifyAccess,
-    type LanguageDto,
-} from "luminary-shared";
+import { AclPermission, db, DocType, hasAnyPermission, type LanguageDto } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
