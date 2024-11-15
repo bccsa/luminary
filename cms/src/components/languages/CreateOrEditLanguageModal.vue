@@ -44,11 +44,9 @@ const newLanguage = ref<LanguageDto>({
 
 let previousDefaultValueForCurrentLanguage = ref<number>(newLanguage.value.default!);
 
-const canEdit = verifyAccess(newLanguage.value?.memberOf!, DocType.Language, AclPermission.Edit);
-
-const canCreate = hasAnyPermission(DocType.Language, AclPermission.Publish);
-
-const canEditOrCreate = canEdit || canCreate;
+const canEditOrCreate =
+    hasAnyPermission(DocType.Language, AclPermission.Edit) ||
+    hasAnyPermission(DocType.Language, AclPermission.Publish);
 
 // Watch the passed `language` prop to set the modal in edit mode
 watch(
