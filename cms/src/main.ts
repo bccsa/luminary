@@ -29,7 +29,11 @@ if (import.meta.env.PROD) {
 
 // Startup
 async function Startup() {
-    initLuminaryShared({ cms: true, docsIndex: "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language]" });
+    initLuminaryShared({
+        cms: true,
+        docsIndex:
+            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language]",
+    });
 
     app.use(createPinia());
 

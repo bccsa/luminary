@@ -14,8 +14,6 @@ import { initLuminaryShared } from "luminary-shared";
 import VueMatomo from "vue-matomo";
 import { loadPlugins } from "./util/pluginLoader";
 
-initLuminaryShared({ cms: false });
-
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
     if (favicon) {
