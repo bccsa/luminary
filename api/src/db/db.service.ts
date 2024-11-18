@@ -525,37 +525,36 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Executes the passed callback on all documents in the database. If the document from the database fails to parse as JSON, the callback will be called with an error object { error: err }.
+     * Provides a method to process all documents of given type(s) in the database one at a time.
+     * @param docTypes - Array of document types to be included in the query result
+     * @param callback - Function to be called for each document
      */
-    processAllDocs(callback: (doc: any) => void): Promise<any> {
-        return new Promise((resolve, reject) => {
-            const stream = this.db.listAsStream({ include_docs: true });
+    async processAllDocs(
+        docTypes: DocType[],
+        callback: (doc: any) => void | Promise<void>,
+    ): Promise<any> {
+        if (!docTypes.length)
+            throw new Error("docTypes must be an array with at least one element");
 
-            stream.on("data", (data) => {
-                const lines = data.toString().split("\r\n");
-                lines.forEach((line) => {
-                    line = line.replace(/,$/, ""); // Remove trailing comma
+        let bookmark: string | undefined = undefined;
+        let completed = false;
+        while (!completed) {
+            const query = {
+                selector: {
+                    type: {
+                        ["$in"]: docTypes,
+                    },
+                },
+                limit: 1,
+                bookmark,
+            };
 
-                    // Check if the line is a valid JSON object
-                    if (line && line.length > 0 && line[0] == "{" && line[line.length - 1] == "}") {
-                        try {
-                            const parsed = JSON.parse(line);
-                            if (parsed.doc) callback(parsed.doc);
-                        } catch (err) {
-                            callback({ parseError: err });
-                        }
-                    }
-                });
-            });
-
-            stream.on("end", () => {
-                resolve(true);
-            });
-
-            stream.on("error", (err) => {
-                reject(err);
-            });
-        });
+            if (!bookmark) delete query.bookmark;
+            const result = await this.db.find(query);
+            bookmark = result.bookmark;
+            if (!result.docs.length) completed = true;
+            if (result.docs.length > 0) await callback(result.docs[0]);
+        }
     }
 
     /**

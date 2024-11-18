@@ -7,6 +7,7 @@ import { S3Service } from "../../s3/s3.service";
 import { processChangeRequest } from "../../changeRequests/processChangeRequest";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { GroupDto } from "src/dto/GroupDto";
+import { DocType } from "src/enums";
 
 /**
  * Upgrade the database schema from version 2 to 3
@@ -19,7 +20,7 @@ export default async function (db: DbService, s3: S3Service) {
         const groupQuery = await db.getGroups();
         const groupIds = groupQuery.docs.map((group: GroupDto) => group._id);
 
-        await db.processAllDocs(async (doc: any) => {
+        await db.processAllDocs([DocType.Post, DocType.Tag], async (doc: any) => {
             if (!doc) {
                 return;
             }

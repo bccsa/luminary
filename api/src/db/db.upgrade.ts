@@ -5,6 +5,7 @@ import v2 from "./schemaUpgrade/v2";
 import v3 from "./schemaUpgrade/v3";
 import v4 from "./schemaUpgrade/v4";
 import v5 from "./schemaUpgrade/v5";
+import v6 from "./schemaUpgrade/v6";
 
 /**
  * Upgrade the database schema
@@ -28,4 +29,7 @@ export async function upgradeDbSchema(db: DbService, s3: S3Service) {
 
     // Upgrade from schema version 4 to 5
     await v5(db);
+
+    // Upgrade from schema version 5 to 6
+    await v6(db);
 }
