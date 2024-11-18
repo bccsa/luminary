@@ -44,6 +44,9 @@ const filtered = computed(() =>
     optionsList.value.filter((o) => o.label.toLowerCase().includes(query.value.toLowerCase())),
 );
 
+console.log("Filtered groups:", filtered.value);
+console.log("Options recieved:", props.options);
+
 const handleChevronBtnClick = () => {
     inputElement.value.focus();
     showDropdown.value = !showDropdown.value;
@@ -69,8 +72,9 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
                 placeholder="Type to select..."
                 name="option-search"
             />
-            <button name="options-open-btn" @click="handleChevronBtnClick">
+            <button @click="handleChevronBtnClick" name="options-open-btn">
                 <ChevronUpDownIcon
+                    @click="handleChevronBtnClick"
                     class="absolute right-2 top-2 h-5 w-5 text-zinc-400 hover:cursor-pointer"
                 />
             </button>
@@ -78,41 +82,39 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
 
         <div
             ref="comboboxElement"
-            v-show="showDropdown"
+            v-if="showDropdown"
             class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
             data-test="options"
         >
-            <ul>
-                <li
-                    v-for="option in filtered"
-                    :key="option.id"
-                    :disabled="selectedOptions?.includes(option.id)"
-                    class="text-sm hover:bg-zinc-100"
-                    :class="[
-                        'relative cursor-default select-none py-2 pl-3 pr-9',
-                        {
-                            'bg-white text-black hover:bg-zinc-100': !option.selected,
-                        },
-                        {
-                            'text-zinc-300 hover:bg-white': option.selected,
-                        },
-                    ]"
-                    @click="
-                        () => {
-                            if (!option.selected) {
-                                selectedOptions?.push(option.id);
-                            }
-                            query = '';
-                            showDropdown = false;
+            <li
+                name="list-item"
+                v-for="option in filtered"
+                :key="option.id"
+                :disabled="selectedOptions?.includes(option.id)"
+                class="text-sm hover:bg-zinc-100"
+                :class="[
+                    'relative cursor-default select-none py-2 pl-3 pr-9',
+                    {
+                        'bg-white text-black hover:bg-zinc-100': !option.selected,
+                    },
+                    {
+                        'text-zinc-300 hover:bg-white': option.selected,
+                    },
+                ]"
+                @click="
+                    () => {
+                        if (!option.selected) {
+                            selectedOptions?.push(option.id);
                         }
-                    "
-                    data-test="option-selector"
-                >
-                    <span class="block truncate" data-test="group-selector">
-                        {{ option.label }}
-                    </span>
-                </li>
-            </ul>
+                        query = '';
+                        showDropdown = false;
+                    }
+                "
+            >
+                <span class="block truncate" data-test="group-selector">
+                    {{ option.label }}
+                </span>
+            </li>
         </div>
         <div class="mt-3 flex flex-wrap gap-3">
             <LTag
