@@ -48,7 +48,9 @@ describe("LCombobox", () => {
         await wrapper.findComponent(LInput).setValue("Test Label");
         await wrapper.findComponent(LInput).trigger("change");
 
-        await wrapper.find("li").trigger("click");
+        await wrapper.find('[name="options-open-btn"]').trigger("click");
+
+        await wrapper.find("[name='list-item']").trigger("click");
 
         const lTag = wrapper.findComponent(LTag);
 
