@@ -51,7 +51,6 @@ describe("App", () => {
         mount(App, {
             shallow: true,
         });
-        console.log(isConnected.value);
 
         await wait(4000);
 
@@ -68,7 +67,6 @@ describe("App", () => {
 
         isConnected.value = true;
 
-        console.log(isConnected.value);
         await waitForExpect(() => {
             expect(notificationStore.removeNotification).toHaveBeenCalledWith("offlineBanner");
         });
