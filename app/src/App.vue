@@ -145,7 +145,7 @@ const routeKey = computed(() => {
 
         <main class="flex-1 overflow-y-scroll px-6 pt-4 dark:bg-slate-900">
             <RouterView v-slot="{ Component }">
-                <KeepAlive include="HomePage,ExplorePage">
+                <KeepAlive include="HomePage,ExplorePage,BookmarksPage">
                     <component :is="Component" :key="routeKey" />
                 </KeepAlive>
             </RouterView>

@@ -66,12 +66,12 @@ const is404 = computed(() => {
 
 // Function to toggle bookmark for the current content
 const toggleBookmark = () => {
-    const contentId = content.value._id;
-    if (!contentId) return;
-    if (userPreferences.value.bookmarks[contentId]) {
-        delete userPreferences.value.bookmarks[contentId];
+    const parentId = content.value.parentId;
+    if (!parentId) return;
+    if (userPreferences.value.bookmarks[parentId]) {
+        delete userPreferences.value.bookmarks[parentId];
     } else {
-        userPreferences.value.bookmarks[contentId] = {
+        userPreferences.value.bookmarks[parentId] = {
             ts: Date.now(),
         };
     }
@@ -79,7 +79,7 @@ const toggleBookmark = () => {
 };
 
 // Check if the current content is bookmarked
-const isBookmarked = computed(() => !!userPreferences.value.bookmarks[content.value._id]);
+const isBookmarked = computed(() => !!userPreferences.value.bookmarks[content.value.parentId]);
 
 watch(content, async () => {
     if (!content.value) return;
