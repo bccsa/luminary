@@ -84,7 +84,7 @@ onBeforeMount(async () => {
     }
 });
 
-// Wait 1 second to allow the socket connection to be established before checking the connection status
+// Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
     watch(
         isConnected,
