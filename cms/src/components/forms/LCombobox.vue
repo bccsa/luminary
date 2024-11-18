@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch, type StyleValue } from "vue";
+import { computed, ref, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import FormLabel from "./FormLabel.vue";
 import LInput from "./LInput.vue";
 import { onClickOutside } from "@vueuse/core";
+
+const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
 export type ComboboxOption = {
     id: string | number;
@@ -22,8 +24,11 @@ type Props = {
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
-
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions");
+
+const inputElement = ref();
+const optionsElement = ref();
+const showDropdown = ref(false);
 
 const optionsList = computed(() =>
     props.options.map((o) => ({
@@ -33,37 +38,18 @@ const optionsList = computed(() =>
         selected: selectedOptions.value?.includes(o.id),
     })),
 );
-const optionsToDisplay = ref(optionsList.value);
 
 const query = ref("");
-
-watch(query, () => {
-    const currentOptionsList = optionsList.value;
-    if (query.value.length > 0) {
-        showOptions.value = true;
-
-        // Filter options based on query matching the label (case-insensitive)
-        optionsToDisplay.value = currentOptionsList.filter((o) =>
-            o.label.toLowerCase().includes(query.value.toLowerCase()),
-        );
-    } else {
-        optionsToDisplay.value = currentOptionsList;
-    }
-});
-
-const input = ref();
-
-const optionsDisplay = ref();
-const showOptions = ref(false);
-
-const { attrsWithoutStyles } = useAttrsWithoutStyles();
+const filtered = computed(() =>
+    optionsList.value.filter((o) => o.label.toLowerCase().includes(query.value.toLowerCase())),
+);
 
 const focusInput = () => {
-    showOptions.value = !showOptions.value;
-    input.value.focus();
+    showDropdown.value = !showDropdown.value;
+    inputElement.value.focus();
 };
 
-onClickOutside(optionsDisplay, () => (showOptions.value = false));
+onClickOutside(optionsElement, () => (showDropdown.value = false));
 </script>
 
 <template>
@@ -71,9 +57,9 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
         <FormLabel v-if="label"> {{ label }} </FormLabel>
         <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
             <LInput
-                @click="showOptions = true"
+                @click="showDropdown = true"
                 v-model="query"
-                ref="input"
+                ref="inputElement"
                 class="w-full"
                 placeholder="Type to select..."
                 name="option-search"
@@ -86,31 +72,29 @@ onClickOutside(optionsDisplay, () => (showOptions.value = false));
         </div>
 
         <div
-            ref="optionsDisplay"
-            v-show="showOptions"
+            ref="optionsElement"
+            v-show="showDropdown"
             class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
             data-test="options"
         >
             <ul>
                 <li
-                    v-for="option in optionsToDisplay"
+                    v-for="option in filtered"
                     :key="option.id"
                     :disabled="selectedOptions?.includes(option.id)"
                     class="text-sm hover:bg-zinc-100"
                     :class="[
                         'relative cursor-default select-none py-2 pl-3 pr-9',
                         {
-                            'bg-white text-black hover:bg-zinc-100': !selectedOptions?.includes(
-                                option.id,
-                            ),
+                            'bg-white text-black hover:bg-zinc-100': !option.selected,
                         },
                         {
-                            'text-zinc-500 hover:bg-white': selectedOptions?.includes(option.id),
+                            'text-zinc-300 hover:bg-white': option.selected,
                         },
                     ]"
                     @click="
                         () => {
-                            if (!selectedOptions?.includes(option.id)) {
+                            if (!option.selected) {
                                 selectedOptions?.push(option.id);
                             }
                         }
