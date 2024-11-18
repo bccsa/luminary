@@ -4,17 +4,18 @@ import {
     AclPermission,
     db,
     DocType,
+    type GroupDto,
     hasAnyPermission,
     verifyAccess,
     type LanguageDto,
 } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
-import GroupSelector from "@/components/groups/GroupSelector.vue";
-import _ from "lodash";
 import LToggle from "@/components/forms/LToggle.vue";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { useNotificationStore } from "@/stores/notification";
+import * as _ from "lodash";
+import LCombobox, { type ComboboxOption } from "../forms/LCombobox.vue";
 
 // Props for visibility and language to edit
 type Props = {
@@ -74,12 +75,28 @@ const save = async () => {
 };
 
 // Form validation to check if all fields are filled
-const isValidated = computed(
-    () =>
+const isValidated = computed(() => validateForm());
+const validateForm = () => {
+    return (
         editable.value.name.trim() !== "" &&
         editable.value.languageCode.trim() !== "" &&
-        editable.value.memberOf.length > 0,
-);
+        editable.value.memberOf.length > 0
+    );
+};
+
+const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+const formattedGroups = computed(() => {
+    const newGroups: ComboboxOption[] = [];
+    groups.value.forEach((group) => {
+        const newGroup: ComboboxOption = {
+            id: group._id,
+            label: group.name,
+            value: group._id,
+        };
+        newGroups.push(newGroup);
+    });
+    return newGroups;
+});
 </script>
 
 <template>
@@ -110,8 +127,10 @@ const isValidated = computed(
                 :disabled="!canEditOrCreate"
             />
 
-            <GroupSelector
-                v-model:groups="editable.memberOf"
+            <LCombobox
+                label="Group Membership"
+                :options="formattedGroups"
+                :selected-options="editable.memberOf"
                 :docType="DocType.Language"
                 data-test="group-selector"
                 :disabled="!canEditOrCreate"
