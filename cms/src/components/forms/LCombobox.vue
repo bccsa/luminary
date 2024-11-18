@@ -123,8 +123,5 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
                 {{ option.label }}
             </LTag>
         </div>
-        <div v-if="selectedOptions?.length == 0" class="text-xs text-zinc-500">
-            No group selected
-        </div>
     </div>
 </template>

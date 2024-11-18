@@ -92,26 +92,6 @@ const validateForm = () => {
         newLanguage.value.memberOf.length > 0
     );
 };
-
-const filterByTranslationOptions = [
-    {
-        id: 0,
-        value: "translated",
-        label: "Translated",
-    },
-    {
-        id: 1,
-        value: "untranslated",
-        label: "Untranslated",
-    },
-    {
-        id: 2,
-        value: "all",
-        label: "All",
-    },
-];
-
-const selected = ref([]);
 </script>
 
 <template>
@@ -124,8 +104,6 @@ const selected = ref([]);
             <h2 class="mb-4 text-xl font-bold">
                 {{ isEditMode ? "Edit language" : "Create new language" }}
             </h2>
-
-            <LCombobox :options="filterByTranslationOptions" v-model:selected-options="selected" />
 
             <LInput
                 label="Name"
