@@ -5,8 +5,8 @@ import TopBar from "@/components/navigation/TopBar.vue";
 import { computed, onBeforeMount, ref, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
-import { getSocket, isConnected } from "luminary-shared";
-import { apiUrl, initLanguage } from "./globalConfig";
+import { db, DocType, getSocket, isConnected, type ContentDto } from "luminary-shared";
+import { apiUrl, appLanguageIdAsRef, initLanguage } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
@@ -18,6 +18,10 @@ import LButton from "./components/button/LButton.vue";
 
 const { isAuthenticated, user, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 const router = useRouter();
+// This const should be removed as we added it already in the bookmark feature
+const userPreferences = JSON.parse(localStorage.getItem("userPreferences") || "{}");
+const showModal = ref(false);
+const privacyPolicyContent = ref<ContentDto[] | undefined>([]);
 
 initLanguage();
 
@@ -49,8 +53,19 @@ setTimeout(() => {
 
 const getToken = async () => {
     // add UserId to analytics if the user is auth
-    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-    window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
+    if (userPreferences.privacyPolicy) {
+        if (
+            userPreferences.privacyPolicy.ts !== 0 &&
+            privacyPolicyContent.value![0].updatedTimeUtc > userPreferences.privacyPolicy.ts
+        ) {
+            // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+            window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
+        }
+    } else {
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        window._paq && window._paq.push(["setUserId", "Anonymous"]);
+    }
+
     if (isAuthenticated.value) {
         try {
             return await getAccessTokenSilently();
@@ -86,6 +101,54 @@ onBeforeMount(async () => {
     }
 });
 
+setTimeout(() => {
+    watch(
+        [isConnected, isAuthenticated],
+        () => {
+            if (isConnected.value && !isAuthenticated.value) {
+                useNotificationStore().addNotification({
+                    id: "accountBanner",
+                    title: "You are missing out!",
+                    description: "Click here to create an account or log in.",
+                    state: "info",
+                    type: "banner",
+                    icon: ExclamationCircleIcon,
+                    routerLink: { name: "login" },
+                });
+            }
+
+            if (isConnected.value && isAuthenticated.value) {
+                useNotificationStore().removeNotification("accountBanner");
+            }
+        },
+        { immediate: true },
+    );
+}, 1000);
+
+setTimeout(() => {
+    watch(
+        [isConnected, isAuthenticated],
+        () => {
+            if (isConnected.value && !isAuthenticated.value) {
+                useNotificationStore().addNotification({
+                    id: "accountBanner",
+                    title: "You are missing out!",
+                    description: "Click here to create an account or log in.",
+                    state: "info",
+                    type: "banner",
+                    icon: ExclamationCircleIcon,
+                    routerLink: { name: "login" },
+                });
+            }
+
+            if (isConnected.value && isAuthenticated.value) {
+                useNotificationStore().removeNotification("accountBanner");
+            }
+        },
+        { immediate: true },
+    );
+}, 1000);
+
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
     watch(
@@ -113,43 +176,40 @@ setTimeout(() => {
 
 setTimeout(() => {
     watch(
-        [isConnected, isAuthenticated],
-        () => {
-            if (isConnected.value && !isAuthenticated.value) {
-                useNotificationStore().addNotification({
-                    id: "accountBanner",
-                    title: "You are missing out!",
-                    description: "Click here to create an account or log in.",
-                    state: "info",
-                    type: "banner",
-                    icon: ExclamationCircleIcon,
-                    routerLink: { name: "login" },
-                });
-            }
-
-            if (isConnected.value && isAuthenticated.value) {
-                useNotificationStore().removeNotification("accountBanner");
-            }
-        },
-        { immediate: true },
-    );
-}, 1000);
-
-// This const should be removed as we added it already in the bookmark feature
-const userPreferences = JSON.parse(localStorage.getItem("userPreferences") || "{}");
-const showModal = ref(false);
-
-setTimeout(() => {
-    watch(
-        userPreferences.privatePolicyState,
-        () => {
-            if (!userPreferences.privatePolicyState) {
+        userPreferences.privacyPolicy,
+        async () => {
+            if (!userPreferences.privacyPolicy || userPreferences.privacyPolicy.ts === 0) {
+                localStorage.setItem(
+                    "userPreferences",
+                    JSON.stringify({ ...userPreferences, privacyPolicy: { ts: 0 } }),
+                );
                 useNotificationStore().addNotification({
                     id: "privacy-policy-banner",
                     type: "banner",
                     state: "info",
                     title: "Privacy Policy",
                     description: "By using this app, you agree to our privacy policy.",
+                    routerLink: () => (showModal.value = true),
+                });
+            }
+
+            privacyPolicyContent.value = await db.whereParent(
+                import.meta.env.VITE_PRIVACY_POLICY_ID,
+                DocType.Post,
+                appLanguageIdAsRef.value,
+            );
+
+            if (
+                userPreferences.privacyPolicy &&
+                userPreferences.privacyPolicy.ts !== 0 &&
+                privacyPolicyContent.value[0].updatedTimeUtc > userPreferences.privacyPolicy.ts
+            ) {
+                useNotificationStore().addNotification({
+                    id: "privacy-policy-banner-updated",
+                    type: "banner",
+                    state: "info",
+                    title: "Privacy Policy Updated",
+                    description: "The privacy policy has been updated. Please review it.",
                     routerLink: () => (showModal.value = true),
                 });
             }
@@ -160,16 +220,27 @@ setTimeout(() => {
 }, 1000);
 
 function acceptPrivacyPolicy() {
-    userPreferences.privatePolicyState = true;
-    showModal.value = false;
     localStorage.setItem(
         "userPreferences",
-        JSON.stringify({ ...userPreferences, privatePolicyState: true }),
+        JSON.stringify({ ...userPreferences, privacyPolicy: { ts: Date.now() } }),
     );
+
+    userPreferences.privacyPolicy.ts !== 0
+        ? useNotificationStore().removeNotification("privacy-policy-banner")
+        : null;
+
+    privacyPolicyContent.value![0].updatedTimeUtc >= userPreferences.privacyPolicy.ts
+        ? useNotificationStore().removeNotification("privacy-policy-banner-updated")
+        : null;
+
     showModal.value = false;
 }
 
 function declinePrivacyPolicy() {
+    localStorage.setItem(
+        "userPreferences",
+        JSON.stringify({ ...userPreferences, privacyPolicy: { ts: Date.now() } }),
+    );
     showModal.value = false;
 }
 
@@ -200,13 +271,24 @@ const routeKey = computed(() => {
     </Teleport>
 
     <LModal :isVisible="showModal" heading="Privacy Policy" @close="declinePrivacyPolicy">
-        <p class="mt-4 text-gray-700 dark:text-slate-300">
-            By using this app, you agree to our
+        <p class="mt-4 text-justify text-gray-700 dark:text-slate-300" v-if="privacyPolicyContent">
+            {{
+                privacyPolicyContent[0]?.updatedTimeUtc > userPreferences.privacyPolicy.ts
+                    ? `We have updated our`
+                    : `By using this app, you agree to our`
+            }}
+
             <RouterLink
                 :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
                 class="text-blue-600 underline dark:text-yellow-400"
-                >privacy policy</RouterLink
-            >. <br />Do you want to help us improve it by accepting it ?
+                >privacy policy.</RouterLink
+            >
+            <br />{{
+                privacyPolicyContent[0]?.updatedTimeUtc > userPreferences.privacyPolicy.ts
+                    ? `The privacy policy has been updated. Please review it.`
+                    : `Please accept our privacy policy to continue using this app. If you do not accept,
+            the functionality of this app may be limited.`
+            }}
         </p>
         <div class="mt-6 flex justify-end space-x-3 pt-4">
             <LButton variant="secondary" @click="declinePrivacyPolicy"> Decline </LButton>
