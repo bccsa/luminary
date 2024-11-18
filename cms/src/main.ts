@@ -12,6 +12,13 @@ import { initLuminaryShared } from "luminary-shared";
 
 const app = createApp(App);
 
+if (import.meta.env.VITE_FAV_ICON) {
+    const favicon = document.getElementById("favicon") as HTMLLinkElement;
+    if (favicon) {
+        favicon.href = import.meta.env.VITE_LOGO_FAVICON;
+    }
+}
+
 if (import.meta.env.PROD) {
     Sentry.init({
         app,
@@ -22,7 +29,11 @@ if (import.meta.env.PROD) {
 
 // Startup
 async function Startup() {
-    initLuminaryShared({ cms: true, docsIndex: "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language]" });
+    initLuminaryShared({
+        cms: true,
+        docsIndex:
+            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language]",
+    });
 
     app.use(createPinia());
 
