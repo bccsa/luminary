@@ -1,5 +1,5 @@
 import { validateChangeRequest } from "./validateChangeRequest";
-import { DbService, DbUpsertResult } from "../db/db.service";
+import { DbService } from "../db/db.service";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { DocType, Uuid } from "../enums";
 import { validateSlug } from "./validateSlug";
@@ -64,26 +64,25 @@ export async function processChangeRequest(
         }
 
         // Get content documents that are children of the Post / Tag document
-        await db.getContentByParentId(doc._id).then((contentDocs) => {
-            // Copy essential properties from the Post / Tag document to the child content document
-            contentDocs.docs.forEach(async (contentDoc: ContentDto) => {
-                contentDoc.memberOf = doc.memberOf;
-                contentDoc.parentTags = doc.tags;
-                contentDoc.parentImageData = doc.imageData;
+        // and copy essential properties from the Post / Tag document to the child content document
+        const contentDocs = await db.getContentByParentId(doc._id);
+        for (const contentDoc of contentDocs.docs) {
+            contentDoc.memberOf = doc.memberOf;
+            contentDoc.parentTags = doc.tags;
+            contentDoc.parentImageData = doc.imageData;
 
-                if (doc.type == DocType.Post) {
-                    contentDoc.parentPostType = (doc as PostDto).postType;
-                }
+            if (doc.type == DocType.Post) {
+                contentDoc.parentPostType = (doc as PostDto).postType;
+            }
 
-                if (doc.type == DocType.Tag) {
-                    contentDoc.parentTagType = (doc as TagDto).tagType;
-                    contentDoc.parentPinned = (doc as TagDto).pinned;
-                }
+            if (doc.type == DocType.Tag) {
+                contentDoc.parentTagType = (doc as TagDto).tagType;
+                contentDoc.parentPinned = (doc as TagDto).pinned;
+            }
 
-                contentDoc.parentPublishDateVisible = doc.publishDateVisible;
-                await db.upsertDoc(contentDoc);
-            });
-        });
+            contentDoc.parentPublishDateVisible = doc.publishDateVisible;
+            await db.upsertDoc(contentDoc);
+        }
 
         // tag caching to the taggedDocs / parentTaggedDocs property of tag / content documents. This is done to improve client query performance.
         const prevTags = prevDoc.docs.length ? (prevDoc.docs[0] as PostDto | TagDto).tags : [];
@@ -100,8 +99,7 @@ export async function processChangeRequest(
             : [];
         const updatedDocs = tagDocs.concat(tagDocsContent);
 
-        const pList: Promise<DbUpsertResult>[] = [];
-        updatedDocs.forEach(async (d) => {
+        for (const d of updatedDocs) {
             let taggedDocsArray: Uuid[];
             let tagId: Uuid;
             if (d.type == DocType.Tag) {
@@ -123,9 +121,8 @@ export async function processChangeRequest(
                 if (index > -1) taggedDocsArray.splice(index, 1);
             }
 
-            pList.push(db.upsertDoc(d));
-        });
-        await Promise.all(pList);
+            await db.upsertDoc(d);
+        }
     }
 
     // Insert / update the document in the database
