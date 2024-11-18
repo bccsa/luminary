@@ -27,7 +27,7 @@ const props = withDefaults(defineProps<Props>(), {
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions");
 
 const inputElement = ref();
-const optionsElement = ref();
+const comboboxElement = ref();
 const showDropdown = ref(false);
 
 const optionsList = computed(() =>
@@ -44,27 +44,32 @@ const filtered = computed(() =>
     optionsList.value.filter((o) => o.label.toLowerCase().includes(query.value.toLowerCase())),
 );
 
-const focusInput = () => {
-    showDropdown.value = !showDropdown.value;
+const handleChevronBtnClick = () => {
     inputElement.value.focus();
+    showDropdown.value = !showDropdown.value;
 };
 
-onClickOutside(optionsElement, () => (showDropdown.value = false));
+onClickOutside(comboboxElement, () => (showDropdown.value = false));
 </script>
 
 <template>
-    <div class="relative" :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
+    <div
+        ref="comboboxElement"
+        class="relative"
+        :class="$attrs['class']"
+        :style="$attrs['style'] as StyleValue"
+    >
         <FormLabel v-if="label"> {{ label }} </FormLabel>
         <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
             <LInput
-                @click="showDropdown = true"
+                @click="showDropdown = !showDropdown"
                 v-model="query"
                 ref="inputElement"
                 class="w-full"
                 placeholder="Type to select..."
                 name="option-search"
             />
-            <button name="options-open-btn" @click="focusInput">
+            <button name="options-open-btn" @click="handleChevronBtnClick">
                 <ChevronUpDownIcon
                     class="absolute right-2 top-2 h-5 w-5 text-zinc-400 hover:cursor-pointer"
                 />
@@ -72,7 +77,7 @@ onClickOutside(optionsElement, () => (showDropdown.value = false));
         </div>
 
         <div
-            ref="optionsElement"
+            ref="comboboxElement"
             v-show="showDropdown"
             class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
             data-test="options"
@@ -97,6 +102,8 @@ onClickOutside(optionsElement, () => (showDropdown.value = false));
                             if (!option.selected) {
                                 selectedOptions?.push(option.id);
                             }
+                            query = '';
+                            showDropdown = false;
                         }
                     "
                 >
