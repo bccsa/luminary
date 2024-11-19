@@ -14,7 +14,12 @@ import { initLuminaryShared } from "luminary-shared";
 import VueMatomo from "vue-matomo";
 import { loadPlugins } from "./util/pluginLoader";
 
-initLuminaryShared({ cms: false });
+if (import.meta.env.VITE_FAV_ICON) {
+    const favicon = document.getElementById("favicon") as HTMLLinkElement;
+    if (favicon) {
+        favicon.href = import.meta.env.VITE_LOGO_FAVICON;
+    }
+}
 
 export const app = createApp(App);
 
@@ -32,6 +37,11 @@ app.use(router);
 
 // Startup
 async function Startup() {
+    await initLuminaryShared({
+        cms: false,
+        docsIndex:
+            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+language+status], [type+language+status+parentPinned], [type+docType]",
+    });
     // setup auth0
     app.config.globalProperties.$auth = null; // Clear existing auth
     const oauth = await auth.setupAuth(app, router);

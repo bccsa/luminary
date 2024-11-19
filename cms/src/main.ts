@@ -10,9 +10,14 @@ import App from "./App.vue";
 import router from "./router";
 import { initLuminaryShared } from "luminary-shared";
 
-initLuminaryShared({ cms: true });
-
 const app = createApp(App);
+
+if (import.meta.env.VITE_FAV_ICON) {
+    const favicon = document.getElementById("favicon") as HTMLLinkElement;
+    if (favicon) {
+        favicon.href = import.meta.env.VITE_LOGO_FAVICON;
+    }
+}
 
 if (import.meta.env.PROD) {
     Sentry.init({
@@ -22,22 +27,32 @@ if (import.meta.env.PROD) {
     });
 }
 
-app.use(createPinia());
+// Startup
+async function Startup() {
+    initLuminaryShared({
+        cms: true,
+        docsIndex:
+            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language]",
+    });
 
-app.use(router);
+    app.use(createPinia());
 
-app.use(
-    createAuth0({
-        domain: import.meta.env.VITE_AUTH0_DOMAIN,
-        clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
-        authorizationParams: {
-            audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-            redirect_uri: window.location.origin,
-            scope: "openid profile email offline_access",
-        },
-        cacheLocation: "localstorage",
-        useRefreshTokens: true,
-    }),
-);
+    app.use(router);
 
-app.mount("#app");
+    app.use(
+        createAuth0({
+            domain: import.meta.env.VITE_AUTH0_DOMAIN,
+            clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
+            authorizationParams: {
+                audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+                redirect_uri: window.location.origin,
+                scope: "openid profile email offline_access",
+            },
+            cacheLocation: "localstorage",
+            useRefreshTokens: true,
+        }),
+    );
+    app.mount("#app");
+}
+
+Startup();

@@ -23,14 +23,18 @@ import {
     type PostDto,
     type TagDto,
 } from "../types";
-import { db } from "../db/database";
+import { db, getDbVersion } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
 import { DateTime } from "luxon";
 
-describe("Database", () => {
+describe("Database", async () => {
     beforeAll(async () => {
-        initLuminaryShared({ cms: true });
+        await initLuminaryShared({
+            cms: true,
+            docsIndex:
+                "type, parentId, language, publishDate, [type+tagType], [type+docType], [type+postType]",
+        });
     });
 
     beforeEach(async () => {
@@ -104,7 +108,6 @@ describe("Database", () => {
         const posts = db.whereTypeAsRef<PostDto[]>(DocType.Post, undefined, PostType.Blog);
 
         await waitForExpect(() => {
-            console.log(posts.value);
             expect(posts.value).toEqual([mockPostDto]);
         });
     });
@@ -888,7 +891,10 @@ describe("Database", () => {
     });
 
     it("deletes expired documents when not in cms-mode", async () => {
-        initLuminaryShared({ cms: false });
+        initLuminaryShared({
+            cms: false,
+            docsIndex: "parentId, language, expiryDate, [type+docType]",
+        });
 
         const now = DateTime.now();
         const expiredDate = now.minus({ days: 5 }).toMillis();
@@ -920,5 +926,17 @@ describe("Database", () => {
 
         const remainingDocs = await db.docs.toArray();
         expect(remainingDocs).toHaveLength(2);
+    });
+
+    it("upgrade indexdb version by changing the docs index", async () => {
+        const _v1 = await getDbVersion();
+        // update db index schema
+        await initLuminaryShared({
+            cms: false,
+            docsIndex: "parentId, language, expiryDate, [type+docType], type",
+        });
+        const _v2 = await getDbVersion();
+
+        expect(_v1).toBeLessThan(_v2);
     });
 });
