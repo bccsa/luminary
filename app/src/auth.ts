@@ -46,6 +46,10 @@ async function setupAuth(app: App<Element>, router: Router) {
         await oauth.handleRedirectCallback(url.toString()).catch(() => null);
 
         const to = getRedirectTo() || "/";
+
+        // Clear redirect_to
+        localStorage.removeItem("redirect_to");
+
         location.href = to;
 
         return true;
