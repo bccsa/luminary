@@ -25,8 +25,6 @@ const router = useRouter();
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-
 const commonNavigation = computed(() => {
     return [
         {
@@ -147,35 +145,6 @@ const userNavigation = computed(() => {
         </MenuItems>
         <!-- </transition> -->
     </Menu>
-
-    <LModal name="lModal-languages" heading="Select Language" :is-visible="showLanguageModal">
-        <div class="divide-y divide-zinc-200 dark:divide-slate-600">
-            <button
-                v-for="language in languages"
-                :key="language._id"
-                class="flex w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
-                @click="appLanguageIdAsRef = language._id"
-                data-test="switch-language-button"
-            >
-                <span class="text-sm">{{ language.name }}</span>
-                <CheckCircleIcon
-                    v-if="appLanguageIdAsRef === language._id"
-                    class="ml-auto h-6 w-6 text-yellow-500"
-                    aria-hidden="true"
-                />
-            </button>
-        </div>
-        <template #footer>
-            <LButton
-                variant="primary"
-                size="lg"
-                rounding="less"
-                class="w-full"
-                @click="showLanguageModal = false"
-            >
-                Close
-            </LButton>
-        </template>
-    </LModal>
+    <LanguageModal :is-visible="showLanguageModal" @close="showLanguageModal = false" />
     <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
 </template>

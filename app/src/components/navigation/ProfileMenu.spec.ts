@@ -68,7 +68,6 @@ describe("ProfileMenu", () => {
 
         const body = document.querySelector("body");
 
-        await waitForExpect(() => {});
         expect(body!.innerHTML).toContain("Select Language");
     });
 

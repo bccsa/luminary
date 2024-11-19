@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
 import { ref, watch, onMounted } from "vue";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import LModal from "../form/LModal.vue";
 
 type Props = {
     isVisible: boolean;
@@ -39,39 +40,33 @@ onMounted(() => {
 </script>
 
 <template>
-    <Dialog :open="isVisible" @close="emit('close')">
-        <div class="fixed inset-0 z-50 bg-slate-800 bg-opacity-50 backdrop-blur-sm"></div>
-        <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-4">
-            <DialogPanel
-                class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-700"
+    <LModal name="lModal-languages" heading="Select Theme" :is-visible="isVisible">
+        <div class="divide-y divide-zinc-200 dark:divide-slate-600">
+            <button
+                v-for="theme in themes"
+                :key="theme"
+                class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                @click="selectedTheme = theme"
+                data-test="switch-theme-button"
             >
-                <DialogTitle class="mb-4 text-lg font-semibold">Select Theme</DialogTitle>
-                <div class="divide-y divide-zinc-200 dark:divide-slate-600">
-                    <button
-                        v-for="theme in themes"
-                        :key="theme"
-                        class="flex w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
-                        @click="selectedTheme = theme"
-                        data-test="switch-language-button"
-                    >
-                        <span class="text-sm">{{ theme }}</span>
-                        <CheckCircleIcon
-                            v-if="selectedTheme === theme"
-                            class="ml-auto h-6 w-6 text-yellow-500"
-                            aria-hidden="true"
-                        />
-                    </button>
-                </div>
-                <LButton
-                    variant="primary"
-                    size="lg"
-                    rounding="less"
-                    class="mt-4 w-full"
-                    @click="emit('close')"
-                >
-                    Close
-                </LButton>
-            </DialogPanel>
+                <span class="text-sm">{{ theme }}</span>
+                <CheckCircleIcon
+                    v-if="selectedTheme === theme"
+                    class="ml-auto h-6 w-6 text-yellow-500"
+                    aria-hidden="true"
+                />
+            </button>
         </div>
-    </Dialog>
+        <template #footer>
+            <LButton
+                variant="primary"
+                size="lg"
+                rounding="less"
+                class="w-full"
+                @click="emit('close')"
+            >
+                Close
+            </LButton>
+        </template>
+    </LModal>
 </template>
