@@ -7,7 +7,7 @@ import {
     setMediaProgress,
     getMediaProgress,
     removeMediaProgress,
-    userPreferences,
+    userPreferencesAsRef,
 } from "@/globalConfig";
 import {
     mockEnglishContentDto,
@@ -74,13 +74,18 @@ describe("globalConfig.ts", () => {
     });
 
     it("can initialize the userPreferences", async () => {
-        expect(userPreferences.value).toEqual({ bookmarks: {} });
+        expect(userPreferencesAsRef.value).toEqual({});
     });
 
     it("can set the userPreferences", async () => {
-        userPreferences.value = { bookmarks: { "content-post1-eng": { ts: Date.now() } } };
-        expect(userPreferences.value).toEqual({
+        userPreferencesAsRef.value = { bookmarks: { "content-post1-eng": { ts: Date.now() } } };
+        expect(userPreferencesAsRef.value).toEqual({
             bookmarks: { "content-post1-eng": { ts: Date.now() } },
         });
+    });
+
+    it("can remove a bookmark", async () => {
+        userPreferencesAsRef.value.bookmarks = {};
+        expect(userPreferencesAsRef.value).toEqual({ bookmarks: {} });
     });
 });
