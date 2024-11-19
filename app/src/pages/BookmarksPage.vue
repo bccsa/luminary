@@ -9,6 +9,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import { computed } from "vue";
+import { BookmarkIcon } from "@heroicons/vue/24/solid";
 
 // Extract bookmark keys
 const bookmarkKeys = computed(() => Object.keys(userPreferencesAsRef.value.bookmarks));
@@ -51,7 +52,8 @@ const bookmarkContent = useDexieLiveQueryWithDeps(
             />
         </div>
         <div v-if="bookmarkContent.length === 0" class="text-gray-500">
-            No bookmarks available for the selected language.
+            You should try this ! <br />Click "<BookmarkIcon class="inline h-5 w-5" />" on any post,
+            and it will show up here.
         </div>
     </div>
 </template>
