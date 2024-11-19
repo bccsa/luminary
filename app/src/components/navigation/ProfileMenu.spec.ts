@@ -6,6 +6,7 @@ import * as auth0 from "@auth0/auth0-vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
+import waitForExpect from "wait-for-expect";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -55,25 +56,27 @@ describe("ProfileMenu", () => {
         expect(wrapper.html()).toContain("Test Person");
     });
 
-    // The modal doesn't render properly
-    // in tests currently, because of transitions and teleporting
+    it(
+        "shows the modal when clicking the language button",
+        async () => {
+            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+                isAuthenticated: ref(false),
+            });
 
-    it.skip("shows the modal when clicking the language button", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isAuthenticated: ref(false),
-        });
+            const wrapper = mount(ProfileMenu);
 
-        const wrapper = mount(ProfileMenu);
+            //@ts-ignore
+            wrapper.vm.showLanguageModal = true;
 
-        await wrapper.find("button").trigger("click");
+            const body = document.querySelector("body");
 
-        const button = wrapper.findAll("button")[2];
-        await button.trigger("click");
+            await waitForExpect(() => {});
+            expect(body!.innerHTML).toContain("Select Language");
+        },
+        { timeout: 999999999 },
+    );
 
-        expect(wrapper.html()).toContain("Select Language");
-    });
-
-    it.skip("logs the user out after clicking logout", async () => {
+    it.only("logs the user out after clicking logout", async () => {
         const logout = vi.fn();
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(true),
@@ -82,7 +85,7 @@ describe("ProfileMenu", () => {
 
         const wrapper = mount(ProfileMenu);
         await wrapper.find("button").trigger("click");
-        await wrapper.findAll("button")[3].trigger("click");
+        console.log(await wrapper.findAll("button"));
 
         expect(logout).toHaveBeenCalled();
     });

@@ -10,7 +10,7 @@ const emit = defineEmits(["close"]);
 
 <template>
     <Teleport to="body">
-        <div v-if="isVisible" @click.self="emit('close')">
+        <div v-if="isVisible" @click="emit('close')">
             <div class="fixed inset-0 z-50 bg-zinc-800 bg-opacity-50 backdrop-blur-sm"></div>
             <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">
                 <div class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-slate-700">
