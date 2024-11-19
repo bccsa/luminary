@@ -83,9 +83,10 @@ const toggleBookmark = () => {
 };
 
 // Check if the current content is bookmarked
-const isBookmarked = computed(() =>
-    Object.keys(userPreferencesAsRef.value.bookmarks).includes(content.value.parentId),
-);
+const isBookmarked = computed(() => {
+    const bookmarkIds = Object.keys(userPreferencesAsRef.value.bookmarks);
+    return bookmarkIds.includes(content.value.parentId);
+});
 
 watch(content, async () => {
     if (!content.value) return;

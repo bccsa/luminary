@@ -19,7 +19,7 @@ import {
 } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdAsRef, appName, initLanguage } from "@/globalConfig";
+import { appLanguageIdAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
@@ -59,6 +59,8 @@ describe("SingleContent", () => {
         ]);
 
         setActivePinia(createTestingPinia());
+
+        userPreferencesAsRef.value = { bookmarks: {} };
     });
 
     afterEach(() => {
