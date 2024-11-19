@@ -24,6 +24,11 @@ import { config } from "../config";
 import { SharedConfig } from "../config";
 const dbName: string = "luminary-db";
 
+type luminaryInternals = {
+    id: string;
+    value: any;
+};
+
 export type QueryOptions = {
     filterOptions?: {
         /**
@@ -69,6 +74,7 @@ class Database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
+    luminaryInternals!: Table<luminaryInternals>;
     private accessMapRef = accessMap;
 
     /**
@@ -92,6 +98,7 @@ class Database extends Dexie {
             docs: index,
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
+            luminaryInternals: "id",
         });
 
         this.deleteExpired();
@@ -118,14 +125,20 @@ class Database extends Dexie {
      * Set the sync version as received from the api
      */
     set syncVersion(value: number) {
-        localStorage.setItem("syncVersion", value.toString());
+        this.luminaryInternals.put({ id: "syncVersion", value: value.toString() }, "syncVersion");
     }
 
     /**
      * Get the stored sync version
      */
-    get syncVersion(): number {
-        return parseInt(localStorage.getItem("syncVersion") || "0");
+    get syncVersion(): Promise<number> {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise(async (resolve) => {
+            const _v: luminaryInternals = (await this.luminaryInternals.get(
+                "syncVersion",
+            )) as luminaryInternals;
+            resolve((_v && _v.value && parseInt(_v.value)) || 0);
+        });
     }
 
     /**
