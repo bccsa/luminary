@@ -12,7 +12,6 @@ import {
     TagDto,
     TagType,
     Uuid,
-    luminaryInternalsDto,
 } from "../types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
@@ -24,6 +23,11 @@ import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
 import { SharedConfig } from "../config";
 const dbName: string = "luminary-db";
+
+type luminaryInternals = {
+    id: string;
+    value: any;
+};
 
 export type QueryOptions = {
     filterOptions?: {
@@ -70,7 +74,7 @@ class Database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
-    luminaryInternals!: Table<luminaryInternalsDto>;
+    luminaryInternals!: Table<luminaryInternals>;
     private accessMapRef = accessMap;
 
     /**
@@ -130,9 +134,9 @@ class Database extends Dexie {
     get syncVersion(): Promise<number> {
         // eslint-disable-next-line no-async-promise-executor
         return new Promise(async (resolve) => {
-            const _v: luminaryInternalsDto = (await this.luminaryInternals.get(
+            const _v: luminaryInternals = (await this.luminaryInternals.get(
                 "syncVersion",
-            )) as luminaryInternalsDto;
+            )) as luminaryInternals;
             resolve((_v && _v.value && parseInt(_v.value)) || 0);
         });
     }

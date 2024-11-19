@@ -151,8 +151,3 @@ export type RedirectDto = ContentBaseDto & {
     slug: string;
     toSlug?: string;
 };
-
-export type luminaryInternalsDto = {
-    id: string;
-    value: any;
-};
