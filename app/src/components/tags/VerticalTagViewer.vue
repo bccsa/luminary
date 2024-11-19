@@ -1,55 +1,45 @@
 <script setup lang="ts">
-import { DocType, db, type TagDto, type QueryOptions as options } from "luminary-shared";
-import { ref, watch } from "vue";
+import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
+import { toRef } from "vue";
 import { useRouter } from "vue-router";
-import LImage from "../images/LImage.vue";
+import LImage from "@/components/images/LImage.vue";
+import { appLanguageIdAsRef } from "@/globalConfig";
 
 const router = useRouter();
 type Props = {
-    tag?: TagDto;
-    title?: string;
-    queryOptions: options;
-    showPublishDate?: boolean;
+    tag: ContentDto;
 };
-const props = withDefaults(defineProps<Props>(), {
-    showPublishDate: true,
-});
+const props = defineProps<Props>();
 
 const isContentSelected = (slug: string) => {
     if (router.currentRoute.value.params.slug === slug) return true;
     return false;
 };
 
-const taggedDocs = db.contentWhereTagAsRef(props.tag?._id, props.queryOptions);
-
-const tagContent = props.tag
-    ? db.whereParentAsRef(props.tag._id, DocType.Tag, props.queryOptions.languageId, [])
-    : ref([]);
-
-const tagTitle = ref(props.title);
-const tagSummary = ref("");
-
-watch(tagContent, () => {
-    if (props.title) {
-        tagTitle.value = props.title;
-        return;
-    }
-
-    if (tagContent.value.length > 0) {
-        tagTitle.value = tagContent.value[0].title;
-        tagSummary.value = tagContent.value[0].summary || "";
-        return;
-    }
-
-    tagTitle.value = "No translation found";
-});
+const tagged = useDexieLiveQueryWithDeps(
+    [appLanguageIdAsRef, toRef(() => props.tag.parentTaggedDocs)],
+    ([languageId, ids]: [Uuid, Uuid]) =>
+        db.docs
+            .where("parentId")
+            .anyOf(ids)
+            .filter((c) => {
+                const content = c as ContentDto;
+                if (content.language != languageId) return false;
+                if (!content.publishDate) return false;
+                if (content.publishDate > Date.now()) return false;
+                if (content.expiryDate && content.expiryDate < Date.now()) return false;
+                return true;
+            })
+            .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
+    { initialValue: [] as ContentDto[] },
+);
 </script>
 
 <template>
     <div>
         <div>
             <RouterLink
-                v-for="content in taggedDocs"
+                v-for="content in tagged"
                 :key="content._id"
                 :to="{
                     name: 'content',

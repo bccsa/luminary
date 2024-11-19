@@ -2,7 +2,7 @@
 import ContentTile from "@/components/content/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { ref } from "vue";
-import { useResizeObserver } from "@vueuse/core";
+import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
 import { type ContentDto } from "luminary-shared";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
     summary?: string;
     showPublishDate?: boolean;
 };
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
 });
 
@@ -57,6 +57,20 @@ const setSpinBtnVisibility = () => {
 };
 
 useResizeObserver(scrollContent, setSpinBtnVisibility);
+
+const infiniteScrollData = ref(props.contentDocs.slice(0, 10));
+useInfiniteScroll(
+    scrollElement,
+    () => {
+        infiniteScrollData.value.push(
+            ...props.contentDocs.slice(
+                infiniteScrollData.value.length,
+                infiniteScrollData.value.length + 10,
+            ),
+        );
+    },
+    { distance: 10 },
+);
 </script>
 
 <template>
@@ -96,7 +110,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-6">
                     <ContentTile
-                        v-for="content in contentDocs"
+                        v-for="content in infiniteScrollData"
                         :key="content._id"
                         :content="content"
                         :show-publish-date="showPublishDate"

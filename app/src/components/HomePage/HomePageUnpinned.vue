@@ -10,7 +10,7 @@ import {
 } from "luminary-shared";
 import { appLanguageIdAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { contentByCategory } from "./contentByCategory";
+import { contentByTag } from "../contentByTag";
 
 const newest100Content = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -79,16 +79,16 @@ watch(
     },
 );
 
-const unpinnedNewestContentByCategory = contentByCategory(newest100Content, categories);
+const unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);
 </script>
 
 <template>
     <HorizontalContentTileCollection
         v-for="c in unpinnedNewestContentByCategory"
-        :key="c.category._id"
+        :key="c.tag._id"
         :contentDocs="c.content"
-        :title="c.category.title"
-        :summary="c.category.summary"
+        :title="c.tag.title"
+        :summary="c.tag.summary"
         class="pt-4"
     />
 </template>

@@ -1,75 +1,84 @@
 <script setup lang="ts">
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
-import HorizontalScrollableTagViewer from "@/components/tags/HorizontalScrollableTagViewer.vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import { db, DocType, TagType, type ContentDto, type TagDto } from "luminary-shared";
-import { computed, ref, toRefs, watch } from "vue";
+import {
+    db,
+    TagType,
+    useDexieLiveQueryWithDeps,
+    type ContentDto,
+    type Uuid,
+} from "luminary-shared";
+import { computed, ref, toRef } from "vue";
+import { contentByTag } from "../contentByTag";
+import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
+import { useInfiniteScroll } from "@vueuse/core";
 
 type Props = {
-    tags: TagDto[];
-    title?: string;
-    currentContent: ContentDto;
+    tags: ContentDto[];
+    selectedContent: ContentDto;
 };
 const props = defineProps<Props>();
 
-const { tags } = toRefs(props);
-const contentForTag = ref<Record<string, ContentDto[]>>({}); // Store content for each tag
-const isTopic = computed(() => props.currentContent.parentTagType !== TagType.Topic);
+const isNotTopic = computed(() => props.selectedContent.parentTagType !== TagType.Topic);
+const contentIds = computed(() =>
+    props.tags
+        .map((tag) => tag.parentTaggedDocs)
+        .flat()
+        .filter((e, i, self) => i === self.indexOf(e)),
+);
 
-// Function to fetch content based on tags
-async function fetchContentForTags() {
-    const tagContent = await Promise.all(
-        tags.value.map(async (tag: TagDto) => {
-            const content = await db.contentWhereTag(tag._id, {
-                languageId: appLanguageIdAsRef.value,
-            });
-            return {
-                tagId: tag._id,
-                content: content.filter((item) => item._id !== props.currentContent._id), // Filter out current content
-            };
-        }),
-    );
+const contentDocs = useDexieLiveQueryWithDeps(
+    [appLanguageIdAsRef, contentIds],
+    ([languageId, ids]: [Uuid, Uuid[]]) =>
+        db.docs
+            .where("parentId")
+            .anyOf(ids)
+            .filter((c) => {
+                const content = c as ContentDto;
+                if (content.language !== languageId) return false;
+                if (!content.publishDate) return false;
+                if (content.publishDate > Date.now()) return false;
+                if (content.expiryDate && content.expiryDate < Date.now()) return false;
+                return true;
+            })
+            .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
+    { initialValue: [] as ContentDto[] },
+);
 
-    // Create a mapping of tagId to content array
-    contentForTag.value = tagContent.reduce(
-        (acc, { tagId, content }) => {
-            acc[tagId] = content;
-            return acc;
-        },
-        {} as Record<string, ContentDto[]>,
-    );
-}
+const filtered = computed(() =>
+    contentDocs.value.filter((item) => item._id !== props.selectedContent._id),
+);
 
-// Watch for changes in tags and refetch content
-watch(tags, fetchContentForTags, { immediate: true });
+const contentByTopic = contentByTag(filtered, toRef(props.tags));
+const infiniteScrollData = ref(contentByTopic.value.slice(0, 5));
+const scrollElement = ref<HTMLElement | undefined>(undefined);
+useInfiniteScroll(
+    scrollElement,
+    () => {
+        infiniteScrollData.value.push(
+            ...contentByTopic.value.slice(
+                infiniteScrollData.value.length,
+                infiniteScrollData.value.length + 5,
+            ),
+        );
+    },
+    { distance: 10 },
+);
 </script>
 
 <template>
-    <IgnorePagePadding
-        v-if="Object.keys(contentForTag).length > 0"
-        class="bg-yellow-500/5 pb-1 pt-3"
-    >
-        <div>
-            <h1 v-if="isTopic" class="px-6 text-xl text-zinc-800 dark:text-zinc-200">Related</h1>
-            <div class="flex max-w-full flex-wrap">
-                <div class="max-w-full">
-                    <template v-for="tag in tags" :key="tag._id">
-                        <!-- Only show if content exists for the tag and the content length is greater than 0 -->
-                        <HorizontalScrollableTagViewer
-                            v-if="contentForTag[tag._id] && contentForTag[tag._id].length > 0"
-                            :tag="tag"
-                            :currentContentId="currentContent._id"
-                            :queryOptions="{
-                                filterOptions: { docType: DocType.Post },
-                                languageId: appLanguageIdAsRef,
-                            }"
-                            class="mb-5 max-w-full"
-                            :class="{
-                                'mt-3': !isTopic,
-                            }"
-                        />
-                    </template>
-                </div>
+    <IgnorePagePadding>
+        <h1 v-if="isNotTopic" class="px-6 text-xl text-zinc-800 dark:text-zinc-200">Related</h1>
+        <div class="mb-2 flex max-w-full flex-wrap">
+            <div class="max-w-full" ref="scrollElement">
+                <HorizontalContentTileCollection
+                    v-for="topic in infiniteScrollData"
+                    :key="topic.tag._id"
+                    :contentDocs="topic.content"
+                    :title="topic.tag.title"
+                    :summary="topic.tag.summary"
+                    :showPublishDate="false"
+                />
             </div>
         </div>
     </IgnorePagePadding>
