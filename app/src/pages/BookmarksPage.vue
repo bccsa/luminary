@@ -1,37 +1,42 @@
 <script lang="ts" setup>
 import ContentTile from "@/components/content/ContentTile.vue";
-import { appLanguageIdAsRef, userPreferences } from "@/globalConfig";
-import { db, type ContentDto } from "luminary-shared";
-import { ref, watch, onMounted, computed } from "vue";
+import { appLanguageIdAsRef, userPreferencesAsRef } from "@/globalConfig";
+import {
+    db,
+    DocType,
+    useDexieLiveQueryWithDeps,
+    type ContentDto,
+    type Uuid,
+} from "luminary-shared";
+import { computed } from "vue";
 
 // Extract bookmark keys
-const bookmarkKeys = computed(() => Object.keys(userPreferences.value.bookmarks));
+const bookmarkKeys = computed(() => Object.keys(userPreferencesAsRef.value.bookmarks));
 
-// Reactive variable to hold bookmarked content
-const bookmarkContent = ref<ContentDto[]>([]);
+const bookmarkContent = useDexieLiveQueryWithDeps(
+    appLanguageIdAsRef,
+    (appLanguageId: Uuid) =>
+        db.docs
+            .where("parentId")
+            .anyOf(bookmarkKeys.value)
+            .filter((c) => {
+                const content = c as ContentDto;
+                if (content.type !== DocType.Content) return false;
+                if (content.language !== appLanguageId) return false;
 
-// Function to fetch content based on language and bookmark keys
-const fetchBookmarkContent = async () => {
-    try {
-        if (bookmarkKeys.value.length > 0) {
-            bookmarkContent.value = await db.whereParent(
-                bookmarkKeys.value,
-                undefined,
-                appLanguageIdAsRef.value,
-            );
-        } else {
-            bookmarkContent.value = [];
-        }
-    } catch (error) {
-        console.error("Error fetching bookmarked content:", error);
-    }
-};
+                // Only include published content
+                if (content.status !== "published") return false;
+                if (!content.publishDate) return false;
+                if (content.publishDate > Date.now()) return false;
+                if (content.expiryDate && content.expiryDate < Date.now()) return false;
+                return true;
+            })
+            .toArray() as unknown as Promise<ContentDto[]>,
 
-// Fetch content initially on mount
-onMounted(fetchBookmarkContent);
-
-// Watch language and fetch new content when it changes
-watch([appLanguageIdAsRef, bookmarkKeys], fetchBookmarkContent);
+    {
+        initialValue: [],
+    },
+);
 </script>
 
 <template>
