@@ -110,8 +110,20 @@ export const removeMediaProgress = (mediaId: string, contentId: Uuid) => {
 };
 
 /**
- * The user preferences.
+ * The user preferences as Vue ref.
  */
-export const userPreferences = ref<{ bookmarks: { [key: string]: { ts: number } } }>({
-    bookmarks: JSON.parse(localStorage.getItem("userPreferences") || "{}").bookmarks || {},
+
+type Bookmark = {
+    ts: number;
+};
+
+export type UserPreferences = {
+    bookmarks: Record<string, Bookmark>;
+};
+
+export const userPreferencesAsRef = ref(
+    JSON.parse(localStorage.getItem("userPreferences") || "{}") as UserPreferences,
+);
+watch(userPreferencesAsRef, (newVal) => {
+    localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });

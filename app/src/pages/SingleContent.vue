@@ -25,7 +25,7 @@ import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
 import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
-import { userPreferences } from "@/globalConfig";
+import { userPreferencesAsRef } from "@/globalConfig";
 
 const router = useRouter();
 
@@ -66,20 +66,26 @@ const is404 = computed(() => {
 
 // Function to toggle bookmark for the current content
 const toggleBookmark = () => {
-    const parentId = content.value.parentId;
-    if (!parentId) return;
-    if (userPreferences.value.bookmarks[parentId]) {
-        delete userPreferences.value.bookmarks[parentId];
+    const bookmarks = { ...userPreferencesAsRef.value.bookmarks };
+
+    if (isBookmarked.value) {
+        // Remove from bookmarks
+        delete bookmarks[content.value.parentId];
     } else {
-        userPreferences.value.bookmarks[parentId] = {
+        // Add to bookmarks
+        bookmarks[content.value.parentId] = {
             ts: Date.now(),
         };
     }
-    localStorage.setItem("userPreferences", JSON.stringify(userPreferences.value));
+
+    // Update user preferences ref and persist to localStorage
+    userPreferencesAsRef.value = { ...userPreferencesAsRef.value, bookmarks };
 };
 
 // Check if the current content is bookmarked
-const isBookmarked = computed(() => !!userPreferences.value.bookmarks[content.value.parentId]);
+const isBookmarked = computed(() =>
+    Object.keys(userPreferencesAsRef.value.bookmarks).includes(content.value.parentId),
+);
 
 watch(content, async () => {
     if (!content.value) return;
