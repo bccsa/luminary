@@ -154,3 +154,22 @@ export type RedirectDto = ContentBaseDto & {
     slug: string;
     toSlug?: string;
 };
+
+export type socketConnectionOptions = {
+    /**
+     * Socket.io endpoint URL
+     */
+    apiUrl?: string;
+    /**
+     * CMS mode flag
+     */
+    cms?: boolean;
+    /**
+     * Access token
+     */
+    token?: string;
+    /**
+     * Force a reconnect to the server if the socket already exists
+     */
+    reconnect?: boolean;
+};

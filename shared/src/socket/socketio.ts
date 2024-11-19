@@ -1,6 +1,11 @@
 import { io, Socket } from "socket.io-client";
 import { ref, watch } from "vue";
-import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
+import {
+    ApiDataResponseDto,
+    ChangeReqAckDto,
+    LocalChangeDto,
+    socketConnectionOptions,
+} from "../types";
 import { accessMap, AccessMap } from "../permissions/permissions";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
@@ -38,6 +43,7 @@ class Socketio {
      */
     constructor(apiUrl: string, cms: boolean = false, token?: string) {
         this.isCms = cms;
+        console.log(this.isCms);
 
         this.socket = io(apiUrl, token ? { auth: { token } } : undefined);
 
@@ -118,11 +124,23 @@ class Socketio {
      */
     public async requestData() {
         // Request documents that are newer than the last received version
-        this.socket.emit("clientDataReq", {
-            version: await db.syncVersion,
-            cms: this.isCms,
-            accessMap: accessMap.value,
-        });
+        // this.socket.emit("clientDataReq", {
+        //     version: db.syncVersion,
+        //     cms: this.isCms,
+        //     accessMap: accessMap.value,
+        // });
+        // const res = await this.api.clientDataReq({
+        //     apiVersion: "test2",
+        //     memberOf: ["group-private-users", "group-super-admins"],
+        //     userId: "user-super-admin",
+        //     reqData: {
+        //         version: db.syncVersion,
+        //         cms: this.isCms,
+        //         accessMap: accessMap.value,
+        //     },
+        // });
+        // await db.bulkPut(res.docs);
+        // if (res.version != undefined) db.syncVersion = res.version;
     }
 
     /**
@@ -158,25 +176,6 @@ class Socketio {
         }
     }
 }
-
-type socketConnectionOptions = {
-    /**
-     * Socket.io endpoint URL
-     */
-    apiUrl?: string;
-    /**
-     * CMS mode flag
-     */
-    cms?: boolean;
-    /**
-     * Access token
-     */
-    token?: string;
-    /**
-     * Force a reconnect to the server if the socket already exists
-     */
-    reconnect?: boolean;
-};
 
 let socket: Socketio;
 
