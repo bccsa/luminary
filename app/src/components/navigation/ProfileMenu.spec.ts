@@ -56,27 +56,23 @@ describe("ProfileMenu", () => {
         expect(wrapper.html()).toContain("Test Person");
     });
 
-    it(
-        "shows the modal when clicking the language button",
-        async () => {
-            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-                isAuthenticated: ref(false),
-            });
+    it("shows the modal when clicking the language button", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
 
-            const wrapper = mount(ProfileMenu);
+        const wrapper = mount(ProfileMenu);
 
-            //@ts-ignore
-            wrapper.vm.showLanguageModal = true;
+        //@ts-ignore
+        wrapper.vm.showLanguageModal = true;
 
-            const body = document.querySelector("body");
+        const body = document.querySelector("body");
 
-            await waitForExpect(() => {});
-            expect(body!.innerHTML).toContain("Select Language");
-        },
-        { timeout: 999999999 },
-    );
+        await waitForExpect(() => {});
+        expect(body!.innerHTML).toContain("Select Language");
+    });
 
-    it.only("logs the user out after clicking logout", async () => {
+    it("logs the user out after clicking logout", async () => {
         const logout = vi.fn();
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(true),
@@ -84,9 +80,12 @@ describe("ProfileMenu", () => {
         });
 
         const wrapper = mount(ProfileMenu);
-        await wrapper.find("button").trigger("click");
-        console.log(await wrapper.findAll("button"));
 
+        const profileMenuBtn = await wrapper.find("[name='profile-menu-btn']");
+        await profileMenuBtn.trigger("click");
+        const profileMenuOptionsElement = await wrapper.find("[name='menu-items']");
+
+        await profileMenuOptionsElement.findAll("button")[3].trigger("click");
         expect(logout).toHaveBeenCalled();
     });
 });
