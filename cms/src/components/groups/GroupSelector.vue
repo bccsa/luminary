@@ -32,7 +32,7 @@ const selectedGroups = computed(
     () => availableGroups.value?.filter((g) => groups.value?.includes(g._id)) || [],
 );
 
-const formattedGroups = computed(() => {
+const groupList = computed(() => {
     const newGroups: ComboboxOption[] = [];
     filteredGroups.value.forEach((group) => {
         const newGroup: ComboboxOption = {
@@ -59,7 +59,7 @@ const filteredGroups = computed(() =>
     <div>
         <LCombobox
             :disabled="disabled"
-            :options="formattedGroups"
+            :options="groupList"
             label="Group Membership"
             :selectedOptions="groups"
         />
@@ -73,7 +73,7 @@ const filteredGroups = computed(() =>
             leave-to-class="transform scale-90 opacity-0"
         >
             <div v-if="selectedGroups?.length == 0" class="text-xs text-zinc-500">
-                No groups selected
+                No group selected
             </div>
         </Transition>
     </div>
