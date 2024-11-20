@@ -8,7 +8,12 @@ import {
     getMediaProgress,
     removeMediaProgress,
 } from "@/globalConfig";
-import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "./tests/mockdata";
+import {
+    mockEnglishContentDto,
+    mockLanguageDtoEng,
+    mockLanguageDtoFra,
+    mockLanguageDtoSwa,
+} from "./tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { dynamicLoadPlugin } from "./util/pluginLoader";
@@ -16,8 +21,10 @@ import { dynamicLoadPlugin } from "./util/pluginLoader";
 describe("globalConfig.ts", () => {
     beforeAll(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await db.docs.bulkPut([mockEnglishContentDto]);
         initLanguage();
     });
+
     afterAll(async () => {
         await db.docs.clear();
         await db.localChanges.clear();

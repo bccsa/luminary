@@ -8,6 +8,7 @@ import { isNotAuthenticatedGuard } from "@/guards/isNotAuthenticatedGuard";
 import SingleContent from "@/pages/SingleContent.vue";
 import { appName } from "@/globalConfig";
 import ExplorePage from "@/pages/ExplorePage.vue";
+import BookmarksPage from "@/pages/BookmarksPage.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,6 +51,15 @@ const router = createRouter({
             name: "settings",
             meta: {
                 title: "Settings",
+            },
+        },
+
+        {
+            path: "/bookmarks",
+            component: BookmarksPage,
+            name: "bookmarks",
+            meta: {
+                title: "Bookmarks",
             },
         },
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
     DocType,
+    PostType,
     TagType,
     db,
     type ContentDto,
@@ -22,6 +23,9 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
+import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
+import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
+import { userPreferencesAsRef } from "@/globalConfig";
 
 const router = useRouter();
 
@@ -58,6 +62,39 @@ const is404 = computed(() => {
     if (content.value.publishDate && content.value.publishDate > Date.now()) return true; // if the content is scheduled for the future, it's a 404
     if (content.value.expiryDate && content.value.expiryDate < Date.now()) return true; // if the content is expired, it's a 404
     return false;
+});
+
+// Function to toggle bookmark for the current content
+const toggleBookmark = () => {
+    if (!userPreferencesAsRef.value.bookmarks) {
+        userPreferencesAsRef.value.bookmarks = [];
+    }
+
+    if (isBookmarked.value) {
+        // Remove from bookmarks
+        userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
+            (bookmark) => bookmark.id != content.value.parentId,
+        );
+    } else {
+        // Add to bookmarks
+        userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
+        useNotificationStore().addNotification({
+            id: "bookmark-added",
+            title: "Bookmark added",
+            description:
+                "This content has been added to your bookmarks. You can find the bookmarks page from the profile menu.",
+            state: "success",
+            type: "toast",
+            timeout: 5000,
+        });
+    }
+};
+
+// Check if the current content is bookmarked
+const isBookmarked = computed(() => {
+    return userPreferencesAsRef.value.bookmarks?.some(
+        (bookmark) => bookmark.id == content.value.parentId,
+    );
 });
 
 watch(content, async () => {
@@ -189,6 +226,17 @@ function selectTag(parentId: Uuid) {
             <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
                 {{ content.title }}
             </h1>
+
+            <div data-test="bookmark" @click="toggleBookmark">
+                <component
+                    v-if="!(content.parentPostType && content.parentPostType == PostType.Page)"
+                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                    class="mx-auto mt-2 h-6 w-6 cursor-pointer"
+                    :class="{
+                        'text-yellow-500': isBookmarked,
+                    }"
+                />
+            </div>
 
             <div
                 class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"

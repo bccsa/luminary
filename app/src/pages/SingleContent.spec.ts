@@ -19,12 +19,11 @@ import {
 } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdAsRef, appName, initLanguage } from "@/globalConfig";
+import { appLanguageIdAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
-
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -34,6 +33,7 @@ vi.mock("vue-router", async (importOriginal) => {
         useRouter: vi.fn().mockImplementation(() => ({
             currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
             replace: routeReplaceMock,
+            back: vi.fn(),
         })),
     };
 });
@@ -327,6 +327,42 @@ describe("SingleContent", () => {
                 name: "content",
                 params: { slug: "test" },
             });
+        });
+    });
+
+    it("can add and remove a bookmark", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).not.toContain("Loading...");
+        });
+
+        const icon = wrapper.find("div[data-test='bookmark']");
+        expect(icon.exists()).toBe(true);
+        icon.trigger("click");
+
+        await waitForExpect(async () => {
+            expect(
+                userPreferencesAsRef.value.bookmarks &&
+                    userPreferencesAsRef.value.bookmarks.some(
+                        (b) => b.id === mockEnglishContentDto.parentId,
+                    ),
+            ).toBe(true);
+        });
+
+        icon.trigger("click");
+
+        await waitForExpect(async () => {
+            expect(
+                userPreferencesAsRef.value.bookmarks &&
+                    userPreferencesAsRef.value.bookmarks.some(
+                        (b) => b.id === mockEnglishContentDto.parentId,
+                    ),
+            ).toBe(false);
         });
     });
 });

@@ -14,6 +14,7 @@ import { computed, ref } from "vue";
 import { LanguageIcon, SunIcon } from "@heroicons/vue/24/solid";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
+import { BookmarkIcon } from "@heroicons/vue/16/solid";
 
 const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
@@ -34,6 +35,11 @@ const commonNavigation = computed(() => {
             language: appLanguageAsRef.value,
             icon: LanguageIcon,
             action: () => (showLanguageModal.value = true),
+        },
+        {
+            name: "Bookmarks",
+            icon: BookmarkIcon,
+            action: () => router.push({ name: "bookmarks" }),
         },
     ];
 });
