@@ -136,11 +136,17 @@ const createTranslation = (language: LanguageDto) => {
     selectedLanguageId.value = language._id;
 };
 
-const canTranslate = ref(false);
-const canPublish = ref(false);
-
-// Access control
-const canTranslateOrPublish = computed(() => {
+const canTranslate = computed(() => {
+    if (!parent.value || !selectedLanguage.value) return false;
+    if (
+        !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) ||
+        !verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)
+    ) {
+        return false;
+    }
+    return true;
+});
+const canPublish = computed(() => {
     if (!parent.value || !selectedLanguage.value) return false;
 
     // Disable edit access if the user does not have publish permission
@@ -153,27 +159,16 @@ const canTranslateOrPublish = computed(() => {
             prevContentDoc.status == PublishStatus.Published &&
             !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)
         ) {
-            // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-            canPublish.value = false;
             return false;
         }
     }
 
-    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate)) {
-        // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-        canTranslate.value = false;
-        return false;
-    }
-    if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)) {
-        // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-        canTranslate.value = false;
-        return false;
-    }
-    // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-    canTranslate.value = true;
-    // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-    canPublish.value = true;
     return true;
+});
+
+// Access control
+const canTranslateOrPublish = computed(() => {
+    return canTranslate.value || canPublish.value;
 });
 
 const canEditParent = computed(() => {
