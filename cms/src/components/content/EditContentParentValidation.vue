@@ -23,7 +23,8 @@ type Props = {
     parentPrev: ContentParentDto | undefined;
     contentPrev: ContentDto[] | undefined;
     canEdit: boolean;
-    canTranslateOrPublish: boolean;
+    canTranslate: boolean;
+    canPublish: boolean;
 };
 const props = defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
@@ -146,16 +147,20 @@ watch(
     <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
             <div
-                v-if="!canTranslateOrPublish || !canEdit"
+                v-if="!(canTranslate || canPublish) || !canEdit"
                 class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
             >
-                <span v-if="!canTranslateOrPublish" class="mb-1 flex gap-1 text-xs text-zinc-600">
-                    <ExclamationCircleIcon class="h-4 text-red-400" /> You do not have permission to
-                    translate and/or publish content.</span
+                <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs text-zinc-600">
+                    <ExclamationCircleIcon class="h-4 w-4 text-red-400" /> You do not have
+                    permission to translate content</span
+                >
+                <span v-if="!canPublish" class="mb-1 flex gap-1 text-xs text-zinc-600">
+                    <ExclamationCircleIcon class="h-4 w-4 text-red-400" /> You do not have
+                    permission to translate content</span
                 >
                 <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
-                    <ExclamationCircleIcon class="h-4 text-red-400" /> You do not have permission to
-                    edit content.</span
+                    <ExclamationCircleIcon class="h-4 w-4 text-red-400" /> You do not have
+                    permission to edit content.</span
                 >
             </div>
             <div v-if="!parentIsValid" class="mb-2 rounded-md bg-zinc-50 p-4 shadow">

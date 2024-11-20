@@ -136,6 +136,9 @@ const createTranslation = (language: LanguageDto) => {
     selectedLanguageId.value = language._id;
 };
 
+const canTranslate = ref(false);
+const canPublish = ref(false);
+
 // Access control
 const canTranslateOrPublish = computed(() => {
     if (!parent.value || !selectedLanguage.value) return false;
@@ -149,13 +152,27 @@ const canTranslateOrPublish = computed(() => {
             prevContentDoc &&
             prevContentDoc.status == PublishStatus.Published &&
             !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)
-        )
+        ) {
+            // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+            canPublish.value = false;
             return false;
+        }
     }
 
-    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate)) return false;
-    if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
+    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate)) {
+        // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+        canTranslate.value = false;
         return false;
+    }
+    if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)) {
+        // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+        canTranslate.value = false;
+        return false;
+    }
+    // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+    canTranslate.value = true;
+    // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+    canPublish.value = true;
     return true;
 });
 
@@ -339,7 +356,8 @@ watch(selectedLanguage, () => {
             <div class="col-span-3 md:col-span-1" v-if="parent">
                 <div class="sticky top-20 space-y-6">
                     <EditContentParentValidation
-                        :can-translate-or-publish="canTranslateOrPublish"
+                        :can-translate="canTranslate"
+                        :can-publish="canPublish"
                         :can-edit="canEditParent"
                         v-if="contentDocs"
                         v-model:parent="parent"
