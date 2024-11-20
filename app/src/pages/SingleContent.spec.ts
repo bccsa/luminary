@@ -24,9 +24,6 @@ import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
-import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
-import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
-
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -59,8 +56,6 @@ describe("SingleContent", () => {
         ]);
 
         setActivePinia(createTestingPinia());
-
-        userPreferencesAsRef.value = { bookmarks: {} };
     });
 
     afterEach(() => {
@@ -335,20 +330,39 @@ describe("SingleContent", () => {
         });
     });
 
-    it("can bookmark a content", async () => {
+    it("can add and remove a bookmark", async () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
-        await waitForExpect(async () => {
-            const bookmarkIcon = wrapper.findComponent(BookmarkIconOutline);
-            bookmarkIcon.trigger("click");
+        await waitForExpect(() => {
+            expect(wrapper.text()).not.toContain("Loading...");
+        });
 
-            // We need to find a way to check if the content has been bookmarked in the localStorage
-            const bookmarkIconSolid = wrapper.findComponent(BookmarkIconSolid);
-            expect(bookmarkIconSolid.exists()).toBe(true);
+        const icon = wrapper.find("div[data-test='bookmark']");
+        expect(icon.exists()).toBe(true);
+        icon.trigger("click");
+
+        await waitForExpect(async () => {
+            expect(
+                userPreferencesAsRef.value.bookmarks &&
+                    userPreferencesAsRef.value.bookmarks.some(
+                        (b) => b.id === mockEnglishContentDto.parentId,
+                    ),
+            ).toBe(true);
+        });
+
+        icon.trigger("click");
+
+        await waitForExpect(async () => {
+            expect(
+                userPreferencesAsRef.value.bookmarks &&
+                    userPreferencesAsRef.value.bookmarks.some(
+                        (b) => b.id === mockEnglishContentDto.parentId,
+                    ),
+            ).toBe(false);
         });
     });
 });

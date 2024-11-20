@@ -7,7 +7,6 @@ import {
     setMediaProgress,
     getMediaProgress,
     removeMediaProgress,
-    userPreferencesAsRef,
 } from "@/globalConfig";
 import {
     mockEnglishContentDto,
@@ -25,6 +24,7 @@ describe("globalConfig.ts", () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
         initLanguage();
     });
+
     afterAll(async () => {
         await db.docs.clear();
         await db.localChanges.clear();

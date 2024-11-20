@@ -66,26 +66,35 @@ const is404 = computed(() => {
 
 // Function to toggle bookmark for the current content
 const toggleBookmark = () => {
-    const bookmarks = { ...userPreferencesAsRef.value.bookmarks };
+    if (!userPreferencesAsRef.value.bookmarks) {
+        userPreferencesAsRef.value.bookmarks = [];
+    }
 
     if (isBookmarked.value) {
         // Remove from bookmarks
-        delete bookmarks[content.value.parentId];
+        userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
+            (bookmark) => bookmark.id != content.value.parentId,
+        );
     } else {
         // Add to bookmarks
-        bookmarks[content.value.parentId] = {
-            ts: Date.now(),
-        };
+        userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
+        useNotificationStore().addNotification({
+            id: "bookmark-added",
+            title: "Bookmark added",
+            description:
+                "This content has been added to your bookmarks. You can find the bookmarks page from the profile menu.",
+            state: "success",
+            type: "toast",
+            timeout: 5000,
+        });
     }
-
-    // Update user preferences ref and persist to localStorage
-    userPreferencesAsRef.value = { ...userPreferencesAsRef.value, bookmarks };
 };
 
 // Check if the current content is bookmarked
 const isBookmarked = computed(() => {
-    const bookmarkIds = Object.keys(userPreferencesAsRef.value.bookmarks);
-    return bookmarkIds.includes(content.value.parentId);
+    return userPreferencesAsRef.value.bookmarks?.some(
+        (bookmark) => bookmark.id == content.value.parentId,
+    );
 });
 
 watch(content, async () => {
@@ -218,15 +227,16 @@ function selectTag(parentId: Uuid) {
                 {{ content.title }}
             </h1>
 
-            <component
-                v-if="!(content.parentPostType && content.parentPostType == PostType.Page)"
-                :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                @click="toggleBookmark"
-                class="mx-auto mt-2 h-6 w-6 cursor-pointer"
-                :class="{
-                    'text-yellow-500': isBookmarked,
-                }"
-            />
+            <div data-test="bookmark" @click="toggleBookmark">
+                <component
+                    v-if="!(content.parentPostType && content.parentPostType == PostType.Page)"
+                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                    class="mx-auto mt-2 h-6 w-6 cursor-pointer"
+                    :class="{
+                        'text-yellow-500': isBookmarked,
+                    }"
+                />
+            </div>
 
             <div
                 class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"

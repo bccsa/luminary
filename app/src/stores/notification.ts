@@ -13,6 +13,7 @@ export type Notification = {
     type: "toast" | "banner";
     icon?: FunctionalComponent;
     routerLink?: RouteLocationNamedRaw;
+    timeout?: number;
 };
 
 export const useNotificationStore = defineStore("notification", () => {
@@ -41,7 +42,7 @@ export const useNotificationStore = defineStore("notification", () => {
         if (notification.type == "toast") {
             setTimeout(() => {
                 removeNotification(notificationId!);
-            }, 4000);
+            }, notification.timeout || 4000);
         }
 
         return notificationId;
