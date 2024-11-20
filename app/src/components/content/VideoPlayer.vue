@@ -4,10 +4,15 @@ import "videojs-mobile-ui";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import type Player from "video.js/dist/types/player";
-import type { ContentDto } from "luminary-shared";
+import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
 import LImage from "../images/LImage.vue";
-import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/globalConfig";
+import {
+    appLanguageAsRef,
+    getMediaProgress,
+    removeMediaProgress,
+    setMediaProgress,
+} from "@/globalConfig";
 
 type Props = {
     content: ContentDto;
@@ -33,6 +38,32 @@ function autoHidePlayerControls() {
 function playerPlayEventHandler() {
     hasStarted.value = true;
     playerUserActiveEventHandler();
+
+    // Watch for changes in appLanguageAsRef
+    watch(
+        appLanguageAsRef,
+        (newLanguage) => {
+            const audioTracks = (player as any).audioTracks();
+
+            if (audioTracks && audioTracks.length > 0) {
+                for (let i = 0; i < audioTracks.length; i++) {
+                    const track = audioTracks[i];
+                    if (newLanguage) {
+                        // Check if the track's language matches the new language code
+                        if (track.language === newLanguage.languageCode) {
+                            // Enable the matched audio track
+                            track.enabled = true;
+                            console.log(`Enabled audio track: ${track.label} (${track.language})`);
+                        } else {
+                            // Disable other audio tracks
+                            track.enabled = false;
+                        }
+                    }
+                }
+            }
+        },
+        { immediate: true },
+    );
 }
 
 function playerUserActiveEventHandler() {
