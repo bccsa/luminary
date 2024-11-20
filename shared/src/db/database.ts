@@ -29,6 +29,13 @@ type luminaryInternals = {
     value: any;
 };
 
+type dbIndex = {
+    docs: string;
+    localChanges: string;
+    queryCache: string;
+    luminaryInternals: string;
+};
+
 export type QueryOptions = {
     filterOptions?: {
         /**
@@ -86,20 +93,21 @@ class Database extends Dexie {
         super(dbName);
 
         const index: string = concatIndex("_id", docsIndex);
-        const version: number = bumpDBVersion(
-            (dbVersion >= 10 && dbVersion / 10) || 1,
-            localStorage.getItem("dexie.docsIndex") || "",
-            index,
-        );
-
-        // NOTE: Only _id needs to stay in the shared library, all the other fields can be moved to the cms / app
-        // Remember to increase the version number below if you change the schema
-        this.version(version).stores({
+        const dbIndex: dbIndex = {
             docs: index,
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
-        });
+        };
+        const version: number = bumpDBVersion(
+            (dbVersion >= 10 && dbVersion / 10) || 1,
+            localStorage.getItem("dexie.dbIndex") || "{}",
+            dbIndex,
+        );
+
+        // NOTE: Only _id needs to stay in the shared library, all the other fields can be moved to the cms / app
+        // Remember to increase the version number below if you change the schema
+        this.version(version).stores(dbIndex);
 
         this.deleteExpired();
 
@@ -737,9 +745,9 @@ const concatIndex = (index1: string, index2: string) => {
  * @param newIndex - New DB docs index
  * @returns
  */
-const bumpDBVersion = (dbVersion: number, oldIndex: string, newIndex: string) => {
-    if (oldIndex.trim() == newIndex.trim()) return dbVersion;
-    localStorage.setItem("dexie.docsIndex", newIndex);
+const bumpDBVersion = (dbVersion: number, oldIndex: string, newIndex: dbIndex) => {
+    if (oldIndex.trim() == JSON.stringify(newIndex).trim()) return dbVersion;
+    localStorage.setItem("dexie.dbIndex", JSON.stringify(newIndex));
     console.log(`dbVersion updated from ${dbVersion} to ${dbVersion + 1}`);
     return dbVersion + 1;
 };
