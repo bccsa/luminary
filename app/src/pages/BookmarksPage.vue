@@ -34,10 +34,11 @@ const content = useDexieLiveQueryWithDeps(
     },
 );
 
-const sorted = computed(() =>
-    bookmarks.value
-        .map((b) => content.value.find((c) => c.parentId === b))
-        .filter((c) => c !== undefined),
+const sorted = computed(
+    () =>
+        bookmarks.value
+            .map((b) => content.value.find((c) => c.parentId === b))
+            .filter((c) => c !== undefined) as ContentDto[],
 );
 </script>
 
