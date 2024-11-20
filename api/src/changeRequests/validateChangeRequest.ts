@@ -54,6 +54,21 @@ export async function validateChangeRequest(
         };
     }
 
+    if (changeRequest.doc.type == DocType.Redirect) {
+        const currentDoc = changeRequest.doc as RedirectDto;
+        const slugIsUnque = await dbService.checkUniqueSlug(
+            currentDoc.slug,
+            currentDoc._id,
+            DocType.Redirect,
+        );
+        if (!slugIsUnque) {
+            return {
+                validated: false,
+                error: `Submitted "${changeRequest.doc.type}" document validation failed:\nSlug already has a redirect`,
+            };
+        }
+    }
+
     // Check included document validity
     const doc = plainToInstance(DocTypeMap[changeRequest.doc.type], changeRequest.doc, {
         excludeExtraneousValues: true,

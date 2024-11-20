@@ -1,5 +1,5 @@
 import { slugify } from "transliteration";
-import { db, type Uuid } from "luminary-shared";
+import { db, DocType, type Uuid } from "luminary-shared";
 
 /**
  * Functions to generate and validate slugs
@@ -29,7 +29,7 @@ export class Slug {
      * @returns Promise containing a unique slug
      */
     static async makeUnique(text: string, documentId: Uuid) {
-        while (!(await this._checkUnique(text, documentId))) {
+        while (!(await this.checkUnique(text, documentId))) {
             text = `${text}-${Math.floor(Math.random() * 999)}`;
         }
         return text;
@@ -38,10 +38,12 @@ export class Slug {
     /**
      * Returns true if the slug is unique
      */
-    private static async _checkUnique(text: string, documentId: Uuid) {
-        const existingDocWithSlug = await db.docs.where("slug").equals(text).first();
+    public static async checkUnique(text: string, documentId: Uuid, docType?: DocType) {
+        let query = db.docs.where("slug").equals(text);
+        if (docType) query = query.and((doc) => doc.type === docType);
+        const res = await query.first();
 
-        if (existingDocWithSlug && existingDocWithSlug._id != documentId) {
+        if (res && res._id != documentId) {
             return false;
         }
 
