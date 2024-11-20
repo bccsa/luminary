@@ -5,7 +5,6 @@ import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import * as _ from "lodash";
-import LCombobox from "../forms/LCombobox.vue";
 
 // Props for visibility and language to edit
 type Props = {
