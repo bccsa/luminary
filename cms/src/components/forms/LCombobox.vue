@@ -106,6 +106,7 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
                             showDropdown = false;
                         }
                     "
+                    data-test="option-selector"
                 >
                     <span class="block truncate" data-test="group-selector">
                         {{ option.label }}

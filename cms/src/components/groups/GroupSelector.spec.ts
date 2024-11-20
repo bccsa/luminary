@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, afterEach, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import {
     mockGroupDtoPrivateContent,
@@ -10,16 +10,16 @@ import {
 } from "@/tests/mockdata";
 
 import GroupSelector from "./GroupSelector.vue";
-import { Combobox } from "@headlessui/vue";
 import LTag from "../content/LTag.vue";
 import { accessMap, db, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import LCombobox from "../forms/LCombobox.vue";
 
 describe("GroupSelector", () => {
     // Need to set the access map before starting the tests. When moving this to beforeAll, it fails for some or other reason.
     accessMap.value = superAdminAccessMap;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
         await db.docs.bulkPut([
             mockGroupDtoPublicContent,
             mockGroupDtoPublicEditors,
@@ -30,9 +30,6 @@ describe("GroupSelector", () => {
 
     afterEach(async () => {
         vi.clearAllMocks();
-    });
-
-    afterAll(async () => {
         await db.docs.clear();
         await db.localChanges.clear();
     });
@@ -46,8 +43,10 @@ describe("GroupSelector", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).not.toContain("Private Content");
-            expect(wrapper.text()).toContain("Public Content");
+            const tagDiv = wrapper.findComponent(LCombobox).findComponent(LTag);
+
+            expect(tagDiv.text()).toContain("Public Content");
+            expect(tagDiv.text()).not.toContain("Private Content");
         });
     });
 
@@ -109,11 +108,11 @@ describe("GroupSelector", () => {
         });
     });
 
-    it.skip("Updates the passed array when selecting a group", async () => {
+    it("Updates the passed array when selecting a group", async () => {
         const groups: string[] = [];
         const wrapper = mount(GroupSelector, {
             props: {
-                groups: groups,
+                groups,
                 "onUpdate:groups": (e: any) => wrapper.setProps({ groups: e }),
                 docType: DocType.Post,
             },
@@ -123,14 +122,16 @@ describe("GroupSelector", () => {
 
         // Wait for the list to be populated and filtered
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Public Editors");
+            expect(wrapper.text()).toContain("Public Content");
         });
 
-        // TODO: Click event is not being triggered
-        await wrapper.find("[data-test='group-selector']").trigger("click");
+        // Select an option
+        const option = wrapper.find("[data-test='option-selector']");
+        await option.trigger("click");
 
-        await waitForExpect(async () => {
-            expect(groups).toContain(mockGroupDtoPublicEditors._id);
+        // Ensure the groups array is updated
+        await waitForExpect(() => {
+            expect(groups).toContain(mockGroupDtoPublicContent._id);
         });
     });
 
@@ -167,7 +168,7 @@ describe("GroupSelector", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(Combobox).props().disabled).toBe(true);
+            expect(wrapper.findComponent(LCombobox).props().disabled).toBe(true);
             expect(wrapper.findComponent(LTag).props().disabled).toBe(true);
         });
     });
