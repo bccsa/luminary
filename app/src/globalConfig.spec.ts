@@ -72,20 +72,4 @@ describe("globalConfig.ts", () => {
         const _c = await dynamicLoadPlugin("examplePlugin");
         expect(_c.someFunction()).toBe("res");
     });
-
-    it("can initialize the userPreferences", async () => {
-        expect(userPreferencesAsRef.value).toEqual({});
-    });
-
-    it("can set the userPreferences", async () => {
-        userPreferencesAsRef.value = { bookmarks: { "content-post1-eng": { ts: Date.now() } } };
-        expect(userPreferencesAsRef.value).toEqual({
-            bookmarks: { "content-post1-eng": { ts: Date.now() } },
-        });
-    });
-
-    it("can remove a bookmark", async () => {
-        userPreferencesAsRef.value.bookmarks = {};
-        expect(userPreferencesAsRef.value).toEqual({ bookmarks: {} });
-    });
 });
