@@ -473,6 +473,11 @@ export class DbService extends EventEmitter {
         });
     }
 
+    /**
+     * Get all documents with a specific type
+     * @param docType - Type of documents to retrieve
+     * @returns All documents with specified type
+     */
     getDocsByType(docType: DocType): Promise<DbQueryResult> {
         return new Promise((resolve, reject) => {
             const query = {

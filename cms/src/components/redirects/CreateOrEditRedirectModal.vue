@@ -93,7 +93,7 @@ watch(
     () => editable.value.slug,
     async () => {
         if (editable.value.slug.length > 0) {
-            const slugIsUnique = await Slug._checkUnique(
+            const slugIsUnique = await Slug.checkUnique(
                 editable.value.slug,
                 editable.value._id,
                 DocType.Redirect,
