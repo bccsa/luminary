@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import App from "@/App.vue";
+
 type Props = {
     isVisible: boolean;
     heading: string;
@@ -9,7 +11,7 @@ const emit = defineEmits(["close"]);
 </script>
 
 <template>
-    <Teleport to="body">
+    <Teleport :to="App">
         <div v-if="isVisible" @click="emit('close')">
             <div class="fixed inset-0 z-50 bg-zinc-800 bg-opacity-50 backdrop-blur-sm"></div>
             <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">

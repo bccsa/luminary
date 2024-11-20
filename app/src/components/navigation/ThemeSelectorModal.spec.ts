@@ -3,12 +3,27 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LButton from "../button/LButton.vue";
 import waitForExpect from "wait-for-expect";
+import App from "@/App.vue";
+import { ref } from "vue";
+import * as auth0 from "@auth0/auth0-vue";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
     observe() {}
     disconnect() {}
 };
+
+vi.mock("@auth0/auth0-vue");
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = importOriginal();
+    return {
+        ...actual,
+        useRouter: vi.fn(),
+        useRoute: vi.fn().mockReturnValue({ name: "home" }),
+        RouterView: { render: () => null },
+    };
+});
 
 describe("ThemeSelectorModal.vue", () => {
     beforeEach(() => {
@@ -52,19 +67,27 @@ describe("ThemeSelectorModal.vue", () => {
         });
     });
 
-    it("displays the correct themes", async () => {
-        mount(ThemeSelectorModal, {
+    it.only("displays the correct themes", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+        const appWrapper = mount(App);
+
+        console.log(appWrapper.html());
+
+        const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
             },
         });
 
-        const body = document.querySelector("body");
+        const themeSelectorModal = appWrapper.findComponent(ThemeSelectorModal);
+        console.log(themeSelectorModal.html());
 
-        await waitForExpect(() => {
-            expect(body!.innerHTML).toContain("Light");
-            expect(body!.innerHTML).toContain("Dark");
-            expect(body!.innerHTML).toContain("System");
+        await waitForExpect(async () => {
+            expect(body?.innerHTML).toContain("Light");
+            expect(body?.innerHTML).toContain("Dark");
+            expect(body?.innerHTML).toContain("System");
         });
     });
 
@@ -75,6 +98,8 @@ describe("ThemeSelectorModal.vue", () => {
                 isVisible: true,
             },
         });
+
+        console.log(wrapper.html());
         const themeItems = wrapper.findAll("li");
         await themeItems[1].trigger("click");
         expect(localStorage.getItem("theme")).toBe("Dark");
