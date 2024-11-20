@@ -59,6 +59,10 @@ onMounted(() => {
             muteToggle: false,
             volumePanel: false,
             remainingTimeDisplay: false,
+            skipButtons: {
+                forward: 10,
+                backward: 10,
+            },
         },
     };
 
