@@ -6,7 +6,6 @@ import * as auth0 from "@auth0/auth0-vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
-import waitForExpect from "wait-for-expect";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -63,12 +62,16 @@ describe("ProfileMenu", () => {
 
         const wrapper = mount(ProfileMenu);
 
+        await wrapper.find("button").trigger("click");
+
+        const profileMenuButtons = await wrapper.findAll("button");
+
+        await profileMenuButtons[3].trigger("click");
+
         //@ts-ignore
         wrapper.vm.showLanguageModal = true;
 
-        const body = document.querySelector("body");
-
-        expect(body!.innerHTML).toContain("Select Language");
+        expect(wrapper.html()).toContain("Select Language");
     });
 
     it("logs the user out after clicking logout", async () => {
@@ -80,11 +83,11 @@ describe("ProfileMenu", () => {
 
         const wrapper = mount(ProfileMenu);
 
-        const profileMenuBtn = await wrapper.find("[name='profile-menu-btn']");
-        await profileMenuBtn.trigger("click");
-        const profileMenuOptionsElement = await wrapper.find("[name='menu-items']");
+        await wrapper.find("button").trigger("click");
 
-        await profileMenuOptionsElement.findAll("button")[3].trigger("click");
+        const profileMenuButtons = await wrapper.findAll("button");
+
+        await profileMenuButtons[5].trigger("click");
         expect(logout).toHaveBeenCalled();
     });
 });
