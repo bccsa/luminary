@@ -3,9 +3,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LButton from "../button/LButton.vue";
 import waitForExpect from "wait-for-expect";
-import App from "@/App.vue";
-import { ref } from "vue";
-import * as auth0 from "@auth0/auth0-vue";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -40,54 +37,40 @@ describe("ThemeSelectorModal.vue", () => {
     });
 
     it("renders the modal when visible", async () => {
-        mount(ThemeSelectorModal, {
-            props: {
-                isVisible: true,
-            },
-        });
-
-        const body = document.querySelector("body");
-
-        await waitForExpect(() => {
-            expect(body!.innerHTML).toContain("Select Theme");
-        });
-    });
-
-    it("does not render the modal when not visible", async () => {
-        mount(ThemeSelectorModal, {
-            props: {
-                isVisible: false,
-            },
-        });
-
-        const body = document.querySelector("body");
-
-        await waitForExpect(() => {
-            expect(body!.innerHTML).not.toContain("Select Theme");
-        });
-    });
-
-    it.only("displays the correct themes", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isAuthenticated: ref(false),
-        });
-        const appWrapper = mount(App);
-
-        console.log(appWrapper.html());
-
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
             },
         });
 
-        const themeSelectorModal = appWrapper.findComponent(ThemeSelectorModal);
-        console.log(themeSelectorModal.html());
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Select Theme");
+        });
+    });
+
+    it("does not render the modal when not visible", async () => {
+        const wrapper = mount(ThemeSelectorModal, {
+            props: {
+                isVisible: false,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).not.toContain("Select Theme");
+        });
+    });
+
+    it("displays the correct themes", async () => {
+        const wrapper = mount(ThemeSelectorModal, {
+            props: {
+                isVisible: true,
+            },
+        });
 
         await waitForExpect(async () => {
-            expect(body?.innerHTML).toContain("Light");
-            expect(body?.innerHTML).toContain("Dark");
-            expect(body?.innerHTML).toContain("System");
+            expect(wrapper.html()).toContain("Light");
+            expect(wrapper.html()).toContain("Dark");
+            expect(wrapper.html()).toContain("System");
         });
     });
 
@@ -99,8 +82,7 @@ describe("ThemeSelectorModal.vue", () => {
             },
         });
 
-        console.log(wrapper.html());
-        const themeItems = wrapper.findAll("li");
+        const themeItems = wrapper.findAll("[data-test='switch-theme-button']");
         await themeItems[1].trigger("click");
         expect(localStorage.getItem("theme")).toBe("Dark");
     });
