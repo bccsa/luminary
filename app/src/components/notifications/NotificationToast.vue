@@ -56,8 +56,8 @@ switch (props.notification.state) {
         class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-slate-700"
     >
         <component
-            :is="notification.routerLink ? RouterLink : 'div'"
-            :to="notification.routerLink"
+            :is="notification.link ? RouterLink : 'div'"
+            :to="notification.link"
             @click="notification.id ? removeNotification(notification.id) : (show = false)"
         >
             <div class="p-4">
@@ -89,6 +89,7 @@ switch (props.notification.state) {
                             "
                             class="inline-flex rounded-md text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                             data-test="toast"
+                            v-if="notification.closable"
                         >
                             <span class="sr-only">Close</span>
                             <XMarkIcon class="h-5 w-5" aria-hidden="true" />
