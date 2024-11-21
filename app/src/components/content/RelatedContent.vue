@@ -8,10 +8,9 @@ import {
     type ContentDto,
     type Uuid,
 } from "luminary-shared";
-import { computed, ref, toRef } from "vue";
+import { computed, toRef } from "vue";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
-import { useInfiniteScroll } from "@vueuse/core";
 
 type Props = {
     tags: ContentDto[];
@@ -50,20 +49,6 @@ const filtered = computed(() =>
 );
 
 const contentByTopic = contentByTag(filtered, toRef(props.tags));
-const infiniteScrollData = ref(contentByTopic.value.slice(0, 5));
-const scrollElement = ref<HTMLElement | undefined>(undefined);
-useInfiniteScroll(
-    scrollElement,
-    () => {
-        infiniteScrollData.value.push(
-            ...contentByTopic.value.slice(
-                infiniteScrollData.value.length,
-                infiniteScrollData.value.length + 5,
-            ),
-        );
-    },
-    { distance: 10 },
-);
 </script>
 
 <template>
@@ -72,7 +57,7 @@ useInfiniteScroll(
         <div class="mb-2 flex max-w-full flex-wrap">
             <div class="max-w-full" ref="scrollElement">
                 <HorizontalContentTileCollection
-                    v-for="topic in infiniteScrollData"
+                    v-for="topic in contentByTopic"
                     :key="topic.tag._id"
                     :contentDocs="topic.content"
                     :title="topic.tag.title"

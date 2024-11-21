@@ -5,6 +5,7 @@ import {
     PublishStatus,
     TagType,
     db,
+    useDexieLiveQuery,
     useDexieLiveQueryWithDeps,
     type ContentDto,
     type RedirectDto,
@@ -35,9 +36,9 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const slug = ref(props.slug);
-const docsBySlug = useDexieLiveQueryWithDeps(slug, (slug) =>
-    db.docs.where("slug").equals(slug).toArray(),
+const docsBySlug = useDexieLiveQuery(
+    () => db.docs.where("slug").equals(props.slug).toArray() as unknown as Promise<ContentDto[]>,
+    { initialValue: Array<ContentDto>() },
 );
 
 const defaultContent: ContentDto = {
@@ -56,7 +57,6 @@ const defaultContent: ContentDto = {
 };
 
 const content = computed(() => {
-    if (!docsBySlug.value) return defaultContent;
     if (!docsBySlug.value.length) return defaultContent;
     if (docsBySlug.value[0].type != DocType.Content) return defaultContent;
     return docsBySlug.value[0] as ContentDto;
@@ -103,9 +103,18 @@ watch(docsBySlug, async () => {
 });
 
 // Todo: Create a isLoading ref in Luminary shared to determine if the content is still loading (waiting for data to stream from the API) before showing a 404 error.
+// As a temporary solution we are using a timer to allow the app to load the content
+const isLoading = ref(true);
+setTimeout(() => {
+    isLoading.value = false;
+}, 1000);
 
 const is404 = computed(() => {
-    if (!content.value) return true; // if the content is not avaiable, it's a 404
+    if (
+        !isLoading.value &&
+        (!docsBySlug.value.length || docsBySlug.value[0].type != DocType.Content)
+    )
+        return true; // if the content is not avaiable, it's a 404
     if (content.value.status != "published") return true; // if the content is not published, it's a 404
     if (content.value.publishDate && content.value.publishDate > Date.now()) return true; // if the content is scheduled for the future, it's a 404
     if (content.value.expiryDate && content.value.expiryDate < Date.now()) return true; // if the content is expired, it's a 404
@@ -176,8 +185,7 @@ watch(
             const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
 
             if (preferred) {
-                slug.value = preferred.slug;
-                await router.replace({ name: "content", params: { slug: slug.value } });
+                router.replace({ name: "content", params: { slug: preferred.slug } });
                 return;
             }
             useNotificationStore().addNotification({

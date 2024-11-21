@@ -17,13 +17,12 @@ import {
     mockTopicDto,
     mockRedirectDto,
 } from "@/tests/mockdata";
-import { db } from "luminary-shared";
+import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
-import RelatedContent from "../components/content/RelatedContent.vue";
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -137,10 +136,21 @@ describe("SingleContent", () => {
         });
     });
 
-    it("displays related content based on parentTags", async () => {
-        await db.docs.update(mockEnglishContentDto._id, {
-            parentTags: ["tag-category1", "tag-topicA"],
-        });
+    it("displays related content", async () => {
+        await db.docs.bulkPut([
+            { ...mockEnglishContentDto, parentTags: [mockTopicContentDto.parentId] } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                _id: "content2",
+                parentId: "post2",
+                title: "content 2",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+            {
+                ...mockTopicContentDto,
+                parentTaggedDocs: [mockEnglishContentDto.parentId, "post2"],
+            } as ContentDto,
+        ]);
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -148,8 +158,8 @@ describe("SingleContent", () => {
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.findComponent(RelatedContent).exists()).toBe(true);
-            expect(wrapper.findComponent(RelatedContent).props("tags")).toEqual([mockTopicDto]);
+            expect(wrapper.text()).toContain(mockTopicContentDto.title);
+            expect(wrapper.text()).toContain("content 2");
         });
     });
 
@@ -233,7 +243,9 @@ describe("SingleContent", () => {
         });
     });
 
-    it("switches correctly the content when the language changes", async () => {
+    it("switches the content correctly when the language changes", async () => {
+        initLanguage();
+
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -246,13 +258,12 @@ describe("SingleContent", () => {
 
         // Simulate language change
         appLanguageIdAsRef.value = mockLanguageDtoFra._id;
-        initLanguage();
-
-        const notificationStore = useNotificationStore();
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.summary);
-            expect(notificationStore.addNotification).not.toHaveBeenCalled();
+            expect(routeReplaceMock).toBeCalledWith({
+                name: "content",
+                params: { slug: mockFrenchContentDto.slug },
+            });
         });
     });
 

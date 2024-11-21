@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ContentTile from "@/components/content/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
 import { type ContentDto } from "luminary-shared";
 
@@ -58,16 +58,13 @@ const setSpinBtnVisibility = () => {
 
 useResizeObserver(scrollContent, setSpinBtnVisibility);
 
-const infiniteScrollData = ref(props.contentDocs.slice(0, 10));
+// TODO: We might need to set the scroll position to the maximum scroll position when pre-rendering the webpage with SSG (Static Site Generation)
+const scrollPosition = ref(10);
+const infiniteScrollData = computed(() => props.contentDocs.slice(0, scrollPosition.value));
 useInfiniteScroll(
     scrollElement,
     () => {
-        infiniteScrollData.value.push(
-            ...props.contentDocs.slice(
-                infiniteScrollData.value.length,
-                infiniteScrollData.value.length + 10,
-            ),
-        );
+        scrollPosition.value += 10;
     },
     { distance: 10 },
 );
