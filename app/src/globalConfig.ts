@@ -1,11 +1,4 @@
-import {
-    db,
-    DocType,
-    useDexieLiveQuery,
-    type ContentDto,
-    type LanguageDto,
-    type Uuid,
-} from "luminary-shared";
+import { db, DocType, type LanguageDto, type Uuid } from "luminary-shared";
 import { readonly, ref, watch } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
