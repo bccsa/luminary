@@ -44,9 +44,6 @@ const filtered = computed(() =>
     optionsList.value.filter((o) => o.label.toLowerCase().includes(query.value.toLowerCase())),
 );
 
-console.log("Filtered groups:", filtered.value);
-console.log("Options recieved:", props.options);
-
 const handleChevronBtnClick = () => {
     inputElement.value.focus();
     showDropdown.value = !showDropdown.value;
