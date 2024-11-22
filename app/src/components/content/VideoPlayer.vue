@@ -38,32 +38,6 @@ function autoHidePlayerControls() {
 function playerPlayEventHandler() {
     hasStarted.value = true;
     playerUserActiveEventHandler();
-
-    // Watch for changes in appLanguageAsRef
-    watch(
-        appLanguageAsRef,
-        (newLanguage) => {
-            const audioTracks = (player as any).audioTracks();
-
-            if (audioTracks && audioTracks.length > 0) {
-                for (let i = 0; i < audioTracks.length; i++) {
-                    const track = audioTracks[i];
-                    if (newLanguage) {
-                        // Check if the track's language matches the new language code
-                        if (track.language === newLanguage.languageCode) {
-                            // Enable the matched audio track
-                            track.enabled = true;
-                            console.log(`Enabled audio track: ${track.label} (${track.language})`);
-                        } else {
-                            // Disable other audio tracks
-                            track.enabled = false;
-                        }
-                    }
-                }
-            }
-        },
-        { immediate: true },
-    );
 }
 
 function playerUserActiveEventHandler() {
@@ -71,6 +45,25 @@ function playerUserActiveEventHandler() {
         showAudioModeToggle.value = true;
     } else {
         showAudioModeToggle.value = false;
+    }
+}
+
+// Set the audio track language
+function setAudioTrackLanguage(languageCode: string | null) {
+    if (!player) {
+        console.error("Player is not initialized.");
+        return;
+    }
+
+    const audioTracks = (player as any).audioTracks();
+    if (!audioTracks || audioTracks.length === 0) {
+        console.warn("No audio tracks available.");
+        return;
+    }
+
+    for (let i = 0; i < audioTracks.length; i++) {
+        const track = audioTracks[i];
+        track.enabled = track.language === languageCode;
     }
 }
 
@@ -114,6 +107,16 @@ onMounted(() => {
         touchControls: {
             disabled: true,
         },
+    });
+
+    // Ensure audio tracks are ready when metadata is loaded
+    player.on("loadedmetadata", () => {
+        setAudioTrackLanguage(appLanguageAsRef.value?.languageCode || null);
+    });
+
+    // Reapply audio track when tracks are updated
+    player.on("audioTracks", () => {
+        setAudioTrackLanguage(appLanguageAsRef.value?.languageCode || null);
     });
 
     // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
@@ -174,6 +177,14 @@ watch(audioMode, (mode) => {
     player.userActive(true);
 
     playerUserActiveEventHandler();
+});
+
+// Watch for changes in appLanguageAsRef
+watch(appLanguageAsRef, (newLanguage) => {
+    console.log("Language change detected:", newLanguage?.name);
+    if (player) {
+        setAudioTrackLanguage(newLanguage?.languageCode || null);
+    }
 });
 </script>
 
