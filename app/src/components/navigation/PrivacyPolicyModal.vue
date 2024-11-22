@@ -50,6 +50,14 @@ const status = computed(() => {
         privacyPolicy.value.publishDate > userPreferencesAsRef.value.privacyPolicy.ts
     )
         return "outdated";
+
+    if (
+        privacyPolicy.value &&
+        privacyPolicy.value.publishDate &&
+        userPreferencesAsRef.value.privacyPolicy.status == "accepted" &&
+        privacyPolicy.value.publishDate > userPreferencesAsRef.value.privacyPolicy.ts
+    )
+        return "outdated";
     return "accepted";
 });
 
@@ -98,17 +106,23 @@ watch(
                 <LButton
                     v-if="status != 'accepted'"
                     variant="primary"
+                    name="accept"
                     @click="
                         userPreferencesAsRef.privacyPolicy = { status: 'accepted', ts: Date.now() };
                         show = false;
                     "
                     >Accept
                 </LButton>
-                <LButton v-if="status == 'accepted'" variant="primary" @click="show = false"
+                <LButton
+                    v-if="status == 'accepted'"
+                    variant="primary"
+                    name="close"
+                    @click="show = false"
                     >Close</LButton
                 >
                 <LButton
                     variant="secondary"
+                    name="decline"
                     @click="
                         userPreferencesAsRef.privacyPolicy = { status: 'declined', ts: Date.now() };
                         show = false;
