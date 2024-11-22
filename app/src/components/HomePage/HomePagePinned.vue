@@ -8,7 +8,7 @@ import {
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import { contentByCategory } from "./contentByCategory";
+import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
@@ -65,16 +65,16 @@ watch(pinnedCategoryContent, async (value) => {
 });
 
 // sort pinned content by category
-const pinnedContentByCategory = contentByCategory(pinnedCategoryContent, pinnedCategories);
+const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCategories);
 </script>
 
 <template>
     <HorizontalContentTileCollection
         v-for="c in pinnedContentByCategory"
-        :key="c.category._id"
+        :key="c.tag._id"
         :contentDocs="c.content"
-        :title="c.category.title"
-        :summary="c.category.summary"
+        :title="c.tag.title"
+        :summary="c.tag.summary"
         :showPublishDate="false"
         class="bg-yellow-500/10 pb-3 pt-4 dark:bg-yellow-500/5"
     />

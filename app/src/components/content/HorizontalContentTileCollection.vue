@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import ContentTile from "@/components/content/ContentTile.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
-import { ref } from "vue";
-import { useResizeObserver } from "@vueuse/core";
+import { computed, ref } from "vue";
+import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
 import { type ContentDto } from "luminary-shared";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
     summary?: string;
     showPublishDate?: boolean;
 };
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
 });
 
@@ -57,6 +57,17 @@ const setSpinBtnVisibility = () => {
 };
 
 useResizeObserver(scrollContent, setSpinBtnVisibility);
+
+// TODO: We might need to set the scroll position to the maximum scroll position when pre-rendering the webpage with SSG (Static Site Generation)
+const scrollPosition = ref(10);
+const infiniteScrollData = computed(() => props.contentDocs.slice(0, scrollPosition.value));
+useInfiniteScroll(
+    scrollElement,
+    () => {
+        scrollPosition.value += 10;
+    },
+    { distance: 10 },
+);
 </script>
 
 <template>
@@ -96,7 +107,7 @@ useResizeObserver(scrollContent, setSpinBtnVisibility);
             >
                 <div ref="scrollContent" class="flex flex-row gap-4 px-6">
                     <ContentTile
-                        v-for="content in contentDocs"
+                        v-for="content in infiniteScrollData"
                         :key="content._id"
                         :content="content"
                         :show-publish-date="showPublishDate"

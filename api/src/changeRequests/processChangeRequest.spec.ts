@@ -3,7 +3,7 @@ import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { processChangeRequest } from "./processChangeRequest";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { changeRequest_content } from "../test/changeRequestDocuments";
+import { changeRequest_content, changeRequest_post } from "../test/changeRequestDocuments";
 import { S3Service } from "../s3/s3.service";
 import { ChangeReqDto } from "src/dto/ChangeReqDto";
 import { PostDto } from "src/dto/PostDto";
@@ -231,5 +231,33 @@ describe("processChangeRequest", () => {
         );
 
         expect(processResult.ok).toBe(true);
+    });
+
+    it("can store the id's of tagged documents to the taggedDocs / parentTaggedDocs property of the tag document and it's content documents", async () => {
+        // Ensure that the test doc is in it's original state
+        await processChangeRequest("", changeRequest_post(), ["group-super-admins"], db, s3);
+
+        const changeRequest = changeRequest_post();
+        changeRequest.doc.tags = ["tag-category2", "tag-topicA"]; // This will remove tag-category1 from the tag and add tag-category2
+
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+
+        const category1 = await db.getDoc("tag-category1");
+        const category2 = await db.getDoc("tag-category2");
+        const category1Content = await db.getContentByParentId("tag-category1");
+        const category2Content = await db.getContentByParentId("tag-category2");
+
+        expect(category1.docs[0].taggedDocs.some((t) => t == changeRequest.doc._id)).toBe(false);
+        expect(category2.docs[0].taggedDocs.some((t) => t == changeRequest.doc._id)).toBe(true);
+        expect(
+            category1Content.docs.filter((d) =>
+                d.parentTaggedDocs.some((t) => t == changeRequest.doc._id),
+            ).length,
+        ).toBe(0);
+        expect(
+            category2Content.docs.filter((d) =>
+                d.parentTaggedDocs.some((t) => t == changeRequest.doc._id),
+            ).length,
+        ).toBe(category2Content.docs.length);
     });
 });

@@ -2,14 +2,9 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import RelatedContent from "./RelatedContent.vue";
 import { mount } from "@vue/test-utils";
-import {
-    mockEnglishContentDto,
-    mockLanguageDtoEng,
-    mockTopicContentDto,
-    mockTopicDto,
-} from "@/tests/mockdata";
+import { mockEnglishContentDto, mockLanguageDtoEng, mockTopicContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { db } from "luminary-shared";
+import { db, type ContentDto } from "luminary-shared";
 import { ref } from "vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
 
@@ -26,7 +21,13 @@ vi.mock("vue-router", async (importOriginal) => {
 
 describe("RelatedContent", () => {
     beforeEach(async () => {
-        await db.docs.bulkPut([mockLanguageDtoEng, mockTopicContentDto, mockTopicDto]);
+        await db.docs.bulkPut([
+            mockLanguageDtoEng,
+            {
+                ...mockTopicContentDto,
+                parentTaggedDocs: ["post-post1", "post-post2", "post-post3"],
+            } as ContentDto,
+        ]);
         appLanguageIdAsRef.value = "lang-eng";
     });
 
@@ -37,8 +38,8 @@ describe("RelatedContent", () => {
     it("doesn't display the current post in the related topic", async () => {
         const wrapper = mount(RelatedContent, {
             props: {
-                tags: [mockTopicDto],
-                currentContent: mockEnglishContentDto,
+                tags: [mockTopicContentDto],
+                selectedContent: mockEnglishContentDto,
             },
         });
 
@@ -50,29 +51,36 @@ describe("RelatedContent", () => {
 
     it("displays the related posts", async () => {
         await db.docs.bulkPut([
-            { ...mockEnglishContentDto, parentTags: [mockTopicDto._id] },
+            { ...mockEnglishContentDto, parentTags: [mockTopicContentDto.parentId] },
             {
                 ...mockEnglishContentDto,
+                parentId: "post-post2",
                 _id: "content-post2-eng",
                 title: "Post 2",
-                parentTags: [mockTopicDto._id],
+                parentTags: [mockTopicContentDto.parentId],
             },
             {
                 ...mockEnglishContentDto,
+                parentId: "post-post3",
                 _id: "content-post3-eng",
                 title: "Post 3",
-                parentTags: [mockTopicDto._id],
+                parentTags: [mockTopicContentDto.parentId],
             },
         ]);
 
         const wrapper = mount(RelatedContent, {
             props: {
-                tags: [mockTopicDto],
-                currentContent: {
+                tags: [
+                    {
+                        ...mockTopicContentDto,
+                        parentTaggedDocs: ["post-post1", "post-post2", "post-post3"],
+                    },
+                ],
+                selectedContent: {
                     ...mockEnglishContentDto,
                     _id: "content-post3-eng",
                     title: "Post 3",
-                    parentTags: [mockTopicDto._id],
+                    parentTags: [mockTopicContentDto.parentId],
                 },
             },
         });
@@ -86,8 +94,8 @@ describe("RelatedContent", () => {
     it("doesn't display the related posts when there are none", async () => {
         const wrapper = mount(RelatedContent, {
             props: {
-                tags: [mockTopicDto],
-                currentContent: mockEnglishContentDto,
+                tags: [mockTopicContentDto],
+                selectedContent: mockEnglishContentDto,
             },
         });
 

@@ -2,11 +2,13 @@
 import {
     DocType,
     PostType,
+    PublishStatus,
     TagType,
     db,
+    useDexieLiveQuery,
+    useDexieLiveQueryWithDeps,
     type ContentDto,
     type RedirectDto,
-    type TagDto,
     type Uuid,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
@@ -34,30 +36,85 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-// Fetch content based on the slug. While waiting for the content to load, show placeholder content.
-const content = db.getBySlugAsRef<ContentDto>(props.slug, {
+const docsBySlug = useDexieLiveQuery(
+    () => db.docs.where("slug").equals(props.slug).toArray() as unknown as Promise<ContentDto[]>,
+    { initialValue: Array<ContentDto>() },
+);
+
+const defaultContent: ContentDto = {
+    // set to initial content (loading state)
     _id: "",
     type: DocType.Content,
     updatedTimeUtc: 0,
     memberOf: [],
     parentId: "",
     language: appLanguageIdAsRef.value,
-    status: "published",
+    status: PublishStatus.Published,
     title: "Loading...",
     slug: "",
     publishDate: 0,
     parentTags: [],
-} as ContentDto);
+};
 
-const tagsContent = ref<ContentDto[]>([]);
-const selectedTagId = ref<Uuid | undefined>();
-const tags = ref<TagDto[]>([]);
-const hasContent = ref(false);
+const content = computed(() => {
+    if (!docsBySlug.value.length) return defaultContent;
+    if (docsBySlug.value[0].type != DocType.Content) return defaultContent;
+    return docsBySlug.value[0] as ContentDto;
+});
+
+const tags = useDexieLiveQueryWithDeps(
+    [content, appLanguageIdAsRef],
+    ([content, appLanguageId]: [ContentDto, Uuid]) =>
+        db.docs
+            .where("parentId")
+            .anyOf(content.parentTags.concat([content.parentId])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
+            .filter((t) => {
+                const tag = t as ContentDto;
+                if (tag.language != appLanguageId) return false;
+                if (tag.parentType != DocType.Tag) return false;
+                if (!tag.publishDate) return false;
+                if (tag.publishDate > Date.now()) return false;
+                if (tag.expiryDate && tag.expiryDate < Date.now()) return false;
+                return true;
+            })
+            .toArray() as unknown as Promise<ContentDto[]>,
+    { initialValue: [] as ContentDto[] },
+);
+
+const selectedCategoryId = ref<Uuid | undefined>();
+
+// Redirect to the correct page if this is a redirect
+watch(docsBySlug, async () => {
+    if (!docsBySlug.value) return;
+
+    const redirect = docsBySlug.value.find(
+        (d) => d.type === DocType.Redirect,
+    ) as unknown as RedirectDto;
+
+    if (redirect) {
+        if (redirect.toSlug) {
+            router.replace({ name: "content", params: { slug: redirect.toSlug } });
+            return;
+        }
+
+        router.replace("/");
+        return;
+    }
+});
 
 // Todo: Create a isLoading ref in Luminary shared to determine if the content is still loading (waiting for data to stream from the API) before showing a 404 error.
+// As a temporary solution we are using a timer to allow the app to load the content
+const isLoading = ref(true);
+setTimeout(() => {
+    isLoading.value = false;
+}, 1000);
 
 const is404 = computed(() => {
-    if (!content.value) return true; // if the content is not avaiable, it's a 404
+    if (
+        !isLoading.value &&
+        (!docsBySlug.value.length || docsBySlug.value[0].type != DocType.Content)
+    )
+        return true; // if the content is not avaiable, it's a 404
     if (content.value.status != "published") return true; // if the content is not published, it's a 404
     if (content.value.publishDate && content.value.publishDate > Date.now()) return true; // if the content is scheduled for the future, it's a 404
     if (content.value.expiryDate && content.value.expiryDate < Date.now()) return true; // if the content is expired, it's a 404
@@ -97,25 +154,15 @@ const isBookmarked = computed(() => {
     );
 });
 
-watch(content, async () => {
-    if (!content.value) return;
-
-    if (content.value.type === DocType.Redirect) {
-        const redirectDoc = content.value as unknown as RedirectDto;
-        if (redirectDoc.toSlug) {
-            router.replace({ name: "content", params: { slug: redirectDoc.toSlug } });
-        } else {
-            router.replace("/");
-        }
-    }
-
+// Set document title and meta tags
+watch([content, is404], () => {
     document.title = is404.value
         ? `Page not found - ${appName}`
         : `${content.value.seoTitle ? content.value.seoTitle : content.value.title} - ${appName}`;
 
     if (is404.value) return;
 
-    // Seo meta tag settings
+    // SEO meta tag settings
     let metaTag = document.querySelector("meta[name='description']");
     if (!metaTag) {
         // If the meta tag doesn't exist, create it
@@ -125,35 +172,20 @@ watch(content, async () => {
     }
     // Update the content attribute
     metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
-
-    const tagIds = content.value.parentTags.concat([content.value.parentId]); // Include this content's parent ID to include content tagged with the parent (if the parent is a tag document).
-
-    // Fetch tags associated with the content
-    tagsContent.value = await db.whereParent(tagIds, DocType.Tag, content.value.language);
-
-    const categoryTagsContent = tagsContent.value.filter(
-        (t) => t.parentTagType == TagType.Category,
-    );
-
-    selectedTagId.value = categoryTagsContent[0]?.parentId;
-
-    tags.value = (await db.docs.bulkGet(tagIds)) as TagDto[];
 });
 
+// Redirect to preferred language
 watch(
-    () => appLanguageAsRef.value,
+    () => [appLanguageAsRef.value, content.value.language],
     async () => {
         if (!content.value) return;
-        if (content.value.type != DocType.Content) return; // Ignore the following logic if this is a redirect
-        if (!content.value.slug) return; // If there is no slug we are still showing the placeholder content
 
         if (appLanguageAsRef.value?._id != content.value.language) {
             const contentDocs = await db.whereParent(content.value.parentId);
             const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
 
             if (preferred) {
-                content.value = preferred;
-                await router.replace({ name: "content", params: { slug: preferred.slug } });
+                router.replace({ name: "content", params: { slug: preferred.slug } });
                 return;
             }
             useNotificationStore().addNotification({
@@ -168,7 +200,7 @@ watch(
 );
 
 const text = computed(() => {
-    if (!content.value.text) {
+    if (!content.value || !content.value.text) {
         return "";
     }
 
@@ -183,27 +215,19 @@ const text = computed(() => {
     return generateHTML(text, [StarterKit, Link]);
 });
 
-// Function to fetch content based on tags
-async function contentForTagsCategories() {
-    const categoryTags = tags.value
-        .filter((t) => t && t.tagType && t.tagType == TagType.Category)
-        .map((t) => t._id);
-    const contentPromises = categoryTags.map((tagId) =>
-        db.contentWhereTag(tagId, { languageId: appLanguageIdAsRef.value }),
-    );
+// Select the first category in the content by category list on load
+watch(tags, () => {
+    if (selectedCategoryId.value) return;
+    const categories = tags.value.filter((t) => t.parentTagType == TagType.Category);
+    if (categories.length) {
+        selectedCategoryId.value = categories[0].parentId;
+    }
+});
 
-    const contentDocs = (await Promise.all(contentPromises)).flat();
-
-    hasContent.value = contentDocs.length > 1 ? true : false;
-}
-
-// Watch for changes in tags and refetch content
-watch(tags, contentForTagsCategories, { immediate: true });
-
-// Function to handle tag selection
-function selectTag(parentId: Uuid) {
-    selectedTagId.value = parentId; // Ensure the correct tag is selected
-}
+const selectedCategory = computed(() => {
+    if (!selectedCategoryId.value) return undefined;
+    return tags.value.find((t) => t.parentId == selectedCategoryId.value);
+});
 </script>
 
 <template>
@@ -219,7 +243,7 @@ function selectTag(parentId: Uuid) {
 
     <NotFoundPage v-if="is404" />
     <div v-else class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
-        <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl">
+        <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
             <VideoPlayer v-if="content.video" :content="content" />
             <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
 
@@ -263,43 +287,32 @@ function selectTag(parentId: Uuid) {
             ></div>
         </article>
 
-        <div v-if="hasContent" class="h-full w-full py-2 lg:mt-0 lg:w-1/4 lg:max-w-3xl">
+        <div class="h-full w-full py-2 lg:mt-0 lg:w-1/4 lg:max-w-3xl">
             <div
                 class="mb-2 flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
             >
                 <span
-                    v-for="tag in tagsContent.filter(
+                    v-for="tag in tags.filter(
                         (t: ContentDto) => t.parentTagType == TagType.Category,
                     )"
                     :key="tag._id"
-                    @click="selectTag(tag.parentId)"
+                    @click="selectedCategoryId = tag.parentId"
                     class="me-2 flex cursor-pointer items-center justify-center rounded-t px-2 py-1 text-sm hover:bg-yellow-200 dark:hover:bg-yellow-100/25"
                     :class="{
                         ' bg-yellow-100 text-black shadow dark:bg-yellow-100/10 dark:text-white':
-                            selectedTagId == tag.parentId,
+                            selectedCategoryId == tag.parentId,
                     }"
                 >
                     {{ tag.title }}
                 </span>
             </div>
-            <VerticalTagViewer
-                v-for="tag in tags.filter(
-                    (t) => t.tagType == TagType.Category && t._id == selectedTagId,
-                )"
-                :key="tag._id"
-                :tag="tag"
-                :queryOptions="{
-                    filterOptions: { docType: DocType.Post },
-                    sortOptions: { sortBy: 'publishDate', sortOrder: 'asc' },
-                    languageId: appLanguageIdAsRef,
-                }"
-            />
+            <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" />
         </div>
     </div>
 
     <RelatedContent
         v-if="content && tags.length"
-        :currentContent="content"
-        :tags="tags.filter((t) => t && t.tagType && t.tagType == TagType.Topic)"
+        :selectedContent="content"
+        :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
     />
 </template>

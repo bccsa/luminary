@@ -164,10 +164,13 @@ describe("Socketio", () => {
         describe("Update data events", () => {
             describe("CMS client", () => {
                 it("Post documents: emits two data socket.io events after change request submission", async () => {
+                    const changeRequest = changeRequest_post();
+                    changeRequest.doc._id = "test-blog-1";
+                    changeRequest.doc.tags = [];
                     const res = await socketioTestClient({
                         cms: true,
                         version: Date.now() + 1000000,
-                        changeRequest: changeRequest_post(),
+                        changeRequest,
                     });
                     expect(res.docs.length).toBe(2);
                     expect(res.docs[0].type).toBe("user");
@@ -221,20 +224,23 @@ describe("Socketio", () => {
 
             describe("APP client", () => {
                 it("Post documents: emits a data socket.io events after change request submission", async () => {
+                    const changeRequest = changeRequest_post();
+                    changeRequest.doc._id = "test-blog-2";
+                    changeRequest.doc.tags = [];
+
                     const res = await socketioTestClient({
                         cms: false,
                         version: Date.now() + 1000000,
-                        changeRequest: changeRequest_post(),
+                        changeRequest,
                     });
 
-                    // The response includes 3 documents:
+                    // The response includes 2 documents:
                     // - The user document
                     // - The post document
-                    // - The content document(s) that are children of the post document which were updated with essential properties from the post document
-                    expect(res.docs.length).toBe(3);
+                    // As this is a new post document, there are no content documents that are updated simultaneously
+                    expect(res.docs.length).toBe(2);
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
                     expect(res.docs.some((d) => d.type == "post")).toBe(true);
-                    expect(res.docs.some((d) => d.type == "content")).toBe(true);
                 });
 
                 it("Tag documents: emits one data socket.io events after change request submission", async () => {

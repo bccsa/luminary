@@ -78,6 +78,7 @@ export type ContentDto = ContentBaseDto & {
     parentPostType?: PostType;
     parentPublishDateVisible?: boolean;
     parentPinned?: number;
+    parentTaggedDocs?: Uuid[];
 };
 
 export type ContentParentDto = ContentBaseDto & {
@@ -93,6 +94,7 @@ export type PostDto = ContentParentDto & {
 export type TagDto = ContentParentDto & {
     tagType: TagType;
     pinned: number;
+    taggedDocs?: Uuid[]; // This field is set by the API
 };
 
 export type GroupDto = BaseDocumentDto & {

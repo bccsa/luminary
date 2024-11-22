@@ -2,10 +2,15 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import VerticalTagViewer from "./VerticalTagViewer.vue";
-import { mockCategoryDto, mockEnglishContentDto } from "@/tests/mockdata";
+import {
+    mockCategoryContentDto,
+    mockEnglishContentDto,
+    mockLanguageDtoEng,
+} from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { db } from "luminary-shared";
 import { ref } from "vue";
+import { appLanguageIdAsRef } from "@/globalConfig";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -21,7 +26,8 @@ vi.mock("vue-router", async (importOriginal) => {
 });
 describe("VerticalTagViewer", () => {
     beforeEach(async () => {
-        await db.docs.bulkPut([mockEnglishContentDto, mockCategoryDto]);
+        await db.docs.bulkPut([mockEnglishContentDto, mockCategoryContentDto]);
+        appLanguageIdAsRef.value = mockLanguageDtoEng._id;
     });
 
     afterEach(async () => {
@@ -32,8 +38,7 @@ describe("VerticalTagViewer", () => {
     it("displays the posts", async () => {
         const wrapper = mount(VerticalTagViewer, {
             props: {
-                tag: mockCategoryDto,
-                queryOptions: { languageId: "lang-eng" },
+                tag: mockCategoryContentDto,
             },
         });
 

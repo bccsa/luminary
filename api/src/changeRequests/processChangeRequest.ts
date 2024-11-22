@@ -54,35 +54,75 @@ export async function processChangeRequest(
     }
 
     if (doc.type == DocType.Post || doc.type == DocType.Tag) {
+        const prevDoc = await db.getDoc(doc._id);
+
         // Process image uploads
         if ((doc as PostDto).imageData) {
-            const prevDoc = await db.getDoc(doc._id);
             const prevImageData = prevDoc.docs.length > 0 ? prevDoc.docs[0].imageData : undefined;
             await processImage(doc.imageData, prevImageData, s3);
             delete doc.image; // Remove the legacy image field
         }
 
         // Get content documents that are children of the Post / Tag document
-        await db.getContentByParentId(doc._id).then((contentDocs) => {
-            // Copy essential properties from the Post / Tag document to the child content document
-            contentDocs.docs.forEach(async (contentDoc: ContentDto) => {
-                contentDoc.memberOf = doc.memberOf;
-                contentDoc.parentTags = doc.tags;
-                contentDoc.parentImageData = doc.imageData;
+        // and copy essential properties from the Post / Tag document to the child content document
+        const contentDocs = await db.getContentByParentId(doc._id);
+        for (const contentDoc of contentDocs.docs) {
+            contentDoc.memberOf = doc.memberOf;
+            contentDoc.parentTags = doc.tags;
+            contentDoc.parentImageData = doc.imageData;
 
-                if (doc.type == DocType.Post) {
-                    contentDoc.parentPostType = (doc as PostDto).postType;
-                }
+            if (doc.type == DocType.Post) {
+                contentDoc.parentPostType = (doc as PostDto).postType;
+            }
 
-                if (doc.type == DocType.Tag) {
-                    contentDoc.parentTagType = (doc as TagDto).tagType;
-                    contentDoc.parentPinned = (doc as TagDto).pinned;
-                }
+            if (doc.type == DocType.Tag) {
+                contentDoc.parentTagType = (doc as TagDto).tagType;
+                contentDoc.parentPinned = (doc as TagDto).pinned;
+            }
 
-                contentDoc.parentPublishDateVisible = doc.publishDateVisible;
-                await db.upsertDoc(contentDoc);
-            });
-        });
+            contentDoc.parentPublishDateVisible = doc.publishDateVisible;
+            await db.upsertDoc(contentDoc);
+        }
+
+        // tag caching to the taggedDocs / parentTaggedDocs property of tag / content documents. This is done to improve client query performance.
+        const prevTags = prevDoc.docs.length ? (prevDoc.docs[0] as PostDto | TagDto).tags : [];
+        const addedTags = (doc as PostDto | TagDto).tags.filter((tag) => !prevTags.includes(tag));
+        const removedTags = prevTags.filter((tag) => !(doc as PostDto | TagDto).tags.includes(tag));
+        const changedTags = addedTags
+            .concat(removedTags)
+            .filter((tag, index, self) => self.indexOf(tag) === index);
+        const tagDocs = changedTags.length
+            ? (await db.getDocs(changedTags, [DocType.Tag])).docs
+            : [];
+        const tagDocsContent = changedTags.length
+            ? (await db.getContentByParentId(changedTags)).docs
+            : [];
+        const updatedDocs = tagDocs.concat(tagDocsContent);
+
+        for (const d of updatedDocs) {
+            let taggedDocsArray: Uuid[];
+            let tagId: Uuid;
+            if (d.type == DocType.Tag) {
+                const tag = d as TagDto;
+                tag.taggedDocs = tag.taggedDocs || [];
+                taggedDocsArray = tag.taggedDocs;
+                tagId = tag._id;
+            } else {
+                const content = d as ContentDto;
+                content.parentTaggedDocs = content.parentTaggedDocs || [];
+                taggedDocsArray = content.parentTaggedDocs;
+                tagId = content.parentId;
+            }
+
+            if (addedTags.includes(tagId)) taggedDocsArray.push(doc._id);
+
+            if (removedTags.includes(tagId)) {
+                const index = taggedDocsArray.indexOf(doc._id);
+                if (index > -1) taggedDocsArray.splice(index, 1);
+            }
+
+            await db.upsertDoc(d);
+        }
     }
 
     // Insert / update the document in the database
