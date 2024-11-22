@@ -11,12 +11,9 @@ import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { computed, ref } from "vue";
-import { CheckCircleIcon, LanguageIcon, SunIcon } from "@heroicons/vue/24/solid";
+import { LanguageIcon, SunIcon } from "@heroicons/vue/24/solid";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
-import { appLanguageAsRef, appLanguageIdAsRef } from "@/globalConfig";
-import LModal from "../form/LModal.vue";
-import LButton from "../button/LButton.vue";
-import { db, DocType, type LanguageDto } from "luminary-shared";
+import { appLanguageAsRef } from "@/globalConfig";
 import { BookmarkIcon } from "@heroicons/vue/16/solid";
 
 const { user, logout, isAuthenticated } = useAuth0();

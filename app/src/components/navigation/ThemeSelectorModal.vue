@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
 import { ref, watch, onMounted } from "vue";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
