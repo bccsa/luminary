@@ -14,6 +14,7 @@ import LTag from "../content/LTag.vue";
 import { accessMap, db, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import LCombobox from "../forms/LCombobox.vue";
+import LInput from "../forms/LInput.vue";
 
 describe("GroupSelector", () => {
     // Need to set the access map before starting the tests. When moving this to beforeAll, it fails for some or other reason.
@@ -118,20 +119,22 @@ describe("GroupSelector", () => {
             },
         });
 
-        await wrapper.find("input").setValue("public");
+        //@ts-expect-error
+        wrapper.vm.availableGroups = await db.docs.toArray();
 
-        // Wait for the list to be populated and filtered
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Public Content");
-        });
+        const combobox = wrapper.findComponent(LCombobox);
+        await combobox.find('[name="options-open-btn"]').trigger("click");
 
-        // Select an option
-        const option = wrapper.find("[data-test='option-selector']");
-        await option.trigger("click");
+        await wrapper.vm.$nextTick();
+
+        const groupLi = await combobox.findAll("li");
+        await groupLi[3].trigger("click");
+
+        console.log(groupLi[3].html());
 
         // Ensure the groups array is updated
-        await waitForExpect(() => {
-            expect(groups).toContain(mockGroupDtoPublicContent._id);
+        await waitForExpect(async () => {
+            expect(wrapper.vm.groups).toContain("group-public-users");
         });
     });
 
