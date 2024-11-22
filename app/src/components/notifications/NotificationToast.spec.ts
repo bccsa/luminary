@@ -38,6 +38,7 @@ describe("NotificationToast", () => {
                     description: "Read this.",
                     state: "success",
                     type: "toast",
+                    closable: true,
                 },
             },
         });

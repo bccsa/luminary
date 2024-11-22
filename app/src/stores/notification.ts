@@ -12,8 +12,12 @@ export type Notification = {
     state: "success" | "error" | "info" | "warning";
     type: "toast" | "banner";
     icon?: FunctionalComponent;
-    routerLink?: RouteLocationNamedRaw;
+    /**
+     * Optional router link or function to call when the notification is clicked.
+     */
+    link?: RouteLocationNamedRaw | (() => void);
     timeout?: number;
+    closable?: boolean;
 };
 
 export const useNotificationStore = defineStore("notification", () => {
@@ -31,6 +35,8 @@ export const useNotificationStore = defineStore("notification", () => {
             id.value++;
             notificationId = id.value;
         }
+
+        if (notification.closable == undefined) notification.closable = true;
 
         setTimeout(() => {
             notifications.value.push({

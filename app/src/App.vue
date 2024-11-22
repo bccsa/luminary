@@ -6,7 +6,7 @@ import { computed, onBeforeMount, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { getSocket, isConnected } from "luminary-shared";
-import { apiUrl, initLanguage } from "./globalConfig";
+import { apiUrl, initLanguage, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
@@ -46,9 +46,6 @@ setTimeout(() => {
 }, 10000);
 
 const getToken = async () => {
-    // add UserId to analytics if the user is auth
-    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-    window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
     if (isAuthenticated.value) {
         try {
             return await getAccessTokenSilently();
@@ -84,6 +81,30 @@ onBeforeMount(async () => {
     }
 });
 
+setTimeout(() => {
+    watch(
+        [isConnected, isAuthenticated],
+        () => {
+            if (isConnected.value && !isAuthenticated.value) {
+                useNotificationStore().addNotification({
+                    id: "accountBanner",
+                    title: "You are missing out!",
+                    description: "Click here to create an account or log in.",
+                    state: "info",
+                    type: "banner",
+                    icon: ExclamationCircleIcon,
+                    link: { name: "login" },
+                });
+            }
+
+            if (isConnected.value && isAuthenticated.value) {
+                useNotificationStore().removeNotification("accountBanner");
+            }
+        },
+        { immediate: true },
+    );
+}, 1000);
+
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
     watch(
@@ -109,29 +130,16 @@ setTimeout(() => {
     );
 }, 5000);
 
-setTimeout(() => {
-    watch(
-        [isConnected, isAuthenticated],
-        () => {
-            if (isConnected.value && !isAuthenticated.value) {
-                useNotificationStore().addNotification({
-                    id: "accountBanner",
-                    title: "You are missing out!",
-                    description: "Click here to create an account or log in.",
-                    state: "info",
-                    type: "banner",
-                    icon: ExclamationCircleIcon,
-                    routerLink: { name: "login" },
-                });
-            }
+// Add userId to analytics if privacy policy has been accepted
+const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
+    if (userPreferencesAsRef.value.privacyPolicy?.status == "accepted") {
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
+    }
 
-            if (isConnected.value && isAuthenticated.value) {
-                useNotificationStore().removeNotification("accountBanner");
-            }
-        },
-        { immediate: true },
-    );
-}, 1000);
+    // Stop watcher if the privacy policy is accepted or declined
+    if (userPreferencesAsRef.value.privacyPolicy?.status) unwatchUserPref();
+});
 
 const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;

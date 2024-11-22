@@ -5,6 +5,12 @@ import NotificationBanner from "./NotificationBanner.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
+vi.mock("vue-router", () => ({
+    useRouter: vi.fn().mockImplementation(() => ({
+        push: vi.fn(),
+    })),
+}));
+
 describe("NotificationToast", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
@@ -38,6 +44,7 @@ describe("NotificationToast", () => {
                     description: "Read this.",
                     state: "success",
                     type: "toast",
+                    closable: true,
                 },
             },
         });

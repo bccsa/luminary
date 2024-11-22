@@ -8,7 +8,6 @@ defineProps<Props>();
 
 const isVisible = defineModel<boolean>("isVisible");
 const isTestEnviroment = import.meta.env.MODE === "test";
-
 const emit = defineEmits(["close"]);
 </script>
 

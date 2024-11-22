@@ -5,22 +5,28 @@ import {
     UserIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
-    Cog6ToothIcon,
 } from "@heroicons/vue/20/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { computed, ref } from "vue";
-import { LanguageIcon, SunIcon } from "@heroicons/vue/24/solid";
+import {
+    ShieldCheckIcon,
+    BookmarkIcon,
+    Cog6ToothIcon,
+    LanguageIcon,
+    SunIcon,
+} from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
-import { BookmarkIcon } from "@heroicons/vue/16/solid";
+import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 
 const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
 
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
+const showPrivacyPolicyModal = ref(false);
 
 const commonNavigation = computed(() => {
     return [
@@ -40,6 +46,11 @@ const commonNavigation = computed(() => {
             name: "Bookmarks",
             icon: BookmarkIcon,
             action: () => router.push({ name: "bookmarks" }),
+        },
+        {
+            name: "Privacy policy",
+            icon: ShieldCheckIcon,
+            action: () => (showPrivacyPolicyModal.value = true),
         },
     ];
 });
@@ -104,44 +115,46 @@ const userNavigation = computed(() => {
                 />
             </span>
         </MenuButton>
-        <!-- <transition
+        <transition
             enter-active-class="transition ease-out duration-100"
             enter-from-class="transform opacity-0 scale-95"
             enter-to-class="transform opacity-100 scale-100"
             leave-active-class="transition ease-in duration-75"
             leave-from-class="transform opacity-100 scale-100"
             leave-to-class="transform opacity-0 scale-95"
-        > -->
-        <MenuItems
-            name="menu-items"
-            class="absolute right-0 z-10 mb-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
         >
-            <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
-                <button
-                    :class="[
-                        active ? 'bg-zinc-50 dark:bg-slate-800' : '',
-                        'flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600',
-                    ]"
-                    @click="item.action"
-                >
-                    <component
-                        :is="item.icon"
-                        class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
-                        aria-hidden="true"
-                    />
-                    <div class="flex flex-col">
-                        {{ item.name }}
-                        <span
-                            class="-mt-2 text-[12px] text-zinc-500 dark:text-white"
-                            v-if="item.language"
-                            >{{ item.language.name }}</span
-                        >
-                    </div>
-                </button>
-            </MenuItem>
-        </MenuItems>
-        <!-- </transition> -->
+            <MenuItems
+                name="menu-items"
+                class="absolute right-0 z-10 mb-10 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
+            >
+                <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
+                    <button
+                        :class="[
+                            active ? 'bg-zinc-50 dark:bg-slate-800' : '',
+                            'flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600',
+                        ]"
+                        @click="item.action"
+                    >
+                        <component
+                            :is="item.icon"
+                            class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                            aria-hidden="true"
+                        />
+                        <div class="flex flex-col text-nowrap leading-none">
+                            {{ item.name }}
+                            <span
+                                class="mt-1 text-[12px] text-zinc-500 dark:text-white"
+                                v-if="item.language"
+                                >{{ item.language.name }}</span
+                            >
+                        </div>
+                    </button>
+                </MenuItem>
+            </MenuItems>
+        </transition>
     </Menu>
-    <LanguageModal :is-visible="showLanguageModal" @close="showLanguageModal = false" />
-    <ThemeSelectorModal :is-visible="showThemeSelector" @close="showThemeSelector = false" />
+
+    <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
+    <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
+    <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
 </template>
