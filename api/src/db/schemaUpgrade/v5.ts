@@ -1,4 +1,4 @@
-import { DocType } from "src/enums";
+import { DocType } from "../../enums";
 import { DbService } from "../db.service";
 
 /**

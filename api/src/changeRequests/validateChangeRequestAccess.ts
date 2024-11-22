@@ -161,6 +161,47 @@ export async function validateChangeRequestAccess(
                 };
             }
         }
+    } else if (doc.type == DocType.Language) {
+        if (
+            !PermissionSystem.verifyAccess(
+                doc.memberOf,
+                doc.type,
+                AclPermission.Edit,
+                groupMembership,
+                "any",
+            )
+        ) {
+            return {
+                validated: false,
+                error: "No 'Edit' access to document",
+            };
+        }
+
+        // Get the previous document to check if the default flag has been changed
+        const getRequest = await dbService.getDoc(doc._id);
+        const prevDefault =
+            getRequest.docs.length && (getRequest.docs[0] as LanguageDto).default == 1;
+
+        if (doc.default === 1 && !prevDefault) {
+            const languageDocs = await dbService.getDocsByType(DocType.Language);
+            const languageGroups = languageDocs.docs.map((d) => d.memberOf).flat();
+
+            // Check if the user has edit access to all language documents to be able to change the default language
+            if (
+                !PermissionSystem.verifyAccess(
+                    languageGroups,
+                    doc.type,
+                    AclPermission.Edit,
+                    groupMembership,
+                    "all",
+                )
+            ) {
+                return {
+                    validated: false,
+                    error: "Edit access to all languages is required to change the default language",
+                };
+            }
+        }
     } else if (doc.memberOf && Array.isArray(doc.memberOf) && doc.memberOf.length > 0) {
         // Check if user has edit access to any other types of documents
         // -------------------------------------------------------------

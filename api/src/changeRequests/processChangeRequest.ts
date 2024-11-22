@@ -131,16 +131,9 @@ export async function processChangeRequest(
         if (langDoc.default == 1) {
             const languageDocs = await db.getDocsByType(DocType.Language);
 
-            languageDocs.docs.forEach((doc: LanguageDto) => {
-                if (doc.type === DocType.Language) {
-                    if (langDoc._id == doc._id) return;
-                    doc.memberOf.forEach(async (member) => {
-                        if (groupMembership.includes(member)) {
-                            doc.default = 0;
-                            await db.upsertDoc(doc);
-                        }
-                    });
-                }
+            languageDocs.docs.forEach(async (doc: LanguageDto) => {
+                if (langDoc._id == doc._id) return;
+                await db.upsertDoc({ ...doc, default: 0 });
             });
         }
     }

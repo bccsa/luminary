@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { AclPermission, db, DocType, hasAnyPermission, type LanguageDto } from "luminary-shared";
+import {
+    AclPermission,
+    db,
+    DocType,
+    hasAnyPermission,
+    verifyAccess,
+    type LanguageDto,
+} from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
-import GroupSelector from "../groups/GroupSelector.vue";
-import * as _ from "lodash";
-import LToggle from "../forms/LToggle.vue";
-import FormLabel from "../forms/FormLabel.vue";
+import GroupSelector from "@/components/groups/GroupSelector.vue";
+import _ from "lodash";
+import LToggle from "@/components/forms/LToggle.vue";
+import FormLabel from "@/components/forms/FormLabel.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 // Props for visibility and language to edit
 type Props = {
@@ -15,120 +23,63 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-// Track the previous state for dirty checking
-const previousLanguage = ref<LanguageDto | null>(null);
-
 // Emit events to close the modal and trigger creation or update
-const emit = defineEmits(["close", "created", "updated"]);
+const emit = defineEmits(["close"]);
 
 // Check if we are in edit mode (if a language is passed)
 const isEditMode = computed(() => !!props.language);
 
 // New language or edited language object
-const newLanguage = ref<LanguageDto>({
-    _id: db.uuid(), // Generate new ID for create mode
-    name: "",
-    languageCode: "",
-    default: 0,
-    memberOf: [],
-    type: DocType.Language,
-    updatedTimeUtc: Date.now(),
-});
-
-let previousDefaultValueForCurrentLanguage = ref<number>(newLanguage.value.default!);
-
-const canEditOrCreate =
-    hasAnyPermission(DocType.Language, AclPermission.Edit) ||
-    hasAnyPermission(DocType.Language, AclPermission.Publish);
-
-// Watch the passed `language` prop to set the modal in edit mode
-watch(
-    () => props.language,
-    (newLang) => {
-        if (newLang) {
-            newLanguage.value = { ...newLang };
-            previousLanguage.value = _.cloneDeep(newLang); // Clone the language for dirty checking
-            previousDefaultValueForCurrentLanguage.value = previousLanguage.value.default!;
-        } else {
-            // Reset to a new language if no language is passed (create mode)
-            newLanguage.value = {
-                _id: db.uuid(),
-                name: "",
-                languageCode: "",
-                default: 0,
-                memberOf: [],
-                type: DocType.Language,
-                updatedTimeUtc: Date.now(),
-            };
-            previousLanguage.value = null; // Reset previous state for new language
-        }
-    },
-    { immediate: true },
+const editable = ref<LanguageDto>(
+    props.language
+        ? _.cloneDeep(props.language)
+        : {
+              _id: db.uuid(), // Generate new ID for create mode
+              name: "",
+              languageCode: "",
+              default: 0,
+              memberOf: [],
+              type: DocType.Language,
+              updatedTimeUtc: Date.now(),
+          },
 );
 
-const allLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const isNewLanguageDefault = ref(newLanguage.value.default === 0 ? false : true);
-
-watch(isNewLanguageDefault, (newValue) => {
-    if (!newValue) {
-        newLanguage.value.default = 0;
-        return;
-    } else {
-        newLanguage.value.default! = 1;
+// Change to ref
+const canEditOrCreate = computed(() => {
+    if (props.language) {
+        return verifyAccess(props.language.memberOf, DocType.Language, AclPermission.Edit, "all");
     }
+    return hasAnyPermission(DocType.Language, AclPermission.Edit);
 });
 
-const saveLanguage = async () => {
-    // Update the timestamp
-    newLanguage.value.updatedTimeUtc = Date.now();
+// Convert the default value to a boolean for the toggle
+const isDefault = ref(editable.value.default == 1 ? true : false);
+watch(isDefault, (newValue) => {
+    editable.value.default = newValue ? 1 : 0;
+});
 
-    // Deep clone the `memberOf` array to avoid DataCloneError
-    const clonedLanguage = {
-        ...newLanguage.value,
-        memberOf: [...newLanguage.value.memberOf],
-    };
+const save = async () => {
+    editable.value.updatedTimeUtc = Date.now();
+    await db.upsert(editable.value);
 
-    if (newLanguage.value.default === 1) {
-        // Set other languages' `default` to false if the current language is set as default
-        const updateLanguages = allLanguages.value
-            .filter((language) => language._id !== newLanguage.value._id && language.default === 1)
-            .map((language) => {
-                return db.upsert({
-                    ...language,
-                    memberOf: [...newLanguage.value.memberOf],
-                    default: 0,
-                });
-            });
-
-        // Wait for all updates to complete before saving the current language
-        await Promise.all(updateLanguages);
-    }
-
-    // Save the cloned language object to the database
-    await db.upsert(clonedLanguage);
-
-    if (isEditMode.value) {
-        emit("updated", clonedLanguage); // Emit update event if editing
-    } else {
-        emit("created", clonedLanguage); // Emit create event if creating
+    if (!isEditMode.value) {
+        useNotificationStore().addNotification({
+            title: `Language created`,
+            description: `The new language "${editable.value.name}" has been created successfully`,
+            state: "success",
+        });
     }
 
     emit("close");
 };
 
-// Dirty checking logic
-const isDirty = computed(() => {
-    return validateForm(); // Always validate fields in create mode
-});
-
 // Form validation to check if all fields are filled
-const validateForm = () => {
-    return (
-        newLanguage.value.name.trim() !== "" &&
-        newLanguage.value.languageCode.trim() !== "" &&
-        newLanguage.value.memberOf.length > 0
-    );
-};
+const isValidated = computed(
+    () =>
+        editable.value.name.trim() !== "" &&
+        editable.value.languageCode.trim() !== "" &&
+        editable.value.memberOf.length > 0,
+);
 </script>
 
 <template>
@@ -137,7 +88,6 @@ const validateForm = () => {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
     >
         <div class="w-96 rounded-lg bg-white p-6 shadow-lg">
-            <!-- Dynamic title based on mode -->
             <h2 class="mb-4 text-xl font-bold">
                 {{ isEditMode ? "Edit language" : "Create new language" }}
             </h2>
@@ -145,7 +95,7 @@ const validateForm = () => {
             <LInput
                 label="Name"
                 name="languageName"
-                v-model="newLanguage.name"
+                v-model="editable.name"
                 class="mb-4 w-full"
                 placeholder="Enter language name"
                 :disabled="!canEditOrCreate"
@@ -154,14 +104,14 @@ const validateForm = () => {
             <LInput
                 label="Code"
                 name="languageCode"
-                v-model="newLanguage.languageCode"
+                v-model="editable.languageCode"
                 class="mb-4 w-full"
                 placeholder="Enter language code"
                 :disabled="!canEditOrCreate"
             />
 
             <GroupSelector
-                v-model:groups="newLanguage.memberOf"
+                v-model:groups="editable.memberOf"
                 :docType="DocType.Language"
                 data-test="group-selector"
                 :disabled="!canEditOrCreate"
@@ -173,7 +123,7 @@ const validateForm = () => {
                 </FormLabel>
                 <LToggle
                     name="is-language-default-toggle"
-                    v-model:model-value="isNewLanguageDefault"
+                    v-model:model-value="isDefault"
                     :disabled="!canEditOrCreate"
                 />
             </div>
@@ -185,8 +135,8 @@ const validateForm = () => {
                 <LButton
                     variant="primary"
                     data-test="save-button"
-                    @click="saveLanguage"
-                    :disabled="!isDirty"
+                    @click="save"
+                    :disabled="!isValidated"
                 >
                     {{ isEditMode ? "Save Changes" : "Create" }}
                 </LButton>

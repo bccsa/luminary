@@ -4,7 +4,7 @@ import { db, DocType, type LanguageDto, AclPermission, verifyAccess } from "lumi
 import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
-import { CheckBadgeIcon, EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
+import { CheckCircleIcon, EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import CreateLanguageModal from "./CreateOrEditLanguageModal.vue";
 import { useNotificationStore } from "@/stores/notification";
 
@@ -52,7 +52,7 @@ const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             <div class="flex gap-2">
                 {{ languagesDoc.name }}
-                <CheckBadgeIcon v-if="languagesDoc.default" class="h-5 w-5" />
+                <CheckCircleIcon v-if="languagesDoc.default" class="h-5 w-5" />
             </div>
         </td>
 

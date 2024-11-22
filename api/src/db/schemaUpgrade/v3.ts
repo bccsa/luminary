@@ -6,8 +6,8 @@ import { ImageUploadDto } from "../../dto/ImageUploadDto";
 import { S3Service } from "../../s3/s3.service";
 import { processChangeRequest } from "../../changeRequests/processChangeRequest";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
-import { GroupDto } from "src/dto/GroupDto";
-import { DocType } from "src/enums";
+import { GroupDto } from "../../dto/GroupDto";
+import { DocType } from "../../enums";
 
 /**
  * Upgrade the database schema from version 2 to 3
