@@ -169,6 +169,8 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: true,
                 canTranslateOrPublish: true,
+                canTranslate: true,
+                canPublish: true,
             },
         });
 
@@ -195,6 +197,8 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: true,
                 canTranslateOrPublish: true,
+                canTranslate: true,
+                canPublish: true,
             },
         });
 
@@ -221,6 +225,8 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: true,
                 canTranslateOrPublish: true,
+                canTranslate: true,
+                canPublish: true,
             },
         });
 
@@ -243,6 +249,8 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [],
                 canEdit: true,
                 canTranslateOrPublish: true,
+                canTranslate: true,
+                canPublish: true,
             },
         });
 
@@ -265,6 +273,8 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: true,
                 canTranslateOrPublish: true,
+                canTranslate: true,
+                canPublish: true,
             },
         });
 
