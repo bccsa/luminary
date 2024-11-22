@@ -2,11 +2,11 @@
 import App from "@/App.vue";
 
 type Props = {
-    isVisible: boolean;
     heading: string;
 };
 defineProps<Props>();
 
+const isVisible = defineModel<boolean>("isVisible");
 const isTestEnviroment = import.meta.env.MODE === "test";
 
 const emit = defineEmits(["close"]);

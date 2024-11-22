@@ -39,7 +39,12 @@ onMounted(() => {
 </script>
 
 <template>
-    <LModal name="lModal-languages" heading="Select Theme" :is-visible="isVisible">
+    <LModal
+        name="lModal-languages"
+        heading="Select Theme"
+        :is-visible="isVisible"
+        @close="emit('close')"
+    >
         <div class="divide-y divide-zinc-200 dark:divide-slate-600">
             <button
                 v-for="theme in themes"

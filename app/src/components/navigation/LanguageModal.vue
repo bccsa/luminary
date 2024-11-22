@@ -21,7 +21,12 @@ const setLanguage = (id: string) => {
 </script>
 
 <template>
-    <LModal name="lModal-languages" heading="Select Language" :is-visible="isVisible">
+    <LModal
+        name="lModal-languages"
+        heading="Select Language"
+        :is-visible="isVisible"
+        @close="emit('close')"
+    >
         <div class="divide-y divide-zinc-200 dark:divide-slate-600">
             <button
                 v-for="language in languages"

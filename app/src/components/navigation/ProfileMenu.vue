@@ -143,5 +143,5 @@ const userNavigation = computed(() => {
         <!-- </transition> -->
     </Menu>
     <LanguageModal :is-visible="showLanguageModal" @close="showLanguageModal = false" />
-    <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
+    <ThemeSelectorModal :is-visible="showThemeSelector" @close="showThemeSelector = false" />
 </template>
