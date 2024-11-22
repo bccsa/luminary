@@ -226,7 +226,6 @@ watch(tags, () => {
 
 const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
-    console.log(selectedCategoryId.value);
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 </script>
