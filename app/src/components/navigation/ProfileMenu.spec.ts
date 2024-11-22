@@ -6,6 +6,7 @@ import * as auth0 from "@auth0/auth0-vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
+import waitForExpect from "wait-for-expect";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -64,7 +65,7 @@ describe("ProfileMenu", () => {
 
         await wrapper.find("button").trigger("click");
 
-        const profileMenuButtons = await wrapper.findAll("button");
+        const profileMenuButtons = wrapper.findAll("button");
 
         await profileMenuButtons[3].trigger("click");
 
@@ -84,10 +85,11 @@ describe("ProfileMenu", () => {
         const wrapper = mount(ProfileMenu);
 
         await wrapper.find("button").trigger("click");
+        const profileMenuButtons = wrapper.findAll("button");
 
-        const profileMenuButtons = await wrapper.findAll("button");
-
-        await profileMenuButtons[5].trigger("click");
-        expect(logout).toHaveBeenCalled();
+        await profileMenuButtons[6].trigger("click");
+        await waitForExpect(() => {
+            expect(logout).toHaveBeenCalled();
+        });
     });
 });
