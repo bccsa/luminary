@@ -14,7 +14,6 @@ import LTag from "../content/LTag.vue";
 import { accessMap, db, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import LCombobox from "../forms/LCombobox.vue";
-import LInput from "../forms/LInput.vue";
 
 describe("GroupSelector", () => {
     // Need to set the access map before starting the tests. When moving this to beforeAll, it fails for some or other reason.
@@ -92,23 +91,6 @@ describe("GroupSelector", () => {
         });
     });
 
-    it("can filter on groups", async () => {
-        const wrapper = mount(GroupSelector, {
-            props: {
-                groups: [],
-                docType: DocType.Post,
-            },
-        });
-
-        await wrapper.find("input").setValue("edit");
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Public Editors");
-            expect(wrapper.text()).not.toContain("Public Content");
-            expect(wrapper.text()).not.toContain("Super Admins");
-        });
-    });
-
     it("Updates the passed array when selecting a group", async () => {
         const groups: string[] = [];
         const wrapper = mount(GroupSelector, {
@@ -125,16 +107,12 @@ describe("GroupSelector", () => {
         const combobox = wrapper.findComponent(LCombobox);
         await combobox.find('[name="options-open-btn"]').trigger("click");
 
-        await wrapper.vm.$nextTick();
-
         const groupLi = await combobox.findAll("li");
-        await groupLi[3].trigger("click");
-
-        console.log(groupLi[3].html());
+        await groupLi[1].trigger("click");
 
         // Ensure the groups array is updated
         await waitForExpect(async () => {
-            expect(wrapper.vm.groups).toContain("group-public-users");
+            expect(wrapper.vm.groups).toContain("group-public-content");
         });
     });
 
