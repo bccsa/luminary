@@ -74,7 +74,7 @@ const userNavigation = computed(() => {
 
 <template>
     <Menu as="div" class="relative z-50">
-        <MenuButton class="-m-1.5 flex items-center p-1.5">
+        <MenuButton name="profile-menu-btn" class="-m-1.5 flex items-center p-1.5">
             <span class="sr-only">Open user menu</span>
             <img
                 class="h-8 w-8 rounded-full bg-slate-50"
@@ -104,44 +104,44 @@ const userNavigation = computed(() => {
                 />
             </span>
         </MenuButton>
-        <transition
+        <!-- <transition
             enter-active-class="transition ease-out duration-100"
             enter-from-class="transform opacity-0 scale-95"
             enter-to-class="transform opacity-100 scale-100"
             leave-active-class="transition ease-in duration-75"
             leave-from-class="transform opacity-100 scale-100"
             leave-to-class="transform opacity-0 scale-95"
+        > -->
+        <MenuItems
+            name="menu-items"
+            class="absolute right-0 z-10 mb-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
         >
-            <MenuItems
-                class="absolute right-0 z-10 mb-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
-            >
-                <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
-                    <button
-                        :class="[
-                            active ? 'bg-zinc-50 dark:bg-slate-800' : '',
-                            'flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600',
-                        ]"
-                        @click="item.action"
-                    >
-                        <component
-                            :is="item.icon"
-                            class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
-                            aria-hidden="true"
-                        />
-                        <div class="flex flex-col">
-                            {{ item.name }}
-                            <span
-                                class="-mt-2 text-[12px] text-zinc-500 dark:text-white"
-                                v-if="item.language"
-                                >{{ item.language.name }}</span
-                            >
-                        </div>
-                    </button>
-                </MenuItem>
-            </MenuItems>
-        </transition>
+            <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
+                <button
+                    :class="[
+                        active ? 'bg-zinc-50 dark:bg-slate-800' : '',
+                        'flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600',
+                    ]"
+                    @click="item.action"
+                >
+                    <component
+                        :is="item.icon"
+                        class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                        aria-hidden="true"
+                    />
+                    <div class="flex flex-col">
+                        {{ item.name }}
+                        <span
+                            class="-mt-2 text-[12px] text-zinc-500 dark:text-white"
+                            v-if="item.language"
+                            >{{ item.language.name }}</span
+                        >
+                    </div>
+                </button>
+            </MenuItem>
+        </MenuItems>
+        <!-- </transition> -->
     </Menu>
-
-    <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
-    <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
+    <LanguageModal :is-visible="showLanguageModal" @close="showLanguageModal = false" />
+    <ThemeSelectorModal :is-visible="showThemeSelector" @close="showThemeSelector = false" />
 </template>

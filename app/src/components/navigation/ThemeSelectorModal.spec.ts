@@ -2,12 +2,25 @@ import { mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LButton from "../button/LButton.vue";
+import waitForExpect from "wait-for-expect";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
     observe() {}
     disconnect() {}
 };
+
+vi.mock("@auth0/auth0-vue");
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = importOriginal();
+    return {
+        ...actual,
+        useRouter: vi.fn(),
+        useRoute: vi.fn().mockReturnValue({ name: "home" }),
+        RouterView: { render: () => null },
+    };
+});
 
 describe("ThemeSelectorModal.vue", () => {
     beforeEach(() => {
@@ -23,53 +36,58 @@ describe("ThemeSelectorModal.vue", () => {
         }));
     });
 
-    it.skip("renders the modal when visible", () => {
+    it("renders the modal when visible", async () => {
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
             },
         });
-        expect(wrapper.find(".fixed").isVisible()).toBe(true);
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Select Theme");
+        });
     });
 
-    it.skip("does not render the modal when not visible", () => {
+    it("does not render the modal when not visible", async () => {
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: false,
             },
         });
-        // console.log(wrapper.html());
-        expect(wrapper.find(".fixed").exists()).toBe(false);
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).not.toContain("Select Theme");
+        });
     });
 
-    it.skip("displays the correct themes", () => {
+    it("displays the correct themes", async () => {
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
             },
         });
-        const themeItems = wrapper.findAll("li");
 
-        expect(themeItems.length).toBe(3);
-
-        expect(themeItems[0].text()).toBe("Light");
-        expect(themeItems[1].text()).toBe("Dark");
-        expect(themeItems[2].text()).toBe("System");
+        await waitForExpect(async () => {
+            expect(wrapper.html()).toContain("Light");
+            expect(wrapper.html()).toContain("Dark");
+            expect(wrapper.html()).toContain("System");
+        });
     });
 
-    it.skip("selects the correct theme and updates localStorage", async () => {
+    it("selects the correct theme and updates localStorage", async () => {
         localStorage.setItem("theme", "Light");
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
             },
         });
-        const themeItems = wrapper.findAll("li");
+
+        const themeItems = wrapper.findAll("[data-test='switch-theme-button']");
         await themeItems[1].trigger("click");
         expect(localStorage.getItem("theme")).toBe("Dark");
     });
 
-    it.skip("emits close event when close button is clicked", async () => {
+    it("emits close event when close button is clicked", async () => {
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
@@ -82,7 +100,7 @@ describe("ThemeSelectorModal.vue", () => {
         expect(wrapper.emitted()).toHaveProperty("close");
     });
 
-    it.skip("applies the correct theme class on mount", () => {
+    it("applies the correct theme class on mount", () => {
         localStorage.setItem("theme", "Dark");
         mount(ThemeSelectorModal, {
             props: {

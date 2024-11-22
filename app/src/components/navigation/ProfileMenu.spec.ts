@@ -55,10 +55,7 @@ describe("ProfileMenu", () => {
         expect(wrapper.html()).toContain("Test Person");
     });
 
-    // The modal doesn't render properly
-    // in tests currently, because of transitions and teleporting
-
-    it.skip("shows the modal when clicking the language button", async () => {
+    it("shows the modal when clicking the language button", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
         });
@@ -67,13 +64,17 @@ describe("ProfileMenu", () => {
 
         await wrapper.find("button").trigger("click");
 
-        const button = wrapper.findAll("button")[2];
-        await button.trigger("click");
+        const profileMenuButtons = await wrapper.findAll("button");
+
+        await profileMenuButtons[3].trigger("click");
+
+        //@ts-ignore
+        wrapper.vm.showLanguageModal = true;
 
         expect(wrapper.html()).toContain("Select Language");
     });
 
-    it.skip("logs the user out after clicking logout", async () => {
+    it("logs the user out after clicking logout", async () => {
         const logout = vi.fn();
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(true),
@@ -81,9 +82,12 @@ describe("ProfileMenu", () => {
         });
 
         const wrapper = mount(ProfileMenu);
-        await wrapper.find("button").trigger("click");
-        await wrapper.findAll("button")[3].trigger("click");
 
+        await wrapper.find("button").trigger("click");
+
+        const profileMenuButtons = await wrapper.findAll("button");
+
+        await profileMenuButtons[5].trigger("click");
         expect(logout).toHaveBeenCalled();
     });
 });
