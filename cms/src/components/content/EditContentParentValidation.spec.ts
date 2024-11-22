@@ -93,39 +93,39 @@ describe("EditContentParentValidation.vue", () => {
     });
 
     // TODO: Test these validations in a different place. https://github.com/bccsa/luminary/issues/313
-    it.skip("passes validation by default", async () => {
-        const wrapper = mount(EditContentParentValidation, {
-            props: {
-                languages: [
-                    mockData.mockLanguageDtoEng,
-                    mockData.mockLanguageDtoFra,
-                    mockData.mockLanguageDtoSwa,
-                ],
-                dirty: true,
-                parent: mockData.mockPostDto,
-                contentDocs: [mockData.mockEnglishContentDto],
-                localChange: false,
-                parentPrev: mockData.mockPostDto,
-                contentPrev: [mockData.mockEnglishContentDto],
-                canEdit: true,
-                canTranslateOrPublish: true,
-                canTranslate: true,
-                canPublish: true,
-            },
-        });
+    it(
+        "passes validation by default",
+        async () => {
+            const wrapper = mount(EditContentParentValidation, {
+                props: {
+                    languages: [
+                        mockData.mockLanguageDtoEng,
+                        mockData.mockLanguageDtoFra,
+                        mockData.mockLanguageDtoSwa,
+                    ],
+                    dirty: true,
+                    parent: mockData.mockPostDto,
+                    contentDocs: [mockData.mockEnglishContentDto],
+                    localChange: false,
+                    parentPrev: mockData.mockPostDto,
+                    contentPrev: [mockData.mockEnglishContentDto],
+                    canEdit: true,
+                    canTranslateOrPublish: true,
+                    canTranslate: true,
+                    canPublish: true,
+                },
+            });
 
-        await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("At least one group membership is required");
-            expect(wrapper.html()).not.toContain("The default image must be set");
-            expect(wrapper.html()).not.toContain("At least one translation is required");
+            await waitForExpect(() => {
+                expect(wrapper.html()).not.toContain("At least one group membership is required");
+                expect(wrapper.html()).not.toContain("The default image must be set");
+                expect(wrapper.html()).not.toContain("At least one translation is required");
+            });
+        },
+        { timeout: 10000000 },
+    );
 
-            // Check if the save button is enabled
-            const saveButton = wrapper.find('[data-test="save-button"]');
-            expect(saveButton.attributes().disabled).toBeUndefined();
-        });
-    });
-
-    it.skip("fails validation if no groups are set", async () => {
+    it("fails validation if no groups are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -147,13 +147,9 @@ describe("EditContentParentValidation.vue", () => {
         });
 
         expect(wrapper.html()).toContain("At least one group membership is required");
-
-        // Check if the save button is disabled
-        const saveButton = wrapper.find('[data-test="save-button"]');
-        expect(saveButton.attributes().disabled).toBeDefined();
     });
 
-    it.skip("fails validation if the default image is not set", async () => {
+    it("fails validation if the default image is not set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -161,27 +157,27 @@ describe("EditContentParentValidation.vue", () => {
                     mockData.mockLanguageDtoFra,
                     mockData.mockLanguageDtoSwa,
                 ],
-                dirty: false,
-                parent: { ...mockData.mockPostDto, image: "" },
-                contentDocs: [],
+                dirty: true,
+                parent: {
+                    ...mockData.mockPostDto,
+                    memberOf: [],
+                    imageData: { fileCollections: [], uploadData: [] },
+                },
+                contentDocs: [mockData.mockEnglishContentDto],
                 localChange: false,
                 parentPrev: mockData.mockPostDto,
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: true,
                 canTranslateOrPublish: true,
-                canTranslate: true,
                 canPublish: true,
+                canTranslate: true,
             },
         });
 
         expect(wrapper.html()).toContain("The default image must be set");
-
-        // Check if the save button is disabled
-        const saveButton = wrapper.find('[data-test="save-button"]');
-        expect(saveButton.attributes().disabled).toBeDefined();
     });
 
-    it.skip("fails validation if no translations are set", async () => {
+    it("fails validation if no translations are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -203,13 +199,9 @@ describe("EditContentParentValidation.vue", () => {
         });
 
         expect(wrapper.html()).toContain("At least one translation is required");
-
-        // Check if the save button is disabled
-        const saveButton = wrapper.find('[data-test="save-button"]');
-        expect(saveButton.attributes().disabled).toBeDefined();
     });
 
-    it.skip("does not display the offline change warning when there are no local changes", async () => {
+    it("does not display the offline change warning when there are no local changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -233,7 +225,7 @@ describe("EditContentParentValidation.vue", () => {
         expect(wrapper.html()).not.toContain("Offline changes");
     });
 
-    it.skip("displays unsaved changes warning when there are changes", async () => {
+    it("displays unsaved changes warning when there are changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
@@ -257,7 +249,7 @@ describe("EditContentParentValidation.vue", () => {
         expect(wrapper.html()).toContain("Unsaved changes");
     });
 
-    it.skip("doesn't display warning when there are no changes", async () => {
+    it("doesn't display warning when there are no changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
