@@ -146,6 +146,7 @@ const canTranslate = computed(() => {
     }
     return true;
 });
+
 const canPublish = computed(() => {
     if (!parent.value || !selectedLanguage.value) return false;
 
@@ -168,7 +169,7 @@ const canPublish = computed(() => {
 
 // Access control
 const canTranslateOrPublish = computed(() => {
-    return canTranslate.value || canPublish.value;
+    return canTranslate.value && canPublish.value;
 });
 
 const canEditParent = computed(() => {

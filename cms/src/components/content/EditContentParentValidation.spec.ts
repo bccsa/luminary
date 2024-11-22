@@ -49,6 +49,8 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: true,
                 canTranslateOrPublish: true,
+                canPublish: true,
+                canTranslate: true,
             },
         });
 
@@ -78,14 +80,15 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: false,
                 canTranslateOrPublish: false,
+                canPublish: false,
+                canTranslate: false,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain(
-                "You do not have permission to translate and/or publish content.",
-            );
-            expect(wrapper.html()).toContain("You do not have permission to edit content.");
+            expect(wrapper.html()).toContain("No translate permission");
+            expect(wrapper.html()).toContain("No edit permission");
+            expect(wrapper.html()).toContain("No publish permission");
         });
     });
 
@@ -106,6 +109,8 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: true,
                 canTranslateOrPublish: true,
+                canTranslate: true,
+                canPublish: true,
             },
         });
 
@@ -136,6 +141,8 @@ describe("EditContentParentValidation.vue", () => {
                 contentPrev: [mockData.mockEnglishContentDto],
                 canEdit: true,
                 canTranslateOrPublish: true,
+                canTranslate: true,
+                canPublish: true,
             },
         });
 
@@ -242,7 +249,7 @@ describe("EditContentParentValidation.vue", () => {
         expect(wrapper.html()).toContain("Unsaved changes");
     });
 
-    it.skip("doestn't display warning when there are no changes", async () => {
+    it.skip("doesn't display warning when there are no changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
                 languages: [
