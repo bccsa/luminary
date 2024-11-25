@@ -22,6 +22,26 @@
     @apply !text-5xl;
 }
 
+/* Position skip buttons next to the big play button */
+.video-player .vjs-skip-forward-10,
+.video-player .vjs-skip-backward-10 {
+    @apply !absolute flex !h-14 !w-14 items-center justify-center rounded-full !border-none text-white !outline-none !important;
+    @apply top-2/4 !-translate-y-3/4 !important;
+}
+
+.video-player .vjs-skip-backward-10 {
+    @apply left-[calc(50%-100px)];
+}
+
+.video-player .vjs-skip-forward-10 {
+    @apply right-[calc(50%-100px)];
+}
+
+.video-player .vjs-skip-backward-10 span,
+.video-player .vjs-skip-forward-10 span {
+    @apply !text-xl;
+}
+
 .video-player .vjs-control-bar {
     @apply !relative !h-full !w-full rounded-lg;
     background-color: rgba(0, 0, 0, 0.3) !important;
