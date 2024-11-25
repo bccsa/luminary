@@ -19,7 +19,7 @@ const allTopics = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.type !== DocType.Content) return false;
+
                 if (content.language !== appLanguageId) return false;
 
                 // Only include published content
@@ -32,12 +32,12 @@ const allTopics = useDexieLiveQueryWithDeps(
 
             .toArray() as unknown as Promise<ContentDto[]>,
     {
-        initialValue: await db.getQueryCache<ContentDto[]>("homepage_newestContent"),
+        initialValue: await db.getQueryCache<ContentDto[]>("explorepage_allTopics"),
     },
 );
 
 watch(allTopics, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_newestContent", value);
+    db.setQueryCache<ContentDto[]>("explorepage_allTopics", value);
 });
 
 // Reactive search term
@@ -93,7 +93,9 @@ const filteredTopics = computed(() => {
                 >
                     <div class="my-auto p-2">
                         <h3 class="">{{ content.title }}</h3>
-                        <p v-if="content.summary" class="text-sm">{{ content.summary }}</p>
+                        <p v-if="content.summary" class="line-clamp-2 text-sm">
+                            {{ content.summary }}
+                        </p>
                     </div>
                     <LImage
                         :image="content.parentImageData"

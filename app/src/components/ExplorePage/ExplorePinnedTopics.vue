@@ -3,14 +3,15 @@ import { watch } from "vue";
 import {
     type ContentDto,
     DocType,
+    TagType,
     type Uuid,
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
 import { appLanguageIdAsRef } from "@/globalConfig";
-import { contentByTopic } from "@/components/ExplorePage/contentByTopic";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
+import { contentByTag } from "../contentByTag";
 // import VerticalTagViewer from "../tags/VerticalTagViewer.vue";
 
 const pinnedTopics = useDexieLiveQueryWithDeps(
@@ -22,7 +23,7 @@ const pinnedTopics = useDexieLiveQueryWithDeps(
                 language: appLanguageId,
                 status: "published",
                 parentPinned: 1, // 1 = true
-                // parentTagType: TagType.Topic,
+                parentTagType: TagType.Topic,
             })
             .filter((c) => {
                 const content = c as ContentDto;
@@ -59,35 +60,29 @@ const pinnedTopicContent = useDexieLiveQueryWithDeps(
                 }
                 return false;
             })
-            // .orderBy("updatedTimeUtc") as unknown as Promise<ContentDto[]>,
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("explore_pinnedContent") },
+    { initialValue: await db.getQueryCache<ContentDto[]>("explorepage_pinnedTopics") },
 );
 
 watch(pinnedTopicContent, async (value) => {
-    db.setQueryCache<ContentDto[]>("explorepage_pinnedContent", value);
+    db.setQueryCache<ContentDto[]>("explorepage_pinnedTopics", value);
 });
 
 // sort pinned content by category
-const pinnedContentByTopic = contentByTopic(pinnedTopicContent, pinnedTopics);
+const pinnedContentByTopic = contentByTag(pinnedTopicContent, pinnedTopics);
 </script>
 
 <template>
     <div class="-my-6">
         <IgnorePagePadding>
-            <template v-for="c in pinnedContentByTopic" :key="c.topic._id">
+            <template v-for="c in pinnedContentByTopic" :key="c.tag._id">
                 <!-- Check if the filtered content has any items -->
                 <HorizontalContentTileCollection
-                    v-if="
-                        c.content.filter((content: ContentDto) => content.parentTagType === 'topic')
-                            .length > 0
-                    "
-                    :contentDocs="
-                        c.content.filter((content: ContentDto) => content.parentTagType === 'topic')
-                    "
-                    :title="c.topic.title"
+                    v-if="c.content.length > 0"
+                    :contentDocs="c.content"
+                    :title="c.tag.title"
                     aspectRatio="classic"
-                    :summary="c.topic.summary"
+                    :summary="c.tag.summary"
                     :showPublishDate="false"
                     class="pb-3 pt-4"
                 />

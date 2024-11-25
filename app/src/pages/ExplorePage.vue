@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import ExplorePageTopics from "@/components/ExplorePage/ExplorePageTopics.vue";
+import AllTopics from "@/components/ExplorePage/AllTopics.vue";
+import ExplorePinnedTopics from "@/components/ExplorePage/ExplorePinnedTopics.vue";
 </script>
 
 <template>
     <Suspense>
-        <ExplorePageTopics />
+        <ExplorePinnedTopics />
+    </Suspense>
+    <Suspense>
+        <AllTopics />
     </Suspense>
 </template>
