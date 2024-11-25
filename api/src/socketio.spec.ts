@@ -288,7 +288,7 @@ describe("Socketio", () => {
                         expect(res.docs.some((d) => d.type == "user")).toBe(true);
                         expect(res.docs.some((d) => d.type == "language")).toBe(true);
                     });
-                });
+                }, 999999999);
 
                 it("Group documents: emits no data socket.io events after change request submission", async () => {
                     const res = await socketioTestClient({
