@@ -3,5 +3,6 @@
     "type": "language",
     "memberOf": ["group-languages"],
     "languageCode": "fra",
-    "name": "French"
+    "name": "French",
+    "default": 0
 }

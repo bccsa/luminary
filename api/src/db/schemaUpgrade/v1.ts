@@ -1,7 +1,7 @@
 import { PostDto } from "../../dto/PostDto";
 import { DbService } from "../db.service";
 import { TagDto } from "../../dto/TagDto";
-import { DocType } from "src/enums";
+import { DocType } from "../../enums";
 
 /**
  * Upgrade the database schema from version 0 to 1

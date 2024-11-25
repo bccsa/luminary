@@ -8,6 +8,7 @@ import { S3Service } from "../s3/s3.service";
 import { PostDto } from "src/dto/PostDto";
 import { TagDto } from "src/dto/TagDto";
 import { ContentDto } from "src/dto/ContentDto";
+import { LanguageDto } from "src/dto/LanguageDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -122,6 +123,18 @@ export async function processChangeRequest(
             }
 
             await db.upsertDoc(d);
+        }
+    }
+
+    if (doc.type === DocType.Language) {
+        const langDoc = doc as LanguageDto;
+        if (langDoc.default == 1) {
+            const languageDocs = await db.getDocsByType(DocType.Language);
+
+            languageDocs.docs.forEach(async (doc: LanguageDto) => {
+                if (langDoc._id == doc._id) return;
+                await db.upsertDoc({ ...doc, default: 0 });
+            });
         }
     }
 

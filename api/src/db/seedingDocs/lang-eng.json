@@ -3,5 +3,6 @@
     "type": "language",
     "memberOf": ["group-languages"],
     "languageCode": "eng",
-    "name": "English"
+    "name": "English",
+    "default": 0
 }

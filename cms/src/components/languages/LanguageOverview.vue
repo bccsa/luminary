@@ -2,11 +2,10 @@
 import BasePage from "@/components/BasePage.vue";
 import LanguageTable from "@/components/languages/LanguageTable.vue";
 import LButton from "@/components/button/LButton.vue";
-import { AclPermission, DocType, hasAnyPermission, type LanguageDto } from "luminary-shared";
+import { AclPermission, DocType, hasAnyPermission } from "luminary-shared";
 import { computed, ref } from "vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import CreateLanguageModal from "@/components/languages/CreateOrEditLanguageModal.vue";
-import { useNotificationStore } from "@/stores/notification";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
 
@@ -21,16 +20,6 @@ const openCreateModal = () => {
 // Function to handle modal close
 const closeModal = () => {
     isModalVisible.value = false;
-};
-
-// Handle after a new language is created
-const handleLanguageCreated = (newLanguage: LanguageDto) => {
-    closeModal();
-    useNotificationStore().addNotification({
-        title: `${newLanguage.name} language created`,
-        description: `The new language has been created successfully`,
-        state: "success",
-    });
 };
 </script>
 
@@ -57,7 +46,6 @@ const handleLanguageCreated = (newLanguage: LanguageDto) => {
             v-if="isModalVisible"
             :isVisible="isModalVisible"
             @close="closeModal"
-            @created="handleLanguageCreated"
         />
     </BasePage>
 </template>

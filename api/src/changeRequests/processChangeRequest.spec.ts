@@ -7,6 +7,7 @@ import { changeRequest_content, changeRequest_post } from "../test/changeRequest
 import { S3Service } from "../s3/s3.service";
 import { ChangeReqDto } from "src/dto/ChangeReqDto";
 import { PostDto } from "src/dto/PostDto";
+import waitForExpect from "wait-for-expect";
 
 describe("processChangeRequest", () => {
     let db: DbService;
@@ -45,6 +46,7 @@ describe("processChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "xho",
                 name: "Xhoza",
+                default: 0,
             },
         };
         const changeRequest2 = {
@@ -55,6 +57,7 @@ describe("processChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "xho",
                 name: "Xhoza",
+                default: 0,
             },
         };
         await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
@@ -65,8 +68,10 @@ describe("processChangeRequest", () => {
             db,
             s3,
         );
-        expect(processResult.message).toBe("Document is identical to the one in the database");
-        expect(processResult.changes).toBeUndefined();
+        await waitForExpect(() => {
+            expect(processResult.message).toBe("Document is identical to the one in the database");
+            expect(processResult.changes).toBeUndefined();
+        });
     });
 
     it("can validate a unique slug for a content document that does not exists", async () => {
@@ -259,5 +264,29 @@ describe("processChangeRequest", () => {
                 d.parentTaggedDocs.some((t) => t == changeRequest.doc._id),
             ).length,
         ).toBe(category2Content.docs.length);
+    });
+
+    it("changes all other language documents to false if new language doc is selected", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 89,
+            doc: {
+                _id: "lang-eng",
+                type: "language",
+                memberOf: ["group-languages"],
+                languageCode: "eng",
+                name: "English",
+                default: 1,
+            },
+        };
+
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        expect(processResult.ok).toBe(true);
     });
 });

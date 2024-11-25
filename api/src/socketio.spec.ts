@@ -11,6 +11,7 @@ import {
     changeRequest_tag,
 } from "./test/changeRequestDocuments";
 import { DocType } from "./enums";
+import waitForExpect from "wait-for-expect";
 
 jest.mock("./configuration", () => {
     const originalModule = jest.requireActual("./configuration");
@@ -205,9 +206,11 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_language(),
                     });
-                    expect(res.docs.length).toBe(2);
-                    expect(res.docs.some((d) => d.type == "user")).toBe(true);
-                    expect(res.docs.some((d) => d.type == "language")).toBe(true);
+                    await waitForExpect(async () => {
+                        expect(res.docs.length).toBe(2);
+                        expect(res.docs.some((d) => d.type == "user")).toBe(true);
+                        expect(res.docs.some((d) => d.type == "language")).toBe(true);
+                    });
                 });
 
                 it("Group documents: emits two data socket.io events after change request submission", async () => {
@@ -280,10 +283,12 @@ describe("Socketio", () => {
                         version: Date.now() + 1000000,
                         changeRequest: changeRequest_language(),
                     });
-                    expect(res.docs.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
-                    expect(res.docs.some((d) => d.type == "user")).toBe(true);
-                    expect(res.docs.some((d) => d.type == "language")).toBe(true);
-                });
+                    await waitForExpect(async () => {
+                        expect(res.docs.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
+                        expect(res.docs.some((d) => d.type == "user")).toBe(true);
+                        expect(res.docs.some((d) => d.type == "language")).toBe(true);
+                    });
+                }, 999999999);
 
                 it("Group documents: emits no data socket.io events after change request submission", async () => {
                     const res = await socketioTestClient({

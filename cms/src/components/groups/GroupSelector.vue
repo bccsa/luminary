@@ -22,9 +22,12 @@ const groups = defineModel<Uuid[]>("groups");
 
 const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 
+// To be able to assign a group, a user needs to have assign permissions (to be able to assign the group to a document), and also have edit access to the specific document type.
 const assignableGroups = computed(() =>
-    availableGroups.value?.filter((g) =>
-        verifyAccess([g._id], props.docType, AclPermission.Edit, "any"),
+    availableGroups.value?.filter(
+        (g) =>
+            verifyAccess([g._id], props.docType, AclPermission.Edit, "any") &&
+            verifyAccess([g._id], DocType.Group, AclPermission.Assign, "any"),
     ),
 );
 
