@@ -12,7 +12,6 @@ import { appLanguageIdAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 import { contentByTag } from "../contentByTag";
-// import VerticalTagViewer from "../tags/VerticalTagViewer.vue";
 
 const pinnedTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
