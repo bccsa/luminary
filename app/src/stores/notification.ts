@@ -38,6 +38,14 @@ export const useNotificationStore = defineStore("notification", () => {
 
         if (notification.closable == undefined) notification.closable = true;
 
+        // Handle banners: Ensure only one banner is displayed at a time
+        if (
+            notification.type === "banner" &&
+            notifications.value.some((n) => n.type === "banner")
+        ) {
+            notifications.value = notifications.value.filter((n) => n.type !== "banner");
+        }
+
         setTimeout(() => {
             notifications.value.push({
                 ...notification,
