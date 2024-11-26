@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ContentTile from "@/components/content/ContentTile.vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
+import { isPublished } from "@/util/isPublished";
 import {
     db,
     DocType,
@@ -22,13 +23,7 @@ const topics = useDexieLiveQueryWithDeps(
                 status: "published",
             })
             .filter((c) => {
-                const content = c as ContentDto;
-
-                // Only include published content
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                return isPublished(c as ContentDto);
             })
             .sortBy("title") as unknown as Promise<ContentDto[]>,
     {

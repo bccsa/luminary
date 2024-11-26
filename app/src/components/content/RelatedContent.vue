@@ -11,6 +11,7 @@ import {
 import { computed, toRef } from "vue";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
+import { isPublished } from "@/util/isPublished";
 
 type Props = {
     tags: ContentDto[];
@@ -35,10 +36,7 @@ const contentDocs = useDexieLiveQueryWithDeps(
             .filter((c) => {
                 const content = c as ContentDto;
                 if (content.language !== languageId) return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                return isPublished(content);
             })
             .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },

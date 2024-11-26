@@ -4,6 +4,7 @@ import { watch } from "vue";
 import { type ContentDto, DocType, PostType, type Uuid, db } from "luminary-shared";
 import { appLanguageIdAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
+import { isPublished } from "@/util/isPublished";
 
 const newest10Content = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -17,12 +18,7 @@ const newest10Content = useDexieLiveQueryWithDeps(
                 if (content.language !== appLanguageId) return false;
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
 
-                // Only include published content
-                if (content.status !== "published") return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                return isPublished(content);
             })
             .limit(10) // Limit to the newest posts
             .toArray() as unknown as Promise<ContentDto[]>,

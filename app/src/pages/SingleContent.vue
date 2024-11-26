@@ -28,6 +28,7 @@ import LImage from "@/components/images/LImage.vue";
 import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
 import { userPreferencesAsRef } from "@/globalConfig";
+import { isPublished } from "@/util/isPublished";
 
 const router = useRouter();
 
@@ -72,10 +73,7 @@ const tags = useDexieLiveQueryWithDeps(
                 const tag = t as ContentDto;
                 if (tag.language != appLanguageId) return false;
                 if (tag.parentType != DocType.Tag) return false;
-                if (!tag.publishDate) return false;
-                if (tag.publishDate > Date.now()) return false;
-                if (tag.expiryDate && tag.expiryDate < Date.now()) return false;
-                return true;
+                return isPublished(tag);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },

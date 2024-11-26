@@ -12,6 +12,7 @@ import {
 import { appLanguageIdAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { contentByTag } from "../contentByTag";
+import { isPublished } from "@/util/isPublished";
 
 const newest100Content = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -61,13 +62,12 @@ const categories = useDexieLiveQueryWithDeps(
                 const _content = content as ContentDto;
                 if (_content.parentType !== DocType.Tag) return false;
                 if (!_content.parentTagType) return false;
-                if (!_content.publishDate) return false;
-                if (_content.status !== "published") return false;
-                if (_content.publishDate > Date.now()) return false;
-                if (_content.expiryDate && _content.expiryDate < Date.now()) return false;
                 if (_content.parentPinned) return false;
+
+                // Use the `isPublished` helper function
                 return (
-                    _content.parentTagType == TagType.Category &&
+                    isPublished(_content) &&
+                    _content.parentTagType === TagType.Category &&
                     _content.language === appLanguageId
                 );
             })
