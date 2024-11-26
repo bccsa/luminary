@@ -25,7 +25,7 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
-import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
+import { BookmarkIcon as BookmarkIconSolid, MoonIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
@@ -226,17 +226,56 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
+
+// Retrieve current theme from localStorage
+const theme = ref(localStorage.getItem("theme") || "");
+
+// Function to toggle the theme
+const toggleTheme = () => {
+    if (theme.value === "Light") {
+        theme.value = "Dark";
+    } else if (theme.value === "Dark") {
+        theme.value = "Light";
+    }
+
+    // Save theme in localStorage
+    localStorage.setItem("theme", theme.value);
+
+    // Update the document class
+    updateDocumentTheme();
+};
+
+// Function to apply the theme to the document
+const updateDocumentTheme = () => {
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+
+    if (theme.value === "Light") {
+        root.classList.add("light");
+    } else if (theme.value === "Dark") {
+        root.classList.add("dark");
+    }
+};
+
+// // Apply the theme on page load
+updateDocumentTheme();
+
+watch(theme, updateDocumentTheme);
 </script>
 
 <template>
-    <div class="hidden lg:block">
-        <div
-            @click="router.back()"
-            class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
-        >
-            <ArrowLeftIcon class="h-4 w-4" />
-            Back
+    <div class="mb-2 flex justify-between">
+        <div class="hidden lg:block">
+            <div
+                @click="router.back()"
+                class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
+            >
+                <ArrowLeftIcon class="h-4 w-4" />
+                Back
+            </div>
         </div>
+
+        <!-- Theme switcher button -->
     </div>
 
     <NotFoundPage v-if="is404" />
@@ -249,15 +288,29 @@ const selectedCategory = computed(() => {
                 {{ content.title }}
             </h1>
 
-            <div data-test="bookmark" @click="toggleBookmark">
-                <component
-                    v-if="!(content.parentPostType && content.parentPostType == PostType.Page)"
-                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                    class="mx-auto mt-2 h-6 w-6 cursor-pointer"
-                    :class="{
-                        'text-yellow-500': isBookmarked,
-                    }"
-                />
+            <div class="flex items-center justify-center gap-1">
+                <div data-test="bookmark" @click="toggleBookmark">
+                    <component
+                        v-if="!(content.parentPostType && content.parentPostType == PostType.Page)"
+                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                        class="mx-auto mt-2 h-6 w-6 cursor-pointer"
+                        :class="{
+                            'text-yellow-500': isBookmarked,
+                        }"
+                    />
+                </div>
+                <div @click="toggleTheme" class="z-50 cursor-pointer text-sm">
+                    <component
+                        :is="
+                            {
+                                Light: MoonIcon,
+                                Dark: SunIcon,
+                            }[theme]
+                        "
+                        class="mt-2 h-6 w-6 cursor-pointer"
+                    />
+                    <!-- <span class="capitalize">{{ theme }}</span> -->
+                </div>
             </div>
 
             <div
