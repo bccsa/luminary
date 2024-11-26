@@ -110,7 +110,7 @@ onMounted(() => {
     });
 
     // Ensure audio tracks are ready when metadata is loaded
-    player.on("loadedmetadata", () => {
+    player.on("loadeddata", () => {
         setAudioTrackLanguage(appLanguageAsRef.value?.languageCode || null);
     });
 
