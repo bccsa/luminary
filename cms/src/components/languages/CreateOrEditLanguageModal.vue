@@ -86,16 +86,9 @@ const validateForm = () => {
 
 const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 const formattedGroups = computed(() => {
-    const newGroups: ComboboxOption[] = [];
-    groups.value.forEach((group) => {
-        const newGroup: ComboboxOption = {
-            id: group._id,
-            label: group.name,
-            value: group._id,
-        };
-        newGroups.push(newGroup);
-    });
-    return newGroups;
+    return groups.value.map(
+        (group) => ({ id: group._id, label: group.name, value: group._id }) as ComboboxOption,
+    );
 });
 </script>
 
