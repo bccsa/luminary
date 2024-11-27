@@ -28,6 +28,7 @@ const selectedOptions = defineModel<Array<string | number>>("selectedOptions");
 
 const inputElement = ref();
 const comboboxElement = ref();
+const dropdown = ref();
 const showDropdown = ref(false);
 
 const optionsList = computed(() =>
@@ -71,15 +72,14 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
             />
             <button @click="handleChevronBtnClick" name="options-open-btn">
                 <ChevronUpDownIcon
-                    @click="handleChevronBtnClick"
                     class="absolute right-2 top-2 h-5 w-5 text-zinc-400 hover:cursor-pointer"
                 />
             </button>
         </div>
 
         <div
-            ref="comboboxElement"
-            v-if="showDropdown"
+            ref="dropdown"
+            v-show="showDropdown || query.trim().length > 0"
             class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
             data-test="options"
         >
@@ -87,8 +87,8 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
                 name="list-item"
                 v-for="option in filtered"
                 :key="option.id"
-                :disabled="selectedOptions?.includes(option.id)"
-                class="text-sm hover:bg-zinc-100"
+                :disabled="option.selected"
+                class="list-none text-sm hover:bg-zinc-100"
                 :class="[
                     'relative cursor-default select-none py-2 pl-3 pr-9',
                     {
