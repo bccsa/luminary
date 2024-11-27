@@ -18,7 +18,7 @@ import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
-import { appLanguageAsRef, appLanguageIdAsRef, appName } from "@/globalConfig";
+import { appLanguageAsRef, appLanguageIdsAsRef, appName } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
@@ -53,7 +53,7 @@ const defaultContent: ContentDto = {
     updatedTimeUtc: 0,
     memberOf: [],
     parentId: "",
-    language: appLanguageIdAsRef.value,
+    language: appLanguageIdsAsRef.value,
     status: PublishStatus.Published,
     title: "Loading...",
     slug: "",
@@ -68,7 +68,7 @@ const content = computed(() => {
 });
 
 const tags = useDexieLiveQueryWithDeps(
-    [content, appLanguageIdAsRef],
+    [content, appLanguageIdsAsRef],
     ([content, appLanguageId]: [ContentDto, Uuid]) =>
         db.docs
             .where("parentId")

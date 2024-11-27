@@ -9,13 +9,13 @@ import {
     TagType,
     PostType,
 } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { contentByTag } from "../contentByTag";
 import { isPublished } from "@/util/isPublished";
 
 const newest100Content = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
+    appLanguageIdsAsRef,
     (appLanguageId) =>
         db.docs
             .orderBy("publishDate")
@@ -53,7 +53,7 @@ const categoryIds = computed(() =>
 );
 
 const categories = useDexieLiveQueryWithDeps(
-    [categoryIds, appLanguageIdAsRef],
+    [categoryIds, appLanguageIdsAsRef],
     ([_categoryIds, appLanguageId]: [Uuid[], Uuid]) =>
         db.docs
             .where("parentId")
