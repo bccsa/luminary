@@ -136,8 +136,18 @@ const createTranslation = (language: LanguageDto) => {
     selectedLanguageId.value = language._id;
 };
 
-// Access control
-const canTranslateOrPublish = computed(() => {
+const canTranslate = computed(() => {
+    if (!parent.value || !selectedLanguage.value) return false;
+    if (
+        !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) ||
+        !verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)
+    ) {
+        return false;
+    }
+    return true;
+});
+
+const canPublish = computed(() => {
     if (!parent.value || !selectedLanguage.value) return false;
 
     // Disable edit access if the user does not have publish permission
@@ -149,14 +159,17 @@ const canTranslateOrPublish = computed(() => {
             prevContentDoc &&
             prevContentDoc.status == PublishStatus.Published &&
             !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)
-        )
+        ) {
             return false;
+        }
     }
 
-    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate)) return false;
-    if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
-        return false;
     return true;
+});
+
+// Access control
+const canTranslateOrPublish = computed(() => {
+    return canTranslate.value && canPublish.value;
 });
 
 const canEditParent = computed(() => {
@@ -315,6 +328,7 @@ watch(selectedLanguage, () => {
                         v-model="selectedLanguageId"
                         @createTranslation="createTranslation"
                 /></EmptyState>
+
                 <div v-else class="space-y-6">
                     <EditContentStatus
                         v-model:content="selectedContent"
@@ -338,6 +352,9 @@ watch(selectedLanguage, () => {
             <div class="col-span-3 md:col-span-1" v-if="parent">
                 <div class="sticky top-20 space-y-6">
                     <EditContentParentValidation
+                        :can-translate="canTranslate"
+                        :can-publish="canPublish"
+                        :can-edit="canEditParent"
                         v-if="contentDocs"
                         v-model:parent="parent"
                         v-model:contentDocs="contentDocs"

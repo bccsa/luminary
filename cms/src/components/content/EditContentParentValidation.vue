@@ -15,13 +15,16 @@ import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
-import { XCircleIcon } from "@heroicons/vue/20/solid";
+import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     languages: LanguageDto[];
     dirty: boolean;
     parentPrev: ContentParentDto | undefined;
     contentPrev: ContentDto[] | undefined;
+    canEdit: boolean;
+    canTranslate: boolean;
+    canPublish: boolean;
 };
 const props = defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
@@ -143,6 +146,23 @@ watch(
 <template>
     <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
+            <div
+                v-if="!(canTranslate || canPublish) || !canEdit"
+                class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
+            >
+                <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs text-zinc-600">
+                    <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
+                    translate permission</span
+                >
+                <span v-if="!canPublish" class="mb-1 flex gap-1 text-xs text-zinc-600">
+                    <ExclamationCircleIcon class="h-4 w-4 text-red-400" />No publish
+                    permission</span
+                >
+                <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
+                    <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No edit
+                    permission</span
+                >
+            </div>
             <div v-if="!parentIsValid" class="mb-2 rounded-md bg-zinc-50 p-4 shadow">
                 <span class="text-sm"
                     >Errors were found in your {{ parent?.type }}'s settings:</span
