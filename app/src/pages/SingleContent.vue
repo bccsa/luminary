@@ -188,7 +188,18 @@ watch(
             const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
 
             if (preferred) {
-                router.replace({ name: "content", params: { slug: preferred.slug } });
+                // Check if the preferred translation is published
+                if (isPublished(preferred)) {
+                    router.replace({ name: "content", params: { slug: preferred.slug } });
+                } else {
+                    useNotificationStore().addNotification({
+                        id: "translation-not-published",
+                        title: "Unpublished translation",
+                        description: `The ${appLanguageAsRef.value?.name} translation for this content is not yet available.`,
+                        state: "error",
+                        type: "toast",
+                    });
+                }
                 return;
             }
             useNotificationStore().addNotification({
