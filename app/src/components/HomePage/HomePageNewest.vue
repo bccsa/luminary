@@ -2,11 +2,11 @@
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { watch } from "vue";
 import { type ContentDto, DocType, PostType, type Uuid, db } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 
 const newest10Content = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
+    appLanguageIdsAsRef,
     (appLanguageId: Uuid) =>
         db.docs
             .orderBy("publishDate")

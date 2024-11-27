@@ -13,9 +13,9 @@ export const isDevMode = import.meta.env.DEV;
 /**
  * The preferred language ID as Vue ref.
  */
-export const appLanguageIdAsRef = ref(localStorage.getItem("language") || "");
-watch(appLanguageIdAsRef, (newVal) => {
-    localStorage.setItem("language", newVal);
+export const appLanguageIdsAsRef = ref(localStorage.getItem("languages") || [""]);
+watch(appLanguageIdsAsRef, (newVal) => {
+    localStorage.setItem("languages", JSON.stringify(newVal));
 });
 
 const _appLanguageAsRef = ref<LanguageDto | undefined>();
@@ -32,7 +32,7 @@ export const initLanguage = () => {
     watch(languages, (newVal) => {
         if (
             newVal.length > 0 &&
-            (!appLanguageIdAsRef.value || !newVal.some((l) => l._id === appLanguageIdAsRef.value))
+            (!appLanguageIdsAsRef.value || !newVal.some((l) => l._id === appLanguageIdsAsRef.value))
         ) {
             const languagesPreferredByBrowser = navigator.languages;
 
@@ -43,22 +43,22 @@ export const initLanguage = () => {
 
             // If a preferred language exists, set it
             if (preferredLanguageId) {
-                appLanguageIdAsRef.value = preferredLanguageId;
+                appLanguageIdsAsRef.value = preferredLanguageId;
             } else {
                 // If no preferred language found, check for the first supported language
                 const firstSupportedLanguageId = newVal[0]?._id; // Assuming the first language is the default if none found in preferences
 
                 // Set to first supported language
-                appLanguageIdAsRef.value = firstSupportedLanguageId;
+                appLanguageIdsAsRef.value = firstSupportedLanguageId;
             }
         }
     });
 
     // Set the preferred language document
-    watch([appLanguageIdAsRef, languages], () => {
-        if (appLanguageIdAsRef.value && languages.value.length > 0) {
+    watch([appLanguageIdsAsRef, languages], () => {
+        if (appLanguageIdsAsRef.value && languages.value.length > 0) {
             _appLanguageAsRef.value = languages.value.find(
-                (l) => l._id === appLanguageIdAsRef.value,
+                (l) => l._id === appLanguageIdsAsRef.value,
             );
         }
     });
