@@ -5,11 +5,17 @@ import { computed, ref } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
 
-const props = defineProps<{
+type Props = {
     image?: ImageDto;
-    aspectRatio: keyof typeof aspectRatios;
-    size: keyof typeof sizes;
-}>();
+    aspectRatio?: keyof typeof aspectRatios;
+    size?: keyof typeof sizes;
+    rounded?: boolean;
+};
+const props = withDefaults(defineProps<Props>(), {
+    aspectRatio: "video",
+    size: "post",
+    rounded: true,
+});
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
@@ -31,8 +37,8 @@ const aspectRatioNumbers = {
 };
 
 const sizes = {
-    small: "w-20 max-w-20 md:w-24 md:max-w-24",
-    thumbnail: "w-36 max-w-36 md:w-52 md:max-w-52",
+    small: "w-20 max-w-20 min-w-20 md:w-24 md:max-w-24 md:min-w-24",
+    thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
     post: "w-full max-w-full",
 };
 
@@ -113,8 +119,7 @@ const showImageElement2 = computed(
             :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
                 aspectRatios[aspectRatio],
-                rounding[size],
-                sizes[size],
+                rounded ? rounding[size] : '',
                 'w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
