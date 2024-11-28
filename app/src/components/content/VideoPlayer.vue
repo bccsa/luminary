@@ -6,6 +6,7 @@ import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
+import * as iso from "iso-639-2";
 import LImage from "../images/LImage.vue";
 import {
     appLanguageAsRef,
@@ -63,7 +64,10 @@ function setAudioTrackLanguage(languageCode: string | null) {
 
     for (let i = 0; i < audioTracks.length; i++) {
         const track = audioTracks[i];
-        track.enabled = track.language === languageCode;
+
+        track.enabled =
+            iso.iso6392TTo1[track.language] === languageCode ||
+            iso.iso6392BTo1[track.language] === languageCode;
     }
 }
 
