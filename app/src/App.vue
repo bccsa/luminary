@@ -91,30 +91,6 @@ onBeforeMount(async () => {
     }
 });
 
-setTimeout(() => {
-    watch(
-        [isConnected, isAuthenticated],
-        () => {
-            if (isConnected.value && !isAuthenticated.value) {
-                useNotificationStore().addNotification({
-                    id: "accountBanner",
-                    title: "You are missing out!",
-                    description: "Click here to create an account or log in.",
-                    state: "info",
-                    type: "banner",
-                    icon: ExclamationCircleIcon,
-                    link: { name: "login" },
-                });
-            }
-
-            if (isConnected.value && isAuthenticated.value) {
-                useNotificationStore().removeNotification("accountBanner");
-            }
-        },
-        { immediate: true },
-    );
-}, 1000);
-
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
     watch(
@@ -139,6 +115,30 @@ setTimeout(() => {
         { immediate: true },
     );
 }, 5000);
+
+setTimeout(() => {
+    watch(
+        [isConnected, isAuthenticated],
+        () => {
+            if (isConnected.value && !isAuthenticated.value) {
+                useNotificationStore().addNotification({
+                    id: "accountBanner",
+                    title: "You are missing out!",
+                    description: "Click here to create an account or log in.",
+                    state: "info",
+                    type: "banner",
+                    icon: ExclamationCircleIcon,
+                    link: { name: "login" },
+                });
+            }
+
+            if (isConnected.value && isAuthenticated.value) {
+                useNotificationStore().removeNotification("accountBanner");
+            }
+        },
+        { immediate: true },
+    );
+}, 1000);
 
 // Add userId to analytics if privacy policy has been accepted
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
