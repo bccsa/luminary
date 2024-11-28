@@ -30,13 +30,23 @@ export const useNotificationStore = defineStore("notification", () => {
             return notification.id;
         }
 
+        // Prevent duplicate notifications
+        if (notifications.value.some((n) => n.title === notification.title)) {
+            return notification.id;
+        }
+
+        if (notification.closable == undefined) notification.closable = true;
+
+        // Handle banners: Clear existing banners before adding the new one
+        if (notification.type === "banner") {
+            notifications.value = notifications.value.filter((n) => n.type !== "banner");
+        }
+
         let notificationId = notification.id;
         if (!notificationId) {
             id.value++;
             notificationId = id.value;
         }
-
-        if (notification.closable == undefined) notification.closable = true;
 
         // Handle banners: Ensure only one banner is displayed at a time
         if (
