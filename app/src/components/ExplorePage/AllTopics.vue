@@ -81,19 +81,22 @@ const filteredTopics = computed(() => {
             No results found for "{{ searchTerm }}"
         </div>
 
-        <div class="space-y-4">
+        <div class="space-y-2">
             <div
                 v-for="content in filteredTopics"
                 :key="content._id"
-                class="flex dark:border-gray-700"
+                class="flex overflow-clip rounded-lg bg-zinc-50 pl-2 shadow-sm hover:bg-yellow-500/10 dark:bg-slate-800 dark:hover:bg-yellow-500/10 md:pl-4"
             >
                 <RouterLink
                     :to="{ name: 'content', params: { slug: content.slug } }"
-                    class="flex w-full justify-between rounded hover:bg-yellow-500/10"
+                    class="flex w-full justify-between"
                 >
-                    <div class="my-auto p-2">
-                        <h3 class="">{{ content.title }}</h3>
-                        <p v-if="content.summary" class="line-clamp-2 text-sm">
+                    <div class="my-auto flex flex-col gap-y-1 text-zinc-800 dark:text-slate-50">
+                        <h3 class="text-sm">{{ content.title }}</h3>
+                        <p
+                            v-if="content.summary"
+                            class="line-clamp-1 text-xs text-zinc-500 dark:text-slate-300"
+                        >
                             {{ content.summary }}
                         </p>
                     </div>
@@ -102,6 +105,7 @@ const filteredTopics = computed(() => {
                         aspectRatio="classic"
                         size="small"
                         class="flex items-center"
+                        :rounded="false"
                     />
                 </RouterLink>
             </div>
