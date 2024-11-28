@@ -22,7 +22,6 @@ type ClientConfig = {
  * Connection status as a Vue ref
  */
 export const isConnected = ref(false);
-console.log("isConnected", isConnected);
 
 /**
  * Maximum file size for uploads in bytes as a Vue ref
