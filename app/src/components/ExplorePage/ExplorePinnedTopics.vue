@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from "vue";
+import { computed, ref, watch } from "vue";
 import {
     type ContentDto,
     DocType,
@@ -12,6 +12,7 @@ import { appLanguageIdAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 import { contentByTag } from "../contentByTag";
+import { useInfiniteScroll } from "@vueuse/core";
 
 const pinnedTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -71,13 +72,27 @@ watch(pinnedTopicContent, async (value) => {
 
 // sort pinned content by category
 const pinnedContentByTopic = contentByTag(pinnedTopicContent, pinnedTopics);
+
+const scrollContent = ref<HTMLElement | null>(null);
+
+const scrollPosition = ref(10);
+const infiniteScrollData = computed(() =>
+    pinnedContentByTopic.value.slice(0, scrollPosition.value),
+);
+
+useInfiniteScroll(
+    scrollContent,
+    () => {
+        scrollPosition.value += 10;
+    },
+    { distance: 10 },
+);
 </script>
 
 <template>
     <div class="-my-6">
         <IgnorePagePadding>
-            <template v-for="c in pinnedContentByTopic" :key="c.tag._id">
-                <!-- Check if the filtered content has any items -->
+            <div v-for="c in infiniteScrollData" :key="c.tag._id" ref="scrollContent">
                 <HorizontalContentTileCollection
                     v-if="c.content.length > 0"
                     :contentDocs="c.content"
@@ -87,7 +102,7 @@ const pinnedContentByTopic = contentByTag(pinnedTopicContent, pinnedTopics);
                     :showPublishDate="false"
                     class="pb-3 pt-4"
                 />
-            </template>
+            </div>
         </IgnorePagePadding>
     </div>
 </template>
