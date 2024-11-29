@@ -209,7 +209,7 @@ watch(appLanguageAsRef, (newLanguage) => {
 </style>
 
 <template>
-    <div class="relative mb-2 rounded-lg bg-transparent">
+    <div class="relative rounded-lg bg-transparent">
         <LImage
             v-if="content.parentImageData"
             :image="content.parentImageData"

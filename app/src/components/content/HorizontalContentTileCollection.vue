@@ -72,7 +72,7 @@ useInfiniteScroll(
 
 <template>
     <div class="select-none">
-        <h2 v-if="title" class="truncate px-6">
+        <h2 v-if="title" class="truncate px-4">
             {{ title }}
             <span v-if="summary" class="text-sm text-zinc-500 dark:text-slate-200">
                 {{ summary }}
@@ -105,7 +105,7 @@ useInfiniteScroll(
                 class="flex overflow-x-scroll py-2 scrollbar-hide"
                 @scroll="setSpinBtnVisibility"
             >
-                <div ref="scrollContent" class="flex flex-row gap-4 px-6">
+                <div ref="scrollContent" class="flex flex-row gap-4 px-4">
                     <ContentTile
                         v-for="content in infiniteScrollData"
                         :key="content._id"

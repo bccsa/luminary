@@ -131,7 +131,7 @@ const userNavigation = computed(() => {
                     <button
                         :class="[
                             active ? 'bg-zinc-50 dark:bg-slate-800' : '',
-                            'flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600',
+                            'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600',
                         ]"
                         @click="item.action"
                     >
