@@ -1,11 +1,14 @@
 import { PostDocsDto } from "../dto/RestDocsDto";
 import { HttpException, HttpStatus, Injectable, Inject } from "@nestjs/common";
-import { DbQueryResult, DbService } from "../db/db.service";
+import { DbQueryResult, DbService, GetDocsOptions } from "../db/db.service";
 import { DocType, AclPermission } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { AccessMap } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
+import { getJwtPermission, parsePermissionMap } from "../jwt/jwtPermissionMap";
+import * as JWT from "jsonwebtoken";
+import configuration, { Configuration } from "../configuration";
 
 /**
  * Client configuration type definition
@@ -17,26 +20,19 @@ type ClientConfig = {
 /**
  * Data response to client type definition
  */
-type ApiDataResponse = {
-    docs: Array<any>;
-    version?: number;
-};
-
-type docsPostResponse = {
-    docs: any;
-    version: number;
-};
-
-type dbQuery = {
-    userAccess: any;
-    from?: number;
-    to?: number;
-};
+// type ApiDataResponse = {
+//     docs: Array<any>;
+//     version?: number;
+//     versionEnd?: number;
+//     accessMap?: AccessMap;
+// };
 
 @Injectable()
 export class DocsService {
     private readonly test: any = [];
     private cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
+    private permissionMap: any;
+    private config: Configuration;
     private appDocTypes: Array<DocType> = [
         DocType.Post,
         DocType.Tag,
@@ -49,29 +45,35 @@ export class DocsService {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
-    ) {}
+    ) {
+        // Create config object with environmental variables
+        this.config = configuration();
+    }
 
     /**
      * Process api docs request
      * @param req - api request
      * @returns
      */
-    async processReq(req: PostDocsDto): Promise<any> {
+    async processReq(req: PostDocsDto, token: string): Promise<DbQueryResult> {
         if (!this.apiVersionCheck(req.apiVersion))
             throw new HttpException(
                 "API version is outdated, please update your app",
                 HttpStatus.BAD_REQUEST,
             );
 
+        const jwt: string | JWT.JwtPayload = JWT.verify(token, this.config.auth.jwtSecret);
+        // Get group access
+        this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
+        const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
+
         // Get access map and send to client
         const clientConfig = {
-            accessMap: PermissionSystem.getAccessMap(req.memberOf),
+            accessMap: PermissionSystem.getAccessMap(permissions.groups),
         } as ClientConfig;
 
         // Determine which doc types to get
-        const docTypes = req.reqData.cms
-            ? [...this.cmsDocTypes, ...this.appDocTypes]
-            : this.appDocTypes;
+        const docTypes = req.cms ? [...this.cmsDocTypes, ...this.appDocTypes] : this.appDocTypes;
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
@@ -80,16 +82,34 @@ export class DocsService {
             docTypes,
         );
 
-        if (req.newDataReq) return await this.newDataReq(req, userViewGroups);
+        let from = 0;
+        if (req.gapEnd && typeof req.gapEnd === "number") from = req.gapEnd;
+        let to = await this.db.getLatestDocUpdatedTime();
+        if (req.gapStart && typeof req.gapStart === "number") to = req.gapStart;
 
-        if (req.oldDataReq) return await this.oldDataReq(req, userViewGroups);
+        const query: GetDocsOptions = {
+            userAccess: userViewGroups,
+            type: req.type,
+            contentOnly: req.contentOnly,
+        };
+        if (from !== undefined) query.from = from;
+        if (to !== undefined) query.to = to;
 
-        if (req.backfillDataReq) return await this.backfillDataReq(req, clientConfig, docTypes);
+        // Get updated data from database
+        // return await this.dbReq(permissions.userId, userViewGroups, from, to);
 
-        throw new HttpException(
-            "One of the following fields is required to be true: newDataReq, oldDataReq, backfillDataReq",
-            HttpStatus.BAD_REQUEST,
-        );
+        let _res = undefined;
+        await this.db
+            .getDocsByGroup(query)
+            .then((res: DbQueryResult) => {
+                if (res.docs) {
+                    _res = res;
+                }
+            })
+            .catch((err) => {
+                this.logger.error(`Error getting data for client: ${permissions.userId}`, err);
+            });
+        return _res;
     }
 
     // TODO: Implement API versioning
@@ -105,54 +125,67 @@ export class DocsService {
     /**
      * newDataReq event handler
      * @param req
-     * @param reqData
+     * @param userViewGroups
+     * @param permissions
      */
-    async newDataReq(req: PostDocsDto, userViewGroups: any) {
-        let from = 0;
-        if (req.reqData.version && typeof req.reqData.version === "number")
-            from = req.reqData.version;
+    // async newDataReq(req: PostDocsDto, userViewGroups: any, permissions: any) {
+    //     let from = 0;
+    //     if (req.version && typeof req.version === "number") from = req.version;
+    //     let to = await this.db.getLatestDocUpdatedTime();
+    //     if (req.versionEnd && typeof req.versionEnd === "number") to = req.versionEnd;
 
-        // Get updated data from database
-        return await this.dbReq(req.userId, userViewGroups, from);
-    }
+    //     // Get updated data from database
+    //     return await this.dbReq(permissions.userId, userViewGroups, from, to);
+    // }
 
-    /**
-     * oldDataReq event handler
-     * @param req
-     * @param reqData
-     */
-    async oldDataReq(req: PostDocsDto, userViewGroups: any) {
-        console.log(userViewGroups);
-        return req;
-    }
+    // /**
+    //  * oldDataReq event handler
+    //  * @param req
+    //  * @param userViewGroups
+    //  * @param permissions
+    //  */
+    // async oldDataReq(req: PostDocsDto, userViewGroups: any, permissions: any) {
+    //     let to = 0;
+    //     if (req.version && typeof req.version === "number") to = req.version;
+
+    //     // Get updated data from database
+    //     return await this.dbReq(permissions.userId, userViewGroups, undefined, to);
+    // }
 
     /**
      * backfillDataReq event handler
      * @param req
-     * @param reqData
+     * @param userViewGroups
+     * @param permissions
+     * @param docTypes
      */
-    async backfillDataReq(req: PostDocsDto, clientConfig: ClientConfig, docTypes: any) {
-        let res: ApiDataResponse = {
-            docs: [],
-        };
+    // async backfillDataReq(
+    //     req: PostDocsDto,
+    //     clientConfig: ClientConfig,
+    //     permissions: any,
+    //     docTypes: any,
+    // ) {
+    //     let res: ApiDataResponse = {
+    //         docs: [],
+    //     };
 
-        let from = 0;
-        if (req.reqData.version && typeof req.reqData.version === "number")
-            from = req.reqData.version;
+    //     let to = 0;
+    //     if (req.version && typeof req.version === "number") to = req.version;
 
-        // Get diff between user submitted access map and actual access
-        const diff = PermissionSystem.accessMapDiff(clientConfig.accessMap, req.reqData.accessMap);
-        const newAccessibleGroups = PermissionSystem.accessMapToGroups(
-            diff,
-            AclPermission.View,
-            docTypes,
-        );
-        // Get historical data from database for newly accessible groups
-        if (Object.keys(newAccessibleGroups).length > 0)
-            res = await this.dbReq(req.userId, newAccessibleGroups, undefined, from);
+    //     // Get diff between user submitted access map and actual access
+    //     const diff = PermissionSystem.accessMapDiff(clientConfig.accessMap, req.accessMap);
+    //     const newAccessibleGroups = PermissionSystem.accessMapToGroups(
+    //         diff,
+    //         AclPermission.View,
+    //         docTypes,
+    //     );
+    //     // Get historical data from database for newly accessible groups
+    //     if (Object.keys(newAccessibleGroups).length > 0)
+    //         res = await this.dbReq(permissions.userId, newAccessibleGroups, undefined, to);
 
-        return res;
-    }
+    //     res.accessMap = clientConfig.accessMap;
+    //     return res;
+    // }
 
     /**
      * Query database for updated list of documents
@@ -162,33 +195,30 @@ export class DocsService {
      * @param to
      * @returns
      */
-    async dbReq(userId: string, userViewGroups: any, from?: number, to?: number) {
-        const _res: docsPostResponse = {
-            docs: undefined,
-            version: 0,
-        };
+    // async dbReq(userId: string, userViewGroups: any, from?: number, to?: number) {
+    //     let _res: ApiDataResponse = {
+    //         docs: undefined,
+    //         version: 0,
+    //     };
 
-        const query: dbQuery = {
-            userAccess: userViewGroups,
-        };
-        if (from) query.from = from;
-        if (to) query.to = to;
-        // Get updated data from database
-        await this.db
-            .getDocsPerGroup(userId, query)
-            .then((res: DbQueryResult) => {
-                if (res.docs) {
-                    const response: ApiDataResponse = { docs: res.docs };
-                    if (res.version) response.version = res.version;
-
-                    _res.docs = response.docs;
-                    _res.version = response.version;
-                }
-            })
-            .catch((err) => {
-                this.logger.error(`Error getting data for client: ${userId}`, err);
-            });
-
-        return _res;
-    }
+    //     const query: GetDocsOptions = {
+    //         userAccess: userViewGroups,
+    //         type: DocType.Post,
+    //         contentOnly: true,
+    //     };
+    //     if (from !== undefined) query.from = from;
+    //     if (to !== undefined) query.to = to;
+    //     // Get updated data from database
+    //     await this.db
+    //         .getDocsByGroup(query)
+    //         .then((res: DbQueryResult) => {
+    //             if (res.docs) {
+    //                 _res = res;
+    //             }
+    //         })
+    //         .catch((err) => {
+    //             this.logger.error(`Error getting data for client: ${userId}`, err);
+    //         });
+    //     return _res;
+    // }
 }

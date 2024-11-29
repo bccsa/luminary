@@ -1,4 +1,4 @@
-import { DbService, DbQueryResult } from "./db.service";
+import { DbService, DbQueryResult, GetDocsOptions } from "./db.service";
 import { randomUUID } from "crypto";
 import { DocType, Uuid } from "../enums";
 import { createTestingModule } from "../test/testingModule";
@@ -133,6 +133,39 @@ describe("DbService", () => {
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
         expect(docCount).toBe(15);
+    });
+
+    it("can retrieve documents from a specific group", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = ["group-public-content"];
+        userAccess[DocType.Tag] = ["group-public-content"];
+
+        const query: GetDocsOptions = {
+            userAccess: userAccess,
+            type: DocType.Post,
+        };
+
+        const res: any = await service.getDocsByGroup(query);
+
+        const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
+        expect(docCount).toBe(2);
+    });
+
+    it("can retrieve content documents from a specific group", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = ["group-public-content"];
+        userAccess[DocType.Tag] = ["group-public-content"];
+
+        const query: GetDocsOptions = {
+            userAccess: userAccess,
+            type: DocType.Post,
+            contentOnly: true,
+        };
+
+        const res: any = await service.getDocsByGroup(query);
+
+        const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
+        expect(docCount).toBe(8);
     });
 
     it("can retrieve documents using two group selectors", async () => {

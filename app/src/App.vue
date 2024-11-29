@@ -5,7 +5,7 @@ import TopBar from "@/components/navigation/TopBar.vue";
 import { computed, onBeforeMount, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
-import { isConnected, api } from "luminary-shared";
+import { isConnected, api, DocType } from "luminary-shared";
 import { apiUrl, initLanguage, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
@@ -66,6 +66,13 @@ onBeforeMount(async () => {
             apiUrl,
             token,
             cms: true,
+            docTypes: [
+                { type: DocType.Tag, contentOnly: true },
+                { type: DocType.Post, contentOnly: true },
+                { type: DocType.Group, contentOnly: true },
+                { type: DocType.Language, contentOnly: true },
+                { type: DocType.Language, contentOnly: false },
+            ],
         });
 
         // ask for updated bulk docs

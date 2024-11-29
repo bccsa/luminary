@@ -21,9 +21,13 @@
         "type-check": "vue-tsc --noEmit && vite build"
     },
     "dependencies": {
+        "@types/lodash.clonedeep": "^4.5.9",
+        "@types/lodash.isequal": "^4.5.8",
         "@vueuse/core": "^10.11.0",
         "@vueuse/rxjs": "^10.7.2",
         "dexie": "^3.2.7",
+        "lodash.clonedeep": "^4.5.0",
+        "lodash.isequal": "^4.5.0",
         "luxon": "^3.4.4",
         "rxjs": "^7.8.1",
         "socket.io-client": "^4.7.5",
