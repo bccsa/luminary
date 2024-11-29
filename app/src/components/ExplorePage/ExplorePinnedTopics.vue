@@ -13,6 +13,7 @@ import HorizontalContentTileCollection from "@/components/content/HorizontalCont
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 import { contentByTag } from "../contentByTag";
 import { useInfiniteScroll } from "@vueuse/core";
+import { isPublished } from "@/util/isPublished";
 
 const pinnedTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -27,10 +28,8 @@ const pinnedTopics = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+
+                return isPublished(content);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("explore_pinnedTopics") },
@@ -51,16 +50,13 @@ const pinnedTopicContent = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
 
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
 
                 for (const tagId of content.parentTags) {
                     if (pinnedTopics.some((p) => p.parentId == tagId)) return true;
                 }
-                return false;
+                return isPublished(content);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("explorepage_pinnedTopics") },
