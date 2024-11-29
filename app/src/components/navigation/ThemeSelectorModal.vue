@@ -3,14 +3,19 @@ import { ref, watch, onMounted } from "vue";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import LModal from "../form/LModal.vue";
+import { SunIcon, MoonIcon, AdjustmentsHorizontalIcon } from "@heroicons/vue/24/outline";
+import { ComputerDesktopIcon } from "@heroicons/vue/24/solid";
 import { useI18n } from "vue-i18n";
 
 type Props = {
     isVisible: boolean;
+    icons?: boolean;
 };
 defineProps<Props>();
 
 const { t } = useI18n();
+
+const themeIcons = [SunIcon, MoonIcon, ComputerDesktopIcon];
 
 // Use a key-based system for themes
 const themeKeys = ["light", "dark", "system"]; // Non-translated keys
@@ -64,6 +69,12 @@ onMounted(() => {
                 @click="selectedTheme = theme.key"
                 data-test="switch-theme-button"
             >
+                <component
+                    v-if="themeIcons"
+                    :is="themeIcons[themes.indexOf(theme)]"
+                    class="mr-2 h-4 w-4"
+                    aria-hidden="true"
+                />
                 <span class="text-sm">{{ theme.label }}</span>
                 <CheckCircleIcon
                     v-if="selectedTheme === theme.key"
