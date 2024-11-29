@@ -41,7 +41,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const selectedLanguage = ref<Uuid>("");
+const selectedLanguage = ref<Uuid>(localStorage.getItem("cms_selectedLanguage") || "");
 const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
@@ -66,7 +66,8 @@ watch(
     languages,
     () => {
         if (languages.value.length > 0 && !selectedLanguage.value) {
-            selectedLanguage.value = languages.value[0]._id;
+            selectedLanguage.value =
+                localStorage.getItem("cms_selectedLanguage") || languages.value[0]._id;
         }
     },
     { once: true },
@@ -76,6 +77,7 @@ watch(
     selectedLanguage,
     () => {
         queryOptions.value.languageId = selectedLanguage.value;
+        localStorage.setItem("cms_selectedLanguage", selectedLanguage.value);
     },
     { immediate: true },
 );
