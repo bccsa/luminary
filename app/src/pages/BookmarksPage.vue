@@ -4,6 +4,7 @@ import { appLanguageIdAsRef, userPreferencesAsRef } from "@/globalConfig";
 import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
 import { computed } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
+import { isPublished } from "@/util/isPublished";
 
 // Get bookmarked documents
 const bookmarks = computed(
@@ -20,12 +21,7 @@ const content = useDexieLiveQueryWithDeps(
                 const content = c as ContentDto;
                 if (content.language !== appLanguageId) return false;
 
-                // Only include published content
-                if (content.status !== "published") return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                return isPublished(content);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
 

@@ -12,6 +12,7 @@ import {
 import { appLanguageIdAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
+import { isPublished } from "@/util/isPublished";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -49,9 +50,6 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
@@ -59,7 +57,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 for (const tagId of content.parentTags) {
                     if (pinnedCategories.some((p) => p.parentId == tagId)) return true;
                 }
-                return false;
+                return isPublished(content);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },

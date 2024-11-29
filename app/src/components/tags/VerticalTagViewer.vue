@@ -4,6 +4,7 @@ import { toRef } from "vue";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
+import { isPublished } from "@/util/isPublished";
 
 const router = useRouter();
 type Props = {
@@ -25,10 +26,7 @@ const tagged = useDexieLiveQueryWithDeps(
             .filter((c) => {
                 const content = c as ContentDto;
                 if (content.language != languageId) return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                return isPublished(content);
             })
             .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },
