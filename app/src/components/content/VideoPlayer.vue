@@ -209,7 +209,7 @@ watch(appLanguageAsRef, (newLanguage) => {
 </style>
 
 <template>
-    <div class="relative rounded-lg bg-transparent">
+    <div class="relative bg-transparent md:rounded-lg">
         <LImage
             v-if="content.parentImageData"
             :image="content.parentImageData"
@@ -222,7 +222,7 @@ watch(appLanguageAsRef, (newLanguage) => {
             <video
                 playsinline
                 ref="playerElement"
-                class="video-js h-full w-full rounded-lg"
+                class="video-js h-full w-full md:rounded-lg"
                 controls
                 preload="auto"
                 data-setup="{}"
