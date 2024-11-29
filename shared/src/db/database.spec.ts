@@ -645,9 +645,6 @@ describe("Database", async () => {
         // Check that the docs table is empty
         const docs = await db.docs.toArray();
         expect(docs.length).toBe(0);
-
-        // Check that the sync version is reset
-        expect(await db.syncVersion).toBe(0);
     });
 
     describe("revoked documents", () => {

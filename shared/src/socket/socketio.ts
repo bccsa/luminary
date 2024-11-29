@@ -6,7 +6,6 @@ import {
     LocalChangeDto,
     socketConnectionOptions,
 } from "../types";
-import { accessMap, AccessMap } from "../permissions/permissions";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 
@@ -14,7 +13,6 @@ import { useLocalStorage } from "@vueuse/core";
  * Client configuration type definition
  */
 type ClientConfig = {
-    accessMap: AccessMap;
     maxUploadFileSize: number;
 };
 
@@ -49,7 +47,7 @@ class Socketio {
 
         this.socket.on("connect", () => {
             isConnected.value = true;
-            this.requestData();
+            this.socket.emit("joinSocketGroups", { cms: this.isCms });
             this.processChangeReqLock = false; // reset process log on connection
         });
 
@@ -65,7 +63,6 @@ class Socketio {
         this.socket.on("changeRequestAck", this.handleAck.bind(this));
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
-            if (c.accessMap) accessMap.value = c.accessMap;
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
         });
 

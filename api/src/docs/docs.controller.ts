@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Post, UseGuards, Headers } from "@nestjs/common";
 import { PostDocsDto } from "../dto/RestDocsDto";
 import { AuthGuard } from "../auth/auth.guard";
 import { DocsService } from "./docs.service";
@@ -9,7 +9,7 @@ export class DocsController {
 
     @Post()
     @UseGuards(AuthGuard)
-    async getDocs(@Body() doc: PostDocsDto): Promise<any> {
-        return this.docsService.processReq(doc);
+    async getDocs(@Body() doc: PostDocsDto, @Headers("Authorization") auth: string): Promise<any> {
+        return this.docsService.processReq(doc, auth.replace("Bearer ", ""));
     }
 }

@@ -172,4 +172,13 @@ export type socketConnectionOptions = {
      * Force a reconnect to the server if the socket already exists
      */
     reconnect?: boolean;
+    /**
+     * Array of DocTypes passed to the shared library, that the client need to sync down
+     */
+    docTypes?: Array<apiDocTypes>;
+};
+
+type apiDocTypes = {
+    type: DocType;
+    contentOnly: boolean;
 };

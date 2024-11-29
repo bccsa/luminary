@@ -6,7 +6,7 @@ import {
     OnGatewayInit,
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
-import { DbQueryResult, DbService } from "./db/db.service";
+import { DbService } from "./db/db.service";
 import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
@@ -34,7 +34,6 @@ type ClientDataReq = {
  * Client configuration type definition
  */
 type ClientConfig = {
-    accessMap: AccessMap;
     maxUploadFileSize: number;
 };
 
@@ -205,30 +204,27 @@ export class Socketio implements OnGatewayInit {
      * @param reqData
      * @param socket
      */
-    @SubscribeMessage("clientDataReq")
-    clientDataReq(@MessageBody() reqData: ClientDataReq, @ConnectedSocket() socket: ClientSocket) {
-        // TODO: Do type validation on reqData
-
+    @SubscribeMessage("joinSocketGroups")
+    clientConfigReq(
+        @MessageBody() reqData: ClientDataReq,
+        @ConnectedSocket() socket: ClientSocket,
+    ) {
         // Send client configuration data
         // Get access map and send to client
         const clientConfig = {
-            accessMap: PermissionSystem.getAccessMap(socket.data.memberOf),
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
-        socket.emit("accessMap", clientConfig.accessMap); // Included for backwards compatibility
 
         // Determine which doc types to get
         const docTypes = reqData.cms
             ? [...this.cmsDocTypes, ...this.appDocTypes]
             : this.appDocTypes;
 
-        let from = 0;
-        if (reqData.version && typeof reqData.version === "number") from = reqData.version;
-
+        const accessMap = PermissionSystem.getAccessMap(socket.data.memberOf);
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
-            clientConfig.accessMap,
+            accessMap,
             AclPermission.View,
             docTypes,
         );
@@ -245,51 +241,51 @@ export class Socketio implements OnGatewayInit {
             }
         }
 
-        // Get updated data from database
-        this.db
-            .getDocsPerGroup(socket.data.userId, {
-                userAccess: userViewGroups,
-                from: from,
-            })
-            .then((res: DbQueryResult) => {
-                if (res.docs) {
-                    const response: ApiDataResponse = { docs: res.docs };
-                    if (res.version) response.version = res.version;
+        // // Get updated data from database
+        // this.db
+        //     .getDocsPerGroup(socket.data.userId, {
+        //         userAccess: userViewGroups,
+        //         from: from,
+        //     })
+        //     .then((res: DbQueryResult) => {
+        //         if (res.docs) {
+        //             const response: ApiDataResponse = { docs: res.docs };
+        //             if (res.version) response.version = res.version;
 
-                    socket.emit("data", response);
-                }
-            })
-            .catch((err) => {
-                this.logger.error(`Error getting data for client: ${socket.data.userId}`, err);
-            });
+        //             socket.emit("data", response);
+        //         }
+        //     })
+        //     .catch((err) => {
+        //         this.logger.error(`Error getting data for client: ${socket.data.userId}`, err);
+        //     });
 
-        // Get diff between user submitted access map and actual access
-        const diff = PermissionSystem.accessMapDiff(clientConfig.accessMap, reqData.accessMap);
-        const newAccessibleGroups = PermissionSystem.accessMapToGroups(
-            diff,
-            AclPermission.View,
-            docTypes,
-        );
+        // // Get diff between user submitted access map and actual access
+        // const diff = PermissionSystem.accessMapDiff(clientConfig.accessMap, reqData.accessMap);
+        // const newAccessibleGroups = PermissionSystem.accessMapToGroups(
+        //     diff,
+        //     AclPermission.View,
+        //     docTypes,
+        // );
 
-        // Get historical data from database for newly accessible groups
-        if (Object.keys(newAccessibleGroups).length > 0) {
-            this.db
-                .getDocsPerGroup(socket.data.userId, {
-                    userAccess: newAccessibleGroups,
-                    to: from,
-                })
-                .then((res: DbQueryResult) => {
-                    if (res.docs) {
-                        socket.emit("data", { docs: res.docs });
-                    }
-                })
-                .catch((err) => {
-                    this.logger.error(
-                        `Error getting historical data for client: ${socket.data.userId}`,
-                        err,
-                    );
-                });
-        }
+        // // Get historical data from database for newly accessible groups
+        // if (Object.keys(newAccessibleGroups).length > 0) {
+        //     this.db
+        //         .getDocsPerGroup(socket.data.userId, {
+        //             userAccess: newAccessibleGroups,
+        //             to: from,
+        //         })
+        //         .then((res: DbQueryResult) => {
+        //             if (res.docs) {
+        //                 socket.emit("data", { docs: res.docs });
+        //             }
+        //         })
+        //         .catch((err) => {
+        //             this.logger.error(
+        //                 `Error getting historical data for client: ${socket.data.userId}`,
+        //                 err,
+        //             );
+        //         });
+        // }
     }
 
     /**

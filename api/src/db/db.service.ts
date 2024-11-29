@@ -21,6 +21,9 @@ export type GetDocsOptions = {
     userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
     from?: number;
     to?: number;
+    limit?: number;
+    type: DocType;
+    contentOnly?: boolean;
 };
 
 /**
@@ -33,6 +36,11 @@ export type DbQueryResult = {
     docs: Array<any>;
     warnings?: Array<string>;
     version?: number;
+    blockStart?: number;
+    blockEnd?: number;
+    accessMap?: Map<DocType, Uuid[]>;
+    type?: DocType;
+    contentOnly?: boolean;
 };
 
 /**
@@ -291,6 +299,99 @@ export class DbService extends EventEmitter {
                         resolve(0);
                     }
                 });
+        });
+    }
+
+    /**
+     * Get data to which a user has access to including the user document itself.
+     * @param {GetDocsOptions} options - Query configuration object.
+     * @returns - Promise containing the query result
+     */
+    getDocsByGroup(options: GetDocsOptions): Promise<DbQueryResult> {
+        return new Promise(async (resolve, reject) => {
+            // To allow effective indexing, the structure inside an "$or" selector should be identical for all the sub-selectors
+            // within the "$or". Because of this restriction, it is necessary to do multiple queries and join the result externally
+            const limit = options.limit || 100;
+
+            // Construct time selectors
+            const selectors = [];
+            if (options.from) {
+                selectors.push({
+                    updatedTimeUtc: {
+                        $gte: options.from,
+                    },
+                });
+            }
+
+            if (options.to) {
+                selectors.push({
+                    updatedTimeUtc: {
+                        $lte: options.to,
+                    },
+                });
+            }
+
+            const timeSelector = [];
+            if (selectors.length > 0) {
+                timeSelector.push({
+                    $and: selectors,
+                });
+            } else {
+                timeSelector.push(...selectors);
+            }
+
+            const docQuery = {
+                selector: {
+                    $and: [
+                        ...timeSelector,
+                        {
+                            type: options.contentOnly ? DocType.Content : options.type,
+                        },
+                        {
+                            memberOf: {
+                                $in: options.userAccess[options.type],
+                            },
+                        },
+                    ],
+                },
+                limit: limit || Number.MAX_SAFE_INTEGER,
+                sort: [{ updatedTimeUtc: "desc" }],
+            };
+
+            try {
+                const res = await this.db.find(docQuery);
+                const docs = res.docs;
+                const blockStart: number =
+                    docs.length < 1
+                        ? options.from
+                        : docs.reduce(
+                              (
+                                  prev: { updatedTimeUtc: number },
+                                  curr: { updatedTimeUtc: number },
+                              ) => (prev.updatedTimeUtc > curr.updatedTimeUtc ? prev : curr),
+                          ).updatedTimeUtc;
+                const blockEnd: number =
+                    docs.length < 1
+                        ? options.to
+                        : docs.reduce(
+                              (
+                                  prev: { updatedTimeUtc: number },
+                                  curr: { updatedTimeUtc: number },
+                              ) => (prev.updatedTimeUtc < curr.updatedTimeUtc ? prev : curr),
+                          ).updatedTimeUtc;
+
+                resolve({
+                    docs,
+                    type: options.type,
+                    warnings: res.warning,
+                    blockStart: blockStart,
+                    blockEnd: blockEnd,
+                    accessMap: options.userAccess,
+                    contentOnly: options.contentOnly,
+                });
+            } catch (err) {
+                reject(err);
+            }
         });
     }
 
