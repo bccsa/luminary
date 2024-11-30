@@ -26,7 +26,7 @@ import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon } from "@heroicons/vue/24/solid";
-import { BookmarkIcon as BookmarkIconOutline, ChevronDownIcon } from "@heroicons/vue/24/outline";
+import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
