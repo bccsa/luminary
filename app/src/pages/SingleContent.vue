@@ -280,21 +280,22 @@ const selectedCategory = computed(() => {
                         </div>
 
                         <div class="items-center">
-                            <div data-test="bookmark" class="flex justify-center">
-                                <component
-                                    v-if="
-                                        !(
-                                            content.parentPostType &&
-                                            content.parentPostType == PostType.Page
-                                        )
-                                    "
-                                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                                    class="h-6 w-6 cursor-pointer"
-                                    :class="{
-                                        'text-yellow-500': isBookmarked,
-                                    }"
-                                    @click="toggleBookmark"
-                                />
+                            <div class="flex justify-center">
+                                <div @click="toggleBookmark" data-test="bookmark">
+                                    <component
+                                        v-if="
+                                            !(
+                                                content.parentPostType &&
+                                                content.parentPostType == PostType.Page
+                                            )
+                                        "
+                                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                        class="h-6 w-6 cursor-pointer"
+                                        :class="{
+                                            'text-yellow-500': isBookmarked,
+                                        }"
+                                    />
+                                </div>
                             </div>
                         </div>
 
