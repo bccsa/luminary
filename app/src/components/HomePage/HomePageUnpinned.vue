@@ -25,7 +25,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
                 if (content.type !== DocType.Content) return false;
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
-                if (content.language !== appLanguageId) return false;
+                if (content.language !== appLanguageId[0]) return false;
 
                 // Only include published content
                 if (content.status !== "published") return false;

@@ -20,7 +20,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
+                language: appLanguageId[0],
                 status: "published",
                 parentPinned: 1, // 1 = true
             })

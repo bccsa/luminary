@@ -4,7 +4,7 @@ import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
-import { Bars2Icon } from "@heroicons/vue/24/solid";
+import { Bars2Icon, HandRaisedIcon } from "@heroicons/vue/24/solid";
 
 type Props = {
     isVisible: boolean;
@@ -68,6 +68,7 @@ const handleLanguageDrop = (event: DragEvent) => {
                         <span class="text-sm">{{ language.name }}</span>
                     </div>
                 </div>
+                <HandRaisedIcon class="h-6 w-6" />
                 <Bars2Icon class="h-6 w-6" />
             </button>
         </div>

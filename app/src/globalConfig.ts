@@ -13,7 +13,9 @@ export const isDevMode = import.meta.env.DEV;
 /**
  * The preferred language ID as Vue ref.
  */
-export const appLanguageIdsAsRef = ref(localStorage.getItem("languages") || [""]);
+export const appLanguageIdsAsRef = ref<string[]>(
+    JSON.parse(localStorage.getItem("languages")) || [""],
+);
 watch(appLanguageIdsAsRef, (newVal) => {
     localStorage.setItem("languages", JSON.stringify(newVal));
 });
@@ -32,7 +34,8 @@ export const initLanguage = () => {
     watch(languages, (newVal) => {
         if (
             newVal.length > 0 &&
-            (!appLanguageIdsAsRef.value || !newVal.some((l) => l._id === appLanguageIdsAsRef.value))
+            (!appLanguageIdsAsRef.value ||
+                !newVal.some((l) => l._id === appLanguageIdsAsRef.value[0]))
         ) {
             const languagesPreferredByBrowser = navigator.languages;
 
@@ -43,13 +46,13 @@ export const initLanguage = () => {
 
             // If a preferred language exists, set it
             if (preferredLanguageId) {
-                appLanguageIdsAsRef.value = preferredLanguageId;
+                appLanguageIdsAsRef.value[0] = preferredLanguageId;
             } else {
                 // If no preferred language found, check for the first supported language
                 const firstSupportedLanguageId = newVal[0]?._id; // Assuming the first language is the default if none found in preferences
 
                 // Set to first supported language
-                appLanguageIdsAsRef.value = firstSupportedLanguageId;
+                appLanguageIdsAsRef.value[0] = firstSupportedLanguageId;
             }
         }
     });
@@ -58,7 +61,7 @@ export const initLanguage = () => {
     watch([appLanguageIdsAsRef, languages], () => {
         if (appLanguageIdsAsRef.value && languages.value.length > 0) {
             _appLanguageAsRef.value = languages.value.find(
-                (l) => l._id === appLanguageIdsAsRef.value,
+                (l) => l._id === appLanguageIdsAsRef.value[0],
             );
         }
     });

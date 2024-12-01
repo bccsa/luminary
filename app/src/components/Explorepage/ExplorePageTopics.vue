@@ -11,7 +11,6 @@ import {
     type Uuid,
 } from "luminary-shared";
 import { watch } from "vue";
-
 const topics = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
     (languageId: Uuid) =>
@@ -30,7 +29,6 @@ const topics = useDexieLiveQueryWithDeps(
         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_topics"),
     },
 );
-
 watch(topics, async (value) => {
     db.setQueryCache<ContentDto[]>("explorepage_topics", value);
 });

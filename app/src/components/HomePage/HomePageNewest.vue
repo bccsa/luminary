@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { watch } from "vue";
+import { ref, watch } from "vue";
 import { type ContentDto, DocType, PostType, type Uuid, db } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
@@ -8,14 +8,15 @@ import { isPublished } from "@/util/isPublished";
 
 const newest10Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageId: Uuid) =>
+    (appLanguageIds: Uuid[]) =>
         db.docs
             .orderBy("publishDate")
             .reverse()
             .filter((c) => {
                 const content = c as ContentDto;
+
                 if (content.type !== DocType.Content) return false;
-                if (content.language !== appLanguageId) return false;
+                if (content.language !== appLanguageIds[0]) return false;
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
 
                 return isPublished(content);
