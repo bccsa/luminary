@@ -18,7 +18,7 @@ const topics = useDexieLiveQueryWithDeps(
         const mergedContent: ContentDto[] = [];
 
         await Promise.all(
-            limitedLanguageIds.map(async (languageId) => {
+            languageIds.map(async (languageId) => {
                 const contentList = await db.docs
                     .where({
                         type: DocType.Content,
