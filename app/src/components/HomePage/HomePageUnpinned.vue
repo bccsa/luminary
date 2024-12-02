@@ -16,32 +16,53 @@ import { isPublished } from "@/util/isPublished";
 
 const newest100Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageId) =>
-        db.docs
-            .orderBy("publishDate")
-            .reverse()
-            .filter((c) => {
-                const content = c as ContentDto;
-                if (content.type !== DocType.Content) return false;
-                if (content.parentPostType && content.parentPostType == PostType.Page) return false;
-                if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
-                if (content.language !== appLanguageId[0]) return false;
+    async (appLanguageIds: Uuid[]) => {
+        const contentToDisplay: ContentDto[] = [];
+        await Promise.all(
+            appLanguageIds.map(async (languageId) => {
+                const contentList = await db.docs
+                    .where({
+                        language: languageId,
+                        status: "published",
+                    })
+                    .filter((c) => {
+                        const content = c as ContentDto;
+                        console.info(content.parentTags);
+                        if (content.type !== DocType.Content) return false;
+                        if (content.parentPostType && content.parentPostType == PostType.Page)
+                            return false;
+                        if (content.parentTagType && content.parentTagType !== TagType.Topic)
+                            return false;
 
-                // Only include published content
-                if (content.status !== "published") return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
-            })
-            .limit(100) // Limit to the newest posts
-            .toArray() as unknown as Promise<ContentDto[]>,
+                        if (!content.publishDate) return false;
+                        if (content.publishDate > Date.now()) return false;
+                        if (content.expiryDate && content.expiryDate < Date.now()) return false;
+                        return true;
+                    })
+                    .limit(100)
+                    .toArray();
+                contentList.forEach((c) => {
+                    const content = c as ContentDto;
+                    if (!contentToDisplay.some((item) => item.parentId === content.parentId)) {
+                        contentToDisplay.push(content);
+                    }
+                });
+            }),
+        );
+
+        return contentToDisplay;
+    },
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_newest100Content") },
 );
 
 watch(newest100Content, async (value) => {
     db.setQueryCache<ContentDto[]>("homepage_newest100Content", value);
 });
+
+console.info(
+    "Extracted parentTags:",
+    newest100Content.value.map((content) => content.parentId),
+);
 
 const categoryIds = computed(() =>
     newest100Content.value
@@ -82,7 +103,7 @@ watch(
     },
 );
 
-const unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);
+let unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);
 </script>
 
 <template>

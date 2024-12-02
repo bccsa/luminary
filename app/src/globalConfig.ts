@@ -14,7 +14,9 @@ export const isDevMode = import.meta.env.DEV;
  * The preferred language ID as Vue ref.
  */
 export const appLanguageIdsAsRef = ref<string[]>(
-    JSON.parse(localStorage.getItem("languages")) || [""],
+    localStorage.getItem("languages")
+        ? JSON.parse(localStorage.getItem("languages") as string) // Assert it's a string here
+        : [""],
 );
 watch(appLanguageIdsAsRef, (newVal) => {
     localStorage.setItem("languages", JSON.stringify(newVal));
