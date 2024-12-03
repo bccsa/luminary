@@ -1,6 +1,6 @@
 import "./assets/main.css";
 
-import { createApp } from "vue";
+import { createApp, watch } from "vue";
 import { createPinia } from "pinia";
 
 // import { createAuth0 } from "@auth0/auth0-vue";
@@ -13,6 +13,33 @@ import { initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
 import { loadPlugins } from "./util/pluginLoader";
+import { createI18n } from "vue-i18n";
+import { appLanguageAsRef } from "./globalConfig";
+
+// Initialize i18n with empty messages
+const i18n = createI18n({
+    legacy: false,
+    locale: appLanguageAsRef.value?.languageCode || "en", // Default locale
+    fallbackLocale: appLanguageAsRef.value?.languageCode || "en", // Fallback locale
+    messages: {}, // Empty messages to start
+});
+
+// Watch `appLanguageAsRef` for changes and update i18n dynamically
+watch(
+    appLanguageAsRef,
+    (newLanguage) => {
+        const { languageCode, translations } = newLanguage || {};
+
+        if (languageCode && translations) {
+            // Add new translations to i18n
+            i18n.global.setLocaleMessage(languageCode, translations);
+
+            // Change the active locale
+            i18n.global.locale.value = languageCode;
+        }
+    },
+    { immediate: true },
+);
 
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
@@ -34,6 +61,7 @@ if (import.meta.env.PROD) {
 app.use(createPinia());
 
 app.use(router);
+app.use(i18n);
 
 // Startup
 async function Startup() {
