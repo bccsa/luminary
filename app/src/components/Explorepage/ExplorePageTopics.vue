@@ -9,47 +9,47 @@ import {
     type ContentDto,
     type Uuid,
 } from "luminary-shared";
-import { watch } from "vue";
-const topics = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    async (languageIds: Uuid[]) => {
-        const limitedLanguageIds = languageIds.slice(0, 3);
+import { watch, ref } from "vue";
+// const topics = useDexieLiveQueryWithDeps(
+//     appLanguageIdsAsRef,
+//     async (languageIds: Uuid[]) => {
+//         const limitedLanguageIds = languageIds.slice(0, 3);
 
-        const mergedContent: ContentDto[] = [];
+//         const mergedContent: ContentDto[] = [];
 
-        await Promise.all(
-            languageIds.map(async (languageId) => {
-                const contentList = await db.docs
-                    .where({
-                        type: DocType.Content,
-                        parentTagType: TagType.Topic,
-                        language: languageId,
-                        status: "published",
-                    })
-                    .filter((c) => {
-                        const content = c as ContentDto;
-                        if (!content.publishDate || content.publishDate > Date.now()) return false;
-                        if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                        return true;
-                    })
-                    .toArray();
+//         await Promise.all(
+//             languageIds.map(async (languageId) => {
+//                 const contentList = await db.docs
+//                     .where({
+//                         type: DocType.Content,
+//                         parentTagType: TagType.Topic,
+//                         language: languageId,
+//                         status: "published",
+//                     })
+//                     .filter((c) => {
+//                         const content = c as ContentDto;
+//                         if (!content.publishDate || content.publishDate > Date.now()) return false;
+//                         if (content.expiryDate && content.expiryDate < Date.now()) return false;
+//                         return true;
+//                     })
+//                     .toArray();
 
-                contentList.forEach((c) => {
-                    const content = c as ContentDto;
-                    if (!mergedContent.some((item) => item.parentId === content.parentId)) {
-                        mergedContent.push(content);
-                    }
-                });
-            }),
-        );
-        mergedContent.sort((a, b) => a.title.localeCompare(b.title));
+//                 contentList.forEach((c) => {
+//                     const content = c as ContentDto;
+//                     if (!mergedContent.some((item) => item.parentId === content.parentId)) {
+//                         mergedContent.push(content);
+//                     }
+//                 });
+//             }),
+//         );
+//         mergedContent.sort((a, b) => a.title.localeCompare(b.title));
 
-        return mergedContent;
-    },
-    {
-        initialValue: await db.getQueryCache<ContentDto[]>("explorepage_topics"),
-    },
-);
+//         return mergedContent;
+//     },
+//     {
+//         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_topics"),
+//     },
+// );
 // const topics = useDexieLiveQueryWithDeps(
 //     appLanguageIdsAsRef,
 //     async (languageIds: Uuid[]) => {
@@ -104,30 +104,94 @@ const topics = useDexieLiveQueryWithDeps(
 //         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_topics"),
 //     },
 // );
-// const topics = useDexieLiveQueryWithDeps(
-//     appLanguageIdsAsRef,
-//     (languageId: Uuid) =>
-//         db.docs
-//             .where({
-//                 type: DocType.Content,
-//                 parentTagType: TagType.Topic,
-//                 language: languageId[0],
-//                 status: "published",
-//             })
-//             .filter((c) => {
-//                 const content = c as ContentDto;
+const topics = useDexieLiveQueryWithDeps(
+    appLanguageIdsAsRef,
+    async (languageId: Uuid) => {
+        // const allTopics = db.docs
+        //     .where({
+        //         type: DocType.Content,
+        //         parentTagType: TagType.Topic,
+        //         status: "published",
+        //     })
+        //     .filter((c) => {
+        //         const content = c as ContentDto;
 
-//                 // Only include published content
-//                 if (!content.publishDate) return false;
-//                 if (content.publishDate > Date.now()) return false;
-//                 if (content.expiryDate && content.expiryDate < Date.now()) return false;
-//                 return true;
-//             })
-//             .sortBy("title") as unknown as Promise<ContentDto[]>,
-//     {
-//         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_topics"),
-//     },
-// );
+        //         // Only include published content
+        //         if (!content.publishDate) return false;
+        //         if (content.publishDate > Date.now()) return false;
+        //         if (content.expiryDate && content.expiryDate < Date.now()) return false;
+        //         return true;
+        //     })
+        //     .sortBy("title") as unknown as Promise<ContentDto[]>;
+
+        const allTopicTagsPrimaryLang = await db.tagsWhereTagType(TagType.Topic, {
+            languageId: appLanguageIdsAsRef.value[0],
+        });
+        console.info(allTopicTagsPrimaryLang);
+        const allTopicTagsSecondaryLang = await db.tagsWhereTagType(TagType.Topic, {
+            languageId: appLanguageIdsAsRef.value[1],
+        });
+        console.info(allTopicTagsSecondaryLang);
+        const allTopicTagsTertiaryLang = await db.tagsWhereTagType(TagType.Topic, {
+            languageId: appLanguageIdsAsRef.value[2],
+        });
+
+        console.info(allTopicTagsTertiaryLang);
+
+        const allTopicsToDisplay: ContentDto[] = async () => {
+            const allTopics = [];
+            for (let p = 0; p < allTopicTagsPrimaryLang.length; p++) {
+                for (let s = 0; s < allTopicTagsSecondaryLang.length; s++) {
+                    for (let t = 0; t < allTopicTagsTertiaryLang.length; t++) {
+                        if (
+                            allTopicTagsPrimaryLang[p].parentId ==
+                                allTopicTagsSecondaryLang[s].parentId &&
+                            allTopicTagsPrimaryLang[p].parentId ==
+                                allTopicTagsTertiaryLang[t].parentId
+                        ) {
+                            const currentTopicContentPrimary: ContentDto[] = await db.whereParent(
+                                [
+                                    allTopicTagsPrimaryLang[p].parentId!,
+                                    allTopicTagsSecondaryLang[s].parentId!,
+                                    allTopicTagsTertiaryLang[t].parentId!,
+                                ],
+                                DocType.Tag,
+                                appLanguageIdsAsRef.value[0],
+                            );
+                            const currentTopicContentSecondary: ContentDto[] = await db.whereParent(
+                                [
+                                    allTopicTagsPrimaryLang[p].parentId!,
+                                    allTopicTagsSecondaryLang[s].parentId!,
+                                    allTopicTagsTertiaryLang[t].parentId!,
+                                ],
+                                DocType.Tag,
+                                appLanguageIdsAsRef.value[0],
+                            );
+                            const currentTopicContentTertiary: ContentDto[] = await db.whereParent(
+                                [
+                                    allTopicTagsPrimaryLang[p].parentId!,
+                                    allTopicTagsSecondaryLang[s].parentId!,
+                                    allTopicTagsTertiaryLang[t].parentId!,
+                                ],
+                                DocType.Tag,
+                                appLanguageIdsAsRef.value[0],
+                            );
+
+                            if (currentTopicContentPrimary.length > 0) {
+                                allTopics.push(currentTopicContentPrimary);
+                            }
+                        }
+                    }
+                }
+            }
+            return allTopics;
+        };
+        return [];
+    },
+    {
+        initialValue: await db.getQueryCache<ContentDto[]>("explorepage_topics"),
+    },
+);
 
 watch(topics, async (value) => {
     db.setQueryCache<ContentDto[]>("explorepage_topics", value);
