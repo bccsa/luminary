@@ -1,9 +1,39 @@
 {
     "_id": "lang-nya",
-    "type": "language",
-    "updatedTimeUtc": 3,
+    "_rev": "6-ac6a4c26a8ad62c8b4609d5cb1952a8d",
     "memberOf": ["group-languages"],
     "languageCode": "ny",
     "name": "Chichewa",
-    "default": 0
+    "default": 0,
+    "translations": {
+        "menu": {
+            "home": "Duol",
+            "explore": "Ketre"
+        },
+        "profile_menu": {
+            "settings": "Weche kite",
+            "theme": "Riwruok",
+            "language": "Dho",
+            "bookmarks": "Kata mar wi",
+            "privacy_policy": "Weche mopogore mar otem",
+            "login": "Donji",
+            "logout": "Wuok"
+        },
+        "settings": {
+            "local_cache": {
+                "title": "Kach ma kaka",
+                "description": "Weche moko opik kuom singruokni. Ka iting'o timo gik moko, nyal bedo maber kuom tieko weche mane opik. Kanyachiel, weche moko nyalo bedo mos piny omed.",
+                "button": "Tiek weche mopik"
+            }
+        },
+        "pages": {
+            "home": {
+                "title": "Duol"
+            },
+            "explore": {
+                "title": "Ketre"
+            }
+        }
+    },
+    "updatedTimeUtc": 1733135495337
 }

@@ -1,9 +1,39 @@
 {
     "_id": "lang-swa",
-    "type": "language",
-    "updatedTimeUtc": 3,
+    "_rev": "6-2bb58fca0c776b73c828fdf8a74b5f46",
     "memberOf": ["group-languages"],
     "languageCode": "sw",
     "name": "Swahili",
-    "default": 0
+    "default": 0,
+    "translations": {
+        "menu": {
+            "home": "Nyumbani",
+            "explore": "Gundua"
+        },
+        "profile_menu": {
+            "settings": "Mipangilio",
+            "theme": "Mandhari",
+            "language": "Lugha",
+            "bookmarks": "Alama za vitabu",
+            "privacy_policy": "Sera ya faragha",
+            "login": "Ingia",
+            "logout": "Toka"
+        },
+        "settings": {
+            "local_cache": {
+                "title": "Kache ya ndani",
+                "description": "Data nyingi huifadhiwa kwenye kifaa chako. Ikiwa unakutana na matatizo, jaribu kufuta data zote za ndani. Kulingana na kiasi cha data kinachopatikana kwenye seva, inaweza kuchukua muda kabla ya data zote kupatikana tena.",
+                "button": "Futa kache"
+            }
+        },
+        "pages": {
+            "home": {
+                "title": "Nyumbani"
+            },
+            "explore": {
+                "title": "Gundua"
+            }
+        }
+    },
+    "updatedTimeUtc": 1733135499334
 }
