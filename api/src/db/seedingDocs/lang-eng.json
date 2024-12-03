@@ -2,7 +2,7 @@
     "_id": "lang-eng",
     "type": "language",
     "memberOf": ["group-languages"],
-    "languageCode": "eng",
+    "languageCode": "en",
     "name": "English",
     "default": 0
 }
