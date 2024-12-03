@@ -33,31 +33,19 @@ type LuminaryInternals = {
 export type SyncMapEntry = {
     blockStart: number;
     blockEnd: number;
-    accessMap: AccessMap;
-    groups: Array<string>;
     type: string;
-    contentOnly: boolean;
+    contentOnly?: boolean;
 };
 
 export type SyncMap = {
     blocks: Array<SyncMapEntry>;
-    contentOnly: boolean;
+    accessMap: AccessMap;
+    groups: Array<string>;
+    contentOnly?: boolean;
     type: string;
 };
 
 export const syncMap = ref(new Map<string, SyncMap>());
-
-// export type SyncMap = {
-//     [type in DocType]?: [
-//         {
-//             blockStart: number;
-//             blockEnd: number;
-//             accessMap: AccessMap;
-//             groups: Array<string>;
-//             type: string;
-//         }?,
-//     ];
-// };
 
 type dbIndex = {
     docs: string;

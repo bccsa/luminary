@@ -4,16 +4,18 @@ import {
     ApiDataResponseDto,
     ChangeReqAckDto,
     LocalChangeDto,
-    socketConnectionOptions,
+    apiConnectionOptions,
 } from "../types";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
+import { AccessMap, accessMap } from "../permissions/permissions";
 
 /**
  * Client configuration type definition
  */
 type ClientConfig = {
     maxUploadFileSize: number;
+    accessMap: AccessMap;
 };
 
 /**
@@ -64,6 +66,7 @@ class Socketio {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
+            if (c.accessMap) accessMap.value = c.accessMap;
         });
 
         // watch for local changes
@@ -180,7 +183,7 @@ let socket: Socketio;
  * Returns a singleton instance of the socketio client class. The api URL, token and CMS flag is only used when calling the function for the first time.
  * @param options - Socket connection options
  */
-export function getSocket(options?: socketConnectionOptions) {
+export function getSocket(options?: apiConnectionOptions) {
     if (!socket) {
         if (!options) {
             throw new Error("Socket connection requires options object");

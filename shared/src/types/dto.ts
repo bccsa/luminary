@@ -155,7 +155,7 @@ export type RedirectDto = ContentBaseDto & {
     toSlug?: string;
 };
 
-export type socketConnectionOptions = {
+export type apiConnectionOptions = {
     /**
      * Socket.io endpoint URL
      */
@@ -180,5 +180,5 @@ export type socketConnectionOptions = {
 
 type apiDocTypes = {
     type: DocType;
-    contentOnly: boolean;
+    contentOnly?: boolean;
 };

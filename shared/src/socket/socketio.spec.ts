@@ -166,27 +166,6 @@ describe("socketio", () => {
         });
     });
 
-    it("emits a clientDataReq after connecting", async () => {
-        let clientDataReq;
-        socketServer.on("connection", (socket) => {
-            socket.on("clientDataReq", (data) => {
-                clientDataReq = data;
-            });
-        });
-
-        getSocket({ reconnect: true });
-
-        const lastUpdatedTime: number = await db.syncVersion;
-
-        await waitForExpect(() => {
-            expect(clientDataReq).toEqual({
-                accessMap: {},
-                version: lastUpdatedTime,
-                cms: true,
-            });
-        });
-    });
-
     it("can force reload the connection", async () => {
         let serverConnectCalled = false;
         socketServer.on("connection", () => {
@@ -207,27 +186,6 @@ describe("socketio", () => {
         await waitForExpect(() => {
             expect(serverConnectCalled).toEqual(true);
             expect(isConnected.value).toEqual(true);
-        });
-    });
-
-    it("can manually request data from the api", async () => {
-        getSocket({ reconnect: true });
-
-        const lastUpdatedTime: number = await db.syncVersion;
-
-        let clientDataReq;
-        socketServer.on("connection", (socket) => {
-            socket.on("clientDataReq", (data) => {
-                clientDataReq = data;
-            });
-        });
-
-        await waitForExpect(() => {
-            expect(clientDataReq).toEqual({
-                accessMap: {},
-                version: lastUpdatedTime,
-                cms: true,
-            });
         });
     });
 

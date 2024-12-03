@@ -115,6 +115,8 @@ describe("DbService", () => {
         const res: any = await service.getDocsPerGroup("user-public", {
             userAccess,
             from: 0,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         expect(res.docs[0]._id).toBe("user-public");
@@ -129,6 +131,8 @@ describe("DbService", () => {
         const res: any = await service.getDocsPerGroup("", {
             userAccess,
             from: 0,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
@@ -143,12 +147,13 @@ describe("DbService", () => {
         const query: GetDocsOptions = {
             userAccess: userAccess,
             type: DocType.Post,
+            accessMap: undefined,
         };
 
-        const res: any = await service.getDocsByGroup(query);
+        const res: any = await service.getDocsPerType(query);
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
-        expect(docCount).toBe(2);
+        expect(docCount).toBe(3);
     });
 
     it("can retrieve content documents from a specific group", async () => {
@@ -160,12 +165,13 @@ describe("DbService", () => {
             userAccess: userAccess,
             type: DocType.Post,
             contentOnly: true,
+            accessMap: undefined,
         };
 
-        const res: any = await service.getDocsByGroup(query);
+        const res: any = await service.getDocsPerType(query);
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
-        expect(docCount).toBe(8);
+        expect(docCount).toBe(10);
     });
 
     it("can retrieve documents using two group selectors", async () => {
@@ -176,6 +182,8 @@ describe("DbService", () => {
         const res: any = await service.getDocsPerGroup("", {
             userAccess,
             from: 0,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         const docCount =
@@ -191,6 +199,8 @@ describe("DbService", () => {
         const res: any = await service.getDocsPerGroup("", {
             userAccess,
             from: 0,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         const docCount = res.docs.filter((t) => t.type === DocType.Post).length;
@@ -205,6 +215,8 @@ describe("DbService", () => {
         const res: any = await service.getDocsPerGroup("", {
             userAccess,
             from: 0,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         const docCount =
@@ -247,6 +259,8 @@ describe("DbService", () => {
         const res: any = await service.getDocsPerGroup("", {
             userAccess,
             from: updatedDoc.updatedTimeUtc,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         expect(res.docs.length).toBe(1);
@@ -260,6 +274,8 @@ describe("DbService", () => {
         const res: any = await service.getDocsPerGroup("", {
             userAccess,
             from: 0,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         const docCount = res.docs.filter((t) => t._id === "group-public-content").length;
@@ -343,6 +359,8 @@ describe("DbService", () => {
         const res: DbQueryResult = await service.getDocsPerGroup("user-public", {
             userAccess,
             from: 0,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         // The second test checks for indexing warnings for queries on a specific time range
@@ -352,6 +370,8 @@ describe("DbService", () => {
             userAccess,
             // from: Math.floor(newest - (newest - oldest) / 2),
             from: newest,
+            accessMap: undefined,
+            type: DocType.Post,
         });
 
         expect(res.warnings).toBe(undefined);
