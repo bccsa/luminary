@@ -200,7 +200,7 @@ export class Socketio implements OnGatewayInit {
     }
 
     /**
-     * Client data request event handler
+     * Join client ot socket groups, to receive live updates
      * @param reqData
      * @param socket
      */
@@ -211,8 +211,10 @@ export class Socketio implements OnGatewayInit {
     ) {
         // Send client configuration data
         // Get access map and send to client
+        const accessMap = PermissionSystem.getAccessMap(socket.data.memberOf);
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
+            accessMap: accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
 
@@ -221,7 +223,6 @@ export class Socketio implements OnGatewayInit {
             ? [...this.cmsDocTypes, ...this.appDocTypes]
             : this.appDocTypes;
 
-        const accessMap = PermissionSystem.getAccessMap(socket.data.memberOf);
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
             accessMap,
@@ -240,52 +241,6 @@ export class Socketio implements OnGatewayInit {
                 }
             }
         }
-
-        // // Get updated data from database
-        // this.db
-        //     .getDocsPerGroup(socket.data.userId, {
-        //         userAccess: userViewGroups,
-        //         from: from,
-        //     })
-        //     .then((res: DbQueryResult) => {
-        //         if (res.docs) {
-        //             const response: ApiDataResponse = { docs: res.docs };
-        //             if (res.version) response.version = res.version;
-
-        //             socket.emit("data", response);
-        //         }
-        //     })
-        //     .catch((err) => {
-        //         this.logger.error(`Error getting data for client: ${socket.data.userId}`, err);
-        //     });
-
-        // // Get diff between user submitted access map and actual access
-        // const diff = PermissionSystem.accessMapDiff(clientConfig.accessMap, reqData.accessMap);
-        // const newAccessibleGroups = PermissionSystem.accessMapToGroups(
-        //     diff,
-        //     AclPermission.View,
-        //     docTypes,
-        // );
-
-        // // Get historical data from database for newly accessible groups
-        // if (Object.keys(newAccessibleGroups).length > 0) {
-        //     this.db
-        //         .getDocsPerGroup(socket.data.userId, {
-        //             userAccess: newAccessibleGroups,
-        //             to: from,
-        //         })
-        //         .then((res: DbQueryResult) => {
-        //             if (res.docs) {
-        //                 socket.emit("data", { docs: res.docs });
-        //             }
-        //         })
-        //         .catch((err) => {
-        //             this.logger.error(
-        //                 `Error getting historical data for client: ${socket.data.userId}`,
-        //                 err,
-        //             );
-        //         });
-        // }
     }
 
     /**

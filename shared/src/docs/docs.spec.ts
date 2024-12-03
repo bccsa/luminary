@@ -1,13 +1,10 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest";
-import waitForExpect from "wait-for-expect";
-import { mockEnglishContentDto, mockPostDto } from "../tests/mockdata";
-import { Server } from "socket.io";
 import { db, syncMap } from "../db/database";
-import { AckStatus, ChangeReqDto, DocType } from "../types";
+import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
-import { getRest } from "./rest";
+import { getRest } from "../rest/rest";
 let rest;
 
 vi.mock("../config/config", () => ({
@@ -19,7 +16,7 @@ vi.mock("../config/config", () => ({
     },
 }));
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("rest", () => {
     beforeAll(async () => {
@@ -27,15 +24,21 @@ describe("rest", () => {
         rest = getRest({
             cms: true,
             apiUrl: "http://localhost:3000",
-            docTypes: [{ type: DocType.Post, contentOnly: true }],
-            token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjhaU2lyMDBLcmI0Q3c0T2ljWXJ2TyJ9.eyJodHRwczovL2FwcC5iY2MuYWZyaWNhL21ldGFkYXRhIjp7ImNodXJjaE5hbWUiOiJTb3V0aCBBZnJpY2EiLCJlbWFpbCI6Im9zd2FsZEBzbGFiYmVydC5vcmciLCJoYXNNZW1iZXJzaGlwIjp0cnVlLCJwZXJzb25JZCI6NDY1MTN9LCJpc3MiOiJodHRwczovL2JjY3NhLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJvYXV0aDJ8YmNjLWxvZ2lufGY0MDFkMTMzLWNhYjktNGEwNS05NTgyLTIyYmVhZmZmMzZjNSIsImF1ZCI6WyJodHRwczovL2FwcC5iY2MuYWZyaWNhL2FwaSIsImh0dHBzOi8vYmNjc2EudXMuYXV0aDAuY29tL3VzZXJpbmZvIl0sImlhdCI6MTczMjc5NzU0MiwiZXhwIjoxNzMyODgzOTQyLCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIG9mZmxpbmVfYWNjZXNzIiwiYXpwIjoiWVV2NXVIRXo0ZVE0bk9rYWhuUkxZN0htWGNmbmxGTkQiLCJwZXJtaXNzaW9ucyI6WyJncm91cF9zdXBlcmFkbWluIl19.ejqGFZmwwkFbl1iJvKtuwW3-DB42OUMPREFJoyUfdo4QmLZC8aFESc-q97Mlzq--lXB6pdmUCtrmdgnErwZotrrLG1QEzH8EP34G2tkfuo_q2ZLGnRUYsxj8RFnnnj21pn9GmP_RyxTzagGE_kS734se_47zDRpS7o9hJd4KZQCYMvmTQT1bMnnxkg5c5wut_BY4lY69sf1gNATxZJRt9cEnBSdJzq0_zK9PzxM2B6dkPYTn77PzNWKT8zi09IojtpLTpcvYN2X98xoar7ci9a4eAWX1d4L0KB7cs39rVXEiimU3zkoxse5gNsE9SSA5CUyNjmjitelUnwfl1RLqJA",
+            docTypes: [
+                { type: DocType.Post, contentOnly: true },
+                { type: DocType.Post, contentOnly: false },
+            ],
         });
+
+        accessMap.value["group-super-admins"] = {
+            post: { view: true, edit: true, delete: true, translate: true, publish: true },
+        };
     });
 
     afterEach(async () => {
         vi.clearAllMocks();
         await db.luminaryInternals.clear();
-        syncMap.value.clear();
+        // syncMap.value.clear();
     });
 
     afterAll(async () => {
@@ -46,27 +49,58 @@ describe("rest", () => {
         await db.localChanges.clear();
     });
 
-    it.skip("can insert a block into the syncMap", async () => {
-        let post;
-        let posts;
-        let blocks;
+    it("can reset a data type (e.g. post) when the users access has changed", async () => {
         syncMap.value.set("post", {
             type: DocType.Post,
             contentOnly: false,
+            accessMap: accessMap.value,
+            groups: rest.docs.calcGroups(),
             blocks: [
                 {
                     blockStart: 700,
                     blockEnd: 500,
-                    accessMap: accessMap.value,
-                    groups: [],
                     type: DocType.Post,
                     contentOnly: false,
                 },
                 {
                     blockStart: 4200,
                     blockEnd: 4000,
-                    accessMap: accessMap.value,
-                    groups: [],
+                    type: DocType.Post,
+                    contentOnly: false,
+                },
+            ],
+        });
+
+        accessMap.value["group-private-users"] = {
+            post: { view: true, edit: true, delete: true, translate: true, publish: true },
+        };
+
+        await rest.docs.calcSyncMap();
+
+        const _post = syncMap.value.get("post");
+        expect(_post?.blocks[0].blockStart).toBe(0);
+        expect(_post?.blocks[0].blockEnd).toBe(0);
+    });
+
+    it("can insert a block into the syncMap", async () => {
+        let post;
+        let posts;
+        let blocks;
+        syncMap.value.set("post", {
+            type: DocType.Post,
+            contentOnly: false,
+            accessMap: accessMap.value,
+            groups: rest.docs.calcGroups(),
+            blocks: [
+                {
+                    blockStart: 700,
+                    blockEnd: 500,
+                    type: DocType.Post,
+                    contentOnly: false,
+                },
+                {
+                    blockStart: 4200,
+                    blockEnd: 4000,
                     type: DocType.Post,
                     contentOnly: false,
                 },
@@ -74,7 +108,7 @@ describe("rest", () => {
         });
 
         // test expand to end
-        await rest.calcSyncMap({
+        await rest.docs.calcSyncMap({
             blockStart: 500,
             blockEnd: 400,
             accessMap: accessMap,
@@ -87,7 +121,7 @@ describe("rest", () => {
         expect(post.blockEnd).toBe(400);
 
         // test expand to start
-        await rest.calcSyncMap({
+        await rest.docs.calcSyncMap({
             blockStart: 800,
             blockEnd: 700,
             accessMap: accessMap,
@@ -100,7 +134,7 @@ describe("rest", () => {
         expect(post.blockStart).toBe(800);
 
         // test expand overlap
-        await rest.calcSyncMap({
+        await rest.docs.calcSyncMap({
             blockStart: 800,
             blockEnd: 400,
             accessMap: accessMap,
@@ -116,7 +150,7 @@ describe("rest", () => {
         expect(post.blockStart).toBe(800);
 
         // test contains
-        await rest.calcSyncMap({
+        await rest.docs.calcSyncMap({
             blockStart: 4100,
             blockEnd: 4010,
             accessMap: accessMap,
@@ -132,7 +166,7 @@ describe("rest", () => {
         expect(post.blockStart).toBe(4200);
 
         // test insert block
-        await rest.calcSyncMap({
+        await rest.docs.calcSyncMap({
             blockStart: 200,
             blockEnd: 100,
             accessMap: accessMap,
@@ -148,24 +182,22 @@ describe("rest", () => {
         expect(post.blockStart).toBe(200);
     });
 
-    it.skip("can concatenate 2 blocks of data", async () => {
+    it("can concatenate 2 blocks of data", async () => {
         syncMap.value.set("post", {
             type: DocType.Post,
             contentOnly: false,
+            accessMap: accessMap.value,
+            groups: rest.docs.calcGroups(),
             blocks: [
                 {
                     blockStart: 700,
                     blockEnd: 500,
-                    accessMap: accessMap.value,
-                    groups: [],
                     type: DocType.Post,
                     contentOnly: false,
                 },
                 {
                     blockStart: 2000,
                     blockEnd: 1000,
-                    accessMap: accessMap.value,
-                    groups: [],
                     type: DocType.Post,
                     contentOnly: false,
                 },
@@ -173,7 +205,7 @@ describe("rest", () => {
         });
 
         // test contains
-        await rest.calcSyncMap({
+        await rest.docs.calcSyncMap({
             blockStart: 1100,
             blockEnd: 650,
             accessMap: accessMap,
@@ -189,42 +221,31 @@ describe("rest", () => {
         expect(post.blockStart).toBe(2000);
     });
 
-    it.skip("can calculate chunk of missing data correctly", async () => {
+    it("can calculate chunk of missing data correctly", async () => {
         syncMap.value.set("post", {
             type: DocType.Post,
             contentOnly: false,
+            accessMap: accessMap.value,
+            groups: rest.docs.calcGroups(),
             blocks: [
                 {
                     blockStart: 700,
                     blockEnd: 500,
-                    accessMap: accessMap.value,
-                    groups: [],
                     type: DocType.Post,
                     contentOnly: false,
                 },
                 {
                     blockStart: 2000,
                     blockEnd: 1000,
-                    accessMap: accessMap.value,
-                    groups: [],
                     type: DocType.Post,
                     contentOnly: false,
                 },
             ],
         });
 
-        const missingData = rest.calcMissingData(DocType.Post);
+        const missingData = rest.docs.calcMissingData(DocType.Post);
 
         expect(missingData.gapStart).toBe(1000);
         expect(missingData.gapEnd).toBe(700);
     });
-
-    it(
-        "temp test query api",
-        async () => {
-            console.log(syncMap.value);
-            await rest.clientDataReq();
-        },
-        { timeout: 3000000 },
-    );
 });

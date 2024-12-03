@@ -9,6 +9,7 @@ import { EventEmitter } from "stream";
 import { instanceToPlain } from "class-transformer";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
+import { AccessMap } from "src/permissions/permissions.service";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -19,6 +20,7 @@ import { Logger } from "winston";
  */
 export type GetDocsOptions = {
     userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
+    accessMap: AccessMap;
     from?: number;
     to?: number;
     limit?: number;
@@ -38,7 +40,7 @@ export type DbQueryResult = {
     version?: number;
     blockStart?: number;
     blockEnd?: number;
-    accessMap?: Map<DocType, Uuid[]>;
+    accessMap?: AccessMap;
     type?: DocType;
     contentOnly?: boolean;
 };
@@ -303,11 +305,11 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Get data to which a user has access to including the user document itself.
+     * Get data to which a user has access.
      * @param {GetDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */
-    getDocsByGroup(options: GetDocsOptions): Promise<DbQueryResult> {
+    getDocsPerType(options: GetDocsOptions): Promise<DbQueryResult> {
         return new Promise(async (resolve, reject) => {
             // To allow effective indexing, the structure inside an "$or" selector should be identical for all the sub-selectors
             // within the "$or". Because of this restriction, it is necessary to do multiple queries and join the result externally
@@ -318,7 +320,7 @@ export class DbService extends EventEmitter {
             if (options.from) {
                 selectors.push({
                     updatedTimeUtc: {
-                        $gte: options.from,
+                        $gte: options.from - this.syncTolerance,
                     },
                 });
             }
@@ -326,7 +328,7 @@ export class DbService extends EventEmitter {
             if (options.to) {
                 selectors.push({
                     updatedTimeUtc: {
-                        $lte: options.to,
+                        $lte: options.to + this.syncTolerance,
                     },
                 });
             }
@@ -386,7 +388,7 @@ export class DbService extends EventEmitter {
                     warnings: res.warning,
                     blockStart: blockStart,
                     blockEnd: blockEnd,
-                    accessMap: options.userAccess,
+                    accessMap: options.accessMap,
                     contentOnly: options.contentOnly,
                 });
             } catch (err) {
