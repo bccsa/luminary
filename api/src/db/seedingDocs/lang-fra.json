@@ -1,6 +1,6 @@
 {
     "_id": "lang-fra",
-    "type": "language",
+    "_rev": "7-e53b56798f07f214c1cad09311c31458",
     "memberOf": ["group-languages"],
     "languageCode": "fr",
     "name": "French",
