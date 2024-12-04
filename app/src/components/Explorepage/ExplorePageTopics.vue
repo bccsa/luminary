@@ -127,16 +127,12 @@ const topics = useDexieLiveQueryWithDeps(
         const allTopicTagsPrimaryLang = await db.tagsWhereTagType(TagType.Topic, {
             languageId: appLanguageIdsAsRef.value[0],
         });
-        console.info(allTopicTagsPrimaryLang);
         const allTopicTagsSecondaryLang = await db.tagsWhereTagType(TagType.Topic, {
             languageId: appLanguageIdsAsRef.value[1],
         });
-        console.info(allTopicTagsSecondaryLang);
         const allTopicTagsTertiaryLang = await db.tagsWhereTagType(TagType.Topic, {
             languageId: appLanguageIdsAsRef.value[2],
         });
-
-        console.info(allTopicTagsTertiaryLang);
 
         const allTopicsToDisplay: ContentDto[] = async () => {
             const allTopics = [];
@@ -165,7 +161,7 @@ const topics = useDexieLiveQueryWithDeps(
                                     allTopicTagsTertiaryLang[t].parentId!,
                                 ],
                                 DocType.Tag,
-                                appLanguageIdsAsRef.value[0],
+                                appLanguageIdsAsRef.value[1],
                             );
                             const currentTopicContentTertiary: ContentDto[] = await db.whereParent(
                                 [
@@ -174,19 +170,25 @@ const topics = useDexieLiveQueryWithDeps(
                                     allTopicTagsTertiaryLang[t].parentId!,
                                 ],
                                 DocType.Tag,
-                                appLanguageIdsAsRef.value[0],
+                                appLanguageIdsAsRef.value[2],
                             );
 
                             if (currentTopicContentPrimary.length > 0) {
                                 allTopics.push(currentTopicContentPrimary);
+                            } else if (currentTopicContentSecondary.length > 0) {
+                                allTopics.push(currentTopicContentSecondary);
+                            } else if (currentTopicContentTertiary.length > 0) {
+                                allTopics.push(currentTopicContentTertiary);
                             }
                         }
                     }
                 }
             }
-            return allTopics;
+            console.info("All topics:", () => allTopics);
+            return await allTopics;
         };
-        return [];
+        console.info("All topics to display:", allTopicsToDisplay);
+        return await allTopicsToDisplay;
     },
     {
         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_topics"),
