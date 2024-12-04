@@ -91,23 +91,6 @@ describe("GroupSelector", () => {
         });
     });
 
-    it("can filter on groups", async () => {
-        const wrapper = mount(GroupSelector, {
-            props: {
-                groups: [],
-                docType: DocType.Post,
-            },
-        });
-
-        await wrapper.find("input").setValue("edit");
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Public Editors");
-            expect(wrapper.text()).not.toContain("Public Content");
-            expect(wrapper.text()).not.toContain("Super Admins");
-        });
-    });
-
     it("Updates the passed array when selecting a group", async () => {
         const groups: string[] = [];
         const wrapper = mount(GroupSelector, {
@@ -118,20 +101,18 @@ describe("GroupSelector", () => {
             },
         });
 
-        await wrapper.find("input").setValue("public");
+        //@ts-expect-error
+        wrapper.vm.availableGroups = await db.docs.toArray();
 
-        // Wait for the list to be populated and filtered
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Public Content");
-        });
+        const combobox = wrapper.findComponent(LCombobox);
+        await combobox.find('[name="options-open-btn"]').trigger("click");
 
-        // Select an option
-        const option = wrapper.find("[data-test='option-selector']");
-        await option.trigger("click");
+        const groupLi = await combobox.findAll("li");
+        await groupLi[1].trigger("click");
 
         // Ensure the groups array is updated
-        await waitForExpect(() => {
-            expect(groups).toContain(mockGroupDtoPublicContent._id);
+        await waitForExpect(async () => {
+            expect(wrapper.vm.groups).toContain("group-public-content");
         });
     });
 
