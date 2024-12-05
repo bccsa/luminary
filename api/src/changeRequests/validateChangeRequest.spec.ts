@@ -29,8 +29,6 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "eng",
                 name: "English",
-                default: 0,
-                translations: {},
             },
         };
 
