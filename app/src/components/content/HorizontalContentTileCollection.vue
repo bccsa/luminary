@@ -4,12 +4,14 @@ import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/sol
 import { computed, ref } from "vue";
 import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
 import { type ContentDto } from "luminary-shared";
+import LImage from "../images/LImage.vue";
 
 type Props = {
     contentDocs: ContentDto[];
     title?: string;
     summary?: string;
     showPublishDate?: boolean;
+    aspectRatio?: typeof LImage.aspectRatios;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
@@ -110,6 +112,7 @@ useInfiniteScroll(
                         v-for="content in infiniteScrollData"
                         :key="content._id"
                         :content="content"
+                        :aspectRatio="aspectRatio"
                         :show-publish-date="showPublishDate"
                     />
                 </div>
