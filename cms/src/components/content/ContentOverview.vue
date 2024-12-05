@@ -32,6 +32,7 @@ import LInput from "../forms/LInput.vue";
 import { Menu } from "@headlessui/vue";
 import LRadio from "../forms/LRadio.vue";
 import LChecklist from "../forms/LChecklist.vue";
+import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -41,7 +42,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const selectedLanguage = ref<Uuid>(localStorage.getItem("cms_selectedLanguage") || "");
+const selectedLanguage = ref<Uuid>(cmsLanguageIdAsRef.value || "");
 const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
@@ -66,8 +67,7 @@ watch(
     languages,
     () => {
         if (languages.value.length > 0 && !selectedLanguage.value) {
-            selectedLanguage.value =
-                localStorage.getItem("cms_selectedLanguage") || languages.value[0]._id;
+            selectedLanguage.value = cmsLanguageIdAsRef.value || languages.value[0]._id;
         }
     },
     { once: true },
@@ -77,7 +77,7 @@ watch(
     selectedLanguage,
     () => {
         queryOptions.value.languageId = selectedLanguage.value;
-        localStorage.setItem("cms_selectedLanguage", selectedLanguage.value);
+        cmsLanguageIdAsRef.value = selectedLanguage.value;
     },
     { immediate: true },
 );

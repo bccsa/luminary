@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { appName } from "@/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import { AclPermission, DocType, hasAnyPermission } from "luminary-shared";
@@ -137,8 +137,6 @@ router.beforeEach((to, from) => {
 
 router.afterEach((to, from, failure) => {
     if (failure) return;
-
-    const { appName } = useGlobalConfigStore();
 
     nextTick(() => {
         document.title = to.meta.title ? `${to.meta.title} - ${appName}` : appName;

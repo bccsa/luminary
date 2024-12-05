@@ -6,7 +6,7 @@ import TopBar from "@/components/navigation/TopBar.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { computed, onBeforeMount, ref } from "vue";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { appName, apiUrl } from "@/globalConfig";
 import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import * as Sentry from "@sentry/vue";
@@ -16,7 +16,6 @@ import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import { useNotificationStore } from "./stores/notification";
 
 const { isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
-const { appName, apiUrl } = useGlobalConfigStore();
 
 const loginRedirect = async () => {
     const usedConnection = localStorage.getItem("usedAuth0Connection");
@@ -93,7 +92,7 @@ const sidebarOpen = ref(false);
 
 const routeKey = computed(() => {
     let routeKey = router.currentRoute.value.fullPath;
-    
+
     // Check if the route is an overview route, and return a unique route key. This will disable component reuse for dynamic routes and allow the component to reload data
     if (routeKey.includes("tag/overview/") || routeKey.includes("post/overview/")) {
         return routeKey;
