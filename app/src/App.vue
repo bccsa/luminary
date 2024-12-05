@@ -128,7 +128,7 @@ setTimeout(() => {
         },
         { immediate: true },
     );
-}, 1000);
+}, 5000);
 
 // Add userId to analytics if privacy policy has been accepted
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
