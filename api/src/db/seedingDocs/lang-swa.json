@@ -6,34 +6,20 @@
     "name": "Swahili",
     "default": 0,
     "translations": {
-        "menu": {
-            "home": "Nyumbani",
-            "explore": "Gundua"
-        },
-        "profile_menu": {
-            "settings": "Mipangilio",
-            "theme": "Mandhari",
-            "language": "Lugha",
-            "bookmarks": "Alama za vitabu",
-            "privacy_policy": "Sera ya faragha",
-            "login": "Ingia",
-            "logout": "Toka"
-        },
-        "settings": {
-            "local_cache": {
-                "title": "Kache ya ndani",
-                "description": "Data nyingi huifadhiwa kwenye kifaa chako. Ikiwa unakutana na matatizo, jaribu kufuta data zote za ndani. Kulingana na kiasi cha data kinachopatikana kwenye seva, inaweza kuchukua muda kabla ya data zote kupatikana tena.",
-                "button": "Futa kache"
-            }
-        },
-        "pages": {
-            "home": {
-                "title": "Nyumbani"
-            },
-            "explore": {
-                "title": "Gundua"
-            }
-        }
+        "menu.home": "Nyumbani",
+        "menu.explore": "Chunguza",
+        "profile_menu.settings": "Mipangilio",
+        "profile_menu.theme": "Mandhari",
+        "profile_menu.language": "Lugha",
+        "profile_menu.bookmarks": "Vialamisho",
+        "profile_menu.privacy_policy": "Sera ya Faragha",
+        "profile_menu.login": "Ingia",
+        "profile_menu.logout": "Toka",
+        "settings.local_cache.title": "Kumbukumbu ya Mitaa",
+        "settings.local_cache.description": "Takwimu nyingi zimehifadhiwa kwenye kifaa chako. Ikiwa unakutana na matatizo, jaribu kufuta data zote za ndani. Kulingana na kiasi cha data inayopatikana kwenye seva, inaweza kuchukua muda kabla ya data zote kupatikana tena.",
+        "settings.local_cache.button": "Futa Kumbukumbu ya Mitaa",
+        "pages.home.title": "Nyumbani",
+        "pages.explore.title": "Chunguza"
     },
     "updatedTimeUtc": 1733135499334
 }
