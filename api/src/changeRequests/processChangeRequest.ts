@@ -133,7 +133,7 @@ export async function processChangeRequest(
 
             languageDocs.docs.forEach(async (doc: LanguageDto) => {
                 if (langDoc._id == doc._id) return;
-                await db.upsertDoc({ ...doc, default: 0 });
+                await db.upsertDoc({ ...doc, default: 0, translations: {} });
             });
         }
     }
