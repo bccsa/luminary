@@ -6,34 +6,20 @@
     "name": "Chichewa",
     "default": 0,
     "translations": {
-        "menu": {
-            "home": "Duol",
-            "explore": "Ketre"
-        },
-        "profile_menu": {
-            "settings": "Weche kite",
-            "theme": "Riwruok",
-            "language": "Dho",
-            "bookmarks": "Kata mar wi",
-            "privacy_policy": "Weche mopogore mar otem",
-            "login": "Donji",
-            "logout": "Wuok"
-        },
-        "settings": {
-            "local_cache": {
-                "title": "Kach ma kaka",
-                "description": "Weche moko opik kuom singruokni. Ka iting'o timo gik moko, nyal bedo maber kuom tieko weche mane opik. Kanyachiel, weche moko nyalo bedo mos piny omed.",
-                "button": "Tiek weche mopik"
-            }
-        },
-        "pages": {
-            "home": {
-                "title": "Duol"
-            },
-            "explore": {
-                "title": "Ketre"
-            }
-        }
+        "menu.home": "Guta",
+        "menu.explore": "Peendina",
+        "profile_menu.settings": "Lokichana",
+        "profile_menu.theme": "Thaamu",
+        "profile_menu.language": "Lokame",
+        "profile_menu.bookmarks": "Maali Yeng’",
+        "profile_menu.privacy_policy": "Kiambir Na Lokokwo",
+        "profile_menu.login": "Ene Naye",
+        "profile_menu.logout": "Lo Naye",
+        "settings.local_cache.title": "Lokinyake Lo Wach",
+        "settings.local_cache.description": "Kiwoti kekakini wokowo i kilipet. Ekeng tekare echab lokokoye enyom iya amangana ilipet lo wach koni kitap ka kon. Lokokoyo kamakonyo kwa kilokoko nyai lo nginika ka nga lyeny.",
+        "settings.local_cache.button": "Jab Lokokoye Nyike",
+        "pages.home.title": "Guta",
+        "pages.explore.title": "Peendina"
     },
     "updatedTimeUtc": 1733135495337
 }

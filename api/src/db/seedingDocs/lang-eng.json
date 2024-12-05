@@ -6,34 +6,20 @@
     "name": "English",
     "default": 0,
     "translations": {
-        "menu": {
-            "home": "Home",
-            "explore": "Explore"
-        },
-        "profile_menu": {
-            "settings": "Settings",
-            "theme": "Theme",
-            "language": "Language",
-            "bookmarks": "Bookmarks",
-            "privacy_policy": "Privacy Policy",
-            "login": "Login",
-            "logout": "Logout"
-        },
-        "settings": {
-            "local_cache": {
-                "title": "Local cache",
-                "description": "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
-                "button": "Delete local cache"
-            }
-        },
-        "pages": {
-            "home": {
-                "title": "Home"
-            },
-            "explore": {
-                "title": "Explore"
-            }
-        }
+        "menu.home": "Home",
+        "menu.explore": "Explore",
+        "profile_menu.settings": "Settings",
+        "profile_menu.theme": "Theme",
+        "profile_menu.language": "Language",
+        "profile_menu.bookmarks": "Bookmarks",
+        "profile_menu.privacy_policy": "Privacy Policy",
+        "profile_menu.login": "Login",
+        "profile_menu.logout": "Logout",
+        "setting.local_cache.title": "Local cache",
+        "setting.local_cache.description": "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
+        "setting.local_cache.button": "Delete local cache",
+        "page.home.title": "Home",
+        "page.explore.title": "Explore"
     },
     "updatedTimeUtc": 1733135486348
 }
