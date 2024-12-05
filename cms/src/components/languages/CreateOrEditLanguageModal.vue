@@ -42,6 +42,7 @@ const editable = ref<LanguageDto>(
               memberOf: [],
               type: DocType.Language,
               updatedTimeUtc: Date.now(),
+              translations: {},
           },
 );
 

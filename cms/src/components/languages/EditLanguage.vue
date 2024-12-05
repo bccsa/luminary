@@ -18,6 +18,7 @@ import LBadge from "../common/LBadge.vue";
 import LCard from "../common/LCard.vue";
 import FormLabel from "../forms/FormLabel.vue";
 import LSelect from "../forms/LSelect.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 type Props = {
     id: Uuid;
@@ -79,8 +80,6 @@ const addProperty = () => {
             [keyInput.value]: valueInput.value, // Add new property
         };
 
-        save();
-
         keyInput.value = "";
         valueInput.value = "";
     } catch (error) {
@@ -92,7 +91,6 @@ const addProperty = () => {
 const deleteProperty = (key: string) => {
     try {
         delete currentLanguage.value.translations[key];
-        save();
     } catch (error) {
         alert(error);
     }
@@ -161,7 +159,13 @@ const save = async () => {
     currentLanguage.value.updatedTimeUtc = Date.now();
     await db.upsert(currentLanguage.value);
 
-    isLocalChange.value = false;
+    updateTranslationsInOtherLanguages();
+
+    useNotificationStore().addNotification({
+        title: "Language updated",
+        description: "Language updated successfully",
+        state: "success",
+    });
 };
 
 // Convert the default value to a boolean for the toggle
@@ -187,14 +191,6 @@ watch(
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
                 <div class="flex gap-1">
-                    <LButton
-                        v-show="canEditOrCreate"
-                        type="button"
-                        variant="secondary"
-                        @click="updateTranslationsInOtherLanguages"
-                    >
-                        Sync
-                    </LButton>
                     <LButton type="button" @click="save" data-test="save-button" variant="primary">
                         Save
                     </LButton>
