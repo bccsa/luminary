@@ -47,6 +47,7 @@ describe("processChangeRequest", () => {
                 languageCode: "xho",
                 name: "Xhoza",
                 default: 0,
+                translations: {},
             },
         };
         const changeRequest2 = {
@@ -58,6 +59,7 @@ describe("processChangeRequest", () => {
                 languageCode: "xho",
                 name: "Xhoza",
                 default: 0,
+                translations: {},
             },
         };
         await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
