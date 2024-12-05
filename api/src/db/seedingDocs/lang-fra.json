@@ -6,34 +6,20 @@
     "name": "French",
     "default": 0,
     "translations": {
-        "menu": {
-            "home": "Accueil",
-            "explore": "Explorer"
-        },
-        "profile_menu": {
-            "settings": "Paramètres",
-            "theme": "Thème",
-            "language": "Langue",
-            "bookmarks": "Marque-pages",
-            "privacy_policy": "Politique de confidentialité",
-            "login": "Se connecter",
-            "logout": "Déconnexion"
-        },
-        "settings": {
-            "local_cache": {
-                "title": "Cache local",
-                "description": "La plupart des données sont enregistrées localement sur votre appareil. Si vous rencontrez des problèmes, essayez de supprimer toutes les données locales. En fonction de la quantité de données disponibles sur le serveur, cela peut prendre un certain temps avant que toutes les données ne soient à nouveau disponibles.",
-                "button": "Supprimer la mémoire cache"
-            }
-        },
-        "pages": {
-            "home": {
-                "title": "Accueil"
-            },
-            "explore": {
-                "title": "Explorer"
-            }
-        }
+        "menu.home": "Accueil",
+        "menu.explore": "Explorer",
+        "profile_menu.settings": "Paramètres",
+        "profile_menu.theme": "Thème",
+        "profile_menu.language": "Langue",
+        "profile_menu.bookmarks": "Signets",
+        "profile_menu.privacy_policy": "Politique de confidentialité",
+        "profile_menu.login": "Connexion",
+        "profile_menu.logout": "Déconnexion",
+        "settings.local_cache.title": "Cache local",
+        "settings.local_cache.description": "La plupart des données sont enregistrées localement sur votre appareil. Si vous rencontrez des problèmes, essayez de supprimer toutes les données locales. En fonction de la quantité de données disponibles sur le serveur, cela peut prendre un certain temps avant que toutes les données soient à nouveau disponibles.",
+        "settings.local_cache.button": "Supprimer le cache local",
+        "pages.home.title": "Accueil",
+        "pages.explore.title": "Explorer"
     },
     "updatedTimeUtc": 1733135490835
 }
