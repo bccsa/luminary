@@ -37,7 +37,7 @@ const sizes = {
 const rounding = {
     small: "rounded-sm",
     thumbnail: "rounded-lg",
-    post: "rounded-lg",
+    post: "md:rounded-lg",
 };
 
 let closestAspectRatio = 0;
@@ -112,6 +112,7 @@ const showImageElement2 = computed(
             :class="[
                 aspectRatios[aspectRatio],
                 rounding[size],
+                sizes[size],
                 'w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >

@@ -92,6 +92,6 @@ const unpinnedNewestContentByCategory = contentByTag(newest100Content, categorie
         :contentDocs="c.content"
         :title="c.tag.title"
         :summary="c.tag.summary"
-        class="pt-4"
+        class="pt-2"
     />
 </template>

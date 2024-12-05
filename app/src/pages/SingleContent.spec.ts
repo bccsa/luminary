@@ -23,6 +23,7 @@ import { appLanguageIdAsRef, appName, initLanguage, userPreferencesAsRef } from 
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
+import VideoPlayer from "@/components/content/VideoPlayer.vue";
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -73,7 +74,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("displays the content video when defined", async () => {
+    it("displays the video player when defined", async () => {
         await db.docs.update(mockEnglishContentDto._id, {
             parentImage: "",
             video: "test-video.mp4",
@@ -85,8 +86,10 @@ describe("SingleContent", () => {
             },
         });
 
+        const videoPlayer = wrapper.findComponent(VideoPlayer);
+
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("video-player-stub");
+            expect(videoPlayer).toBeDefined();
         });
     });
 

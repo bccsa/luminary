@@ -25,10 +25,12 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
-import { BookmarkIcon as BookmarkIconSolid } from "@heroicons/vue/24/solid";
+import { BookmarkIcon as BookmarkIconSolid, TagIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
+import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
+import LModal from "@/components/form/LModal.vue";
 
 const router = useRouter();
 
@@ -36,6 +38,8 @@ type Props = {
     slug: string;
 };
 const props = defineProps<Props>();
+
+const showCategoryModal = ref(false);
 
 const docsBySlug = useDexieLiveQuery(
     () => db.docs.where("slug").equals(props.slug).toArray() as unknown as Promise<ContentDto[]>,
@@ -79,6 +83,7 @@ const tags = useDexieLiveQueryWithDeps(
     { initialValue: [] as ContentDto[] },
 );
 
+const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
 // Redirect to the correct page if this is a redirect
@@ -229,7 +234,7 @@ const selectedCategory = computed(() => {
 </script>
 
 <template>
-    <div class="hidden lg:block">
+    <div class="absolute hidden lg:block">
         <div
             @click="router.back()"
             class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
@@ -240,77 +245,115 @@ const selectedCategory = computed(() => {
     </div>
 
     <NotFoundPage v-if="is404" />
-    <div v-else class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
-        <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
-            <VideoPlayer v-if="content.video" :content="content" />
-            <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
+    <div v-else class="flex h-full flex-col gap-6">
+        <div class="flex justify-center">
+            <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
+                <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
+                    <VideoPlayer v-if="content.video" :content="content" />
+                    <LImage
+                        v-else
+                        :image="content.parentImageData"
+                        aspectRatio="video"
+                        size="post"
+                    />
+                </IgnorePagePadding>
 
-            <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
-                {{ content.title }}
-            </h1>
+                <div class="flex w-full flex-col items-center">
+                    <div class="mt-3 flex flex-col gap-3">
+                        <h1
+                            class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
+                        >
+                            {{ content.title }}
+                        </h1>
 
-            <div data-test="bookmark" @click="toggleBookmark">
-                <component
-                    v-if="!(content.parentPostType && content.parentPostType == PostType.Page)"
-                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                    class="mx-auto mt-2 h-6 w-6 cursor-pointer"
-                    :class="{
-                        'text-yellow-500': isBookmarked,
-                    }"
-                />
-            </div>
+                        <div
+                            class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
+                            v-if="content.publishDate && content.parentPublishDateVisible"
+                        >
+                            {{
+                                content.publishDate
+                                    ? db
+                                          .toDateTime(content.publishDate)
+                                          .toLocaleString(DateTime.DATETIME_MED)
+                                    : ""
+                            }}
+                        </div>
 
-            <div
-                class="mt-1 text-center text-sm text-zinc-500 dark:text-slate-300"
-                v-if="content.publishDate && content.parentPublishDateVisible"
-            >
-                {{
-                    content.publishDate
-                        ? db.toDateTime(content.publishDate).toLocaleString(DateTime.DATETIME_MED)
-                        : ""
-                }}
-            </div>
+                        <div class="items-center">
+                            <div class="flex justify-center">
+                                <div @click="toggleBookmark" data-test="bookmark">
+                                    <component
+                                        v-if="
+                                            !(
+                                                content.parentPostType &&
+                                                content.parentPostType == PostType.Page
+                                            )
+                                        "
+                                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                        class="h-6 w-6 cursor-pointer"
+                                        :class="{
+                                            'text-yellow-500': isBookmarked,
+                                        }"
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
-            <div
-                class="mt-12 text-justify text-gray-800 dark:text-slate-100"
-                v-if="content.summary"
-            >
-                {{ content.summary }}
-            </div>
+                        <div
+                            class="text-center text-sm text-zinc-800 dark:text-slate-200"
+                            v-if="content.summary"
+                        >
+                            {{ content.summary }}
+                        </div>
+                    </div>
+                </div>
 
-            <div
-                v-if="content.text"
-                v-html="text"
-                class="prose prose-zinc mt-6 max-w-full text-justify dark:prose-invert"
-            ></div>
-        </article>
-
-        <div class="h-full w-full py-2 lg:mt-0 lg:w-1/4 lg:max-w-3xl">
-            <div
-                class="mb-2 flex flex-wrap border-b border-gray-200 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
-            >
-                <span
-                    v-for="tag in tags.filter(
-                        (t: ContentDto) => t.parentTagType == TagType.Category,
-                    )"
-                    :key="tag._id"
-                    @click="selectedCategoryId = tag.parentId"
-                    class="me-2 flex cursor-pointer items-center justify-center rounded-t px-2 py-1 text-sm hover:bg-yellow-200 dark:hover:bg-yellow-100/25"
-                    :class="{
-                        ' bg-yellow-100 text-black shadow dark:bg-yellow-100/10 dark:text-white':
-                            selectedCategoryId == tag.parentId,
-                    }"
+                <!-- Category tag buttons -->
+                <div
+                    class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
+                    v-if="categoryTags.length"
                 >
-                    {{ tag.title }}
-                </span>
-            </div>
-            <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" />
+                    <span
+                        v-for="tag in categoryTags"
+                        :key="tag._id"
+                        @click="
+                            selectedCategoryId = tag.parentId;
+                            showCategoryModal = true;
+                        "
+                        class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
+                    >
+                        <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" /><span
+                            class="line-clamp-1"
+                            >{{ tag.title }}</span
+                        >
+                    </span>
+                </div>
+
+                <div
+                    v-if="content.text"
+                    v-html="text"
+                    class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                    :class="{ 'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0 }"
+                ></div>
+            </article>
         </div>
+
+        <RelatedContent
+            v-if="content && tags.length"
+            :selectedContent="content"
+            :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
+        />
     </div>
 
-    <RelatedContent
-        v-if="content && tags.length"
-        :selectedContent="content"
-        :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
-    />
+    <LModal
+        :isVisible="showCategoryModal"
+        @close="showCategoryModal = false"
+        :heading="selectedCategory?.title || ''"
+    >
+        <div class=" ">
+            <div class="">
+                <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" class="" />
+            </div>
+        </div>
+    </LModal>
 </template>

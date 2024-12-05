@@ -51,7 +51,12 @@ const contentByTopic = contentByTag(filtered, toRef(props.tags));
 
 <template>
     <IgnorePagePadding>
-        <h1 v-if="isNotTopic" class="px-6 text-xl text-zinc-800 dark:text-zinc-200">Related</h1>
+        <h1
+            v-if="isNotTopic && contentByTopic.length"
+            class="px-4 text-xl text-zinc-800 dark:text-zinc-200"
+        >
+            Related
+        </h1>
         <div class="mb-2 flex max-w-full flex-wrap">
             <div class="max-w-full" ref="scrollElement">
                 <HorizontalContentTileCollection
