@@ -54,6 +54,7 @@ export type LanguageDto = ContentBaseDto & {
     languageCode: string;
     name: string;
     default?: number;
+    translations: Record<string, any>;
 };
 
 export type ContentDto = ContentBaseDto & {
