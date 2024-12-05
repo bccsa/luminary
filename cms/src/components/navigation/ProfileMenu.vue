@@ -2,11 +2,10 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { isDevMode } from "@/globalConfig";
 import { useRouter } from "vue-router";
 
 const { user, logout } = useAuth0();
-const { isDevMode } = useGlobalConfigStore();
 const router = useRouter();
 
 const userNavigation: {

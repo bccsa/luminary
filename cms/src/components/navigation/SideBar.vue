@@ -10,11 +10,10 @@ import {
     ArrowUturnRightIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { appName, isDevMode, logo } from "@/globalConfig";
 import { ref, watch } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
 
-const { appName, isDevMode, logo } = useGlobalConfigStore();
 const route = useRoute();
 
 type NavigationEntry = {
