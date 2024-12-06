@@ -74,6 +74,7 @@ export type ContentDto = ContentBaseDto & {
     seoString?: string;
     parentType?: DocType;
     parentTags: Uuid[];
+    parentAvailableTranslations?: Uuid[];
     parentImageData?: ImageDto;
     parentTagType?: TagType;
     parentPostType?: PostType;
@@ -85,6 +86,7 @@ export type ContentDto = ContentBaseDto & {
 export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
+    availableTranslations: Uuid[];
     publishDateVisible: boolean;
 };
 

@@ -16,6 +16,7 @@ import { validate, type Validation } from "./ContentValidator";
 import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
 import { XCircleIcon } from "@heroicons/vue/20/solid";
+import * as _ from "lodash";
 
 type Props = {
     languages: LanguageDto[];
@@ -42,6 +43,11 @@ const untranslatedLanguages = computed(() => {
 });
 
 const createTranslation = (language: LanguageDto) => {
+    parent.value!.availableTranslations.push(language._id);
+    const newParent: ContentParentDto = _.cloneDeep({
+        ...parent.value,
+    }) as ContentParentDto;
+
     const newContent: ContentDto = {
         _id: db.uuid(),
         type: DocType.Content,
@@ -49,12 +55,14 @@ const createTranslation = (language: LanguageDto) => {
         memberOf: [],
         parentId: parent.value?._id as Uuid,
         parentType: parent.value?.docType as DocType.Post | DocType.Tag,
+        parentAvailableTranslations: newParent.availableTranslations,
         language: language._id,
         status: PublishStatus.Draft,
         title: `Translation for ${language.name}`,
         slug: "",
         parentTags: [],
     };
+    console.info(newContent.parentAvailableTranslations);
     contentDocs.value?.push(newContent);
 };
 
