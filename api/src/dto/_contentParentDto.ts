@@ -14,6 +14,12 @@ export class _contentParentDto extends _contentBaseDto {
     @Expose()
     imageData?: ImageDto;
 
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    availableTranslations: Uuid[];
+
     @IsArray()
     @IsString({ each: true })
     @Expose()

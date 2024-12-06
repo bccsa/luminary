@@ -32,7 +32,7 @@ async function Startup() {
     initLuminaryShared({
         cms: true,
         docsIndex:
-            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language]",
+            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug",
     });
 
     app.use(createPinia());

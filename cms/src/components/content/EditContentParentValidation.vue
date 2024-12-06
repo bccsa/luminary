@@ -15,7 +15,8 @@ import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
-import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { XCircleIcon } from "@heroicons/vue/20/solid";
+import * as _ from "lodash";
 
 type Props = {
     languages: LanguageDto[];
@@ -58,6 +59,7 @@ const createTranslation = (language: LanguageDto) => {
         slug: "",
         parentTags: [],
     };
+    console.info(newContent.parentAvailableTranslations);
     contentDocs.value?.push(newContent);
 };
 
