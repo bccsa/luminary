@@ -187,17 +187,19 @@ watch(
             const contentDocs = await db.whereParent(content.value.parentId);
             const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
 
-            if (preferred) {
+            if (preferred && isPublished(preferred)) {
+                // Check if the preferred translation is published
                 router.replace({ name: "content", params: { slug: preferred.slug } });
-                return;
+            } else {
+                useNotificationStore().addNotification({
+                    id: "translation-not-published",
+                    title: "Unpublished translation",
+                    description: `The ${appLanguageAsRef.value?.name} translation for this content is not yet available.`,
+                    state: "error",
+                    type: "toast",
+                });
             }
-            useNotificationStore().addNotification({
-                id: "translation-not-found",
-                title: "Translation not found",
-                description: `There is no ${appLanguageAsRef.value?.name} translation for this content.`,
-                state: "error",
-                type: "toast",
-            });
+            return;
         }
     },
 );
