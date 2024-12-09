@@ -7,11 +7,11 @@
 }
 
 .video-player .vjs-tech {
-    @apply !rounded-lg;
+    @apply md:!rounded-lg;
 }
 
 .video-player .vjs-poster img {
-    @apply !rounded-lg object-cover;
+    @apply object-cover md:!rounded-lg;
 }
 
 .video-player .vjs-big-play-button {
@@ -43,7 +43,7 @@
 }
 
 .video-player .vjs-control-bar {
-    @apply !relative !h-full !w-full rounded-lg;
+    @apply !relative !h-full !w-full md:rounded-lg;
     background-color: rgba(0, 0, 0, 0.3) !important;
 }
 
