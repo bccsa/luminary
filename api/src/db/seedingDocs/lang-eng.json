@@ -1,6 +1,6 @@
 {
     "_id": "lang-eng",
-    "_rev": "6-8835963d247c8a1fdc5e4b59bc5f3149",
+    "type": "language",
     "memberOf": ["group-languages"],
     "languageCode": "en",
     "name": "English",
