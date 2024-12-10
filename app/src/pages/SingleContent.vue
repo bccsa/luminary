@@ -267,14 +267,6 @@ const selectedCategory = computed(() => {
                         >
                             {{ content.title }}
                         </h1>
-    <div v-else class="mb-8 flex flex-col justify-center lg:flex-row lg:space-x-8">
-        <article class="mb-12 w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
-            <VideoPlayer v-if="content.video" :content="content" />
-            <LImage v-else :image="content.parentImageData" aspectRatio="video" size="post" />
-
-            <h1 class="text-bold mt-4 text-center text-2xl text-zinc-800 dark:text-slate-50">
-                {{ content.title }}
-            </h1>
 
                         <div
                             class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
