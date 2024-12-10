@@ -1,6 +1,6 @@
 {
     "_id": "lang-swa",
-    "_rev": "6-2bb58fca0c776b73c828fdf8a74b5f46",
+    "type": "language",
     "memberOf": ["group-languages"],
     "languageCode": "sw",
     "name": "Swahili",
@@ -20,6 +20,5 @@
         "settings.local_cache.button": "Futa Kumbukumbu ya Mitaa",
         "pages.home.title": "Nyumbani",
         "pages.explore.title": "Chunguza"
-    },
-    "updatedTimeUtc": 1733135499334
+    }
 }
