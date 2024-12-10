@@ -69,6 +69,9 @@ export const changeRequest_language = () => {
             languageCode: "test-eng",
             name: "test-English" + randomString(),
             default: 0,
+            translations: {
+                stringTranslation: "String Translation",
+            },
         },
     };
 };
