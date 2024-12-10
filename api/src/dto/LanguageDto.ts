@@ -23,5 +23,5 @@ export class LanguageDto extends _contentBaseDto {
 
     @IsOptional()
     @Expose()
-    translations?: Record<string, any>;
+    translations?: Record<string, string>;
 }

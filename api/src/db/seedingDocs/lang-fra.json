@@ -1,6 +1,6 @@
 {
     "_id": "lang-fra",
-    "_rev": "7-e53b56798f07f214c1cad09311c31458",
+    "type": "language",
     "memberOf": ["group-languages"],
     "languageCode": "fr",
     "name": "French",
@@ -20,6 +20,5 @@
         "settings.local_cache.button": "Supprimer le cache local",
         "pages.home.title": "Accueil",
         "pages.explore.title": "Explorer"
-    },
-    "updatedTimeUtc": 1733135490835
+    }
 }

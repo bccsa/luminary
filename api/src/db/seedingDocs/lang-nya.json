@@ -1,6 +1,6 @@
 {
     "_id": "lang-nya",
-    "_rev": "6-ac6a4c26a8ad62c8b4609d5cb1952a8d",
+    "type": "language",
     "memberOf": ["group-languages"],
     "languageCode": "ny",
     "name": "Chichewa",
@@ -20,6 +20,5 @@
         "settings.local_cache.button": "Jab Lokokoye Nyike",
         "pages.home.title": "Guta",
         "pages.explore.title": "Peendina"
-    },
-    "updatedTimeUtc": 1733135495337
+    }
 }
