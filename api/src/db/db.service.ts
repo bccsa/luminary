@@ -151,9 +151,6 @@ export class DbService extends EventEmitter {
 
                     let rev: string;
 
-                    // Remove updatedTimeUtc if passed from client
-                    delete doc.updatedTimeUtc;
-
                     // Remove revision and updateTimeUtc from existing doc from database for comparison purposes
                     if (existing) {
                         rev = existing._rev as string;
@@ -161,35 +158,42 @@ export class DbService extends EventEmitter {
                         delete existing.updatedTimeUtc;
                     }
 
+                    // Convert the document to plain object to compare with the existing document
+                    const docPlain = instanceToPlain(doc);
+                    Object.keys(docPlain).forEach(
+                        (key) => docPlain[key] === undefined && delete docPlain[key],
+                    );
+                    delete docPlain.updatedTimeUtc;
+
                     if (!existing) {
                         // Passed document does not exist in database: create
-                        doc.updatedTimeUtc = Date.now();
-                        this.insertDoc(doc)
+                        docPlain.updatedTimeUtc = Date.now();
+                        this.insertDoc(docPlain)
                             .then((insertResult) => {
-                                insertResult.updatedTimeUtc = doc.updatedTimeUtc;
-                                insertResult.changes = doc;
+                                insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
+                                insertResult.changes = docPlain;
                                 resolve(insertResult);
                             })
                             .catch((err) => {
                                 reject(err);
                             });
-                    } else if (existing && isDeepStrictEqual(instanceToPlain(doc), existing)) {
+                    } else if (existing && isDeepStrictEqual(docPlain, existing)) {
                         // Document in DB is the same as passed doc: do nothing
                         resolve({
-                            id: doc._id,
+                            id: docPlain._id,
                             ok: true,
                             rev: rev,
                             message: "Document is identical to the one in the database",
                         });
                     } else if (existing) {
                         // Passed document is different than document in DB: update
-                        doc._rev = rev;
-                        doc.updatedTimeUtc = Date.now();
+                        docPlain._rev = rev;
+                        docPlain.updatedTimeUtc = Date.now();
 
-                        const changes = this.calculateDiff(doc, existing);
-                        this.insertDoc(doc)
+                        const changes = this.calculateDiff(docPlain, existing);
+                        this.insertDoc(docPlain)
                             .then((insertResult) => {
-                                insertResult.updatedTimeUtc = doc.updatedTimeUtc;
+                                insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
                                 insertResult.changes = changes;
                                 resolve(insertResult);
                             })
@@ -201,8 +205,8 @@ export class DbService extends EventEmitter {
                                     // the document.
 
                                     // TODO: We should probably have a retry counter here to prevent the code from retrying endlessly.
-                                    delete doc._rev;
-                                    this.upsertDoc(doc)
+                                    delete docPlain._rev;
+                                    this.upsertDoc(docPlain)
                                         .then((upsertResult) => {
                                             resolve(upsertResult);
                                         })
