@@ -29,6 +29,9 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "eng",
                 name: "English",
+                translations: {
+                    stringTranslation: "String Translation",
+                },
             },
         };
 
@@ -159,6 +162,9 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "new",
                 name: "New Language",
+                translations: {
+                    stringTranslation: "String Translation",
+                },
                 invalidField: "invalid",
             },
         };
