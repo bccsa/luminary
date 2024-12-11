@@ -247,10 +247,12 @@ describe("Socketio", () => {
                 });
 
                 it("Tag documents: emits one data socket.io events after change request submission", async () => {
+                    const changeReq = { ...changeRequest_tag() };
+                    changeReq.doc._id = "test-tag-2";
                     const res = await socketioTestClient({
                         cms: false,
                         version: Date.now() + 1000000,
-                        changeRequest: changeRequest_tag(),
+                        changeRequest: changeReq,
                     });
                     expect(res.docs.length).toBe(1 + 1); // The user document is returned in response to the clientDataReq sent message, giving one extra data event
                     expect(res.docs.some((d) => d.type == "user")).toBe(true);
