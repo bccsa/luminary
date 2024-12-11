@@ -4,7 +4,7 @@ import LCard from "@/components/common/LCard.vue";
 import { EyeIcon, ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
 import { PublishStatus, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { clientAppUrl } from "@/globalConfig";
 
 type Props = {
     content: ContentDto;
@@ -12,10 +12,12 @@ type Props = {
 
 const props = defineProps<Props>();
 
-const { clientAppUrl } = useGlobalConfigStore();
 const liveUrl = computed(() => {
     if (!props.content) return "";
-    const url = new URL(props.content.slug, clientAppUrl ? clientAppUrl : "http://localhost");
+    const url = new URL(
+        props.content.slug,
+        clientAppUrl.value ? clientAppUrl.value : "http://localhost",
+    );
     return url.toString();
 });
 </script>

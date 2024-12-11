@@ -6,7 +6,7 @@ import { accessMap } from "luminary-shared";
 import { mockPostDto, superAdminAccessMap } from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { useGlobalConfigStore } from "@/stores/globalConfig";
+import { clientAppUrl } from "@/globalConfig";
 
 describe("ImageEditor", () => {
     beforeAll(async () => {
@@ -25,9 +25,8 @@ describe("ImageEditor", () => {
 
         setActivePinia(createTestingPinia());
 
-        const globalConfigStore = useGlobalConfigStore();
         accessMap.value = superAdminAccessMap;
-        globalConfigStore.clientAppUrl = "http://localhost:4174";
+        clientAppUrl.value = "http://localhost:4174";
     });
 
     afterAll(() => {
