@@ -142,4 +142,9 @@ export class ContentDto extends _contentBaseDto {
     @IsArray()
     @Expose()
     parentTaggedDocs?: Uuid[];
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsArray()
+    @Expose()
+    availableTranslations?: Uuid[];
 }
