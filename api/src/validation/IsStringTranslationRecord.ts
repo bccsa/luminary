@@ -8,7 +8,7 @@ export function IsStringTranslationRecord() {
             propertyName: propertyName,
             validator: {
                 validate(value: string) {
-                    return typeof value === "string" || Array.isArray(value);
+                    return typeof value === "string";
                 },
             },
         });
