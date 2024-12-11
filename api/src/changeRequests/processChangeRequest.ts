@@ -17,6 +17,7 @@ export async function processChangeRequest(
     db: DbService,
     s3: S3Service,
 ) {
+    console.log("processing change request");
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
     if (!validationResult.validated) {
@@ -24,7 +25,6 @@ export async function processChangeRequest(
     }
 
     const doc = validationResult.validatedData;
-
     // Validate slug
     if (doc.type == DocType.Content) {
         doc.slug = await validateSlug(doc.slug, doc._id, db);
@@ -33,11 +33,19 @@ export async function processChangeRequest(
     // Copy essential properties from Post / Tag documents to Content documents
     if (doc.type == DocType.Content) {
         const parentQuery = await db.getDoc(doc.parentId);
+        console.info(parentQuery.docs[0]);
         const parentDoc: PostDto | TagDto | undefined =
             parentQuery.docs.length > 0 ? parentQuery.docs[0] : undefined;
+        console.log(parentDoc);
+
+        const contentDoc = doc as ContentDto;
+        const contentDocs = await db.getContentByParentId(parentDoc._id);
+        const availableParentTranslations = contentDocs.docs.map((doc) => doc.language);
+        if (!availableParentTranslations.includes(contentDoc.language))
+            availableParentTranslations.push(contentDoc.language);
+        contentDoc.parentAvailableTranslations = availableParentTranslations;
 
         if (parentDoc) {
-            const contentDoc = doc as ContentDto;
             contentDoc.memberOf = parentDoc.memberOf;
             contentDoc.parentTags = parentDoc.tags;
             contentDoc.parentImageData = parentDoc.imageData;

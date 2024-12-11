@@ -193,6 +193,7 @@ const isDirty = computed(
 const isValid = ref(true);
 
 const save = async () => {
+    console.info(parent.value._id);
     if (!isValid.value) {
         addNotification({
             title: "Changes not saved",
