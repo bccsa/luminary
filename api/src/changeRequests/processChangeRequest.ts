@@ -17,6 +17,7 @@ export async function processChangeRequest(
     db: DbService,
     s3: S3Service,
 ) {
+    console.log("processing change request");
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
     if (!validationResult.validated) {
@@ -24,33 +25,30 @@ export async function processChangeRequest(
     }
 
     const doc = validationResult.validatedData;
-
     // Validate slug
     if (doc.type == DocType.Content) {
         doc.slug = await validateSlug(doc.slug, doc._id, db);
     }
 
-    console.log(doc);
-
     // Copy essential properties from Post / Tag documents to Content documents
     if (doc.type == DocType.Content) {
         const parentQuery = await db.getDoc(doc.parentId);
+        console.info(parentQuery.docs[0]);
         const parentDoc: PostDto | TagDto | undefined =
             parentQuery.docs.length > 0 ? parentQuery.docs[0] : undefined;
         console.log(parentDoc);
 
+        const contentDoc = doc as ContentDto;
+        const contentDocs = await db.getContentByParentId(parentDoc._id);
+        const availableParentTranslations = contentDocs.docs.map((doc) => doc.language);
+        if (!availableParentTranslations.includes(contentDoc.language))
+            availableParentTranslations.push(contentDoc.language);
+        contentDoc.parentAvailableTranslations = availableParentTranslations;
+
         if (parentDoc) {
-            const contentDoc = doc as ContentDto;
             contentDoc.memberOf = parentDoc.memberOf;
             contentDoc.parentTags = parentDoc.tags;
             contentDoc.parentImageData = parentDoc.imageData;
-            const languages: LanguageDto[] = (await db.getDocsByType(DocType.Language)).docs;
-            const defaultLanguage: LanguageDto[] = languages.filter((lang) => lang.default == 1);
-            if (parentDoc.availableTranslations)
-                contentDoc.parentAvailableTranslations = parentDoc.availableTranslations;
-            else [defaultLanguage[0]._id];
-
-            console.info(parentDoc.availableTranslations);
 
             if (parentDoc.type == DocType.Post) {
                 contentDoc.parentPostType = (parentDoc as PostDto).postType;
@@ -81,7 +79,6 @@ export async function processChangeRequest(
             contentDoc.memberOf = doc.memberOf;
             contentDoc.parentTags = doc.tags;
             contentDoc.parentImageData = doc.imageData;
-            contentDoc.parentAvailableTranslations = doc.availableTranslations;
 
             if (doc.type == DocType.Post) {
                 contentDoc.parentPostType = (doc as PostDto).postType;

@@ -56,12 +56,10 @@ const parent = ref<ContentParentDto>({
     _id: parentId,
     type: props.docType,
     updatedTimeUtc: 0,
-    availableTranslations: [],
     memberOf: [],
     tags: [],
     publishDateVisible: true,
 });
-console.info(parent.value);
 const isLoading = computed(() => parent.value == undefined);
 const parentPrev = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
 const contentDocs = ref<ContentDto[]>([]);
@@ -122,26 +120,19 @@ const selectedContent = computed(() => {
 });
 
 const createTranslation = (language: LanguageDto) => {
-    parent.value.availableTranslations.push(language._id);
-    const newParent: ContentParentDto = _.cloneDeep({
-        ...parent.value,
-    });
-    const newTranslation = {
+    contentDocs.value.push({
         _id: db.uuid(),
         type: DocType.Content,
         updatedTimeUtc: Date.now(),
         memberOf: [],
-        parentId: newParent._id,
+        parentId: parent.value._id,
         parentType: props.docType,
-        parentAvailableTranslations: newParent.availableTranslations,
         language: language._id,
         status: PublishStatus.Draft,
         title: `Translation for ${language.name}`,
         slug: "",
         parentTags: [],
-    };
-    contentDocs.value.push(newTranslation);
-
+    });
     selectedLanguageId.value = language._id;
 };
 
@@ -202,6 +193,7 @@ const isDirty = computed(
 const isValid = ref(true);
 
 const save = async () => {
+    console.info(parent.value._id);
     if (!isValid.value) {
         addNotification({
             title: "Changes not saved",
@@ -276,10 +268,6 @@ watch(selectedLanguage, () => {
             `/${props.docType}/edit/${props.tagOrPostType}/${parentId}/${selectedLanguage.value?.languageCode}`,
         );
     }
-});
-watch(parent, () => {
-    if (parent.value.availableTranslations) console.info(parent.value.availableTranslations);
-    else console.info("UNDEFINED");
 });
 </script>
 

@@ -5,31 +5,36 @@ import {
     DocType,
     PostType,
     TagType,
-    type Uuid,
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { isPublished } from "@/util/isPublished";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageId: Uuid) =>
+    () =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId[0],
                 status: "published",
                 parentPinned: 1, // 1 = true
             })
             .filter((c) => {
+                console.info("filtering");
                 const content = c as ContentDto;
+                console.info(content);
+
+                const firstSupportedLanguage = appLanguageIdsAsRef.value.find((lang) =>
+                    content.parentAvailableTranslations?.includes(lang),
+                );
+
                 if (!content.publishDate) return false;
                 if (content.publishDate > Date.now()) return false;
                 if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+
+                return true && content.language == firstSupportedLanguage;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories") },
@@ -41,15 +46,18 @@ watch(pinnedCategories, async (value) => {
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedCategories],
-    ([appLanguageId, pinnedCategories]: [Uuid, ContentDto[]]) =>
+    ([pinnedCategories]: [ContentDto[]]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
                 status: "published",
             })
             .filter((c) => {
                 const content = c as ContentDto;
+
+                if (!content.publishDate) return false;
+                if (content.publishDate > Date.now()) return false;
+                if (content.expiryDate && content.expiryDate < Date.now()) return false;
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
@@ -57,7 +65,8 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 for (const tagId of content.parentTags) {
                     if (pinnedCategories.some((p) => p.parentId == tagId)) return true;
                 }
-                return isPublished(content);
+
+                return false;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },
@@ -72,6 +81,9 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCatego
 </script>
 
 <template>
+    {{ pinnedCategories }}
+    {{ pinnedCategoryContent }}
+    {{ pinnedContentByCategory }}
     <HorizontalContentTileCollection
         v-for="c in pinnedContentByCategory"
         :key="c.tag._id"

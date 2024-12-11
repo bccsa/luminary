@@ -13,15 +13,20 @@ import {
 import { watch } from "vue";
 const topics = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (languageId: Uuid) =>
+    (languageIds: Uuid) =>
         db.docs
             .where({
                 type: DocType.Content,
                 parentTagType: TagType.Topic,
-                language: languageId,
                 status: "published",
             })
             .filter((c) => {
+                const content = c as ContentDto;
+                const firstLanguageAvailableIndex = appLanguageIdsAsRef.value.findIndex((lang) =>
+                    content.parentAvailableTranslations?.includes(lang),
+                );
+                console.info(firstLanguageAvailableIndex);
+                console.info(appLanguageIdsAsRef.value[firstLanguageAvailableIndex]);
                 return isPublished(c as ContentDto);
             })
             .sortBy("title") as unknown as Promise<ContentDto[]>,
@@ -35,6 +40,7 @@ watch(topics, async (value) => {
 </script>
 
 <template>
+    {{ topics }}
     <div class="flex flex-wrap gap-4">
         <ContentTile
             v-for="topic in topics"

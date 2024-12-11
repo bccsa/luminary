@@ -103,10 +103,6 @@ export class ContentDto extends _contentBaseDto {
     @IsArray()
     @Expose()
     memberOf: Uuid[]; // Even though this field is copied from the parent, the property is not prefixed with "parent" as it is used in database queries in the same was as the parent's field.
-    @IsOptional()
-    @IsArray()
-    @Expose()
-    parentAvailableTranslations?: Uuid[];
 
     @IsOptional() // Optional as it is set upon change request processing
     @IsArray()
@@ -146,4 +142,9 @@ export class ContentDto extends _contentBaseDto {
     @IsArray()
     @Expose()
     parentTaggedDocs?: Uuid[];
+
+    @IsOptional()
+    @IsArray()
+    @Expose()
+    parentAvailableTranslations?: Uuid[];
 }

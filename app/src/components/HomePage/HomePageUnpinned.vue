@@ -16,53 +16,36 @@ import { isPublished } from "@/util/isPublished";
 
 const newest100Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    async (appLanguageIds: Uuid[]) => {
-        const contentToDisplay: ContentDto[] = [];
-        await Promise.all(
-            appLanguageIds.map(async (languageId) => {
-                const contentList = await db.docs
-                    .where({
-                        language: languageId,
-                        status: "published",
-                    })
-                    .filter((c) => {
-                        const content = c as ContentDto;
-                        console.info(content.parentTags);
-                        if (content.type !== DocType.Content) return false;
-                        if (content.parentPostType && content.parentPostType == PostType.Page)
-                            return false;
-                        if (content.parentTagType && content.parentTagType !== TagType.Topic)
-                            return false;
+    () =>
+        db.docs
+            .orderBy("publishDate")
+            .reverse()
+            .filter((c) => {
+                const content = c as ContentDto;
+                if (content.type !== DocType.Content) return false;
+                if (content.parentPostType && content.parentPostType == PostType.Page) return false;
+                if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
 
-                        if (!content.publishDate) return false;
-                        if (content.publishDate > Date.now()) return false;
-                        if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                        return true;
-                    })
-                    .limit(100)
-                    .toArray();
-                contentList.forEach((c) => {
-                    const content = c as ContentDto;
-                    if (!contentToDisplay.some((item) => item.parentId === content.parentId)) {
-                        contentToDisplay.push(content);
-                    }
-                });
-            }),
-        );
+                // Only include published content
+                if (content.status !== "published") return false;
+                if (!content.publishDate) return false;
+                if (content.publishDate > Date.now()) return false;
+                if (content.expiryDate && content.expiryDate < Date.now()) return false;
 
-        return contentToDisplay;
-    },
+                const firstSupportedLanguage = appLanguageIdsAsRef.value.find((lang) =>
+                    content.parentAvailableTranslations?.includes(lang),
+                );
+
+                return true && content.language === firstSupportedLanguage;
+            })
+            .limit(100) // Limit to the newest posts
+            .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_newest100Content") },
 );
 
 watch(newest100Content, async (value) => {
     db.setQueryCache<ContentDto[]>("homepage_newest100Content", value);
 });
-
-console.info(
-    "Extracted parentTags:",
-    newest100Content.value.map((content) => content.parentId),
-);
 
 const categoryIds = computed(() =>
     newest100Content.value
@@ -75,7 +58,7 @@ const categoryIds = computed(() =>
 
 const categories = useDexieLiveQueryWithDeps(
     [categoryIds, appLanguageIdsAsRef],
-    ([_categoryIds, appLanguageId]: [Uuid[], Uuid]) =>
+    ([_categoryIds]: [Uuid[], Uuid]) =>
         db.docs
             .where("parentId")
             .anyOf(_categoryIds)
@@ -85,11 +68,14 @@ const categories = useDexieLiveQueryWithDeps(
                 if (!_content.parentTagType) return false;
                 if (_content.parentPinned) return false;
 
-                // Use the `isPublished` helper function
+                const firstSupportedLanguage = appLanguageIdsAsRef.value.find((lang) =>
+                    _content.parentAvailableTranslations?.includes(lang),
+                );
+
                 return (
                     isPublished(_content) &&
                     _content.parentTagType === TagType.Category &&
-                    _content.language === appLanguageId
+                    _content.language == firstSupportedLanguage
                 );
             })
             .toArray() as unknown as Promise<ContentDto[]>,
@@ -103,7 +89,7 @@ watch(
     },
 );
 
-let unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);
+const unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);
 </script>
 
 <template>

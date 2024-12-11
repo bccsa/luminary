@@ -86,7 +86,6 @@ export type ContentDto = ContentBaseDto & {
 export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
-    availableTranslations: Uuid[];
     publishDateVisible: boolean;
 };
 
