@@ -1,6 +1,7 @@
 import { IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
+import { IsStringTranslationRecord } from "../validation/IsStringTranslationRecord";
 
 /**
  * Database structured Language object
@@ -21,7 +22,8 @@ export class LanguageDto extends _contentBaseDto {
     @Expose()
     default?: number;
 
-    @IsOptional()
     @Expose()
-    translations?: Record<string, string>;
+    @IsOptional()
+    @IsStringTranslationRecord()
+    translations: Record<string, string>;
 }
