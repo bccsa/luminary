@@ -147,7 +147,7 @@ const routeKey = computed(() => {
 </script>
 
 <template>
-    <div class="fixed flex h-dvh w-full flex-col">
+    <div class="absolute bottom-0 left-0 right-0 top-0 flex flex-col">
         <TopBar class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50" />
         <NotificationBannerManager />
 
