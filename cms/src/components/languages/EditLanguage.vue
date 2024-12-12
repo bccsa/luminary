@@ -26,7 +26,30 @@ type Props = {
 const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const currentLanguage = db.getAsRef<LanguageDto>(props.id);
+
+const currentLanguage = computed({
+    get(): LanguageDto {
+        const foundLanguage = languages.value?.find((l) => l._id === props.id);
+        return foundLanguage
+            ? foundLanguage
+            : {
+                  _id: props.id,
+                  name: "New language",
+                  languageCode: "",
+                  default: 0,
+                  memberOf: [],
+                  type: DocType.Language,
+                  updatedTimeUtc: Date.now(),
+                  translations: {},
+              };
+    },
+    set(value) {
+        if (currentLanguage.value) {
+            currentLanguage.value = value;
+        }
+    },
+});
+
 const isLocalChange = db.isLocalChangeAsRef(props.id);
 
 const keyInput = ref(""); // Holds the key being edited or added
@@ -197,7 +220,7 @@ watch(
                 </div>
             </div>
         </template>
-        <div class="space-y-2" v-if="currentLanguage">
+        <div class="space-y-2">
             <LCard class="rounded-lg bg-white shadow-lg">
                 <LInput
                     label="Name"
@@ -296,6 +319,7 @@ watch(
                             >
                                 <LButton
                                     variant="primary"
+                                    name="add"
                                     @click="addProperty()"
                                     :disabled="disabled"
                                     class="h-10 items-end"
@@ -311,19 +335,27 @@ watch(
                                     v-model="selectedLanguage"
                                     :options="
                                         languageOptions.filter(
-                                            (l) => l.value !== currentLanguage._id,
+                                            (l) =>
+                                                currentLanguage &&
+                                                currentLanguage._id &&
+                                                l.value !== currentLanguage._id,
                                         )
                                     "
                                     :required="true"
                                 />
                             </td>
                         </tr>
-                        <tr v-for="(val, key) in sortedTranslations" :key="key">
+                        <tr
+                            v-for="(val, key) in sortedTranslations"
+                            :key="key"
+                            data-test="translation-row"
+                        >
                             <td
                                 class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
                             >
                                 <span
                                     v-if="editingKey !== key"
+                                    name="key-span"
                                     @click="startEditing(key, val)"
                                     class="flex cursor-pointer gap-1 hover:text-blue-600"
                                 >
@@ -331,10 +363,11 @@ watch(
                                 </span>
                                 <input
                                     v-else
-                                    v-model="newKey"
+                                    name="key"
                                     class="w-full flex-1 rounded border px-2 text-sm font-medium"
                                     type="text"
                                     placeholder="Edit key"
+                                    data-test="edit-key-input"
                                 />
                             </td>
                             <td
@@ -342,6 +375,7 @@ watch(
                             >
                                 <span
                                     v-if="editingKey !== key"
+                                    name="value-span"
                                     @click="startEditing(key, val)"
                                     class="cursor-pointer text-wrap hover:text-blue-600"
                                 >
@@ -350,9 +384,11 @@ watch(
                                 <input
                                     v-else
                                     v-model="editingValue"
+                                    name="value"
                                     class="w-full flex-1 rounded border px-2 text-sm font-medium"
                                     type="text"
                                     placeholder="Edit value"
+                                    data-test="edit-value-input"
                                 />
                             </td>
                             <td
@@ -363,6 +399,7 @@ watch(
                                     variant="primary"
                                     size="sm"
                                     @click="saveEditedKeyValue"
+                                    data-test="save-key-button"
                                 >
                                     Save
                                 </LButton>
@@ -371,6 +408,7 @@ watch(
                                     variant="secondary"
                                     size="sm"
                                     @click="deleteProperty(key)"
+                                    data-test="delete-key-button"
                                 >
                                     Delete
                                 </LButton>
