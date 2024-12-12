@@ -24,10 +24,11 @@ const pinnedTopics = useDexieLiveQueryWithDeps(
                 language: appLanguageId,
                 status: "published",
                 parentPinned: 1, // 1 = true
-                parentTagType: TagType.Category,
             })
             .filter((c) => {
                 const content = c as ContentDto;
+                if (content.parentTagType && content.parentTagType !== TagType.Category)
+                    return false;
 
                 return isPublished(content);
             })
@@ -50,13 +51,16 @@ const pinnedTopicContent = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
+                if (!isPublished(content)) return false;
 
+                if (content.parentType != DocType.Tag) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
 
                 for (const tagId of content.parentTags) {
                     if (pinnedTopics.some((p) => p.parentId == tagId)) return true;
                 }
-                return isPublished(content);
+
+                return false;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("explorepage_pinnedTopics") },
@@ -68,37 +72,21 @@ watch(pinnedTopicContent, async (value) => {
 
 // sort pinned content by category
 const pinnedContentByTopic = contentByTag(pinnedTopicContent, pinnedTopics);
-
-const scrollContent = ref<HTMLElement | null>(null);
-
-const scrollPosition = ref(10);
-const infiniteScrollData = computed(() =>
-    pinnedContentByTopic.value.slice(0, scrollPosition.value),
-);
-
-useInfiniteScroll(
-    scrollContent,
-    () => {
-        scrollPosition.value += 10;
-    },
-    { distance: 10 },
-);
 </script>
 
 <template>
     <div class="-my-6">
         <IgnorePagePadding>
-            <div v-for="c in infiniteScrollData" :key="c.tag._id" ref="scrollContent">
-                <HorizontalContentTileCollection
-                    v-if="c.content.length > 0"
-                    :contentDocs="c.content"
-                    :title="c.tag.title"
-                    aspectRatio="classic"
-                    :summary="c.tag.summary"
-                    :showPublishDate="false"
-                    class="pb-3 pt-4"
-                />
-            </div>
+            <HorizontalContentTileCollection
+                v-for="c in pinnedContentByTopic"
+                :key="c.tag._id"
+                :contentDocs="c.content"
+                :title="c.tag.title"
+                aspectRatio="classic"
+                :summary="c.tag.summary"
+                :showPublishDate="false"
+                class="pb-3 pt-4"
+            />
         </IgnorePagePadding>
     </div>
 </template>
