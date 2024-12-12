@@ -4,6 +4,7 @@ import {
     type ContentDto,
     DocType,
     PostType,
+    PublishStatus,
     TagType,
     type Uuid,
     db,
@@ -46,10 +47,11 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             .where({
                 type: DocType.Content,
                 language: appLanguageId,
-                status: "published",
+                status: PublishStatus.Published,
             })
             .filter((c) => {
                 const content = c as ContentDto;
+                if (!isPublished(content)) return false;
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
@@ -57,7 +59,8 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 for (const tagId of content.parentTags) {
                     if (pinnedCategories.some((p) => p.parentId == tagId)) return true;
                 }
-                return isPublished(content);
+
+                return false;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },
