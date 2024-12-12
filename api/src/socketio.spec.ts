@@ -105,6 +105,9 @@ describe("Socketio", () => {
                     memberOf: ["group-languages"],
                     languageCode: "eng",
                     name: "English",
+                    translations: {
+                        stringTranslation: "String Translation",
+                    },
                 },
             };
 
