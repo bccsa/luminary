@@ -7,17 +7,24 @@ import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db } from "luminary-shared";
 import {
     fullAccessToAllContentMap,
+    mockGroupDtoPrivateContent,
+    mockGroupDtoPublicContent,
+    mockGroupDtoPublicUsers,
     mockLanguageDtoEng,
     mockLanguageDtoFra,
     mockLanguageDtoSwa,
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import GroupSelector from "../groups/GroupSelector.vue";
-import { ComboboxInput } from "@headlessui/vue";
+import LButton from "../button/LButton.vue";
 
 describe("CreateOrEditLanguageModal.vue", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await db.docs.bulkPut([
+            mockGroupDtoPrivateContent,
+            mockGroupDtoPublicUsers,
+            mockGroupDtoPublicContent,
+        ]);
 
         setActivePinia(createTestingPinia());
 
@@ -48,27 +55,19 @@ describe("CreateOrEditLanguageModal.vue", () => {
             expect(wrapper.html()).toContain("Create");
         });
 
-        it.skip("can enable save button if form fields are filled", async () => {
+        it("can enable save button if form fields are filled", async () => {
             const wrapper = mount(CreateOrEditLanguageModal, {
                 props: {
                     isVisible: true,
+                    language: mockLanguageDtoEng,
                 },
             });
 
-            await wrapper.find("[name='languageName']").setValue("Afrikaans");
-            await wrapper.find("[name='languageCode']").setValue("afr");
+            const saveButton = wrapper.findAllComponents(LButton)[1];
 
-            let groupSelector: any;
             await waitForExpect(() => {
-                groupSelector = wrapper.findComponent(GroupSelector);
-                expect(groupSelector.exists()).toBe(true);
+                expect(saveButton.props("disabled")).toBe(false);
             });
-
-            await groupSelector!.findComponent(ComboboxInput).setValue("Languages");
-
-            // Assert that the save button is disabled
-            const saveButton = wrapper.find("[data-test='save-button']");
-            expect(saveButton.attributes("disabled")).toBeDefined();
         });
     });
 
@@ -92,7 +91,7 @@ describe("CreateOrEditLanguageModal.vue", () => {
         });
     });
 
-    it.skip("disables save button if form fields are not filled", async () => {
+    it("disables save button if form fields are not filled", async () => {
         const wrapper = mount(CreateOrEditLanguageModal, {
             props: {
                 isVisible: true,
@@ -104,8 +103,11 @@ describe("CreateOrEditLanguageModal.vue", () => {
         await wrapper.find("[name='languageCode']").setValue("");
 
         // Assert that the save button is disabled
-        const saveButton = wrapper.find("[data-test='save-button']");
-        expect(saveButton.attributes("disabled")).toBeUndefined();
+        const saveButton = wrapper.findAllComponents(LButton)[1];
+
+        await waitForExpect(() => {
+            expect(saveButton.props("disabled")).toBe(true);
+        });
     });
 
     it("emits close event when cancel button is clicked", async () => {
