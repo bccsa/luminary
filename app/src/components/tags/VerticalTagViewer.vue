@@ -3,7 +3,7 @@ import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "lumin
 import { toRef } from "vue";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import { DateTime } from "luxon";
 
@@ -22,7 +22,7 @@ const isContentSelected = (slug: string) => {
 };
 
 const tagged = useDexieLiveQueryWithDeps(
-    [appLanguageIdAsRef, toRef(() => props.tag.parentTaggedDocs)],
+    [appLanguageIdsAsRef, toRef(() => props.tag.parentTaggedDocs)],
     ([languageId, ids]: [Uuid, Uuid]) =>
         db.docs
             .where("parentId")

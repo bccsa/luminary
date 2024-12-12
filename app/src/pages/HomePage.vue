@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { type ContentDto, DocType, db } from "luminary-shared";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageUnpinned from "@/components/HomePage/HomePageUnpinned.vue";
@@ -15,7 +15,6 @@ const hasPosts = db.toRef<boolean>(
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageIdAsRef.value,
                 status: "published",
             })
             .filter((c) => {
@@ -23,7 +22,8 @@ const hasPosts = db.toRef<boolean>(
                 if (!content.publishDate) return false;
                 if (content.publishDate > Date.now()) return false;
                 if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                const firstSupportedLang = appLanguageIdsAsRef.value.find((lang) => content.availableTranslations?.includes(lang))
+                return true && content.language === firstSupportedLang;
             })
             .first()
             .then((c) => c != undefined),

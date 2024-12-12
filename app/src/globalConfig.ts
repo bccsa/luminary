@@ -13,9 +13,13 @@ export const isDevMode = import.meta.env.DEV;
 /**
  * The preferred language ID as Vue ref.
  */
-export const appLanguageIdAsRef = ref(localStorage.getItem("language") || "");
-watch(appLanguageIdAsRef, (newVal) => {
-    localStorage.setItem("language", newVal);
+export const appLanguageIdsAsRef = ref<string[]>(
+    localStorage.getItem("languages")
+        ? JSON.parse(localStorage.getItem("languages") as string) // Assert it's a string here
+        : [""],
+);
+watch(appLanguageIdsAsRef, (newVal) => {
+    localStorage.setItem("languages", JSON.stringify(newVal));
 });
 
 const _appLanguageAsRef = ref<LanguageDto | undefined>();
@@ -23,6 +27,8 @@ const _appLanguageAsRef = ref<LanguageDto | undefined>();
  * The preferred language document as Vue ref.
  */
 export const appLanguageAsRef = readonly(_appLanguageAsRef);
+
+export const languagesPreferredByBrowser = navigator.languages;
 
 export const initLanguage = () => {
     const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
@@ -32,10 +38,9 @@ export const initLanguage = () => {
     watch(languages, (newVal) => {
         if (
             newVal.length > 0 &&
-            (!appLanguageIdAsRef.value || !newVal.some((l) => l._id === appLanguageIdAsRef.value))
+            (!appLanguageIdsAsRef.value ||
+                !newVal.some((l) => l._id === appLanguageIdsAsRef.value[0]))
         ) {
-            const languagesPreferredByBrowser = navigator.languages;
-
             // Check for the preferred language in the available languages
             const preferredLanguageId = newVal.find((l) =>
                 languagesPreferredByBrowser.includes(l.languageCode),
@@ -43,22 +48,22 @@ export const initLanguage = () => {
 
             // If a preferred language exists, set it
             if (preferredLanguageId) {
-                appLanguageIdAsRef.value = preferredLanguageId;
+                appLanguageIdsAsRef.value[0] = preferredLanguageId;
             } else {
                 // If no preferred language found, check for the first supported language
-                const firstSupportedLanguageId = newVal[0]?._id; // Assuming the first language is the default if none found in preferences
+                const firstSupportedLanguageId = newVal[0]._id; // Assuming the first language is the default if none found in preferences
 
                 // Set to first supported language
-                appLanguageIdAsRef.value = firstSupportedLanguageId;
+                appLanguageIdsAsRef.value[0] = firstSupportedLanguageId;
             }
         }
     });
 
     // Set the preferred language document
-    watch([appLanguageIdAsRef, languages], () => {
-        if (appLanguageIdAsRef.value && languages.value.length > 0) {
+    watch([appLanguageIdsAsRef, languages], () => {
+        if (appLanguageIdsAsRef.value && languages.value.length > 0) {
             _appLanguageAsRef.value = languages.value.find(
-                (l) => l._id === appLanguageIdAsRef.value,
+                (l) => l._id === appLanguageIdsAsRef.value[0],
             );
         }
     });

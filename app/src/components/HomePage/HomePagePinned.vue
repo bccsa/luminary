@@ -10,18 +10,17 @@ import {
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
-    (appLanguageId: Uuid) =>
+    appLanguageIdsAsRef,
+    (appLanguageIds: Uuid[]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
                 status: "published",
                 parentPinned: 1, // 1 = true
             })
@@ -30,7 +29,10 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
                 if (!content.publishDate) return false;
                 if (content.publishDate > Date.now()) return false;
                 if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                const firstSupportedLang = appLanguageIds.find((lang) =>
+                    content.availableTranslations?.includes(lang),
+                );
+                return true && firstSupportedLang === content.language;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories") },
@@ -41,13 +43,12 @@ watch(pinnedCategories, async (value) => {
 });
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdAsRef, pinnedCategories],
-    ([appLanguageId, pinnedCategories]: [Uuid, ContentDto[]]) =>
+    [appLanguageIdsAsRef, pinnedCategories],
+    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
-                status: PublishStatus.Published,
+                status: "published",
             })
             .filter((c) => {
                 const content = c as ContentDto;
@@ -60,7 +61,13 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                     if (pinnedCategories.some((p) => p.parentId == tagId)) return true;
                 }
 
-                return false;
+                const firstSupportedLang = appLanguageIds.find((lang) =>
+                    content.availableTranslations?.includes(lang),
+                );
+
+                if (content.language !== firstSupportedLang) return false;
+
+                return isPublished(content);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },
