@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { watch } from "vue";
 import {
     type ContentDto,
     DocType,
@@ -12,7 +12,6 @@ import { appLanguageIdAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 import { contentByTag } from "../contentByTag";
-import { useInfiniteScroll } from "@vueuse/core";
 import { isPublished } from "@/util/isPublished";
 
 const pinnedTopics = useDexieLiveQueryWithDeps(
