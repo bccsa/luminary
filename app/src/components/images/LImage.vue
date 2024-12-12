@@ -5,11 +5,17 @@ import { computed, ref } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
 
-const props = defineProps<{
+type Props = {
     image?: ImageDto;
-    aspectRatio: keyof typeof aspectRatios;
-    size: keyof typeof sizes;
-}>();
+    aspectRatio?: keyof typeof aspectRatios;
+    size?: keyof typeof sizes;
+    rounded?: boolean;
+};
+const props = withDefaults(defineProps<Props>(), {
+    aspectRatio: "video",
+    size: "post",
+    rounded: true,
+});
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
@@ -18,6 +24,7 @@ const aspectRatios = {
     square: "aspect-square",
     vertical: "aspect-[9/16]",
     wide: "aspect-[18/9]",
+    classic: "aspect-[4/3]",
 };
 
 // Rounded to two decimal places
@@ -26,16 +33,17 @@ const aspectRatioNumbers = {
     square: 1,
     vertical: 0.56,
     wide: 2,
+    classic: 1.33,
 };
 
 const sizes = {
-    small: "w-20 max-w-20 md:w-24 md:max-w-24",
-    thumbnail: "w-36 max-w-36 md:w-52 md:max-w-52",
+    small: "w-20 max-w-20 min-w-20 md:w-24 md:max-w-24 md:min-w-24",
+    thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
     post: "w-full max-w-full",
 };
 
 const rounding = {
-    small: "rounded-sm",
+    small: "rounded-md",
     thumbnail: "rounded-lg",
     post: "md:rounded-lg",
 };
@@ -111,8 +119,7 @@ const showImageElement2 = computed(
             :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
                 aspectRatios[aspectRatio],
-                rounding[size],
-                sizes[size],
+                rounded ? rounding[size] : '',
                 'w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >

@@ -7,9 +7,11 @@ import LImage from "../images/LImage.vue";
 type Props = {
     content: ContentDto;
     showPublishDate?: boolean;
+    aspectRatio?: typeof LImage.aspectRatios;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
+    aspectRatio: "video",
 });
 
 const router = useRouter();
@@ -24,7 +26,7 @@ const openContent = () => {
         <div
             class="avoid-inside ease-out-expo -m-2 cursor-pointer p-2 transition-transform duration-500 active:shadow-inner group-hover:scale-[101%]"
         >
-            <LImage :image="content.parentImageData" aspectRatio="video" size="thumbnail">
+            <LImage :image="content.parentImageData" :aspectRatio="aspectRatio" size="thumbnail">
                 <div class="w-full">
                     <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
                         {{ content.title }}
