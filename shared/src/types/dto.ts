@@ -80,6 +80,7 @@ export type ContentDto = ContentBaseDto & {
     parentPublishDateVisible?: boolean;
     parentPinned?: number;
     parentTaggedDocs?: Uuid[];
+    availableTranslations?: Uuid[];
 };
 
 export type ContentParentDto = ContentBaseDto & {

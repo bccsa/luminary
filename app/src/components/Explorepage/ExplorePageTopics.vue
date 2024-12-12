@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ContentTile from "@/components/content/ContentTile.vue";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import {
     db,
@@ -13,16 +13,23 @@ import {
 import { watch } from "vue";
 
 const topics = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
-    (languageId: Uuid) =>
+    appLanguageIdsAsRef,
+    (languageIds: Uuid[]) =>
         db.docs
             .where({
                 type: DocType.Content,
                 parentTagType: TagType.Topic,
-                language: languageId,
                 status: "published",
             })
             .filter((c) => {
+                const content = c as ContentDto;
+                // console.info(content);
+                console.info(content.availableTranslations);
+                const firstSupportedLang = languageIds.find((lang: Uuid) =>
+                    content.availableTranslations?.includes(lang),
+                );
+
+                if (content.language !== firstSupportedLang) return false;
                 return isPublished(c as ContentDto);
             })
             .sortBy("title") as unknown as Promise<ContentDto[]>,
