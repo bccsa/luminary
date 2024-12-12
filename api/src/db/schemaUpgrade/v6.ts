@@ -1,7 +1,7 @@
 import { DbService } from "../db.service";
 import { DocType, Uuid } from "../../enums";
-import { TagDto } from "src/dto/TagDto";
-import { ContentDto } from "src/dto/ContentDto";
+import { TagDto } from "../../dto/TagDto";
+import { ContentDto } from "../../dto/ContentDto";
 
 /**
  * Upgrade the database schema from version 5 to 6
