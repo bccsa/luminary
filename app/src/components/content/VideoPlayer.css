@@ -72,6 +72,10 @@
     @apply p-3 pl-2;
 }
 
+.video-player :is(.vjs-live) .vjs-playback-rate {
+    @apply !hidden;
+}
+
 .video-player .vjs-slider {
     @apply !rounded-full;
 }
