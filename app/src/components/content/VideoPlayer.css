@@ -42,6 +42,14 @@
     @apply !text-xl;
 }
 
+.video-player :is(.vjs-live) .vjs-skip-backward-10 {
+    @apply !hidden;
+}
+
+.video-player :is(.vjs-live) .vjs-skip-forward-10 {
+    @apply !hidden;
+}
+
 .video-player .vjs-control-bar {
     @apply !relative !h-full !w-full md:rounded-lg;
     background-color: rgba(0, 0, 0, 0.3) !important;
