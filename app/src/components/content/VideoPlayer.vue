@@ -177,7 +177,11 @@ onMounted(() => {
     player.on("pause", () => {
         if (!props.content.video) return;
 
-        if (autoFullscreen) player.exitFullscreen();
+        if (autoFullscreen)
+            setTimeout(() => {
+                if (!player.paused()) return;
+                player.exitFullscreen();
+            }, 500);
     });
 });
 
