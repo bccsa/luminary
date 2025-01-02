@@ -8,11 +8,18 @@ Refer to the [setup guide](../docs/setup-vue-app.md).
 
 When running `npm run dev` the local reloading server of the app will start at http://localhost:4174.
 
-### Plugins
+## Query string paramenters
+
+The following query string parameters are supported:
+
+-   autoplay=true - Auto plays video when opening a post / tag with video content
+-   autofullscreen=true - Automatically switches to full screen video player mode on play
+
+## Plugins
 
 Plugins can be used to extend the functionality of Luminary.
 
-#### How to add plugins
+### How to add plugins
 
 -   To add a plugin you need to create a plugins folder, somewhere out of the project structure
 -   Set the VITE_PLUGIN_PATH env variable in your .env, then vite will go fetch your files at that location and copy it into the [plugins folder](./src/plugins/)
@@ -31,7 +38,7 @@ VITE_PLUGINS=["examplePlugin", "examplePlugin2"]
 
 **The files is being copied everytime before vite build, dev, and test is run**
 
-#### Plugin format
+### Plugin format
 
 ```ts
 export class examplePlugin {

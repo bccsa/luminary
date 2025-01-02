@@ -13,6 +13,7 @@ import {
     getMediaProgress,
     removeMediaProgress,
     setMediaProgress,
+    queryParams,
 } from "@/globalConfig";
 
 type Props = {
@@ -27,6 +28,8 @@ let player: Player;
 const audioMode = ref<boolean>(false);
 const hasStarted = ref<boolean>(false);
 const showAudioModeToggle = ref<boolean>(true);
+const autoPlay = queryParams.get("autoplay") === "true";
+const autoFullscreen = queryParams.get("autofullscreen") === "true";
 
 let timeout: any;
 function autoHidePlayerControls() {
@@ -39,6 +42,7 @@ function autoHidePlayerControls() {
 function playerPlayEventHandler() {
     hasStarted.value = true;
     playerUserActiveEventHandler();
+    if (autoFullscreen) player.requestFullscreen();
 }
 
 function playerUserActiveEventHandler() {
@@ -81,7 +85,7 @@ onMounted(() => {
             nativeAudioTracks: videojs.browser.IS_SAFARI,
             nativeVideoTracks: videojs.browser.IS_SAFARI,
         },
-        autoplay: false,
+        autoplay: autoPlay,
         preload: "auto",
         enableSmoothSeeking: true,
         playbackRates: [0.5, 0.7, 1, 1.5],
@@ -162,10 +166,18 @@ onMounted(() => {
         if (progress > 60) player.currentTime(progress - 30);
     });
 
-    // Remove player progress on ended
     player.on("ended", () => {
         if (!props.content.video) return;
+        // Remove player progress on ended
         removeMediaProgress(props.content.video, props.content._id);
+
+        player.exitFullscreen();
+    });
+
+    player.on("pause", () => {
+        if (!props.content.video) return;
+
+        if (autoFullscreen) player.exitFullscreen();
     });
 });
 
