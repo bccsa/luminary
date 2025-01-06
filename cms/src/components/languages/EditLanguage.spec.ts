@@ -72,7 +72,7 @@ describe("EditLanguage.vue", () => {
         expect(updatedLanguage.languageCode).toBe("eng (updated)");
     });
 
-    it("translation strings: can add a new key  ", async () => {
+    it("translation strings: can add a new translation", async () => {
         const wrapper = mount(EditLanguage, {
             props: {
                 id: mockLanguageDtoEng._id,
@@ -94,5 +94,49 @@ describe("EditLanguage.vue", () => {
         });
     });
 
-    it("translation strings: can edit a key", async () => {});
+    it("translation strings: can edit a key", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+
+            const translationRow = wrapper.findAll("tr")[3];
+
+            await translationRow.find("[name='key-span']").trigger("click");
+            await translationRow.find("[name='key']").setValue("newKey.test");
+
+            await translationRow.find("[data-test='save-key-button']").trigger("click");
+            await wrapper.find("[data-test='save-button']").trigger("click");
+
+            expect(wrapper.html()).toContain("newKey.test");
+        });
+    });
+
+    it("translation strings: can edit a value", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+
+            const translationRow = wrapper.findAll("tr")[3];
+
+            const td = translationRow.findAll("td")[1];
+            await td.find("span").trigger("click");
+
+            await td.find("input").setValue("New value");
+
+            await translationRow.find("[data-test='save-key-button']").trigger("click");
+            await wrapper.find("[data-test='save-button']").trigger("click");
+
+            expect(wrapper.html()).toContain("New value");
+        });
+    });
 });
