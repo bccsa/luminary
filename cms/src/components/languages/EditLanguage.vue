@@ -363,6 +363,7 @@ watch(
                                 </span>
                                 <input
                                     v-else
+                                    v-model="newKey"
                                     name="key"
                                     class="w-full flex-1 rounded border px-2 text-sm font-medium"
                                     type="text"
