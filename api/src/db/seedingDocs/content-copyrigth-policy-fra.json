@@ -1,0 +1,21 @@
+{
+    "_id": "content-copyrigth-policy-fra",
+    "type": "content",
+    "memberOf": ["group-public-content"],
+    "language": "lang-fra",
+    "status": "published",
+    "slug": "politique-de-copyright",
+    "title": "Politique de Copyright",
+    "summary": "Ceci est une page sur notre politique de copyright",
+    "author": "ChatGPT",
+    "text": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"© 2025. Tous droits réservés. Ce contenu est protégé par les lois sur le copyright. Toute reproduction ou distribution non autorisée est strictement interdite.\"}]}]}",
+    "localisedImage": null,
+    "audio": null,
+    "video": null,
+    "publishDate": 1704114000000,
+    "parentId": "page-copyrigth-policy",
+    "parentType": "post",
+    "parentTags": [],
+    "parentPostType": "page",
+    "parentPublishDateVisible": false
+}
