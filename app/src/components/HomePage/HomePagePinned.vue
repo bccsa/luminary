@@ -34,7 +34,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
                 return true && firstSupportedLang === content.language;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories") },
+    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
 );
 
 watch(pinnedCategories, async (value) => {

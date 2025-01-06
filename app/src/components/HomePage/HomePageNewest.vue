@@ -27,6 +27,7 @@ const newest10Content = useDexieLiveQueryWithDeps(
             .toArray() as unknown as Promise<ContentDto[]>,
     {
         initialValue: await db.getQueryCache<ContentDto[]>("homepage_newestContent"),
+        deep: true,
     },
 );
 

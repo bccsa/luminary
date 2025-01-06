@@ -18,7 +18,7 @@ import {
     SunIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
-import { appLanguageAsRef } from "@/globalConfig";
+import { appLanguagesAsRef } from "@/globalConfig";
 import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 
 const { user, logout, isAuthenticated } = useAuth0();
@@ -38,7 +38,7 @@ const commonNavigation = computed(() => {
         { name: "Theme", icon: SunIcon, action: () => (showThemeSelector.value = true) },
         {
             name: "Language",
-            language: appLanguageAsRef.value,
+            language: appLanguagesAsRef.value,
             icon: LanguageIcon,
             action: () => (showLanguageModal.value = true),
         },

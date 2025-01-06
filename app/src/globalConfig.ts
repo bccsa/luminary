@@ -14,19 +14,23 @@ export const isDevMode = import.meta.env.DEV;
  * The preferred language ID as Vue ref.
  */
 export const appLanguageIdsAsRef = ref<string[]>(
-    localStorage.getItem("languages")
-        ? JSON.parse(localStorage.getItem("languages") as string) // Assert it's a string here
-        : [""],
+    JSON.parse(localStorage.getItem("languages") || "[]") || ([] as string[]),
 );
-watch(appLanguageIdsAsRef, (newVal) => {
-    localStorage.setItem("languages", JSON.stringify(newVal));
-});
 
-const _appLanguageAsRef = ref<LanguageDto | undefined>();
+watch(
+    appLanguageIdsAsRef,
+    (newVal) => {
+        console.info("Setting languages", newVal);
+        localStorage.setItem("languages", JSON.stringify(newVal));
+    },
+    { deep: true },
+);
+
+const _appLanguagesAsRef = ref<LanguageDto[] | undefined>([]);
 /**
  * The preferred language document as Vue ref.
  */
-export const appLanguageAsRef = readonly(_appLanguageAsRef);
+export const appLanguagesAsRef = readonly(_appLanguagesAsRef);
 
 export const languagesPreferredByBrowser = navigator.languages;
 
@@ -60,13 +64,17 @@ export const initLanguage = () => {
     });
 
     // Set the preferred language document
-    watch([appLanguageIdsAsRef, languages], () => {
-        if (appLanguageIdsAsRef.value && languages.value.length > 0) {
-            _appLanguageAsRef.value = languages.value.find(
-                (l) => l._id === appLanguageIdsAsRef.value[0],
-            );
-        }
-    });
+    watch(
+        [appLanguageIdsAsRef, languages],
+        () => {
+            if (appLanguageIdsAsRef.value && languages.value.length > 0) {
+                _appLanguagesAsRef.value = appLanguageIdsAsRef.value.map((id) => {
+                    return languages.value.find((l) => l._id === id) as LanguageDto;
+                });
+            }
+        },
+        { deep: true },
+    );
 };
 
 export type mediaProgressEntry = {
