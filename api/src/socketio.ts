@@ -200,7 +200,7 @@ export class Socketio implements OnGatewayInit {
     }
 
     /**
-     * Join client ot socket groups, to receive live updates
+     *  Join client to socket groups, to receive live updates
      * @param reqData
      * @param socket
      */

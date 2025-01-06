@@ -1,14 +1,14 @@
-import { apiConnectionOptions } from "../types";
-import { docs } from "../docs/docs";
+import { ApiConnectionOptions } from "../types";
+import { Docs } from "../docs/docs";
 
-class restAPi {
-    private docs: docs;
+class RestApi {
+    private docs: Docs;
     /**
-     * Create a new socketio instance
+     * Create a new docs instance
      * @param options - Options
      */
-    constructor(options: apiConnectionOptions) {
-        this.docs = new docs(options);
+    constructor(options: ApiConnectionOptions) {
+        this.docs = new Docs(options);
     }
 
     async clientDataReq() {
@@ -16,13 +16,13 @@ class restAPi {
     }
 }
 
-let rest: restAPi;
+let rest: RestApi;
 
 /**
  * Returns a singleton instance of the restApi client class. The api URL, token and CMS flag is only used when calling the function for the first time.
  * @param options - Socket connection options
  */
-export function getRest(options?: apiConnectionOptions) {
+export function getRest(options?: ApiConnectionOptions) {
     if (rest) return rest;
 
     if (!options) {
@@ -38,7 +38,7 @@ export function getRest(options?: apiConnectionOptions) {
     }
     if (!options.cms) options.cms = false;
 
-    rest = new restAPi(options);
+    rest = new RestApi(options);
 
     return rest;
 }

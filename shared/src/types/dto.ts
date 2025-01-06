@@ -155,7 +155,7 @@ export type RedirectDto = ContentBaseDto & {
     toSlug?: string;
 };
 
-export type apiConnectionOptions = {
+export type ApiConnectionOptions = {
     /**
      * Socket.io endpoint URL
      */

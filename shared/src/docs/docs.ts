@@ -1,5 +1,5 @@
 import { httpReq } from "../rest/http";
-import { apiConnectionOptions } from "../types";
+import { ApiConnectionOptions } from "../types";
 import { db, SyncMap, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap, AccessMap } from "../permissions/permissions";
 
@@ -18,14 +18,14 @@ type ApiQuery = {
     accessMap: AccessMap;
 };
 
-export class docs {
+export class Docs {
     private http: httpReq;
-    private options: apiConnectionOptions;
+    private options: ApiConnectionOptions;
     /**
-     * Create a new socketio instance
+     * Create a new Docs instance
      * @param options - Options
      */
-    constructor(options: apiConnectionOptions) {
+    constructor(options: ApiConnectionOptions) {
         this.options = options;
         this.http = new httpReq(options.apiUrl || "", options.token);
     }
@@ -174,13 +174,13 @@ export class docs {
             if (newBlockEnd >= blockEnd && newBlockEnd <= blockStart && newBlockStart >= blockStart)
                 (_block.blockStart = newBlockStart), (changed = true);
 
-            // expand overlap
+            // expand overlap block (If existing block is within incoming block)
             if (newBlockStart >= blockStart && newBlockEnd <= blockEnd)
                 (_block.blockStart = newBlockStart),
                     (_block.blockEnd = newBlockEnd),
                     (changed = true);
 
-            // contains, to not expand
+            // contains, to not expand (If incoming block is within existing block)
             if (newBlockStart <= blockStart && newBlockEnd >= blockEnd) changed = true;
         });
 

@@ -6,7 +6,7 @@ import { DocType } from "../enums";
 /**
  * Document structure for client / CMS submitted changes to existing documents or new documents.
  */
-export class PostDocsDto {
+export class DocsReqDto {
     @IsNotEmpty()
     @IsString()
     @Expose()

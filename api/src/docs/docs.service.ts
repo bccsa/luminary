@@ -1,4 +1,4 @@
-import { PostDocsDto } from "../dto/RestDocsDto";
+import { DocsReqDto } from "../dto/DocsReqDto";
 import { HttpException, HttpStatus, Injectable, Inject } from "@nestjs/common";
 import { DbQueryResult, DbService, GetDocsOptions } from "../db/db.service";
 import { DocType, AclPermission } from "../enums";
@@ -12,9 +12,9 @@ import configuration, { Configuration } from "../configuration";
 @Injectable()
 export class DocsService {
     private readonly test: any = [];
-    private cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
     private permissionMap: any;
     private config: Configuration;
+    private cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
     private appDocTypes: Array<DocType> = [
         DocType.Post,
         DocType.Tag,
@@ -37,7 +37,7 @@ export class DocsService {
      * @param req - api request
      * @returns
      */
-    async processReq(req: PostDocsDto, token: string): Promise<DbQueryResult> {
+    async processReq(req: DocsReqDto, token: string): Promise<DbQueryResult> {
         if (!this.apiVersionCheck(req.apiVersion))
             throw new HttpException(
                 "API version is outdated, please update your app",
@@ -87,9 +87,6 @@ export class DocsService {
         };
         if (from !== undefined) query.from = from;
         if (to !== undefined) query.to = to;
-
-        // Get updated data from database
-        // return await this.dbReq(permissions.userId, userViewGroups, from, to);
 
         let _res = undefined;
         await this.db

@@ -4,7 +4,7 @@ import {
     ApiDataResponseDto,
     ChangeReqAckDto,
     LocalChangeDto,
-    apiConnectionOptions,
+    ApiConnectionOptions,
 } from "../types";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
@@ -118,32 +118,6 @@ class Socketio {
     }
 
     /**
-     * Send a clientDataReq message to the server. This is automatically called upon
-     * connection to the server, but in some cases it may be necessary to request it manually
-     * (e.g. after clearing local data).
-     */
-    public async requestData() {
-        // Request documents that are newer than the last received version
-        // this.socket.emit("clientDataReq", {
-        //     version: db.syncVersion,
-        //     cms: this.isCms,
-        //     accessMap: accessMap.value,
-        // });
-        // const res = await this.api.clientDataReq({
-        //     apiVersion: "test2",
-        //     memberOf: ["group-private-users", "group-super-admins"],
-        //     userId: "user-super-admin",
-        //     reqData: {
-        //         version: db.syncVersion,
-        //         cms: this.isCms,
-        //         accessMap: accessMap.value,
-        //     },
-        // });
-        // await db.bulkPut(res.docs);
-        // if (res.version != undefined) db.syncVersion = res.version;
-    }
-
-    /**
      * Push a single local change to the api
      */
     private async pushLocalChange(localChange: LocalChangeDto) {
@@ -183,7 +157,7 @@ let socket: Socketio;
  * Returns a singleton instance of the socketio client class. The api URL, token and CMS flag is only used when calling the function for the first time.
  * @param options - Socket connection options
  */
-export function getSocket(options?: apiConnectionOptions) {
+export function getSocket(options?: ApiConnectionOptions) {
     if (!socket) {
         if (!options) {
             throw new Error("Socket connection requires options object");

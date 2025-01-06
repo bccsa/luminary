@@ -4,7 +4,7 @@ import { db, syncMap } from "../db/database";
 import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
-import { getRest } from "../rest/rest";
+import { getRest } from "../rest/RestApi";
 let rest;
 
 vi.mock("../config/config", () => ({
@@ -15,8 +15,6 @@ vi.mock("../config/config", () => ({
         setMaxUploadFileSize: vi.fn(),
     },
 }));
-
-// const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("rest", () => {
     beforeAll(async () => {
