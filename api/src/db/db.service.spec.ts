@@ -132,7 +132,7 @@ describe("DbService", () => {
         });
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
-        expect(docCount).toBe(15);
+        expect(docCount).toBe(18);
     });
 
     it("can retrieve documents using two group selectors", async () => {
@@ -148,7 +148,7 @@ describe("DbService", () => {
         const docCount =
             res.docs.filter((t) => t.memberOf.includes("group-public-content")).length +
             res.docs.filter((t) => t.memberOf.includes("group-private-content")).length;
-        expect(docCount).toBe(27);
+        expect(docCount).toBe(30);
     });
 
     it("can retrieve documents of one type", async () => {
@@ -161,7 +161,7 @@ describe("DbService", () => {
         });
 
         const docCount = res.docs.filter((t) => t.type === DocType.Post).length;
-        expect(docCount).toBe(3);
+        expect(docCount).toBe(4);
     });
 
     it("can retrieve documents of two types", async () => {
@@ -177,7 +177,7 @@ describe("DbService", () => {
         const docCount =
             res.docs.filter((t) => t.type === DocType.Post).length +
             res.docs.filter((t) => t.type === DocType.Tag).length;
-        expect(docCount).toBe(5);
+        expect(docCount).toBe(6);
     });
 
     it.skip("can retrieve documents from a given time", async () => {
