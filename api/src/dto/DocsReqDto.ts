@@ -1,6 +1,14 @@
 import { Expose } from "class-transformer";
 import { AccessMap } from "../permissions/permissions.service";
-import { IsNotEmpty, IsString, IsOptional, IsNumber, IsObject, IsBoolean } from "class-validator";
+import {
+    IsNotEmpty,
+    IsString,
+    IsOptional,
+    IsNumber,
+    IsObject,
+    IsBoolean,
+    IsArray,
+} from "class-validator";
 import { DocType } from "../enums";
 
 /**
@@ -25,10 +33,10 @@ export class DocsReqDto {
     gapEnd?: number | string;
 
     @IsNotEmpty()
-    @IsBoolean()
+    @IsArray()
     @IsOptional()
     @Expose()
-    cms?: boolean;
+    docTypes?: Array<any>;
 
     @IsNotEmpty()
     @IsBoolean()

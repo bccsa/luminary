@@ -5,6 +5,7 @@ import {
     ChangeReqAckDto,
     LocalChangeDto,
     ApiConnectionOptions,
+    DocType,
 } from "../types";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
@@ -32,24 +33,22 @@ class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
     private localChanges = ref<LocalChangeDto[]>();
-    private isCms: boolean;
     private processChangeReqLock: boolean = false;
+    private docTypes: Array<any>;
 
     /**
      * Create a new socketio instance
      * @param apiUrl - Socket.io endpoint URL
-     * @param cms - CMS mode flag
+     * @param docTypes - Array of doctypes
      * @param token - Access token
      */
-    constructor(apiUrl: string, cms: boolean = false, token?: string) {
-        this.isCms = cms;
-        console.log(this.isCms);
-
+    constructor(apiUrl: string, docTypes: Array<any>, token?: string) {
         this.socket = io(apiUrl, token ? { auth: { token } } : undefined);
+        this.docTypes = docTypes;
 
         this.socket.on("connect", () => {
             isConnected.value = true;
-            this.socket.emit("joinSocketGroups", { cms: this.isCms });
+            this.socket.emit("joinSocketGroups", { docTypes: this.docTypes });
             this.processChangeReqLock = false; // reset process log on connection
         });
 
@@ -165,9 +164,10 @@ export function getSocket(options?: ApiConnectionOptions) {
         if (!options.apiUrl) {
             throw new Error("Socket connection requires an API URL");
         }
-        if (!options.cms) options.cms = false;
 
-        socket = new Socketio(options.apiUrl, options.cms, options.token);
+        if (!options.docTypes) options.docTypes = [];
+
+        socket = new Socketio(options.apiUrl, options.docTypes, options.token);
     } else if (options?.reconnect) socket.reconnect();
 
     return socket;

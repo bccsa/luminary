@@ -12,7 +12,6 @@ type ApiQuery = {
     apiVersion: string;
     gapEnd?: number;
     gapStart?: number;
-    cms?: boolean;
     contentOnly?: boolean;
     type?: string;
     accessMap: AccessMap;
@@ -38,7 +37,6 @@ export class Docs {
             const query: ApiQuery = {
                 apiVersion: "0.0.0",
                 gapEnd: 0,
-                cms: this.options.cms,
                 accessMap: accessMap.value,
             };
             const blocks = v.blocks;

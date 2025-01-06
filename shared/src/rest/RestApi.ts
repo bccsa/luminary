@@ -36,7 +36,6 @@ export function getRest(options?: ApiConnectionOptions) {
             "Rest API connection requires an array of DocTypes that needs to be synced",
         );
     }
-    if (!options.cms) options.cms = false;
 
     rest = new RestApi(options);
 

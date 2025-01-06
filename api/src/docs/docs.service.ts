@@ -1,7 +1,7 @@
 import { DocsReqDto } from "../dto/DocsReqDto";
 import { HttpException, HttpStatus, Injectable, Inject } from "@nestjs/common";
 import { DbQueryResult, DbService, GetDocsOptions } from "../db/db.service";
-import { DocType, AclPermission } from "../enums";
+import { AclPermission } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -14,14 +14,6 @@ export class DocsService {
     private readonly test: any = [];
     private permissionMap: any;
     private config: Configuration;
-    private cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
-    private appDocTypes: Array<DocType> = [
-        DocType.Post,
-        DocType.Tag,
-        DocType.Content,
-        DocType.Language,
-        DocType.Redirect,
-    ];
 
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
@@ -65,7 +57,10 @@ export class DocsService {
         const accessMap: AccessMap = PermissionSystem.getAccessMap(permissions.groups);
 
         // Determine which doc types to get
-        const docTypes = req.cms ? [...this.cmsDocTypes, ...this.appDocTypes] : this.appDocTypes;
+        const docTypes: Array<any> = [];
+        req.docTypes.forEach((docType) => {
+            if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
+        });
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(

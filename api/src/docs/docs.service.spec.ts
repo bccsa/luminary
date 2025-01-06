@@ -42,7 +42,10 @@ describe("Docs service", () => {
         const req = {
             apiVersion: "0.0.0",
             gapEnd: 0,
-            cms: true,
+            docTypes: [
+                { type: "post", contentOnly: true },
+                { type: "content", contentOnly: true },
+            ],
             accessMap: accessMap,
             type: DocType.Post,
         };
@@ -56,7 +59,10 @@ describe("Docs service", () => {
         const req = {
             apiVersion: "0.0.0",
             gapEnd: 0,
-            cms: true,
+            docTypes: [
+                { type: "group", contentOnly: true },
+                { type: "content", contentOnly: true },
+            ],
             accessMap: accessMap,
             type: DocType.Group,
         };
@@ -70,7 +76,10 @@ describe("Docs service", () => {
         const req = {
             apiVersion: "0.0.0",
             gapEnd: 0,
-            cms: true,
+            docTypes: [
+                { type: "post", contentOnly: true },
+                { type: "content", contentOnly: true },
+            ],
             accessMap: accessMap,
             type: DocType.Post,
         };
@@ -84,7 +93,10 @@ describe("Docs service", () => {
         const req = {
             apiVersion: "0.0.0",
             gapEnd: 0,
-            cms: true,
+            docTypes: [
+                { type: "tag", contentOnly: true },
+                { type: "content", contentOnly: true },
+            ],
             accessMap: accessMap,
             type: DocType.Tag,
         };
@@ -98,7 +110,10 @@ describe("Docs service", () => {
         const req = {
             apiVersion: "0.0.0",
             gapEnd: 0,
-            cms: true,
+            docTypes: [
+                { type: "post", contentOnly: false },
+                { type: "content", contentOnly: true },
+            ],
             accessMap: accessMap,
             type: DocType.Post,
             contentOnly: true,
@@ -109,3 +124,12 @@ describe("Docs service", () => {
         expect(res.docs.length).toBe(18);
     });
 });
+
+// private cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
+// private appDocTypes: Array<DocType> = [
+//     DocType.Post,
+//     DocType.Tag,
+//     DocType.Content,
+//     DocType.Language,
+//     DocType.Redirect,
+// ];

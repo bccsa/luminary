@@ -161,10 +161,6 @@ export type ApiConnectionOptions = {
      */
     apiUrl?: string;
     /**
-     * CMS mode flag
-     */
-    cms?: boolean;
-    /**
      * Access token
      */
     token?: string;

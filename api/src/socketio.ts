@@ -7,7 +7,7 @@ import {
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
-import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
+import { AclPermission, AckStatus, Uuid } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
@@ -25,9 +25,7 @@ import { Logger } from "winston";
  * Data request from client type definition
  */
 type ClientDataReq = {
-    version?: number;
-    cms?: boolean;
-    accessMap?: AccessMap;
+    docTypes: Array<any>;
 };
 
 /**
@@ -88,14 +86,6 @@ type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketD
 })
 @Injectable()
 export class Socketio implements OnGatewayInit {
-    appDocTypes: Array<DocType> = [
-        DocType.Post,
-        DocType.Tag,
-        DocType.Content,
-        DocType.Language,
-        DocType.Redirect,
-    ];
-    cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
     permissionMap: PermissionMap;
     config: Configuration;
 
@@ -148,10 +138,7 @@ export class Socketio implements OnGatewayInit {
             const refGroups = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf;
 
             // Create room names to emit to
-            let rooms = refGroups.map((group) => `${refDoc.type}-${group}`);
-
-            // Prepend "cms-" to the room names for (CMS only) change documents. This is needed to be able to allow the CMS to specifically subscribe to change documents.
-            if (update.type == "change") rooms = rooms.map((room) => `cms-${room}`);
+            const rooms = refGroups.map((group) => `${refDoc.type}-${group}`);
 
             // Emit to rooms
             if (rooms.length > 0)
@@ -219,9 +206,10 @@ export class Socketio implements OnGatewayInit {
         socket.emit("clientConfig", clientConfig);
 
         // Determine which doc types to get
-        const docTypes = reqData.cms
-            ? [...this.cmsDocTypes, ...this.appDocTypes]
-            : this.appDocTypes;
+        const docTypes: Array<any> = [];
+        reqData.docTypes.forEach((docType) => {
+            if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
+        });
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
@@ -234,11 +222,6 @@ export class Socketio implements OnGatewayInit {
         for (const docType of Object.keys(userViewGroups)) {
             for (const group of userViewGroups[docType]) {
                 socket.join(`${docType}-${group}`);
-
-                // Subscribe to cms specific rooms
-                if (reqData.cms) {
-                    socket.join(`cms-${docType}-${group}`);
-                }
             }
         }
     }

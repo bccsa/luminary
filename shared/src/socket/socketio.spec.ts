@@ -29,7 +29,6 @@ describe("socketio", () => {
         // initialize the socket client
         const socket = getSocket({
             apiUrl: "http://localhost:12345",
-            cms: true,
         });
         socket.disconnect();
     });
