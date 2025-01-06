@@ -9,7 +9,7 @@ import px from "./px.png";
 import * as iso from "iso-639-2";
 import LImage from "../images/LImage.vue";
 import {
-    appLanguageAsRef,
+    appLanguagesAsRef,
     getMediaProgress,
     removeMediaProgress,
     setMediaProgress,
@@ -125,12 +125,12 @@ onMounted(() => {
 
     // Ensure audio tracks are ready when metadata is loaded
     player.on("loadeddata", () => {
-        setAudioTrackLanguage(appLanguageAsRef.value?.languageCode || null);
+        setAudioTrackLanguage(appLanguagesAsRef.value![0].languageCode || null);
     });
 
     // Reapply audio track when tracks are updated
     player.on("audioTracks", () => {
-        setAudioTrackLanguage(appLanguageAsRef.value?.languageCode || null);
+        setAudioTrackLanguage(appLanguagesAsRef.value![0].languageCode || null);
     });
 
     // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
@@ -214,10 +214,9 @@ watch(audioMode, (mode) => {
 });
 
 // Watch for changes in appLanguageAsRef
-watch(appLanguageAsRef, (newLanguage) => {
-    console.log("Language change detected:", newLanguage?.name);
+watch(appLanguagesAsRef, (newLanguage) => {
     if (player) {
-        setAudioTrackLanguage(newLanguage?.languageCode || null);
+        setAudioTrackLanguage(newLanguage![0].languageCode || null);
     }
 });
 </script>

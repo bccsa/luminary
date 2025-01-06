@@ -18,7 +18,7 @@ import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
-import { appLanguageAsRef, appLanguageIdsAsRef, appName } from "@/globalConfig";
+import { appLanguagesAsRef, appLanguageIdsAsRef, appName } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
@@ -54,7 +54,7 @@ const defaultContent: ContentDto = {
     updatedTimeUtc: 0,
     memberOf: [],
     parentId: "",
-    language: appLanguageIdsAsRef.value,
+    language: appLanguageIdsAsRef.value[0],
     status: PublishStatus.Published,
     title: "Loading...",
     slug: "",
@@ -180,13 +180,15 @@ watch([content, is404], () => {
 
 // Redirect to preferred language
 watch(
-    () => [appLanguageAsRef.value, content.value.language],
+    () => [appLanguagesAsRef.value, content.value.language],
     async () => {
         if (!content.value) return;
 
-        if (appLanguageAsRef.value?._id != content.value.language) {
+        if (appLanguagesAsRef.value![0]._id != content.value.language) {
             const contentDocs = await db.whereParent(content.value.parentId);
-            const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
+            const preferred = contentDocs.find(
+                (c) => c.language == appLanguagesAsRef.value![0]._id,
+            );
 
             if (preferred && isPublished(preferred)) {
                 // Check if the preferred translation is published
@@ -195,13 +197,16 @@ watch(
                 useNotificationStore().addNotification({
                     id: "translation-not-published",
                     title: "Unpublished translation",
-                    description: `The ${appLanguageAsRef.value?.name} translation for this content is not yet available.`,
+                    description: `The ${appLanguagesAsRef.value![0].name} translation for this content is not yet available.`,
                     state: "error",
                     type: "toast",
                 });
             }
             return;
         }
+    },
+    {
+        deep: true,
     },
 );
 

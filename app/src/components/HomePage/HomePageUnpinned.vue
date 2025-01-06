@@ -42,7 +42,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
             })
             .limit(100) // Limit to the newest posts
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_newest100Content") },
+    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_newest100Content"), deep: true },
 );
 
 watch(newest100Content, async (value) => {
@@ -80,7 +80,10 @@ const categories = useDexieLiveQueryWithDeps(
                 return isPublished(_content) && _content.parentTagType === TagType.Category;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_unpinnedCategories") },
+    {
+        initialValue: await db.getQueryCache<ContentDto[]>("homepage_unpinnedCategories"),
+        deep: true,
+    },
 );
 
 watch(
