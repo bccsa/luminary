@@ -5,7 +5,6 @@ import {
     ChangeReqAckDto,
     LocalChangeDto,
     ApiConnectionOptions,
-    DocType,
 } from "../types";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
