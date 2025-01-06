@@ -25,7 +25,9 @@ export class httpReq {
             if (!res.ok) {
                 throw new Error(`HTTP error! Status: ${res.status}`);
             }
-            return await res.json(); // Parse the JSON response
+            return await res.json().catch((err) => {
+                console.error(err);
+            }); // Parse the JSON response
         } catch (err) {
             console.error(err);
         }
