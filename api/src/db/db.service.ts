@@ -317,7 +317,7 @@ export class DbService extends EventEmitter {
 
             // Construct time selectors
             const selectors = [];
-            if (options.from) {
+            if (options.from || options.from === 0) {
                 selectors.push({
                     updatedTimeUtc: {
                         $gte: options.from - this.syncTolerance,
@@ -349,16 +349,18 @@ export class DbService extends EventEmitter {
                         {
                             type: options.contentOnly ? DocType.Content : options.type,
                         },
-                        {
-                            memberOf: {
-                                $in: options.userAccess[options.type],
-                            },
-                        },
                     ],
                 },
                 limit: limit || Number.MAX_SAFE_INTEGER,
                 sort: [{ updatedTimeUtc: "desc" }],
             };
+
+            if (options.type !== "group")
+                docQuery.selector["$and"].push({
+                    memberOf: {
+                        $in: options.userAccess[options.type],
+                    },
+                });
 
             try {
                 const res = await this.db.find(docQuery);
@@ -397,140 +399,140 @@ export class DbService extends EventEmitter {
         });
     }
 
-    /**
-     * Get data to which a user has access to including the user document itself.
-     * @param {string} userId - User document ID.
-     * @param {GetDocsOptions} options - Query configuration object.
-     * @returns - Promise containing the query result
-     */
-    getDocsPerGroup(userId: string, options: GetDocsOptions): Promise<DbQueryResult> {
-        return new Promise((resolve, reject) => {
-            // To allow effective indexing, the structure inside an "$or" selector should be identical for all the sub-selectors
-            // within the "$or". Because of this restriction, it is necessary to do multiple queries and join the result externally
+    // /**
+    //  * Get data to which a user has access to including the user document itself.
+    //  * @param {string} userId - User document ID.
+    //  * @param {GetDocsOptions} options - Query configuration object.
+    //  * @returns - Promise containing the query result
+    //  */
+    // getDocsPerGroup(userId: string, options: GetDocsOptions): Promise<DbQueryResult> {
+    //     return new Promise((resolve, reject) => {
+    //         // To allow effective indexing, the structure inside an "$or" selector should be identical for all the sub-selectors
+    //         // within the "$or". Because of this restriction, it is necessary to do multiple queries and join the result externally
 
-            const pList = [];
+    //         const pList = [];
 
-            // Construct time selectors
-            const selectors = [];
-            if (options.from) {
-                selectors.push({
-                    updatedTimeUtc: {
-                        $gte: options.from - this.syncTolerance,
-                    },
-                });
-            }
+    //         // Construct time selectors
+    //         const selectors = [];
+    //         if (options.from) {
+    //             selectors.push({
+    //                 updatedTimeUtc: {
+    //                     $gte: options.from - this.syncTolerance,
+    //                 },
+    //             });
+    //         }
 
-            if (options.to) {
-                selectors.push({
-                    updatedTimeUtc: {
-                        $lt: options.to + this.syncTolerance,
-                    },
-                });
-            }
+    //         if (options.to) {
+    //             selectors.push({
+    //                 updatedTimeUtc: {
+    //                     $lt: options.to + this.syncTolerance,
+    //                 },
+    //             });
+    //         }
 
-            const timeSelector = [];
-            if (selectors.length > 0) {
-                timeSelector.push({
-                    $and: selectors,
-                });
-            } else {
-                timeSelector.push(...selectors);
-            }
+    //         const timeSelector = [];
+    //         if (selectors.length > 0) {
+    //             timeSelector.push({
+    //                 $and: selectors,
+    //             });
+    //         } else {
+    //             timeSelector.push(...selectors);
+    //         }
 
-            // Construct queries for each DocType
-            Object.keys(options.userAccess).forEach((docType: DocType) => {
-                const docQuery = {
-                    selector: {
-                        $and: [
-                            ...timeSelector,
-                            {
-                                type: docType,
-                            },
-                            {
-                                memberOf: {
-                                    $in: options.userAccess[docType],
-                                },
-                            },
-                        ],
-                    },
-                    limit: Number.MAX_SAFE_INTEGER,
-                };
-                pList.push(this.db.find(docQuery));
+    //         // Construct queries for each DocType
+    //         Object.keys(options.userAccess).forEach((docType: DocType) => {
+    //             const docQuery = {
+    //                 selector: {
+    //                     $and: [
+    //                         ...timeSelector,
+    //                         {
+    //                             type: docType,
+    //                         },
+    //                         {
+    //                             memberOf: {
+    //                                 $in: options.userAccess[docType],
+    //                             },
+    //                         },
+    //                     ],
+    //                 },
+    //                 limit: Number.MAX_SAFE_INTEGER,
+    //             };
+    //             pList.push(this.db.find(docQuery));
 
-                // Query for associated content documents
-                if (docType === DocType.Post || docType === DocType.Tag) {
-                    const contentQuery = {
-                        selector: {
-                            $and: [
-                                ...timeSelector,
-                                {
-                                    type: DocType.Content,
-                                },
-                                {
-                                    memberOf: {
-                                        $in: options.userAccess[docType],
-                                    },
-                                },
-                                {
-                                    parentType: docType, // TODO: Remove the parentType field if permissions are simplified
-                                },
-                            ],
-                        },
-                        limit: Number.MAX_SAFE_INTEGER,
-                    };
-                    pList.push(this.db.find(contentQuery));
-                }
-            });
+    //             // Query for associated content documents
+    //             if (docType === DocType.Post || docType === DocType.Tag) {
+    //                 const contentQuery = {
+    //                     selector: {
+    //                         $and: [
+    //                             ...timeSelector,
+    //                             {
+    //                                 type: DocType.Content,
+    //                             },
+    //                             {
+    //                                 memberOf: {
+    //                                     $in: options.userAccess[docType],
+    //                                 },
+    //                             },
+    //                             {
+    //                                 parentType: docType, // TODO: Remove the parentType field if permissions are simplified
+    //                             },
+    //                         ],
+    //                     },
+    //                     limit: Number.MAX_SAFE_INTEGER,
+    //                 };
+    //                 pList.push(this.db.find(contentQuery));
+    //             }
+    //         });
 
-            // Include the (group) document itself if the "group" type is included in the options
-            if (options.userAccess[DocType.Group]) {
-                const query_groupDoc = {
-                    selector: {
-                        $and: [
-                            ...timeSelector,
-                            {
-                                type: DocType.Group,
-                            },
+    //         // Include the (group) document itself if the "group" type is included in the options
+    //         if (options.userAccess[DocType.Group]) {
+    //             const query_groupDoc = {
+    //                 selector: {
+    //                     $and: [
+    //                         ...timeSelector,
+    //                         {
+    //                             type: DocType.Group,
+    //                         },
 
-                            {
-                                _id: {
-                                    $in: options.userAccess[DocType.Group],
-                                },
-                            },
-                        ],
-                    },
-                    limit: Number.MAX_SAFE_INTEGER,
-                };
+    //                         {
+    //                             _id: {
+    //                                 $in: options.userAccess[DocType.Group],
+    //                             },
+    //                         },
+    //                     ],
+    //                 },
+    //                 limit: Number.MAX_SAFE_INTEGER,
+    //             };
 
-                pList.push(this.db.find(query_groupDoc));
-            }
+    //             pList.push(this.db.find(query_groupDoc));
+    //         }
 
-            // Include the user document
-            if (userId) {
-                pList.push(this.getDoc(userId));
-            }
+    //         // Include the user document
+    //         if (userId) {
+    //             pList.push(this.getDoc(userId));
+    //         }
 
-            Promise.all(pList)
-                .then(async (res) => {
-                    const docs = res.flatMap((r) => r.docs);
-                    const warnings = res.flatMap((r) => r.warning).filter((w) => w);
+    //         Promise.all(pList)
+    //             .then(async (res) => {
+    //                 const docs = res.flatMap((r) => r.docs);
+    //                 const warnings = res.flatMap((r) => r.warning).filter((w) => w);
 
-                    // Only get the latest version if the "to" parameter is not set
-                    let version: number | undefined;
-                    if (options.to == undefined) {
-                        version = await this.getLatestDocUpdatedTime();
-                    }
-                    resolve({
-                        docs,
-                        warnings: warnings.length > 0 ? warnings : undefined,
-                        version: version,
-                    });
-                })
-                .catch((err) => {
-                    reject(err);
-                });
-        });
-    }
+    //                 // Only get the latest version if the "to" parameter is not set
+    //                 let version: number | undefined;
+    //                 if (options.to == undefined) {
+    //                     version = await this.getLatestDocUpdatedTime();
+    //                 }
+    //                 resolve({
+    //                     docs,
+    //                     warnings: warnings.length > 0 ? warnings : undefined,
+    //                     version: version,
+    //                 });
+    //             })
+    //             .catch((err) => {
+    //                 reject(err);
+    //             });
+    //     });
+    // }
 
     /**
      * Get all group documents from database

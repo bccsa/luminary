@@ -44,7 +44,21 @@ export class DocsService {
                 HttpStatus.BAD_REQUEST,
             );
 
-        const jwt: string | JWT.JwtPayload = JWT.verify(token, this.config.auth.jwtSecret);
+        let jwt: string | JWT.JwtPayload;
+        if (token) {
+            try {
+                jwt = JWT.verify(token, this.config.auth.jwtSecret);
+            } catch (err) {
+                this.logger.error(`Error verifying JWT`, err);
+            }
+
+            if (!jwt) {
+                throw new HttpException(
+                    "Invalid auth token, please re-login",
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+        }
         // Get group access
         this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
         const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);

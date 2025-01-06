@@ -1,7 +1,7 @@
 import { Expose } from "class-transformer";
 import { AccessMap } from "../permissions/permissions.service";
 import { IsNotEmpty, IsString, IsOptional, IsNumber, IsObject, IsBoolean } from "class-validator";
-import { DocType } from "src/enums";
+import { DocType } from "../enums";
 
 /**
  * Document structure for client / CMS submitted changes to existing documents or new documents.
@@ -16,25 +16,25 @@ export class PostDocsDto {
     @IsNumber()
     @IsOptional()
     @Expose()
-    gapStart: number | string;
+    gapStart?: number | string;
 
     @IsNotEmpty()
     @IsNumber()
     @IsOptional()
     @Expose()
-    gapEnd: number | string;
+    gapEnd?: number | string;
 
     @IsNotEmpty()
     @IsBoolean()
     @IsOptional()
     @Expose()
-    cms: boolean;
+    cms?: boolean;
 
     @IsNotEmpty()
     @IsBoolean()
     @IsOptional()
     @Expose()
-    contentOnly: boolean;
+    contentOnly?: boolean;
 
     @IsNotEmpty()
     @IsObject()

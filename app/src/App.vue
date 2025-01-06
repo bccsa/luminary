@@ -69,8 +69,6 @@ onBeforeMount(async () => {
             docTypes: [
                 { type: DocType.Tag, contentOnly: true },
                 { type: DocType.Post, contentOnly: true },
-                { type: DocType.Group, contentOnly: true },
-                { type: DocType.Language, contentOnly: true },
                 { type: DocType.Language, contentOnly: false },
             ],
         });

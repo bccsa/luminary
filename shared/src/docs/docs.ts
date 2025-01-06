@@ -31,16 +31,16 @@ export class docs {
     }
 
     async clientDataReq() {
-        const query: ApiQuery = {
-            apiVersion: "0.0.0",
-            gapEnd: 0,
-            cms: this.options.cms,
-            accessMap: accessMap.value,
-        };
         await this.calcSyncMap();
 
         const _sm = Object.fromEntries(syncMap.value);
         for (const v of Object.values(_sm)) {
+            const query: ApiQuery = {
+                apiVersion: "0.0.0",
+                gapEnd: 0,
+                cms: this.options.cms,
+                accessMap: accessMap.value,
+            };
             const blocks = v.blocks;
             const newest = blocks.sort((a: SyncMapEntry, b: SyncMapEntry) => {
                 if (!a || !b) return 0;
