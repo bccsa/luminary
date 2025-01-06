@@ -34,6 +34,7 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
+import EditAuthor from "./EditAuthor.vue";
 
 type Props = {
     id: Uuid;
@@ -335,6 +336,10 @@ watch(selectedLanguage, () => {
                         :disabled="!canTranslateOrPublish"
                     />
                     <EditContentBasic
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslateOrPublish"
+                    />
+                    <EditAuthor
                         v-model:content="selectedContent"
                         :disabled="!canTranslateOrPublish"
                     />

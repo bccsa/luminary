@@ -233,6 +233,37 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
+
+const copyrightPolicy = useDexieLiveQuery(
+    () =>
+        db.docs
+            .where({
+                parentId: import.meta.env.VITE_COPYRIGHT_ID,
+            })
+            .filter((c) => {
+                const content = c as ContentDto;
+                if (content.language == appLanguageIdAsRef.value) return true;
+
+                return false;
+            })
+            .first() as unknown as ContentDto | undefined,
+);
+
+const copyrigthContent = computed(() => {
+    if (!copyrightPolicy.value || !copyrightPolicy.value.text) {
+        return "";
+    }
+
+    let text;
+
+    // only parse text with TipTap if it's JSON, otherwise we render it out as HTML
+    try {
+        text = JSON.parse(copyrightPolicy.value.text);
+    } catch {
+        return copyrightPolicy.value.text;
+    }
+    return generateHTML(text, [StarterKit]);
+});
 </script>
 
 <template>
@@ -283,7 +314,16 @@ const selectedCategory = computed(() => {
 
                         <div class="items-center">
                             <div class="flex justify-center">
-                                <div @click="toggleBookmark" data-test="bookmark">
+                                <div
+                                    @click="toggleBookmark"
+                                    data-test="bookmark"
+                                    :class="[
+                                        content.author
+                                            ? 'border border-transparent border-r-zinc-600 pr-1'
+                                            : '',
+                                    ]"
+                                >
+                                    <!-- :class=["border border-transparent border-r-zinc-600 pr-1"] -->
                                     <component
                                         v-if="
                                             !(
@@ -297,6 +337,13 @@ const selectedCategory = computed(() => {
                                             'text-yellow-500': isBookmarked,
                                         }"
                                     />
+                                </div>
+
+                                <div
+                                    v-if="content.author"
+                                    class="flex items-center pl-1 text-center text-sm text-zinc-500 dark:text-slate-100"
+                                >
+                                    By {{ content.author }}
                                 </div>
                             </div>
                         </div>
@@ -345,6 +392,14 @@ const selectedCategory = computed(() => {
             :selectedContent="content"
             :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
         />
+
+        <!-- Copyrigth -->
+        <IgnorePagePadding>
+            <div
+                v-html="copyrigthContent"
+                class="prose prose-zinc mt-8 max-w-full bg-zinc-100 p-4 dark:prose-invert dark:bg-slate-800"
+            ></div>
+        </IgnorePagePadding>
     </div>
 
     <LModal
