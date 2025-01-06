@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { useNotificationStore } from "@/stores/notification";
-import { db, getSocket, isConnected } from "luminary-shared";
+import { db, isConnected } from "luminary-shared";
 
 const requestDataMock = vi.hoisted(() => vi.fn());
 
