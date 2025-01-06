@@ -1,10 +1,10 @@
-import { apiConnectionOptions } from "../types";
+import { ApiConnectionOptions } from "../types";
 import { getSocket } from "../socket/socketio";
 import { getRest } from "../rest/RestApi";
 
-let _options: apiConnectionOptions;
+let _options: ApiConnectionOptions;
 
-export function api(options?: apiConnectionOptions): any {
+export function api(options?: ApiConnectionOptions): any {
     if (options) _options = options;
     return {
         socket: () => {
