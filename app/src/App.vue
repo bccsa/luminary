@@ -65,7 +65,6 @@ onBeforeMount(async () => {
         const _api = api({
             apiUrl,
             token,
-            cms: false,
             docTypes: [
                 { type: DocType.Tag, contentOnly: true },
                 { type: DocType.Post, contentOnly: true },
