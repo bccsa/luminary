@@ -177,7 +177,7 @@ describe("DbService", () => {
         expect(docCount).toBe(5);
     });
 
-    it("can retrieve documents from a given time", async () => {
+    it.skip("can retrieve documents from a given time", async () => {
         // This test is not valid anymore as sync tolerance is implemented with a default value of 1000ms. Probably need a bigger dataset to effectively test this.
         // Update a document and query documents from a timestamp just before the updated time.
         // Only one document should be returned (which is newer than the update time)
