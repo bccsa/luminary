@@ -38,6 +38,9 @@ watch(allTopics, async (value) => {
 // Reactive search term
 const searchTerm = ref("");
 
+// View mode: true for grid view, false for list view
+const isGridView = ref(false);
+
 // Computed property for filtered topics
 const filteredTopics = computed(() => {
     if (!searchTerm.value.trim()) {
@@ -53,8 +56,9 @@ const filteredTopics = computed(() => {
 
 <template>
     <div v-if="allTopics" class="lg:mx-32">
-        <div class="mb-4 mt-6">
-            <div class="relative">
+        <!-- Search Bar -->
+        <div class="mb-4 mt-6 flex">
+            <div class="relative w-3/4">
                 <MagnifyingGlassIcon
                     class="absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500"
                 />
@@ -66,9 +70,14 @@ const filteredTopics = computed(() => {
                     class="w-full rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
                 />
             </div>
+
+            <!-- Toggle Button -->
+            <button class="flex w-1/4 items-center justify-end" @click="isGridView = !isGridView">
+                <component :is="isGridView ? ListBulletIcon : Squares2X2Icon" class="h-6 w-6" />
+            </button>
         </div>
 
-        <!-- Show "No results found" message if filteredTopics is empty and searchTerm is not blank -->
+        <!-- No Results -->
         <div
             v-if="filteredTopics.length === 0 && searchTerm.trim()"
             class="text-center text-gray-500"
