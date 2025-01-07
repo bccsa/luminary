@@ -4,6 +4,7 @@ export enum DocType {
     Group = "group",
     Language = "language",
     Redirect = "redirect",
+    Image = "image",
     Post = "post",
     Tag = "tag",
     User = "user",
