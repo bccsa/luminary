@@ -628,12 +628,10 @@ describe("Database", async () => {
     it("can purge the local database", async () => {
         // Queue a local change and check if it exists in the docs and localChanges tables
         await db.upsert(mockPostDto);
-        db.syncVersion = 123;
         const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).first();
         const doc = await db.get<PostDto>(mockPostDto._id);
         expect(localChange).toBeDefined();
         expect(doc).toEqual(mockPostDto);
-        expect(await db.syncVersion).toBe(123);
 
         // Purge the local database
         await db.purge();

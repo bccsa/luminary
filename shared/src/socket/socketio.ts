@@ -57,7 +57,6 @@ class Socketio {
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
             await db.bulkPut(data.docs);
-            if (data.version != undefined) db.syncVersion = data.version;
         });
 
         this.socket.on("changeRequestAck", this.handleAck.bind(this));

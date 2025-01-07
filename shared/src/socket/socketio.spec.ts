@@ -133,22 +133,6 @@ describe("socketio", () => {
         });
     });
 
-    it("can set the sync version", async () => {
-        db.syncVersion = 0;
-        await waitForExpect(async () => {
-            expect(await db.syncVersion).toBe(0);
-        });
-
-        socketServer.on("connection", (socket) => {
-            socket.emit("data", { docs: [], version: 42 });
-        });
-        getSocket({ reconnect: true });
-
-        await waitForExpect(async () => {
-            expect(await db.syncVersion).toBe(42);
-        });
-    });
-
     it("can connect to a socket server and set the connection status", async () => {
         let serverConnectCalled = false;
         socketServer.on("connection", () => {
@@ -186,23 +170,6 @@ describe("socketio", () => {
             expect(serverConnectCalled).toEqual(true);
             expect(isConnected.value).toEqual(true);
         });
-    });
-
-    it("saves data from the API and sets the syncVersion", async () => {
-        socketServer.on("connection", (socket) => {
-            socket.emit("data", { docs: [mockPostDto, mockEnglishContentDto], version: 42 });
-        });
-        getSocket({ reconnect: true });
-
-        await waitForExpect(async () => {
-            const result = await db.docs.toArray();
-            expect(result.find((r) => r._id == mockPostDto._id)).toEqual(mockPostDto);
-            expect(result.find((r) => r._id == mockEnglishContentDto._id)).toEqual(
-                mockEnglishContentDto,
-            );
-        });
-
-        expect(await db.syncVersion).toEqual(42);
     });
 
     it("sends a change request if there are local changes", async () => {

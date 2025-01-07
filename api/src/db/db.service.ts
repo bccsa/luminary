@@ -60,7 +60,6 @@ export type DbUpsertResult = {
 @Injectable()
 export class DbService extends EventEmitter {
     private db: any;
-    protected syncVersion: number;
     protected syncTolerance: number;
 
     constructor(

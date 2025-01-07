@@ -167,19 +167,6 @@ class Database extends Dexie {
         );
     }
 
-    /**
-     * Set the sync version as received from the api
-     */
-    set syncVersion(value: number) {
-        this.setLuminaryInternals("syncVersion", value);
-    }
-    /**
-     * Get the stored sync version
-     */
-    get syncVersion(): Promise<number> {
-        return this.getLuminaryInternals("syncVersion");
-    }
-
     async setLuminaryInternals(key: string, value: any) {
         return await this.luminaryInternals.put({ id: key, value: value }, key);
     }
