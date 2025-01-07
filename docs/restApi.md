@@ -1,66 +1,53 @@
-# Rest API (Is bulk api the right name, this api can be used to sync user data to the user as well)
+# Rest API
 
-    -   Rethink the name of the api
+The rest api is used by the clients to request bulk data from the api on connect, this is due to socket being inefficient with large amounts of data, and does not have compression
 
-The bulk api is used by the clients to request bulk data from the api on connect, this is due to socket being inefficient with large amounts of data, and does not have compression
+## Drawing
 
-## Ideas
+![png](./docs-api-sync.png)
 
--   The idea with the bulk api is to have pagination build in from the start, that the client request data and the api returns it to the client in chunks
+## Concept
 
-    -   since the api cant push data to the client with the bulk api, the user need to request the data from the api every time
-    -   The idea is that the client send the api his latest timestamp on initial connect, and the api returns all data newer that that
-    -   Then after the client has received the newest data, the client send his old timestamp to the api, and then the api start returning the data to client in chunks
-    -   Every time after the client received a chunk, it does another request to the api, asking for older data, until that api replies to the client that they received app the data available
+-   The rest api works with a pagination principal,
+    -   When a client connect the client request for the newest data of a specific doc type (This is done for all the doc types), the api will return the newest chuck of data for the specific doc type (Chunk is 100 docs)
+    -   After the client has received the chunk of data, the client will insert a block in the syncMap, to keep track what data is already synced
+    -   When the syncMap is updated, the client will start filling the gaps in data (see picture) to try and create a complete data set
+    -   Each time after the client receives a chunk of data, the client will insert the data into the sync map, and then try to merge blocks that is overlapping, in order to keep the sync map clean
+    -   The client will stop requesting data once it detects that it does not receive any new chunks anymore
 
--   If the client has a older api version than the api server, the server needs to block the users request, and the client needs to be prompted the reload their app in order to receive the latest updates
+## Client request structure (POST request to api, endpoint: docs)
 
-## Questions
-
--   How will the api / client handle it when the clients missing newer data is > that the chunk size.
-    -   Will it post all the clients data as one chunk, ore will it return the data in pages until the client has all the newest data and then go to the old data
-    -   Or will the api return the data in chunks form the newest data the client has, then return a newer chunk every time the user request, until the user has all the newest data?
-
-## Client request data structure
-
-The json data will change based on the request
-
--   Need to setup dto's to verify that the different request has the right data needed
-
-### Object Structure
-
--   The client will do a post request to a api endpoint with a json object that will define what data the api will return
-
-#### Base Object
-
-```json
-{
-    "request": "<client request>",
-    "apiVersion": "<client api version>",
-    "doc": "<doc with request data>"
-}
+```js
+type ApiQuery = {
+    apiVersion: string,
+    gapEnd?: number,
+    gapStart?: number,
+    contentOnly?: boolean,
+    type?: string,
+    accessMap: AccessMap,
+};
 ```
 
-#### Requests
+## API response structure
 
-##### reqNewer
-
--   Return data to user in chunks from the sync version to the latest data, starting with the oldest chunk and working its way up to newer data
-    -   We need to think if this is the best way?, if the amount of new date is very big, it will feel buggy to the clients, due to the older data being loaded first
-
-```json
-{
-    "syncVersion": "<client latest sync version>"
-}
+```js
+type DbQueryResult = {
+    docs: Array<any>,
+    warnings?: Array<string>,
+    version?: number,
+    blockStart?: number,
+    blockEnd?: number,
+    accessMap?: AccessMap,
+    type?: DocType,
+    contentOnly?: boolean,
+};
 ```
 
-##### reqOlder
+## Requests
 
-```json
-{
-    "syncVersionOldest": "<client oldest sync version>"
-}
-```
+-   The api will return data based on the time stamps being passed to it.
+    -   If only a gapStart timestamp is passed, the api will return the newest chunk of data to the client
+    -   If a gapStart and a gapEnd timestamp is passed, the api will return then newest chunk of data between the 2 timestamps supplied
 
 ## Authentication
 
