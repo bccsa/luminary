@@ -17,7 +17,10 @@ export class httpReq {
         this.token && (headers.Authorization = `Bearer ${this.token}`);
 
         try {
-            const res = await fetch(`${this.apiUrl}/${endpoint}`, {
+            const schema = "https://";
+            const regex = /^https?:\/\//;
+            const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
+            const res = await fetch(`${url}/${endpoint}`, {
                 method: "POST",
                 headers: headers,
                 body: isJSON ? JSON.stringify(body) : body, // Convert the data to a JSON string
