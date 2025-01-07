@@ -124,12 +124,3 @@ describe("Docs service", () => {
         expect(res.docs.length).toBe(18);
     });
 });
-
-// private cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
-// private appDocTypes: Array<DocType> = [
-//     DocType.Post,
-//     DocType.Tag,
-//     DocType.Content,
-//     DocType.Language,
-//     DocType.Redirect,
-// ];
