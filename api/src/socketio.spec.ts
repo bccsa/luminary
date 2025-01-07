@@ -3,15 +3,6 @@ import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
 import { createTestingModule } from "./test/testingModule";
 import { socketioTestClient } from "./test/socketioTestClient";
-// import {
-//     changeRequest_content,
-//     changeRequest_group,
-//     changeRequest_language,
-//     changeRequest_post,
-//     changeRequest_tag,
-// } from "./test/changeRequestDocuments";
-// // import { DocType } from "./enums";
-// import waitForExpect from "wait-for-expect";
 
 jest.mock("./configuration", () => {
     const originalModule = jest.requireActual("./configuration");
