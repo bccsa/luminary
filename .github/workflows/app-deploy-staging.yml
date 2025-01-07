@@ -1,66 +1,67 @@
 name: "Build & Deploy App to staging"
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - app/**
-      - .github/workflows/app-deploy-staging.yml
-      - shared/**
-  workflow_dispatch:
+    push:
+        branches: [main]
+        paths:
+            - app/**
+            - .github/workflows/app-deploy-staging.yml
+            - shared/**
+    workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
 
 env:
-  CI: true
+    CI: true
 
 jobs:
-  test-app:
-    uses: ./.github/workflows/app-unit-tests.yml
+    test-app:
+        uses: ./.github/workflows/app-unit-tests.yml
 
-  test-shared:
-    uses: ./.github/workflows/shared-unit-tests.yml
+    test-shared:
+        uses: ./.github/workflows/shared-unit-tests.yml
 
-  deploy:
-    needs: [test-app, test-shared]
-    runs-on: [self-hosted, ac]
-    environment: app-staging
+    deploy:
+        needs: [test-app, test-shared]
+        runs-on: [self-hosted, ac]
+        environment: app-staging
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-      - name: Create .env file
-        run: |
-          touch .env
-          echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
-          echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
-          echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
-          echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
-          echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
-          echo VITE_PRIVACY_POLICY_ID=="${{ vars.VITE_PRIVACY_POLICY_ID }}" >> .env
-          echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
-          echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
-          echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
-          echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
-          echo VITE_LOGO_DARK="${{ vars.VITE_LOGO_DARK }}" >> .env
-          echo VITE_LOGO_SMALL="${{ vars.VITE_LOGO_SMALL }}" >> .env
-          echo VITE_LOGO_SMALL_DARK="${{ vars.VITE_LOGO_SMALL_DARK }}" >> .env
-          echo VITE_LOGO_FAVICON=${{vars.VITE_LOGO_FAVICON}} >> .env
-        working-directory: app
+            - name: Create .env file
+              run: |
+                  touch .env
+                  echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
+                  echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
+                  echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
+                  echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
+                  echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
+                  echo VITE_PRIVACY_POLICY_ID=="${{ vars.VITE_PRIVACY_POLICY_ID }}" >> .env
+                  echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
+                  echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
+                  echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
+                  echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
+                  echo VITE_LOGO_DARK="${{ vars.VITE_LOGO_DARK }}" >> .env
+                  echo VITE_LOGO_SMALL="${{ vars.VITE_LOGO_SMALL }}" >> .env
+                  echo VITE_LOGO_SMALL_DARK="${{ vars.VITE_LOGO_SMALL_DARK }}" >> .env
+                  echo VITE_LOGO_FAVICON=${{vars.VITE_LOGO_FAVICON}} >> .env
+                  echo CORS_ORIGIN=${{vars.CORS_ORIGIN}} >> .env
+              working-directory: app
 
-      - name: Build Docker container
-        run: docker build -f ./app/Dockerfile . -t ${{ vars.DOCKER_IMAGE }}
-        working-directory: ./
+            - name: Build Docker container
+              run: docker build -f ./app/Dockerfile . -t ${{ vars.DOCKER_IMAGE }}
+              working-directory: ./
 
-      - name: Stop and remove old Docker container
-        run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
+            - name: Stop and remove old Docker container
+              run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
 
-      - name: Run Docker container
-        run: >
-          docker run -d -p "${{ vars.DOCKER_PORT }}":80 
-          --restart unless-stopped 
-          --name=${{ vars.DOCKER_CONTAINER }} 
-          ${{ vars.DOCKER_IMAGE }}
+            - name: Run Docker container
+              run: >
+                  docker run -d -p "${{ vars.DOCKER_PORT }}":80 
+                  --restart unless-stopped 
+                  --name=${{ vars.DOCKER_CONTAINER }} 
+                  ${{ vars.DOCKER_IMAGE }}
