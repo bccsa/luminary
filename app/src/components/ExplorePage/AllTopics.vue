@@ -64,7 +64,7 @@ const filteredTopics = computed(() => {
     <div v-if="allTopics" class="lg:mx-32">
         <!-- Search Bar -->
         <div class="mb-4 mt-6 flex">
-            <div class="relative w-3/4">
+            <div class="relative w-3/4" v-if="allTopics.length > 0">
                 <MagnifyingGlassIcon
                     class="absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500"
                 />
@@ -73,7 +73,7 @@ const filteredTopics = computed(() => {
                     name="input"
                     type="text"
                     placeholder="Search..."
-                    class="w-96 rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
+                    class="w-full max-w-96 rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
                 />
             </div>
 
@@ -92,7 +92,7 @@ const filteredTopics = computed(() => {
         </div>
 
         <!-- Topics -->
-        <div v-if="isGridView" class="flex flex-wrap justify-between gap-4">
+        <div v-if="isGridView" class="flex flex-wrap justify-start gap-4">
             <ContentTile v-for="content in filteredTopics" :key="content._id" :content="content" />
         </div>
 
