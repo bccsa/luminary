@@ -5,7 +5,7 @@ import TopBar from "@/components/navigation/TopBar.vue";
 import { computed, onBeforeMount, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
-import { getSocket, isConnected } from "luminary-shared";
+import { isConnected, api, DocType } from "luminary-shared";
 import { apiUrl, initLanguage, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
@@ -60,13 +60,23 @@ onBeforeMount(async () => {
     await waitUntilAuth0IsLoaded();
     const token = await getToken();
 
-    // Initialize the socket connection
+    // Initialize the api connection
     try {
-        const socket = getSocket({
+        const _api = api({
             apiUrl,
             token,
-            cms: true,
+            docTypes: [
+                { type: DocType.Tag, contentOnly: true },
+                { type: DocType.Post, contentOnly: true },
+                { type: DocType.Language, contentOnly: false },
+            ],
         });
+
+        // ask for updated bulk docs
+        const rest = _api.rest();
+        rest.clientDataReq();
+
+        const socket = _api.socket();
 
         // handle API authentication failed messages
         socket.on("apiAuthFailed", async () => {

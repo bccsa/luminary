@@ -81,7 +81,6 @@ describe("App", () => {
 
         const socket = getSocket({
             apiUrl: "test",
-            cms: true,
             token: "test-token",
         });
 

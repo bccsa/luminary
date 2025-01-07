@@ -15,19 +15,37 @@ import {
 } from "../types";
 import { useObservable } from "@vueuse/rxjs";
 import type { Observable } from "rxjs";
-import { type Ref, toRaw, watch } from "vue";
+import { ref, type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
-import { accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { AccessMap, accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
 import { SharedConfig } from "../config";
+import _ from "lodash";
 const dbName: string = "luminary-db";
 
-type luminaryInternals = {
+type LuminaryInternals = {
     id: string;
     value: any;
 };
+
+export type SyncMapEntry = {
+    blockStart: number;
+    blockEnd: number;
+    type: string;
+    contentOnly?: boolean;
+};
+
+export type SyncMap = {
+    blocks: Array<SyncMapEntry>;
+    accessMap: AccessMap;
+    groups: Array<string>;
+    contentOnly?: boolean;
+    type: string;
+};
+
+export const syncMap = ref(new Map<string, SyncMap>());
 
 type dbIndex = {
     docs: string;
@@ -81,7 +99,7 @@ class Database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
-    luminaryInternals!: Table<luminaryInternals>;
+    luminaryInternals!: Table<LuminaryInternals>;
     private accessMapRef = accessMap;
 
     /**
@@ -120,6 +138,10 @@ class Database extends Dexie {
             },
             { immediate: true },
         );
+
+        watch(syncMap.value, () => {
+            this.setSyncMap();
+        });
     }
 
     /**
@@ -129,23 +151,33 @@ class Database extends Dexie {
         return uuidv4();
     }
 
-    /**
-     * Set the sync version as received from the api
-     */
-    set syncVersion(value: number) {
-        this.luminaryInternals.put({ id: "syncVersion", value: value.toString() }, "syncVersion");
+    async getSyncMap() {
+        const _v = await this.getLuminaryInternals("syncMap");
+        if (_v)
+            for (const [k, v] of Object.entries(_v)) {
+                syncMap.value.set(k, v as SyncMap);
+            }
+        return _v;
     }
 
-    /**
-     * Get the stored sync version
-     */
-    get syncVersion(): Promise<number> {
+    async setSyncMap() {
+        return await this.setLuminaryInternals(
+            "syncMap",
+            _.cloneDeep(Object.fromEntries(syncMap.value)),
+        );
+    }
+
+    async setLuminaryInternals(key: string, value: any) {
+        return await this.luminaryInternals.put({ id: key, value: value }, key);
+    }
+
+    getLuminaryInternals(key: string): Promise<any> {
         // eslint-disable-next-line no-async-promise-executor
         return new Promise(async (resolve) => {
-            const _v: luminaryInternals = (await this.luminaryInternals.get(
-                "syncVersion",
-            )) as luminaryInternals;
-            resolve((_v && _v.value && parseInt(_v.value)) || 0);
+            const _v: LuminaryInternals = (await this.luminaryInternals.get(
+                key,
+            )) as LuminaryInternals;
+            resolve(_v && _v.value);
         });
     }
 
@@ -689,8 +721,13 @@ class Database extends Dexie {
      * Purge the local database
      */
     async purge() {
-        await Promise.all([this.docs.clear(), this.localChanges.clear(), this.queryCache.clear()]);
-        this.syncVersion = 0;
+        syncMap.value.clear();
+        await Promise.all([
+            this.docs.clear(),
+            this.localChanges.clear(),
+            this.queryCache.clear(),
+            this.luminaryInternals.clear(),
+        ]);
     }
 }
 

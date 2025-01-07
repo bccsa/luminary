@@ -11,7 +11,7 @@ import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import * as Sentry from "@sentry/vue";
 import router from "./router";
-import { getSocket } from "luminary-shared";
+import { DocType, api } from "luminary-shared";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import { useNotificationStore } from "./stores/notification";
 
@@ -58,11 +58,25 @@ onBeforeMount(async () => {
 
     // Initialize the socket connection
     try {
-        const socket = getSocket({
+        const _api = api({
             apiUrl,
             token,
-            cms: true,
+            docTypes: [
+                { type: DocType.Tag, contentOnly: false },
+                { type: DocType.Post, contentOnly: false },
+                { type: DocType.Group, contentOnly: false },
+                { type: DocType.Redirect, contentOnly: false },
+                { type: DocType.Language, contentOnly: false },
+                { type: DocType.Tag, contentOnly: true },
+                { type: DocType.Post, contentOnly: true },
+            ],
         });
+
+        // ask for updated bulk docs
+        const rest = _api.rest();
+        rest.clientDataReq();
+
+        const socket = _api.socket();
 
         // handle API authentication failed messages
         socket.on("apiAuthFailed", async () => {

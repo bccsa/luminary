@@ -6,8 +6,8 @@ import {
     OnGatewayInit,
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
-import { DbQueryResult, DbService } from "./db/db.service";
-import { DocType, AclPermission, AckStatus, Uuid } from "./enums";
+import { DbService } from "./db/db.service";
+import { AclPermission, AckStatus, Uuid } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
@@ -25,16 +25,13 @@ import { Logger } from "winston";
  * Data request from client type definition
  */
 type ClientDataReq = {
-    version?: number;
-    cms?: boolean;
-    accessMap?: AccessMap;
+    docTypes: Array<any>;
 };
 
 /**
  * Client configuration type definition
  */
 type ClientConfig = {
-    accessMap: AccessMap;
     maxUploadFileSize: number;
 };
 
@@ -89,14 +86,6 @@ type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketD
 })
 @Injectable()
 export class Socketio implements OnGatewayInit {
-    appDocTypes: Array<DocType> = [
-        DocType.Post,
-        DocType.Tag,
-        DocType.Content,
-        DocType.Language,
-        DocType.Redirect,
-    ];
-    cmsDocTypes: Array<DocType> = [DocType.Group, DocType.Change];
     permissionMap: PermissionMap;
     config: Configuration;
 
@@ -149,10 +138,7 @@ export class Socketio implements OnGatewayInit {
             const refGroups = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf;
 
             // Create room names to emit to
-            let rooms = refGroups.map((group) => `${refDoc.type}-${group}`);
-
-            // Prepend "cms-" to the room names for (CMS only) change documents. This is needed to be able to allow the CMS to specifically subscribe to change documents.
-            if (update.type == "change") rooms = rooms.map((room) => `cms-${room}`);
+            const rooms = refGroups.map((group) => `${refDoc.type}-${group}`);
 
             // Emit to rooms
             if (rooms.length > 0)
@@ -201,34 +187,33 @@ export class Socketio implements OnGatewayInit {
     }
 
     /**
-     * Client data request event handler
+     *  Join client to socket groups, to receive live updates
      * @param reqData
      * @param socket
      */
-    @SubscribeMessage("clientDataReq")
-    clientDataReq(@MessageBody() reqData: ClientDataReq, @ConnectedSocket() socket: ClientSocket) {
-        // TODO: Do type validation on reqData
-
+    @SubscribeMessage("joinSocketGroups")
+    clientConfigReq(
+        @MessageBody() reqData: ClientDataReq,
+        @ConnectedSocket() socket: ClientSocket,
+    ) {
         // Send client configuration data
         // Get access map and send to client
+        const accessMap = PermissionSystem.getAccessMap(socket.data.memberOf);
         const clientConfig = {
-            accessMap: PermissionSystem.getAccessMap(socket.data.memberOf),
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
+            accessMap: accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
-        socket.emit("accessMap", clientConfig.accessMap); // Included for backwards compatibility
 
         // Determine which doc types to get
-        const docTypes = reqData.cms
-            ? [...this.cmsDocTypes, ...this.appDocTypes]
-            : this.appDocTypes;
-
-        let from = 0;
-        if (reqData.version && typeof reqData.version === "number") from = reqData.version;
+        const docTypes: Array<any> = [];
+        reqData.docTypes.forEach((docType) => {
+            if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
+        });
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
-            clientConfig.accessMap,
+            accessMap,
             AclPermission.View,
             docTypes,
         );
@@ -237,58 +222,7 @@ export class Socketio implements OnGatewayInit {
         for (const docType of Object.keys(userViewGroups)) {
             for (const group of userViewGroups[docType]) {
                 socket.join(`${docType}-${group}`);
-
-                // Subscribe to cms specific rooms
-                if (reqData.cms) {
-                    socket.join(`cms-${docType}-${group}`);
-                }
             }
-        }
-
-        // Get updated data from database
-        this.db
-            .getDocsPerGroup(socket.data.userId, {
-                userAccess: userViewGroups,
-                from: from,
-            })
-            .then((res: DbQueryResult) => {
-                if (res.docs) {
-                    const response: ApiDataResponse = { docs: res.docs };
-                    if (res.version) response.version = res.version;
-
-                    socket.emit("data", response);
-                }
-            })
-            .catch((err) => {
-                this.logger.error(`Error getting data for client: ${socket.data.userId}`, err);
-            });
-
-        // Get diff between user submitted access map and actual access
-        const diff = PermissionSystem.accessMapDiff(clientConfig.accessMap, reqData.accessMap);
-        const newAccessibleGroups = PermissionSystem.accessMapToGroups(
-            diff,
-            AclPermission.View,
-            docTypes,
-        );
-
-        // Get historical data from database for newly accessible groups
-        if (Object.keys(newAccessibleGroups).length > 0) {
-            this.db
-                .getDocsPerGroup(socket.data.userId, {
-                    userAccess: newAccessibleGroups,
-                    to: from,
-                })
-                .then((res: DbQueryResult) => {
-                    if (res.docs) {
-                        socket.emit("data", { docs: res.docs });
-                    }
-                })
-                .catch((err) => {
-                    this.logger.error(
-                        `Error getting historical data for client: ${socket.data.userId}`,
-                        err,
-                    );
-                });
         }
     }
 

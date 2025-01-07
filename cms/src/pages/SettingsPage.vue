@@ -4,7 +4,7 @@ import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
-import { db, isConnected, getSocket } from "luminary-shared";
+import { db, isConnected, api } from "luminary-shared";
 
 const { addNotification } = useNotificationStore();
 
@@ -18,7 +18,11 @@ const deleteLocalData = async () => {
     }
 
     await db.purge();
-    getSocket().requestData();
+    try {
+        api().rest().clientDataReq();
+    } catch (e) {
+        console.error(e);
+    }
 
     return addNotification({
         title: "Local cache cleared",

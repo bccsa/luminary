@@ -5,8 +5,6 @@ export enum DocType {
     Language = "language",
     Redirect = "redirect",
     Image = "image",
-    Media = "media",
-    MediaDownload = "mediaDownload",
     Post = "post",
     Tag = "tag",
     User = "user",

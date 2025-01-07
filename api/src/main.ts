@@ -5,6 +5,7 @@ import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
 import { S3Service } from "./s3/s3.service";
+import { ValidationPipe } from "@nestjs/common";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
@@ -33,6 +34,9 @@ async function bootstrap() {
     app.enableCors({
         origin: process.env.CORS_ORIGIN,
     });
+
+    app.useGlobalPipes(new ValidationPipe());
+
     await app.listen(process.env.PORT);
 }
 bootstrap();

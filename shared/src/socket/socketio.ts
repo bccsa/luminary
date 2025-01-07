@@ -1,16 +1,21 @@
 import { io, Socket } from "socket.io-client";
 import { ref, watch } from "vue";
-import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
-import { accessMap, AccessMap } from "../permissions/permissions";
+import {
+    ApiDataResponseDto,
+    ChangeReqAckDto,
+    LocalChangeDto,
+    ApiConnectionOptions,
+} from "../types";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
+import { AccessMap, accessMap } from "../permissions/permissions";
 
 /**
  * Client configuration type definition
  */
 type ClientConfig = {
-    accessMap: AccessMap;
     maxUploadFileSize: number;
+    accessMap: AccessMap;
 };
 
 /**
@@ -27,23 +32,22 @@ class Socketio {
     private socket: Socket;
     private retryTimeout: number = 0;
     private localChanges = ref<LocalChangeDto[]>();
-    private isCms: boolean;
     private processChangeReqLock: boolean = false;
+    private docTypes: Array<any>;
 
     /**
      * Create a new socketio instance
      * @param apiUrl - Socket.io endpoint URL
-     * @param cms - CMS mode flag
+     * @param docTypes - Array of doctypes
      * @param token - Access token
      */
-    constructor(apiUrl: string, cms: boolean = false, token?: string) {
-        this.isCms = cms;
-
+    constructor(apiUrl: string, docTypes: Array<any>, token?: string) {
         this.socket = io(apiUrl, token ? { auth: { token } } : undefined);
+        this.docTypes = docTypes;
 
         this.socket.on("connect", () => {
             isConnected.value = true;
-            this.requestData();
+            this.socket.emit("joinSocketGroups", { docTypes: this.docTypes });
             this.processChangeReqLock = false; // reset process log on connection
         });
 
@@ -53,14 +57,13 @@ class Socketio {
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
             await db.bulkPut(data.docs);
-            if (data.version != undefined) db.syncVersion = data.version;
         });
 
         this.socket.on("changeRequestAck", this.handleAck.bind(this));
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
-            if (c.accessMap) accessMap.value = c.accessMap;
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
+            if (c.accessMap) accessMap.value = c.accessMap;
         });
 
         // watch for local changes
@@ -112,20 +115,6 @@ class Socketio {
     }
 
     /**
-     * Send a clientDataReq message to the server. This is automatically called upon
-     * connection to the server, but in some cases it may be necessary to request it manually
-     * (e.g. after clearing local data).
-     */
-    public async requestData() {
-        // Request documents that are newer than the last received version
-        this.socket.emit("clientDataReq", {
-            version: await db.syncVersion,
-            cms: this.isCms,
-            accessMap: accessMap.value,
-        });
-    }
-
-    /**
      * Push a single local change to the api
      */
     private async pushLocalChange(localChange: LocalChangeDto) {
@@ -159,32 +148,13 @@ class Socketio {
     }
 }
 
-type socketConnectionOptions = {
-    /**
-     * Socket.io endpoint URL
-     */
-    apiUrl?: string;
-    /**
-     * CMS mode flag
-     */
-    cms?: boolean;
-    /**
-     * Access token
-     */
-    token?: string;
-    /**
-     * Force a reconnect to the server if the socket already exists
-     */
-    reconnect?: boolean;
-};
-
 let socket: Socketio;
 
 /**
  * Returns a singleton instance of the socketio client class. The api URL, token and CMS flag is only used when calling the function for the first time.
  * @param options - Socket connection options
  */
-export function getSocket(options?: socketConnectionOptions) {
+export function getSocket(options?: ApiConnectionOptions) {
     if (!socket) {
         if (!options) {
             throw new Error("Socket connection requires options object");
@@ -192,9 +162,10 @@ export function getSocket(options?: socketConnectionOptions) {
         if (!options.apiUrl) {
             throw new Error("Socket connection requires an API URL");
         }
-        if (!options.cms) options.cms = false;
 
-        socket = new Socketio(options.apiUrl, options.cms, options.token);
+        if (!options.docTypes) options.docTypes = [];
+
+        socket = new Socketio(options.apiUrl, options.docTypes, options.token);
     } else if (options?.reconnect) socket.reconnect();
 
     return socket;
