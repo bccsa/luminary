@@ -44,6 +44,4 @@ export class httpReq {
             console.error(err);
         }
     }
-
-    // async put(endpoint: string, data: any) {}
 }
