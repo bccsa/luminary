@@ -58,9 +58,10 @@ export class DocsService {
 
         // Determine which doc types to get
         const docTypes: Array<any> = [];
-        req.docTypes.forEach((docType) => {
-            if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
-        });
+        if (req.docTypes)
+            req.docTypes.forEach((docType) => {
+                if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
+            });
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
