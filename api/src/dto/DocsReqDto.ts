@@ -34,9 +34,8 @@ export class DocsReqDto {
 
     @IsNotEmpty()
     @IsArray()
-    @IsOptional()
     @Expose()
-    docTypes?: Array<any>;
+    docTypes: Array<any>;
 
     @IsNotEmpty()
     @IsBoolean()
