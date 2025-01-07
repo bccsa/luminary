@@ -54,11 +54,9 @@ export const initLanguage = () => {
             if (preferredLanguageId) {
                 appLanguageIdsAsRef.value[0] = preferredLanguageId;
             } else {
-                // If no preferred language found, check for the first supported language
-                const firstSupportedLanguageId = newVal[0]._id; // Assuming the first language is the default if none found in preferences
+                const defaultLanguage = newVal.find((l) => l.default === 1);
 
-                // Set to first supported language
-                appLanguageIdsAsRef.value[0] = firstSupportedLanguageId;
+                appLanguageIdsAsRef.value[0] = defaultLanguage?._id || newVal[0]._id;
             }
         }
     });
