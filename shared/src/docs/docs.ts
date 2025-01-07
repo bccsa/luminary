@@ -15,6 +15,7 @@ type ApiQuery = {
     contentOnly?: boolean;
     type?: string;
     accessMap: AccessMap;
+    docTypes?: Array<any>;
 };
 
 export class Docs {
@@ -38,6 +39,7 @@ export class Docs {
                 apiVersion: "0.0.0",
                 gapEnd: 0,
                 accessMap: accessMap.value,
+                docTypes: this.options.docTypes,
             };
             const blocks = v.blocks;
             const newest = blocks.sort((a: SyncMapEntry, b: SyncMapEntry) => {
