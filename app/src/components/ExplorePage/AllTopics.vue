@@ -58,7 +58,7 @@ const filteredTopics = computed(() => {
     <div v-if="allTopics" class="lg:mx-32">
         <!-- Search Bar -->
         <div class="mb-4 mt-6 flex">
-            <div class="relative w-3/4">
+            <div class="relative w-3/4" v-if="allTopics.length > 0">
                 <MagnifyingGlassIcon
                     class="absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500"
                 />
