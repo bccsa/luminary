@@ -61,7 +61,7 @@ const status = computed(() => {
     return "accepted";
 });
 
-// Wait 6 seconds before showing the privacy policy banner
+// Wait 3 seconds before showing the privacy policy banner
 setTimeout(() => {
     watch(
         status,
@@ -84,7 +84,7 @@ setTimeout(() => {
         },
         { immediate: true },
     );
-}, 6000);
+}, 3000);
 </script>
 
 <template>

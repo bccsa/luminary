@@ -116,7 +116,7 @@ setTimeout(() => {
     );
 }, 5000);
 
-// Wait 7 second before checking the authentication status
+// Wait 5.1 second before checking the authentication status
 setTimeout(() => {
     watch(
         [isConnected, isAuthenticated],
@@ -132,13 +132,13 @@ setTimeout(() => {
                     link: { name: "login" },
                 });
             }
-            if (isConnected.value && isAuthenticated.value) {
+            if (!isConnected.value || isAuthenticated.value) {
                 useNotificationStore().removeNotification("accountBanner");
             }
         },
         { immediate: true },
     );
-}, 7000);
+}, 5100);
 
 // Add userId to analytics if privacy policy has been accepted
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
