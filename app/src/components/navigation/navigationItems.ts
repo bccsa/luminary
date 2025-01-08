@@ -1,7 +1,8 @@
-import { BookOpenIcon, HomeIcon } from "@heroicons/vue/24/outline";
+import { BookOpenIcon, HomeIcon, PlayIcon } from "@heroicons/vue/24/outline";
 import {
     BookOpenIcon as FilledBookOpenIcon,
     HomeIcon as FilledHomeIcon,
+    PlayIcon as FilledPlayIcon,
 } from "@heroicons/vue/24/solid";
 
 const navigationItems = [
@@ -16,6 +17,12 @@ const navigationItems = [
         defaultIcon: BookOpenIcon,
         selectedIcon: FilledBookOpenIcon,
         to: { name: "explore" },
+    },
+    {
+        name: "Video",
+        defaultIcon: PlayIcon,
+        selectedIcon: FilledPlayIcon,
+        to: { name: "video" },
     },
 ];
 
