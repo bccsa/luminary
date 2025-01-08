@@ -61,28 +61,30 @@ const status = computed(() => {
     return "accepted";
 });
 
-// Show the privacy policy banner
-watch(
-    status,
-    (status) => {
-        if (status != "accepted" && status != "declined") {
-            useNotificationStore().addNotification({
-                id: "privacy-policy-banner",
-                type: "banner",
-                state: "info",
-                title: "Privacy Policy",
-                description: bannerMessageMap[status],
-                icon: ShieldCheckIcon,
-                link: () => (show.value = true),
-                closable: false,
-            });
-            return;
-        }
+// Wait 6 seconds before showing the privacy policy banner
+setTimeout(() => {
+    watch(
+        status,
+        (status) => {
+            if (status != "accepted" && status != "declined") {
+                useNotificationStore().addNotification({
+                    id: "privacy-policy-banner",
+                    type: "banner",
+                    state: "info",
+                    title: "Privacy Policy",
+                    description: bannerMessageMap[status],
+                    icon: ShieldCheckIcon,
+                    link: () => (show.value = true),
+                    closable: false,
+                });
+                return;
+            }
 
-        useNotificationStore().removeNotification("privacy-policy-banner");
-    },
-    { immediate: true },
-);
+            useNotificationStore().removeNotification("privacy-policy-banner");
+        },
+        { immediate: true },
+    );
+}, 6000);
 </script>
 
 <template>
