@@ -145,3 +145,8 @@ export const userPreferencesAsRef = ref(
 watch(userPreferencesAsRef.value, (newVal) => {
     localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });
+
+/**
+ * Query string parameters captured on app startup
+ */
+export const queryParams = new URLSearchParams(window.location.search);
