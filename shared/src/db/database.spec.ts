@@ -32,8 +32,7 @@ describe("Database", async () => {
     beforeAll(async () => {
         await initLuminaryShared({
             cms: true,
-            docsIndex:
-                "type, parentId, language, publishDate, [type+tagType], [type+docType], [type+postType]",
+            docsIndex: "",
         });
     });
 
@@ -666,21 +665,7 @@ describe("Database", async () => {
                     memberOf: ["group-private-users"],
                     parentId: "doc1",
                     updatedTimeUtc: 0,
-                },
-                {
-                    _id: "doc4",
-                    type: DocType.Change, // Test change documents of type Post
-                    memberOf: ["group-private-users"],
-                    docType: DocType.Post,
-                    updatedTimeUtc: 0,
-                },
-                {
-                    _id: "doc5",
-                    type: DocType.Change, // Test change documents of type Content
-                    memberOf: ["group-private-users"],
-                    docType: DocType.Content,
-                    parentId: "doc2",
-                    updatedTimeUtc: 0,
+                    parentType: DocType.Post,
                 },
                 {
                     _id: "doc6",
@@ -694,6 +679,15 @@ describe("Database", async () => {
                     memberOf: ["group-private-users", "group-public-users"], // This document should not be removed as it is also a member of 'group-public-users'
                     parentId: "doc6", // This document should not be removed as it's parent is also a member of 'group-public-users'
                     updatedTimeUtc: 0,
+                    parentType: DocType.Post,
+                },
+                {
+                    _id: "doc8",
+                    type: DocType.Content, // Test orphaned content documents (used by the reference app where Post and Tag documents are not synced to the clients)
+                    memberOf: ["group-private-users"],
+                    parentId: "doc-non-existent",
+                    updatedTimeUtc: 0,
+                    parentType: DocType.Post,
                 },
             ];
             await db.docs.bulkPut(docs);
@@ -752,20 +746,6 @@ describe("Database", async () => {
                     language: "lang2",
                 },
                 {
-                    _id: "doc6",
-                    type: DocType.Change, // Test content Change docs - should be removed as access to the language is revoked
-                    parentId: "doc1",
-                    updatedTimeUtc: 0,
-                    language: "lang1",
-                },
-                {
-                    _id: "doc7",
-                    type: DocType.Change, // Test content Change docs - should NOT be removed as access to the language NOT revoked
-                    parentId: "doc1",
-                    updatedTimeUtc: 0,
-                    language: "lang2",
-                },
-                {
                     _id: "lang1",
                     type: DocType.Language, // Test Language document - will be removed as it is not a member of 'group-public-users'
                     memberOf: ["group-private-users"],
@@ -798,11 +778,10 @@ describe("Database", async () => {
 
             await waitForExpect(async () => {
                 const remainingDocs = await db.docs.toArray();
-                expect(remainingDocs).toHaveLength(5);
+                expect(remainingDocs).toHaveLength(4);
                 expect(remainingDocs.find((doc) => doc._id === "doc1")).toBeDefined();
                 expect(remainingDocs.find((doc) => doc._id === "doc2")).toBeDefined();
                 expect(remainingDocs.find((doc) => doc._id === "doc5")).toBeDefined();
-                expect(remainingDocs.find((doc) => doc._id === "doc7")).toBeDefined();
                 expect(remainingDocs.find((doc) => doc._id === "lang2")).toBeDefined();
             });
         });
@@ -928,7 +907,7 @@ describe("Database", async () => {
         // update db index schema
         await initLuminaryShared({
             cms: false,
-            docsIndex: "parentId, language, expiryDate, [type+docType], type",
+            docsIndex: "[type+docType+language]",
         });
         const _v2 = await getDbVersion();
 

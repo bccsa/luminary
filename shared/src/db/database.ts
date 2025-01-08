@@ -1,4 +1,4 @@
-import Dexie, { type Table, liveQuery } from "dexie";
+import Dexie, { Collection, IndexableType, type Table, liveQuery } from "dexie";
 import {
     AclPermission,
     BaseDocumentDto,
@@ -100,17 +100,19 @@ class Database extends Dexie {
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     queryCache!: Table<queryCacheDto<BaseDocumentDto>>;
     luminaryInternals!: Table<LuminaryInternals>;
-    private accessMapRef = accessMap;
 
     /**
      * Luminary Shared Database class
      * @param dbVersion - Current Dexie DB version
-     * @param docsIndex - App spesific Index
+     * @param docsIndex - App specific Index
      */
     constructor(dbVersion: number, docsIndex: string) {
         super(dbName);
 
-        const index: string = concatIndex("_id", docsIndex);
+        const index: string = concatIndex(
+            "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],[type+postType]",
+            docsIndex,
+        ); // Concatinate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
             docs: index,
             localChanges: "++id, reqId, docId, status",
@@ -123,18 +125,15 @@ class Database extends Dexie {
             dbIndex,
         );
 
-        // NOTE: Only _id needs to stay in the shared library, all the other fields can be moved to the cms / app
-        // Remember to increase the version number below if you change the schema
         this.version(version).stores(dbIndex);
 
         this.deleteExpired();
 
         // Listen for changes to the access map and delete documents that the user no longer has access to
         watch(
-            this.accessMapRef,
+            accessMap,
             () => {
                 this.deleteRevoked();
-                this.deleteRevoked({ changeDocs: true });
             },
             { immediate: true },
         );
@@ -640,58 +639,51 @@ class Database extends Dexie {
     private whereNotMemberOfAsCollection(
         groupIds: Array<Uuid>,
         docType: DocType,
-        changeDocs = false,
+        // changeDocs = false,
     ) {
         // Query groups and group changeDocs
         if (docType === DocType.Group) {
-            return this.docs
-                .where(changeDocs ? { type: DocType.Change, docType } : { type: docType })
-                .filter((group) => {
-                    // Check if the ACL field exists
-                    if (!group.acl) return false;
+            return this.docs.where({ type: docType }).filter((group) => {
+                // Check if the ACL field exists
+                if (!group.acl) return false;
 
-                    // The AclMap already indicates if the user has view access to the group, so we only need to check that the group document is not listed in the AclMap
-                    return !groupIds.includes(group._id);
-                });
+                // The AclMap already indicates if the user has view access to the group, so we only need to check that the group document is not listed in the AclMap
+                return !groupIds.includes(group._id);
+            });
         }
 
         // Query other documents
-        return this.docs
-            .where(changeDocs ? { type: DocType.Change, docType } : { type: docType })
-            .filter((doc) => {
-                // Check if the memberOf field exists
-                if (!doc.memberOf) return false;
+        let query: Collection<BaseDocumentDto, IndexableType>;
 
-                // Check if the document is NOT a member of the given groupIds
-                return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
-            });
+        if (docType == DocType.Post || docType == DocType.Tag) {
+            query = this.docs.where("type").equals(docType).or("parentType").equals(docType);
+        } else {
+            query = this.docs.where("type").equals(docType);
+        }
+
+        return query.filter((doc) => {
+            // Check if the memberOf field exists
+            if (!doc.memberOf) return false;
+
+            // Check if the document is NOT a member of the given groupIds
+            return !doc.memberOf.some((groupId) => groupIds.includes(groupId));
+        });
     }
 
     /**
      * Delete documents to which access has been revoked
      * @param options - changeDocs: If true, deletes change documents instead of regular documents
      */
-    private deleteRevoked(options: { changeDocs: boolean } = { changeDocs: false }) {
+    private deleteRevoked() {
         const groupsPerDocType = getAccessibleGroups(AclPermission.View);
 
         Object.values(DocType)
-            .filter((t) => !(t == DocType.Change || t == DocType.Content))
+            .filter((t) => t !== DocType.Content) // Exclude content documents as they are deleted together with their parent's document type
             .forEach(async (docType) => {
                 let groups = groupsPerDocType[docType as DocType];
                 if (groups === undefined) groups = [];
 
-                const revokedDocs = this.whereNotMemberOfAsCollection(
-                    groups,
-                    docType as DocType,
-                    options.changeDocs,
-                );
-
-                // Delete associated Post and Tag content documents
-                if (docType === DocType.Post || docType === DocType.Tag) {
-                    const revokedParents = await revokedDocs.toArray();
-                    const revokedParentIds = revokedParents.map((p) => p._id);
-                    await this.docs.where("parentId").anyOf(revokedParentIds).delete();
-                }
+                const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
 
                 // Delete associated Language content documents
                 if (docType === DocType.Language) {
@@ -762,17 +754,13 @@ export const getDbVersion = async () => {
  * @returns
  */
 const concatIndex = (index1: string, index2: string) => {
-    const i1: string[] = index1.split(",");
-    const i2: string[] = index2.split(",");
-    const i3: any = {};
-    i1.forEach((i) => {
-        if (i) i3[i] = i;
-    });
-    i2.forEach((i) => {
-        if (i) i3[i] = i;
-    });
+    const i1: string[] = index1.replace(/\s/g, "").split(",");
+    const i2: string[] = index2.replace(/\s/g, "").split(",");
+    const s = new Set([...i1, ...i2]);
 
-    return Object.values(i3).toString();
+    return Array.from(s)
+        .filter((val) => val != "")
+        .toString();
 };
 
 /**
