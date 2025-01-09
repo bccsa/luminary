@@ -1,9 +1,24 @@
 {
     "_id": "lang-swa",
     "type": "language",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-languages"],
     "languageCode": "sw",
     "name": "Swahili",
-    "default": 0
+    "default": 0,
+    "translations": {
+        "menu.home": "Nyumbani",
+        "menu.explore": "Chunguza",
+        "profile_menu.settings": "Mipangilio",
+        "profile_menu.theme": "Mandhari",
+        "profile_menu.language": "Lugha",
+        "profile_menu.bookmarks": "Vialamisho",
+        "profile_menu.privacy_policy": "Sera ya Faragha",
+        "profile_menu.login": "Ingia",
+        "profile_menu.logout": "Toka",
+        "settings.local_cache.title": "Kumbukumbu ya Mitaa",
+        "settings.local_cache.description": "Takwimu nyingi zimehifadhiwa kwenye kifaa chako. Ikiwa unakutana na matatizo, jaribu kufuta data zote za ndani. Kulingana na kiasi cha data inayopatikana kwenye seva, inaweza kuchukua muda kabla ya data zote kupatikana tena.",
+        "settings.local_cache.button": "Futa Kumbukumbu ya Mitaa",
+        "home.title": "Nyumbani",
+        "explore.title": "Chunguza"
+    }
 }

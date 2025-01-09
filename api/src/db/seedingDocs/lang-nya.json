@@ -1,9 +1,24 @@
 {
     "_id": "lang-nya",
     "type": "language",
-    "updatedTimeUtc": 3,
     "memberOf": ["group-languages"],
     "languageCode": "ny",
     "name": "Chichewa",
-    "default": 0
+    "default": 0,
+    "translations": {
+        "menu.home": "Guta",
+        "menu.explore": "Peendina",
+        "profile_menu.settings": "Lokichana",
+        "profile_menu.theme": "Thaamu",
+        "profile_menu.language": "Lokame",
+        "profile_menu.bookmarks": "Maali Yeng’",
+        "profile_menu.privacy_policy": "Kiambir Na Lokokwo",
+        "profile_menu.login": "Ene Naye",
+        "profile_menu.logout": "Lo Naye",
+        "settings.local_cache.title": "Lokinyake Lo Wach",
+        "settings.local_cache.description": "Kiwoti kekakini wokowo i kilipet. Ekeng tekare echab lokokoye enyom iya amangana ilipet lo wach koni kitap ka kon. Lokokoyo kamakonyo kwa kilokoko nyai lo nginika ka nga lyeny.",
+        "settings.local_cache.button": "Jab Lokokoye Nyike",
+        "home.title": "Guta",
+        "explore.title": "Peendina"
+    }
 }
