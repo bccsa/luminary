@@ -73,7 +73,7 @@ const filteredTopics = computed(() => {
                     name="input"
                     type="text"
                     placeholder="Search..."
-                    class="w-full max-w-96 rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
+                    class="w-full rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
                 />
             </div>
 
