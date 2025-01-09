@@ -5,7 +5,8 @@ import { appLanguageIdAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
-import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
+import { MagnifyingGlassIcon, ListBulletIcon, Squares2X2Icon } from "@heroicons/vue/24/solid";
+import ContentTile from "../content/ContentTile.vue";
 
 const allTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -43,6 +44,9 @@ watch(allTopics, async (value) => {
 // Reactive search term
 const searchTerm = ref("");
 
+// View mode: true for grid view, false for list view
+const isGridView = ref(false);
+
 // Computed property for filtered topics
 const filteredTopics = computed(() => {
     if (!searchTerm.value.trim()) {
@@ -58,8 +62,9 @@ const filteredTopics = computed(() => {
 
 <template>
     <div v-if="allTopics" class="lg:mx-32">
-        <div class="mb-4 mt-6">
-            <div class="relative">
+        <!-- Search Bar -->
+        <div class="mb-4 mt-6 flex">
+            <div class="relative w-3/4" v-if="allTopics.length > 0">
                 <MagnifyingGlassIcon
                     class="absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500"
                 />
@@ -71,9 +76,14 @@ const filteredTopics = computed(() => {
                     class="w-full rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
                 />
             </div>
+
+            <!-- Toggle Button -->
+            <button class="flex w-1/4 items-center justify-end" @click="isGridView = !isGridView">
+                <component :is="isGridView ? ListBulletIcon : Squares2X2Icon" class="h-6 w-6" />
+            </button>
         </div>
 
-        <!-- Show "No results found" message if filteredTopics is empty and searchTerm is not blank -->
+        <!-- No Results -->
         <div
             v-if="filteredTopics.length === 0 && searchTerm.trim()"
             class="text-center text-gray-500"
@@ -81,7 +91,12 @@ const filteredTopics = computed(() => {
             No results found for "{{ searchTerm }}"
         </div>
 
-        <div class="space-y-2">
+        <!-- Topics -->
+        <div v-if="isGridView" class="flex flex-wrap justify-start gap-4">
+            <ContentTile v-for="content in filteredTopics" :key="content._id" :content="content" />
+        </div>
+
+        <div v-else class="space-y-2">
             <div
                 v-for="content in filteredTopics"
                 :key="content._id"
