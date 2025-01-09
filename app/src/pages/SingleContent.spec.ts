@@ -39,10 +39,14 @@ vi.mock("vue-router", async (importOriginal) => {
 });
 
 describe("SingleContent", () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+        // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
+        await db.docs.clear();
+        await db.localChanges.clear();
+
         appLanguageIdAsRef.value = mockLanguageDtoEng._id;
 
-        db.docs.bulkPut([
+        await db.docs.bulkPut([
             mockPostDto,
             mockCategoryDto,
             mockTopicDto,
@@ -58,20 +62,8 @@ describe("SingleContent", () => {
         setActivePinia(createTestingPinia());
     });
 
-    afterEach(() => {
-        db.docs.clear();
-    });
-
-    it("displays the content image", async () => {
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain("test-image.webp");
-        });
+    afterEach(async () => {
+        await db.docs.clear();
     });
 
     it("displays the video player when defined", async () => {
@@ -90,6 +82,18 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             expect(videoPlayer).toBeDefined();
+        });
+    });
+
+    it("displays the content image", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("test-image.webp");
         });
     });
 
@@ -277,12 +281,14 @@ describe("SingleContent", () => {
             },
         });
 
-        // simulate language change
-        appLanguageIdAsRef.value = mockLanguageDtoSwa._id;
-
         const notificationStore = useNotificationStore();
 
         await waitForExpect(() => {
+            // simulate language change
+            if (appLanguageIdAsRef.value !== mockLanguageDtoSwa._id) {
+                appLanguageIdAsRef.value = mockLanguageDtoSwa._id;
+            }
+
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });
@@ -295,10 +301,12 @@ describe("SingleContent", () => {
             },
         });
 
-        const metaDescription = document.head.querySelector("meta[name='description']");
+        await waitForExpect(() => {
+            const metaDescription = document.head.querySelector("meta[name='description']");
 
-        expect(document.title).toBe(`${mockEnglishContentDto.seoTitle} - ${appName}`);
-        expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoString);
+            expect(document.title).toBe(`${mockEnglishContentDto.seoTitle} - ${appName}`);
+            expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoString);
+        });
     });
 
     it("redirects correctly", async () => {

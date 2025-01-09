@@ -12,22 +12,27 @@ import BookmarksPage from "./BookmarksPage.vue";
 vi.mock("vue-router");
 
 describe("BookmarksPage", () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+        // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
+        await db.docs.clear();
+        await db.localChanges.clear();
+
         appLanguageIdAsRef.value = mockLanguageDtoEng._id;
 
-        db.docs.bulkPut([mockEnglishContentDto]);
+        await db.docs.bulkPut([mockEnglishContentDto]);
 
         setActivePinia(createTestingPinia());
     });
 
-    afterEach(() => {
-        db.docs.clear();
+    afterEach(async () => {
+        await db.docs.clear();
     });
 
     it("displays bookmarked content", async () => {
         userPreferencesAsRef.value.bookmarks = [
             { id: mockEnglishContentDto.parentId, ts: Date.now() },
         ];
+
         const wrapper = mount(BookmarksPage);
 
         await waitForExpect(() => {

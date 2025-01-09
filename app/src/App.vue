@@ -10,7 +10,7 @@ import { apiUrl, initLanguage, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
-import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/24/solid";
+import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 import { useRouter } from "vue-router";
 
@@ -91,30 +91,6 @@ onBeforeMount(async () => {
     }
 });
 
-setTimeout(() => {
-    watch(
-        [isConnected, isAuthenticated],
-        () => {
-            if (isConnected.value && !isAuthenticated.value) {
-                useNotificationStore().addNotification({
-                    id: "accountBanner",
-                    title: "You are missing out!",
-                    description: "Click here to create an account or log in.",
-                    state: "info",
-                    type: "banner",
-                    icon: ExclamationCircleIcon,
-                    link: { name: "login" },
-                });
-            }
-
-            if (isConnected.value && isAuthenticated.value) {
-                useNotificationStore().removeNotification("accountBanner");
-            }
-        },
-        { immediate: true },
-    );
-}, 1000);
-
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
     watch(
@@ -129,9 +105,9 @@ setTimeout(() => {
                     state: "warning",
                     type: "banner",
                     icon: SignalSlashIcon,
+                    priority: 1,
                 });
             }
-
             if (isConnected.value) {
                 useNotificationStore().removeNotification("offlineBanner");
             }
@@ -139,6 +115,30 @@ setTimeout(() => {
         { immediate: true },
     );
 }, 5000);
+
+// Wait 5.1 second before checking the authentication status
+setTimeout(() => {
+    watch(
+        [isConnected, isAuthenticated],
+        () => {
+            if (isConnected.value && !isAuthenticated.value) {
+                useNotificationStore().addNotification({
+                    id: "accountBanner",
+                    title: "You are missing out!",
+                    description: "Click here to create an account or log in.",
+                    state: "warning",
+                    type: "banner",
+                    icon: ExclamationCircleIcon,
+                    link: { name: "login" },
+                });
+            }
+            if (!isConnected.value || isAuthenticated.value) {
+                useNotificationStore().removeNotification("accountBanner");
+            }
+        },
+        { immediate: true },
+    );
+}, 5100);
 
 // Add userId to analytics if privacy policy has been accepted
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {

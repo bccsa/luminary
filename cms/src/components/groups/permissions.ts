@@ -96,28 +96,9 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         aclEntry.permission.splice(aclEntry.permission.indexOf(AclPermission.Edit), 1);
     }
 
-    // Remove edit permission if assign permission is removed on imaves
-    if (
-        aclEntry.type == DocType.Image &&
-        prevAclEntry.permission.includes(AclPermission.Assign) &&
-        !aclEntry.permission.includes(AclPermission.Assign) &&
-        aclEntry.permission.includes(AclPermission.Edit)
-    ) {
-        aclEntry.permission.splice(aclEntry.permission.indexOf(AclPermission.Edit), 1);
-    }
-
     // Add assign permission if edit permission is set on groups
     if (
         aclEntry.type == DocType.Group &&
-        aclEntry.permission.includes(AclPermission.Edit) &&
-        !aclEntry.permission.includes(AclPermission.Assign)
-    ) {
-        aclEntry.permission.push(AclPermission.Assign);
-    }
-
-    // Add assign permission if edit permission is set on Images
-    if (
-        aclEntry.type == DocType.Image &&
         aclEntry.permission.includes(AclPermission.Edit) &&
         !aclEntry.permission.includes(AclPermission.Assign)
     ) {

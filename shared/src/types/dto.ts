@@ -19,7 +19,7 @@ export type BaseDocumentDto = {
     memberOf?: Uuid[];
     docType?: DocType;
     acl?: GroupAclEntryDto[];
-    parentType?: DocType.Post | DocType.Tag;
+    parentType?: DocType;
     parentId?: Uuid;
     tags?: Uuid[];
     pinned?: number;

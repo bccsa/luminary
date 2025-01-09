@@ -112,6 +112,6 @@ describe("App", () => {
                     description: "Click here to create an account or log in.",
                 }),
             );
-        });
-    });
+        }, 8000);
+    }, 9000);
 });

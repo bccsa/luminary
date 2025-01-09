@@ -7,6 +7,10 @@ import { contentOverviewQueryAsRef } from "./query";
 
 describe("Content query", () => {
     beforeEach(async () => {
+        // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
+        await db.docs.clear();
+        await db.localChanges.clear();
+
         // seed the fake indexDB with mock data
         const doc1Eng = {
             ...mockData.mockEnglishContentDto,

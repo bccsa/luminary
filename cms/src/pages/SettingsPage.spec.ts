@@ -16,6 +16,9 @@ vi.mock("luminary-shared", () => ({
         requestData: requestDataMock,
     })),
     isConnected: { value: false },
+    api: vi.fn(() => ({
+        rest: vi.fn(),
+    })),
 }));
 
 describe("purgeLocalDatabase", () => {

@@ -18,6 +18,10 @@ export type Notification = {
     link?: RouteLocationNamedRaw | (() => void);
     timeout?: number;
     closable?: boolean;
+    /**
+     * Priority of the notification. Higher priority (lower number) notifications will be displayed first. Default is 10.
+     */
+    priority?: number;
 };
 
 export const useNotificationStore = defineStore("notification", () => {
@@ -25,6 +29,10 @@ export const useNotificationStore = defineStore("notification", () => {
     const notifications = ref<Notification[]>([]);
 
     const addNotification = (notification: Notification) => {
+        // Set default values
+        if (notification.closable == undefined) notification.closable = true;
+        if (notification.priority == undefined) notification.priority = 10;
+
         // Do not add the notification if the notification's ID is already in the list
         if (notifications.value.some((n) => n.id === notification.id)) {
             return notification.id;
@@ -36,13 +44,12 @@ export const useNotificationStore = defineStore("notification", () => {
             notificationId = id.value;
         }
 
-        if (notification.closable == undefined) notification.closable = true;
-
         setTimeout(() => {
             notifications.value.push({
                 ...notification,
                 id: notificationId,
             });
+            notifications.value.sort((a, b) => a.priority! - b.priority!);
         }, 100);
 
         if (notification.type == "toast") {

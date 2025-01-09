@@ -32,7 +32,7 @@ async function bootstrap() {
     await upgradeDbSchema(dbService, s3Service);
 
     app.enableCors({
-        origin: process.env.CORS_ORIGIN,
+        origin: JSON.parse(process.env.CORS_ORIGIN),
     });
 
     app.useGlobalPipes(new ValidationPipe());
