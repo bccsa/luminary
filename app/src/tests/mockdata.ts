@@ -282,12 +282,12 @@ export const mockLanguageDtoEng: LanguageDto = {
         "profile_menu.privacy_policy": "Privacy Policy",
         "profile_menu.login": "Login",
         "profile_menu.logout": "Logout",
-        "setting.local_cache.title": "Local cache",
-        "setting.local_cache.description":
+        "settings.local_cache.title": "Local cache",
+        "settings.local_cache.description":
             "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
-        "setting.local_cache.button": "Delete local cache",
-        "page.home.title": "Home",
-        "page.explore.title": "Explore",
+        "settings.local_cache.button": "Delete local cache",
+        "home.title": "Home",
+        "explore.title": "Explore",
     },
 };
 export const mockLanguageDtoFra: LanguageDto = {
@@ -311,8 +311,8 @@ export const mockLanguageDtoFra: LanguageDto = {
         "settings.local_cache.description":
             "La plupart des données sont enregistrées localement sur votre appareil. Si vous rencontrez des problèmes, essayez de supprimer toutes les données locales. En fonction de la quantité de données disponibles sur le serveur, cela peut prendre un certain temps avant que toutes les données soient à nouveau disponibles.",
         "settings.local_cache.button": "Supprimer le cache local",
-        "pages.home.title": "Accueil",
-        "pages.explore.title": "Explorer",
+        "home.title": "Accueil",
+        "explore.title": "Explorer",
     },
 };
 
@@ -337,8 +337,8 @@ export const mockLanguageDtoSwa: LanguageDto = {
         "settings.local_cache.description":
             "Takwimu nyingi zimehifadhiwa kwenye kifaa chako. Ikiwa unakutana na matatizo, jaribu kufuta data zote za ndani. Kulingana na kiasi cha data inayopatikana kwenye seva, inaweza kuchukua muda kabla ya data zote kupatikana tena.",
         "settings.local_cache.button": "Futa Kumbukumbu ya Mitaa",
-        "pages.home.title": "Nyumbani",
-        "pages.explore.title": "Chunguza",
+        "home.title": "Nyumbani",
+        "explore.title": "Chunguza",
     },
 };
 
