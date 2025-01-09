@@ -1,0 +1,21 @@
+{
+    "_id": "content-copyrigth-policy-eng",
+    "type": "content",
+    "memberOf": ["group-public-content"],
+    "language": "lang-eng",
+    "status": "published",
+    "slug": "copyright",
+    "title": "Copyright",
+    "summary": "This is a copyright page",
+    "author": "ChatGPT",
+    "text": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"All rights reserved. This content is protected under copyright law. Unauthorized reproduction or distribution is strictly prohibited.\"}]}]}",
+    "localisedImage": null,
+    "audio": null,
+    "video": null,
+    "publishDate": 1704114000000,
+    "parentId": "page-copyright",
+    "parentType": "post",
+    "parentTags": [],
+    "parentPostType": "page",
+    "parentPublishDateVisible": false
+}
