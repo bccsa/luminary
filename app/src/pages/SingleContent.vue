@@ -396,6 +396,7 @@ const copyrigthContent = computed(() => {
         <!-- Copyrigth -->
         <IgnorePagePadding>
             <div
+                v-if="copyrigthContent"
                 v-html="copyrigthContent"
                 class="prose prose-zinc mt-8 max-w-full bg-zinc-100 p-4 dark:prose-invert dark:bg-slate-800"
             ></div>
