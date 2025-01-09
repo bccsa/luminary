@@ -18,7 +18,7 @@
         "settings.local_cache.title": "Lokinyake Lo Wach",
         "settings.local_cache.description": "Kiwoti kekakini wokowo i kilipet. Ekeng tekare echab lokokoye enyom iya amangana ilipet lo wach koni kitap ka kon. Lokokoyo kamakonyo kwa kilokoko nyai lo nginika ka nga lyeny.",
         "settings.local_cache.button": "Jab Lokokoye Nyike",
-        "pages.home.title": "Guta",
-        "pages.explore.title": "Peendina"
+        "home.title": "Guta",
+        "explore.title": "Peendina"
     }
 }
