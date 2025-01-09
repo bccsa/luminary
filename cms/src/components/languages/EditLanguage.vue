@@ -209,7 +209,15 @@ watch(
 </script>
 
 <template>
-    <BasePage :title="currentLanguage?.name" class="mb-16">
+    <BasePage
+        :title="currentLanguage?.name"
+        :backLinkLocation="{ name: 'languages' }"
+        :backLinkText="`Languages overview`"
+        :backLinkParams="{
+            docType: DocType.Language,
+        }"
+        class="mb-16"
+    >
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>

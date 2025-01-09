@@ -50,7 +50,7 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
                         ? PencilSquareIcon
                         : EyeIcon
                 "
-                @click="$router.push({ name: 'translation', params: { id: languagesDoc._id } })"
+                @click="$router.push({ name: 'language', params: { id: languagesDoc._id } })"
                 class="flex justify-end"
             ></LButton>
         </td>
