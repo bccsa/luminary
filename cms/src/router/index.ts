@@ -90,7 +90,7 @@ export const router = createRouter({
                 },
                 {
                     path: "languages/:id",
-                    name: "translation",
+                    name: "language",
                     component: () => import("../components/languages/EditLanguage.vue"),
                     props: true,
                 },
