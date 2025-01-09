@@ -11,8 +11,6 @@ import BookmarksPage from "./BookmarksPage.vue";
 
 vi.mock("vue-router");
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 describe("BookmarksPage", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
