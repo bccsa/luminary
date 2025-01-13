@@ -19,6 +19,14 @@
         "settings.local_cache.description": "La plupart des données sont enregistrées localement sur votre appareil. Si vous rencontrez des problèmes, essayez de supprimer toutes les données locales. En fonction de la quantité de données disponibles sur le serveur, cela peut prendre un certain temps avant que toutes les données soient à nouveau disponibles.",
         "settings.local_cache.button": "Supprimer le cache local",
         "home.title": "Accueil",
-        "explore.title": "Explorer"
+        "explore.title": "Explorer",
+        "notification.login.title": "Vous manquez quelque chose!",
+        "notification.login.message": "Cliquez ici pour créer un compte ou vous connecter.",
+        "notification.offline.title": "Vous êtes hors ligne.",
+        "notification.offline.message": "Vous pouvez toujours utiliser l'application et parcourir le contenu hors ligne, mais certains contenus (comme les vidéos) pourraient ne pas être disponibles.",
+        "notification.privacy_policy.title": "Politique de confidentialité",
+        "notification.privacy_policy.message": "Cliquez ici pour accepter notre politique de confidentialité et profiter pleinement de l'application.",
+        "login.bcc.button": "Se connecter avec BCC",
+        "login.guest.button": "Se connecter en tant qu'invité"
     }
 }

@@ -19,6 +19,16 @@
         "settings.local_cache.description": "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
         "settings.local_cache.button": "Delete local cache",
         "home.title": "Home",
-        "explore.title": "Explore"
+        "explore.title": "Explore",
+        "notification.login.title": "You are missing out!",
+        "notification.login.message": "Click here to create an account or log in",
+        "notification.offline.title": "You are offline.",
+        "notification.offline.message": "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
+        "notification.privacy_policy.title": "Privacy Policy",
+        "notification.privacy_policy.message": "Click here to accept our privacy policy for a fully featured app experience.",
+        "privacy_policy.modal.title": "Privacy Policy",
+        "privacy_policy.modal.message": "By using this app, you agree to our privacy policy.",
+        "login.bcc.button": "Login in with BCC",
+        "login.guest.button": "Login in as guest"
     }
 }
