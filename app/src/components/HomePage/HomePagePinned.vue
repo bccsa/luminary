@@ -60,14 +60,8 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 for (const tagId of content.parentTags) {
                     if (pinnedCategories.some((p) => p.parentId == tagId)) return true;
                 }
-
-                const firstSupportedLang = appLanguageIds.find((lang) =>
-                    content.availableTranslations?.includes(lang),
-                );
-
-                if (content.language !== firstSupportedLang) return false;
-
-                return isPublished(content);
+                 
+                return isPublished(content, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedContent") },

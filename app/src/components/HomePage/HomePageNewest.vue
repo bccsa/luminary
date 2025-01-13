@@ -19,11 +19,7 @@ const newest10Content = useDexieLiveQueryWithDeps(
                 if (content.parentTagType && content.parentTagType == TagType.Category)
                     return false;
 
-                const firstSupportedLang = appLanguageIds.find((lang) =>
-                    content.availableTranslations?.includes(lang),
-                );
-
-                return isPublished(content) && firstSupportedLang === content.language;
+                return isPublished(content, appLanguageIds);
             })
             .limit(10) // Limit to the newest posts
             .toArray() as unknown as Promise<ContentDto[]>,

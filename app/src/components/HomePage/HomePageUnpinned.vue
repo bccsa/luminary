@@ -70,14 +70,11 @@ const categories = useDexieLiveQueryWithDeps(
                 if (!_content.parentTagType) return false;
                 if (_content.parentPinned) return false;
 
-                const firstSupportedLang = appLanguageIds.find((lang) =>
-                    _content.availableTranslations?.includes(lang),
-                );
-
-                if (content.language !== firstSupportedLang) return false;
-
                 // Use the `isPublished` helper function
-                return isPublished(_content) && _content.parentTagType === TagType.Category;
+                return (
+                    isPublished(_content, appLanguageIds) &&
+                    _content.parentTagType === TagType.Category
+                );
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     {

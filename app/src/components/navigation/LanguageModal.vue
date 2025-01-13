@@ -117,6 +117,7 @@ const removeFromSelected = (id: string) => {
                     </div>
 
                     <ArrowUpIcon
+                        v-if="language._id !== appLanguageIdsAsRef[0]"
                         @click="indexLanguageUp(language._id)"
                         class="h-6 w-6 rounded-full px-1"
                         :class="defaultLanguage?._id === language._id ? 'text-zinc-400' : ''"

@@ -22,15 +22,7 @@ const topics = useDexieLiveQueryWithDeps(
                 status: "published",
             })
             .filter((c) => {
-                const content = c as ContentDto;
-                // console.info(content);
-                console.info(content.availableTranslations);
-                const firstSupportedLang = languageIds.find((lang: Uuid) =>
-                    content.availableTranslations?.includes(lang),
-                );
-
-                if (content.language !== firstSupportedLang) return false;
-                return isPublished(c as ContentDto);
+                return isPublished(c as ContentDto, languageIds);
             })
             .sortBy("title") as unknown as Promise<ContentDto[]>,
     {
