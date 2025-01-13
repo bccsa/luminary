@@ -19,6 +19,14 @@
         "settings.local_cache.description": "Kiwoti kekakini wokowo i kilipet. Ekeng tekare echab lokokoye enyom iya amangana ilipet lo wach koni kitap ka kon. Lokokoyo kamakonyo kwa kilokoko nyai lo nginika ka nga lyeny.",
         "settings.local_cache.button": "Jab Lokokoye Nyike",
         "home.title": "Guta",
-        "explore.title": "Peendina"
+        "explore.title": "Peendina",
+        "notification.login.title": "Mukuphonya!",
+        "notification.login.message": "Dinani kuti muwonjezere cholumikizira chanu.",
+        "notification.offline.title": "Muli pa intaneti.",
+        "notification.offline.message": "Mutha kugwiritsa ntchito pulogalamu ndikufufuza zomwe zili pa intaneti, koma zinthu zina (monga mavidiyo) zimatha kukhala zosas Available.",
+        "notification.privacy_policy.title": "Polisi ya Privacy",
+        "notification.privacy_policy.message": "Dinani apa kuti mukhale ndi mvomero pa polisi yathu ya privacy kuti mupindule ndi ntchito zonse za pulogalamu.",
+        "login.bcc.button": "Lowani ndi BCC",
+        "login.guest.button": "Lowani monga mlendo"
     }
 }

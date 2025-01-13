@@ -19,6 +19,14 @@
         "settings.local_cache.description": "Takwimu nyingi zimehifadhiwa kwenye kifaa chako. Ikiwa unakutana na matatizo, jaribu kufuta data zote za ndani. Kulingana na kiasi cha data inayopatikana kwenye seva, inaweza kuchukua muda kabla ya data zote kupatikana tena.",
         "settings.local_cache.button": "Futa Kumbukumbu ya Mitaa",
         "home.title": "Nyumbani",
-        "explore.title": "Chunguza"
+        "explore.title": "Chunguza",
+        "notification.login.title": "Umekosa!",
+        "notification.login.message": "Bofya hapa uongeze kiunganishi chako.",
+        "notification.offline.title": "Upo nje ya mtandao.",
+        "notification.offline.message": "Bado unaweza kutumia programu na kuvinjari yaliyomo nje ya mtandao, lakini baadhi ya yaliyomo (kama vile video) yanaweza kutokuwepo.",
+        "notification.privacy_policy.title": "Sera ya Faragha",
+        "notification.privacy_policy.message": "Bonyeza hapa kukubali sera yetu ya faragha ili kupata uzoefu kamili wa programu.",
+        "login.bcc.button": "Ingia na BCC",
+        "login.guest.button": "Ingia kama mgeni"
     }
 }
