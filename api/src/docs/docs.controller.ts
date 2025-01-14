@@ -22,7 +22,7 @@ export class DocsController {
             throw new HttpException(`Validation failed: ${errors}`, HttpStatus.BAD_REQUEST);
         }
         return this.docsService.processReq(
-            JSON.parse(doc),
+            docObj,
             auth !== undefined ? auth.replace("Bearer ", "") : "",
         );
     }

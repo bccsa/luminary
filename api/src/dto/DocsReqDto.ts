@@ -1,14 +1,5 @@
 import { Expose } from "class-transformer";
-import { AccessMap } from "../permissions/permissions.service";
-import {
-    IsNotEmpty,
-    IsString,
-    IsOptional,
-    IsNumber,
-    IsObject,
-    IsBoolean,
-    IsArray,
-} from "class-validator";
+import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, IsArray } from "class-validator";
 import { DocType } from "../enums";
 
 /**
@@ -44,9 +35,9 @@ export class DocsReqDto {
     contentOnly?: boolean;
 
     @IsNotEmpty()
-    @IsObject()
+    @IsArray()
     @Expose()
-    accessMap: AccessMap;
+    groups: Array<string>;
 
     @IsNotEmpty()
     @IsString()

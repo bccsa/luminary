@@ -14,8 +14,8 @@ type ApiQuery = {
     gapStart?: number;
     contentOnly?: boolean;
     type?: string;
-    accessMap: AccessMap;
     docTypes?: Array<any>;
+    groups: Array<string>;
 };
 
 export class Docs {
@@ -38,8 +38,8 @@ export class Docs {
             const query: ApiQuery = {
                 apiVersion: "0.0.0",
                 gapEnd: 0,
-                accessMap: accessMap.value,
                 docTypes: this.options.docTypes,
+                groups: this.calcGroups(),
             };
             const blocks = v.blocks;
             const newest = blocks.sort((a: SyncMapEntry, b: SyncMapEntry) => {
@@ -48,9 +48,9 @@ export class Docs {
             })[0];
 
             query.gapEnd = newest?.blockStart || 0;
-            query.accessMap = v.accessMap || accessMap.value;
             query.type = v.type;
             query.contentOnly = v.contentOnly;
+            query.groups = v.groups || this.calcGroups();
 
             // request newest data
             this.req(query);

@@ -9,7 +9,6 @@ import { EventEmitter } from "stream";
 import { instanceToPlain } from "class-transformer";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { AccessMap } from "../permissions/permissions.service";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -20,7 +19,7 @@ import { AccessMap } from "../permissions/permissions.service";
  */
 export type GetDocsOptions = {
     userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
-    accessMap: AccessMap;
+    groups: Array<string>;
     from?: number;
     to?: number;
     limit?: number;
@@ -40,7 +39,7 @@ export type DbQueryResult = {
     version?: number;
     blockStart?: number;
     blockEnd?: number;
-    accessMap?: AccessMap;
+    groups?: Array<string>;
     type?: DocType;
     contentOnly?: boolean;
 };
@@ -390,7 +389,7 @@ export class DbService extends EventEmitter {
                     warnings: res.warning,
                     blockStart: blockStart,
                     blockEnd: blockEnd,
-                    accessMap: options.accessMap,
+                    groups: options.groups,
                     contentOnly: options.contentOnly,
                 });
             } catch (err) {
