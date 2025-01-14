@@ -38,7 +38,7 @@ export class httpReq {
 
     async get(endpoint: string, query: any) {
         const headers: any = {
-            "Custom-Body": JSON.stringify(query),
+            "X-Query": JSON.stringify(query),
         };
         this.token && (headers.Authorization = `Bearer ${this.token}`);
 
