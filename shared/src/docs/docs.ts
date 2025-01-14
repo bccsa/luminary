@@ -206,12 +206,14 @@ export class Docs {
      */
     mergeBlock(groupArray: Array<any>) {
         groupArray.forEach((_block, i) => {
+            if (!_block) return; // TODO: remove this and improve delete login, to not leave undefined blocks
             const blockStart = _block.blockStart;
             const blockEnd = _block.blockEnd;
 
             // find a block start that falls in this block
             const overlapStart = groupArray.reduce(
                 (prev, curr) =>
+                    curr &&
                     curr != _block &&
                     curr.blockStart <= blockStart &&
                     curr.blockStart >= blockEnd &&
@@ -224,7 +226,10 @@ export class Docs {
 
             const overlapBoth = groupArray.reduce(
                 (prev, curr) =>
-                    curr != _block && curr.blockStart >= blockStart && curr.blockEnd <= blockEnd
+                    curr &&
+                    curr != _block &&
+                    curr.blockStart >= blockStart &&
+                    curr.blockEnd <= blockEnd
                         ? curr
                         : prev,
                 undefined,
