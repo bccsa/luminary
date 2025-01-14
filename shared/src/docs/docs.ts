@@ -53,7 +53,7 @@ export class Docs {
             query.contentOnly = v.contentOnly;
 
             // request newest data
-            await this.req(query);
+            this.req(query);
         }
     }
 
@@ -62,7 +62,7 @@ export class Docs {
      * @param query
      */
     async req(query: ApiQuery): Promise<any> {
-        const data = await this.http.post("docs", query);
+        const data = await this.http.get("docs", query);
         if (data && data.docs.length > 0) await db.bulkPut(data.docs);
         if (!data)
             return setTimeout(() => {

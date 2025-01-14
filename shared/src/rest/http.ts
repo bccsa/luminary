@@ -36,9 +36,17 @@ export class httpReq {
         }
     }
 
-    async get(endpoint: string) {
+    async get(endpoint: string, query: any) {
+        const headers: any = {
+            "Custom-Body": JSON.stringify(query),
+        };
+        this.token && (headers.Authorization = `Bearer ${this.token}`);
+
         try {
-            const res = await fetch(`${this.apiUrl}/${endpoint}`);
+            const res = await fetch(`${this.apiUrl}/${endpoint}`, {
+                method: "GET",
+                headers: headers,
+            });
             if (!res.ok) {
                 throw new Error(`HTTP error! Status: ${res.status}`);
             }
