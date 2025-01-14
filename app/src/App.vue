@@ -6,7 +6,7 @@ import { computed, onBeforeMount, watch } from "vue";
 import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
 import * as Sentry from "@sentry/vue";
 import { isConnected, api, DocType } from "luminary-shared";
-import { apiUrl, initLanguage, userPreferencesAsRef } from "./globalConfig";
+import { apiUrl, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
@@ -16,8 +16,6 @@ import { useRouter } from "vue-router";
 
 const { isAuthenticated, user, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 const router = useRouter();
-
-initLanguage();
 
 const loginRedirect = async () => {
     const usedConnection = localStorage.getItem("usedAuth0Connection");
