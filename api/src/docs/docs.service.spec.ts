@@ -2,7 +2,6 @@ import { DocsService } from "./docs.service";
 import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { DocType } from "../enums";
-import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 
 jest.mock("../configuration", () => {
     const originalModule = jest.requireActual("../configuration");
@@ -28,14 +27,12 @@ jest.mock("../configuration", () => {
 describe("Docs service", () => {
     let service: DbService;
     let docsService: DocsService;
-    let accessMap: AccessMap;
+    let groups: Array<string>;
 
     beforeAll(async () => {
         service = (await createTestingModule("docs-service")).dbService;
         docsService = new DocsService(undefined, service);
-        // Initialize permission system
-        await PermissionSystem.init(service);
-        accessMap = PermissionSystem.getAccessMap(["group-languages", "group-public-content"]);
+        groups = ["group-languages", "group-public-content"];
     });
 
     it("can query the api endpoint", async () => {
@@ -46,7 +43,7 @@ describe("Docs service", () => {
                 { type: "post", contentOnly: true },
                 { type: "content", contentOnly: true },
             ],
-            accessMap: accessMap,
+            groups: groups,
             type: DocType.Post,
         };
 
@@ -63,7 +60,7 @@ describe("Docs service", () => {
                 { type: "group", contentOnly: true },
                 { type: "content", contentOnly: true },
             ],
-            accessMap: accessMap,
+            groups: groups,
             type: DocType.Group,
         };
 
@@ -80,7 +77,7 @@ describe("Docs service", () => {
                 { type: "post", contentOnly: true },
                 { type: "content", contentOnly: true },
             ],
-            accessMap: accessMap,
+            groups: groups,
             type: DocType.Post,
         };
 
@@ -97,7 +94,7 @@ describe("Docs service", () => {
                 { type: "tag", contentOnly: true },
                 { type: "content", contentOnly: true },
             ],
-            accessMap: accessMap,
+            groups: groups,
             type: DocType.Tag,
         };
 
@@ -114,7 +111,7 @@ describe("Docs service", () => {
                 { type: "post", contentOnly: false },
                 { type: "content", contentOnly: true },
             ],
-            accessMap: accessMap,
+            groups: groups,
             type: DocType.Post,
             contentOnly: true,
         };

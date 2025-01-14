@@ -14,8 +14,8 @@ type ApiQuery = {
     gapStart?: number;
     contentOnly?: boolean;
     type?: string;
-    accessMap: AccessMap;
     docTypes?: Array<any>;
+    groups: Array<string>;
 };
 
 export class Docs {
@@ -38,8 +38,8 @@ export class Docs {
             const query: ApiQuery = {
                 apiVersion: "0.0.0",
                 gapEnd: 0,
-                accessMap: accessMap.value,
                 docTypes: this.options.docTypes,
+                groups: this.calcGroups(),
             };
             const blocks = v.blocks;
             const newest = blocks.sort((a: SyncMapEntry, b: SyncMapEntry) => {
@@ -48,12 +48,12 @@ export class Docs {
             })[0];
 
             query.gapEnd = newest?.blockStart || 0;
-            query.accessMap = v.accessMap || accessMap.value;
             query.type = v.type;
             query.contentOnly = v.contentOnly;
+            query.groups = v.groups || this.calcGroups();
 
             // request newest data
-            await this.req(query);
+            this.req(query);
         }
     }
 
@@ -62,7 +62,7 @@ export class Docs {
      * @param query
      */
     async req(query: ApiQuery): Promise<any> {
-        const data = await this.http.post("docs", query);
+        const data = await this.http.get("docs", query);
         if (data && data.docs.length > 0) await db.bulkPut(data.docs);
         if (!data)
             return setTimeout(() => {
@@ -94,13 +94,13 @@ export class Docs {
         if (blocks.length == 0) return { gapStart: 0, gapEnd: 0 };
 
         const gapStart = blocks.reduce((prev: SyncMapEntry, curr: SyncMapEntry) =>
-            prev.blockStart > curr.blockStart ? prev : curr,
+            curr && prev.blockStart <= curr.blockStart ? curr : prev,
         );
 
         if (blocks.length == 1) return { gapStart: gapStart.blockEnd, gapEnd: 0 };
 
         const gapEnd = blocks.reduce((prev: SyncMapEntry, curr: SyncMapEntry) =>
-            curr !== gapStart && prev.blockStart < curr.blockStart ? curr : prev,
+            curr && curr !== gapStart && prev.blockStart < curr.blockStart ? curr : prev,
         );
 
         return { gapStart: gapStart?.blockEnd || 0, gapEnd: gapEnd?.blockStart || 0 };
@@ -163,25 +163,36 @@ export class Docs {
         const newBlockStart = block.blockStart;
         const newBlockEnd = block.blockEnd;
         groupArray.blocks.forEach((_block) => {
-            const blockStart = _block.blockStart;
-            const blockEnd = _block.blockEnd;
+            if (_block) {
+                // TODO: remove this and improve delete login, to not leave undefined blocks
+                const blockStart = _block.blockStart;
+                const blockEnd = _block.blockEnd;
 
-            // expand block to end
-            if (newBlockStart >= blockEnd && newBlockStart <= blockStart && newBlockEnd <= blockEnd)
-                (_block.blockEnd = newBlockEnd), (changed = true);
+                // expand block to end
+                if (
+                    newBlockStart >= blockEnd &&
+                    newBlockStart <= blockStart &&
+                    newBlockEnd <= blockEnd
+                )
+                    (_block.blockEnd = newBlockEnd), (changed = true);
 
-            // expand block to start
-            if (newBlockEnd >= blockEnd && newBlockEnd <= blockStart && newBlockStart >= blockStart)
-                (_block.blockStart = newBlockStart), (changed = true);
+                // expand block to start
+                if (
+                    newBlockEnd >= blockEnd &&
+                    newBlockEnd <= blockStart &&
+                    newBlockStart >= blockStart
+                )
+                    (_block.blockStart = newBlockStart), (changed = true);
 
-            // expand overlap block (If existing block is within incoming block)
-            if (newBlockStart >= blockStart && newBlockEnd <= blockEnd)
-                (_block.blockStart = newBlockStart),
-                    (_block.blockEnd = newBlockEnd),
-                    (changed = true);
+                // expand overlap block (If existing block is within incoming block)
+                if (newBlockStart >= blockStart && newBlockEnd <= blockEnd)
+                    (_block.blockStart = newBlockStart),
+                        (_block.blockEnd = newBlockEnd),
+                        (changed = true);
 
-            // contains, to not expand (If incoming block is within existing block)
-            if (newBlockStart <= blockStart && newBlockEnd >= blockEnd) changed = true;
+                // contains, to not expand (If incoming block is within existing block)
+                if (newBlockStart <= blockStart && newBlockEnd >= blockEnd) changed = true;
+            }
         });
 
         if (!changed) groupArray.blocks.push(block);
@@ -195,12 +206,14 @@ export class Docs {
      */
     mergeBlock(groupArray: Array<any>) {
         groupArray.forEach((_block, i) => {
+            if (!_block) return; // TODO: remove this and improve delete login, to not leave undefined blocks
             const blockStart = _block.blockStart;
             const blockEnd = _block.blockEnd;
 
             // find a block start that falls in this block
             const overlapStart = groupArray.reduce(
                 (prev, curr) =>
+                    curr &&
                     curr != _block &&
                     curr.blockStart <= blockStart &&
                     curr.blockStart >= blockEnd &&
@@ -213,7 +226,10 @@ export class Docs {
 
             const overlapBoth = groupArray.reduce(
                 (prev, curr) =>
-                    curr != _block && curr.blockStart >= blockStart && curr.blockEnd <= blockEnd
+                    curr &&
+                    curr != _block &&
+                    curr.blockStart >= blockStart &&
+                    curr.blockEnd <= blockEnd
                         ? curr
                         : prev,
                 undefined,

@@ -213,7 +213,7 @@ describe("rest", () => {
         const posts = syncMap.value.get("post") || { blocks: [] };
         const blocks = posts.blocks;
         const post: any = blocks.reduce(
-            (prev, curr) => (curr.blockStart == 2000 && curr.blockEnd == 500 ? curr : prev),
+            (prev, curr) => (curr && curr.blockStart == 2000 && curr.blockEnd == 500 ? curr : prev),
             {},
         );
         expect(post.blockStart).toBe(2000);

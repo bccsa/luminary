@@ -118,7 +118,7 @@ describe("DbService", () => {
             userAccess: userAccess,
             from: 0,
             type: DocType.Post,
-            accessMap: undefined,
+            groups: ["group-public-content"],
         });
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
@@ -133,7 +133,7 @@ describe("DbService", () => {
         const query: GetDocsOptions = {
             userAccess: userAccess,
             type: DocType.Post,
-            accessMap: undefined,
+            groups: ["group-public-content"],
         };
 
         const res: any = await service.getDocsPerType(query);
@@ -151,7 +151,7 @@ describe("DbService", () => {
             userAccess: userAccess,
             type: DocType.Post,
             contentOnly: true,
-            accessMap: undefined,
+            groups: ["group-public-content"],
         };
 
         const res: any = await service.getDocsPerType(query);
@@ -168,7 +168,7 @@ describe("DbService", () => {
             userAccess: userAccess,
             from: 0,
             type: DocType.Post,
-            accessMap: undefined,
+            groups: ["group-public-content"],
         });
 
         const docCount =
@@ -212,7 +212,7 @@ describe("DbService", () => {
             userAccess: userAccess,
             from: updatedDoc.updatedTimeUtc,
             type: DocType.Post,
-            accessMap: undefined,
+            groups: ["group-public-content"],
             contentOnly: true,
         });
 

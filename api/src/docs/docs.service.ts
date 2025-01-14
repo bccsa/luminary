@@ -79,7 +79,7 @@ export class DocsService {
             userAccess: userViewGroups,
             type: req.type,
             contentOnly: req.contentOnly,
-            accessMap: req.accessMap,
+            groups: req.groups,
         };
         if (from !== undefined) query.from = from;
         if (to !== undefined) query.to = to;
