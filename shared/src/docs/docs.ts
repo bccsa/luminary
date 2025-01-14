@@ -94,13 +94,13 @@ export class Docs {
         if (blocks.length == 0) return { gapStart: 0, gapEnd: 0 };
 
         const gapStart = blocks.reduce((prev: SyncMapEntry, curr: SyncMapEntry) =>
-            prev.blockStart > curr.blockStart ? prev : curr,
+            curr && prev.blockStart <= curr.blockStart ? curr : prev,
         );
 
         if (blocks.length == 1) return { gapStart: gapStart.blockEnd, gapEnd: 0 };
 
         const gapEnd = blocks.reduce((prev: SyncMapEntry, curr: SyncMapEntry) =>
-            curr !== gapStart && prev.blockStart < curr.blockStart ? curr : prev,
+            curr && curr !== gapStart && prev.blockStart < curr.blockStart ? curr : prev,
         );
 
         return { gapStart: gapStart?.blockEnd || 0, gapEnd: gapEnd?.blockStart || 0 };
