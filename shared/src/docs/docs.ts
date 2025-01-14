@@ -163,25 +163,36 @@ export class Docs {
         const newBlockStart = block.blockStart;
         const newBlockEnd = block.blockEnd;
         groupArray.blocks.forEach((_block) => {
-            const blockStart = _block.blockStart;
-            const blockEnd = _block.blockEnd;
+            if (_block) {
+                // TODO: remove this and improve delete login, to not leave undefined blocks
+                const blockStart = _block.blockStart;
+                const blockEnd = _block.blockEnd;
 
-            // expand block to end
-            if (newBlockStart >= blockEnd && newBlockStart <= blockStart && newBlockEnd <= blockEnd)
-                (_block.blockEnd = newBlockEnd), (changed = true);
+                // expand block to end
+                if (
+                    newBlockStart >= blockEnd &&
+                    newBlockStart <= blockStart &&
+                    newBlockEnd <= blockEnd
+                )
+                    (_block.blockEnd = newBlockEnd), (changed = true);
 
-            // expand block to start
-            if (newBlockEnd >= blockEnd && newBlockEnd <= blockStart && newBlockStart >= blockStart)
-                (_block.blockStart = newBlockStart), (changed = true);
+                // expand block to start
+                if (
+                    newBlockEnd >= blockEnd &&
+                    newBlockEnd <= blockStart &&
+                    newBlockStart >= blockStart
+                )
+                    (_block.blockStart = newBlockStart), (changed = true);
 
-            // expand overlap block (If existing block is within incoming block)
-            if (newBlockStart >= blockStart && newBlockEnd <= blockEnd)
-                (_block.blockStart = newBlockStart),
-                    (_block.blockEnd = newBlockEnd),
-                    (changed = true);
+                // expand overlap block (If existing block is within incoming block)
+                if (newBlockStart >= blockStart && newBlockEnd <= blockEnd)
+                    (_block.blockStart = newBlockStart),
+                        (_block.blockEnd = newBlockEnd),
+                        (changed = true);
 
-            // contains, to not expand (If incoming block is within existing block)
-            if (newBlockStart <= blockStart && newBlockEnd >= blockEnd) changed = true;
+                // contains, to not expand (If incoming block is within existing block)
+                if (newBlockStart <= blockStart && newBlockEnd >= blockEnd) changed = true;
+            }
         });
 
         if (!changed) groupArray.blocks.push(block);
