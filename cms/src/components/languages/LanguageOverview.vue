@@ -3,7 +3,7 @@ import BasePage from "@/components/BasePage.vue";
 import LanguageTable from "@/components/languages/LanguageTable.vue";
 import LButton from "@/components/button/LButton.vue";
 import { AclPermission, db, DocType, hasAnyPermission } from "luminary-shared";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
