@@ -21,6 +21,8 @@ import FormLabel from "../forms/FormLabel.vue";
 import LSelect from "../forms/LSelect.vue";
 import { useNotificationStore } from "@/stores/notification";
 import _ from "lodash";
+import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
+import { TrashIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     id: Uuid;
@@ -43,6 +45,25 @@ const editable = ref<LanguageDto>({
     updatedTimeUtc: Date.now(),
     translations: {},
 });
+const isNew = computed(() => !original.value?._id);
+
+watch(
+    languages,
+    () => {
+        if (isNew.value) {
+            editable.value.translations = (() => {
+                const defaultLanguage = languages.value.find((lang) => lang.default === 1);
+                if (defaultLanguage?.translations) return { ...defaultLanguage.translations };
+
+                const englishLanguage = languages.value.find((lang) => lang.languageCode === "en");
+                if (englishLanguage?.translations) return { ...englishLanguage.translations };
+
+                return {};
+            })();
+        }
+    },
+    { deep: true, immediate: true },
+);
 
 // Clone the original language when it's loaded into the editable object
 const originalLoadedHandler = watch(original, () => {
@@ -69,8 +90,6 @@ watch(
     { deep: true, immediate: true },
 );
 
-const isNew = computed(() => !original.value?._id);
-
 // Revert to the initial state
 const revertChanges = () => {
     if (!original.value) return;
@@ -86,6 +105,7 @@ const revertChanges = () => {
 const keyInput = ref(""); // Holds the key being edited or added
 const valueInput = ref(""); // Holds the value for the key being edited or added
 const newKey = ref<string>(""); // Temporary variable for editing the key
+const isModalOpen = ref(false);
 
 const comparisonLanguage = ref<Uuid>(editable.value ? editable.value._id : "");
 const selectedLanguageContent = ref<LanguageDto>();
@@ -180,30 +200,30 @@ const saveEditedKeyValue = () => {
 
 // Function to replace translations in other languages
 // TODO: Move this logic to the API. User needs edit access to all languages to be able to add or remove keys.
-const updateTranslationsInOtherLanguages = () => {
-    if (editable.value?.translations) {
-        languages.value.forEach((language) => {
-            // Skip the current language
-            if (language._id === editable.value._id) return;
+// const updateTranslationsInOtherLanguages = () => {
+//     if (editable.value?.translations) {
+//         languages.value.forEach((language) => {
+//             // Skip the current language
+//             if (language._id === editable.value._id) return;
 
-            if (language.translations) {
-                // Merge current language's translations into other languages' translations
-                Object.keys(editable.value.translations).forEach((key) => {
-                    // Only update the translation if it's not already set in the target language
-                    if (!language.translations[key]) {
-                        language.translations[key] = "";
-                    }
-                });
-            } else {
-                // If no translations exist in the target language, initialize it with current translations
-                language.translations = { ...editable.value.translations };
-            }
+//             if (language.translations) {
+//                 // Merge current language's translations into other languages' translations
+//                 Object.keys(editable.value.translations).forEach((key) => {
+//                     // Only update the translation if it's not already set in the target language
+//                     if (!language.translations[key]) {
+//                         language.translations[key] = "";
+//                     }
+//                 });
+//             } else {
+//                 // If no translations exist in the target language, initialize it with current translations
+//                 language.translations = { ...editable.value.translations };
+//             }
 
-            // Save the updated language translations
-            db.upsert(language);
-        });
-    }
-};
+//             // Save the updated language translations
+//             db.upsert(language);
+//         });
+//     }
+// };
 
 // Save the current JSON to the database
 const save = async () => {
@@ -258,7 +278,13 @@ watch(
                         @click="revertChanges"
                         >Revert</LButton
                     >
-                    <LButton type="button" @click="save" data-test="save-button" variant="primary">
+                    <LButton
+                        type="button"
+                        @click="save"
+                        data-test="save-button"
+                        variant="primary"
+                        :disabled="!isDirty"
+                    >
                         Save
                     </LButton>
                 </div>
@@ -290,6 +316,9 @@ watch(
                     data-test="group-selector"
                     :disabled="!canEditOrCreate"
                 />
+
+                <!-- add a divider line -->
+                <div class="my-3 border-t border-zinc-200"></div>
 
                 <div class="mt-2 flex items-center justify-between">
                     <FormLabel for="is-language-default-toggle" class="flex items-center">
@@ -340,40 +369,42 @@ watch(
                     <tbody class="divide-y divide-zinc-200 bg-white">
                         <tr>
                             <td
-                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
+                                class="w-1/4 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
                             >
                                 <LInput
                                     name="key"
                                     v-model="keyInput"
                                     placeholder="Enter key (e.g., 'menu.home')"
+                                    class="w-full"
                                 />
                             </td>
                             <td
-                                class="w-2/3 flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-3"
+                                class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-3"
                             >
                                 <LInput
                                     name="value"
                                     v-model="valueInput"
                                     placeholder="Enter value (e.g., 'Homepage')"
+                                    class="w-full"
                                 />
                             </td>
 
                             <td
-                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                class="w-1/6 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
                             >
                                 <LButton
                                     variant="primary"
                                     name="add"
                                     @click="addProperty()"
                                     :disabled="disabled"
-                                    class="h-10 items-end"
+                                    class="h-10 w-full"
                                 >
                                     + Add
                                 </LButton>
                             </td>
 
                             <td
-                                class="w-1/3 flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
+                                class="w-1/4 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
                             >
                                 <LSelect
                                     v-model="comparisonLanguage"
@@ -386,9 +417,11 @@ watch(
                                         )
                                     "
                                     :required="true"
+                                    class="w-full"
                                 />
                             </td>
                         </tr>
+
                         <tr
                             v-for="(val, key) in sortedTranslations"
                             :key="key"
@@ -437,7 +470,7 @@ watch(
                                 />
                             </td>
                             <td
-                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                class="flex-1 justify-items-center whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
                             >
                                 <LButton
                                     v-if="editingKey === key"
@@ -448,15 +481,13 @@ watch(
                                 >
                                     Save
                                 </LButton>
-                                <LButton
+                                <TrashIcon
                                     v-else
-                                    variant="secondary"
-                                    size="sm"
+                                    class="h-6 w-6 cursor-pointer hover:text-red-600"
+                                    title="Delete this line"
                                     @click="deleteProperty(key)"
                                     data-test="delete-key-button"
-                                >
-                                    Delete
-                                </LButton>
+                                />
                             </td>
 
                             <td
@@ -472,4 +503,19 @@ watch(
             </LCard>
         </div>
     </BasePage>
+    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
+
+    <!-- <div v-if="isModalOpen == true">
+        <LModal
+            v-for="(val, key) in sortedTranslations"
+            :key="key"
+            context="danger"
+            title="Are you sure you want to delete this translation?"
+            description="This action cannot be undone. Please confirm if you want to proceed with deleting the translation."
+            primaryButtonText="Delete"
+            secondaryButtonText="Cancel"
+            :primaryAction="() => (isModalOpen = false)"
+            :secondaryAction="() => deleteProperty(key)"
+        />
+    </div> -->
 </template>
