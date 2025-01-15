@@ -19,6 +19,7 @@ import LCard from "../common/LCard.vue";
 import FormLabel from "../forms/FormLabel.vue";
 import LSelect from "../forms/LSelect.vue";
 import { useNotificationStore } from "@/stores/notification";
+import _ from "lodash";
 
 type Props = {
     id: Uuid;
@@ -26,6 +27,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const isLocalChange = db.isLocalChangeAsRef(props.id);
 
 const currentLanguage = computed({
     get(): LanguageDto {
@@ -50,7 +52,43 @@ const currentLanguage = computed({
     },
 });
 
-const isLocalChange = db.isLocalChangeAsRef(props.id);
+const cloneCurrentLanguage = _.cloneDeep(currentLanguage.value);
+console.log(cloneCurrentLanguage);
+
+// Check if the language has been changed locally
+
+// Track the initial state of the currentLanguage
+const initialLanguageState = ref<LanguageDto | null>(null);
+
+// Set initial state when currentLanguage is first initialized
+watch(
+    currentLanguage,
+    (newValue) => {
+        initialLanguageState.value = JSON.parse(JSON.stringify(newValue));
+    },
+    { immediate: true },
+);
+
+const revertChanges = () => {
+    // // Check if the current language is the same as the initial state
+    if (_.isEqual(initialLanguageState.value, currentLanguage.value)) {
+        useNotificationStore().addNotification({
+            title: "No changes",
+            description: "There were no changes to revert",
+            state: "error",
+        });
+        return;
+    }
+
+    // Revert to the initial state
+    currentLanguage.value = initialLanguageState.value!;
+
+    useNotificationStore().addNotification({
+        title: "Changes reverted",
+        description: `The changes of the ${currentLanguage.value.name} have been reverted`,
+        state: "success",
+    });
+};
 
 const keyInput = ref(""); // Holds the key being edited or added
 const valueInput = ref(""); // Holds the value for the key being edited or added
@@ -92,6 +130,11 @@ const canEditOrCreate = computed(() => {
 
 const disabled = computed(() => {
     return !canEditOrCreate.value || (!keyInput.value && !valueInput.value);
+});
+
+// Check if the language is dirty (has unsaved changes)
+const isDirty = computed(() => {
+    return !_.isEqual(initialLanguageState.value, currentLanguage.value);
 });
 
 // Add a new translation key-value pair
@@ -222,6 +265,10 @@ watch(
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
                 <div class="flex gap-1">
+                    <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
+                    <LButton type="button" variant="secondary" @click="revertChanges"
+                        >Revert</LButton
+                    >
                     <LButton type="button" @click="save" data-test="save-button" variant="primary">
                         Save
                     </LButton>
