@@ -141,11 +141,6 @@ const disabled = computed(() => {
     return !canEditOrCreate.value || (!keyInput.value && !valueInput.value);
 });
 
-// Check if the language is dirty (has unsaved changes)
-const isDirty = computed(() => {
-    return !_.isEqual(initialLanguageState.value, currentLanguage.value);
-});
-
 // Add a new translation key-value pair
 const addProperty = () => {
     try {
