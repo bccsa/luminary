@@ -33,16 +33,15 @@ type LuminaryInternals = {
 export type SyncMapEntry = {
     blockStart: number;
     blockEnd: number;
-    type: string;
-    contentOnly?: boolean;
 };
 
 export type SyncMap = {
     blocks: Array<SyncMapEntry>;
     accessMap: AccessMap;
-    groups: Array<string>;
+    group: string;
     contentOnly?: boolean;
     type: string;
+    id: string;
 };
 
 export const syncMap = ref(new Map<string, SyncMap>());

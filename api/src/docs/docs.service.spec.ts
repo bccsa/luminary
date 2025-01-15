@@ -27,12 +27,12 @@ jest.mock("../configuration", () => {
 describe("Docs service", () => {
     let service: DbService;
     let docsService: DocsService;
-    let groups: Array<string>;
+    let group: string;
 
     beforeAll(async () => {
         service = (await createTestingModule("docs-service")).dbService;
         docsService = new DocsService(undefined, service);
-        groups = ["group-languages", "group-public-content"];
+        group = "group-public-content";
     });
 
     it("can query the api endpoint", async () => {
@@ -43,13 +43,13 @@ describe("Docs service", () => {
                 { type: "post", contentOnly: true },
                 { type: "content", contentOnly: true },
             ],
-            groups: groups,
+            group: group,
             type: DocType.Post,
         };
 
         const res = await docsService.processReq(req, "");
 
-        expect(res.docs.length).toBe(5);
+        expect(res.docs.length).toBe(3);
     });
 
     it("can get group data from api endpoint", async () => {
@@ -60,7 +60,7 @@ describe("Docs service", () => {
                 { type: "group", contentOnly: true },
                 { type: "content", contentOnly: true },
             ],
-            groups: groups,
+            group: group,
             type: DocType.Group,
         };
 
@@ -77,13 +77,13 @@ describe("Docs service", () => {
                 { type: "post", contentOnly: true },
                 { type: "content", contentOnly: true },
             ],
-            groups: groups,
+            group: group,
             type: DocType.Post,
         };
 
         const res = await docsService.processReq(req, "");
 
-        expect(res.docs.length).toBe(5);
+        expect(res.docs.length).toBe(3);
     });
 
     it("can get tag data from api endpoint", async () => {
@@ -94,13 +94,13 @@ describe("Docs service", () => {
                 { type: "tag", contentOnly: true },
                 { type: "content", contentOnly: true },
             ],
-            groups: groups,
+            group: group,
             type: DocType.Tag,
         };
 
         const res = await docsService.processReq(req, "");
 
-        expect(res.docs.length).toBe(4);
+        expect(res.docs.length).toBe(2);
     });
 
     it("can get content data from api endpoint", async () => {
@@ -111,13 +111,13 @@ describe("Docs service", () => {
                 { type: "post", contentOnly: false },
                 { type: "content", contentOnly: true },
             ],
-            groups: groups,
+            group: group,
             type: DocType.Post,
             contentOnly: true,
         };
 
         const res = await docsService.processReq(req, "");
 
-        expect(res.docs.length).toBe(18);
+        expect(res.docs.length).toBe(10);
     });
 });

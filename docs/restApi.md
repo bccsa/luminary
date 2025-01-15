@@ -1,43 +1,59 @@
+Here’s your formatted and checked REST API documentation, with some improvements for clarity and readability:
+
+---
+
 # REST API Documentation
 
-The REST API allows clients to request bulk data efficiently. Due to the inefficiency of sockets with large data volumes and the lack of compression, the API is designed to handle these bulk requests effectively.
+The REST API enables clients to request bulk data efficiently. Designed to address the inefficiencies of sockets with large data volumes and the absence of compression, the API ensures optimal handling of bulk requests.
 
 ---
 
 ## Drawing
 
-![API Workflow Diagram](./docs-api-sync.png)
+![API Workflow Diagram](./docs-api-sync.drawio.png)
+
+---
+
+## SyncMap
+
+The **SyncMap** is a structure stored in `indexDB` (specifically, the `LuminaryInternals` table). It tracks the data that has already been synchronized.
+
+-   **Structure:**  
+    The SyncMap structure, illustrated in the diagram, saves the sync progress for each `docType` by group.
+
+-   **Notes:**
+    1. An exception exists for groups. Since groups do not have a `memberOf` property, their sync progress is saved directly and not per group.
 
 ---
 
 ## Concept
 
-The REST API operates on a pagination principle:
+The REST API operates on a **pagination-based synchronization principle**:
 
 1. **Initial Data Request:**
 
-    - When a client connects, it requests the newest data for a specific document type (this applies to all document types).
-    - The API responds with the latest chunk of data for the requested document type (a chunk contains 100 documents).
+    - When a client connects, it requests the newest data for a specific `docType`.
+    - The API responds with the latest chunk of data (each chunk contains 100 documents).
 
 2. **Sync Map Updates:**
 
-    - After receiving the data chunk, the client updates its sync map to track the data that has already been synced.
-    - The sync map helps identify gaps in the data, and the client starts requesting additional chunks to fill these gaps (refer to the diagram for visual representation).
+    - After receiving a data chunk, the client updates its SyncMap to record synced data.
+    - The SyncMap identifies gaps in the data, prompting the client to request additional chunks to fill these gaps. (Refer to the diagram for a visual representation.)
 
 3. **Merging Data Blocks:**
 
     - After receiving each chunk, the client:
-        - Updates the sync map.
-        - Merges overlapping blocks to maintain a clean and organized sync map.
+        - Updates the SyncMap.
+        - Merges overlapping blocks to maintain an organized and compact SyncMap.
 
 4. **Stopping Requests:**
-    - The client ceases data requests once it detects no new chunks are being returned by the API.
+    - The client halts further requests once it detects no new data chunks are being returned by the API.
 
 ---
 
 ## Client Request Structure
 
-A POST request is sent to the API (endpoint: `docs`) with the following structure:
+Clients send POST requests to the API (endpoint: `docs`) with the following structure:
 
 ```javascript
 /**
@@ -79,16 +95,18 @@ type DbQueryResult = {
 
 ## Requests
 
--   The API returns data based on the timestamps provided in the request:
-    -   **Single Timestamp (gapStart):** If only `gapStart` is provided, the API returns the newest chunk of data.
-    -   **Range (gapStart & gapEnd):** If both `gapStart` and `gapEnd` are provided, the API returns the newest chunk of data within the specified range.
+The API returns data based on the timestamps provided in the request:
+
+-   **Single Timestamp (`gapStart`):**  
+    If only `gapStart` is provided, the API returns the newest chunk of data.
+
+-   **Range (`gapStart` & `gapEnd`):**  
+    If both `gapStart` and `gapEnd` are provided, the API returns the newest chunk of data within the specified range.
 
 ---
 
 ## Authentication
 
-Authentication is handled via a JWT token passed in the `Authorization` header of the POST request. This ensures secure communication between the client and the API.
+Authentication is handled via a **JWT token** included in the `Authorization` header of the POST request. This ensures secure communication between the client and the API.
 
--   If the client does not have a JWT, the API will only return public content to the user.
-
----
+-   If the client does not provide a JWT, the API will return only public content.

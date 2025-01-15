@@ -70,6 +70,22 @@ export class DocsService {
             docTypes,
         );
 
+        // check if user has access to requested docTypes
+        if (!userViewGroups[req.type]) {
+            throw new HttpException(
+                "You do not have access to requested doc type",
+                HttpStatus.FORBIDDEN,
+            );
+        }
+
+        // validate if user has access to requested groups
+        if (!userViewGroups[req.type].includes(req.group)) {
+            throw new HttpException(
+                "You do not have access to requested group",
+                HttpStatus.FORBIDDEN,
+            );
+        }
+
         let from = 0;
         if (req.gapEnd && typeof req.gapEnd === "number") from = req.gapEnd;
         let to = await this.db.getLatestDocUpdatedTime();
@@ -79,14 +95,14 @@ export class DocsService {
             userAccess: userViewGroups,
             type: req.type,
             contentOnly: req.contentOnly,
-            groups: req.groups,
+            group: req.group,
         };
         if (from !== undefined) query.from = from;
         if (to !== undefined) query.to = to;
 
         let _res = undefined;
         await this.db
-            .getDocsPerType(query)
+            .getDocsPerTypePerGroup(query)
             .then((res: DbQueryResult) => {
                 if (res.docs) {
                     _res = res;

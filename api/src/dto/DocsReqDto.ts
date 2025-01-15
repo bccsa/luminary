@@ -35,9 +35,9 @@ export class DocsReqDto {
     contentOnly?: boolean;
 
     @IsNotEmpty()
-    @IsArray()
+    @IsString()
     @Expose()
-    groups: Array<string>;
+    group: string;
 
     @IsNotEmpty()
     @IsString()

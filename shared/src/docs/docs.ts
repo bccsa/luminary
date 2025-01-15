@@ -1,7 +1,7 @@
 import { httpReq } from "../rest/http";
-import { ApiConnectionOptions } from "../types";
-import { db, SyncMap, syncMap, SyncMapEntry } from "../db/database";
-import { accessMap, AccessMap } from "../permissions/permissions";
+import { ApiConnectionOptions, DocType } from "../types";
+import { db, syncMap, SyncMapEntry } from "../db/database";
+import { accessMap } from "../permissions/permissions";
 
 type MissingGap = {
     gapStart: number;
@@ -15,7 +15,14 @@ type ApiQuery = {
     contentOnly?: boolean;
     type?: string;
     docTypes?: Array<any>;
-    groups: Array<string>;
+    group: string;
+};
+
+type SyncEntryKey = {
+    id: string;
+    contentOnly?: boolean;
+    type: string;
+    group: string;
 };
 
 export class Docs {
@@ -39,7 +46,7 @@ export class Docs {
                 apiVersion: "0.0.0",
                 gapEnd: 0,
                 docTypes: this.options.docTypes,
-                groups: this.calcGroups(),
+                group: v.group,
             };
             const blocks = v.blocks;
             const newest = blocks.sort((a: SyncMapEntry, b: SyncMapEntry) => {
@@ -50,43 +57,52 @@ export class Docs {
             query.gapEnd = newest?.blockStart || 0;
             query.type = v.type;
             query.contentOnly = v.contentOnly;
-            query.groups = v.groups || this.calcGroups();
+            query.group = v.group;
 
             // request newest data
-            this.req(query);
+            this.req(query, v.id);
         }
     }
 
     /**
      * Query the api
-     * @param query
+     * @param query - query to send
+     * @param id   - id of the syncMap entry
      */
-    async req(query: ApiQuery): Promise<any> {
+    async req(query: ApiQuery, id: string): Promise<any> {
         const data = await this.http.get("docs", query);
         if (data && data.docs.length > 0) await db.bulkPut(data.docs);
         if (!data)
             return setTimeout(() => {
-                this.req(query);
+                this.req(query, id);
             }, 5000);
 
-        await this.calcSyncMap(data);
-        const missingData = this.calcMissingData(
-            query.type + (query.contentOnly ? "_content" : ""),
-        );
+        data.id = id;
+        if (data.gapStart != 0 && data.gapEnd != 0) await this.calcSyncMap(data);
+
+        // only continue if there is more than one block
+        const blocks = syncMap.value.get(id)?.blocks;
+        if (!blocks || blocks.length < 2) return;
+
+        const missingData = this.calcMissingData(id);
         // stop loop when gap is the same as previous round, this means that no new data was added
-        if (query.gapStart == missingData.gapStart && query.gapEnd == missingData.gapEnd) return;
+        if (query.gapStart == missingData.gapStart && query.gapEnd == missingData.gapEnd) {
+            // delete block with blockEnd == 0 and blockStart == 0, since the api has completed the backfill, this will help that the client does not hammer the api unnecessarily
+            this.removeBlock00(id);
+            return;
+        }
         query.gapStart = missingData.gapStart;
         query.gapEnd = missingData.gapEnd; // End == from, start == to
-        await this.req(query);
+        await this.req(query, id);
     }
 
     /**
      * Calculates the next piece of missing data
-     * @param type - DocType
+     * @param id - EntryID
      * @returns
      */
-    calcMissingData(type: string): MissingGap {
-        const group = syncMap.value.get(type) || {
+    calcMissingData(id: string): MissingGap {
+        const group = syncMap.value.get(id) || {
             blocks: [],
         };
         const blocks = group.blocks;
@@ -113,26 +129,24 @@ export class Docs {
      */
     async calcSyncMap(data?: any) {
         if (syncMap.value.keys.length < 1) await db.getSyncMap();
-        if (this.options.docTypes)
-            for (const v of this.options.docTypes) {
-                const k = v.type + (v.contentOnly ? "_content" : "");
-                const f = syncMap.value.get(k);
-                const block: SyncMapEntry = {
-                    blockStart: 0,
-                    blockEnd: 0,
+        const syncEntries: Array<SyncEntryKey> = this.calcSyncEntryKeys();
+        for (const v of syncEntries) {
+            const f = syncMap.value.get(v.id);
+            const block: SyncMapEntry = {
+                blockStart: 0,
+                blockEnd: 0,
+            };
+            // Add new entry if not exists
+            !f &&
+                syncMap.value.set(v.id, {
+                    id: v.id,
                     type: v.type,
                     contentOnly: v.contentOnly,
-                };
-                // if user permissions changed, reSync block of data, this is to include data that the user now has access to
-                (!f || f.groups.toString() !== this.calcGroups().toString()) &&
-                    syncMap.value.set(k, {
-                        type: v.type,
-                        contentOnly: v.contentOnly,
-                        accessMap: accessMap.value,
-                        groups: this.calcGroups(),
-                        blocks: [block],
-                    });
-            }
+                    accessMap: accessMap.value,
+                    group: v.group,
+                    blocks: [block],
+                });
+        }
         if (data) this.insertBlock(data);
         return syncMap;
     }
@@ -143,19 +157,14 @@ export class Docs {
      * @param groupArray - array of blocks in current type
      */
     insertBlock(data: any) {
-        const group: string = data.type + (data.contentOnly ? "_content" : "");
-        const groupArray: SyncMap = syncMap.value.get(group) || {
-            blocks: [],
-            contentOnly: true,
-            type: "post",
-            accessMap: data.accessMap,
-            groups: this.calcGroups(),
+        const group: string = data.id;
+        const groupArray = syncMap.value.get(group) || {
+            blocks: [] as SyncMapEntry[],
         };
+
         const block: SyncMapEntry = {
             blockStart: data.blockStart,
             blockEnd: data.blockEnd,
-            type: data.type,
-            contentOnly: data.contentOnly,
         };
 
         let changed: boolean = false;
@@ -214,7 +223,8 @@ export class Docs {
             const overlapStart = groupArray.reduce(
                 (prev, curr) =>
                     curr &&
-                    curr != _block &&
+                    curr.blockStart != _block.blockStart &&
+                    curr.blockEnd != _block.blockEnd &&
                     curr.blockStart <= blockStart &&
                     curr.blockStart >= blockEnd &&
                     curr.blockEnd <= blockEnd
@@ -222,23 +232,70 @@ export class Docs {
                         : prev,
                 undefined,
             );
-            if (overlapStart) (overlapStart.blockStart = blockStart), delete groupArray[i];
+            if (overlapStart && i > -1) {
+                overlapStart.blockStart = blockStart;
+                groupArray.splice(i, 1);
+                return;
+            }
 
+            // find a block that overlaps this block
             const overlapBoth = groupArray.reduce(
                 (prev, curr) =>
                     curr &&
-                    curr != _block &&
+                    curr.blockStart != _block.blockStart &&
+                    curr.blockEnd != _block.blockEnd &&
                     curr.blockStart >= blockStart &&
                     curr.blockEnd <= blockEnd
                         ? curr
                         : prev,
                 undefined,
             );
-            if (overlapBoth) delete groupArray[i];
+            if (overlapBoth && i > -1) {
+                groupArray.splice(i, 1);
+                return;
+            }
         });
     }
 
-    calcGroups(am: AccessMap = accessMap.value): Array<string> {
-        return Object.keys(am);
+    /**
+     * Calculate sync entry keys
+     * @returns
+     */
+    calcSyncEntryKeys(): Array<SyncEntryKey> {
+        const syncEntries: Array<SyncEntryKey> = [];
+        if (!this.options.docTypes) return [];
+        // add and exception for DocType.Group, since groups is the only docType that does not have a group (memberOf)
+        for (const docType of this.options.docTypes)
+            if (docType.type == DocType.Group)
+                syncEntries.push({
+                    id: docType.type + (docType.contentOnly ? "_content" : ""),
+                    contentOnly: docType.contentOnly,
+                    group: "",
+                    type: docType.type,
+                });
+            else
+                for (const group of Object.keys(accessMap.value))
+                    syncEntries.push({
+                        id: `${docType.type}_${group}` + (docType.contentOnly ? "_content" : ""),
+                        contentOnly: docType.contentOnly,
+                        type: docType.type,
+                        group: group,
+                    });
+
+        return syncEntries;
+    }
+
+    /**
+     * Remove the block from the syncMap with blockStart == 0 and blockEnd == 0,
+     * this will help that the client does not hammer the api unnecessarily,
+     * since it will not request for back fill data between 00 and next block anymore
+     * We assume that the api has completed the back fill between 00 and next block
+     * @param id - id of the syncMap entry
+     */
+    removeBlock00(id: string) {
+        const group = syncMap.value.get(id);
+        if (!group) return;
+        const block = group.blocks.find((b) => b.blockEnd == 0 && b.blockStart == 0);
+        if (block) group.blocks.splice(group.blocks.indexOf(block), 1);
     }
 }

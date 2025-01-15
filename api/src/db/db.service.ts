@@ -19,7 +19,7 @@ import { Logger } from "winston";
  */
 export type GetDocsOptions = {
     userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
-    groups: Array<string>;
+    group: string;
     from?: number;
     to?: number;
     limit?: number;
@@ -307,7 +307,7 @@ export class DbService extends EventEmitter {
      * @param {GetDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */
-    getDocsPerType(options: GetDocsOptions): Promise<DbQueryResult> {
+    getDocsPerTypePerGroup(options: GetDocsOptions): Promise<DbQueryResult> {
         return new Promise(async (resolve, reject) => {
             // To allow effective indexing, the structure inside an "$or" selector should be identical for all the sub-selectors
             // within the "$or". Because of this restriction, it is necessary to do multiple queries and join the result externally
@@ -356,7 +356,7 @@ export class DbService extends EventEmitter {
             if (options.type !== "group")
                 docQuery.selector["$and"].push({
                     memberOf: {
-                        $in: options.userAccess[options.type],
+                        $in: [options.group],
                     },
                 });
 
@@ -366,7 +366,7 @@ export class DbService extends EventEmitter {
                 // calculate the start and end of the block, used to pass back to the client for pagination
                 const blockStart: number =
                     docs.length < 1
-                        ? options.from
+                        ? 0
                         : docs.reduce(
                               (
                                   prev: { updatedTimeUtc: number },
@@ -375,7 +375,7 @@ export class DbService extends EventEmitter {
                           ).updatedTimeUtc;
                 const blockEnd: number =
                     docs.length < 1
-                        ? options.to
+                        ? 0
                         : docs.reduce(
                               (
                                   prev: { updatedTimeUtc: number },
@@ -389,7 +389,7 @@ export class DbService extends EventEmitter {
                     warnings: res.warning,
                     blockStart: blockStart,
                     blockEnd: blockEnd,
-                    groups: options.groups,
+                    groups: [options.group],
                     contentOnly: options.contentOnly,
                 });
             } catch (err) {

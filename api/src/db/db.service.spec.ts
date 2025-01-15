@@ -114,11 +114,11 @@ describe("DbService", () => {
         const userAccess = new Map<DocType, Uuid[]>();
         userAccess[DocType.Post] = ["group-public-content"];
 
-        const res: any = await service.getDocsPerType({
+        const res: any = await service.getDocsPerTypePerGroup({
             userAccess: userAccess,
             from: 0,
             type: DocType.Post,
-            groups: ["group-public-content"],
+            group: "group-public-content",
         });
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
@@ -133,10 +133,10 @@ describe("DbService", () => {
         const query: GetDocsOptions = {
             userAccess: userAccess,
             type: DocType.Post,
-            groups: ["group-public-content"],
+            group: "group-public-content",
         };
 
-        const res: any = await service.getDocsPerType(query);
+        const res: any = await service.getDocsPerTypePerGroup(query);
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
         expect(docCount).toBe(3);
@@ -151,10 +151,10 @@ describe("DbService", () => {
             userAccess: userAccess,
             type: DocType.Post,
             contentOnly: true,
-            groups: ["group-public-content"],
+            group: "group-public-content",
         };
 
-        const res: any = await service.getDocsPerType(query);
+        const res: any = await service.getDocsPerTypePerGroup(query);
 
         const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
         expect(docCount).toBe(10);
@@ -164,17 +164,17 @@ describe("DbService", () => {
         const userAccess = new Map<DocType, Uuid[]>();
         userAccess[DocType.Post] = ["group-public-content", "group-private-content"];
 
-        const res: any = await service.getDocsPerType({
+        const res: any = await service.getDocsPerTypePerGroup({
             userAccess: userAccess,
             from: 0,
             type: DocType.Post,
-            groups: ["group-public-content"],
+            group: "group-public-content",
         });
 
         const docCount =
             res.docs.filter((t) => t.memberOf.includes("group-public-content")).length +
             res.docs.filter((t) => t.memberOf.includes("group-private-content")).length;
-        expect(docCount).toBe(5);
+        expect(docCount).toBe(3);
     });
 
     it.skip("can retrieve documents from a given time", async () => {
@@ -208,11 +208,11 @@ describe("DbService", () => {
         userAccess[DocType.Tag] = ["group-public-content"];
         userAccess[DocType.Content] = ["group-public-content"];
 
-        const res: any = await service.getDocsPerType({
+        const res: any = await service.getDocsPerTypePerGroup({
             userAccess: userAccess,
             from: updatedDoc.updatedTimeUtc,
             type: DocType.Post,
-            groups: ["group-public-content"],
+            group: "group-public-content",
             contentOnly: true,
         });
 
