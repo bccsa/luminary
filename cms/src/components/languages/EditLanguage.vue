@@ -4,11 +4,12 @@ import {
     db,
     DocType,
     hasAnyPermission,
+    useDexieLiveQuery,
     verifyAccess,
     type LanguageDto,
     type Uuid,
 } from "luminary-shared";
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, toRaw } from "vue";
 import LInput from "../forms/LInput.vue";
 import LButton from "../button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
@@ -29,63 +30,55 @@ const props = defineProps<Props>();
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const isLocalChange = db.isLocalChangeAsRef(props.id);
 
-const currentLanguage = computed({
-    get(): LanguageDto {
-        const foundLanguage = languages.value?.find((l) => l._id === props.id);
-        return foundLanguage
-            ? foundLanguage
-            : {
-                  _id: props.id,
-                  name: "New language",
-                  languageCode: "",
-                  default: 0,
-                  memberOf: [],
-                  type: DocType.Language,
-                  updatedTimeUtc: Date.now(),
-                  translations: {},
-              };
-    },
-    set(value) {
-        if (currentLanguage.value) {
-            currentLanguage.value = value;
-        }
-    },
+const original = useDexieLiveQuery(
+    () => db.docs.where("_id").equals(props.id).first() as unknown as Promise<LanguageDto>,
+);
+const editable = ref<LanguageDto>({
+    _id: props.id,
+    name: "New language",
+    languageCode: "xx",
+    default: 0,
+    memberOf: [],
+    type: DocType.Language,
+    updatedTimeUtc: Date.now(),
+    translations: {},
 });
 
-const cloneCurrentLanguage = _.cloneDeep(currentLanguage.value);
-console.log(cloneCurrentLanguage);
+// Clone the original language when it's loaded into the editable object
+const originalLoadedHandler = watch(original, () => {
+    if (!original.value) return;
+    editable.value = _.cloneDeep(original.value);
+    originalLoadedHandler();
+});
 
-// Check if the language has been changed locally
-
-// Track the initial state of the currentLanguage
-const initialLanguageState = ref<LanguageDto | null>(null);
-
-// Set initial state when currentLanguage is first initialized
+// Check if the language is dirty (has unsaved changes)
+const isDirty = ref(false);
 watch(
-    currentLanguage,
-    (newValue) => {
-        initialLanguageState.value = JSON.parse(JSON.stringify(newValue));
+    [editable, original],
+    () => {
+        if (!original.value) {
+            isDirty.value = true;
+            return;
+        }
+
+        isDirty.value = !_.isEqual(
+            { ...toRaw(original.value), updatedTimeUtc: 0, _rev: "" },
+            { ...toRaw(editable.value), updatedTimeUtc: 0, _rev: "" },
+        );
     },
-    { immediate: true },
+    { deep: true, immediate: true },
 );
 
-const revertChanges = () => {
-    // // Check if the current language is the same as the initial state
-    if (_.isEqual(initialLanguageState.value, currentLanguage.value)) {
-        useNotificationStore().addNotification({
-            title: "No changes",
-            description: "There were no changes to revert",
-            state: "error",
-        });
-        return;
-    }
+const isNew = computed(() => !original.value?._id);
 
-    // Revert to the initial state
-    currentLanguage.value = initialLanguageState.value!;
+// Revert to the initial state
+const revertChanges = () => {
+    if (!original.value) return;
+    editable.value = _.cloneDeep(original.value);
 
     useNotificationStore().addNotification({
         title: "Changes reverted",
-        description: `The changes of the ${currentLanguage.value.name} have been reverted`,
+        description: `The changes of the ${editable.value.name} have been reverted`,
         state: "success",
     });
 };
@@ -94,7 +87,7 @@ const keyInput = ref(""); // Holds the key being edited or added
 const valueInput = ref(""); // Holds the value for the key being edited or added
 const newKey = ref<string>(""); // Temporary variable for editing the key
 
-const selectedLanguage = ref<Uuid>(currentLanguage.value ? currentLanguage.value._id : "");
+const comparisonLanguage = ref<Uuid>(editable.value ? editable.value._id : "");
 const selectedLanguageContent = ref<LanguageDto>();
 
 const languageOptions = computed(() =>
@@ -103,11 +96,11 @@ const languageOptions = computed(() =>
 
 // Sort translations by key before rendering
 const sortedTranslations = computed(() => {
-    if (currentLanguage.value?.translations) {
-        const sortedKeys = Object.keys(currentLanguage.value.translations).sort();
+    if (editable.value?.translations) {
+        const sortedKeys = Object.keys(editable.value.translations).sort();
         return sortedKeys.reduce(
             (acc, key) => {
-                acc[key] = currentLanguage.value.translations[key];
+                acc[key] = editable.value.translations[key];
                 return acc;
             },
             {} as Record<string, string>,
@@ -117,13 +110,8 @@ const sortedTranslations = computed(() => {
 });
 
 const canEditOrCreate = computed(() => {
-    if (currentLanguage.value) {
-        return verifyAccess(
-            currentLanguage.value.memberOf,
-            DocType.Language,
-            AclPermission.Edit,
-            "all",
-        );
+    if (editable.value) {
+        return verifyAccess(editable.value.memberOf, DocType.Language, AclPermission.Edit, "all");
     }
     return hasAnyPermission(DocType.Language, AclPermission.Edit);
 });
@@ -132,17 +120,12 @@ const disabled = computed(() => {
     return !canEditOrCreate.value || (!keyInput.value && !valueInput.value);
 });
 
-// Check if the language is dirty (has unsaved changes)
-const isDirty = computed(() => {
-    return !_.isEqual(initialLanguageState.value, currentLanguage.value);
-});
-
 // Add a new translation key-value pair
 const addProperty = () => {
     try {
         // Add or update the property directly in the translations object
-        currentLanguage.value.translations = {
-            ...currentLanguage.value.translations, // Keep existing translations
+        editable.value.translations = {
+            ...editable.value.translations, // Keep existing translations
             [keyInput.value]: valueInput.value, // Add new property
         };
 
@@ -156,7 +139,7 @@ const addProperty = () => {
 // Delete a translation key
 const deleteProperty = (key: string) => {
     try {
-        delete currentLanguage.value.translations[key];
+        delete editable.value.translations[key];
     } catch (error) {
         alert(error);
     }
@@ -174,17 +157,18 @@ const startEditing = (key: string, value: string) => {
 };
 
 // Save the edited key and value
+// TODO - change to auto-save
 const saveEditedKeyValue = () => {
     if (editingKey.value && newKey.value) {
         // Update the translations object with the new key and value
-        currentLanguage.value.translations = {
-            ...currentLanguage.value.translations,
+        editable.value.translations = {
+            ...editable.value.translations,
             [newKey.value]: editingValue.value,
         };
 
         // Remove the old key if it was changed
         if (editingKey.value !== newKey.value) {
-            delete currentLanguage.value.translations[editingKey.value];
+            delete editable.value.translations[editingKey.value];
         }
     }
 
@@ -195,15 +179,16 @@ const saveEditedKeyValue = () => {
 };
 
 // Function to replace translations in other languages
+// TODO: Move this logic to the API. User needs edit access to all languages to be able to add or remove keys.
 const updateTranslationsInOtherLanguages = () => {
-    if (currentLanguage.value?.translations) {
+    if (editable.value?.translations) {
         languages.value.forEach((language) => {
             // Skip the current language
-            if (language._id === currentLanguage.value._id) return;
+            if (language._id === editable.value._id) return;
 
             if (language.translations) {
                 // Merge current language's translations into other languages' translations
-                Object.keys(currentLanguage.value.translations).forEach((key) => {
+                Object.keys(editable.value.translations).forEach((key) => {
                     // Only update the translation if it's not already set in the target language
                     if (!language.translations[key]) {
                         language.translations[key] = "";
@@ -211,7 +196,7 @@ const updateTranslationsInOtherLanguages = () => {
                 });
             } else {
                 // If no translations exist in the target language, initialize it with current translations
-                language.translations = { ...currentLanguage.value.translations };
+                language.translations = { ...editable.value.translations };
             }
 
             // Save the updated language translations
@@ -222,10 +207,8 @@ const updateTranslationsInOtherLanguages = () => {
 
 // Save the current JSON to the database
 const save = async () => {
-    currentLanguage.value.updatedTimeUtc = Date.now();
-    await db.upsert(currentLanguage.value);
-
-    updateTranslationsInOtherLanguages();
+    editable.value.updatedTimeUtc = Date.now();
+    await db.upsert(editable.value);
 
     useNotificationStore().addNotification({
         title: "Language updated",
@@ -234,17 +217,19 @@ const save = async () => {
     });
 };
 
-// Convert the default value to a boolean for the toggle
-const isDefault = ref(currentLanguage.value && currentLanguage.value.default == 1 ? true : false);
-watch(isDefault, (newValue) => {
-    currentLanguage.value.default = newValue ? 1 : 0;
+// Convert the Default Language numberic value to a boolean for the toggle
+const isDefault = computed({
+    get: () => editable.value.default == 1,
+    set: (newValue) => {
+        editable.value.default = newValue ? 1 : 0;
+    },
 });
 
 watch(
-    selectedLanguage,
+    comparisonLanguage,
     () => {
         selectedLanguageContent.value = languages.value.find(
-            (l) => l._id === selectedLanguage.value,
+            (l) => l._id === comparisonLanguage.value,
         );
     },
     { immediate: true },
@@ -253,7 +238,7 @@ watch(
 
 <template>
     <BasePage
-        :title="currentLanguage?.name"
+        :title="editable?.name"
         :backLinkLocation="{ name: 'languages' }"
         :backLinkText="`Languages overview`"
         :backLinkParams="{
@@ -266,7 +251,11 @@ watch(
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
                 <div class="flex gap-1">
                     <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
-                    <LButton type="button" variant="secondary" @click="revertChanges"
+                    <LButton
+                        type="button"
+                        variant="secondary"
+                        v-if="isDirty && !isNew"
+                        @click="revertChanges"
                         >Revert</LButton
                     >
                     <LButton type="button" @click="save" data-test="save-button" variant="primary">
@@ -280,7 +269,7 @@ watch(
                 <LInput
                     label="Name"
                     name="languageName"
-                    v-model="currentLanguage.name"
+                    v-model="editable.name"
                     class="mb-4 w-full"
                     placeholder="Enter language name"
                     :disabled="!canEditOrCreate"
@@ -289,14 +278,14 @@ watch(
                 <LInput
                     label="Code"
                     name="languageCode"
-                    v-model="currentLanguage.languageCode"
+                    v-model="editable.languageCode"
                     class="mb-4 w-full"
                     placeholder="Enter language code"
                     :disabled="!canEditOrCreate"
                 />
 
                 <GroupSelector
-                    v-model:groups="currentLanguage.memberOf"
+                    v-model:groups="editable.memberOf"
                     :docType="DocType.Language"
                     data-test="group-selector"
                     :disabled="!canEditOrCreate"
@@ -304,12 +293,12 @@ watch(
 
                 <div class="mt-2 flex items-center justify-between">
                     <FormLabel for="is-language-default-toggle" class="flex items-center">
-                        Default Language?
+                        Default
                     </FormLabel>
                     <LToggle
                         name="is-language-default-toggle"
                         v-model:modelValue="isDefault"
-                        :disabled="!canEditOrCreate"
+                        :disabled="!canEditOrCreate || original?.default == 1"
                     />
                 </div>
             </LCard>
@@ -387,13 +376,13 @@ watch(
                                 class="w-1/3 flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
                             >
                                 <LSelect
-                                    v-model="selectedLanguage"
+                                    v-model="comparisonLanguage"
                                     :options="
                                         languageOptions.filter(
                                             (l) =>
-                                                currentLanguage &&
-                                                currentLanguage._id &&
-                                                l.value !== currentLanguage._id,
+                                                editable &&
+                                                editable._id &&
+                                                l.value !== editable._id,
                                         )
                                     "
                                     :required="true"
