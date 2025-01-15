@@ -15,6 +15,8 @@ The following query string parameters are supported:
 -   autoplay=true - Auto plays video when opening a post / tag with video content
 -   autofullscreen=true - Automatically switches to full screen video player mode on play
 
+_Note: When navigating directly to a video post / tag URL, autoplay and autofullscreen will only work if playing without user interaction is enabled in the browser settings._
+
 ## Plugins
 
 Plugins can be used to extend the functionality of Luminary.
