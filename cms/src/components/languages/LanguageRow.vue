@@ -3,7 +3,7 @@ import { db, DocType, type LanguageDto, AclPermission, verifyAccess } from "lumi
 import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
-import { CheckCircleIcon, EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
+import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     languagesDoc: LanguageDto;
@@ -19,7 +19,14 @@ const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             <div class="flex gap-2">
                 {{ languagesDoc.name }}
-                <CheckCircleIcon v-if="languagesDoc.default" class="h-5 w-5" />
+            </div>
+        </td>
+
+        <!-- default language -->
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+            <div class="flex gap-2">
+                <!-- <CheckCircleIcon v-if="languagesDoc.default" class="h-5 w-5" /> -->
+                <LBadge v-if="languagesDoc.default" variant="success">Default</LBadge>
             </div>
         </td>
 
