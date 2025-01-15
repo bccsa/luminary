@@ -21,6 +21,14 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
                                 <div class="flex items-center gap-2">Name</div>
                             </th>
 
+                            <!-- default  -->
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                                @click="false"
+                            >
+                                <div class="flex items-center gap-2"></div>
+                            </th>
+
                             <!-- status -->
                             <th
                                 class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
