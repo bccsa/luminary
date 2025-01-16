@@ -26,7 +26,7 @@ export class httpReq {
             }
             return res.json(); // Parse the JSON response
         } catch (err) {
-            console.error(err);
+            // do not display error when fetch is unable to contact the api, since the app is build to support offline mode
         }
     }
 }
