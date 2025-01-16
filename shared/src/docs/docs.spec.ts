@@ -10,7 +10,7 @@ import { ApiQuery } from "./docs";
 import waitForExpect from "wait-for-expect";
 
 const app = express();
-const port = 12345;
+const port = 12347;
 let rest;
 let mockApiRequest;
 let apiRecursiveTest = { type: "", group: "", contentOnly: false }; // update parameters to run a recursive test on a specific doctype group
