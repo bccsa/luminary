@@ -10,19 +10,53 @@ import { ApiQuery } from "./docs";
 import waitForExpect from "wait-for-expect";
 
 const app = express();
-const port = 12346;
+const port = 12345;
 let rest;
 let mockApiRequest;
+let apiRecursiveTest = { type: "", group: "", contentOnly: false }; // update parameters to run a recursive test on a specific doctype group
 
+// ============================
+// Mock data
+// ============================
 const mockApiResponse = {
     docs: [],
-    type: "post",
+    type: "tag",
     warnings: "",
-    blockStart: 10000,
-    blockEnd: 5000,
+    blockStart: 4000,
+    blockEnd: 3000,
     group: "group-super-admins",
     contentOnly: true,
 };
+
+const mockApiRecursiveResponse = [
+    {
+        docs: [],
+        type: "post",
+        warnings: "",
+        blockStart: 2300,
+        blockEnd: 2000,
+        group: "group-super-admins",
+        contentOnly: false,
+    },
+    {
+        docs: [],
+        type: "post",
+        warnings: "",
+        blockStart: 2700,
+        blockEnd: 2300,
+        group: "group-super-admins",
+        contentOnly: false,
+    },
+    {
+        docs: [],
+        type: "post",
+        warnings: "",
+        blockStart: 3000,
+        blockEnd: 2700,
+        group: "group-super-admins",
+        contentOnly: false,
+    },
+];
 
 const syncMapEntry: SyncMap = {
     id: "post_group-super-admins",
@@ -30,15 +64,37 @@ const syncMapEntry: SyncMap = {
     contentOnly: false,
     group: "group-super-admins",
     syncPriority: 1,
-    blocks: [],
+    blocks: [
+        {
+            blockStart: 700,
+            blockEnd: 500,
+        },
+        {
+            blockStart: 2000,
+            blockEnd: 1000,
+        },
+        {
+            blockStart: 0,
+            blockEnd: 0,
+        },
+    ],
 };
 
 // ============================
 // Mock api
 // ============================
-app.get("/docs", (req) => {
+app.get("/docs", (req, res) => {
     mockApiRequest = req.headers["x-query"];
-    req.send(JSON.stringify(mockApiResponse));
+    const a = apiRecursiveTest;
+    const b = JSON.parse(mockApiRequest);
+    res.setHeader("Content-Type", "application/json");
+    res.end(
+        JSON.stringify(
+            a.type == b.type && a.group == b.group && a.contentOnly == b.contentOnly
+                ? mockApiRecursiveResponse.pop()
+                : mockApiResponse,
+        ),
+    );
 });
 
 app.listen(port, () => {
@@ -48,7 +104,6 @@ app.listen(port, () => {
 // ============================
 // Tests
 // ============================
-
 describe("rest", () => {
     beforeAll(async () => {
         await initLuminaryShared({ cms: true, docsIndex: "parentId, language, [type+docType]" });
@@ -65,20 +120,8 @@ describe("rest", () => {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
 
-        syncMapEntry.blocks = [
-            {
-                blockStart: 700,
-                blockEnd: 500,
-            },
-            {
-                blockStart: 2000,
-                blockEnd: 1000,
-            },
-            {
-                blockStart: 0,
-                blockEnd: 0,
-            },
-        ];
+        apiRecursiveTest = { type: "", group: "", contentOnly: false };
+        mockApiRequest = "";
     });
 
     afterEach(async () => {
@@ -309,7 +352,7 @@ describe("rest", () => {
             apiVersion: "0.0.0",
             gapEnd: 0,
             docTypes: [{ type: DocType.Post, contentOnly: true }],
-            group: "group-super-admins",
+            group: "group-public-content",
             type: DocType.Post,
         };
         await rest.docs.req(query);
@@ -328,4 +371,25 @@ describe("rest", () => {
             expect(req.group).toBe("group-super-admins");
         });
     });
+
+    it(
+        "can query the api recursively",
+        async () => {
+            syncMapEntry.blocks = [];
+            syncMapEntry.blocks.push(
+                { blockStart: 20000, blockEnd: 3000 },
+                { blockStart: 2000, blockEnd: 1000 },
+            );
+            syncMap.value.set("post_group-super-admins", syncMapEntry);
+            apiRecursiveTest = { type: "post", group: "group-super-admins", contentOnly: false };
+            await rest.docs.clientDataReq();
+
+            await waitForExpect(() => {
+                const post = syncMap.value.get("post_group-super-admins");
+                expect(post?.blocks[0].blockStart).toBe(20000);
+                expect(post?.blocks[0].blockEnd).toBe(1000);
+            }, 9000);
+        },
+        { timeout: 10000 },
+    );
 });
