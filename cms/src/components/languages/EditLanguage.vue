@@ -23,6 +23,7 @@ import { useNotificationStore } from "@/stores/notification";
 import _ from "lodash";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { TrashIcon } from "@heroicons/vue/20/solid";
+import LModal from "../common/LModal.vue";
 
 type Props = {
     id: Uuid;
@@ -90,22 +91,13 @@ watch(
     { deep: true, immediate: true },
 );
 
-// Revert to the initial state
-const revertChanges = () => {
-    if (!original.value) return;
-    editable.value = _.cloneDeep(original.value);
-
-    useNotificationStore().addNotification({
-        title: "Changes reverted",
-        description: `The changes of the ${editable.value.name} have been reverted`,
-        state: "success",
-    });
-};
-
 const keyInput = ref(""); // Holds the key being edited or added
 const valueInput = ref(""); // Holds the value for the key being edited or added
 const newKey = ref<string>(""); // Temporary variable for editing the key
 const isModalOpen = ref(false); // Modal to confirm deletion of a translation
+const keyToDelete = ref<string | null>(null); // Add a ref to store the key to delete
+const editingKey = ref<string | null>(null); // To track which key is being edited
+const editingValue = ref<string>(""); // To hold the value of the key being edited
 
 const comparisonLanguage = ref<Uuid>(editable.value ? editable.value._id : "");
 const selectedLanguageContent = ref<LanguageDto>();
@@ -165,17 +157,14 @@ const addProperty = () => {
     }
 };
 
-// Delete a translation key
-const deleteProperty = (key: string) => {
-    try {
-        delete editable.value.translations[key];
-    } catch (error) {
-        alert(error);
+// Function to confirm deletion of a translation key
+const confirmDelete = () => {
+    if (keyToDelete.value) {
+        delete editable.value.translations[keyToDelete.value]; // Delete the key
+        keyToDelete.value = null; // Reset after deletion
+        isModalOpen.value = false; // Close the modal
     }
 };
-
-const editingKey = ref<string | null>(null); // To track which key is being edited
-const editingValue = ref<string>(""); // To hold the value of the key being edited
 
 // Function to start editing a translation value
 const startEditing = (key: string, value: string) => {
@@ -205,6 +194,15 @@ const saveEditedKeyValue = () => {
     editingKey.value = null;
     newKey.value = "";
     editingValue.value = "";
+};
+
+const saveInRealTime = (key: string, value: string) => {
+    if (key && value) {
+        editable.value.translations = {
+            ...editable.value.translations,
+            [key]: value,
+        };
+    }
 };
 
 // Function to replace translations in other languages
@@ -246,6 +244,18 @@ const save = async () => {
     });
 };
 
+// Revert to the initial state
+const revertChanges = () => {
+    if (!original.value) return;
+    editable.value = _.cloneDeep(original.value);
+
+    useNotificationStore().addNotification({
+        title: "Changes reverted",
+        description: `The changes of the ${editable.value.name} have been reverted`,
+        state: "success",
+    });
+};
+
 // Convert the Default Language numberic value to a boolean for the toggle
 const isDefault = computed({
     get: () => editable.value.default == 1,
@@ -263,6 +273,9 @@ watch(
     },
     { immediate: true },
 );
+
+// Computed property to check if at least one group is selected
+const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
 </script>
 
 <template>
@@ -278,6 +291,9 @@ watch(
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
+                <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
+                    >No groups selected</LBadge
+                >
                 <div class="flex gap-1">
                     <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
                     <LButton
@@ -292,7 +308,7 @@ watch(
                         @click="save"
                         data-test="save-button"
                         variant="primary"
-                        :disabled="!isDirty"
+                        :disabled="!isDirty || !hasGroupsSelected"
                     >
                         Save
                     </LButton>
@@ -388,7 +404,7 @@ watch(
                                 />
                             </td>
                             <td
-                                class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-3"
+                                class="pr-3text-sm w-1/3 whitespace-nowrap py-2 pl-4 font-medium text-zinc-700 sm:pl-3"
                             >
                                 <LInput
                                     name="value"
@@ -438,6 +454,7 @@ watch(
                         >
                             <td
                                 class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
+                                @click="canTranslate ? startEditing(key, val) : null"
                             >
                                 <span
                                     v-if="editingKey !== key"
@@ -463,6 +480,7 @@ watch(
                             </td>
                             <td
                                 class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                @click="startEditing(key, val)"
                             >
                                 <span
                                     v-if="editingKey !== key"
@@ -480,25 +498,19 @@ watch(
                                     type="text"
                                     placeholder="Edit value"
                                     data-test="edit-value-input"
+                                    @input="saveInRealTime(key, editingValue)"
                                 />
                             </td>
                             <td
                                 class="flex-1 justify-items-center whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
                             >
-                                <LButton
-                                    v-if="editingKey === key"
-                                    variant="primary"
-                                    size="sm"
-                                    @click="saveEditedKeyValue"
-                                    data-test="save-key-button"
-                                >
-                                    Save
-                                </LButton>
                                 <TrashIcon
-                                    v-else
                                     class="h-6 w-6 cursor-pointer hover:text-red-600"
                                     title="Delete this line"
-                                    @click="deleteProperty(key)"
+                                    @click="
+                                        keyToDelete = key;
+                                        isModalOpen = true;
+                                    "
                                     data-test="delete-key-button"
                                 />
                             </td>
@@ -518,17 +530,14 @@ watch(
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 
-    <!-- <div v-if="isModalOpen == true">
-        <LModal
-            v-for="(val, key) in sortedTranslations"
-            :key="key"
-            context="danger"
-            title="Are you sure you want to delete this translation?"
-            description="This action cannot be undone. Please confirm if you want to proceed with deleting the translation."
-            primaryButtonText="Delete"
-            secondaryButtonText="Cancel"
-            :primaryAction="() => (isModalOpen = false)"
-            :secondaryAction="() => deleteProperty(key)"
-        />
-    </div> -->
+    <LModal
+        v-model:open="isModalOpen"
+        context="danger"
+        title="Are you sure you want to delete this translation?"
+        description="This action cannot be undone. Please confirm if you want to proceed with deleting the translation."
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        :primaryAction="confirmDelete"
+        :secondaryAction="() => (isModalOpen = false)"
+    />
 </template>
