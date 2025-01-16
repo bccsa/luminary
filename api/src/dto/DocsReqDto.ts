@@ -34,7 +34,6 @@ export class DocsReqDto {
     @Expose()
     contentOnly?: boolean;
 
-    @IsNotEmpty()
     @IsString()
     @Expose()
     group: string;

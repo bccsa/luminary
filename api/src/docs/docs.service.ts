@@ -79,7 +79,7 @@ export class DocsService {
         }
 
         // validate if user has access to requested groups
-        if (!userViewGroups[req.type].includes(req.group)) {
+        if (!userViewGroups[req.type].includes(req.group) && req.type !== "group") {
             throw new HttpException(
                 "You do not have access to requested group",
                 HttpStatus.FORBIDDEN,
