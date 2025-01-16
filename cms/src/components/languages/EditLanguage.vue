@@ -105,7 +105,7 @@ const revertChanges = () => {
 const keyInput = ref(""); // Holds the key being edited or added
 const valueInput = ref(""); // Holds the value for the key being edited or added
 const newKey = ref<string>(""); // Temporary variable for editing the key
-const isModalOpen = ref(false);
+const isModalOpen = ref(false); // Modal to confirm deletion of a translation
 
 const comparisonLanguage = ref<Uuid>(editable.value ? editable.value._id : "");
 const selectedLanguageContent = ref<LanguageDto>();
@@ -134,6 +134,15 @@ const canEditOrCreate = computed(() => {
         return verifyAccess(editable.value.memberOf, DocType.Language, AclPermission.Edit, "all");
     }
     return hasAnyPermission(DocType.Language, AclPermission.Edit);
+});
+
+const canTranslate = computed(() => {
+    if (!editable.value) return false;
+
+    if (!verifyAccess(editable.value.memberOf, DocType.Language, AclPermission.Translate)) {
+        return false;
+    }
+    return true;
 });
 
 const disabled = computed(() => {
@@ -433,8 +442,12 @@ watch(
                                 <span
                                     v-if="editingKey !== key"
                                     name="key-span"
-                                    @click="startEditing(key, val)"
-                                    class="flex cursor-pointer gap-1 hover:text-blue-600"
+                                    @click="canTranslate ? startEditing(key, val) : null"
+                                    :class="
+                                        canTranslate
+                                            ? 'flex cursor-pointer gap-1 hover:text-blue-600'
+                                            : ''
+                                    "
                                 >
                                     {{ key }}
                                 </span>
