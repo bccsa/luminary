@@ -362,19 +362,16 @@ describe("rest", () => {
         });
     });
 
-    it(
-        "can process clientDataReq",
-        async () => {
-            await rest.docs.clientDataReq();
+    it("can process clientDataReq", async () => {
+        await rest.docs.clientDataReq();
 
-            await waitForExpect(() => {
-                const req = JSON.parse(mockApiRequest);
-                expect(req.type).toBe("post");
-                expect(req.group).toBe("group-super-admins");
-            }, 29000);
-        },
-        { timeout: 30000 },
-    );
+        await waitForExpect(() => {
+            console.log(mockApiRequest);
+            const req = JSON.parse(mockApiRequest);
+            expect(req.type).toBe("post");
+            expect(req.group).toBe("group-super-admins");
+        });
+    });
 
     // This test test the recursion of the clientDataReq, but acutely test much deeper, It also test mergeBlocks, insertBlocks, processQueue, calcMissingData,
     it(
@@ -390,11 +387,12 @@ describe("rest", () => {
             await rest.docs.clientDataReq();
 
             await waitForExpect(() => {
+                console.log(mockApiRequest);
                 const post = syncMap.value.get("post_group-super-admins");
                 expect(post?.blocks[0].blockStart).toBe(20000);
                 expect(post?.blocks[0].blockEnd).toBe(1000);
-            }, 29000);
+            }, 9000);
         },
-        { timeout: 30000 },
+        { timeout: 1000 },
     );
 });
