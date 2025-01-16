@@ -174,28 +174,7 @@ const startEditing = (key: string, value: string) => {
     // if (value) editingValue.value = value;
 };
 
-// Save the edited key and value
-// TODO - change to auto-save
-const saveEditedKeyValue = () => {
-    if (editingKey.value && newKey.value) {
-        // Update the translations object with the new key and value
-        editable.value.translations = {
-            ...editable.value.translations,
-            [newKey.value]: editingValue.value,
-        };
-
-        // Remove the old key if it was changed
-        if (editingKey.value !== newKey.value) {
-            delete editable.value.translations[editingKey.value];
-        }
-    }
-
-    // Reset editing states
-    editingKey.value = null;
-    newKey.value = "";
-    editingValue.value = "";
-};
-
+// Save the edited key and value in real-time
 const saveInRealTime = (key: string, value: string) => {
     if (key && value) {
         editable.value.translations = {
