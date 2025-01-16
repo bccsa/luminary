@@ -10,7 +10,7 @@ type MissingGap = {
 
 type ApiQuery = {
     apiVersion: string;
-    gapEnd?: number;
+    gapEnd: number;
     gapStart?: number;
     contentOnly?: boolean;
     type?: string;
@@ -23,11 +23,19 @@ type SyncEntryKey = {
     contentOnly?: boolean;
     type: string;
     group: string;
+    syncPriority: number;
+};
+
+type QueueReqEntry = {
+    query: ApiQuery;
+    id: string;
+    syncPriority: number;
 };
 
 export class Docs {
     private http: httpReq;
     private options: ApiConnectionOptions;
+    private queue: number = 0;
     /**
      * Create a new Docs instance
      * @param options - Options
@@ -38,6 +46,7 @@ export class Docs {
     }
 
     async clientDataReq() {
+        const queue: Array<QueueReqEntry> = [];
         await this.calcSyncMap();
 
         const _sm = Object.fromEntries(syncMap.value);
@@ -60,7 +69,28 @@ export class Docs {
             query.group = v.group;
 
             // request newest data
-            this.req(query, v.id);
+            // implement a queue that will handle 10 request at a time
+            queue.push({ query, id: v.id, syncPriority: v.syncPriority });
+        }
+
+        this.processQueue(this.sortQueue(queue));
+    }
+
+    /**
+     * Process the queue of requests according to priority
+     * @param queue - queue of requests
+     */
+    async processQueue(queueReq: Array<QueueReqEntry>) {
+        const queueSize = 10;
+
+        if (this.queue <= queueSize && queueReq.length > 0) {
+            this.queue++;
+            this.processQueue(queueReq);
+            const req = queueReq.shift();
+            if (!req?.query && !req?.id) return;
+            await this.req(req.query, req.id);
+            this.queue--;
+            this.processQueue(queueReq);
         }
     }
 
@@ -109,14 +139,23 @@ export class Docs {
 
         if (blocks.length == 0) return { gapStart: 0, gapEnd: 0 };
 
+        // find the block with the highest blockStart
         const gapStart = blocks.reduce((prev: SyncMapEntry, curr: SyncMapEntry) =>
             curr && prev.blockStart <= curr.blockStart ? curr : prev,
         );
 
         if (blocks.length == 1) return { gapStart: gapStart.blockEnd, gapEnd: 0 };
 
-        const gapEnd = blocks.reduce((prev: SyncMapEntry, curr: SyncMapEntry) =>
-            curr && curr !== gapStart && prev.blockStart < curr.blockStart ? curr : prev,
+        // find the block with the greatest blockEnd, but is not the same as gapStart
+        const gapEnd = blocks.reduce(
+            (prev: SyncMapEntry, curr: SyncMapEntry) =>
+                curr &&
+                curr.blockStart !== gapStart.blockStart &&
+                curr.blockEnd !== gapStart.blockEnd &&
+                prev.blockStart < curr.blockStart
+                    ? curr
+                    : prev,
+            { blockStart: 0, blockEnd: 0 },
         );
 
         return { gapStart: gapStart?.blockEnd || 0, gapEnd: gapEnd?.blockStart || 0 };
@@ -142,10 +181,16 @@ export class Docs {
                     id: v.id,
                     type: v.type,
                     contentOnly: v.contentOnly,
-                    accessMap: accessMap.value,
                     group: v.group,
+                    syncPriority: v.syncPriority,
                     blocks: [block],
                 });
+        }
+        // remove entries that is not in the syncEntries
+        const _sm = Object.fromEntries(syncMap.value);
+        for (const k of Object.keys(_sm)) {
+            const exists = syncEntries.find((e) => e.id == k);
+            if (!exists) syncMap.value.delete(k);
         }
         if (data) this.insertBlock(data);
         return syncMap;
@@ -272,6 +317,7 @@ export class Docs {
                     contentOnly: docType.contentOnly,
                     group: "",
                     type: docType.type,
+                    syncPriority: docType.syncPriority || 0,
                 });
             else
                 for (const group of Object.keys(accessMap.value))
@@ -280,6 +326,7 @@ export class Docs {
                         contentOnly: docType.contentOnly,
                         type: docType.type,
                         group: group,
+                        syncPriority: docType.syncPriority || 0,
                     });
 
         return syncEntries;
@@ -297,5 +344,20 @@ export class Docs {
         if (!group) return;
         const block = group.blocks.find((b) => b.blockEnd == 0 && b.blockStart == 0);
         if (block) group.blocks.splice(group.blocks.indexOf(block), 1);
+    }
+
+    /**
+     * Sort queue according to gapEnd and syncPriority
+     * @param queue - queue of requests
+     * @returns
+     */
+    sortQueue(queue: Array<QueueReqEntry>) {
+        // sort queue according to gapEnd (if gapEnd is 0 move down in queue)
+        queue.sort((a) => {
+            if (a.query.gapEnd == 0) return 1;
+            else return -1;
+        });
+        // sort queue according to syncPriority
+        return queue.sort((a, b) => b.syncPriority - a.syncPriority);
     }
 }

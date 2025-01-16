@@ -19,7 +19,7 @@ import { ref, type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
-import { AccessMap, accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
 import { SharedConfig } from "../config";
 import _ from "lodash";
@@ -37,11 +37,11 @@ export type SyncMapEntry = {
 
 export type SyncMap = {
     blocks: Array<SyncMapEntry>;
-    accessMap: AccessMap;
     group: string;
     contentOnly?: boolean;
     type: string;
     id: string;
+    syncPriority: number; // default 0, a higher number is a higher priority
 };
 
 export const syncMap = ref(new Map<string, SyncMap>());
