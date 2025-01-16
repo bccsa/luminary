@@ -479,7 +479,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                                 />
                             </td>
                             <td
-                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 hover:cursor-pointer hover:text-blue-600 sm:pl-3"
                                 @click="startEditing(key, val)"
                             >
                                 <span
