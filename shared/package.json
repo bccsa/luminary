@@ -26,6 +26,7 @@
         "@vueuse/core": "^10.11.0",
         "@vueuse/rxjs": "^10.7.2",
         "dexie": "^3.2.7",
+        "express": "^4.21.2",
         "lodash.clonedeep": "^4.5.0",
         "lodash.isequal": "^4.5.0",
         "luxon": "^3.4.4",

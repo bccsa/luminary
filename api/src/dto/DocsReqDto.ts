@@ -35,6 +35,7 @@ export class DocsReqDto {
     contentOnly?: boolean;
 
     @IsString()
+    @IsOptional()
     @Expose()
     group: string;
 

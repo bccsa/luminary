@@ -39,7 +39,7 @@ export type DbQueryResult = {
     version?: number;
     blockStart?: number;
     blockEnd?: number;
-    groups?: Array<string>;
+    group?: string;
     type?: DocType;
     contentOnly?: boolean;
 };
@@ -389,7 +389,7 @@ export class DbService extends EventEmitter {
                     warnings: res.warning,
                     blockStart: blockStart,
                     blockEnd: blockEnd,
-                    groups: [options.group],
+                    group: options.group,
                     contentOnly: options.contentOnly,
                 });
             } catch (err) {

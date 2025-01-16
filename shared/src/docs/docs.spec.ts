@@ -5,7 +5,24 @@ import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
 import { getRest } from "../rest/RestApi";
+import express from "express";
+import { ApiQuery } from "./docs";
+import waitForExpect from "wait-for-expect";
+
+const app = express();
+const port = 12346;
 let rest;
+let mockApiRequest;
+
+const mockApiResponse = {
+    docs: [],
+    type: "post",
+    warnings: "",
+    blockStart: 10000,
+    blockEnd: 5000,
+    group: "group-super-admins",
+    contentOnly: true,
+};
 
 const syncMapEntry: SyncMap = {
     id: "post_group-super-admins",
@@ -16,20 +33,27 @@ const syncMapEntry: SyncMap = {
     blocks: [],
 };
 
-vi.mock("../config/config", () => ({
-    config: {
-        apiUrl: "http://localhost:12345",
-        isCms: true,
-        maxUploadFileSize: 1234,
-        setMaxUploadFileSize: vi.fn(),
-    },
-}));
+// ============================
+// Mock api
+// ============================
+app.get("/docs", (req) => {
+    mockApiRequest = req.headers["x-query"];
+    req.send(JSON.stringify(mockApiResponse));
+});
+
+app.listen(port, () => {
+    console.log(`Mock api running on port ${port}.`);
+});
+
+// ============================
+// Tests
+// ============================
 
 describe("rest", () => {
     beforeAll(async () => {
         await initLuminaryShared({ cms: true, docsIndex: "parentId, language, [type+docType]" });
         rest = getRest({
-            apiUrl: "http://localhost:3000",
+            apiUrl: "http://127.0.0.1:" + port,
             docTypes: [
                 { type: DocType.Post, contentOnly: true },
                 { type: DocType.Post, contentOnly: false },
@@ -278,5 +302,31 @@ describe("rest", () => {
 
         expect(q[0]?.id).toBe("f");
         expect(q[5]?.id).toBe("d");
+    });
+
+    it("can correctly query the api", async () => {
+        // await rest.docs.clientDataReq();
+        const query: ApiQuery = {
+            apiVersion: "0.0.0",
+            gapEnd: 0,
+            docTypes: [{ type: DocType.Post, contentOnly: true }],
+            group: "group-super-admins",
+            type: DocType.Post,
+        };
+        await rest.docs.req(query);
+
+        await waitForExpect(() => {
+            expect(mockApiRequest).toBe(JSON.stringify(query));
+        });
+    });
+
+    it("can process clientDataReq", async () => {
+        await rest.docs.clientDataReq();
+
+        await waitForExpect(() => {
+            const req = JSON.parse(mockApiRequest);
+            expect(req.type).toBe("post");
+            expect(req.group).toBe("group-super-admins");
+        });
     });
 });

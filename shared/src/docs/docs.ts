@@ -8,7 +8,7 @@ type MissingGap = {
     gapEnd: number;
 };
 
-type ApiQuery = {
+export type ApiQuery = {
     apiVersion: string;
     gapEnd: number;
     gapStart?: number;
