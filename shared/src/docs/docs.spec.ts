@@ -305,7 +305,6 @@ describe("rest", () => {
     });
 
     it("can correctly query the api", async () => {
-        // await rest.docs.clientDataReq();
         const query: ApiQuery = {
             apiVersion: "0.0.0",
             gapEnd: 0,
