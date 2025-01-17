@@ -41,6 +41,7 @@
         "privacy_policy.modal.message_map.unaccepted": "Veuillez accepter notre politique de confidentialité pour profiter pleinement des fonctionnalités de l'application.",
         "privacy_policy.banner.message_map.outdated": "Nous avons mis à jour notre politique de confidentialité. Cliquez ici pour l'accepter et profiter pleinement des fonctionnalités de l'application.",
         "privacy_policy.banner.message_map.unaccepted": "Cliquez ici pour accepter notre politique de confidentialité et profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.banner.title": "Politique de confidentialité",
         "privacy_policy.modal.link_text": "ici",
         "privacy_policy.modal.message_link": "Cliquez {link} pour lire notre politique de confidentialité.",
         "login.bcc.button": "Se connecter avec BCC",
