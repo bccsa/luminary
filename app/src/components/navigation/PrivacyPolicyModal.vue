@@ -63,18 +63,6 @@ const status = computed(() => {
     return "accepted";
 });
 
-const linkHtml = `
-      <RouterLink
-        :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
-        class="text-blue-600  dark:text-yellow-400 cursor-pointer"
-        @click="router.push({ name: 'content', params: { slug: 'privacy-policy' } })"
-      >
-        ${t("privacy_policy.modal.link_text")}
-      </RouterLink>
-    `;
-
-const translatedMessage = t("privacy_policy.modal.message_link", { link: linkHtml });
-
 // Wait 3 seconds before showing the privacy policy banner
 setTimeout(() => {
     watch(
@@ -85,7 +73,7 @@ setTimeout(() => {
                     id: "privacy-policy-banner",
                     type: "banner",
                     state: "info",
-                    title: "Privacy Policy",
+                    title: t("privacy_policy.banner.title"),
                     description: bannerMessageMap[status],
                     icon: ShieldCheckIcon,
                     link: () => (show.value = true),
@@ -110,7 +98,19 @@ setTimeout(() => {
         <p class="mb-4 mt-4 text-gray-700 dark:text-slate-300">
             {{ modalMessageMap[status] }}
         </p>
-        <p v-html="translatedMessage" class="mb-8 italic text-gray-700 dark:text-slate-300"></p>
+
+        <!-- <p v-html="translatedMessage" class="mb-8 italic text-gray-700 dark:text-slate-300"></p> -->
+
+        <p class="mb-8 italic text-gray-700 dark:text-slate-300">
+            {{ t("privacy_policy.modal.message_link", { link: "" }) }}
+            <RouterLink
+                :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
+                class="cursor-pointer text-blue-600 dark:text-yellow-400"
+                @click="modal.show = false"
+            >
+                <span>{{ t("privacy_policy.modal.link_text") }}</span>
+            </RouterLink>
+        </p>
 
         <template #footer>
             <div class="flex justify-end space-x-2">
