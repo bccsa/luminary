@@ -7,8 +7,8 @@ import { Socketio } from "./socketio";
 import { S3Service } from "./s3/s3.service";
 import configuration from "./configuration";
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from "nest-winston";
-import { DocsController } from "./docs/docs.controller";
-import { DocsService } from "./docs/docs.service";
+import { DocsController } from "./endpoints/docs.controller";
+import { DocsService } from "./endpoints/docs.service";
 import * as winston from "winston";
 
 let winstonTransport: winston.transport;
