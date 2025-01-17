@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, IsArray } from "
 import { DocType } from "../enums";
 
 /**
- * Document structure for client / CMS submitted changes to existing documents or new documents.
+ * Api Request structure for APP / CMS requesting documents from the api
  */
 export class DocsReqDto {
     @IsNotEmpty()
@@ -43,4 +43,14 @@ export class DocsReqDto {
     @IsString()
     @Expose()
     type: DocType;
+}
+
+/**
+ * Api Request structure for APP / CMS requesting documents from the api
+ */
+export class GroupsReqDto {
+    @IsNotEmpty()
+    @IsString()
+    @Expose()
+    apiVersion: string;
 }

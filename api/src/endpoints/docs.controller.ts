@@ -1,7 +1,8 @@
-import { Controller, Headers, Get, HttpException, HttpStatus } from "@nestjs/common";
-import { DocsReqDto } from "../dto/DocsReqDto";
+import { Controller, Headers, Get } from "@nestjs/common";
+import { DocsReqDto } from "../dto/EndpointsReqDto";
 import { DocsService } from "./docs.service";
-import { validateSync } from "class-validator";
+import { xQuery } from "../validation/x-query";
+import { validateApiVersion } from "../validation/apiVersion";
 
 @Controller("docs")
 export class DocsController {
@@ -9,20 +10,14 @@ export class DocsController {
 
     @Get()
     async getDocs(
-        @Headers("X-Query") doc: string,
+        @Headers("X-Query") query: string,
         @Headers("Authorization") auth: string,
     ): Promise<any> {
-        if (!doc) {
-            throw new HttpException(`X-Query header is required`, HttpStatus.BAD_REQUEST);
-        }
-        const docObj = JSON.parse(doc);
-        const docsReqDto = Object.assign(new DocsReqDto(), docObj);
-        const errors = validateSync(docsReqDto);
-        if (errors.length > 0) {
-            throw new HttpException(`Validation failed: ${errors}`, HttpStatus.BAD_REQUEST);
-        }
+        const queryObj = xQuery(query, DocsReqDto);
+        await validateApiVersion(queryObj.apiVersion); // validate API version
+
         return this.docsService.processReq(
-            docObj,
+            queryObj,
             auth !== undefined ? auth.replace("Bearer ", "") : "",
         );
     }

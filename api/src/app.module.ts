@@ -9,6 +9,8 @@ import configuration from "./configuration";
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from "nest-winston";
 import { DocsController } from "./endpoints/docs.controller";
 import { DocsService } from "./endpoints/docs.service";
+import { GroupsController } from "./endpoints/groups.controller";
+import { GroupsService } from "./endpoints/groups.service";
 import * as winston from "winston";
 
 let winstonTransport: winston.transport;
@@ -44,7 +46,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
             global: true,
         }),
     ],
-    controllers: [AppController, DocsController],
-    providers: [DbService, Socketio, S3Service, DocsService],
+    controllers: [AppController, DocsController, GroupsController],
+    providers: [DbService, Socketio, S3Service, DocsService, GroupsService],
 })
 export class AppModule {}

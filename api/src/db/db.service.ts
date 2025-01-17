@@ -399,6 +399,36 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * Get groups to which a user has access.
+     * @param {GetDocsOptions} options - Query configuration object.
+     * @returns - Promise containing the query result
+     */
+    getUserGroups(userAccess): Promise<DbQueryResult> {
+        return new Promise(async (resolve, reject) => {
+            if (!userAccess[DocType.Group]) resolve({ docs: [] });
+
+            // Include the (group) document itself if the "group" type is included in the options
+            const query = {
+                selector: {
+                    $and: [{ type: DocType.Group }, { _id: { $in: userAccess[DocType.Group] } }],
+                },
+                limit: Number.MAX_SAFE_INTEGER,
+            };
+
+            try {
+                const res = await this.db.find(query);
+                const docs = res.docs;
+                resolve({
+                    docs,
+                    warnings: res.warning,
+                });
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    /**
      * Get all group documents from database
      */
     getGroups(): Promise<DbQueryResult> {

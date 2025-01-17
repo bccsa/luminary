@@ -1,7 +1,6 @@
-import { DocsReqDto } from "../dto/EndpointsReqDto";
-import { HttpException, HttpStatus, Injectable, Inject } from "@nestjs/common";
-import { DbQueryResult, DbService, GetDocsOptions } from "../db/db.service";
-import { AclPermission } from "../enums";
+import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
+import { DbQueryResult, DbService } from "../db/db.service";
+import { AclPermission, DocType } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -11,7 +10,7 @@ import configuration, { Configuration } from "../configuration";
 import { validateJWT } from "../validation/jwt";
 
 @Injectable()
-export class DocsService {
+export class GroupsService {
     private readonly test: any = [];
     private permissionMap: any;
     private config: Configuration;
@@ -30,7 +29,7 @@ export class DocsService {
      * @param req - api request
      * @returns
      */
-    async processReq(req: DocsReqDto, token: string): Promise<DbQueryResult> {
+    async processReq(token: string): Promise<DbQueryResult> {
         // decode and validate JWT
         const jwt: string | JWT.JwtPayload = validateJWT(
             token,
@@ -43,45 +42,17 @@ export class DocsService {
         const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
         const accessMap: AccessMap = PermissionSystem.getAccessMap(permissions.groups);
 
-        // Determine which doc types to get
-        const docTypes: Array<any> = [];
-        if (req.docTypes)
-            req.docTypes.forEach((docType) => {
-                if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
-            });
-
         // Get user accessible groups
-        const userViewGroups = PermissionSystem.accessMapToGroups(
-            accessMap,
-            AclPermission.View,
-            docTypes,
-        );
+        const userViewGroups = PermissionSystem.accessMapToGroups(accessMap, AclPermission.View, [
+            DocType.Group,
+        ]);
 
-        // validate if user has access to requested groups
-        if (!userViewGroups[req.type]?.includes(req.group) && req.type !== "group") {
-            throw new HttpException(
-                "You do not have access to requested group",
-                HttpStatus.FORBIDDEN,
-            );
-        }
-
-        let from = 0;
-        if (req.gapEnd && typeof req.gapEnd === "number") from = req.gapEnd;
-        let to = await this.db.getLatestDocUpdatedTime();
-        if (req.gapStart && typeof req.gapStart === "number") to = req.gapStart;
-
-        const query: GetDocsOptions = {
-            userAccess: userViewGroups,
-            type: req.type,
-            contentOnly: req.contentOnly,
-            group: req.group,
-        };
-        if (from !== undefined) query.from = from;
-        if (to !== undefined) query.to = to;
+        if (!userViewGroups[DocType.Group])
+            throw new HttpException("User does not have access to groups", HttpStatus.FORBIDDEN);
 
         let _res = undefined;
         await this.db
-            .getDocsPerTypePerGroup(query)
+            .getUserGroups(userViewGroups)
             .then((res: DbQueryResult) => {
                 if (res.docs) {
                     _res = res;

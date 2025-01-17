@@ -10,6 +10,8 @@ describe("DbService", () => {
         service = (await createTestingModule("db-service")).dbService;
     });
 
+    // =================== general ===================
+
     it("can be instantiated", () => {
         expect(service).toBeDefined();
     });
@@ -25,6 +27,10 @@ describe("DbService", () => {
 
         expect(res.docs.length).toBe(0);
     });
+
+    // =================== general ===================
+
+    // =================== upsertDoc ===================
 
     it("can insert a new document and return the full document in the result's 'changes' field", async () => {
         const uuid = randomUUID();
@@ -109,6 +115,39 @@ describe("DbService", () => {
 
         expect(res).toBe(newDoc.updatedTimeUtc);
     });
+
+    it("can detect that a document is exactly the same as the document in the database", async () => {
+        const doc = {
+            _id: "docIdenticalTest",
+            testData: "test123",
+        };
+        await service.upsertDoc(doc);
+        const res: any = await service.upsertDoc(doc);
+        expect(res.message).toBe("Document is identical to the one in the database");
+    });
+
+    it("can handle simultaneous updates to a single existing document", async () => {
+        // Insert a document into the database to ensure there is an existing document
+        await service.upsertDoc({ _id: "simultaneousTest", testVal: 0 });
+
+        // Generate changes to the document and submit them in parallel
+        const pList = new Array<Promise<any>>();
+
+        for (let index = 1; index <= 50; index++) {
+            pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
+        }
+
+        let res: boolean = false;
+        await Promise.all(pList);
+
+        // if we got past this point without an exception, the test was successful
+        res = true;
+        expect(res).toBe(true);
+    }, 10000);
+
+    // =================== upsertDoc ===================
+
+    // =================== getDocsPerTypePerGroup ===================
 
     it("can retrieve documents using one group selector", async () => {
         const userAccess = new Map<DocType, Uuid[]>();
@@ -220,6 +259,10 @@ describe("DbService", () => {
         expect(res.blockEnd).toBe(updatedDoc.updatedTimeUtc); // Ensure that the version (timestamp) is returned with the result
     });
 
+    // =================== getDocsPerTypePerGroup ===================
+
+    // =================== getGroups ===================
+
     it("can get all groups", async () => {
         const res: any = await service.getGroups();
 
@@ -227,34 +270,7 @@ describe("DbService", () => {
         expect(docCount).toBe(8);
     });
 
-    it("can detect that a document is exactly the same as the document in the database", async () => {
-        const doc = {
-            _id: "docIdenticalTest",
-            testData: "test123",
-        };
-        await service.upsertDoc(doc);
-        const res: any = await service.upsertDoc(doc);
-        expect(res.message).toBe("Document is identical to the one in the database");
-    });
-
-    it("can handle simultaneous updates to a single existing document", async () => {
-        // Insert a document into the database to ensure there is an existing document
-        await service.upsertDoc({ _id: "simultaneousTest", testVal: 0 });
-
-        // Generate changes to the document and submit them in parallel
-        const pList = new Array<Promise<any>>();
-
-        for (let index = 1; index <= 50; index++) {
-            pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
-        }
-
-        let res: boolean = false;
-        await Promise.all(pList);
-
-        // if we got past this point without an exception, the test was successful
-        res = true;
-        expect(res).toBe(true);
-    }, 10000);
+    // =================== getGroups ===================
 
     it("can get a list of documents filtered by document ID and document type", async () => {
         // Test if we can return two documents with the passed IDs and valid document types
@@ -323,4 +339,36 @@ describe("DbService", () => {
 
         await service.upsertDoc(doc);
     });
+
+    // =================== getUserGroups ===================
+
+    it("getUserGroups can retrieve a list of groups from the db", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Group] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+            "group-public-tags",
+            "group-private-tags",
+            "group-public-users",
+            "group-private-users",
+        ];
+
+        const res: any = await service.getUserGroups(userAccess);
+
+        expect(res.docs).toBeDefined();
+        expect(res.docs.length).toBeGreaterThan(0);
+    });
+
+    it("getUserGroups returns no groups if user does not have the right access", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = ["group-super-admins"];
+
+        const res: any = await service.getUserGroups(userAccess);
+
+        expect(res.docs).toBeDefined();
+        expect(res.docs.length).toBe(0);
+    });
+
+    // =================== getUserGroups ===================
 });
