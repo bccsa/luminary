@@ -52,7 +52,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!isPublished(content)) return false;
+                if (!isPublished(content, appLanguageIds)) return false;
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
@@ -60,7 +60,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
                 for (const tagId of content.parentTags) {
                     if (pinnedCategories.some((p) => p.parentId == tagId)) return true;
                 }
-                 
+
                 return isPublished(content, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
