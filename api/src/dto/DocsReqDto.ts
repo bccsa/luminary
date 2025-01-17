@@ -34,10 +34,10 @@ export class DocsReqDto {
     @Expose()
     contentOnly?: boolean;
 
-    @IsNotEmpty()
-    @IsArray()
+    @IsString()
+    @IsOptional()
     @Expose()
-    groups: Array<string>;
+    group: string;
 
     @IsNotEmpty()
     @IsString()

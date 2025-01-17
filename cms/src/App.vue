@@ -62,13 +62,13 @@ onBeforeMount(async () => {
             apiUrl,
             token,
             docTypes: [
-                { type: DocType.Tag, contentOnly: false },
-                { type: DocType.Post, contentOnly: false },
+                { type: DocType.Tag, contentOnly: false, syncPriority: 9 },
+                { type: DocType.Post, contentOnly: false, syncPriority: 8 },
                 { type: DocType.Group, contentOnly: false },
                 { type: DocType.Redirect, contentOnly: false },
-                { type: DocType.Language, contentOnly: false },
-                { type: DocType.Tag, contentOnly: true },
-                { type: DocType.Post, contentOnly: true },
+                { type: DocType.Language, contentOnly: false, syncPriority: 10 },
+                { type: DocType.Tag, contentOnly: true, syncPriority: 9 },
+                { type: DocType.Post, contentOnly: true, syncPriority: 8 },
             ],
         });
 
