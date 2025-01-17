@@ -8,14 +8,14 @@ import {
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 import { contentByTag } from "../contentByTag";
 import { isPublished } from "@/util/isPublished";
 
 const pinnedTopics = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
+    appLanguageIdsAsRef,
     (appLanguageId: Uuid) =>
         db.docs
             .where({
@@ -29,7 +29,7 @@ const pinnedTopics = useDexieLiveQueryWithDeps(
                 if (content.parentTagType && content.parentTagType !== TagType.Category)
                     return false;
 
-                return isPublished(content);
+                return isPublished(content, appLanguageIdsAsRef.value);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("explore_pinnedTopics") },
@@ -40,7 +40,7 @@ watch(pinnedTopics, async (value) => {
 });
 
 const pinnedTopicContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdAsRef, pinnedTopics],
+    [appLanguageIdsAsRef, pinnedTopics],
     ([appLanguageId, pinnedTopics]: [Uuid, ContentDto[]]) =>
         db.docs
             .where({
@@ -50,7 +50,7 @@ const pinnedTopicContent = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!isPublished(content)) return false;
+                if (!isPublished(content, appLanguageIdsAsRef.value)) return false;
 
                 if (content.parentType != DocType.Tag) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;

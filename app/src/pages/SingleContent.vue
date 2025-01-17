@@ -70,15 +70,15 @@ const content = computed(() => {
 
 const tags = useDexieLiveQueryWithDeps(
     [content, appLanguageIdsAsRef],
-    ([content, appLanguageId]: [ContentDto, Uuid]) =>
+    ([content, appLanguageIds]: [ContentDto, Uuid[]]) =>
         db.docs
             .where("parentId")
             .anyOf(content.parentTags.concat([content.parentId])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
             .filter((t) => {
                 const tag = t as ContentDto;
-                if (tag.language != appLanguageId) return false;
+                // if (tag.language != appLanguageIds) return false;
                 if (tag.parentType != DocType.Tag) return false;
-                return isPublished(tag);
+                return isPublished(tag, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },
@@ -190,13 +190,13 @@ watch(
                 (c) => c.language == appLanguagesAsRef.value![0]._id,
             );
 
-            if (preferred && isPublished(preferred)) {
+            if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
                 // Check if the preferred translation is published
                 router.replace({ name: "content", params: { slug: preferred.slug } });
             } else {
                 useNotificationStore().addNotification({
                     id: "translation-not-published",
-                    title: "Unpublished translation",
+                    title: "Translation not available",
                     description: `The ${appLanguagesAsRef.value![0].name} translation for this content is not yet available.`,
                     state: "error",
                     type: "toast",

@@ -1,4 +1,3 @@
-import { appLanguageIdsAsRef } from "@/globalConfig";
 import { type ContentDto, type Uuid } from "luminary-shared";
 
 /**

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
 
 const allTopics = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
+    appLanguageIdsAsRef,
     (appLanguageId: Uuid) =>
         db.docs
             .where({

@@ -1,5 +1,5 @@
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
-import { readonly, ref, watch } from "vue";
+import { computed, readonly, ref, watch, type ShallowRef, type WatchSource } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -31,76 +31,107 @@ function setAppDefaultLanguage(languageId: Uuid) {
 watch(
     appLanguageIdsAsRef,
     (newVal) => {
-        console.info("Setting languages", newVal);
         localStorage.setItem("languages", JSON.stringify(newVal));
     },
     { deep: true },
 );
 
-const _appLanguagesAsRef = ref<LanguageDto[]>([]);
+/**
+ * The list of user selected languages sorted by preference as Vue ref.
+ */
+// export const appLanguagesAsRef = readonly(_appLanguagesAsRef);
+export const appLanguagesAsRef = computed(
+    () =>
+        appLanguageIdsAsRef.value
+            .map((id) =>
+                cmsLanguages && cmsLanguages.value
+                    ? cmsLanguages.value.find((l) => l._id === id)
+                    : undefined,
+            )
+            .filter((l) => l) as LanguageDto[],
+);
 
 /**
- * The preferred languages document as Vue ref.
+ * The preferred language document as Vue ref.
  */
-export const appLanguagesAsRef = readonly(_appLanguagesAsRef);
+export const appLanguageAsRef = computed(() =>
+    appLanguagesAsRef.value.length ? appLanguagesAsRef.value[0] : undefined,
+);
 
-export const languagesPreferredByBrowser = navigator.languages;
-const cmsLanguages = useDexieLiveQuery(() => db.docs.where("type").equals(DocType.Language));
+/**
+ * The preferred language's ID as Vue ref.
+ */
+export const appLanguageIdAsRef = computed(() =>
+    appLanguageAsRef.value ? appLanguageAsRef.value._id : undefined,
+);
 
+let cmsLanguages: ShallowRef<LanguageDto[]> | undefined;
+/**
+ * Initialize the language settings. If no user preferred language is set, the browser preferred language is used if it is supported. Otherwise, the CMS default language is used.
+ */
 export const initLanguage = () => {
+    cmsLanguages = useDexieLiveQuery(
+        () =>
+            db.docs.where("type").equals(DocType.Language).toArray() as unknown as Promise<
+                LanguageDto[]
+            >,
+    );
+
     // Set the preferred language to the preferred language returned by the browser if it is not set
     // The language is only set if there is a supported language for it otherwise it defaults to the CMS configured default language
-    watch(cmsLanguages, (_languages) => {
-        if (!_languages || _languages.length == 0) return;
-        if (!appLanguageIdsAsRef.value) return;
-        if (!_languages.some((l) => l._id === appLanguageIdsAsRef.value[0])) return; // ??
+    if (appLanguageIdsAsRef.value.length === 0) {
+        watch(cmsLanguages, (_languages) => {
+            if (!_languages || _languages.length == 0) return;
+            if (!appLanguageIdsAsRef.value) return;
+            // if (!_languages.some((l) => l._id === appLanguageIdsAsRef.value[0])) return; // ??
 
-        // Check for the browser preferred language in the list of available content languages
-        const browserPreferredLanguageId = _languages.find((l) =>
-            languagesPreferredByBrowser.includes(l.languageCode),
-        )?._id;
+            // Check for the browser preferred language in the list of available content languages
+            const browserPreferredLanguageId = _languages.find((l) =>
+                navigator.languages.includes(l.languageCode),
+            )?._id;
 
-        // If a browser preferred language exists, set it
-        if (browserPreferredLanguageId) {
-            setAppDefaultLanguage(browserPreferredLanguageId);
-            return;
-        }
+            // If a browser preferred language exists, set it
+            if (browserPreferredLanguageId) {
+                setAppDefaultLanguage(browserPreferredLanguageId);
+                return;
+            }
 
-        // Find the CMS defined default language
-        const cmsDefaultLanguage = _languages.find((l) => l.default === 1);
+            // Find the CMS defined default language
+            const cmsDefaultLanguage = _languages.find((l) => l.default === 1);
 
-        // If the browser preferred language does not match any of the available content languages,
-        // set the CMS defined default language as the preferred language. If no default language is defined
-        // in the CMS, set the first available language as the preferred language.
-        appLanguageIdsAsRef.value[0] = cmsDefaultLanguage?._id || _languages[0]._id; // ??
+            // If the browser preferred language does not match any of the available content languages,
+            // set the CMS defined default language as the preferred language. If no default language is defined
+            // in the CMS, set the first available language as the preferred language.
+            appLanguageIdsAsRef.value[0] = cmsDefaultLanguage?._id || _languages[0]._id; // ??
 
-        // Add the CMS defined default language to the list of preferred languages if it is not already there
-        if (
-            cmsDefaultLanguage &&
-            !appLanguageIdsAsRef.value.some((l) => l === cmsDefaultLanguage._id)
-        ) {
-            appLanguageIdsAsRef.value.push(cmsDefaultLanguage._id);
-        }
-    });
+            // Add the CMS defined default language to the list of preferred languages if it is not already there
+            if (
+                cmsDefaultLanguage &&
+                !appLanguageIdsAsRef.value.some((l) => l === cmsDefaultLanguage._id)
+            ) {
+                appLanguageIdsAsRef.value.push(cmsDefaultLanguage._id);
+            }
+        });
+    }
+
+    // // Create a list of user selected language documents, ordered by the user's preference
+    // watch(
+    //     appLanguageIdsAsRef,
+    //     (languageIds) => {
+    //         _appLanguagesAsRef.value = languageIds
+    //             .map((id) => {
+    //                 if (!cmsLanguages.value) return;
+
+    //                 const lang = cmsLanguages.value.find((l) => l._id === id);
+    //                 if (!lang) return;
+
+    //                 return lang;
+    //             })
+    //             .filter((l) => l) as LanguageDto[];
+    //     },
+    //     { deep: true, immediate: true },
+    // );
 };
-
-// Create a list of user selected language documents, ordered by the user's preference
-watch(
-    appLanguageIdsAsRef,
-    (languageIds) => {
-        _appLanguagesAsRef.value = languageIds
-            .map((id) => {
-                if (!cmsLanguages.value) return;
-
-                const lang = cmsLanguages.value.find((l) => l._id === id);
-                if (!lang) return;
-
-                return lang;
-            })
-            .filter((l) => l) as LanguageDto[];
-    },
-    { deep: true },
-);
 
 export type mediaProgressEntry = {
     mediaId: string;
