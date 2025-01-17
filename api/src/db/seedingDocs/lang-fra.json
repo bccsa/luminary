@@ -26,7 +26,27 @@
         "notification.offline.message": "Vous pouvez toujours utiliser l'application et parcourir le contenu hors ligne, mais certains contenus (comme les vidéos) pourraient ne pas être disponibles.",
         "notification.privacy_policy.title": "Politique de confidentialité",
         "notification.privacy_policy.message": "Cliquez ici pour accepter notre politique de confidentialité et profiter pleinement de l'application.",
+        "notification.clearCache_offline.title": "Impossible de vider le cache local",
+        "notification.clearCache_offline.description": "Vous êtes hors ligne, les nouvelles données ne peuvent pas être chargées. Veuillez attendre d'être en ligne.",
+        "notification.clearCache_success.title": "Cache local vidé",
+        "notification.clearCache_success.description": "Les nouvelles données sont en cours de chargement depuis le serveur, cela peut prendre une minute.",
+        "privacy_policy.modal.title": "Politique de confidentialité",
+        "privacy_policy.modal.message": "En utilisant cette application, vous acceptez notre politique de confidentialité.",
+        "privacy_policy.modal.button_accept": "Accepter",
+        "privacy_policy.modal.button_decline": "Refuser",
+        "privacy_policy.modal.button_close": "Fermer",
+        "privacy_policy.modal.message_map.accepted": "Vous avez déjà accepté la politique de confidentialité.",
+        "privacy_policy.modal.message_map.declined": "Vous avez précédemment refusé la politique de confidentialité. Veuillez l'accepter pour profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.modal.message_map.outdated": "Nous avons mis à jour notre politique de confidentialité. Veuillez l'accepter pour profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.modal.message_map.unaccepted": "Veuillez accepter notre politique de confidentialité pour profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.banner.message_map.outdated": "Nous avons mis à jour notre politique de confidentialité. Cliquez ici pour l'accepter et profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.banner.message_map.unaccepted": "Cliquez ici pour accepter notre politique de confidentialité et profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.modal.link_text": "ici",
+        "privacy_policy.modal.message_link": "Cliquez {link} pour lire notre politique de confidentialité.",
         "login.bcc.button": "Se connecter avec BCC",
-        "login.guest.button": "Se connecter en tant qu'invité"
+        "login.guest.button": "Se connecter en tant qu'invité",
+        "select_theme.title": "Sélectionner un thème",
+        "bookmarks.title": "Signets",
+        "bookmarks.empty_page": "Vous devriez essayer ça ! Cliquez sur cette icône sur n'importe quel post pour l'ajouter aux favoris."
     }
 }

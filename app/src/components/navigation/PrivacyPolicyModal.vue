@@ -6,6 +6,8 @@ import { db, useDexieLiveQuery, type ContentDto } from "luminary-shared";
 import { computed, watch } from "vue";
 import LModal from "@/components/form/LModal.vue";
 import LButton from "@/components/button/LButton.vue";
+import { useI18n } from "vue-i18n";
+const { t } = useI18n();
 
 const show = defineModel<boolean>("show");
 
@@ -29,19 +31,16 @@ const privacyPolicy = useDexieLiveQuery(
 );
 
 const modalMessageMap = {
-    accepted: "You have already accepted the privacy policy.",
-    declined:
-        "You have previously declined the privacy policy. Please accept it for a fully featured app experience.",
-    outdated:
-        "We have updated our privacy policy. Please accept it for a fully featured app experience.",
-    unaccepted: "Please accept our privacy policy for a fully featured app experience.",
+    accepted: t("privacy_policy.modal.message_map.accepted"),
+    declined: t("privacy_policy.modal.message_map.declined"),
+    outdated: t("privacy_policy.modal.message_map.outdated"),
+    unaccepted: t("privacy_policy.modal.message_map.unaccepted"),
 };
 
 const bannerMessageMap = {
     ...modalMessageMap,
-    outdated:
-        "We have updated our privacy policy. Click here to accept it for a fully featured app experience.",
-    unaccepted: "Click here to accept our privacy policy for a fully featured app experience.",
+    outdated: t("privacy_policy.banner.message_map.outdated"),
+    unaccepted: t("privacy_policy.banner.message_map.unaccepted"),
 };
 
 const status = computed(() => {
@@ -63,6 +62,18 @@ const status = computed(() => {
         return "outdated";
     return "accepted";
 });
+
+const linkHtml = `
+      <RouterLink
+        :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
+        class="text-blue-600  dark:text-yellow-400 cursor-pointer"
+        @click="router.push({ name: 'content', params: { slug: 'privacy-policy' } })"
+      >
+        ${t("privacy_policy.modal.link_text")}
+      </RouterLink>
+    `;
+
+const translatedMessage = t("privacy_policy.modal.message_link", { link: linkHtml });
 
 // Wait 3 seconds before showing the privacy policy banner
 setTimeout(() => {
@@ -91,20 +102,15 @@ setTimeout(() => {
 </script>
 
 <template>
-    <LModal :isVisible="show || false" heading="Privacy Policy" @close="show = false">
+    <LModal
+        :isVisible="show || false"
+        :heading="t('privacy_policy.modal.title')"
+        @close="show = false"
+    >
         <p class="mb-4 mt-4 text-gray-700 dark:text-slate-300">
             {{ modalMessageMap[status] }}
         </p>
-        <p class="mb-8 italic text-gray-700 dark:text-slate-300">
-            Click
-            <RouterLink
-                :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
-                class="text-blue-600 underline dark:text-yellow-400"
-                @click="show = false"
-                >here</RouterLink
-            >
-            to read our privacy policy.
-        </p>
+        <p v-html="translatedMessage" class="mb-8 italic text-gray-700 dark:text-slate-300"></p>
 
         <template #footer>
             <div class="flex justify-end space-x-2">
@@ -116,14 +122,14 @@ setTimeout(() => {
                         userPreferencesAsRef.privacyPolicy = { status: 'accepted', ts: Date.now() };
                         show = false;
                     "
-                    >Accept
+                    >{{ t("privacy_policy.modal.button_accept") }}
                 </LButton>
                 <LButton
                     v-if="status == 'accepted'"
                     variant="primary"
                     name="close"
                     @click="show = false"
-                    >Close</LButton
+                    >{{ t("privacy_policy.modal.button_close") }}</LButton
                 >
                 <LButton
                     variant="secondary"
@@ -133,7 +139,7 @@ setTimeout(() => {
                         show = false;
                     "
                 >
-                    Decline
+                    {{ t("privacy_policy.modal.button_decline") }}
                 </LButton>
             </div>
         </template>

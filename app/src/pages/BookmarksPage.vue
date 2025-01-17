@@ -5,6 +5,9 @@ import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "lumin
 import { computed } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
 import { isPublished } from "@/util/isPublished";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 // Get bookmarked documents
 const bookmarks = computed(
@@ -39,7 +42,9 @@ const sorted = computed(
 
 <template>
     <div>
-        <h1 class="mb-4 text-xl font-medium text-zinc-700 dark:text-slate-100">Bookmarks</h1>
+        <h1 class="mb-4 text-xl font-medium text-zinc-700 dark:text-slate-100">
+            {{ t("bookmarks.title") }}
+        </h1>
         <div class="flex flex-wrap gap-4">
             <ContentTile
                 v-for="content in sorted"
@@ -49,8 +54,7 @@ const sorted = computed(
             />
         </div>
         <div v-if="!content.length" class="text-zinc-500 dark:text-slate-200">
-            You should try this! Click "<BookmarkIcon class="inline h-5 w-5" />" on any post to
-            bookmark it.
+            {{ t("bookmarks.empty_page") }} "<BookmarkIcon class="inline h-5 w-5" />"
         </div>
     </div>
 </template>
