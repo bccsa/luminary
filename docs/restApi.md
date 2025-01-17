@@ -1,7 +1,3 @@
-Here’s your formatted and checked REST API documentation, with some improvements for clarity and readability:
-
----
-
 # REST API Documentation
 
 The REST API enables clients to request bulk data efficiently. Designed to address the inefficiencies of sockets with large data volumes and the absence of compression, the API ensures optimal handling of bulk requests.
