@@ -2,6 +2,7 @@ import { httpReq } from "../rest/http";
 import { ApiConnectionOptions, DocType } from "../types";
 import { db, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
+import { watch } from "vue";
 
 type MissingGap = {
     gapStart: number;
@@ -43,11 +44,17 @@ export class Docs {
     constructor(options: ApiConnectionOptions) {
         this.options = options;
         this.http = new httpReq(options.apiUrl || "", options.token);
+        watch(
+            accessMap,
+            () => {
+                this.calcSyncMap();
+            },
+            { immediate: true },
+        );
     }
 
     async clientDataReq() {
         const queue: Array<QueueReqEntry> = [];
-        await this.calcSyncMap();
 
         const _sm = Object.fromEntries(syncMap.value);
         for (const v of Object.values(_sm)) {
@@ -108,7 +115,7 @@ export class Docs {
             }, 5000);
 
         data.id = id;
-        if (data.gapStart != 0 && data.gapEnd != 0) await this.calcSyncMap(data);
+        if (data.gapStart != 0 && data.gapEnd != 0) this.insertBlock(data);
 
         // only continue if there is more than one block
         const blocks = syncMap.value.get(id)?.blocks;
@@ -159,41 +166,6 @@ export class Docs {
         );
 
         return { gapStart: gapStart?.blockEnd || 0, gapEnd: gapEnd?.blockStart || 0 };
-    }
-
-    /**
-     * Calculates and updates current sync map
-     * @param data - api response data
-     * @returns
-     */
-    async calcSyncMap(data?: any) {
-        if (syncMap.value.keys.length < 1) await db.getSyncMap();
-        const syncEntries: Array<SyncEntryKey> = this.calcSyncEntryKeys();
-        for (const v of syncEntries) {
-            const f = syncMap.value.get(v.id);
-            const block: SyncMapEntry = {
-                blockStart: 0,
-                blockEnd: 0,
-            };
-            // Add new entry if not exists
-            !f &&
-                syncMap.value.set(v.id, {
-                    id: v.id,
-                    type: v.type,
-                    contentOnly: v.contentOnly,
-                    group: v.group,
-                    syncPriority: v.syncPriority,
-                    blocks: [block],
-                });
-        }
-        // remove entries that is not in the syncEntries
-        const _sm = Object.fromEntries(syncMap.value);
-        for (const k of Object.keys(_sm)) {
-            const exists = syncEntries.find((e) => e.id == k);
-            if (!exists) syncMap.value.delete(k);
-        }
-        if (data) this.insertBlock(data);
-        return syncMap;
     }
 
     /**
@@ -300,6 +272,39 @@ export class Docs {
                 return;
             }
         });
+    }
+
+    /**
+     * Calculates and updates current sync map
+     * @returns
+     */
+    async calcSyncMap() {
+        if (syncMap.value.keys.length < 1) await db.getSyncMap();
+        const syncEntries: Array<SyncEntryKey> = this.calcSyncEntryKeys();
+        for (const v of syncEntries) {
+            const f = syncMap.value.get(v.id);
+            const block: SyncMapEntry = {
+                blockStart: 0,
+                blockEnd: 0,
+            };
+            // Add new entry if not exists
+            !f &&
+                syncMap.value.set(v.id, {
+                    id: v.id,
+                    type: v.type,
+                    contentOnly: v.contentOnly,
+                    group: v.group,
+                    syncPriority: v.syncPriority,
+                    blocks: [block],
+                });
+        }
+        // remove entries that is not in the syncEntries
+        const _sm = Object.fromEntries(syncMap.value);
+        for (const k of Object.keys(_sm)) {
+            const exists = syncEntries.find((e) => e.id == k);
+            if (!exists) syncMap.value.delete(k);
+        }
+        return syncMap;
     }
 
     /**
