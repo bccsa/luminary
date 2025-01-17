@@ -70,16 +70,8 @@ export class DocsService {
             docTypes,
         );
 
-        // check if user has access to requested docTypes
-        if (!userViewGroups[req.type]) {
-            throw new HttpException(
-                "You do not have access to requested doc type",
-                HttpStatus.FORBIDDEN,
-            );
-        }
-
         // validate if user has access to requested groups
-        if (!userViewGroups[req.type].includes(req.group) && req.type !== "group") {
+        if (!userViewGroups[req.type]?.includes(req.group) && req.type !== "group") {
             throw new HttpException(
                 "You do not have access to requested group",
                 HttpStatus.FORBIDDEN,
