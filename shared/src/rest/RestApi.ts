@@ -1,5 +1,5 @@
 import { ApiConnectionOptions } from "../types";
-import { Docs } from "../docs/docs";
+import { Docs } from "../docs/sync";
 
 class RestApi {
     private docs: Docs;

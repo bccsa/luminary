@@ -6,7 +6,7 @@ import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
 import { getRest } from "../rest/RestApi";
 import express from "express";
-import { ApiQuery } from "./docs";
+import { ApiQuery } from "./sync";
 import waitForExpect from "wait-for-expect";
 
 const app = express();
