@@ -171,7 +171,11 @@ onMounted(() => {
         // Remove player progress on ended
         removeMediaProgress(props.content.video, props.content._id);
 
-        player.exitFullscreen();
+        try {
+            player.exitFullscreen();
+        } catch {
+            // Do nothing
+        }
     });
 
     player.on("pause", () => {
@@ -180,7 +184,11 @@ onMounted(() => {
         if (autoFullscreen)
             setTimeout(() => {
                 if (!player.paused()) return;
-                player.exitFullscreen();
+                try {
+                    player.exitFullscreen();
+                } catch {
+                    // Do nothing
+                }
             }, 500);
     });
 });
