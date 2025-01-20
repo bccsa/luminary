@@ -1,14 +1,14 @@
 import { ApiConnectionOptions } from "../types";
-import { Docs } from "../docs/sync";
+import { Sync } from "./sync";
 
 class RestApi {
-    private docs: Docs;
+    private docs: Sync;
     /**
      * Create a new docs instance
      * @param options - Options
      */
     constructor(options: ApiConnectionOptions) {
-        this.docs = new Docs(options);
+        this.docs = new Sync(options);
     }
 
     async clientDataReq() {

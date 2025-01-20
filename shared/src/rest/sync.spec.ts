@@ -4,7 +4,7 @@ import { db, SyncMap, syncMap } from "../db/database";
 import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
-import { getRest } from "../rest/RestApi";
+import { getRest } from "./restApi";
 import express from "express";
 import { ApiQuery } from "./sync";
 import waitForExpect from "wait-for-expect";

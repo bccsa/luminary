@@ -1,4 +1,4 @@
-import { httpReq } from "../rest/http";
+import { httpReq } from "./http";
 import { ApiConnectionOptions, DocType } from "../types";
 import { db, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
@@ -33,12 +33,12 @@ type QueueReqEntry = {
     syncPriority: number;
 };
 
-export class Docs {
+export class Sync {
     private http: httpReq;
     private options: ApiConnectionOptions;
     private queue: number = 0;
     /**
-     * Create a new Docs instance
+     * Create a new Sync instance
      * @param options - Options
      */
     constructor(options: ApiConnectionOptions) {
@@ -317,15 +317,8 @@ export class Docs {
         if (!this.options.docTypes) return [];
         // add and exception for DocType.Group, since groups is the only docType that does not have a group (memberOf)
         for (const docType of this.options.docTypes)
-            if (docType.type == DocType.Group)
-                syncEntries.push({
-                    id: docType.type + (docType.contentOnly ? "_content" : ""),
-                    contentOnly: docType.contentOnly,
-                    group: "",
-                    type: docType.type,
-                    syncPriority: docType.syncPriority || 0,
-                });
-            else
+            if (docType.type != DocType.Group)
+                // groups is excluded here, since groups will not be saved in indexDB, but will only be kept in memory, so we made a separate endpoint for this
                 for (const group of Object.keys(accessMap.value))
                     syncEntries.push({
                         id: `${docType.type}_${group}` + (docType.contentOnly ? "_content" : ""),
