@@ -234,7 +234,7 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
-const copyrightPolicy = useDexieLiveQuery(
+const copyright = useDexieLiveQuery(
     () =>
         db.docs
             .where({
@@ -249,8 +249,8 @@ const copyrightPolicy = useDexieLiveQuery(
             .first() as unknown as ContentDto | undefined,
 );
 
-const copyrigthContent = computed(() => {
-    if (!copyrightPolicy.value || !copyrightPolicy.value.text) {
+const copyrightContent = computed(() => {
+    if (!copyright.value || !copyright.value.text) {
         return "";
     }
 
@@ -258,9 +258,9 @@ const copyrigthContent = computed(() => {
 
     // only parse text with TipTap if it's JSON, otherwise we render it out as HTML
     try {
-        text = JSON.parse(copyrightPolicy.value.text);
+        text = JSON.parse(copyright.value.text);
     } catch {
-        return copyrightPolicy.value.text;
+        return copyright.value.text;
     }
     return generateHTML(text, [StarterKit]);
 });
@@ -298,6 +298,12 @@ const copyrigthContent = computed(() => {
                         >
                             {{ content.title }}
                         </h1>
+                        <div
+                            v-if="content.author"
+                            class="flex items-center pl-1 text-center text-sm text-zinc-500 dark:text-slate-100"
+                        >
+                            By {{ content.author }}
+                        </div>
 
                         <div
                             class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
@@ -337,13 +343,6 @@ const copyrigthContent = computed(() => {
                                             'text-yellow-500': isBookmarked,
                                         }"
                                     />
-                                </div>
-
-                                <div
-                                    v-if="content.author"
-                                    class="flex items-center pl-1 text-center text-sm text-zinc-500 dark:text-slate-100"
-                                >
-                                    By {{ content.author }}
                                 </div>
                             </div>
                         </div>
@@ -396,8 +395,8 @@ const copyrigthContent = computed(() => {
         <!-- Copyrigth -->
         <IgnorePagePadding>
             <div
-                v-if="copyrigthContent"
-                v-html="copyrigthContent"
+                v-if="copyrightContent"
+                v-html="copyrightContent"
                 class="prose prose-zinc mt-8 max-w-full bg-zinc-100 p-4 dark:prose-invert dark:bg-slate-800"
             ></div>
         </IgnorePagePadding>

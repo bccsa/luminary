@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import { PencilIcon } from "@heroicons/vue/16/solid";
+import { PencilIcon, UserCircleIcon } from "@heroicons/vue/16/solid";
 import { PublishStatus, type ContentDto } from "luminary-shared";
 import { nextTick, ref, watch } from "vue";
 import { Slug } from "@/util/slug";
@@ -135,6 +135,14 @@ const tabs = [
                             <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
                         </button>
                     </div>
+
+                    <!-- Author -->
+                    <LInput
+                        name="author"
+                        v-model="content.author"
+                        placeholder="John Doe..."
+                        :disabled="disabled"
+                    />
 
                     <!-- Summary -->
                     <LInput

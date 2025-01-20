@@ -36,6 +36,23 @@ describe("EditContentBasic.vue", () => {
         expect(content.value.title).toBe("Updated Title");
     });
 
+    it("can update the author", async () => {
+        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
+        const wrapper = mount(EditContentBasic, {
+            props: {
+                disabled: false,
+                content: content.value,
+            },
+        });
+
+        // Find and update the author input field
+        const authorInput = wrapper.find('[name="author"]');
+        await authorInput.setValue("Updated Author");
+
+        // Check if the content's author was updated
+        expect(content.value.author).toBe("Updated Author");
+    });
+
     it("can update the summary", async () => {
         const content = ref<ContentDto>(mockData.mockEnglishContentDto);
         const wrapper = mount(EditContentBasic, {
