@@ -10,6 +10,11 @@ import { appLanguageIdAsRef, userPreferencesAsRef } from "@/globalConfig";
 import BookmarksPage from "./BookmarksPage.vue";
 
 vi.mock("vue-router");
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
 
 describe("BookmarksPage", () => {
     beforeEach(async () => {
