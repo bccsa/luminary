@@ -8,6 +8,12 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => key,
+    }),
+}));
+
 describe("PrivacyPolicyModal.vue", () => {
     beforeEach(async () => {
         setActivePinia(createTestingPinia());
