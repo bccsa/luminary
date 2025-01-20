@@ -40,7 +40,7 @@ async function Startup() {
     await initLuminaryShared({
         cms: false,
         docsIndex:
-            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+status+parentPinned], [type+status], [type+docType]",
+            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
     });
     // setup auth0
     app.config.globalProperties.$auth = null; // Clear existing auth

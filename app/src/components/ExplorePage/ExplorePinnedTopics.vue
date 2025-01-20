@@ -20,7 +20,6 @@ const pinnedTopics = useDexieLiveQueryWithDeps(
         db.docs
             .where({
                 type: DocType.Content,
-                status: "published",
                 parentPinned: 1, // 1 = true
             })
             .filter((c) => {
@@ -40,16 +39,15 @@ watch(pinnedTopics, async (value) => {
 
 const pinnedTopicContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedTopics],
-    ([appLanguageId, pinnedTopics]: [Uuid, ContentDto[]]) =>
+    ([appLanguageIds, pinnedTopics]: [Uuid[], ContentDto[]]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
                 status: "published",
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!isPublished(content, appLanguageIdsAsRef.value)) return false;
+                if (!isPublished(content, appLanguageIds)) return false;
 
                 if (content.parentType != DocType.Tag) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;

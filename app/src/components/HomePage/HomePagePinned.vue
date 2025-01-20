@@ -21,18 +21,10 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
         db.docs
             .where({
                 type: DocType.Content,
-                status: "published",
                 parentPinned: 1, // 1 = true
             })
             .filter((c) => {
-                const content = c as ContentDto;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                const firstSupportedLang = appLanguageIds.find((lang) =>
-                    content.availableTranslations?.includes(lang),
-                );
-                return true && firstSupportedLang === content.language;
+                return isPublished(c as ContentDto, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("homepage_pinnedCategories"), deep: true },
@@ -48,11 +40,9 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
         db.docs
             .where({
                 type: DocType.Content,
-                status: "published",
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!isPublished(content, appLanguageIds)) return false;
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;

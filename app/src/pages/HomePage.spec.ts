@@ -4,7 +4,7 @@ import { describe, it, beforeEach, expect, vi, vitest, beforeAll, afterEach } fr
 import HomePage from "./HomePage.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { accessMap, db } from "luminary-shared";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import {
     mockCategoryContentDto,
     mockEnglishContentDto,
@@ -15,7 +15,7 @@ import {
     viewAccessToAllContentMap,
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
+import { appLanguageIdAsRef, appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -60,13 +60,18 @@ describe("HomePage.vue", () => {
                 { ...mockFrenchContentDto, title: "Poste 1" },
             ]);
 
+            console.info("Database:", await db.docs.toArray());
+            await nextTick();
+
             // Mount the component
             const wrapper = mount(HomePage);
 
-            console.info("Database info:", await db.docs.toArray());
+            await nextTick();
 
             // Assert that the category title reflects the new language
-            await waitForExpect(() => {
+            console.info("Current Preferred language:", appLanguageIdAsRef.value);
+            await waitForExpect(async () => {
+                console.info(await wrapper.html());
                 // console.info(appLanguageIdsAsRef.value);
                 expect(wrapper.text()).toContain(mockCategoryContentDto.title);
                 expect(wrapper.text()).toContain(mockEnglishContentDto.title);
