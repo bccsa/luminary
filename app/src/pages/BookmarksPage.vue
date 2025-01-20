@@ -13,15 +13,14 @@ const bookmarks = computed(
 
 const content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageId: Uuid) =>
+    (appLanguageIds: Uuid[]) =>
         db.docs
             .where("parentId")
             .anyOf(bookmarks.value)
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language !== appLanguageId) return false;
 
-                return isPublished(content);
+                return isPublished(content, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
 

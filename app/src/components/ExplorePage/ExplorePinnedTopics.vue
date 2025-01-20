@@ -16,11 +16,10 @@ import { isPublished } from "@/util/isPublished";
 
 const pinnedTopics = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageId: Uuid) =>
+    (appLanguageIds: Uuid[]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
                 status: "published",
                 parentPinned: 1, // 1 = true
             })
@@ -29,7 +28,7 @@ const pinnedTopics = useDexieLiveQueryWithDeps(
                 if (content.parentTagType && content.parentTagType !== TagType.Category)
                     return false;
 
-                return isPublished(content, appLanguageIdsAsRef.value);
+                return isPublished(content, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("explore_pinnedTopics") },

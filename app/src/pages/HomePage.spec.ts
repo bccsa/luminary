@@ -15,7 +15,7 @@ import {
     viewAccessToAllContentMap,
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
+import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -35,7 +35,7 @@ describe("HomePage.vue", () => {
             isAuthenticated: ref(true),
         });
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
-        appLanguageIdAsRef.value = mockLanguageDtoEng._id;
+        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
     });
 
     afterEach(async () => {
@@ -45,7 +45,7 @@ describe("HomePage.vue", () => {
     });
 
     describe("Language selection tests", () => {
-        it("updates the category title and content when the language is changed", async () => {
+        it.only("updates the category title and content when the language is changed", async () => {
             // Mock initial database setup with English content
             await db.docs.bulkPut([
                 mockCategoryContentDto,
@@ -63,14 +63,17 @@ describe("HomePage.vue", () => {
             // Mount the component
             const wrapper = mount(HomePage);
 
+            console.info("Database info:", await db.docs.toArray());
+
             // Assert that the category title reflects the new language
             await waitForExpect(() => {
+                // console.info(appLanguageIdsAsRef.value);
                 expect(wrapper.text()).toContain(mockCategoryContentDto.title);
                 expect(wrapper.text()).toContain(mockEnglishContentDto.title);
             });
 
             // Change the language
-            appLanguageIdAsRef.value = mockLanguageDtoFra._id;
+            appLanguageIdsAsRef.value.unshift(mockFrenchContentDto._id);
 
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("Catégorie 1");

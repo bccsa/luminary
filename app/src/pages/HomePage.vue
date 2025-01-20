@@ -22,7 +22,9 @@ const hasPosts = db.toRef<boolean>(
                 if (!content.publishDate) return false;
                 if (content.publishDate > Date.now()) return false;
                 if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                const firstSupportedLang = appLanguageIdsAsRef.value.find((lang) => content.availableTranslations?.includes(lang))
+                const firstSupportedLang = appLanguageIdsAsRef.value.find((lang) =>
+                    content.availableTranslations?.includes(lang),
+                );
                 return true && content.language === firstSupportedLang;
             })
             .first()

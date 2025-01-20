@@ -23,14 +23,13 @@ const isContentSelected = (slug: string) => {
 
 const tagged = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, toRef(() => props.tag.parentTaggedDocs)],
-    ([languageId, ids]: [Uuid, Uuid]) =>
+    ([languageIds, ids]: [Uuid[], Uuid]) =>
         db.docs
             .where("parentId")
             .anyOf(ids)
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language != languageId) return false;
-                return isPublished(content);
+                return isPublished(content, languageIds);
             })
             .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },

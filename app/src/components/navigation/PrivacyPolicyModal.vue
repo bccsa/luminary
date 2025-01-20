@@ -18,7 +18,10 @@ const privacyPolicy = useDexieLiveQuery(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language == appLanguageIdsAsRef.value) return true;
+                const firstSupportedLang = appLanguageIdsAsRef.value.find((lang) =>
+                    content.availableTranslations?.includes(lang),
+                );
+                if (content.language == firstSupportedLang) return true;
 
                 return false;
             })

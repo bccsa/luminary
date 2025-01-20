@@ -29,14 +29,13 @@ const contentIds = computed(() =>
 
 const contentDocs = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, contentIds],
-    ([languageId, ids]: [Uuid, Uuid[]]) =>
+    ([languageIds, ids]: [Uuid[], Uuid[]]) =>
         db.docs
             .where("parentId")
             .anyOf(ids)
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language !== languageId) return false;
-                return isPublished(content);
+                return isPublished(content, languageIds);
             })
             .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },
