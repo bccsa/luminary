@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { type ContentDto, DocType, db } from "luminary-shared";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { appLanguageIdAsRef, appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageUnpinned from "@/components/HomePage/HomePageUnpinned.vue";
