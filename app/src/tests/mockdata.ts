@@ -293,6 +293,46 @@ export const mockLanguageDtoEng: LanguageDto = {
         "settings.local_cache.button": "Delete local cache",
         "home.title": "Home",
         "explore.title": "Explore",
+        "notification.login.title": "You are missing out!",
+        "notification.login.message": "Click here to create an account or log in",
+        "notification.offline.title": "You are offline.",
+        "notification.offline.message":
+            "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
+        "notification.privacy_policy.title": "Privacy Policy",
+        "notification.privacy_policy.message":
+            "Click here to accept our privacy policy for a fully featured app experience.",
+        "notification.clearCache_offline.title": "Can't clear local cache",
+        "notification.clearCache_offline.description":
+            "You are offline, new data can't be loaded. Wait until you are online.",
+        "notification.clearCache_success.title": "Local cache cleared",
+        "notification.clearCache_success.description":
+            "New data is loading from the server, it might take a minute.",
+        "privacy_policy.modal.title": "Privacy Policy",
+        "privacy_policy.modal.message": "By using this app, you agree to our privacy policy.",
+        "privacy_policy.modal.button_accept": "Accept",
+        "privacy_policy.modal.button_decline": "Decline",
+        "privacy_policy.modal.button_close": "Close",
+        "privacy_policy.modal.message_map.accepted":
+            "You have already accepted the privacy policy.",
+        "privacy_policy.modal.message_map.declined":
+            "You have previously declined the privacy policy. Please accept it for a fully featured app experience.",
+        "privacy_policy.modal.message_map.outdated":
+            "We have updated our privacy policy. Please accept it for a fully featured app experience.",
+        "privacy_policy.modal.message_map.unaccepted":
+            "Please accept our privacy policy for a fully featured app experience.",
+        "privacy_policy.banner.message_map.outdated":
+            "We have updated our privacy policy. Click here to accept it for a fully featured app experience.",
+        "privacy_policy.banner.message_map.unaccepted":
+            "Click here to accept our privacy policy for a fully featured app experience.",
+        "privacy_policy.banner.title": "Privacy Policy",
+        "privacy_policy.modal.link_text": "here",
+        "privacy_policy.modal.message_link": "Click {link} to read our privacy policy.",
+        "login.bcc.button": "Login in with BCC",
+        "login.guest.button": "Login in as guest",
+        "select_theme.title": "Select theme",
+        "bookmarks.title": "Bookmarks",
+        "bookmarks.empty_page":
+            "You should try this! Click on this icon on any post to bookmark it.",
     },
 };
 export const mockLanguageDtoFra: LanguageDto = {
