@@ -5,12 +5,12 @@ import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { userPreferencesAsRef } from "@/globalConfig";
-import { mockEnglishContentDto } from "@/tests/mockdata";
+import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
-        t: (key: string) => key,
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
     }),
 }));
 
