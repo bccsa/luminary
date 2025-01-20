@@ -6,6 +6,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
+import { mockLanguageDtoEng } from "@/tests/mockdata";
 
 vi.mock("@auth0/auth0-vue");
 const routePushMock = vi.fn();
@@ -23,6 +24,12 @@ vi.mock("vue-router", async () => {
         }),
     };
 });
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
 
 describe("TopBar", () => {
     beforeEach(() => {

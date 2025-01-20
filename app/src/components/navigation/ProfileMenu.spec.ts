@@ -7,6 +7,7 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
+import { mockLanguageDtoEng } from "@/tests/mockdata";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -16,6 +17,12 @@ vi.mock("vue-router", () => ({
 }));
 
 vi.mock("@auth0/auth0-vue");
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
