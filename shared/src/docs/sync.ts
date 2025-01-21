@@ -45,7 +45,7 @@ export class Docs {
         this.options = options;
         this.http = new httpReq(options.apiUrl || "", options.token);
         watch(
-            accessMap,
+            accessMap.value,
             async () => {
                 await this.calcSyncMap();
             },

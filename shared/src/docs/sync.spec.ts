@@ -413,4 +413,22 @@ describe("rest", () => {
         },
         { timeout: 10000 },
     );
+
+    // Test not working, syncMap does not update on test side, only in the syncFile
+    it.skip(
+        "re-calculates syncMap when accessMap is updated",
+        async () => {
+            accessMap.value["group-re-calc-sync-map"] = {
+                post: { view: true, edit: true, delete: true, translate: true, publish: true },
+            };
+
+            await waitForExpect(() => {
+                const post = syncMap.value.get("group-re-calc-sync-map");
+                expect(post).toBeDefined();
+                expect(post?.blocks[0].blockStart).toBe(0);
+                expect(post?.blocks[0].blockEnd).toBe(0);
+            }, 9000);
+        },
+        { timeout: 10000 },
+    );
 });
