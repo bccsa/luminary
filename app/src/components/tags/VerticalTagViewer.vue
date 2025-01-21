@@ -5,12 +5,16 @@ import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { appLanguageIdAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
+import { DateTime } from "luxon";
 
 const router = useRouter();
 type Props = {
     tag: ContentDto;
+    showPublishDate?: boolean;
 };
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    showPublishDate: true,
+});
 
 const isContentSelected = (slug: string) => {
     if (router.currentRoute.value.params.slug === slug) return true;
@@ -64,6 +68,17 @@ const tagged = useDexieLiveQueryWithDeps(
                         <h1 class="line-clamp-2 text-sm">
                             {{ content.title }}
                         </h1>
+                        <!-- publish date -->
+                        <div class="text-xs text-gray-500" v-if="showPublishDate">
+                            <!-- {{ new Date(content.publishDate).toLocaleDateString() }} -->
+                            {{
+                                content.publishDate
+                                    ? db
+                                          .toDateTime(content.publishDate)
+                                          .toLocaleString(DateTime.DATETIME_MED)
+                                    : ""
+                            }}
+                        </div>
                     </div>
                 </div>
             </RouterLink>

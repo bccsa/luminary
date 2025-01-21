@@ -54,4 +54,17 @@ describe("VerticalTagViewer", () => {
             );
         });
     });
+
+    it("hides the publish date if it is false", async () => {
+        const wrapper = mount(VerticalTagViewer, {
+            props: {
+                tag: mockCategoryContentDto,
+                showPublishDate: false,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).not.toContain("Jan 1, 2024, 2:00 PM");
+        });
+    });
 });
