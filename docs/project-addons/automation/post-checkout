@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# This is a post-checkout hook that runs after switching branches.
+# The following steps rebuild the shared library and install dependencies in the app and cms.
+
+echo "Syncing shared library with branch"
+
+# Step 1: Build the shared library
+echo "Building the shared library..."
+cd ./shared || exit
+npm run build || exit
+
+# Step 2: Install dependencies in the app
+echo "Installing dependencies in the app..."
+cd ../app || exit
+npm ci --install-links || exit
+
+# Step 3: Install dependencies in the cms
+echo "Installing dependencies in the cms..."
+cd ../cms || exit
+npm ci --install-links || exit
+
+echo "Sync complete, happy coding!"
