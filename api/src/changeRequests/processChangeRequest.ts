@@ -128,6 +128,11 @@ export async function processChangeRequest(
 
     if (doc.type === DocType.Language) {
         const langDoc = doc as LanguageDto;
+
+        // if (!langDoc.translations) {
+        //     langDoc.translations = {};
+        // }
+
         if (langDoc.default == 1) {
             const languageDocs = await db.getDocsByType(DocType.Language);
 
