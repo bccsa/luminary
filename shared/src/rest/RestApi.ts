@@ -1,18 +1,25 @@
 import { ApiConnectionOptions } from "../types";
 import { Sync } from "./sync";
+import { Search, ApiQuery as SearchQuery } from "./search";
 
 class RestApi {
-    private docs: Sync;
+    private _sync: Sync;
+    private _search: Search;
     /**
      * Create a new docs instance
      * @param options - Options
      */
     constructor(options: ApiConnectionOptions) {
-        this.docs = new Sync(options);
+        this._sync = new Sync(options);
+        this._search = new Search(options);
     }
 
     async clientDataReq() {
-        this.docs.clientDataReq();
+        this._sync.clientDataReq();
+    }
+
+    async search(query: SearchQuery) {
+        return await this._search.search(query);
     }
 }
 

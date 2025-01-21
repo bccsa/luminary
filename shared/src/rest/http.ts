@@ -1,4 +1,4 @@
-export class httpReq {
+export class HttpReq<T> {
     private apiUrl: string;
     private token?: string;
     // private xhr = new XMLHttpRequest();
@@ -7,7 +7,7 @@ export class httpReq {
         this.apiUrl = apiUrl;
     }
 
-    async get(endpoint: string, query: any) {
+    async get(endpoint: string, query: T) {
         const headers: any = {
             "X-Query": JSON.stringify(query),
         };

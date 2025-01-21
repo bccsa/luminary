@@ -1,6 +1,6 @@
 import { ApiConnectionOptions } from "../types";
 import { getSocket } from "../socket/socketio";
-import { getRest } from "../rest/restApi";
+import { getRest } from "../rest/RestApi";
 
 let _options: ApiConnectionOptions;
 
