@@ -80,7 +80,8 @@ watch(
     ([newLanguage, defaultLang]) => {
         // TODO: This watcher is triggering multiple times on app startup. Need to investigate why
 
-        if (!newLanguage) return;
+        if (!newLanguage || !newLanguage.translations) return;
+
         // copy translations in the preferred language
         const messages: Record<string, string> = {};
         Object.keys(newLanguage.translations).forEach((k: string) => {
@@ -88,10 +89,14 @@ watch(
         });
 
         // Fill in missing translations with default language strings
-        if (defaultLang && defaultLang.translations && newLanguage._id != defaultLang._id) {
-            Object.keys(defaultLang.translations).forEach((k: string) => {
+        if (
+            defaultLang &&
+            defaultLang.value?.translations &&
+            newLanguage._id != defaultLang.value._id
+        ) {
+            Object.keys(defaultLang.value?.translations).forEach((k: string) => {
                 if (!messages[k]) {
-                    messages[k] = defaultLang.translations[k];
+                    messages[k] = defaultLang.value?.translations[k] || "";
                 }
             });
         }
