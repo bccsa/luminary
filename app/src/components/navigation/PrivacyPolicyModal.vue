@@ -103,7 +103,7 @@ setTimeout(() => {
             <RouterLink
                 :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
                 class="cursor-pointer text-blue-600 dark:text-yellow-400"
-                @click="modal.show = false"
+                @click="show = false"
             >
                 <span>{{ t("privacy_policy.modal.link_text") }}</span>
             </RouterLink>
