@@ -108,30 +108,37 @@ export class Docs {
      * @param id   - id of the syncMap entry
      */
     async req(query: ApiQuery, id: string): Promise<any> {
-        const data = await this.http.get("docs", query);
-        if (data && data.docs.length > 0) await db.bulkPut(data.docs);
-        if (!data)
-            return setTimeout(() => {
+        try {
+            const data = await this.http.get("docs", query);
+            if (data && data.docs.length > 0) await db.bulkPut(data.docs);
+            if (!data)
+                return setTimeout(() => {
+                    this.req(query, id);
+                }, 5000);
+
+            data.id = id;
+            if (data.blockStart != 0 && data.blockEnd != 0) this.insertBlock(data);
+
+            // only continue if there is more than one block
+            const blocks = syncMap.value.get(id)?.blocks;
+            if (!blocks || blocks.length < 2) return;
+
+            const missingData = this.calcMissingData(id);
+            // stop loop when gap is the same as previous round, this means that no new data was added
+            if (query.gapStart == missingData.gapStart && query.gapEnd == missingData.gapEnd) {
+                // delete block with blockEnd == 0 and blockStart == 0, since the api has completed the backfill, this will help that the client does not hammer the api unnecessarily
+                this.removeBlock00(id);
+                return;
+            }
+            query.gapStart = missingData.gapStart;
+            query.gapEnd = missingData.gapEnd; // End == from, start == to
+            await this.req(query, id);
+        } catch (error) {
+            console.error(`Failed to process request for ${id}:`, error);
+            setTimeout(() => {
                 this.req(query, id);
             }, 5000);
-
-        data.id = id;
-        if (data.blockStart != 0 && data.blockEnd != 0) this.insertBlock(data);
-
-        // only continue if there is more than one block
-        const blocks = syncMap.value.get(id)?.blocks;
-        if (!blocks || blocks.length < 2) return;
-
-        const missingData = this.calcMissingData(id);
-        // stop loop when gap is the same as previous round, this means that no new data was added
-        if (query.gapStart == missingData.gapStart && query.gapEnd == missingData.gapEnd) {
-            // delete block with blockEnd == 0 and blockStart == 0, since the api has completed the backfill, this will help that the client does not hammer the api unnecessarily
-            this.removeBlock00(id);
-            return;
         }
-        query.gapStart = missingData.gapStart;
-        query.gapEnd = missingData.gapEnd; // End == from, start == to
-        await this.req(query, id);
     }
 
     /**
