@@ -107,7 +107,6 @@ const removeFromSelected = (id: string) => {
                 :id="language._id"
                 :key="language._id"
                 class="flex w-full items-center p-3"
-                data-test="switch-language-button"
             >
                 <div class="flex w-full justify-between">
                     <div class="flex w-full items-center gap-1">
@@ -152,11 +151,12 @@ const removeFromSelected = (id: string) => {
                 :key="language._id"
                 class="flex w-full items-center gap-1 p-3"
             >
-                <PlusCircleIcon
-                    data-test="switch-language-button"
-                    @click="setLanguage(language._id)"
-                    class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
-                ></PlusCircleIcon>
+                <!-- Icons aren't testable, thus using a "div" -->
+                <div data-test="add-language-button" @click="setLanguage(language._id)">
+                    <PlusCircleIcon
+                        class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
+                    ></PlusCircleIcon>
+                </div>
 
                 <div class="flex w-full justify-between">
                     <div class="flex w-full items-center gap-1">

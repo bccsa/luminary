@@ -18,7 +18,12 @@ import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
-import { appLanguagesAsRef, appLanguageIdsAsRef, appName } from "@/globalConfig";
+import {
+    appLanguagesPreferredAsRef,
+    appLanguageIdsAsRef,
+    appName,
+    appLanguagePreferredIdAsRef,
+} from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
@@ -178,16 +183,16 @@ watch([content, is404], () => {
     metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
 });
 
-// Redirect to preferred language
 watch(
-    () => [appLanguagesAsRef.value, content.value.language],
+    [appLanguagesPreferredAsRef, content.value.language],
     async () => {
         if (!content.value) return;
-
-        if (appLanguagesAsRef.value![0]._id != content.value.language) {
+        if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
+            return;
+        if (appLanguagesPreferredAsRef.value[0]._id !== content.value.language) {
             const contentDocs = await db.whereParent(content.value.parentId);
             const preferred = contentDocs.find(
-                (c) => c.language == appLanguagesAsRef.value![0]._id,
+                (c) => c.language == appLanguagesPreferredAsRef.value![0]._id,
             );
 
             if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
@@ -197,7 +202,7 @@ watch(
                 useNotificationStore().addNotification({
                     id: "translation-not-published",
                     title: "Translation not available",
-                    description: `The ${appLanguagesAsRef.value![0].name} translation for this content is not yet available.`,
+                    description: `The ${appLanguagesPreferredAsRef.value[0].name} translation for this content is not yet available.`,
                     state: "error",
                     type: "toast",
                 });
@@ -205,9 +210,7 @@ watch(
             return;
         }
     },
-    {
-        deep: true,
-    },
+    { deep: true },
 );
 
 const text = computed(() => {

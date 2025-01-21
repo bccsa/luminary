@@ -4,7 +4,8 @@ import { mount } from "@vue/test-utils";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
-import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
+import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
+import waitForExpect from "wait-for-expect";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -42,7 +43,7 @@ describe("LanguageModal.vue", () => {
         expect(wrapper.find("h2").exists()).toBe(false);
     });
 
-    it("emits close event on language click and stores the selected language", async () => {
+    it("stores the selected language", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
         });
@@ -50,13 +51,10 @@ describe("LanguageModal.vue", () => {
         //@ts-expect-error -- valid code
         wrapper.vm.languages = await db.docs.toArray();
 
-        const languageButtons = await wrapper.findAll('[data-test="switch-language-button"]');
+        const languageButtons = await wrapper.findAll('[data-test="add-language-button"]');
+        await languageButtons[0].trigger("click");
 
-        await languageButtons[1].trigger("click");
-
-        expect(appLanguageIdAsRef.value).toBe(mockLanguageDtoFra._id);
-
-        expect(wrapper.emitted()).toHaveProperty("close");
+        expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
     });
 
     it("emits the close event on close button click", async () => {

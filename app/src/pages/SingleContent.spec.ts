@@ -19,7 +19,7 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
@@ -48,7 +48,7 @@ describe("SingleContent", () => {
         await db.docs.clear();
         await db.localChanges.clear();
 
-        appLanguageIdAsRef.value = mockLanguageDtoEng._id;
+        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, "lang-eng"];
 
         await db.docs.bulkPut([
             mockPostDto,
@@ -272,7 +272,7 @@ describe("SingleContent", () => {
         });
 
         // Simulate language change
-        appLanguageIdAsRef.value = mockLanguageDtoFra._id;
+        appLanguageIdsAsRef.value.unshift(mockLanguageDtoFra._id);
 
         await waitForExpect(() => {
             expect(routeReplaceMock).toBeCalledWith({
@@ -293,8 +293,8 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             // simulate language change
-            if (appLanguageIdAsRef.value !== mockLanguageDtoSwa._id) {
-                appLanguageIdAsRef.value = mockLanguageDtoSwa._id;
+            if (!appLanguageIdsAsRef.value.includes(mockLanguageDtoSwa._id)) {
+                appLanguageIdsAsRef.value.unshift(mockLanguageDtoSwa._id);
             }
 
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);

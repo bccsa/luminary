@@ -40,7 +40,7 @@ watch(
  * The list of user selected languages sorted by preference as Vue ref.
  */
 // export const appLanguagesAsRef = readonly(_appLanguagesAsRef);
-export const appLanguagesAsRef = computed(
+export const appLanguagesPreferredAsRef = computed(
     () =>
         appLanguageIdsAsRef.value
             .map((id) =>
@@ -55,13 +55,13 @@ export const appLanguagesAsRef = computed(
  * The preferred language document as Vue ref.
  */
 export const appLanguageAsRef = computed(() =>
-    appLanguagesAsRef.value.length ? appLanguagesAsRef.value[0] : undefined,
+    appLanguagesPreferredAsRef.value.length ? appLanguagesPreferredAsRef.value[0] : undefined,
 );
 
 /**
  * The preferred language's ID as Vue ref.
  */
-export const appLanguageIdAsRef = computed(() =>
+export const appLanguagePreferredIdAsRef = computed(() =>
     appLanguageAsRef.value ? appLanguageAsRef.value._id : undefined,
 );
 
@@ -71,8 +71,8 @@ let cmsLanguages: ShallowRef<LanguageDto[]> | undefined;
  */
 export const initLanguage = () => {
     cmsLanguages = useDexieLiveQuery(
-        () =>
-            db.docs.where("type").equals(DocType.Language).toArray() as unknown as Promise<
+        async () =>
+            (await db.docs.where("type").equals(DocType.Language).toArray()) as unknown as Promise<
                 LanguageDto[]
             >,
     );
@@ -113,24 +113,6 @@ export const initLanguage = () => {
             }
         });
     }
-
-    // // Create a list of user selected language documents, ordered by the user's preference
-    // watch(
-    //     appLanguageIdsAsRef,
-    //     (languageIds) => {
-    //         _appLanguagesAsRef.value = languageIds
-    //             .map((id) => {
-    //                 if (!cmsLanguages.value) return;
-
-    //                 const lang = cmsLanguages.value.find((l) => l._id === id);
-    //                 if (!lang) return;
-
-    //                 return lang;
-    //             })
-    //             .filter((l) => l) as LanguageDto[];
-    //     },
-    //     { deep: true, immediate: true },
-    // );
 };
 
 export type mediaProgressEntry = {

@@ -126,6 +126,7 @@ export const mockEnglishContentDto: ContentDto = {
     parentPublishDateVisible: true,
     seoTitle: "Test Seo Title",
     seoString: "Test seo summary",
+    availableTranslations: ["lang-eng", "lang-fra"],
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
@@ -162,6 +163,7 @@ export const mockFrenchContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    availableTranslations: ["lang-eng", "lang-fra"],
 };
 export const mockSwahiliContentDto: ContentDto = {
     _id: "content-post1-swa",
@@ -230,6 +232,7 @@ export const mockCategoryContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    availableTranslations: ["lang-eng", "lang-fra"],
 };
 
 export const mockTopicContentDto: ContentDto = {
@@ -263,6 +266,7 @@ export const mockTopicContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: true,
+    availableTranslations: ["lang-eng", "lang-fra"],
 };
 
 export const mockLanguageDtoEng: LanguageDto = {
@@ -272,6 +276,7 @@ export const mockLanguageDtoEng: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "eng",
     name: "English",
+    default: 1,
 };
 export const mockLanguageDtoFra: LanguageDto = {
     _id: "lang-fra",
@@ -280,6 +285,7 @@ export const mockLanguageDtoFra: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "fra",
     name: "Français",
+    default: 0,
 };
 
 export const mockLanguageDtoSwa: LanguageDto = {
@@ -289,6 +295,7 @@ export const mockLanguageDtoSwa: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "swa",
     name: "Swahili",
+    default: 0,
 };
 
 export const mockRedirectDto: RedirectDto = {

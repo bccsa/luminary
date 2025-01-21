@@ -6,7 +6,7 @@ import { mockEnglishContentDto, mockLanguageDtoEng, mockTopicContentDto } from "
 import waitForExpect from "wait-for-expect";
 import { db, type ContentDto } from "luminary-shared";
 import { ref } from "vue";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -28,7 +28,7 @@ describe("RelatedContent", () => {
                 parentTaggedDocs: ["post-post1", "post-post2", "post-post3"],
             } as ContentDto,
         ]);
-        appLanguageIdAsRef.value = "lang-eng";
+        appLanguageIdsAsRef.value.unshift("lang-eng");
     });
 
     afterEach(async () => {
