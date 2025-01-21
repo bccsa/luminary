@@ -39,7 +39,7 @@ const mockApiRecursiveResponse = [
         warnings: "",
         blockStart: 2300,
         blockEnd: 2000,
-        group: "group-super-admins",
+        group: "group-recursive-test",
         contentOnly: false,
     },
     {
@@ -48,7 +48,7 @@ const mockApiRecursiveResponse = [
         warnings: "",
         blockStart: 2700,
         blockEnd: 2300,
-        group: "group-super-admins",
+        group: "group-recursive-test",
         contentOnly: false,
     },
     {
@@ -57,7 +57,7 @@ const mockApiRecursiveResponse = [
         warnings: "",
         blockStart: 3000,
         blockEnd: 2700,
-        group: "group-super-admins",
+        group: "group-recursive-test",
         contentOnly: false,
     },
 ];
@@ -396,12 +396,17 @@ describe("rest", () => {
                 { blockStart: 20000, blockEnd: 3000 },
                 { blockStart: 2000, blockEnd: 1000 },
             );
-            syncMap.value.set("post_group-super-admins", syncMapEntry);
-            apiRecursiveTest = { type: "post", group: "group-super-admins", contentOnly: false };
+            syncMapEntry.id = "post_group-recursive-test";
+            syncMapEntry.group = "group-recursive-test";
+            accessMap.value["group-recursive-test"] = {
+                post: { view: true, edit: true, delete: true, translate: true, publish: true },
+            };
+            syncMap.value.set("post_group-recursive-test", syncMapEntry);
+            apiRecursiveTest = { type: "post", group: "group-recursive-test", contentOnly: false };
             await rest.docs.clientDataReq();
 
             await waitForExpect(() => {
-                const post = syncMap.value.get("post_group-super-admins");
+                const post = syncMap.value.get("post_group-recursive-test");
                 expect(post?.blocks[0].blockStart).toBe(20000);
                 expect(post?.blocks[0].blockEnd).toBe(1000);
             }, 9000);

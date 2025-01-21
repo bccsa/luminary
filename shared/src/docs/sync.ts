@@ -46,14 +46,15 @@ export class Docs {
         this.http = new httpReq(options.apiUrl || "", options.token);
         watch(
             accessMap,
-            () => {
-                this.calcSyncMap();
+            async () => {
+                await this.calcSyncMap();
             },
             { immediate: true },
         );
     }
 
     async clientDataReq() {
+        await this.calcSyncMap();
         const queue: Array<QueueReqEntry> = [];
 
         const _sm = Object.fromEntries(syncMap.value);
@@ -115,7 +116,7 @@ export class Docs {
             }, 5000);
 
         data.id = id;
-        if (data.gapStart != 0 && data.gapEnd != 0) this.insertBlock(data);
+        if (data.blockStart != 0 && data.blockEnd != 0) this.insertBlock(data);
 
         // only continue if there is more than one block
         const blocks = syncMap.value.get(id)?.blocks;
