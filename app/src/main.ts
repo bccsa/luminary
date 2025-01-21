@@ -89,14 +89,10 @@ watch(
         });
 
         // Fill in missing translations with default language strings
-        if (
-            defaultLang &&
-            defaultLang.value?.translations &&
-            newLanguage._id != defaultLang.value._id
-        ) {
-            Object.keys(defaultLang.value?.translations).forEach((k: string) => {
+        if (defaultLang && defaultLang.translations && newLanguage._id != defaultLang._id) {
+            Object.keys(defaultLang.translations).forEach((k: string) => {
                 if (!messages[k]) {
-                    messages[k] = defaultLang.value?.translations[k] || "";
+                    messages[k] = defaultLang.translations[k];
                 }
             });
         }
