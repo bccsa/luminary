@@ -59,7 +59,7 @@ const defaultContent: ContentDto = {
     updatedTimeUtc: 0,
     memberOf: [],
     parentId: "",
-    language: appLanguageIdsAsRef.value[0],
+    language: appLanguagePreferredIdAsRef.value ? appLanguagePreferredIdAsRef.value : "",
     status: PublishStatus.Published,
     title: "Loading...",
     slug: "",
