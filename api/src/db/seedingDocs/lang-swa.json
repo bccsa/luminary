@@ -1,9 +1,0 @@
-{
-    "_id": "lang-swa",
-    "type": "language",
-    "updatedTimeUtc": 3,
-    "memberOf": ["group-languages"],
-    "languageCode": "sw",
-    "name": "Swahili",
-    "default": 0
-}
