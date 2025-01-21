@@ -39,7 +39,6 @@ watch(
 /**
  * The list of user selected languages sorted by preference as Vue ref.
  */
-// export const appLanguagesAsRef = readonly(_appLanguagesAsRef);
 export const appLanguagesPreferredAsRef = computed(
     () =>
         appLanguageIdsAsRef.value
@@ -83,7 +82,6 @@ export const initLanguage = () => {
         watch(cmsLanguages, (_languages) => {
             if (!_languages || _languages.length == 0) return;
             if (!appLanguageIdsAsRef.value) return;
-            // if (!_languages.some((l) => l._id === appLanguageIdsAsRef.value[0])) return; // ??
 
             // Check for the browser preferred language in the list of available content languages
             const browserPreferredLanguageId = _languages.find((l) =>

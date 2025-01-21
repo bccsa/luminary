@@ -27,10 +27,6 @@ const setLanguage = (id: string) => {
 };
 
 const indexLanguageUp = (id: string) => {
-    // if (defaultLanguage.value?._id === id) {
-    //     return;
-    // }
-
     const index = appLanguageIdsAsRef.value.indexOf(id);
     if (index >= 0) {
         const temp = appLanguageIdsAsRef.value[index - 1];
@@ -40,10 +36,6 @@ const indexLanguageUp = (id: string) => {
 };
 
 const indexLanguageDown = (id: string) => {
-    // if (defaultLanguage.value?._id === id) {
-    //     return;
-    // }
-
     const index = appLanguageIdsAsRef.value.indexOf(id);
     if (index >= 0) {
         const temp = appLanguageIdsAsRef.value[index + 1];

@@ -5,7 +5,6 @@ import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
-import waitForExpect from "wait-for-expect";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {

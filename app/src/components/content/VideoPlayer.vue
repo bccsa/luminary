@@ -215,9 +215,10 @@ watch(audioMode, (mode) => {
 
 // Watch for changes in appLanguageAsRef
 watch(appLanguagesPreferredAsRef, (newLanguage) => {
-    if (player) {
-        setAudioTrackLanguage(newLanguage![0].languageCode || null);
+    if (player && newLanguage) {
+        setAudioTrackLanguage(newLanguage[0].languageCode || null);
     }
+    return;
 });
 </script>
 

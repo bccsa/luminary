@@ -81,7 +81,6 @@ const tags = useDexieLiveQueryWithDeps(
             .anyOf(content.parentTags.concat([content.parentId])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
             .filter((t) => {
                 const tag = t as ContentDto;
-                // if (tag.language != appLanguageIds) return false;
                 if (tag.parentType != DocType.Tag) return false;
                 return isPublished(tag, appLanguageIds);
             })
