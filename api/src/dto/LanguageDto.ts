@@ -22,6 +22,5 @@ export class LanguageDto extends _contentBaseDto {
     default?: number;
 
     @Expose()
-    @IsOptional()
-    translations?: Record<string, string>;
+    translations: Record<string, string>;
 }
