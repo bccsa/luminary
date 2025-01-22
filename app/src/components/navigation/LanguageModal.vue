@@ -108,7 +108,7 @@ const removeFromSelected = (id: string) => {
                             class="h-5 w-5 cursor-pointer text-yellow-500 hover:text-yellow-400"
                             :class="
                                 defaultLanguage?._id === language._id
-                                    ? 'cursor-default text-zinc-400 hover:text-zinc-400 dark:text-slate-400 hover:dark:text-slate-400'
+                                    ? 'cursor-auto text-zinc-400 hover:text-zinc-400 dark:text-slate-400 hover:dark:text-slate-400'
                                     : ''
                             "
                         />

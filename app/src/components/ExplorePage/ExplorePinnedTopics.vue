@@ -59,7 +59,7 @@ const pinnedTopicContent = useDexieLiveQueryWithDeps(
                 return false;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("explorepage_pinnedTopics") },
+    { initialValue: await db.getQueryCache<ContentDto[]>("explorepage_pinnedTopics"), deep: true },
 );
 
 watch(pinnedTopicContent, async (value) => {

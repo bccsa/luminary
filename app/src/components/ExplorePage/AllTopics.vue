@@ -24,6 +24,7 @@ const allTopics = useDexieLiveQueryWithDeps(
             .toArray() as unknown as Promise<ContentDto[]>,
     {
         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_allTopics"),
+        deep: true,
     },
 );
 
