@@ -1,16 +1,15 @@
 import { HttpReq } from "./http";
-import { ApiConnectionOptions } from "../types";
+import { ApiConnectionOptions, DocType } from "../types";
 
 export type ApiQuery = {
-    query: string;
-    limit: number;
-    offset: number;
-    sort: string;
-    filter: string;
-    fields: string;
-    group: string;
-    type: string;
-    contentOnly: boolean;
+    apiVersion: string;
+    limit?: number;
+    offset?: number;
+    sort?: "desc" | "asc";
+    groups?: Array<string>;
+    types: Array<DocType>;
+    contentOnly?: boolean;
+    queryString?: string;
 };
 
 export class Search {

@@ -48,9 +48,57 @@ export class DocsReqDto {
 /**
  * Api Request structure for APP / CMS requesting documents from the api
  */
-export class GroupsReqDto {
+export class SearchReqDto {
     @IsNotEmpty()
     @IsString()
     @Expose()
     apiVersion: string;
+
+    @IsOptional()
+    @IsNumber()
+    @Expose()
+    limit: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Expose()
+    offset: number;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    sort: "desc" | "asc";
+
+    @IsOptional()
+    @IsArray()
+    @Expose()
+    groups: Array<string>;
+
+    @IsNotEmpty()
+    @IsArray()
+    @Expose()
+    types: Array<DocType>;
+
+    @IsNotEmpty()
+    @IsBoolean()
+    @IsOptional()
+    @Expose()
+    contentOnly: boolean;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    queryString?: string;
+
+    @IsNotEmpty()
+    @IsNumber()
+    @IsOptional()
+    @Expose()
+    gapStart?: number;
+
+    @IsNotEmpty()
+    @IsNumber()
+    @IsOptional()
+    @Expose()
+    gapEnd?: number;
 }
