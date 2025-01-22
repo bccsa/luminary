@@ -33,6 +33,14 @@ const props = defineProps<Props>();
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const isLocalChange = db.isLocalChangeAsRef(props.id);
 
+const keyInput = ref(""); // Holds the key being edited or added
+const valueInput = ref(""); // Holds the value for the key being edited or added
+const newKey = ref<string>(""); // Temporary variable for editing the key
+const isModalOpen = ref(false); // Modal to confirm deletion of a translation
+const keyToDelete = ref<string | null>(null); // Add a ref to store the key to delete
+const editingKey = ref<string | null>(null); // To track which key is being edited
+const editingValue = ref<string>(""); // To hold the value of the key being edited
+
 const original = useDexieLiveQuery(
     () => db.docs.where("_id").equals(props.id).first() as unknown as Promise<LanguageDto>,
 );
@@ -76,7 +84,7 @@ const originalLoadedHandler = watch(original, () => {
 // Check if the language is dirty (has unsaved changes)
 const isDirty = ref(false);
 watch(
-    [editable, original],
+    [editable, original, newKey, editingValue],
     () => {
         if (!original.value) {
             isDirty.value = true;
@@ -90,14 +98,6 @@ watch(
     },
     { deep: true, immediate: true },
 );
-
-const keyInput = ref(""); // Holds the key being edited or added
-const valueInput = ref(""); // Holds the value for the key being edited or added
-const newKey = ref<string>(""); // Temporary variable for editing the key
-const isModalOpen = ref(false); // Modal to confirm deletion of a translation
-const keyToDelete = ref<string | null>(null); // Add a ref to store the key to delete
-const editingKey = ref<string | null>(null); // To track which key is being edited
-const editingValue = ref<string>(""); // To hold the value of the key being edited
 
 const comparisonLanguage = ref<Uuid>(editable.value ? editable.value._id : "");
 const selectedLanguageContent = ref<LanguageDto>();
@@ -183,33 +183,6 @@ const saveInRealTime = (key: string, value: string) => {
         };
     }
 };
-
-// Function to replace translations in other languages
-// TODO: Move this logic to the API. User needs edit access to all languages to be able to add or remove keys.
-// const updateTranslationsInOtherLanguages = () => {
-//     if (editable.value?.translations) {
-//         languages.value.forEach((language) => {
-//             // Skip the current language
-//             if (language._id === editable.value._id) return;
-
-//             if (language.translations) {
-//                 // Merge current language's translations into other languages' translations
-//                 Object.keys(editable.value.translations).forEach((key) => {
-//                     // Only update the translation if it's not already set in the target language
-//                     if (!language.translations[key]) {
-//                         language.translations[key] = "";
-//                     }
-//                 });
-//             } else {
-//                 // If no translations exist in the target language, initialize it with current translations
-//                 language.translations = { ...editable.value.translations };
-//             }
-
-//             // Save the updated language translations
-//             db.upsert(language);
-//         });
-//     }
-// };
 
 // Save the current JSON to the database
 const save = async () => {
@@ -507,6 +480,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
             </LCard>
         </div>
     </BasePage>
+
     <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 
     <LModal

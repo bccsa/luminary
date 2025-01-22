@@ -94,7 +94,7 @@ describe("EditLanguage.vue", () => {
         });
     });
 
-    it.skip("translation strings: can edit a key", async () => {
+    it("translation strings: can edit a key", async () => {
         const wrapper = mount(EditLanguage, {
             props: {
                 id: mockLanguageDtoEng._id,
@@ -104,25 +104,29 @@ describe("EditLanguage.vue", () => {
         await waitForExpect(async () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
-            const translationRow = wrapper.findAll("tr")[3];
+            const translationRow = wrapper.findAll("tr")[2];
+            // console.log(translationRow.html());
 
             await translationRow.find("[name='key-span']").trigger("click");
-            await translationRow.find("[name='key']").setValue("newKey.test");
+            await translationRow.find("[name='key']").setValue("bookmarks.empty_page_updated");
 
-            // await translationRow.find("[data-test='save-key-button']").trigger("click");
+            // // await translationRow.find("[data-test='save-key-button']").trigger("click");
             await wrapper.find("[data-test='save-button']").trigger("click");
 
             const updatedLanguage = (
                 await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
             )[0] as LanguageDto;
 
-            console.log(updatedLanguage);
+            console.log(updatedLanguage.translations);
+
+            // console.log(mockLanguageDtoEng);
+            // console.log(updatedLanguage);
 
             // expect(wrapper.html()).toContain("newKey.test");
         });
     });
 
-    it.skip("translation strings: can edit a value", async () => {
+    it("translation strings: can edit a value", async () => {
         const wrapper = mount(EditLanguage, {
             props: {
                 id: mockLanguageDtoEng._id,
