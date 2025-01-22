@@ -7,6 +7,7 @@ import fallbackImg from "../../assets/fallbackImage.webp";
 
 type Props = {
     image?: ImageDto;
+    contentTitle?: string;
     aspectRatio?: keyof typeof aspectRatios;
     size?: keyof typeof sizes;
     rounded?: boolean;
@@ -116,13 +117,30 @@ const showImageElement2 = computed(
 <template>
     <div :class="sizes[size]">
         <div
-            :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
                 aspectRatios[aspectRatio],
                 rounded ? rounding[size] : '',
-                'w-full overflow-clip bg-cover bg-center object-cover shadow',
+                'relative -z-10 flex w-full flex-col items-center justify-center overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
+            <div
+                :style="{
+                    backgroundImage: 'url(' + fallbackImg + ')',
+                    filter: showImageElement1 ? 'none' : 'blur(3px)',
+                }"
+                class="absolute bottom-0 left-0 right-0 top-0 -z-[1] bg-white bg-cover"
+            ></div>
+            <div
+                :style="{
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                }"
+                class="absolute bottom-0 left-0 right-0 top-0 -z-[1]"
+            ></div>
+            <span
+                class="z-10 w-full p-2 text-center shadow-md"
+                v-if="contentTitle && !showImageElement1"
+                >{{ contentTitle }}</span
+            >
             <img
                 v-if="showImageElement1"
                 src=""

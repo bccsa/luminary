@@ -235,7 +235,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
 <template>
     <div class="relative bg-transparent md:rounded-lg">
         <LImage
-            v-if="content.parentImageData"
+            v-if="content.video"
             :image="content.parentImageData"
             aspectRatio="video"
             size="post"

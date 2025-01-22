@@ -277,7 +277,7 @@ onBeforeUnmount(() => {
                 <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                     <VideoPlayer v-if="content.video" :content="content" />
                     <LImage
-                        v-else
+                        v-else-if="content.parentImageData"
                         :image="content.parentImageData"
                         aspectRatio="video"
                         size="post"
