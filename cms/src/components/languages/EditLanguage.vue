@@ -22,24 +22,24 @@ import LSelect from "../forms/LSelect.vue";
 import { useNotificationStore } from "@/stores/notification";
 import _ from "lodash";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
-import { TrashIcon } from "@heroicons/vue/20/solid";
+import { TrashIcon, PlusCircleIcon } from "@heroicons/vue/20/solid";
 import LModal from "../common/LModal.vue";
+
+type translationKeyValuePair = {
+    rowKey: Uuid;
+    translationKey: string;
+    translationValue: string;
+    comparisonValue?: string;
+};
 
 type Props = {
     id: Uuid;
 };
 const props = defineProps<Props>();
 
+const translations = ref<translationKeyValuePair[]>([]);
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const isLocalChange = db.isLocalChangeAsRef(props.id);
-
-const keyInput = ref(""); // Holds the key being edited or added
-const valueInput = ref(""); // Holds the value for the key being edited or added
-const newKey = ref<string>(""); // Temporary variable for editing the key
-const isModalOpen = ref(false); // Modal to confirm deletion of a translation
-const keyToDelete = ref<string | null>(null); // Add a ref to store the key to delete
-const editingKey = ref<string | null>(null); // To track which key is being edited
-const editingValue = ref<string>(""); // To hold the value of the key being edited
 
 const original = useDexieLiveQuery(
     () => db.docs.where("_id").equals(props.id).first() as unknown as Promise<LanguageDto>,
@@ -78,13 +78,35 @@ watch(
 const originalLoadedHandler = watch(original, () => {
     if (!original.value) return;
     editable.value = _.cloneDeep(original.value);
+
+    // Transform the translations into an array of translationKeyValuePair objects
+    translations.value = Object.entries(editable.value.translations)
+        .map(([key, value]) => ({
+            rowKey: db.uuid(),
+            translationKey: key,
+            translationValue: value,
+        }))
+        .sort((a, b) => (a.translationKey > b.translationKey ? 1 : -1));
+
     originalLoadedHandler();
 });
+
+// Update editable when the translations list changes
+watch(
+    translations,
+    () => {
+        editable.value.translations = {};
+        translations.value.forEach(({ translationKey, translationValue }) => {
+            editable.value.translations[translationKey] = translationValue;
+        });
+    },
+    { deep: true },
+);
 
 // Check if the language is dirty (has unsaved changes)
 const isDirty = ref(false);
 watch(
-    [editable, original, newKey, editingValue],
+    [editable, original],
     () => {
         if (!original.value) {
             isDirty.value = true;
@@ -99,27 +121,16 @@ watch(
     { deep: true, immediate: true },
 );
 
+const keyInput = ref(""); // Holds the key being edited or added
+const valueInput = ref(""); // Holds the value for the key being edited or added
+const isModalOpen = ref(false); // Modal to confirm deletion of a translation
+const keyToDelete = ref<string | null>(null); // Add a ref to store the key to delete
+
 const comparisonLanguage = ref<Uuid>(editable.value ? editable.value._id : "");
-const selectedLanguageContent = ref<LanguageDto>();
 
 const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
-
-// Sort translations by key before rendering
-const sortedTranslations = computed(() => {
-    if (editable.value?.translations) {
-        const sortedKeys = Object.keys(editable.value.translations).sort();
-        return sortedKeys.reduce(
-            (acc, key) => {
-                acc[key] = editable.value.translations[key];
-                return acc;
-            },
-            {} as Record<string, string>,
-        );
-    }
-    return {};
-});
 
 const canEditOrCreate = computed(() => {
     if (editable.value) {
@@ -137,50 +148,49 @@ const canTranslate = computed(() => {
     return true;
 });
 
-const disabled = computed(() => {
-    return !canEditOrCreate.value || (!keyInput.value && !valueInput.value);
-});
-
 // Add a new translation key-value pair
 const addProperty = () => {
-    try {
-        // Add or update the property directly in the translations object
-        editable.value.translations = {
-            ...editable.value.translations, // Keep existing translations
-            [keyInput.value]: valueInput.value, // Add new property
-        };
-
-        keyInput.value = "";
-        valueInput.value = "";
-    } catch (error) {
-        alert(error);
+    if (translations.value.find((row) => row.translationKey === keyInput.value)) {
+        useNotificationStore().addNotification({
+            title: "Key already exists",
+            description: `The key '${keyInput.value}' already exists in the translations`,
+            state: "error",
+            timer: 5000,
+        });
+        return;
     }
+
+    if (!keyInput.value || !valueInput.value) {
+        useNotificationStore().addNotification({
+            title: "Key or value missing",
+            description: "Please enter both a key and a value to add a new translation",
+            state: "error",
+            timer: 5000,
+        });
+        return;
+    }
+
+    translations.value = [
+        {
+            rowKey: db.uuid(),
+            translationKey: keyInput.value,
+            translationValue: valueInput.value,
+        },
+        ...translations.value,
+    ];
+
+    keyInput.value = "";
+    valueInput.value = "";
 };
 
 // Function to confirm deletion of a translation key
 const confirmDelete = () => {
     if (keyToDelete.value) {
-        delete editable.value.translations[keyToDelete.value]; // Delete the key
+        translations.value = translations.value.filter(
+            (row) => row.translationKey !== keyToDelete.value,
+        );
         keyToDelete.value = null; // Reset after deletion
         isModalOpen.value = false; // Close the modal
-    }
-};
-
-// Function to start editing a translation value
-const startEditing = (key: string, value: string) => {
-    editingKey.value = key;
-    newKey.value = key;
-    editingValue.value = value;
-    // if (value) editingValue.value = value;
-};
-
-// Save the edited key and value in real-time
-const saveInRealTime = (key: string, value: string) => {
-    if (key && value) {
-        editable.value.translations = {
-            ...editable.value.translations,
-            [key]: value,
-        };
     }
 };
 
@@ -201,6 +211,15 @@ const revertChanges = () => {
     if (!original.value) return;
     editable.value = _.cloneDeep(original.value);
 
+    // Transform the translations into an array of translationKeyValuePair objects
+    translations.value = Object.entries(editable.value.translations)
+        .map(([key, value]) => ({
+            rowKey: db.uuid(),
+            translationKey: key,
+            translationValue: value,
+        }))
+        .sort((a, b) => (a.translationKey > b.translationKey ? 1 : -1));
+
     useNotificationStore().addNotification({
         title: "Changes reverted",
         description: `The changes of the ${editable.value.name} have been reverted`,
@@ -216,15 +235,33 @@ const isDefault = computed({
     },
 });
 
-watch(
-    comparisonLanguage,
-    () => {
-        selectedLanguageContent.value = languages.value.find(
-            (l) => l._id === comparisonLanguage.value,
-        );
-    },
-    { immediate: true },
-);
+// Watch for changes in the comparison language and populate the compare column
+watch(comparisonLanguage, () => {
+    const comparisonLanguageDoc = languages.value.find((l) => l._id === comparisonLanguage.value);
+    if (!comparisonLanguageDoc) return;
+
+    // Populate the comparison language column for existing keys
+    translations.value.forEach((row) => {
+        row.comparisonValue = comparisonLanguageDoc.translations[row.translationKey] || "";
+    });
+
+    // Add missing keys from the comparison language
+    Object.keys(comparisonLanguageDoc.translations).forEach((key) => {
+        if (!translations.value.find((row) => row.translationKey === key)) {
+            translations.value.push({
+                rowKey: db.uuid(),
+                translationKey: key,
+                translationValue: "",
+                comparisonValue: comparisonLanguageDoc.translations[key],
+            });
+        }
+    });
+
+    // Sort the translations by key
+    translations.value = translations.value.sort((a, b) =>
+        a.translationKey > b.translationKey ? 1 : -1,
+    );
+});
 
 // Computed property to check if at least one group is selected
 const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
@@ -331,6 +368,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                             <!-- value -->
                             <th
                                 class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                                v-if="canEditOrCreate"
                             >
                                 Action
                             </th>
@@ -368,16 +406,15 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
 
                             <td
                                 class="w-1/6 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                v-if="canEditOrCreate"
                             >
-                                <LButton
+                                <PlusCircleIcon
                                     variant="primary"
                                     name="add"
                                     @click="addProperty()"
-                                    :disabled="disabled"
-                                    class="h-10 w-full"
+                                    class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-zinc-700"
                                 >
-                                    + Add
-                                </LButton>
+                                </PlusCircleIcon>
                             </td>
 
                             <td
@@ -400,67 +437,44 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                         </tr>
 
                         <tr
-                            v-for="(val, key) in sortedTranslations"
-                            :key="key"
+                            v-for="row in translations"
+                            :key="row.rowKey"
                             data-test="translation-row"
                         >
                             <td
                                 class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
-                                @click="canTranslate ? startEditing(key, val) : null"
                             >
-                                <span
-                                    v-if="editingKey !== key"
-                                    name="key-span"
-                                    @click="canTranslate ? startEditing(key, val) : null"
-                                    :class="
-                                        canTranslate
-                                            ? 'flex cursor-pointer gap-1 hover:text-blue-600'
-                                            : ''
-                                    "
-                                >
-                                    {{ key }}
-                                </span>
-                                <input
-                                    v-else
-                                    v-model="newKey"
+                                <LInput
+                                    v-model="row.translationKey"
                                     name="key"
-                                    class="w-full flex-1 rounded border px-2 text-sm font-medium"
                                     type="text"
                                     placeholder="Edit key"
                                     data-test="edit-key-input"
+                                    :disabled="!canEditOrCreate"
                                 />
                             </td>
                             <td
-                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 hover:cursor-pointer hover:text-blue-600 sm:pl-3"
-                                @click="startEditing(key, val)"
+                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 hover:cursor-pointer sm:pl-3"
                             >
-                                <span
-                                    v-if="editingKey !== key"
-                                    name="value-span"
-                                    @click="startEditing(key, val)"
-                                    class="cursor-pointer text-wrap hover:text-blue-600"
-                                >
-                                    {{ val }}
-                                </span>
-                                <input
-                                    v-else
-                                    v-model="editingValue"
+                                <LInput
+                                    v-model="row.translationValue"
                                     name="value"
-                                    class="w-full flex-1 rounded border px-2 text-sm font-medium"
                                     type="text"
                                     placeholder="Edit value"
                                     data-test="edit-value-input"
-                                    @input="saveInRealTime(key, editingValue)"
+                                    :state="row.translationValue ? 'default' : 'warning'"
+                                    :disabled="!canTranslate"
                                 />
                             </td>
                             <td
                                 class="flex-1 justify-items-center whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                v-if="canEditOrCreate"
                             >
                                 <TrashIcon
-                                    class="h-6 w-6 cursor-pointer hover:text-red-600"
+                                    class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-red-600"
                                     title="Delete this line"
                                     @click="
-                                        keyToDelete = key;
+                                        keyToDelete = row.translationKey;
                                         isModalOpen = true;
                                     "
                                     data-test="delete-key-button"
@@ -471,7 +485,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                                 class="w-2/3 flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
                             >
                                 <span class="text-wrap">
-                                    {{ selectedLanguageContent?.translations[key] }}
+                                    {{ row.comparisonValue }}
                                 </span>
                             </td>
                         </tr>
@@ -480,14 +494,12 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
             </LCard>
         </div>
     </BasePage>
-
     <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 
     <LModal
         v-model:open="isModalOpen"
-        context="danger"
+        context="default"
         title="Are you sure you want to delete this translation?"
-        description="This action cannot be undone. Please confirm if you want to proceed with deleting the translation."
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         :primaryAction="confirmDelete"

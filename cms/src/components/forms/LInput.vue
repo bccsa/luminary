@@ -69,11 +69,14 @@ const states = {
     default:
         "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
     error: "text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
+    warning:
+        "text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500",
 };
 
 const addOnStates = {
     default: "border-zinc-300 px-3 text-zinc-500",
     error: "border-red-300 bg-red-50 px-3 text-red-600",
+    warning: "border-yellow-300 bg-yellow-50 px-3 text-yellow-600",
 };
 
 const sizes = {
