@@ -371,4 +371,100 @@ describe("DbService", () => {
     });
 
     // =================== getUserGroups ===================
+
+    // =================== queryDocs ===================
+    it("can retrieve documents queryDocs, with a limit of 10", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = ["group-public-content"];
+        userAccess[DocType.Tag] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Group] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        const options = {
+            userAccess: userAccess,
+            types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
+            groups: ["group-super-admins", "group-public-content", "group-private-content"],
+            limit: 10,
+        };
+
+        const res = await service.queryDocs(options);
+        expect(res.docs.length).toBe(10);
+    });
+
+    it("can retrieve documents queryDocs, between 2 timestamps", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Tag] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Group] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        const options = {
+            userAccess: userAccess,
+            types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
+            groups: ["group-super-admins", "group-public-content", "group-private-content"],
+            limit: 30,
+            to: undefined,
+            from: undefined,
+        };
+
+        // retrieve current timestamps
+        const res = await service.queryDocs(options);
+        options.to = res.docs[10].updatedTimeUtc;
+        options.from = res.docs[res.docs.length - 10].updatedTimeUtc;
+
+        const res2 = await service.queryDocs(options);
+        expect(res2.docs.length).toBeGreaterThan(0);
+    });
+
+    it("can sort documents in ascending and descending order", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Tag] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Group] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        const options = {
+            userAccess: userAccess,
+            types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
+            groups: ["group-super-admins", "group-public-content", "group-private-content"],
+            limit: 10,
+            sort: [{ updatedTimeUtc: "asc" }],
+        };
+
+        const res = await service.queryDocs(options);
+
+        options.sort = [{ updatedTimeUtc: "desc" }];
+        const res2 = await service.queryDocs(options);
+
+        expect(res.docs[9]?.updatedTimeUtc).toBeGreaterThan(res.docs[0]?.updatedTimeUtc);
+        expect(res2.docs[0]?.updatedTimeUtc).toBeGreaterThan(res2.docs[9]?.updatedTimeUtc);
+    });
+
+    // =================== queryDocs ===================
 });
