@@ -467,7 +467,7 @@ export class DbService extends EventEmitter {
                           )
                         : options.userAccess[docType];
 
-                if (docType !== DocType.Group)
+                if (docType !== DocType.Group && !options.contentOnly)
                     $or.push({
                         $and: [{ type: { $in: [docType] } }, { memberOf: { $in: groups } }],
                     });
@@ -483,7 +483,7 @@ export class DbService extends EventEmitter {
                     });
 
                 // groups docs
-                if (docType === DocType.Group) {
+                if (docType === DocType.Group && !options.contentOnly) {
                     $or.push({
                         $and: [
                             { type: DocType.Group },
