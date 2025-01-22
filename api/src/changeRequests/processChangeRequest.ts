@@ -58,20 +58,16 @@ export async function processChangeRequest(
         }
 
         // Find all available translations, and add them to the content document's availableTranslations property
-        const existingDocQuery = await db.getDoc(doc._id);
-        if (existingDocQuery.docs.length == 0) {
-            // This is a new translation, update the list of available languages on all this document and all other translations
-            const translations = await db.getContentByParentId(parentDoc._id);
-            const uniqueLanguages = new Set<Uuid>(translations.docs.map((doc) => doc.language));
-            uniqueLanguages.add(contentDoc.language);
-            const availableTranslations = Array.from(uniqueLanguages);
-            contentDoc.availableTranslations = availableTranslations;
+        const translations = await db.getContentByParentId(parentDoc._id);
+        const uniqueLanguages = new Set<Uuid>(translations.docs.map((doc) => doc.language));
+        uniqueLanguages.add(contentDoc.language);
+        const availableTranslations = Array.from(uniqueLanguages);
+        contentDoc.availableTranslations = availableTranslations;
 
-            // Update all translations with the new list of available translations
-            for (const translation of translations.docs) {
-                translation.availableTranslations = availableTranslations;
-                await db.upsertDoc(translation);
-            }
+        // Update all translations with the new list of available translations
+        for (const translation of translations.docs) {
+            translation.availableTranslations = availableTranslations;
+            await db.upsertDoc(translation);
         }
     }
 
