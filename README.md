@@ -43,3 +43,7 @@ See the [App readme](./app/README.md)
 ### Shared library
 
 See the [Shared readme](./shared/README.md)
+
+### Project automation
+
+See the [Project automation readme](./docs/project-addons/automation/project-automation.md)
