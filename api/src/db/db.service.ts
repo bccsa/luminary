@@ -29,8 +29,8 @@ export type GetDocsOptions = {
 
 export type QueryDocsOptions = {
     userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
-    groups: Array<string>;
     types: Array<DocType>;
+    groups?: Array<string>;
     from?: number;
     to?: number;
     limit?: number;
@@ -459,9 +459,13 @@ export class DbService extends EventEmitter {
                 if (!options.userAccess[docType]) return;
 
                 // reduce user requested groups to only the groups the user has access to
-                const groups = options.groups.filter(
-                    (group) => options.userAccess[docType].indexOf(group) > -1,
-                );
+                // default groups to user access groups if not provided
+                const groups =
+                    options.groups && options.groups.length > 0
+                        ? options.groups.filter(
+                              (group) => options.userAccess[docType].indexOf(group) > -1,
+                          )
+                        : options.userAccess[docType];
 
                 if (docType !== DocType.Group)
                     $or.push({
@@ -489,6 +493,11 @@ export class DbService extends EventEmitter {
                 }
             });
 
+            if ($or.length < 1)
+                resolve({
+                    docs: [],
+                    warnings: ["User does not have access to view any documents"],
+                });
             docQuery.selector["$and"].push({ $or });
 
             try {

@@ -373,7 +373,7 @@ describe("DbService", () => {
     // =================== getUserGroups ===================
 
     // =================== queryDocs ===================
-    it("can retrieve documents queryDocs, with a limit of 10", async () => {
+    it("queryDocs: can retrieve documents queryDocs, with a limit of 10", async () => {
         const userAccess = new Map<DocType, Uuid[]>();
         userAccess[DocType.Post] = ["group-public-content"];
         userAccess[DocType.Tag] = [
@@ -397,7 +397,7 @@ describe("DbService", () => {
         expect(res.docs.length).toBe(10);
     });
 
-    it("can retrieve documents queryDocs, between 2 timestamps", async () => {
+    it("queryDocs: can retrieve documents queryDocs, between 2 timestamps", async () => {
         const userAccess = new Map<DocType, Uuid[]>();
         userAccess[DocType.Post] = [
             "group-super-admins",
@@ -432,7 +432,7 @@ describe("DbService", () => {
         expect(res2.docs.length).toBeGreaterThan(0);
     });
 
-    it("can sort documents in ascending and descending order", async () => {
+    it("queryDocs: can sort documents in ascending and descending order", async () => {
         const userAccess = new Map<DocType, Uuid[]>();
         userAccess[DocType.Post] = [
             "group-super-admins",
@@ -464,6 +464,46 @@ describe("DbService", () => {
 
         expect(res.docs[9]?.updatedTimeUtc).toBeGreaterThan(res.docs[0]?.updatedTimeUtc);
         expect(res2.docs[0]?.updatedTimeUtc).toBeGreaterThan(res2.docs[9]?.updatedTimeUtc);
+    });
+
+    it("queryDocs: returns no data if user has no access", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        const options = {
+            userAccess: userAccess,
+            types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
+            groups: ["group-super-admins", "group-public-content", "group-private-content"],
+        };
+
+        const res = await service.queryDocs(options);
+
+        expect(res.docs.length).toBeLessThan(1);
+    });
+
+    it("queryDocs: use default all groups if the user does not provide an array of groups", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Tag] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Group] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        const options = {
+            userAccess: userAccess,
+            types: [DocType.Post, DocType.Tag, DocType.Language], // need to exclude group type, since it does not check the groups array for this
+        };
+
+        const res = await service.queryDocs(options);
+
+        expect(res.docs.length).toBeGreaterThan(1);
     });
 
     // =================== queryDocs ===================
