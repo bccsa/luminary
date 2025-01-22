@@ -367,7 +367,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
 
                             <!-- value -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                                class="group py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-zinc-900 sm:pl-3"
                                 v-if="canEditOrCreate"
                             >
                                 Action
@@ -394,12 +394,12 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                                 />
                             </td>
                             <td
-                                class="pr-3text-sm w-1/3 whitespace-nowrap py-2 pl-4 font-medium text-zinc-700 sm:pl-3"
+                                class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
                             >
                                 <LInput
                                     name="value"
                                     v-model="valueInput"
-                                    placeholder="Enter value (e.g., 'Homepage')"
+                                    placeholder="Enter value (e.g., 'Home Page')"
                                     class="w-full"
                                 />
                             </td>
@@ -412,7 +412,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                                     variant="primary"
                                     name="add"
                                     @click="addProperty()"
-                                    class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-zinc-700"
+                                    class="mx-auto h-7 w-7 cursor-pointer text-zinc-500 hover:text-zinc-700"
                                 >
                                 </PlusCircleIcon>
                             </td>
