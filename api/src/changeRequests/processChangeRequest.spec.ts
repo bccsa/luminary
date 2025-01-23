@@ -6,6 +6,9 @@ import { PermissionSystem } from "../permissions/permissions.service";
 import { S3Service } from "../s3/s3.service";
 import waitForExpect from "wait-for-expect";
 import { DocType } from "../enums";
+import { changeRequest_content, changeRequest_post } from "../test/changeRequestDocuments";
+import { ChangeReqDto } from "../dto/ChangeReqDto";
+import { PostDto } from "../dto/PostDto";
 
 describe("processChangeRequest", () => {
     let db: DbService;
@@ -77,7 +80,6 @@ describe("processChangeRequest", () => {
             expect(processResult.changes).toBeUndefined();
         });
     });
-  
     it("can validate a unique slug for a content document that does not exists", async () => {
         const changeRequest = changeRequest_content();
         changeRequest.doc.parentId = "post-blog1";
