@@ -125,12 +125,12 @@ onMounted(() => {
 
     // Ensure audio tracks are ready when metadata is loaded
     player.on("loadeddata", () => {
-        setAudioTrackLanguage(appLanguagesPreferredAsRef.value![0].languageCode || null);
+        setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
     });
 
     // Reapply audio track when tracks are updated
     player.on("audioTracks", () => {
-        setAudioTrackLanguage(appLanguagesPreferredAsRef.value![0].languageCode || null);
+        setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
     });
 
     // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls

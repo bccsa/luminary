@@ -10,16 +10,13 @@ export function isPublished(content: ContentDto, languageIds: Uuid[]): boolean {
     const firstSupportedLang = languageIds.find((lang) =>
         content.availableTranslations?.includes(lang),
     );
-    if (
-        !content ||
-        content.status !== "published" ||
-        !content.publishDate ||
-        content.publishDate > Date.now() ||
-        (content.expiryDate && content.expiryDate < Date.now()) ||
-        firstSupportedLang !== content.language
-    ) {
-        return false;
-    }
+
+    if (!content) return false;
+    if (!content.publishDate) return false;
+    if (content.publishDate > Date.now()) return false;
+    if (content.status !== "published") return false;
+    if (content.expiryDate && content.expiryDate < Date.now()) return false;
+    if (firstSupportedLang !== content.language) return false;
 
     return true;
 }

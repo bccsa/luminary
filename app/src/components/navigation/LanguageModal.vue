@@ -101,9 +101,11 @@ const removeFromSelected = (id: string) => {
                 class="flex w-full items-center p-3"
             >
                 <div class="flex w-full justify-between">
-                    <div class="flex w-full items-center gap-1">
+                    <div
+                        class="flex w-full cursor-pointer items-center gap-1"
+                        @click="removeFromSelected(language._id)"
+                    >
                         <CheckCircleIcon
-                            @click="removeFromSelected(language._id)"
                             v-if="appLanguageIdsAsRef.includes(language._id)"
                             class="h-5 w-5 cursor-pointer text-yellow-500 hover:text-yellow-400"
                             :class="
@@ -141,14 +143,13 @@ const removeFromSelected = (id: string) => {
                 v-for="language in availableLanguages"
                 :id="language._id"
                 :key="language._id"
-                class="flex w-full items-center gap-1 p-3"
+                class="flex w-full cursor-pointer items-center gap-1 p-3"
+                data-test="add-language-button"
+                @click="setLanguage(language._id)"
             >
-                <!-- Icons aren't testable, thus using a "div" -->
-                <div data-test="add-language-button" @click="setLanguage(language._id)">
-                    <PlusCircleIcon
-                        class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
-                    ></PlusCircleIcon>
-                </div>
+                <PlusCircleIcon
+                    class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
+                ></PlusCircleIcon>
 
                 <div class="flex w-full justify-between">
                     <div class="flex w-full items-center gap-1">
