@@ -97,7 +97,7 @@ export class DocsService {
         return _res;
     }
 
-    async upsertDoc(changeRequest: ChangeReqDto, token: string): Promise<ChangeReqAckDto> {
+    async changeReq(changeRequest: ChangeReqDto, token: string): Promise<ChangeReqAckDto> {
         // decode and validate JWT
         const jwt: string | JWT.JwtPayload = validateJWT(
             token,
@@ -141,7 +141,7 @@ export class DocsService {
             ack.message = message;
         }
 
-        if (changeRequest.doc) {
+        if (changeRequest.doc && changeRequest.doc._id) {
             await this.db.getDoc(changeRequest.doc._id).then((res) => {
                 if (res.docs.length > 0) {
                     ack.doc = res.docs[0];

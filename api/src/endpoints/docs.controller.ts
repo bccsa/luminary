@@ -27,7 +27,7 @@ export class DocsController {
     @UseGuards(AuthGuard)
     async upsertDocs(@Body() changeRequest: ChangeReqDto, @Headers("Authorization") auth: string) {
         await validateApiVersion(changeRequest.apiVersion); // validate API version
-        return this.docsService.upsertDoc(
+        return this.docsService.changeReq(
             changeRequest,
             auth !== undefined ? auth.replace("Bearer ", "") : "",
         );
