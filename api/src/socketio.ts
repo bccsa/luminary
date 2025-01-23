@@ -255,7 +255,7 @@ export class Socketio implements OnGatewayInit {
     /**
      * Emit an acknowledgement to a Change Request
      * @param socket - Socket.io connected client instance
-     * @param status - Acknowleded status
+     * @param status - Acknowledged status
      * @param changeRequest - Change request object
      * @param message - Error message
      */
