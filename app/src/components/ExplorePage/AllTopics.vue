@@ -6,6 +6,8 @@ import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
+import { isPublished } from "@/util/isPublished";
+import { useInfiniteScroll } from "@vueuse/core";
 
 const allTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
@@ -19,17 +21,9 @@ const allTopics = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-
                 if (content.language !== appLanguageId) return false;
-
-                // Only include published content
-                if (content.status !== "published") return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                return isPublished(content);
             })
-
             .toArray() as unknown as Promise<ContentDto[]>,
     {
         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_allTopics"),
@@ -42,22 +36,35 @@ watch(allTopics, async (value) => {
 
 // Reactive search term
 const searchTerm = ref("");
+watch(searchTerm, () => {
+    scrollPosition.value = 10; // Reset infinite scroll on search change
+});
 
 // Computed property for filtered topics
 const filteredTopics = computed(() => {
-    if (!searchTerm.value.trim()) {
-        // Show all topics when search term is empty
-        return allTopics.value;
-    }
-    // Filter topics based on the search term
+    if (!searchTerm.value.trim()) return allTopics.value;
     return allTopics.value.filter((t) =>
         t.title.toLowerCase().includes(searchTerm.value.toLowerCase()),
     );
 });
-</script>
 
+// Infinite scroll setup
+const scrollElement = ref<HTMLElement | null>(null);
+const scrollPosition = ref(10);
+const infiniteScrollData = computed(() => filteredTopics.value.slice(0, scrollPosition.value));
+
+useInfiniteScroll(
+    scrollElement,
+    () => {
+        if (scrollPosition.value < filteredTopics.value.length) {
+            scrollPosition.value += 10;
+        }
+    },
+    { distance: 10 },
+);
+</script>
 <template>
-    <div v-if="allTopics" class="lg:mx-32">
+    <div v-if="allTopics" ref="scrollElement" class="lg:mx-32">
         <div class="mb-4 mt-6">
             <div class="relative">
                 <MagnifyingGlassIcon
@@ -73,7 +80,6 @@ const filteredTopics = computed(() => {
             </div>
         </div>
 
-        <!-- Show "No results found" message if filteredTopics is empty and searchTerm is not blank -->
         <div
             v-if="filteredTopics.length === 0 && searchTerm.trim()"
             class="text-center text-gray-500"
@@ -83,7 +89,7 @@ const filteredTopics = computed(() => {
 
         <div class="space-y-2">
             <div
-                v-for="content in filteredTopics"
+                v-for="content in infiniteScrollData"
                 :key="content._id"
                 class="flex overflow-clip rounded-lg bg-zinc-50 pl-2 shadow-sm hover:bg-yellow-500/10 dark:bg-slate-800 dark:hover:bg-yellow-500/10 md:pl-4"
             >
