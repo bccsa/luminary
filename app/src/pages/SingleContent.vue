@@ -365,7 +365,7 @@ const selectedCategory = computed(() => {
         @close="showCategoryModal = false"
         :heading="selectedCategory?.title || ''"
     >
-        <div class=" ">
+        <div class="max-h-[80vh] overflow-y-auto p-6">
             <div class="">
                 <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" class="" />
             </div>
