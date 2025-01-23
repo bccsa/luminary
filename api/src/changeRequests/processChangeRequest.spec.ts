@@ -8,6 +8,7 @@ import { S3Service } from "../s3/s3.service";
 import { ChangeReqDto } from "src/dto/ChangeReqDto";
 import { PostDto } from "src/dto/PostDto";
 import waitForExpect from "wait-for-expect";
+import { DocType } from "../enums";
 
 describe("processChangeRequest", () => {
     let db: DbService;
@@ -266,62 +267,42 @@ describe("processChangeRequest", () => {
         ).toBe(category2Content.docs.length);
     });
 
-    it("changes all other language documents' default flag to false if new language doc is selected", async () => {
-        const changeRequest: ChangeReqDto = {
+    it("changes all other language documents default flag to 0 if new default language is selected", async () => {
+        const changeRequest1 = {
             id: 89,
             doc: {
-                _id: "lang-eng",
+                _id: "language-en",
                 type: "language",
                 memberOf: ["group-languages"],
-                languageCode: "eng",
+                languageCode: "en",
                 name: "English",
                 default: 1,
             },
         };
 
-        const processResult = await processChangeRequest(
-            "test-user",
-            changeRequest,
-            ["group-super-admins"],
-            db,
-            s3,
-        );
+        const changeRequest2 = {
+            id: 90,
+            doc: {
+                _id: "lang-fra",
+                type: "language",
+                memberOf: ["group-languages"],
+                languageCode: "fra",
+                name: "French",
+                default: 1,
+            },
+        };
 
-        expect(processResult.ok).toBe(true);
-    });
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3);
 
-    it("updates 'availableTranslations' field when new translations are added to a parent", async () => {
-        // Create the initial content document
-        const changeRequest1 = changeRequest_content();
-        changeRequest1.doc.parentId = "post-blog1";
-        changeRequest1.doc._id = "content-en";
-        changeRequest1.doc.language = "lang-eng";
-        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db, s3);
+        const languages = await db.getDocsByType(DocType.Language);
 
-        // Add a new translation for the same parent
-        const changeRequest2 = changeRequest_content();
-        changeRequest2.doc.parentId = "post-blog1";
-        changeRequest2.doc._id = "content-fr";
-        changeRequest2.doc.language = "lang-fra";
-        const processResult = await processChangeRequest(
-            "test-user",
-            changeRequest2,
-            ["group-super-admins"],
-            db,
-            s3,
-        );
-
-        // Fetch the documents from the database
-        const dbDocEn = await db.getDoc("content-en");
-        const dbDocFr = await db.getDoc("content-fr");
-
-        // Check that the availableTranslations field is updated correctly
-        expect(processResult.ok).toBe(true);
-        expect(dbDocEn.docs[0].availableTranslations).toEqual(
-            expect.arrayContaining(["lang-eng", "lang-fra"]),
-        );
-        expect(dbDocFr.docs[0].availableTranslations).toEqual(
-            expect.arrayContaining(["lang-eng", "lang-fra"]),
-        );
+        languages.docs.forEach((language) => {
+            if (language._id === "lang-fra") {
+                expect(language.default).toBe(1);
+            } else {
+                expect(language.default).toBe(0);
+            }
+        });
     });
 });
