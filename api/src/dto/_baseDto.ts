@@ -20,8 +20,8 @@ export class _baseDto {
     @Expose()
     type: DocType;
 
-    @IsNotEmpty()
-    @IsEnum(DocType)
+    @IsString()
+    @IsOptional()
     @Expose()
     updateUserId?: string;
 
