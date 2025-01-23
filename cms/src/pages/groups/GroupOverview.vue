@@ -12,17 +12,18 @@ import {
     type GroupDto,
 } from "luminary-shared";
 import EditGroup from "@/components/groups/EditGroup.vue";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, provide } from "vue";
 
 const groupsQuery: ApiSearchQuery = {
     apiVersion: "0.0.0",
     types: [DocType.Group],
 };
 
-const dbGroups = ref<Map<string, GroupDto>>(new Map());
+const groups = ref<Map<string, GroupDto>>(new Map());
+provide("groups", groups);
 
 const getDbGroups = async () => {
-    const _s = Object.fromEntries(dbGroups.value);
+    const _s = Object.fromEntries(groups.value);
     const latest = Object.values(_s).reduce((acc, curr) => {
         return curr.updatedTimeUtc > acc ? curr.updatedTimeUtc : acc;
     }, 0);
@@ -31,25 +32,25 @@ const getDbGroups = async () => {
     const _q = await api().rest().search(groupsQuery);
     _q.docs &&
         _q.docs.forEach((d: GroupDto) => {
-            dbGroups.value.set(d._id, d);
+            groups.value.set(d._id, d);
         });
 };
 getDbGroups();
 // poll api every 5 seconds for updates
-setInterval(getDbGroups, 5000);
+// setInterval(getDbGroups, 5000);
 
 const newGroups = ref<GroupDto[]>([]);
 
 const combinedGroups = computed(() => {
-    const _s = Object.fromEntries(dbGroups.value);
+    const _s = Object.fromEntries(groups.value);
     return newGroups.value.concat(Object.values(_s));
 });
 
 // Remove saved new groups from newGroups
 watch(
-    [newGroups, dbGroups],
+    [newGroups, groups],
     async () => {
-        const _s = Object.fromEntries(dbGroups.value);
+        const _s = Object.fromEntries(groups.value);
         const duplicates = newGroups.value.filter((g) =>
             Object.values(_s).some((dbG) => dbG._id === g._id),
         );

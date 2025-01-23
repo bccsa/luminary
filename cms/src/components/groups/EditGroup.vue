@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch } from "vue";
+import { computed, nextTick, ref, toRaw, watch, inject, type Ref } from "vue";
 import {
     AclPermission,
     db,
     DocType,
     isConnected,
     verifyAccess,
+    api,
+    AckStatus,
+    type ChangeRequestQuery,
     type GroupDto,
 } from "luminary-shared";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
@@ -26,8 +29,12 @@ type Props = {
     group: GroupDto;
 };
 const props = defineProps<Props>();
+const groups = inject("groups") as Ref<Map<string, GroupDto>>;
+let _groups: GroupDto[] = Object.values(Object.fromEntries(groups.value));
+watch([groups.value], () => {
+    _groups = Object.values(Object.fromEntries(groups.value));
+});
 
-const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 const editable = ref<GroupDto>(_.cloneDeep(toRaw(props.group)));
 const editableGroupWithoutEmpty = ref<GroupDto>(editable.value);
 const originalGroupWithoutEmpty = ref<GroupDto>(props.group);
@@ -122,7 +129,7 @@ const isLocalChange = db.isLocalChangeAsRef(props.group._id);
 const groupNameInput = ref<HTMLInputElement>();
 
 const assignedGroups = computed(() => {
-    return groups.value
+    return _groups
         .filter((g) => editable.value.acl.some((acl) => acl.groupId == g._id))
         .sort((a, b) => {
             if (a.name < b.name) return -1;
@@ -136,9 +143,7 @@ watch(assignedGroups, (newAssignedGroups, oldAssignedGroups) => {
     // Get unique IDs of assigned groups not available to the user (the user does not have view access to these group documents, so they are not in the groups list)
     const unavailableGroupsIds = [
         ...new Set(
-            props.group.acl
-                .map((a) => a.groupId)
-                .filter((g) => !groups.value.some((gr) => gr._id == g)),
+            props.group.acl.map((a) => a.groupId).filter((g) => !_groups.some((gr) => gr._id == g)),
         ),
     ];
 
@@ -179,7 +184,7 @@ watch(assignedGroups, (newAssignedGroups, oldAssignedGroups) => {
 });
 
 const availableGroups = computed(() => {
-    return groups.value.filter((g) => {
+    return _groups.filter((g) => {
         if (editable.value.acl.some((acl) => acl.groupId == g._id)) return false;
 
         return verifyAccess([g._id], DocType.Group, AclPermission.Assign);
@@ -194,7 +199,7 @@ const isDirty = computed(() => {
 });
 
 const hasChangedGroupName = computed(() => editable.value.name != props.group.name);
-const isNewGroup = computed(() => !groups.value.some((g) => g._id == props.group._id));
+const isNewGroup = computed(() => !_groups.some((g) => g._id == props.group._id));
 const isEmpty = computed(() => editableGroupWithoutEmpty.value.acl.length == 0);
 
 const disabled = computed(() => {
@@ -299,16 +304,26 @@ const copyGroupId = (group: GroupDto) => {
 };
 
 const saveChanges = async () => {
-    db.upsert<GroupDto>(toRaw(editableGroupWithoutEmpty.value));
+    const res = await api()
+        .rest()
+        .changeRequest({
+            id: 10,
+            doc: editableGroupWithoutEmpty.value,
+            apiVersion: "0.0.0",
+        } as ChangeRequestQuery);
+
+    res && res.ack == AckStatus.Accepted && groups.value.set(res.doc._id, res.doc);
 
     addNotification({
-        title: `${editableGroupWithoutEmpty.value.name} changes saved`,
-        description: `All changes are saved ${
-            isConnected.value
-                ? "online"
-                : "offline, and will be sent to the server when you go online"
-        }.`,
-        state: "success",
+        title:
+            res && res.ack == AckStatus.Accepted
+                ? `${editableGroupWithoutEmpty.value.name} changes saved`
+                : "Error saving changes",
+        description:
+            res && res.ack == AckStatus.Accepted
+                ? "All changes are saved"
+                : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
+        state: res && res.ack == AckStatus.Accepted ? "success" : "error",
     });
 };
 </script>
@@ -411,8 +426,8 @@ const saveChanges = async () => {
                     </LBadge>
                     <LButton
                         v-if="
-                            groups &&
-                            groups.length > 0 &&
+                            _groups &&
+                            _groups.length > 0 &&
                             open &&
                             !isDirty &&
                             !disabled &&
