@@ -1,17 +1,36 @@
-import { ApiConnectionOptions } from "../types";
+import { ApiConnectionOptions, DocType } from "../types";
 import { Sync } from "./sync";
-import { Search, ApiSearchQuery } from "./search";
+import { HttpReq } from "./http";
+
+export type ApiSearchQuery = {
+    apiVersion: string;
+    limit?: number;
+    offset?: number;
+    sort?: "desc" | "asc";
+    groups?: Array<string>;
+    types: Array<DocType>;
+    contentOnly?: boolean;
+    queryString?: string;
+    from?: number;
+    to?: number;
+};
+
+export type ChangeRequestQuery = {
+    id: number;
+    doc: any;
+    apiVersion: string;
+};
 
 class RestApi {
     private _sync: Sync;
-    private _search: Search;
+    private http: HttpReq<any>;
     /**
      * Create a new docs instance
      * @param options - Options
      */
     constructor(options: ApiConnectionOptions) {
         this._sync = new Sync(options);
-        this._search = new Search(options);
+        this.http = new HttpReq(options.apiUrl || "", options.token);
     }
 
     async clientDataReq() {
@@ -19,7 +38,11 @@ class RestApi {
     }
 
     async search(query: ApiSearchQuery) {
-        return await this._search.search(query);
+        return await this.http.get("search", query);
+    }
+
+    async changeRequest(query: ChangeRequestQuery) {
+        return await this.http.post("docs", query);
     }
 }
 
