@@ -29,4 +29,28 @@ export class HttpReq<T> {
             // do not display error when fetch is unable to contact the api, since the app is build to support offline mode
         }
     }
+
+    async post(endpoint: string, query: T) {
+        try {
+            const schema = "https://";
+            const regex = /^https?:\/\//;
+            const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
+            const res = await fetch(`${url}/${endpoint}`, {
+                method: "POST",
+                headers: {
+                    Authorization: this.token ? `Bearer ${this.token}` : "",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(query),
+            });
+            if (!res.ok) {
+                throw new Error(`HTTP error! Status: ${res.status}`);
+            }
+            return await res.json().catch((err) => {
+                console.log(err.message);
+            });
+        } catch (err) {
+            console.log(err);
+        }
+    }
 }
