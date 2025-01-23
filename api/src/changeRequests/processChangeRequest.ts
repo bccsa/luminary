@@ -19,6 +19,8 @@ export async function processChangeRequest(
 ) {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
+    // insert user id into the change request document, so that we can keep a record of who made the change
+    changeRequest.doc.UpdateUserId = userId;
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
     }

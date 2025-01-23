@@ -20,6 +20,11 @@ export class _baseDto {
     @Expose()
     type: DocType;
 
+    @IsNotEmpty()
+    @IsEnum(DocType)
+    @Expose()
+    updateUserId?: string;
+
     @IsOptional()
     @IsNumber()
     updatedTimeUtc?: number;
