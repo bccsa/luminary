@@ -300,13 +300,13 @@ const copyrightContent = computed(() => {
                         </h1>
                         <div
                             v-if="content.author"
-                            class="flex items-center pl-1 text-center text-sm text-zinc-500 dark:text-slate-100"
+                            class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
                         >
                             By {{ content.author }}
                         </div>
 
                         <div
-                            class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
+                            class="-mt-2 text-center text-xs text-zinc-500 dark:text-slate-300"
                             v-if="content.publishDate && content.parentPublishDateVisible"
                         >
                             {{
@@ -320,15 +320,7 @@ const copyrightContent = computed(() => {
 
                         <div class="items-center">
                             <div class="flex justify-center">
-                                <div
-                                    @click="toggleBookmark"
-                                    data-test="bookmark"
-                                    :class="[
-                                        content.author
-                                            ? 'border border-transparent border-r-zinc-600 pr-1'
-                                            : '',
-                                    ]"
-                                >
+                                <div @click="toggleBookmark" data-test="bookmark">
                                     <!-- :class=["border border-transparent border-r-zinc-600 pr-1"] -->
                                     <component
                                         v-if="
