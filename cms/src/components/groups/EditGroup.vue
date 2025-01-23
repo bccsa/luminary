@@ -4,7 +4,6 @@ import {
     AclPermission,
     db,
     DocType,
-    isConnected,
     verifyAccess,
     api,
     AckStatus,
@@ -125,7 +124,6 @@ watch(
 );
 
 const isEditingGroupName = ref(false);
-const isLocalChange = db.isLocalChangeAsRef(props.group._id);
 const groupNameInput = ref<HTMLInputElement>();
 
 const assignedGroups = computed(() => {
@@ -204,7 +202,7 @@ const isEmpty = computed(() => editableGroupWithoutEmpty.value.acl.length == 0);
 
 const disabled = computed(() => {
     // Enable editing for new / unsaved groups
-    if (isNewGroup.value || isLocalChange.value) {
+    if (isNewGroup.value) {
         return false;
     }
 
@@ -421,9 +419,6 @@ const saveChanges = async () => {
                     <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
                         Saving disabled: The group would not be editable</LBadge
                     >
-                    <LBadge v-if="isLocalChange && !isConnected" variant="warning">
-                        Offline changes
-                    </LBadge>
                     <LButton
                         v-if="
                             _groups &&
