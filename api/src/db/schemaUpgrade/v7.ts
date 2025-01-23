@@ -1,6 +1,6 @@
 import { DbService } from "../db.service";
 import { DocType } from "../../enums";
-import { ContentDto } from "src/dto/ContentDto";
+import { ContentDto } from "../../dto/ContentDto";
 
 /**
  * Upgrade the database schema from version 6 to 7
