@@ -70,7 +70,6 @@ const tagged = useDexieLiveQueryWithDeps(
                         </h1>
                         <!-- publish date -->
                         <div class="text-xs text-gray-500" v-if="showPublishDate">
-                            <!-- {{ new Date(content.publishDate).toLocaleDateString() }} -->
                             {{
                                 content.publishDate
                                     ? db
