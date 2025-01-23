@@ -3,20 +3,18 @@ import { mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import EditLanguage from "./EditLanguage.vue";
 import { createTestingPinia } from "@pinia/testing";
-import { useNotificationStore } from "@/stores/notification";
 import { accessMap, db, type LanguageDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { fullAccessToAllContentMap } from "../../tests/mockdata";
+import { PlusCircleIcon } from "@heroicons/vue/20/solid";
 
 describe("EditLanguage.vue", () => {
     beforeEach(async () => {
-        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
-
         setActivePinia(createTestingPinia());
-
         accessMap.value = fullAccessToAllContentMap;
+        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
     });
 
     afterEach(async () => {
@@ -40,36 +38,32 @@ describe("EditLanguage.vue", () => {
         });
     });
 
-    it.skip("should update and save the language", async () => {
+    it("should update and save the current language", async () => {
         const wrapper = mount(EditLanguage, {
             props: {
                 id: mockLanguageDtoEng._id,
             },
         });
 
+        // Find inputs and set their values
         const currentLanguage = wrapper.findAll("input");
 
+        // Update language name and code
         await currentLanguage[0].setValue("English (updated)");
         await currentLanguage[1].setValue("eng (updated)");
 
+        // Trigger save action
         await wrapper.find("[data-test='save-button']").trigger("click");
 
+        // Wait for the database to update
         await waitForExpect(async () => {
-            expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    title: "Language updated",
-                    description: "Language updated successfully",
-                    state: "success",
-                }),
-            );
+            const updatedLanguage = (
+                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+            )[0] as LanguageDto;
+
+            expect(updatedLanguage.name).toBe("English (updated)");
+            expect(updatedLanguage.languageCode).toBe("eng (updated)");
         });
-
-        const updatedLanguage = (
-            await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
-        )[0] as LanguageDto;
-
-        expect(updatedLanguage.name).toBe("English (updated)");
-        expect(updatedLanguage.languageCode).toBe("eng (updated)");
     });
 
     it("translation strings: can add a new translation", async () => {
@@ -79,22 +73,39 @@ describe("EditLanguage.vue", () => {
             },
         });
 
+        // Wait for the inputs and buttons to be available in the DOM
+        const keyInput = wrapper.find("input[data-test='key-input']");
+        const valueInput = wrapper.find("input[data-test='value-input']");
+        const addButton = wrapper.find("button[data-test='add-key-button']");
+        const saveButton = wrapper.find("button[data-test='save-button']");
+
+        // Assert that all required elements are present
+        expect(keyInput.exists()).toBe(true);
+        expect(valueInput.exists()).toBe(true);
+        expect(addButton.exists()).toBe(true);
+        expect(saveButton.exists()).toBe(true);
+
+        // Set values for the new translation
+        await keyInput.setValue("newKey.test");
+        await valueInput.setValue("New value");
+
+        // Click the add button to add the new translation
+        await addButton.trigger("click");
+
+        // Save the updated language
+        await saveButton.trigger("click");
+
+        // Verify that the new translation is saved in the database
         await waitForExpect(async () => {
-            const keyInput = wrapper.find("[name='key']");
-            const valueInput = wrapper.find("[name='value']");
+            const updatedLanguage = (
+                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+            )[0] as LanguageDto;
 
-            await keyInput.setValue("newKey.test");
-            await valueInput.setValue("New value");
-
-            await wrapper.find("[name='add']").trigger("click");
-            await wrapper.find("[data-test='save-button']").trigger("click");
-
-            expect(wrapper.html()).toContain("newKey.test");
-            expect(wrapper.html()).toContain("New value");
+            expect(updatedLanguage.translations).toHaveProperty("newKey.test", "New value");
         });
     });
 
-    it.skip("translation strings: can edit a key", async () => {
+    it("translation strings: can edit a key", async () => {
         const wrapper = mount(EditLanguage, {
             props: {
                 id: mockLanguageDtoEng._id,
@@ -105,22 +116,24 @@ describe("EditLanguage.vue", () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
             const translationRow = wrapper.findAll("tr")[2];
+            const input = translationRow.findAll("input");
 
-            await translationRow.find("[name='key-span']").trigger("click");
-            await translationRow.find("[name='key']").setValue("bookmarks.empty_page_updated");
+            await input[0].setValue("bookmarks.empty_page_updated");
 
-            // // await translationRow.find("[data-test='save-key-button']").trigger("click");
-            await wrapper.find("[data-test='save-button']").trigger("click");
+            await wrapper.findComponent(PlusCircleIcon).trigger("click");
+            await wrapper.find("button[data-test='save-button']").trigger("click");
 
-            const updatedLanguage = (
-                await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
-            )[0] as LanguageDto;
+            await waitForExpect(async () => {
+                const updatedLanguage = (
+                    await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+                )[0] as LanguageDto;
 
-            expect(wrapper.html()).toContain("bookmarks.empty_page_updated");
+                expect(updatedLanguage.translations).toHaveProperty("bookmarks.empty_page_updated");
+            });
         });
     });
 
-    it.skip("translation strings: can edit a value", async () => {
+    it("translation strings: can edit a value", async () => {
         const wrapper = mount(EditLanguage, {
             props: {
                 id: mockLanguageDtoEng._id,
@@ -130,17 +143,24 @@ describe("EditLanguage.vue", () => {
         await waitForExpect(async () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
-            const translationRow = wrapper.findAll("tr")[3];
+            const translationRow = wrapper.findAll("tr")[2];
+            const input = translationRow.findAll("input");
 
-            const td = translationRow.findAll("td")[1];
-            await td.find("span").trigger("click");
+            await input[1].setValue("You should try this!");
 
-            await td.find("input").setValue("New value");
+            await wrapper.findComponent(PlusCircleIcon).trigger("click");
+            await wrapper.find("button[data-test='save-button']").trigger("click");
 
-            await translationRow.find("[data-test='save-key-button']").trigger("click");
-            await wrapper.find("[data-test='save-button']").trigger("click");
+            await waitForExpect(async () => {
+                const updatedLanguage = (
+                    await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+                )[0] as LanguageDto;
 
-            expect(wrapper.html()).toContain("New value");
+                expect(updatedLanguage.translations).toHaveProperty(
+                    "bookmarks.empty_page",
+                    "You should try this!",
+                );
+            });
         });
     });
 });

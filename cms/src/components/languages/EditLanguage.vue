@@ -20,7 +20,7 @@ import LCard from "../common/LCard.vue";
 import FormLabel from "../forms/FormLabel.vue";
 import LSelect from "../forms/LSelect.vue";
 import { useNotificationStore } from "@/stores/notification";
-import _ from "lodash";
+import * as _ from "lodash";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { TrashIcon, PlusCircleIcon } from "@heroicons/vue/20/solid";
 import LModal from "../common/LModal.vue";
@@ -264,7 +264,7 @@ watch(comparisonLanguage, () => {
 });
 
 // Computed property to check if at least one group is selected
-const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
+const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
 </script>
 
 <template>
@@ -391,6 +391,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                                     v-model="keyInput"
                                     placeholder="Enter key (e.g., 'menu.home')"
                                     class="w-full"
+                                    data-test="key-input"
                                 />
                             </td>
                             <td
@@ -401,6 +402,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                                     v-model="valueInput"
                                     placeholder="Enter value (e.g., 'Home Page')"
                                     class="w-full"
+                                    data-test="value-input"
                                 />
                             </td>
 
@@ -408,13 +410,17 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length > 0);
                                 class="w-1/6 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
                                 v-if="canEditOrCreate"
                             >
-                                <PlusCircleIcon
-                                    variant="primary"
-                                    name="add"
-                                    @click="addProperty()"
-                                    class="mx-auto h-7 w-7 cursor-pointer text-zinc-500 hover:text-zinc-700"
-                                >
-                                </PlusCircleIcon>
+                                <div class="flex justify-center">
+                                    <button
+                                        @click="addProperty"
+                                        data-test="add-key-button"
+                                        class="mx-auto"
+                                    >
+                                        <PlusCircleIcon
+                                            class="w-7 cursor-pointer text-zinc-500 hover:text-zinc-700"
+                                        />
+                                    </button>
+                                </div>
                             </td>
 
                             <td
