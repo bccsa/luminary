@@ -124,20 +124,18 @@ const showImageElement2 = computed(
             ]"
         >
             <div
-                :style="{
-                    backgroundImage: 'url(' + fallbackImg + ')',
-                    filter: showImageElement1 ? 'none' : 'blur(3px)',
-                }"
-                class="absolute bottom-0 left-0 right-0 top-0 -z-[1] bg-white bg-cover"
-            ></div>
-            <div
-                :style="{
-                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                }"
-                class="absolute bottom-0 left-0 right-0 top-0 -z-[1]"
-            ></div>
+                class="absolute bottom-0 left-0 right-0 top-0 -z-10 bg-yellow-600 bg-opacity-50 bg-cover bg-center object-cover"
+            >
+                <div
+                    :style="{
+                        backgroundImage: 'url(' + fallbackImg + ')',
+                        filter: showImageElement1 ? 'none' : 'blur(2px) brightness(0.92)',
+                    }"
+                    class="absolute bottom-0 left-0 right-0 top-0 -z-[1] bg-white bg-cover"
+                ></div>
+            </div>
             <span
-                class="z-10 w-full p-2 text-center shadow-md"
+                class="z-10 w-full truncate text-pretty p-2 text-center font-serif text-xl text-zinc-100 shadow-md drop-shadow-[0_4px_4px_rgba(0,0,0,1)]"
                 v-if="contentTitle && !showImageElement1"
                 >{{ contentTitle }}</span
             >
