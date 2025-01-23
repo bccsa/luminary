@@ -31,7 +31,7 @@ describe("Docs service", () => {
 
     beforeAll(async () => {
         service = (await createTestingModule("docs-service")).dbService;
-        docsService = new DocsService(undefined, service);
+        docsService = new DocsService(undefined, service, undefined);
         group = "group-public-content";
     });
 

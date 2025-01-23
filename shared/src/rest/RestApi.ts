@@ -1,6 +1,6 @@
 import { ApiConnectionOptions } from "../types";
 import { Sync } from "./sync";
-import { Search, ApiQuery as SearchQuery } from "./search";
+import { Search, ApiSearchQuery } from "./search";
 
 class RestApi {
     private _sync: Sync;
@@ -18,7 +18,7 @@ class RestApi {
         this._sync.clientDataReq();
     }
 
-    async search(query: SearchQuery) {
+    async search(query: ApiSearchQuery) {
         return await this._search.search(query);
     }
 }

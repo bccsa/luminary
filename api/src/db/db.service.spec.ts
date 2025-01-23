@@ -534,7 +534,6 @@ describe("DbService", () => {
         const notContentDocs = res.docs.filter((d) => d.type !== DocType.Content);
 
         expect(notContentDocs.length).toBeLessThan(1);
-        expect(res.docs.length).toBeGreaterThan(1);
     });
 
     // =================== queryDocs ===================

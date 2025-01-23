@@ -1,5 +1,13 @@
 import { Expose } from "class-transformer";
-import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, IsArray } from "class-validator";
+import {
+    IsNotEmpty,
+    IsString,
+    IsOptional,
+    IsNumber,
+    IsBoolean,
+    IsArray,
+    IsObject,
+} from "class-validator";
 import { DocType } from "../enums";
 
 /**
@@ -46,6 +54,26 @@ export class DocsReqDto {
 }
 
 /**
+ * Document structure for client / CMS submitted changes to existing documents or new documents.
+ */
+export class ChangeReqDto {
+    @IsNotEmpty()
+    @IsString()
+    @Expose()
+    apiVersion: string;
+
+    @IsNotEmpty()
+    @IsNumber()
+    @Expose()
+    id: number;
+
+    @IsNotEmpty()
+    @IsObject()
+    @Expose()
+    doc: any; // Object containing full submitted / updated document
+}
+
+/**
  * Api Request structure for APP / CMS requesting documents from the api
  */
 export class SearchReqDto {
@@ -57,22 +85,22 @@ export class SearchReqDto {
     @IsOptional()
     @IsNumber()
     @Expose()
-    limit: number;
+    limit?: number;
 
     @IsOptional()
     @IsNumber()
     @Expose()
-    offset: number;
+    offset?: number;
 
     @IsOptional()
     @IsString()
     @Expose()
-    sort: "desc" | "asc";
+    sort?: "desc" | "asc";
 
     @IsOptional()
     @IsArray()
     @Expose()
-    groups: Array<string>;
+    groups?: Array<string>;
 
     @IsNotEmpty()
     @IsArray()
@@ -83,7 +111,7 @@ export class SearchReqDto {
     @IsBoolean()
     @IsOptional()
     @Expose()
-    contentOnly: boolean;
+    contentOnly?: boolean;
 
     @IsOptional()
     @IsString()
@@ -94,11 +122,11 @@ export class SearchReqDto {
     @IsNumber()
     @IsOptional()
     @Expose()
-    gapStart?: number;
+    from?: number;
 
     @IsNotEmpty()
     @IsNumber()
     @IsOptional()
     @Expose()
-    gapEnd?: number;
+    to?: number;
 }

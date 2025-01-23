@@ -62,8 +62,8 @@ export class SearchService {
             types: query.types,
             limit: query.limit,
             contentOnly: query.contentOnly,
-            from: query.gapEnd,
-            to: query.gapStart,
+            from: query.from,
+            to: query.to,
             sort: query.sort,
         };
 
