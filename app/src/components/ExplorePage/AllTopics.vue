@@ -7,8 +7,9 @@ import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
 import { isPublished } from "@/util/isPublished";
-import { useInfiniteScroll } from "@vueuse/core";
+import { useInfiniteScroll, useDebounceFn } from "@vueuse/core";
 
+// Fetch topics with Dexie live query and error handling
 const allTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
     (appLanguageId: Uuid) =>
@@ -21,15 +22,16 @@ const allTopics = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language !== appLanguageId) return false;
-                return isPublished(content);
+                return content.language === appLanguageId && isPublished(content);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     {
-        initialValue: await db.getQueryCache<ContentDto[]>("explorepage_allTopics"),
+        initialValue: [],
+        onError: (error) => console.error("Error fetching topics:", error),
     },
 );
 
+// Update query cache when data changes
 watch(allTopics, async (value) => {
     db.setQueryCache<ContentDto[]>("explorepage_allTopics", value);
 });
@@ -53,18 +55,24 @@ const scrollElement = ref<HTMLElement | null>(null);
 const scrollPosition = ref(10);
 const infiniteScrollData = computed(() => filteredTopics.value.slice(0, scrollPosition.value));
 
-useInfiniteScroll(
-    scrollElement,
-    () => {
-        if (scrollPosition.value < filteredTopics.value.length) {
-            scrollPosition.value += 10;
-        }
-    },
-    { distance: 10 },
-);
+// Debounced infinite scroll handler
+const loadMore = useDebounceFn(() => {
+    if (scrollPosition.value < filteredTopics.value.length) {
+        scrollPosition.value += 10;
+    }
+}, 200);
+
+// Initialize infinite scroll only when scrollElement is ready
+watch(scrollElement, (el) => {
+    if (el) {
+        useInfiniteScroll(scrollElement, loadMore, { distance: 50 }); // Adjusted distance
+    }
+});
 </script>
+
 <template>
     <div v-if="allTopics" ref="scrollElement" class="lg:mx-32">
+        <!-- Search Input -->
         <div class="mb-4 mt-6">
             <div class="relative">
                 <MagnifyingGlassIcon
@@ -80,6 +88,7 @@ useInfiniteScroll(
             </div>
         </div>
 
+        <!-- No Results Found -->
         <div
             v-if="filteredTopics.length === 0 && searchTerm.trim()"
             class="text-center text-gray-500"
@@ -87,6 +96,7 @@ useInfiniteScroll(
             No results found for "{{ searchTerm }}"
         </div>
 
+        <!-- Infinite Scroll Content -->
         <div class="space-y-2">
             <div
                 v-for="content in infiniteScrollData"
@@ -114,6 +124,14 @@ useInfiniteScroll(
                         :rounded="false"
                     />
                 </RouterLink>
+            </div>
+
+            <!-- Loading/No More Data -->
+            <div
+                v-if="scrollPosition >= filteredTopics.length"
+                class="py-5 text-center text-gray-500"
+            >
+                No more topics to load.
             </div>
         </div>
     </div>
