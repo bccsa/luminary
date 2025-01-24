@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ChevronLeftIcon, ComputerDesktopIcon, MoonIcon, SunIcon } from "@heroicons/vue/24/solid";
+import { ChevronLeftIcon, MoonIcon, SunIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRoute, useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
-import { computed, onMounted, ref, type FunctionalComponent } from "vue";
+import { computed, onMounted, ref } from "vue";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
+import { useDark } from "@vueuse/core";
 
 const route = useRoute();
 const router = useRouter();
@@ -19,18 +20,8 @@ const isVisible = ref(false);
 const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL : LOGO));
 const logoDark = computed(() => (isSmallScreen.value ? LOGO_SMALL_DARK : LOGO_DARK));
 
-// Define valid themes
-type Theme = "Light" | "Dark" | "System";
-
-// Map theme names to icons
-const themeIcon: Record<Theme, FunctionalComponent> = {
-    Light: SunIcon,
-    Dark: MoonIcon,
-    System: ComputerDesktopIcon,
-};
-
 // Current theme state
-const currentTheme = ref<Theme>((localStorage.getItem("theme") as Theme) || "System");
+const isDarkMode = useDark();
 
 // Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js)
 const logoCss = computed(
@@ -74,13 +65,14 @@ onMounted(() => {
 
                 <DesktopMenu class="hidden lg:flex" />
                 <div class="flex-1" />
-
-                <component
-                    :is="themeIcon[currentTheme]"
-                    @click="isVisible = true"
-                    class="m-2-3 h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
-                />
-                {{ currentTheme }}
+                <div class="mx-4">
+                    <div @click="isDarkMode = !isDarkMode" class="hidden items-center lg:flex">
+                        <div class="text-zinc-600 dark:text-slate-50">
+                            <MoonIcon class="h-6 w-6" v-if="isDarkMode" />
+                            <SunIcon class="h-6 w-6" v-else />
+                        </div>
+                    </div>
+                </div>
                 <ProfileMenu />
             </div>
         </div>
