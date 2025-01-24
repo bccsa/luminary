@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
-import LanguageModal from "@/components/navigation/LanguageModal.vue";
+import LanguageModal from "./LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";

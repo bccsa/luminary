@@ -1,10 +1,10 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
-import LanguageModal from "@/components/navigation/LanguageModal.vue";
+import LanguageModal from "./LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
-import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
+import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -13,10 +13,6 @@ global.ResizeObserver = class FakeResizeObserver {
 };
 
 describe("LanguageModal.vue", () => {
-    beforeAll(async () => {
-        initLanguage();
-    });
-
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
     });
@@ -54,7 +50,7 @@ describe("LanguageModal.vue", () => {
 
         await languageButtons[1].trigger("click");
 
-        expect(appLanguageIdAsRef.value).toBe(mockLanguageDtoFra._id);
+        expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoFra._id);
 
         expect(wrapper.emitted()).toHaveProperty("close");
     });
