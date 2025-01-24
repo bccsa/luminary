@@ -1,30 +1,61 @@
 <script setup lang="ts">
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
+import {
+    ArrowLeftEndOnRectangleIcon,
+    ChevronDownIcon,
+    Cog6ToothIcon,
+    LanguageIcon,
+    UserIcon,
+} from "@heroicons/vue/20/solid";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { isDevMode } from "@/globalConfig";
+import { cmsLanguageIdAsRef, isDevMode } from "@/globalConfig";
 import { useRouter } from "vue-router";
+import { computed, ref } from "vue";
+import LanguageModal from "../modals/LanguageModal.vue";
+import type { LanguageDto } from "luminary-shared";
+import { db, DocType } from "luminary-shared";
+import { PlayIcon } from "@heroicons/vue/16/solid";
 
 const { user, logout } = useAuth0();
 const router = useRouter();
 
-const userNavigation: {
-    name: string;
-    action: Function;
-}[] = [
-    { name: "Settings", action: () => router.push({ name: "settings" }) },
+const shouldDisplayLanguageModal = ref(false);
+
+const userNavigation = [
+    { name: "Settings", action: () => router.push({ name: "settings" }), icon: Cog6ToothIcon },
     {
         name: "Sign out",
-        action: () => logout({ logoutParams: { returnTo: window.location.origin } }),
+        action: () =>
+            logout({
+                logoutParams: { returnTo: window.location.origin },
+            }),
+        icon: ArrowLeftEndOnRectangleIcon,
+    },
+    {
+        name: "Language",
+        language: cmsLanguageIdAsRef.value,
+        action: () => (shouldDisplayLanguageModal.value = true),
+        icon: LanguageIcon,
     },
 ];
 
+const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languageToDisplay = computed(() => {
+    const language = languages.value.find((lang) => lang._id === cmsLanguageIdAsRef.value);
+    return language?.name;
+});
+
 if (isDevMode) {
-    userNavigation.push({ name: "Sandbox", action: () => router.push({ name: "sandbox" }) });
+    userNavigation.push({
+        name: "Sandbox",
+        action: () => router.push({ name: "sandbox" }),
+        icon: PlayIcon,
+    });
 }
 </script>
 
 <template>
+    {{ languageToDisplay }}
     <Menu as="div" class="relative">
         <MenuButton class="-m-1.5 flex items-center p-1.5">
             <span class="sr-only">Open user menu</span>
@@ -61,14 +92,30 @@ if (isDevMode) {
                     <button
                         :class="[
                             active ? 'bg-zinc-50' : '',
-                            'block w-full cursor-pointer px-3 py-1 text-left text-sm leading-6 text-zinc-900 ',
+                            'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600 ',
                         ]"
                         @click="item.action"
                     >
-                        {{ item.name }}
+                        <component
+                            :is="item.icon"
+                            class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                            aria-hidden="true"
+                        />
+                        <div class="flex flex-col text-nowrap leading-none">
+                            {{ item.name }}
+                            <span
+                                class="text-[12px] text-zinc-500 dark:text-white"
+                                v-if="item.language"
+                                >{{ languageToDisplay }}</span
+                            >
+                        </div>
                     </button>
                 </MenuItem>
             </MenuItems>
         </transition>
     </Menu>
+    <LanguageModal
+        :is-visible="shouldDisplayLanguageModal"
+        @close="shouldDisplayLanguageModal = false"
+    />
 </template>
