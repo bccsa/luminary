@@ -43,6 +43,9 @@ const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const selectedLanguage = ref<Uuid>(cmsLanguageIdAsRef.value || "");
+watch(cmsLanguageIdAsRef, () => {
+    selectedLanguage.value = cmsLanguageIdAsRef.value;
+});
 const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
