@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
@@ -11,6 +11,7 @@ import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
+// Reactive data for topics and categories
 const allTopics = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
     (appLanguageIds: Uuid[]) =>
@@ -23,7 +24,6 @@ const allTopics = useDexieLiveQueryWithDeps(
             .filter((c) => {
                 return isPublished(c as ContentDto, appLanguageIds);
             })
-
             .toArray() as unknown as Promise<ContentDto[]>,
     {
         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_allTopics"),
@@ -31,9 +31,27 @@ const allTopics = useDexieLiveQueryWithDeps(
     },
 );
 
-watch(allTopics, async (value) => {
-    db.setQueryCache<ContentDto[]>("explorepage_allTopics", value);
-});
+const tagContent = useDexieLiveQueryWithDeps(
+    appLanguageIdAsRef,
+    (appLanguageId: Uuid) =>
+        db.docs
+            .where({
+                type: DocType.Content,
+                language: appLanguageId,
+                status: "published",
+                parentTagType: TagType.Category,
+            })
+            .filter((c) => {
+                const content = c as ContentDto;
+
+                // Filter logic for valid, published categories
+                return isPublished(content);
+            })
+            .toArray() as unknown as Promise<ContentDto[]>,
+    {
+        initialValue: await db.getQueryCache<ContentDto[]>("explorepage_categories"),
+    },
+);
 
 // Reactive search term
 const searchTerm = ref("");
@@ -44,10 +62,9 @@ const isGridView = ref(false);
 // Computed property for filtered topics
 const filteredTopics = computed(() => {
     if (!searchTerm.value.trim()) {
-        // Show all topics when search term is empty
         return allTopics.value;
     }
-    // Filter topics based on the search term
+
     return allTopics.value.filter((t) =>
         t.title.toLowerCase().includes(searchTerm.value.toLowerCase()),
     );
@@ -55,7 +72,7 @@ const filteredTopics = computed(() => {
 </script>
 
 <template>
-    <div v-if="allTopics" class="lg:mx-32">
+    <div v-if="allTopics.length > 0 && tagContent.length > 0" class="lg:mx-32">
         <!-- Search Bar -->
         <div class="mb-4 mt-6 flex">
             <div class="relative w-3/4" v-if="allTopics.length > 0">
@@ -104,15 +121,12 @@ const filteredTopics = computed(() => {
                             {{ content.summary }}
                         </p>
                     </div>
-                    <LImage
-                        :image="content.parentImageData"
-                        aspectRatio="classic"
-                        size="small"
-                        class="flex items-center"
-                        :rounded="false"
-                    />
-                </RouterLink>
+                </div>
             </div>
         </div>
     </div>
 </template>
+
+<stype scoped>
+
+</stype>
