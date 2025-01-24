@@ -55,7 +55,6 @@ if (isDevMode) {
 </script>
 
 <template>
-    {{ languageToDisplay }}
     <Menu as="div" class="relative">
         <MenuButton class="-m-1.5 flex items-center p-1.5">
             <span class="sr-only">Open user menu</span>
