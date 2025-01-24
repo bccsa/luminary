@@ -10,6 +10,10 @@ export const isDevMode = import.meta.env.DEV;
  * The preferred CMS language ID as Vue ref.
  */
 export const cmsLanguageIdAsRef = ref(localStorage.getItem("cms_selectedLanguage") || "");
-watch(cmsLanguageIdAsRef, (newVal) => {
-    localStorage.setItem("cms_selectedLanguage", newVal);
-});
+watch(
+    cmsLanguageIdAsRef,
+    (newVal) => {
+        localStorage.setItem("cms_selectedLanguage", newVal);
+    },
+    { deep: true },
+);
