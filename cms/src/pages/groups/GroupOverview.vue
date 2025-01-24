@@ -41,6 +41,10 @@ getDbGroups();
 
 const newGroups = ref<GroupDto[]>([]);
 
+const duplicateGroup = (group: GroupDto) => {
+    newGroups.value.push(group);
+};
+
 const combinedGroups = computed(() => {
     const _s = Object.fromEntries(groups.value);
     return newGroups.value.concat(Object.values(_s));
@@ -97,7 +101,9 @@ const canCreateGroup = computed(() => {
                 v-for="group in combinedGroups"
                 :key="group._id"
                 :group="group"
+                :newGroups="newGroups"
                 class="mb-4"
+                @duplicate-group="duplicateGroup"
             />
         </div>
         <span v-else>Loading...</span>

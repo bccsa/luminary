@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch, inject, type Ref } from "vue";
+import { computed, nextTick, ref, toRaw, watch, inject, defineEmits, type Ref } from "vue";
 import {
     AclPermission,
     db,
@@ -26,6 +26,7 @@ const { addNotification } = useNotificationStore();
 
 type Props = {
     group: GroupDto;
+    newGroups: GroupDto[];
 };
 const props = defineProps<Props>();
 const groups = inject("groups") as Ref<Map<string, GroupDto>>;
@@ -37,6 +38,10 @@ watch([groups.value], () => {
 const editable = ref<GroupDto>(_.cloneDeep(toRaw(props.group)));
 const editableGroupWithoutEmpty = ref<GroupDto>(editable.value);
 const originalGroupWithoutEmpty = ref<GroupDto>(props.group);
+
+const emit = defineEmits<{
+    (e: "duplicateGroup", group: GroupDto): void;
+}>();
 
 // Clear ACL's with no permissions from "editable" and save to "editableGroupWithoutEmpty"
 watch(
@@ -190,10 +195,13 @@ const availableGroups = computed(() => {
 });
 
 const isDirty = computed(() => {
-    return !_.isEqual(
-        { ...toRaw(originalGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "" },
-        { ...toRaw(editableGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "" },
-    );
+    return props.newGroups.find((g) => g._id == props.group._id)
+        ? true
+        : false ||
+              !_.isEqual(
+                  { ...toRaw(originalGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "" },
+                  { ...toRaw(editableGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "" },
+              );
 });
 
 const hasChangedGroupName = computed(() => editable.value.name != props.group.name);
@@ -287,7 +295,7 @@ const addAssignedGroup = (selectedGroup: GroupDto) => {
 const duplicateGroup = async () => {
     const duplicatedGroup = { ...toRaw(props.group), _id: db.uuid() };
     duplicatedGroup.name = `${duplicatedGroup.name} - copy`;
-    await db.upsert<GroupDto>(duplicatedGroup);
+    emit("duplicateGroup", duplicatedGroup);
 };
 
 const copyGroupId = (group: GroupDto) => {
