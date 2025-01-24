@@ -24,18 +24,18 @@ const shouldDisplayLanguageModal = ref(false);
 const userNavigation = [
     { name: "Settings", action: () => router.push({ name: "settings" }), icon: Cog6ToothIcon },
     {
+        name: "Language",
+        language: cmsLanguageIdAsRef.value,
+        action: () => (shouldDisplayLanguageModal.value = true),
+        icon: LanguageIcon,
+    },
+    {
         name: "Sign out",
         action: () =>
             logout({
                 logoutParams: { returnTo: window.location.origin },
             }),
         icon: ArrowLeftEndOnRectangleIcon,
-    },
-    {
-        name: "Language",
-        language: cmsLanguageIdAsRef.value,
-        action: () => (shouldDisplayLanguageModal.value = true),
-        icon: LanguageIcon,
     },
 ];
 
