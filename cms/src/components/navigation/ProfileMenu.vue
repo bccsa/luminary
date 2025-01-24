@@ -31,11 +31,12 @@ const userNavigation = [
     },
     {
         name: "Sign out",
+
+        icon: ArrowLeftEndOnRectangleIcon,
         action: () =>
             logout({
                 logoutParams: { returnTo: window.location.origin },
             }),
-        icon: ArrowLeftEndOnRectangleIcon,
     },
 ];
 

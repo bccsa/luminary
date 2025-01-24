@@ -52,7 +52,7 @@ describe("ProfileMenu", () => {
 
         const wrapper = mount(ProfileMenu);
         await wrapper.find("button").trigger("click");
-        await wrapper.findAll("button")[2].trigger("click");
+        await wrapper.findAll("button")[3].trigger("click");
 
         expect(logout).toHaveBeenCalled();
     });
