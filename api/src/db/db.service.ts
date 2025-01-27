@@ -457,7 +457,6 @@ export class DbService extends EventEmitter {
             };
 
             const $or = [];
-            // TODO: Need to make sure that the user has access to the requested groups and docTypes
             Object.values(options.types).forEach((docType: DocType) => {
                 // only allow user to access the document type if it is included the users userAccess object
                 if (!options.userAccess[docType]) return;
