@@ -23,7 +23,7 @@ export class _baseDto {
     @IsString()
     @IsOptional()
     @Expose()
-    updateUserId?: string;
+    updatedBy?: string;
 
     @IsOptional()
     @IsNumber()

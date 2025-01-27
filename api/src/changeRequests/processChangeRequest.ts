@@ -26,7 +26,7 @@ export async function processChangeRequest(
 
     const doc = validationResult.validatedData;
     // insert user id into the change request document, so that we can keep a record of who made the change
-    doc.updateUserId = userId;
+    doc.updatedBy = userId;
 
     // Validate slug
     if (doc.type == DocType.Content) {
