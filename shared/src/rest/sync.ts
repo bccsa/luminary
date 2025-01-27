@@ -1,5 +1,5 @@
 import { HttpReq } from "./http";
-import { ApiConnectionOptions, DocType } from "../types";
+import { ApiConnectionOptions } from "../types";
 import { db, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { watch } from "vue";
@@ -317,17 +317,14 @@ export class Sync {
         if (!this.options.docTypes) return [];
         // add and exception for DocType.Group, since groups is the only docType that does not have a group (memberOf)
         for (const docType of this.options.docTypes)
-            if (docType.type != DocType.Group)
-                // TODO: Add option to docTypes that specifies if it should be synced or not
-                // groups is excluded here, since groups will not be saved in indexDB, but will only be kept in memory, so we made a separate endpoint for this
-                for (const group of Object.keys(accessMap.value))
-                    syncEntries.push({
-                        id: `${docType.type}_${group}` + (docType.contentOnly ? "_content" : ""),
-                        contentOnly: docType.contentOnly,
-                        type: docType.type,
-                        group: group,
-                        syncPriority: docType.syncPriority || 0,
-                    });
+            for (const group of Object.keys(accessMap.value))
+                syncEntries.push({
+                    id: `${docType.type}_${group}` + (docType.contentOnly ? "_content" : ""),
+                    contentOnly: docType.contentOnly,
+                    type: docType.type,
+                    group: group,
+                    syncPriority: docType.syncPriority || 0,
+                });
 
         return syncEntries;
     }

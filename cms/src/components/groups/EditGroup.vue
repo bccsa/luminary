@@ -9,6 +9,7 @@ import {
     AckStatus,
     type ChangeRequestQuery,
     type GroupDto,
+    isConnected,
 } from "luminary-shared";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { DocumentDuplicateIcon, ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
@@ -142,49 +143,57 @@ const assignedGroups = computed(() => {
 });
 
 // Add empty aclEntries to "editable" per assigned group for a complete visual overview
-watch(assignedGroups, (newAssignedGroups, oldAssignedGroups) => {
-    // Get unique IDs of assigned groups not available to the user (the user does not have view access to these group documents, so they are not in the groups list)
-    const unavailableGroupsIds = [
-        ...new Set(
-            props.group.acl.map((a) => a.groupId).filter((g) => !_groups.some((gr) => gr._id == g)),
-        ),
-    ];
+watch(
+    assignedGroups,
+    (newAssignedGroups, oldAssignedGroups) => {
+        // Get unique IDs of assigned groups not available to the user (the user does not have view access to these group documents, so they are not in the groups list)
+        const unavailableGroupsIds = [
+            ...new Set(
+                props.group.acl
+                    .map((a) => a.groupId)
+                    .filter((g) => !_groups.some((gr) => gr._id == g)),
+            ),
+        ];
 
-    // Create placeholder GroupDto's for the unavailable groups
-    const unavailableGroups: GroupDto[] = unavailableGroupsIds.map((g) => ({
-        _id: g,
-        type: DocType.Group,
-        updatedTimeUtc: 0,
-        name: g,
-        acl: [],
-    }));
+        // Create placeholder GroupDto's for the unavailable groups
+        const unavailableGroups: GroupDto[] = unavailableGroupsIds.map((g) => ({
+            _id: g,
+            type: DocType.Group,
+            updatedTimeUtc: 0,
+            name: g,
+            acl: [],
+        }));
 
-    // get newly assigned groups
-    let newGroups = newAssignedGroups;
+        // get newly assigned groups
+        let newGroups = newAssignedGroups;
 
-    // Add unavailable assigned groups to the list of assigned groups
-    newGroups.push(...unavailableGroups);
+        // Add unavailable assigned groups to the list of assigned groups
+        newGroups.push(...unavailableGroups);
 
-    if (oldAssignedGroups) {
-        newGroups = newAssignedGroups.filter((g) => !oldAssignedGroups.some((o) => o._id == g._id));
-    }
-
-    // Add missing ACL entries
-    newGroups.forEach((assignedGroup) => {
-        validDocTypes.forEach((docType) => {
-            const aclEntry = editable.value.acl.find(
-                (acl) => acl.groupId == assignedGroup._id && acl.type == docType,
+        if (oldAssignedGroups) {
+            newGroups = newAssignedGroups.filter(
+                (g) => !oldAssignedGroups.some((o) => o._id == g._id),
             );
-            if (!aclEntry) {
-                editable.value.acl.push({
-                    groupId: assignedGroup._id,
-                    type: docType,
-                    permission: [],
-                });
-            }
+        }
+
+        // Add missing ACL entries
+        newGroups.forEach((assignedGroup) => {
+            validDocTypes.forEach((docType) => {
+                const aclEntry = editable.value.acl.find(
+                    (acl) => acl.groupId == assignedGroup._id && acl.type == docType,
+                );
+                if (!aclEntry) {
+                    editable.value.acl.push({
+                        groupId: assignedGroup._id,
+                        type: docType,
+                        permission: [],
+                    });
+                }
+            });
         });
-    });
-});
+    },
+    { immediate: true },
+);
 
 const availableGroups = computed(() => {
     return _groups.filter((g) => {
@@ -411,7 +420,7 @@ const saveChanges = async () => {
                             Discard changes
                         </LButton>
                         <LButton
-                            v-if="hasEditPermission"
+                            v-if="hasEditPermission && isConnected"
                             size="sm"
                             @click.prevent="saveChanges"
                             data-test="saveChanges"
@@ -426,6 +435,9 @@ const saveChanges = async () => {
                     </LBadge>
                     <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
                         Saving disabled: The group would not be editable</LBadge
+                    >
+                    <LBadge v-if="!isConnected" variant="warning" withIcon>
+                        Saving disabled: Unable to save while offline</LBadge
                     >
                     <LButton
                         v-if="

@@ -30,14 +30,15 @@ const getDbGroups = async () => {
 
     latest ? (groupsQuery.from = latest) : delete groupsQuery.from;
     const _q = await api().rest().search(groupsQuery);
-    _q.docs &&
+    _q &&
+        _q.docs &&
         _q.docs.forEach((d: GroupDto) => {
             groups.value.set(d._id, d);
         });
 };
 getDbGroups();
 // poll api every 5 seconds for updates
-// setInterval(getDbGroups, 5000);
+setInterval(getDbGroups, 5000);
 
 const newGroups = ref<GroupDto[]>([]);
 
