@@ -319,6 +319,32 @@ watch(selectedLanguage, () => {
             </div>
         </template>
         <div class="relative grid grid-cols-3 gap-8">
+            <!-- Sidebar -->
+            <div class="col-span-3 md:col-span-1" v-if="parent">
+                <div class="sticky top-20 space-y-6">
+                    <EditContentParentValidation
+                        :can-translate="canTranslate"
+                        :can-publish="canPublish"
+                        :can-edit="canEditParent"
+                        v-if="contentDocs"
+                        v-model:parent="parent"
+                        v-model:contentDocs="contentDocs"
+                        :languages="languages"
+                        :dirty="isDirty"
+                        :contentPrev="contentDocsPrev"
+                        :parentPrev="parentPrev"
+                        @updateIsValid="(val) => (isValid = val)"
+                    />
+
+                    <EditContentParent
+                        v-if="parent"
+                        :docType="props.docType"
+                        :language="selectedLanguage"
+                        v-model="parent"
+                        :disabled="!canEditParent"
+                    />
+                </div>
+            </div>
             <div class="col-span-3 md:col-span-2">
                 <EmptyState
                     v-if="!selectedContent"
@@ -352,32 +378,6 @@ watch(selectedLanguage, () => {
                     <EditContentVideo
                         v-model:content="selectedContent"
                         :disabled="!canTranslateOrPublish"
-                    />
-                </div>
-            </div>
-            <!-- Sidebar -->
-            <div class="col-span-3 md:col-span-1" v-if="parent">
-                <div class="sticky top-20 space-y-6">
-                    <EditContentParentValidation
-                        :can-translate="canTranslate"
-                        :can-publish="canPublish"
-                        :can-edit="canEditParent"
-                        v-if="contentDocs"
-                        v-model:parent="parent"
-                        v-model:contentDocs="contentDocs"
-                        :languages="languages"
-                        :dirty="isDirty"
-                        :contentPrev="contentDocsPrev"
-                        :parentPrev="parentPrev"
-                        @updateIsValid="(val) => (isValid = val)"
-                    />
-                    <EditContentPreview v-if="selectedContent" :content="selectedContent" />
-                    <EditContentParent
-                        v-if="parent"
-                        :docType="props.docType"
-                        :language="selectedLanguage"
-                        v-model="parent"
-                        :disabled="!canEditParent"
                     />
                 </div>
             </div>

@@ -13,6 +13,9 @@ import LBadge, { variants } from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
+import { clientAppUrl } from "@/globalConfig";
+import LButton from "../button/LButton.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -113,6 +116,17 @@ watch(
     },
     { immediate: true, deep: true },
 );
+
+const liveUrl = computed(() => {
+    if (!content.value) return "";
+    const url = new URL(
+        content.value.slug,
+        clientAppUrl.value ? clientAppUrl.value : "http://localhost",
+    );
+    return url.toString();
+});
+
+const ensureRedirect = () => (window.location.href = liveUrl.value);
 </script>
 
 <template>
@@ -155,7 +169,22 @@ watch(
                             </LBadge>
                             <ArrowRightIcon class="h-4 w-4 text-zinc-700" />
                         </template>
-
+                        <LButton
+                            v-if="
+                                content &&
+                                content.status == PublishStatus.Published &&
+                                content.title
+                            "
+                            :icon="ArrowTopRightOnSquareIcon"
+                            iconRight
+                            class="font-extralight text-zinc-100"
+                            variant="tertiary"
+                            is="a"
+                            @click="ensureRedirect"
+                            :href="liveUrl"
+                            target="_blank"
+                            >View live version</LButton
+                        >
                         <LBadge withIcon :variant="statusBadge(content).variant">
                             {{ statusBadge(content).title }}
                         </LBadge>
