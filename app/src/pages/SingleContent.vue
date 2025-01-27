@@ -31,6 +31,7 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
+import CopyrightContent from "@/components/content/CopyrightContent.vue";
 
 const router = useRouter();
 
@@ -233,37 +234,6 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
-
-const copyright = useDexieLiveQuery(
-    () =>
-        db.docs
-            .where({
-                parentId: import.meta.env.VITE_COPYRIGHT_ID,
-            })
-            .filter((c) => {
-                const content = c as ContentDto;
-                if (content.language == appLanguageIdAsRef.value) return true;
-
-                return false;
-            })
-            .first() as unknown as ContentDto | undefined,
-);
-
-const copyrightContent = computed(() => {
-    if (!copyright.value || !copyright.value.text) {
-        return "";
-    }
-
-    let text;
-
-    // only parse text with TipTap if it's JSON, otherwise we render it out as HTML
-    try {
-        text = JSON.parse(copyright.value.text);
-    } catch {
-        return copyright.value.text;
-    }
-    return generateHTML(text, [StarterKit]);
-});
 </script>
 
 <template>
@@ -384,13 +354,9 @@ const copyrightContent = computed(() => {
             :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
         />
 
-        <!-- Copyrigth -->
+        <!-- Copyright info -->
         <IgnorePagePadding>
-            <div
-                v-if="copyrightContent"
-                v-html="copyrightContent"
-                class="prose prose-zinc mt-8 max-w-full bg-zinc-100 p-4 dark:prose-invert dark:bg-slate-800"
-            ></div>
+            <CopyrightContent />
         </IgnorePagePadding>
     </div>
 
