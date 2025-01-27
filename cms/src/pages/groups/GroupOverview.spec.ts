@@ -28,9 +28,9 @@ api({
     docTypes: [{ type: DocType.Group, contentOnly: true }],
 });
 
-let mockApiRequest;
+let mockApiRequest: string;
 app.get("/search", (req, res) => {
-    mockApiRequest = req.headers["x-query"];
+    mockApiRequest = req.headers["x-query"] as string;
     res.setHeader("Content-Type", "application/json");
     res.end(
         JSON.stringify({
