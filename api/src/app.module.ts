@@ -9,7 +9,7 @@ import configuration from "./configuration";
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from "nest-winston";
 import { DocsController } from "./endpoints/docs.controller";
 import { DocsService } from "./endpoints/docs.service";
-import { SearchController } from "./endpoints/serach.controller";
+import { SearchController } from "./endpoints/search.controller";
 import { SearchService } from "./endpoints/search.service";
 import { ChangeRequestService } from "./endpoints/changeRequest.service";
 import { ChangeRequestController } from "./endpoints/changeRequest.controller";
