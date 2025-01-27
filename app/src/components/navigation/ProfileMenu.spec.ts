@@ -87,7 +87,7 @@ describe("ProfileMenu", () => {
         await wrapper.find("button").trigger("click");
         const profileMenuButtons = wrapper.findAll("button");
 
-        await profileMenuButtons[6].trigger("click");
+        await profileMenuButtons[7].trigger("click");
         await waitForExpect(() => {
             expect(logout).toHaveBeenCalled();
         });
