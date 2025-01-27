@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import GroupOverview from "./GroupOverview.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
+import express from "express";
 import {
     mockGroupDtoPublicContent,
     mockGroupDtoPublicEditors,
@@ -11,28 +12,51 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, db } from "luminary-shared";
+import { accessMap, api, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router");
+
+// ============================
+// Mock api
+// ============================
+const app = express();
+const port = 12347;
+api({
+    apiUrl: `http://localhost:${port}`,
+    token: "test",
+    docTypes: [{ type: DocType.Group, contentOnly: true }],
+});
+
+let mockApiRequest;
+app.get("/search", (req, res) => {
+    mockApiRequest = req.headers["x-query"];
+    res.setHeader("Content-Type", "application/json");
+    res.end(
+        JSON.stringify({
+            docs: [
+                mockGroupDtoPublicContent,
+                mockGroupDtoPublicUsers,
+                mockGroupDtoPublicEditors,
+                mockGroupDtoSuperAdmins,
+            ],
+        }),
+    );
+});
+
+app.listen(port, () => {
+    console.log(`Mock api running on port ${port}.`);
+});
 
 describe("GroupOverview", () => {
     accessMap.value = superAdminAccessMap;
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
-        db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoSuperAdmins,
-        ]);
     });
 
     afterEach(() => {
         vi.clearAllMocks();
-        db.docs.clear();
-        db.localChanges.clear();
     });
 
     it("displays all groups", async () => {
@@ -56,5 +80,13 @@ describe("GroupOverview", () => {
         await wrapper.find('button[data-test="createGroupButton"]').trigger("click");
 
         expect(wrapper.text()).toContain("New group");
+    });
+
+    it("can correctly query the api", async () => {
+        mount(GroupOverview);
+
+        await waitForExpect(() => {
+            expect(JSON.parse(mockApiRequest).types[0]).toBe(DocType.Group);
+        });
     });
 });
