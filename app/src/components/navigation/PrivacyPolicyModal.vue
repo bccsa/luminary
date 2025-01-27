@@ -99,8 +99,6 @@ setTimeout(() => {
             {{ modalMessageMap[status] }}
         </p>
 
-        <!-- <p v-html="translatedMessage" class="mb-8 italic text-gray-700 dark:text-slate-300"></p> -->
-
         <p class="mb-8 italic text-gray-700 dark:text-slate-300">
             {{ t("privacy_policy.modal.message_link", { link: "" }) }}
             <RouterLink
