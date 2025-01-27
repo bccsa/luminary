@@ -8,7 +8,7 @@ import { getJwtPermission, parsePermissionMap } from "../jwt/jwtPermissionMap";
 import * as JWT from "jsonwebtoken";
 import configuration, { Configuration } from "../configuration";
 import { validateJWT } from "../validation/jwt";
-import { SearchReqDto } from "../dto/EndpointsReqDto";
+import { SearchReqDto } from "../dto/SearchReqDto";
 
 @Injectable()
 export class SearchService {

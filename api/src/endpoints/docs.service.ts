@@ -1,4 +1,4 @@
-import { DocsReqDto } from "../dto/EndpointsReqDto";
+import { DocsReqDto } from "../dto/DocsReqDto";
 import { HttpException, HttpStatus, Injectable, Inject } from "@nestjs/common";
 import { DbQueryResult, DbService, GetDocsOptions } from "../db/db.service";
 import { AclPermission } from "../enums";

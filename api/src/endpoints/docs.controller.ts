@@ -1,5 +1,5 @@
 import { Controller, Headers, Get } from "@nestjs/common";
-import { DocsReqDto } from "../dto/EndpointsReqDto";
+import { DocsReqDto } from "../dto/DocsReqDto";
 import { DocsService } from "./docs.service";
 import { xQuery } from "../validation/x-query";
 import { validateApiVersion } from "../validation/apiVersion";
