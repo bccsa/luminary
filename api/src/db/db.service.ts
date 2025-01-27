@@ -315,8 +315,12 @@ export class DbService extends EventEmitter {
         });
     }
 
+    /**
+     * calculate the start and end of the block, used to pass back to the client for pagination
+     * @param docs - List of documents
+     * @returns
+     */
     calcBlockStartEnd(docs: any[]): { blockStart: number; blockEnd: number } {
-        // calculate the start and end of the block, used to pass back to the client for pagination
         const blockStart: number =
             docs.length < 1
                 ? 0
