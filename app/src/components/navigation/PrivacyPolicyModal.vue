@@ -95,11 +95,9 @@ setTimeout(() => {
         :heading="t('privacy_policy.modal.title')"
         @close="show = false"
     >
-        <p class="mb-4 mt-4 text-gray-700 dark:text-slate-300">
-            {{ modalMessageMap[status] }}
-        </p>
+        <p class="mb-4 mt-4 text-gray-700 dark:text-slate-300">{{ modalMessageMap[status] }}</p>
 
-        <p class="mb-8 italic text-gray-700 dark:text-slate-300">
+        <p class="mb-8 pt-1 italic text-gray-700 dark:text-slate-300">
             {{ t("privacy_policy.modal.message_link", { link: "" }) }}
             <RouterLink
                 :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
