@@ -1,13 +1,5 @@
 import { Expose } from "class-transformer";
-import {
-    IsNotEmpty,
-    IsString,
-    IsOptional,
-    IsNumber,
-    IsBoolean,
-    IsArray,
-    IsObject,
-} from "class-validator";
+import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, IsArray } from "class-validator";
 import { DocType } from "../enums";
 
 /**
@@ -51,26 +43,6 @@ export class DocsReqDto {
     @IsString()
     @Expose()
     type: DocType;
-}
-
-/**
- * Document structure for client / CMS submitted changes to existing documents or new documents.
- */
-export class ChangeReqDto {
-    @IsNotEmpty()
-    @IsString()
-    @Expose()
-    apiVersion: string;
-
-    @IsNotEmpty()
-    @IsNumber()
-    @Expose()
-    id: number;
-
-    @IsNotEmpty()
-    @IsObject()
-    @Expose()
-    doc: any; // Object containing full submitted / updated document
 }
 
 /**
