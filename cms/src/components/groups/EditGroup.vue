@@ -322,7 +322,6 @@ const saveChanges = async () => {
         .changeRequest({
             id: 10,
             doc: editableGroupWithoutEmpty.value,
-            apiVersion: "0.0.0",
         } as ChangeRequestQuery);
 
     res && res.ack == AckStatus.Accepted && groups.value.set(res.doc._id, res.doc);

@@ -9,7 +9,7 @@ export class DocsReqDto {
     @IsNotEmpty()
     @IsString()
     @Expose()
-    apiVersion: string;
+    apiVersion?: string;
 
     @IsNotEmpty()
     @IsNumber()
@@ -52,7 +52,7 @@ export class SearchReqDto {
     @IsNotEmpty()
     @IsString()
     @Expose()
-    apiVersion: string;
+    apiVersion?: string;
 
     @IsOptional()
     @IsNumber()

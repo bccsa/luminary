@@ -15,7 +15,6 @@ import EditGroup from "@/components/groups/EditGroup.vue";
 import { computed, ref, watch, provide } from "vue";
 
 const groupsQuery: ApiSearchQuery = {
-    apiVersion: "0.0.0",
     types: [DocType.Group],
 };
 

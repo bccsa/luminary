@@ -3,7 +3,7 @@ import { Sync } from "./sync";
 import { HttpReq } from "./http";
 
 export type ApiSearchQuery = {
-    apiVersion: string;
+    apiVersion?: string;
     limit?: number;
     offset?: number;
     sort?: "desc" | "asc";
@@ -18,7 +18,7 @@ export type ApiSearchQuery = {
 export type ChangeRequestQuery = {
     id: number;
     doc: any;
-    apiVersion: string;
+    apiVersion?: string;
 };
 
 class RestApi {
@@ -38,10 +38,12 @@ class RestApi {
     }
 
     async search(query: ApiSearchQuery) {
+        query.apiVersion = "0.0.0";
         return await this.http.get("search", query);
     }
 
     async changeRequest(query: ChangeRequestQuery) {
+        query.apiVersion = "0.0.0";
         return await this.http.post("changerequest", query);
     }
 }
