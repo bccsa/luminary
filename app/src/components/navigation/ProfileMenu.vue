@@ -16,10 +16,12 @@ import {
     Cog6ToothIcon,
     LanguageIcon,
     SunIcon,
+    EnvelopeIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
 import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
+import UserFeedbackModal from "./UserFeedbackModal.vue";
 
 const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
@@ -27,6 +29,15 @@ const router = useRouter();
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showPrivacyPolicyModal = ref(false);
+const showUserFeedbackModal = ref(false);
+
+// const mailto = () => {
+//     const subject = "Luminary Feedback";
+
+//     const body = `${navigator.userAgent}\n\n ${user.value.}`;
+//     const email = "mailto:0q6W9@example.com";
+//     window.location.href = `${email}?subject=${subject}&body=${body}`;
+// };
 
 const commonNavigation = computed(() => {
     return [
@@ -46,6 +57,11 @@ const commonNavigation = computed(() => {
             name: "Bookmarks",
             icon: BookmarkIcon,
             action: () => router.push({ name: "bookmarks" }),
+        },
+        {
+            name: "User Feedback",
+            icon: EnvelopeIcon,
+            action: () => (showUserFeedbackModal.value = true),
         },
         {
             name: "Privacy policy",
@@ -157,4 +173,5 @@ const userNavigation = computed(() => {
     <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
     <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
+    <UserFeedbackModal v-model:show="showUserFeedbackModal" />
 </template>

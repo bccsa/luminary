@@ -272,6 +272,7 @@ export const mockLanguageDtoEng: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "eng",
     name: "English",
+    translations: {},
 };
 export const mockLanguageDtoFra: LanguageDto = {
     _id: "lang-fra",
@@ -280,6 +281,7 @@ export const mockLanguageDtoFra: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "fra",
     name: "Français",
+    translations: {},
 };
 
 export const mockLanguageDtoSwa: LanguageDto = {
@@ -289,6 +291,7 @@ export const mockLanguageDtoSwa: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "swa",
     name: "Swahili",
+    translations: {},
 };
 
 export const mockRedirectDto: RedirectDto = {
@@ -489,5 +492,231 @@ export const translateAccessToAllContentMap = {
         post: { view: true, translate: true },
         tag: { view: true, translate: true },
         language: { view: true, translate: true },
+    },
+};
+
+export const superAdminAccessMap = {
+    "group-private-content": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-public-content": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-private-editors": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-public-editors": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-private-users": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-public-users": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+    },
+    "group-languages": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+        },
     },
 };
