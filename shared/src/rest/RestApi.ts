@@ -42,7 +42,7 @@ class RestApi {
     }
 
     async changeRequest(query: ChangeRequestQuery) {
-        return await this.http.post("docs", query);
+        return await this.http.post("changerequest", query);
     }
 }
 

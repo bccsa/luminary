@@ -11,6 +11,8 @@ import { DocsController } from "./endpoints/docs.controller";
 import { DocsService } from "./endpoints/docs.service";
 import { SearchController } from "./endpoints/serach.controller";
 import { SearchService } from "./endpoints/search.service";
+import { ChangeRequestService } from "./endpoints/changeRequest.service";
+import { ChangeRequestController } from "./endpoints/changeRequest.controller";
 import * as winston from "winston";
 
 let winstonTransport: winston.transport;
@@ -46,7 +48,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
             global: true,
         }),
     ],
-    controllers: [AppController, DocsController, SearchController],
-    providers: [DbService, Socketio, S3Service, DocsService, SearchService],
+    controllers: [AppController, DocsController, SearchController, ChangeRequestController],
+    providers: [DbService, Socketio, S3Service, DocsService, SearchService, ChangeRequestService],
 })
 export class AppModule {}
