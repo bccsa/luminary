@@ -2,7 +2,7 @@ import { SearchService } from "./search.service";
 import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { DocType } from "../enums";
-import { SearchReqDto } from "src/dto/EndpointsReqDto";
+import { SearchReqDto } from "../dto/SearchReqDto";
 
 jest.mock("../configuration", () => {
     const originalModule = jest.requireActual("../configuration");

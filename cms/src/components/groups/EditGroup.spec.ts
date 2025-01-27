@@ -44,7 +44,7 @@ app.use(
         extended: true,
     }),
 );
-const port = 12347;
+const port = 12348;
 api({
     apiUrl: `http://localhost:${port}`,
     token: "test",
@@ -52,7 +52,7 @@ api({
 });
 
 let mockApiRequest: { doc: any };
-app.post("/docs", (req, res) => {
+app.post("/changerequest", (req, res) => {
     mockApiRequest = req.body;
     res.end(JSON.stringify({ doc: req.body.doc, ack: AckStatus.Accepted }));
 });

@@ -1,5 +1,5 @@
 import { Controller, Headers, Get } from "@nestjs/common";
-import { SearchReqDto } from "../dto/EndpointsReqDto";
+import { SearchReqDto } from "../dto/SearchReqDto";
 import { SearchService } from "./search.service";
 import { xQuery } from "../validation/x-query";
 import { validateApiVersion } from "../validation/apiVersion";
