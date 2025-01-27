@@ -272,7 +272,6 @@ export const mockLanguageDtoEng: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "eng",
     name: "English",
-    translations: {},
 };
 export const mockLanguageDtoFra: LanguageDto = {
     _id: "lang-fra",
@@ -281,7 +280,6 @@ export const mockLanguageDtoFra: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "fra",
     name: "Français",
-    translations: {},
 };
 
 export const mockLanguageDtoSwa: LanguageDto = {
@@ -291,7 +289,6 @@ export const mockLanguageDtoSwa: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "swa",
     name: "Swahili",
-    translations: {},
 };
 
 export const mockRedirectDto: RedirectDto = {
