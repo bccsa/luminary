@@ -28,4 +28,8 @@ export class _baseDto {
     @IsOptional()
     @IsNumber()
     updatedTimeUtc?: number;
+
+    @IsOptional()
+    @IsNumber()
+    deleteReq?: number;
 }
