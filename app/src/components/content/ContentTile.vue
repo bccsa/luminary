@@ -23,9 +23,7 @@ const openContent = () => {
 
 <template>
     <div @click="openContent" class="ease-out-expo group transition hover:brightness-[1.15]">
-        <div
-            class="avoid-inside ease-out-expo -m-2 cursor-pointer p-2 transition-transform duration-500 active:shadow-inner group-hover:scale-[101%]"
-        >
+        <div class="avoid-inside ease-out-expo -m-2 cursor-pointer p-2 active:shadow-inner">
             <LImage :image="content.parentImageData" :aspectRatio="aspectRatio" size="thumbnail">
                 <div class="w-full">
                     <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
