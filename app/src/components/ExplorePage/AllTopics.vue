@@ -6,7 +6,10 @@ import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
+import { isPublished } from "@/util/isPublished";
+import { useInfiniteScroll, useDebounceFn } from "@vueuse/core";
 
+// Fetch topics with Dexie live query and error handling
 const allTopics = useDexieLiveQueryWithDeps(
     appLanguageIdAsRef,
     (appLanguageId: Uuid) =>
@@ -19,45 +22,57 @@ const allTopics = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-
-                if (content.language !== appLanguageId) return false;
-
-                // Only include published content
-                if (content.status !== "published") return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                return content.language === appLanguageId && isPublished(content);
             })
-
             .toArray() as unknown as Promise<ContentDto[]>,
     {
-        initialValue: await db.getQueryCache<ContentDto[]>("explorepage_allTopics"),
+        initialValue: [],
+        onError: (error) => console.error("Error fetching topics:", error),
     },
 );
 
+// Update query cache when data changes
 watch(allTopics, async (value) => {
     db.setQueryCache<ContentDto[]>("explorepage_allTopics", value);
 });
 
 // Reactive search term
 const searchTerm = ref("");
+watch(searchTerm, () => {
+    scrollPosition.value = 10; // Reset infinite scroll on search change
+});
 
 // Computed property for filtered topics
 const filteredTopics = computed(() => {
-    if (!searchTerm.value.trim()) {
-        // Show all topics when search term is empty
-        return allTopics.value;
-    }
-    // Filter topics based on the search term
+    if (!searchTerm.value.trim()) return allTopics.value;
     return allTopics.value.filter((t) =>
         t.title.toLowerCase().includes(searchTerm.value.toLowerCase()),
     );
 });
+
+// Infinite scroll setup
+const scrollElement = ref<HTMLElement | null>(null);
+const scrollPosition = ref(10);
+const infiniteScrollData = computed(() => filteredTopics.value.slice(0, scrollPosition.value));
+
+// Debounced infinite scroll handler
+const loadMore = useDebounceFn(() => {
+    if (scrollPosition.value < filteredTopics.value.length) {
+        scrollPosition.value += 10;
+    }
+}, 200);
+
+// Initialize infinite scroll only when scrollElement is ready
+watch(scrollElement, (el) => {
+    if (el) {
+        useInfiniteScroll(scrollElement, loadMore, { distance: 50 }); // Adjusted distance
+    }
+});
 </script>
 
 <template>
-    <div v-if="allTopics" class="lg:mx-32">
+    <div v-if="allTopics" ref="scrollElement" class="lg:mx-32">
+        <!-- Search Input -->
         <div class="mb-4 mt-6">
             <div class="relative">
                 <MagnifyingGlassIcon
@@ -73,7 +88,7 @@ const filteredTopics = computed(() => {
             </div>
         </div>
 
-        <!-- Show "No results found" message if filteredTopics is empty and searchTerm is not blank -->
+        <!-- No Results Found -->
         <div
             v-if="filteredTopics.length === 0 && searchTerm.trim()"
             class="text-center text-gray-500"
@@ -81,9 +96,10 @@ const filteredTopics = computed(() => {
             No results found for "{{ searchTerm }}"
         </div>
 
+        <!-- Infinite Scroll Content -->
         <div class="space-y-2">
             <div
-                v-for="content in filteredTopics"
+                v-for="content in infiniteScrollData"
                 :key="content._id"
                 class="flex overflow-clip rounded-lg bg-zinc-50 pl-2 shadow-sm hover:bg-yellow-500/10 dark:bg-slate-800 dark:hover:bg-yellow-500/10 md:pl-4"
             >
@@ -108,6 +124,14 @@ const filteredTopics = computed(() => {
                         :rounded="false"
                     />
                 </RouterLink>
+            </div>
+
+            <!-- Loading/No More Data -->
+            <div
+                v-if="scrollPosition >= filteredTopics.length"
+                class="py-5 text-center text-gray-500"
+            >
+                No more topics to load.
             </div>
         </div>
     </div>
