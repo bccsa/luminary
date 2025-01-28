@@ -27,7 +27,9 @@ describe("HorizontalScrollableTagViewer", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Content Unavailable in Selected Language.");
+            expect(wrapper.text()).toContain(
+                "Content Unavailable in Selected Language. We are currently working on providing content in your preferred language. In the meantime, feel free to explore available content in other languages.",
+            );
         });
     });
 
