@@ -206,8 +206,8 @@ const availableGroups = computed(() => {
 const isDirty = computed(() => {
     if (props.newGroups.find((g) => g._id == props.group._id)) return true;
     return !_.isEqual(
-        { ...toRaw(originalGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "" },
-        { ...toRaw(editableGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "" },
+        { ...toRaw(originalGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "", updatedBy: "" },
+        { ...toRaw(editableGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "", updatedBy: "" },
     );
 });
 

@@ -37,7 +37,7 @@ const getDbGroups = async () => {
 };
 getDbGroups();
 // poll api every 5 seconds for updates
-setInterval(getDbGroups, 5000);
+// setInterval(getDbGroups, 5000);
 
 const newGroups = ref<GroupDto[]>([]);
 

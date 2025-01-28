@@ -157,6 +157,18 @@ describe("EditGroup.vue", () => {
         });
     });
 
+    it("can hide the save button after changes has been saved", async () => {
+        const wrapper = await createWrapper(mockGroupDtoPublicContent);
+
+        await wrapper.find('[data-test="permissionCell"]').trigger("click");
+
+        await wrapper.find(saveChangesButton).trigger("click");
+
+        waitForExpect(() => {
+            expect(Object.keys(wrapper.find(saveChangesButton)).length).toBeLessThan(1);
+        });
+    });
+
     it("can discard all changes", async () => {
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
