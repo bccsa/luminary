@@ -5,10 +5,10 @@ import { DocType, Uuid } from "../enums";
 import { validateSlug } from "./validateSlug";
 import { processImage } from "../s3/s3.imagehandling";
 import { S3Service } from "../s3/s3.service";
-import { PostDto } from "src/dto/PostDto";
-import { TagDto } from "src/dto/TagDto";
-import { ContentDto } from "src/dto/ContentDto";
-import { LanguageDto } from "src/dto/LanguageDto";
+import { PostDto } from "../dto/PostDto";
+import { TagDto } from "../dto/TagDto";
+import { ContentDto } from "../dto/ContentDto";
+import { LanguageDto } from "../dto/LanguageDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -19,11 +19,14 @@ export async function processChangeRequest(
 ) {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
+
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
     }
 
     const doc = validationResult.validatedData;
+    // insert user id into the change request document, so that we can keep a record of who made the change
+    doc.updatedBy = userId;
 
     // Validate slug
     if (doc.type == DocType.Content) {

@@ -4,7 +4,7 @@ import { nextTick } from "vue";
 import { appName } from "@/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
-import { AclPermission, DocType, hasAnyPermission } from "luminary-shared";
+import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 
 declare module "vue-router" {
@@ -79,6 +79,7 @@ export const router = createRouter({
                                     docType: DocType.Group,
                                     permission: AclPermission.View,
                                 },
+                                onlineOnly: true,
                             },
                         },
                     ],
@@ -128,6 +129,16 @@ router.beforeEach((to, from) => {
         addNotification({
             title: "Access denied",
             description: "You don't have access to this page",
+            state: "error",
+        });
+
+        return from;
+    }
+
+    if (to.meta.onlineOnly && !isConnected.value) {
+        addNotification({
+            title: "Unable to open page",
+            description: "This page can only be viewed online",
             state: "error",
         });
 

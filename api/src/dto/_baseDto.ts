@@ -20,6 +20,11 @@ export class _baseDto {
     @Expose()
     type: DocType;
 
+    @IsString()
+    @IsOptional()
+    @Expose()
+    updatedBy?: string;
+
     @IsOptional()
     @IsNumber()
     updatedTimeUtc?: number;

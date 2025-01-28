@@ -7,8 +7,12 @@ import { Socketio } from "./socketio";
 import { S3Service } from "./s3/s3.service";
 import configuration from "./configuration";
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from "nest-winston";
-import { DocsController } from "./docs/docs.controller";
-import { DocsService } from "./docs/docs.service";
+import { DocsController } from "./endpoints/docs.controller";
+import { DocsService } from "./endpoints/docs.service";
+import { SearchController } from "./endpoints/search.controller";
+import { SearchService } from "./endpoints/search.service";
+import { ChangeRequestService } from "./endpoints/changeRequest.service";
+import { ChangeRequestController } from "./endpoints/changeRequest.controller";
 import * as winston from "winston";
 
 let winstonTransport: winston.transport;
@@ -44,7 +48,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
             global: true,
         }),
     ],
-    controllers: [AppController, DocsController],
-    providers: [DbService, Socketio, S3Service, DocsService],
+    controllers: [AppController, DocsController, SearchController, ChangeRequestController],
+    providers: [DbService, Socketio, S3Service, DocsService, SearchService, ChangeRequestService],
 })
 export class AppModule {}

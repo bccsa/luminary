@@ -27,6 +27,19 @@ export type GetDocsOptions = {
     contentOnly?: boolean;
 };
 
+export type QueryDocsOptions = {
+    userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
+    types: Array<DocType>;
+    groups?: Array<string>;
+    from?: number;
+    to?: number;
+    limit?: number;
+    sort?: any; // default sort is by updatedTimeUtc descending
+    offset?: number;
+    contentOnly?: boolean;
+    queryString?: string;
+};
+
 /**
  * Standardized format for database query results
  * @param {Array<any>} docs - Array of databased returned documents
@@ -185,7 +198,13 @@ export class DbService extends EventEmitter {
                             .catch((err) => {
                                 reject(err);
                             });
-                    } else if (existing && isDeepStrictEqual(docPlain, existing)) {
+                    } else if (
+                        existing &&
+                        isDeepStrictEqual(
+                            { ...docPlain, updatedBy: "" },
+                            { ...existing, updatedBy: "" },
+                        )
+                    ) {
                         // Document in DB is the same as passed doc: do nothing
                         resolve({
                             id: docPlain._id,
@@ -303,6 +322,30 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * calculate the start and end of the block, used to pass back to the client for pagination
+     * @param docs - List of documents
+     * @returns
+     */
+    calcBlockStartEnd(docs: any[]): { blockStart: number; blockEnd: number } {
+        const blockStart: number =
+            docs.length < 1
+                ? 0
+                : docs.reduce(
+                      (prev: { updatedTimeUtc: number }, curr: { updatedTimeUtc: number }) =>
+                          prev.updatedTimeUtc > curr.updatedTimeUtc ? prev : curr,
+                  ).updatedTimeUtc;
+        const blockEnd: number =
+            docs.length < 1
+                ? 0
+                : docs.reduce(
+                      (prev: { updatedTimeUtc: number }, curr: { updatedTimeUtc: number }) =>
+                          prev.updatedTimeUtc < curr.updatedTimeUtc ? prev : curr,
+                  ).updatedTimeUtc;
+
+        return { blockStart, blockEnd };
+    }
+
+    /**
      * Get data to which a user has access.
      * @param {GetDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
@@ -364,24 +407,7 @@ export class DbService extends EventEmitter {
                 const res = await this.db.find(docQuery);
                 const docs = res.docs;
                 // calculate the start and end of the block, used to pass back to the client for pagination
-                const blockStart: number =
-                    docs.length < 1
-                        ? 0
-                        : docs.reduce(
-                              (
-                                  prev: { updatedTimeUtc: number },
-                                  curr: { updatedTimeUtc: number },
-                              ) => (prev.updatedTimeUtc > curr.updatedTimeUtc ? prev : curr),
-                          ).updatedTimeUtc;
-                const blockEnd: number =
-                    docs.length < 1
-                        ? 0
-                        : docs.reduce(
-                              (
-                                  prev: { updatedTimeUtc: number },
-                                  curr: { updatedTimeUtc: number },
-                              ) => (prev.updatedTimeUtc < curr.updatedTimeUtc ? prev : curr),
-                          ).updatedTimeUtc;
+                const { blockStart, blockEnd } = this.calcBlockStartEnd(docs);
 
                 resolve({
                     docs,
@@ -391,6 +417,141 @@ export class DbService extends EventEmitter {
                     blockEnd: blockEnd,
                     group: options.group,
                     contentOnly: options.contentOnly,
+                });
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    /**
+     * Query DB for documents based on user access and query options
+     * @param {QueryDocsOptions} options - Query configuration object.
+     * @returns - Promise containing the query result
+     */
+    queryDocs(options: QueryDocsOptions): Promise<DbQueryResult> {
+        return new Promise(async (resolve, reject) => {
+            // Construct time selectors
+            const selectors = [];
+            if (options.from) {
+                selectors.push({
+                    updatedTimeUtc: {
+                        $gte: options.from - this.syncTolerance,
+                    },
+                });
+            }
+
+            if (options.to) {
+                selectors.push({
+                    updatedTimeUtc: {
+                        $lte: options.to + this.syncTolerance,
+                    },
+                });
+            }
+
+            const timeSelector = [];
+            if (selectors.length > 0) {
+                timeSelector.push({
+                    $and: selectors,
+                });
+            }
+
+            const docQuery = {
+                selector: { $and: [...timeSelector] },
+                limit: options.limit || Number.MAX_SAFE_INTEGER,
+                sort: options.sort || [{ updatedTimeUtc: "desc" }],
+            };
+
+            const $or = [];
+            Object.values(options.types).forEach((docType: DocType) => {
+                // only allow user to access the document type if it is included the users userAccess object
+                if (!options.userAccess[docType]) return;
+
+                // reduce user requested groups to only the groups the user has access to
+                // default groups to user access groups if not provided
+                const groups =
+                    options.groups && options.groups.length > 0
+                        ? options.groups.filter(
+                              (group) => options.userAccess[docType].indexOf(group) > -1,
+                          )
+                        : options.userAccess[docType];
+
+                if (docType !== DocType.Group && !options.contentOnly)
+                    $or.push({
+                        $and: [{ type: { $in: [docType] } }, { memberOf: { $in: groups } }],
+                    });
+
+                //content only docs
+                if (docType === DocType.Post || docType === DocType.Tag)
+                    $or.push({
+                        $and: [
+                            { type: { $in: [DocType.Content] } },
+                            { memberOf: { $in: groups } },
+                            { parentType: docType },
+                        ],
+                    });
+
+                // groups docs
+                if (docType === DocType.Group && !options.contentOnly) {
+                    $or.push({
+                        $and: [
+                            { type: DocType.Group },
+                            { _id: { $in: options.userAccess[DocType.Group] } },
+                        ],
+                    });
+                }
+            });
+
+            if ($or.length < 1)
+                resolve({
+                    docs: [],
+                    warnings: ["User does not have access to view any documents"],
+                });
+            docQuery.selector["$and"].push({ $or });
+
+            try {
+                const res = await this.db.find(docQuery);
+
+                const docs = res.docs;
+                const warnings = res.warnings;
+                // calculate the start and end of the block, used to pass back to the client for pagination
+                const { blockStart, blockEnd } = this.calcBlockStartEnd(docs);
+
+                resolve({
+                    docs,
+                    warnings: warnings,
+                    blockStart: blockStart,
+                    blockEnd: blockEnd,
+                });
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    /**
+     * Get groups to which a user has access.
+     * @param {GetDocsOptions} options - Query configuration object.
+     * @returns - Promise containing the query result
+     */
+    getUserGroups(userAccess): Promise<DbQueryResult> {
+        return new Promise(async (resolve, reject) => {
+            if (!userAccess[DocType.Group]) resolve({ docs: [] });
+
+            // Include the (group) document itself if the "group" type is included in the options
+            const query = {
+                selector: {
+                    $and: [{ type: DocType.Group }, { _id: { $in: userAccess[DocType.Group] } }],
+                },
+                limit: Number.MAX_SAFE_INTEGER,
+            };
+
+            try {
+                const res = await this.db.find(query);
+                const docs = res.docs;
+                resolve({
+                    docs,
+                    warnings: res.warning,
                 });
             } catch (err) {
                 reject(err);

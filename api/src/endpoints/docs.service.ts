@@ -8,6 +8,8 @@ import { Logger } from "winston";
 import { getJwtPermission, parsePermissionMap } from "../jwt/jwtPermissionMap";
 import * as JWT from "jsonwebtoken";
 import configuration, { Configuration } from "../configuration";
+import { validateJWT } from "../validation/jwt";
+import { S3Service } from "../s3/s3.service";
 
 @Injectable()
 export class DocsService {
@@ -19,6 +21,7 @@ export class DocsService {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
+        private s3: S3Service,
     ) {
         // Create config object with environmental variables
         this.config = configuration();
@@ -30,27 +33,13 @@ export class DocsService {
      * @returns
      */
     async processReq(req: DocsReqDto, token: string): Promise<DbQueryResult> {
-        if (!this.apiVersionCheck(req.apiVersion))
-            throw new HttpException(
-                "API version is outdated, please update your app",
-                HttpStatus.BAD_REQUEST,
-            );
+        // decode and validate JWT
+        const jwt: string | JWT.JwtPayload = validateJWT(
+            token,
+            this.config.auth.jwtSecret,
+            this.logger,
+        );
 
-        let jwt: string | JWT.JwtPayload;
-        if (token) {
-            try {
-                jwt = JWT.verify(token, this.config.auth.jwtSecret);
-            } catch (err) {
-                this.logger.error(`Error verifying JWT`, err);
-            }
-
-            if (!jwt) {
-                throw new HttpException(
-                    "Invalid auth token, please re-login",
-                    HttpStatus.BAD_REQUEST,
-                );
-            }
-        }
         // Get group access
         this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
         const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
@@ -104,15 +93,5 @@ export class DocsService {
                 this.logger.error(`Error getting data for client: ${permissions.userId}`, err);
             });
         return _res;
-    }
-
-    // TODO: Implement API versioning
-    /**
-     * Check if client has a valid api version, block interaction if version is not the same
-     * @param apiVersion - client api version
-     * @returns
-     */
-    apiVersionCheck(apiVersion: string) {
-        return apiVersion == apiVersion;
     }
 }

@@ -3,6 +3,9 @@ import { describe, it, expect, vi, afterEach, beforeEach, afterAll, beforeAll } 
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
+import { ref } from "vue";
+import express from "express";
+import bodyParser from "body-parser";
 import {
     mockGroupDtoPublicContent,
     mockGroupDtoPublicEditors,
@@ -15,9 +18,11 @@ import {
     AclPermission,
     db,
     DocType,
-    isConnected,
+    api,
     type GroupAclEntryDto,
     type GroupDto,
+    isConnected,
+    AckStatus,
 } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import EditGroup from "./EditGroup.vue";
@@ -29,14 +34,54 @@ vi.mock("vue-router", () => ({
     onBeforeRouteLeave: vi.fn(),
 }));
 
+// ============================
+// Mock api
+// ============================
+const app = express();
+app.use(bodyParser.json());
+app.use(
+    bodyParser.urlencoded({
+        extended: true,
+    }),
+);
+const port = 12348;
+api({
+    apiUrl: `http://localhost:${port}`,
+    token: "test",
+    docTypes: [{ type: DocType.Group, contentOnly: true }],
+});
+
+let mockApiRequest: { doc: any };
+app.post("/changerequest", (req, res) => {
+    mockApiRequest = req.body;
+    res.end(JSON.stringify({ doc: req.body.doc, ack: AckStatus.Accepted }));
+});
+
+app.listen(port, () => {
+    console.log(`Mock api running on port ${port}.`);
+});
+
+const groups = ref<Map<string, GroupDto>>(new Map());
+groups.value.set(mockGroupDtoPublicContent._id, mockGroupDtoPublicContent);
+groups.value.set(mockGroupDtoPublicEditors._id, mockGroupDtoPublicEditors);
+groups.value.set(mockGroupDtoPublicUsers._id, mockGroupDtoPublicUsers);
+groups.value.set(mockGroupDtoSuperAdmins._id, mockGroupDtoSuperAdmins);
+
 describe("EditGroup.vue", () => {
     const saveChangesButton = 'button[data-test="saveChanges"]';
     const discardChangesButton = 'button[data-test="discardChanges"]';
+    const newGroups = ref<GroupDto[]>([]);
 
     const createWrapper = async (group: GroupDto) => {
         const wrapper = mount(EditGroup, {
             props: {
                 group,
+                newGroups: newGroups.value,
+            },
+            global: {
+                provide: {
+                    groups: groups,
+                },
             },
         });
         // Open up the accordion
@@ -52,22 +97,15 @@ describe("EditGroup.vue", () => {
     };
 
     beforeAll(async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
         accessMap.value = superAdminAccessMap;
     });
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+        isConnected.value = true;
     });
 
     afterEach(() => {
-        db.docs.clear();
-        db.localChanges.clear();
         vi.clearAllMocks();
     });
 
@@ -76,13 +114,6 @@ describe("EditGroup.vue", () => {
     });
 
     it("displays all ACL groups under the given group", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         await waitForExpect(() => {
@@ -93,13 +124,6 @@ describe("EditGroup.vue", () => {
     });
 
     it("displays buttons when changing a value", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         await wrapper.find('[data-test="permissionCell"]').trigger("click");
@@ -109,13 +133,6 @@ describe("EditGroup.vue", () => {
     });
 
     it("displays a label when there are unsaved changes and the accordion is closed", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         await wrapper.find('[data-test="permissionCell"]').trigger("click");
@@ -128,36 +145,7 @@ describe("EditGroup.vue", () => {
         expect(wrapper.text()).toContain("Unsaved changes");
     });
 
-    it("displays a label when there are offline changes", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
-        isConnected.value = false;
-
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        expect(wrapper.text()).not.toContain("Offline changes");
-
-        // Upsert a local change
-        await db.upsert({ ...mockGroupDtoPublicContent, updatedTimeUtc: 1234 });
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Offline changes");
-        });
-    });
-
     it("can save changes", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         await wrapper.find('[data-test="permissionCell"]').trigger("click");
@@ -165,19 +153,23 @@ describe("EditGroup.vue", () => {
         await wrapper.find(saveChangesButton).trigger("click");
 
         await waitForExpect(async () => {
-            const group = await db.docs.get(mockGroupDtoPublicContent._id);
-            expect(group!.acl).not.toEqual(mockGroupDtoPublicContent.acl);
+            expect(mockApiRequest.doc!.acl).not.toEqual(mockGroupDtoPublicContent.acl);
+        });
+    });
+
+    it("can hide the save button after changes has been saved", async () => {
+        const wrapper = await createWrapper(mockGroupDtoPublicContent);
+
+        await wrapper.find('[data-test="permissionCell"]').trigger("click");
+
+        await wrapper.find(saveChangesButton).trigger("click");
+
+        waitForExpect(() => {
+            expect(Object.keys(wrapper.find(saveChangesButton)).length).toBeLessThan(1);
         });
     });
 
     it("can discard all changes", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         await wrapper.find('[data-test="permissionCell"]').trigger("click");
@@ -203,13 +195,6 @@ describe("EditGroup.vue", () => {
     });
 
     it("can edit the group name", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const groupNameInput = 'input[data-test="groupNameInput"]';
         const groupName = '[data-test="groupName"]';
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
@@ -235,34 +220,16 @@ describe("EditGroup.vue", () => {
     });
 
     it("duplicate the whole group", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         await wrapper.find("button[data-test='duplicateGroup']").trigger("click");
 
-        await waitForExpect(async () => {
-            const groups = await (db.docs
-                .where({ type: DocType.Group })
-                .toArray() as unknown as Promise<GroupDto[]>);
-
-            expect(groups.some((g) => g.name == "Public Content - copy")).toBe(true);
-        });
+        const _group = wrapper.emitted("duplicateGroup");
+        const _groupData = _group![0][0] as GroupDto;
+        expect(_groupData.name).toBe("Public Content - copy");
     });
 
     it("can copy a group's ID", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
         let clipboardContents = "";
         // @ts-ignore
@@ -282,13 +249,6 @@ describe("EditGroup.vue", () => {
     });
 
     it("removes an existing group ACL if all permissions are removed", async () => {
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
-
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         // Group=Public Editors, DocType=Post, Permission=View  -  Clearing this should clear all the permissions, and cause the ACL entry to be deleted
@@ -296,7 +256,7 @@ describe("EditGroup.vue", () => {
         await wrapper.find(saveChangesButton).trigger("click");
 
         await waitForExpect(async () => {
-            const group = await db.docs.get(mockGroupDtoPublicContent._id);
+            const group = groups.value.get(mockGroupDtoPublicContent._id);
             expect(
                 group!.acl?.some(
                     (g) => g.groupId == "group-public-editors" && g.type == DocType.Post,
@@ -307,13 +267,6 @@ describe("EditGroup.vue", () => {
 
     it("checks if groups are disabled when no edit permissions", async () => {
         delete accessMap.value["group-public-content"].group?.edit;
-
-        await db.docs.bulkPut([
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
-        ]);
 
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
@@ -330,7 +283,7 @@ describe("EditGroup.vue", () => {
             ] as GroupAclEntryDto[],
         };
 
-        db.docs.bulkPut([groupDoc]);
+        groups.value.set(groupDoc._id, groupDoc);
 
         const wrapper = await createWrapper(groupDoc);
 
@@ -341,5 +294,15 @@ describe("EditGroup.vue", () => {
         expect(wrapper.text()).toContain("No edit access.");
         expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
         expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
+    });
+
+    it("disables editing when api is offline", async () => {
+        isConnected.value = false;
+
+        const wrapper = await createWrapper(mockGroupDtoPublicContent);
+
+        await wrapper.findAll('[data-test="permissionCell"]')[12].trigger("click");
+
+        expect(Object.keys(wrapper.find(saveChangesButton)).length).toBeLessThan(1);
     });
 });

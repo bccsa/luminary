@@ -4,13 +4,13 @@ import { db, SyncMap, syncMap } from "../db/database";
 import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
-import { getRest } from "../rest/RestApi";
+import { getRest } from "./RestApi";
 import express from "express";
 import { ApiQuery } from "./sync";
 import waitForExpect from "wait-for-expect";
 
 const app = express();
-const port = 12347;
+const port = 12349;
 let rest;
 let mockApiRequest;
 let apiRecursiveTest = { type: "", group: "", contentOnly: false }; // update parameters to run a recursive test on a specific doctype group
@@ -155,7 +155,7 @@ describe("rest", () => {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
 
-        await rest.docs.calcSyncMap();
+        await rest._sync.calcSyncMap();
 
         const _post = syncMap.value.get("post_group-public-users");
         expect(_post?.blocks[0].blockStart).toBe(0);
@@ -169,11 +169,11 @@ describe("rest", () => {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
 
-        await rest.docs.calcSyncMap();
+        await rest._sync.calcSyncMap();
 
         delete accessMap.value["group-public-users"];
 
-        await rest.docs.calcSyncMap();
+        await rest._sync.calcSyncMap();
 
         const _post = syncMap.value.get("post_group-public-users");
         expect(_post).toBe(undefined);
@@ -206,7 +206,7 @@ describe("rest", () => {
         });
 
         // test expand to end
-        await rest.docs.insertBlock({
+        await rest._sync.insertBlock({
             id: "post_group-super-admins",
             group: "group-super-admins",
             blockStart: 500,
@@ -221,7 +221,7 @@ describe("rest", () => {
         expect(post.blockEnd).toBe(400);
 
         // test expand to start
-        await rest.docs.insertBlock({
+        await rest._sync.insertBlock({
             id: "post_group-super-admins",
             group: "group-super-admins",
             blockStart: 800,
@@ -236,7 +236,7 @@ describe("rest", () => {
         expect(post.blockStart).toBe(800);
 
         // test expand overlap
-        await rest.docs.insertBlock({
+        await rest._sync.insertBlock({
             id: "post_group-super-admins",
             group: "group-super-admins",
             blockStart: 800,
@@ -254,7 +254,7 @@ describe("rest", () => {
         expect(post.blockStart).toBe(800);
 
         // test contains
-        await rest.docs.insertBlock({
+        await rest._sync.insertBlock({
             id: "post_group-super-admins",
             group: "group-super-admins",
             blockStart: 4100,
@@ -272,7 +272,7 @@ describe("rest", () => {
         expect(post.blockStart).toBe(4200);
 
         // test insert block
-        await rest.docs.insertBlock({
+        await rest._sync.insertBlock({
             id: "post_group-super-admins",
             group: "group-super-admins",
             blockStart: 200,
@@ -294,7 +294,7 @@ describe("rest", () => {
         syncMap.value.set("post_group-super-admins", syncMapEntry);
 
         // test contains
-        await rest.docs.insertBlock({
+        await rest._sync.insertBlock({
             id: "post_group-super-admins",
             group: "group-super-admins",
             blockStart: 1100,
@@ -316,26 +316,16 @@ describe("rest", () => {
         syncMapEntry.blocks.push({ blockStart: 10000, blockEnd: 9000 });
         syncMap.value.set("post_group-super-admins", syncMapEntry);
 
-        const missingData = rest.docs.calcMissingData("post_group-super-admins");
+        const missingData = rest._sync.calcMissingData("post_group-super-admins");
 
         expect(missingData.gapStart).toBe(9000);
         expect(missingData.gapEnd).toBe(2000);
     });
 
-    it("creates a syncMapEntry for DocType.Group without a group", async () => {
-        const syncMapEntries = rest.docs.calcSyncEntryKeys();
-        const block = syncMapEntries.reduce(
-            (prev, curr) => (curr.id == DocType.Group ? curr : prev),
-            {},
-        );
-
-        expect(block.id).toBe(DocType.Group);
-    });
-
     it("can remove block 0 0 if the api back fill is complete", async () => {
         syncMap.value.set("post_group-super-admins", syncMapEntry);
 
-        rest.docs.removeBlock00("post_group-super-admins");
+        rest._sync.removeBlock00("post_group-super-admins");
         const posts = syncMap.value.get("post_group-super-admins") || { blocks: [] };
         const block = posts.blocks.find((b) => b.blockStart == 0 && b.blockEnd == 0);
 
@@ -352,7 +342,7 @@ describe("rest", () => {
             { id: "f", syncPriority: 3, query: { gapEnd: 30 } },
         ];
 
-        const q = rest.docs.sortQueue(queue);
+        const q = rest._sync.sortQueue(queue);
 
         expect(q[0]?.id).toBe("f");
         expect(q[5]?.id).toBe("d");
@@ -366,7 +356,7 @@ describe("rest", () => {
             group: "group-public-content",
             type: DocType.Post,
         };
-        await rest.docs.req(query);
+        await rest._sync.req(query);
 
         await waitForExpect(() => {
             expect(mockApiRequest).toBe(JSON.stringify(query));
@@ -378,7 +368,7 @@ describe("rest", () => {
             if (res.type == "post" && res.group == "group-super-admins") mockApiCheckForRes = res;
         };
 
-        await rest.docs.clientDataReq();
+        await rest._sync.clientDataReq();
 
         await waitForExpect(() => {
             const req = mockApiCheckForRes;
@@ -403,7 +393,7 @@ describe("rest", () => {
             };
             syncMap.value.set("post_group-recursive-test", syncMapEntry);
             apiRecursiveTest = { type: "post", group: "group-recursive-test", contentOnly: false };
-            await rest.docs.clientDataReq();
+            await rest._sync.clientDataReq();
 
             await waitForExpect(() => {
                 const post = syncMap.value.get("post_group-recursive-test");

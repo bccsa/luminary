@@ -1,5 +1,5 @@
-import { httpReq } from "../rest/http";
-import { ApiConnectionOptions, DocType } from "../types";
+import { HttpReq } from "./http";
+import { ApiConnectionOptions } from "../types";
 import { db, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { watch } from "vue";
@@ -33,17 +33,17 @@ type QueueReqEntry = {
     syncPriority: number;
 };
 
-export class Docs {
-    private http: httpReq;
+export class Sync {
+    private http: HttpReq<ApiQuery>;
     private options: ApiConnectionOptions;
     private queue: number = 0;
     /**
-     * Create a new Docs instance
+     * Create a new Sync instance
      * @param options - Options
      */
     constructor(options: ApiConnectionOptions) {
         this.options = options;
-        this.http = new httpReq(options.apiUrl || "", options.token);
+        this.http = new HttpReq(options.apiUrl || "", options.token);
         watch(
             accessMap.value,
             async () => {
@@ -317,23 +317,14 @@ export class Docs {
         if (!this.options.docTypes) return [];
         // add and exception for DocType.Group, since groups is the only docType that does not have a group (memberOf)
         for (const docType of this.options.docTypes)
-            if (docType.type == DocType.Group)
+            for (const group of Object.keys(accessMap.value))
                 syncEntries.push({
-                    id: docType.type + (docType.contentOnly ? "_content" : ""),
+                    id: `${docType.type}_${group}` + (docType.contentOnly ? "_content" : ""),
                     contentOnly: docType.contentOnly,
-                    group: "",
                     type: docType.type,
+                    group: group,
                     syncPriority: docType.syncPriority || 0,
                 });
-            else
-                for (const group of Object.keys(accessMap.value))
-                    syncEntries.push({
-                        id: `${docType.type}_${group}` + (docType.contentOnly ? "_content" : ""),
-                        contentOnly: docType.contentOnly,
-                        type: docType.type,
-                        group: group,
-                        syncPriority: docType.syncPriority || 0,
-                    });
 
         return syncEntries;
     }

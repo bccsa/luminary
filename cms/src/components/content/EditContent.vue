@@ -186,8 +186,11 @@ const canEditParent = computed(() => {
 // Dirty check and save
 const isDirty = computed(
     () =>
-        !_.isEqual(parent.value, parentPrev.value) ||
-        !_.isEqual(contentDocs.value, contentDocsPrev.value),
+        !_.isEqual({ ...parent.value, updatedBy: "" }, { ...parentPrev.value, updatedBy: "" }) ||
+        !_.isEqual(
+            { ...contentDocs.value, updatedBy: "" },
+            { ...contentDocsPrev.value, updatedBy: "" },
+        ),
 );
 
 const isValid = ref(true);

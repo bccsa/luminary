@@ -5,28 +5,36 @@ import { DocType } from "../enums";
 /**
  * Api Request structure for APP / CMS requesting documents from the api
  */
-export class DocsReqDto {
+export class SearchReqDto {
     @IsNotEmpty()
     @IsString()
     @Expose()
     apiVersion?: string;
 
-    @IsNotEmpty()
-    @IsNumber()
     @IsOptional()
+    @IsNumber()
     @Expose()
-    gapStart?: number | string;
+    limit?: number;
 
-    @IsNotEmpty()
-    @IsNumber()
     @IsOptional()
+    @IsNumber()
     @Expose()
-    gapEnd?: number | string;
+    offset?: number;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    sort?: "desc" | "asc";
+
+    @IsOptional()
+    @IsArray()
+    @Expose()
+    groups?: Array<string>;
 
     @IsNotEmpty()
     @IsArray()
     @Expose()
-    docTypes: Array<any>;
+    types: Array<DocType>;
 
     @IsNotEmpty()
     @IsBoolean()
@@ -34,13 +42,20 @@ export class DocsReqDto {
     @Expose()
     contentOnly?: boolean;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     @Expose()
-    group: string;
+    queryString?: string;
 
     @IsNotEmpty()
-    @IsString()
+    @IsNumber()
+    @IsOptional()
     @Expose()
-    type: DocType;
+    from?: number;
+
+    @IsNotEmpty()
+    @IsNumber()
+    @IsOptional()
+    @Expose()
+    to?: number;
 }
