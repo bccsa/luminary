@@ -183,7 +183,7 @@ watch([content, is404], () => {
 });
 
 watch(
-    [appLanguagesPreferredAsRef, content.value],
+    [appLanguagesPreferredAsRef, content],
     async () => {
         if (!content.value) return;
         if (!content.value.language) return;

@@ -17,7 +17,7 @@ import {
     mockTopicDto,
     mockRedirectDto,
 } from "@/tests/mockdata";
-import { db, type ContentDto } from "luminary-shared";
+import { db, DocType, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
@@ -283,6 +283,18 @@ describe("SingleContent", () => {
     });
 
     it("shows a notification when the language is not available", async () => {
+        const testLanguage = {
+            _id: "lang-test",
+            type: DocType.Language,
+            updatedTimeUtc: 1704114000000,
+            memberOf: ["group-languages"],
+            languageCode: "tst",
+            name: "Test",
+            default: 0,
+        };
+
+        await db.docs.put(testLanguage);
+
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -292,11 +304,12 @@ describe("SingleContent", () => {
         const notificationStore = useNotificationStore();
 
         await waitForExpect(() => {
+            console.info(appLanguageIdsAsRef.value);
             // simulate language change
-            if (!appLanguageIdsAsRef.value.includes(mockLanguageDtoSwa._id)) {
-                appLanguageIdsAsRef.value.unshift(mockLanguageDtoSwa._id);
-            }
 
+            appLanguageIdsAsRef.value.unshift("lang-test");
+
+            console.info(appLanguageIdsAsRef.value);
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });
