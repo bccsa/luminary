@@ -31,7 +31,7 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
-import CopyrightContent from "@/components/content/CopyrightContent.vue";
+import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 
 const router = useRouter();
 
@@ -356,7 +356,7 @@ const selectedCategory = computed(() => {
 
         <!-- Copyright info -->
         <IgnorePagePadding>
-            <CopyrightContent />
+            <CopyrightBanner />
         </IgnorePagePadding>
     </div>
 
