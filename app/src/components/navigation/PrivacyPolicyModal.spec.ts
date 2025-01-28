@@ -33,7 +33,7 @@ describe("PrivacyPolicyModal.vue", () => {
         });
 
         expect(wrapper.html()).toContain(
-            "Please accept our privacy policy for a fully featured app experience.",
+            "Please accept our privacy policy for a fully featured app experience",
         );
 
         expect(userPreferencesAsRef.value.privacyPolicy).toBe(undefined);
@@ -61,7 +61,7 @@ describe("PrivacyPolicyModal.vue", () => {
         });
 
         expect(wrapper.html()).toContain(
-            "You have previously declined the privacy policy. Please accept it for a fully featured app experience.",
+            "You have previously declined the privacy policy. Please accept it for a fully featured app experience",
         );
     });
 
@@ -85,7 +85,7 @@ describe("PrivacyPolicyModal.vue", () => {
             },
         });
 
-        expect(wrapper.html()).toContain("You have already accepted the privacy policy.");
+        expect(wrapper.html()).toContain("You have already accepted the privacy policy");
         expect(wrapper.find("button[name='accept']").exists()).toBe(false);
     });
 

@@ -278,6 +278,8 @@ export const mockLanguageDtoEng: LanguageDto = {
     name: "English",
     default: 1,
     translations: {
+        "topic.search_placeholder": "Search",
+        "topic.no_results_found": "No results found for",
         "menu.home": "Home",
         "menu.explore": "Explore",
         "profile_menu.settings": "Settings",
@@ -293,6 +295,8 @@ export const mockLanguageDtoEng: LanguageDto = {
         "settings.local_cache.button": "Delete local cache",
         "home.title": "Home",
         "explore.title": "Explore",
+        "home.newest": "Newest",
+        "content.related_title": "Related",
         "notification.login.title": "You are missing out!",
         "notification.login.message": "Click here to create an account or log in",
         "notification.offline.title": "You are offline.",
@@ -307,32 +311,41 @@ export const mockLanguageDtoEng: LanguageDto = {
         "notification.clearCache_success.title": "Local cache cleared",
         "notification.clearCache_success.description":
             "New data is loading from the server, it might take a minute.",
+        "notification.content_not_available.title": "Unpublished transation",
+        "notification.content_not_available.description":
+            "The {language} translation for this content is not yet available.",
         "privacy_policy.modal.title": "Privacy Policy",
         "privacy_policy.modal.message": "By using this app, you agree to our privacy policy.",
         "privacy_policy.modal.button_accept": "Accept",
         "privacy_policy.modal.button_decline": "Decline",
         "privacy_policy.modal.button_close": "Close",
-        "privacy_policy.modal.message_map.accepted":
-            "You have already accepted the privacy policy.",
+        "privacy_policy.modal.message_map.accepted": "You have already accepted the privacy policy",
         "privacy_policy.modal.message_map.declined":
-            "You have previously declined the privacy policy. Please accept it for a fully featured app experience.",
+            "You have previously declined the privacy policy. Please accept it for a fully featured app experience",
         "privacy_policy.modal.message_map.outdated":
-            "We have updated our privacy policy. Please accept it for a fully featured app experience.",
+            "We have updated our privacy policy. Please accept it for a fully featured app experience",
         "privacy_policy.modal.message_map.unaccepted":
-            "Please accept our privacy policy for a fully featured app experience.",
+            "Please accept our privacy policy for a fully featured app experience",
         "privacy_policy.banner.message_map.outdated":
-            "We have updated our privacy policy. Click here to accept it for a fully featured app experience.",
+            "We have updated our privacy policy. Click here to accept it for a fully featured app experience",
         "privacy_policy.banner.message_map.unaccepted":
-            "Click here to accept our privacy policy for a fully featured app experience.",
+            "Click here to accept our privacy policy for a fully featured app experience",
         "privacy_policy.banner.title": "Privacy Policy",
         "privacy_policy.modal.link_text": "here",
-        "privacy_policy.modal.message_link": "Click {link} to read our privacy policy.",
+        "privacy_policy.modal.message_link": "Click {link} to read our privacy policy",
         "login.bcc.button": "Login in with BCC",
         "login.guest.button": "Login in as guest",
         "select_theme.title": "Select theme",
+        "select_theme.light": "Light",
+        "select_theme.dark": "Dark",
+        "select_theme.system": "System",
+        "select_theme.close_button": "Close",
         "bookmarks.title": "Bookmarks",
         "bookmarks.empty_page":
             "You should try this! Click on this icon on any post to bookmark it.",
+        "bookmarks.notification.title": "Bookmark added",
+        "bookmarks.notification.description":
+            "This content has been added to your bookmarks. You can find the bookmarks page from the profile menu.",
     },
 };
 export const mockLanguageDtoFra: LanguageDto = {
