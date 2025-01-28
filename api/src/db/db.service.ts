@@ -198,7 +198,13 @@ export class DbService extends EventEmitter {
                             .catch((err) => {
                                 reject(err);
                             });
-                    } else if (existing && isDeepStrictEqual(docPlain, existing)) {
+                    } else if (
+                        existing &&
+                        isDeepStrictEqual(
+                            { ...docPlain, updatedBy: "" },
+                            { ...existing, updatedBy: "" },
+                        )
+                    ) {
                         // Document in DB is the same as passed doc: do nothing
                         resolve({
                             id: docPlain._id,

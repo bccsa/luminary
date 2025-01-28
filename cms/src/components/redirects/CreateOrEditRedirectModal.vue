@@ -66,7 +66,7 @@ const save = async () => {
 };
 
 const isDirty = computed(() => {
-    return !_.isEqual(editable.value, previous.value);
+    return !_.isEqual({ ...editable.value, updatedBy: "" }, { ...previous.value, updatedBy: "" });
 });
 
 const canSave = computed(() => {
