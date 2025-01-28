@@ -1,0 +1,8 @@
+{
+    "_id": "page-copyright",
+    "type": "post",
+    "memberOf": ["group-public-content"],
+    "tags": [],
+    "publishDateVisible": false,
+    "postType": "page"
+}

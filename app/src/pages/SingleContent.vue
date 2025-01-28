@@ -31,6 +31,7 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
+import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 
 const router = useRouter();
 
@@ -267,9 +268,15 @@ const selectedCategory = computed(() => {
                         >
                             {{ content.title }}
                         </h1>
+                        <div
+                            v-if="content.author"
+                            class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
+                        >
+                            By {{ content.author }}
+                        </div>
 
                         <div
-                            class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
+                            class="-mt-2 text-center text-xs text-zinc-500 dark:text-slate-300"
                             v-if="content.publishDate && content.parentPublishDateVisible"
                         >
                             {{
@@ -284,6 +291,7 @@ const selectedCategory = computed(() => {
                         <div class="items-center">
                             <div class="flex justify-center">
                                 <div @click="toggleBookmark" data-test="bookmark">
+                                    <!-- :class=["border border-transparent border-r-zinc-600 pr-1"] -->
                                     <component
                                         v-if="
                                             !(
@@ -345,6 +353,11 @@ const selectedCategory = computed(() => {
             :selectedContent="content"
             :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
         />
+
+        <!-- Copyright info -->
+        <IgnorePagePadding>
+            <CopyrightBanner />
+        </IgnorePagePadding>
     </div>
 
     <LModal

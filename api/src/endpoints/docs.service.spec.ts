@@ -49,7 +49,7 @@ describe("Docs service", () => {
 
         const res = await docsService.processReq(req, "");
 
-        expect(res.docs.length).toBe(3);
+        expect(res.docs.length).toBe(4);
     });
 
     it("can get group data from api endpoint", async () => {
@@ -83,7 +83,7 @@ describe("Docs service", () => {
 
         const res = await docsService.processReq(req, "");
 
-        expect(res.docs.length).toBe(3);
+        expect(res.docs.length).toBe(4);
     });
 
     it("can get tag data from api endpoint", async () => {
@@ -118,6 +118,6 @@ describe("Docs service", () => {
 
         const res = await docsService.processReq(req, "");
 
-        expect(res.docs.length).toBe(10);
+        expect(res.docs.length).toBe(12);
     });
 });

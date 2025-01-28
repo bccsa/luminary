@@ -395,4 +395,23 @@ describe("SingleContent", () => {
             ).toBe(false);
         });
     });
+
+    it("displays the author", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.author);
+        });
+
+        const mockContent = { ...mockEnglishContentDto, author: "" };
+        await db.docs.update(mockContent._id, mockContent);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).not.toContain(mockEnglishContentDto.author);
+        });
+    });
 });

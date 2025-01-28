@@ -136,6 +136,16 @@ const tabs = [
                         </button>
                     </div>
 
+                    <!-- Author -->
+                    <LInput
+                        name="author"
+                        label="Author"
+                        v-model="content.author"
+                        placeholder="John Doe..."
+                        :disabled="disabled"
+                        class="mt-4"
+                    />
+
                     <!-- Summary -->
                     <LInput
                         name="summary"

@@ -341,6 +341,7 @@ watch(selectedLanguage, () => {
                         v-model:content="selectedContent"
                         :disabled="!canTranslateOrPublish"
                     />
+
                     <EditContentText
                         v-model:content="selectedContent"
                         :disabled="!canTranslateOrPublish"
