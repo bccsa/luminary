@@ -24,6 +24,8 @@ import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import * as auth0 from "@auth0/auth0-vue";
+
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -37,6 +39,8 @@ vi.mock("vue-router", async (importOriginal) => {
         })),
     };
 });
+
+vi.mock("@auth0/auth0-vue");
 
 describe("SingleContent", () => {
     beforeEach(async () => {
@@ -60,6 +64,10 @@ describe("SingleContent", () => {
         ]);
 
         setActivePinia(createTestingPinia());
+
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
     });
 
     afterEach(async () => {
