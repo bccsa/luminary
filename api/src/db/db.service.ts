@@ -38,6 +38,7 @@ export type QueryDocsOptions = {
     offset?: number;
     contentOnly?: boolean;
     queryString?: string;
+    languages?: string[];
 };
 
 /**
@@ -431,6 +432,19 @@ export class DbService extends EventEmitter {
      */
     queryDocs(options: QueryDocsOptions): Promise<DbQueryResult> {
         return new Promise(async (resolve, reject) => {
+            /**
+             * Calculate the list of
+             * @param docType
+             * @returns
+             */
+            const calcGroups = (docType) => {
+                return options.groups && options.groups.length > 0
+                    ? options.groups.filter(
+                          (group) => options.userAccess[docType]?.indexOf(group) > -1,
+                      )
+                    : options.userAccess[docType];
+            };
+
             // Construct time selectors
             const selectors = [];
             if (options.from) {
@@ -456,8 +470,20 @@ export class DbService extends EventEmitter {
                 });
             }
 
+            const languageSelector =
+                options.languages?.length > 0
+                    ? [
+                          {
+                              $and: [
+                                  { language: { $in: options.languages } },
+                                  { memberOf: { $in: calcGroups(DocType.Language) } },
+                              ],
+                          },
+                      ]
+                    : [];
+
             const docQuery = {
-                selector: { $and: [...timeSelector] },
+                selector: { $and: [...timeSelector, ...languageSelector] },
                 limit: options.limit || Number.MAX_SAFE_INTEGER,
                 sort: options.sort || [{ updatedTimeUtc: "desc" }],
             };
@@ -469,12 +495,7 @@ export class DbService extends EventEmitter {
 
                 // reduce user requested groups to only the groups the user has access to
                 // default groups to user access groups if not provided
-                const groups =
-                    options.groups && options.groups.length > 0
-                        ? options.groups.filter(
-                              (group) => options.userAccess[docType].indexOf(group) > -1,
-                          )
-                        : options.userAccess[docType];
+                const groups = calcGroups(docType);
 
                 if (docType !== DocType.Group && !options.contentOnly)
                     $or.push({

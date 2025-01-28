@@ -536,5 +536,42 @@ describe("DbService", () => {
         expect(notContentDocs.length).toBeLessThan(1);
     });
 
+    it("can retrieve only a specific language from the api", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Tag] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Group] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Language] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        const options = {
+            userAccess: userAccess,
+            types: [DocType.Post, DocType.Tag, DocType.Language], // need to exclude group type, since it does not check the groups array for this
+            contentOnly: true,
+            groups: ["group-super-admins", "group-public-content", "group-private-content"],
+            languages: ["lang-eng"],
+        };
+
+        const res = await service.queryDocs(options);
+        const notEnglishDocs = res.docs.filter((d) => d.language !== "lang-eng");
+
+        expect(res.docs.length).toBeGreaterThan(1);
+        expect(notEnglishDocs.length).toBeLessThan(1);
+    }, 30000);
+
     // =================== queryDocs ===================
 });

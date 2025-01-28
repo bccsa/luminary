@@ -58,4 +58,10 @@ export class SearchReqDto {
     @IsOptional()
     @Expose()
     to?: number;
+
+    @IsNotEmpty()
+    @IsArray()
+    @IsOptional()
+    @Expose()
+    languages?: Array<string>;
 }

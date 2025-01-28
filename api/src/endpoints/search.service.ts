@@ -65,6 +65,7 @@ export class SearchService {
             from: query.from,
             to: query.to,
             sort: query.sort,
+            languages: query.languages,
         };
 
         let _res = undefined;
