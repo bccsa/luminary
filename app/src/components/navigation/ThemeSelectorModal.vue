@@ -3,19 +3,21 @@ import { ref, watch, onMounted } from "vue";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import LModal from "../form/LModal.vue";
+import { useI18n } from "vue-i18n";
 
 type Props = {
     isVisible: boolean;
 };
 defineProps<Props>();
 
-const themes = ["Light", "Dark", "System"];
-const selectedTheme = ref(localStorage.getItem("theme") || "System");
+const { t } = useI18n();
+const themes = [t("select_theme.light"), t("select_theme.dark"), t("select_theme.system")];
+const selectedTheme = ref(localStorage.getItem("theme") || t("select_theme.system"));
 
 const emit = defineEmits(["close"]);
 
 const applyTheme = (theme: string) => {
-    if (theme === "System") {
+    if (theme === t("select_theme.system")) {
         if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
             document.documentElement.classList.add("dark");
         } else {
@@ -41,7 +43,7 @@ onMounted(() => {
 <template>
     <LModal
         name="lModal-languages"
-        heading="Select Theme"
+        :heading="t('select_theme.title')"
         :is-visible="isVisible"
         @close="emit('close')"
     >
@@ -69,7 +71,7 @@ onMounted(() => {
                 class="w-full"
                 @click="emit('close')"
             >
-                Close
+                {{ t("select_theme.close_button") }}
             </LButton>
         </template>
     </LModal>

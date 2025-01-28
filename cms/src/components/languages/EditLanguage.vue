@@ -384,7 +384,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
                     <tbody class="divide-y divide-zinc-200 bg-white">
                         <tr>
                             <td
-                                class="w-1/4 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
+                                class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
                             >
                                 <LInput
                                     name="key"
@@ -407,7 +407,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
                             </td>
 
                             <td
-                                class="w-1/6 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                class="w-1/8 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
                                 v-if="canEditOrCreate"
                             >
                                 <div class="flex justify-center">
@@ -424,7 +424,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
                             </td>
 
                             <td
-                                class="w-1/4 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
+                                class="w-1/12 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
                             >
                                 <LSelect
                                     v-model="comparisonLanguage"
