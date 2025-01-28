@@ -30,7 +30,7 @@ describe("EditLanguage.vue", () => {
             },
         });
 
-        const currentLanguage = wrapper.findAll("input");
+        const currentLanguage = wrapper.findAll("textarea");
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
@@ -46,7 +46,7 @@ describe("EditLanguage.vue", () => {
         });
 
         // Find inputs and set their values
-        const currentLanguage = wrapper.findAll("input");
+        const currentLanguage = wrapper.findAll("textarea");
 
         // Update language name and code
         await currentLanguage[0].setValue("English (updated)");
@@ -74,8 +74,8 @@ describe("EditLanguage.vue", () => {
         });
 
         // Wait for the inputs and buttons to be available in the DOM
-        const keyInput = wrapper.find("input[data-test='key-input']");
-        const valueInput = wrapper.find("input[data-test='value-input']");
+        const keyInput = wrapper.find("textarea[data-test='key-input']");
+        const valueInput = wrapper.find("textarea[data-test='value-input']");
         const addButton = wrapper.find("button[data-test='add-key-button']");
         const saveButton = wrapper.find("button[data-test='save-button']");
 
@@ -116,7 +116,7 @@ describe("EditLanguage.vue", () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
             const translationRow = wrapper.findAll("tr")[2];
-            const input = translationRow.findAll("input");
+            const input = translationRow.findAll("textarea");
 
             await input[0].setValue("bookmarks.empty_page_updated");
 
@@ -144,7 +144,7 @@ describe("EditLanguage.vue", () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
             const translationRow = wrapper.findAll("tr")[2];
-            const input = translationRow.findAll("input");
+            const input = translationRow.findAll("textarea");
 
             await input[1].setValue("You should try this!");
 

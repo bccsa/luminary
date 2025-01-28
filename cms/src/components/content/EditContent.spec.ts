@@ -86,13 +86,13 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(() => {
-            const titleInput = wrapper.find('input[name="title"]');
-            expect((titleInput.element as HTMLInputElement).value).toBe(
+            const titleInput = wrapper.find('textarea[name="title"]');
+            expect((titleInput.element as HTMLTextAreaElement).value).toBe(
                 mockData.mockEnglishContentDto.title,
             );
         });
 
-        const titleInput = wrapper.find('input[name="title"]');
+        const titleInput = wrapper.find('textarea[name="title"]');
         await titleInput.setValue("New Title");
 
         const revertButton = wrapper.find('[data-test="revert-changes-button"]');
@@ -100,7 +100,7 @@ describe("EditContent.vue", () => {
         await revertButton.trigger("click");
 
         await waitForExpect(() => {
-            expect((titleInput.element as HTMLInputElement).value).toBe(
+            expect((titleInput.element as HTMLTextAreaElement).value).toBe(
                 mockData.mockEnglishContentDto.title,
             );
         });
@@ -119,11 +119,11 @@ describe("EditContent.vue", () => {
 
         // Wait for the component to fetch data
         await waitForExpect(() => {
-            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            expect(wrapper.find('textarea[name="title"]').exists()).toBe(true);
         });
 
         // Simulate enabling dirty state
-        const titleInput = wrapper.find('input[name="title"]');
+        const titleInput = wrapper.find('textarea[name="title"]');
         await titleInput.setValue("New Title");
 
         // Click the save button
@@ -156,11 +156,11 @@ describe("EditContent.vue", () => {
 
         // Wait for the component to fetch data
         await waitForExpect(() => {
-            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            expect(wrapper.find('textarea[name="title"]').exists()).toBe(true);
         });
 
         // Simulate enabling dirty state
-        const titleInput = wrapper.find('input[name="title"]');
+        const titleInput = wrapper.find('textarea[name="title"]');
         await titleInput.setValue("");
 
         // Click the save button
@@ -217,7 +217,7 @@ describe("EditContent.vue", () => {
         // Wait for the component to fetch data
         await waitForExpect(() => {
             expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true); // LanguageSelector is rendered
-            expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
+            expect(wrapper.find('textarea[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
             expect(wrapper.html()).toContain("Text content"); // EditContentText is rendered
             expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
             expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
