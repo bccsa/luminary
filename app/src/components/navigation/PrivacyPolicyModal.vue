@@ -98,14 +98,15 @@ setTimeout(() => {
         <p class="mb-4 mt-4 text-gray-700 dark:text-slate-300">{{ modalMessageMap[status] }}</p>
 
         <p class="mb-8 pt-1 italic text-gray-700 dark:text-slate-300">
-            {{ t("privacy_policy.modal.message_link", { link: "" }) }}
+            {{ t("privacy_policy.modal.link_text_1") }}
             <RouterLink
                 :to="{ name: 'content', params: { slug: 'privacy-policy' } }"
                 class="cursor-pointer text-blue-600 dark:text-yellow-400"
                 @click="show = false"
             >
-                <span>{{ t("privacy_policy.modal.link_text") }}</span>
+                <span>{{ t("privacy_policy.modal.link_text_2") }}</span>
             </RouterLink>
+            {{ t("privacy_policy.modal.link_text_3") }}
         </p>
 
         <template #footer>
