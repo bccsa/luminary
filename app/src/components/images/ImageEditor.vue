@@ -130,7 +130,9 @@ const handleDrop = (e: DragEvent) => {
 <template>
     <div class="flex-col overflow-y-auto">
         <div class="flex justify-between">
-            <span class="text-sm font-medium leading-6 text-zinc-900">Image</span>
+            <span class="text-sm font-medium leading-6 text-zinc-900 dark:text-slate-100"
+                >Image</span
+            >
             <div class="flex">
                 <button
                     v-if="failureMessage"
@@ -156,18 +158,18 @@ const handleDrop = (e: DragEvent) => {
             </p>
         </div>
         <LModal
-            heading=""
+            heading="Help"
             :isVisible="showHelp"
             primaryText="Close"
             primaryButtonText="Close"
             @close="showHelp = false"
         >
-            <p class="my-2 text-xs">
+            <p class="mb-2 text-xs">
                 You can upload several files in different aspect ratios. The most suitable image
                 will automatically be displayed based on the aspect ratio of the image element where
                 the image is displayed.
             </p>
-            <p class="mb-2 text-xs">
+            <p class="pt-2 text-xs">
                 Uploaded images are automatically scaled for various screen and display sizes.
             </p>
         </LModal>

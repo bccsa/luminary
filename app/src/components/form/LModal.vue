@@ -28,9 +28,10 @@ const emit = defineEmits(["close"]);
         ></div>
         <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">
             <div
-                class="max-h-screen w-full max-w-md rounded-lg bg-white/90 p-5 shadow-xl dark:bg-slate-700/85"
+                class="max-h-screen w-full max-w-md rounded-lg bg-white/90 p-3 shadow-xl dark:bg-slate-700/85"
+                @click.stop
             >
-                <h2 class="mb-4 text-lg font-semibold">{{ heading }}</h2>
+                <h2 class="mb-1 text-lg font-semibold">{{ heading }}</h2>
                 <div class="mt-2" v-if="description">
                     <p class="text-sm text-zinc-500">
                         {{ description }}
