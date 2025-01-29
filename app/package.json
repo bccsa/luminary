@@ -29,6 +29,7 @@
         "luxon": "^3.4.4",
         "pinia": "^2.1.7",
         "tailwind-scrollbar-hide": "^1.1.7",
+        "vee-validate": "^4.15.0",
         "video.js": "^8.10.0",
         "videojs-mobile-ui": "^1.1.1",
         "vue": "^3.3.11",

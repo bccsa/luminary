@@ -1,0 +1,235 @@
+<script setup lang="ts">
+import { ref, computed, toRaw } from "vue";
+import LButton from "../button/LButton.vue";
+import LModal from "../form/LModal.vue";
+import {
+    ArrowUpOnSquareIcon,
+    ExclamationCircleIcon,
+    QuestionMarkCircleIcon,
+} from "@heroicons/vue/24/outline";
+import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
+import {
+    type ImageUploadDto,
+    type ImageFileCollectionDto,
+    maxUploadFileSize,
+    type ImageDto,
+} from "luminary-shared";
+
+type Props = {
+    disabled: boolean;
+};
+defineProps<Props>();
+
+const imageData = defineModel<ImageDto>("imageData", {
+    default: () => ({
+        fileCollections: [],
+        uploadData: [],
+    }),
+});
+
+const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+
+// HTML element refs
+const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
+const isDragging = ref(false);
+const dragCounter = ref(0);
+const showHelp = ref(false);
+const showFailureMessage = ref(false);
+const failureMessage = ref<string | undefined>(undefined);
+
+const showFilePicker = () => {
+    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
+    uploadInput.value!.showPicker();
+};
+
+const handleFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            const fileData = e.target!.result as ArrayBuffer;
+
+            if (fileData.byteLength > maxUploadFileSize.value) {
+                failureMessage.value = `Image file size is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
+                return;
+            }
+
+            if (!imageData.value) imageData.value = { fileCollections: [] };
+            if (!imageData.value.uploadData) imageData.value.uploadData = [];
+
+            failureMessage.value = "";
+
+            imageData.value.uploadData.push({
+                filename: file.name,
+                preset: "photo",
+                fileData,
+            });
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
+
+    // Reset the file input
+    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
+    uploadInput.value!.value = "";
+};
+
+const upload = () => {
+    if (!uploadInput.value) return;
+    // @ts-ignore - it seems as if the type definition for files is missing in the file input element.
+    handleFiles(uploadInput.value!.files);
+};
+
+const removeFileCollection = (collection: ImageFileCollectionDto) => {
+    if (!imageData.value?.fileCollections) return;
+
+    imageData.value.fileCollections = imageData.value.fileCollections
+        .filter((f) => f !== collection)
+        .map((f) => toRaw(f));
+};
+
+const removeFileUploadData = (uploadData: ImageUploadDto) => {
+    if (!imageData.value?.uploadData) return;
+
+    imageData.value.uploadData = imageData.value.uploadData
+        .filter((f) => f !== uploadData)
+        .map((f) => toRaw(f));
+
+    if (imageData.value.uploadData.length === 0) {
+        delete imageData.value.uploadData;
+    }
+};
+
+// Drag-and-drop handlers
+const handleDragEnter = () => {
+    dragCounter.value++;
+    isDragging.value = true;
+};
+
+const handleDragOver = (e: DragEvent) => {
+    e.preventDefault();
+};
+
+const handleDragLeave = () => {
+    dragCounter.value--;
+    if (dragCounter.value === 0) {
+        isDragging.value = false;
+    }
+};
+
+const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    dragCounter.value = 0;
+    isDragging.value = false;
+    handleFiles(e.dataTransfer?.files || null);
+};
+</script>
+
+<template>
+    <div class="flex-col overflow-y-auto">
+        <div class="flex justify-between">
+            <span class="text-sm font-medium leading-6 text-zinc-900 dark:text-slate-100"
+                >Image</span
+            >
+            <div class="flex">
+                <button
+                    v-if="failureMessage"
+                    class="flex cursor-pointer items-center gap-1 rounded-md"
+                    @click="showFailureMessage = !showFailureMessage"
+                    :title="failureMessage"
+                >
+                    <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
+                </button>
+                <button
+                    class="flex cursor-pointer items-center gap-1 rounded-md"
+                    @click="showHelp = !showHelp"
+                >
+                    <QuestionMarkCircleIcon class="h-5 w-5" />
+                </button>
+            </div>
+        </div>
+
+        <!-- Description and Instructions -->
+        <div v-if="showFailureMessage">
+            <p class="my-2 text-xs text-red-600">
+                {{ failureMessage }}
+            </p>
+        </div>
+        <LModal
+            heading="Help"
+            :isVisible="showHelp"
+            primaryText="Close"
+            primaryButtonText="Close"
+            @close="showHelp = false"
+        >
+            <p class="mb-2 text-xs">
+                You can upload several files in different aspect ratios. The most suitable image
+                will automatically be displayed based on the aspect ratio of the image element where
+                the image is displayed.
+            </p>
+            <p class="pt-2 text-xs">
+                Uploaded images are automatically scaled for various screen and display sizes.
+            </p>
+        </LModal>
+
+        <!-- Drag and Drop Area or File Picker -->
+        <div
+            class="mb-4 mt-2 flex min-h-36 flex-col justify-center rounded-md border-2 border-dashed border-gray-300 p-3 transition duration-150 ease-in-out"
+            @dragenter="handleDragEnter"
+            @dragover="handleDragOver"
+            @dragleave="handleDragLeave"
+            @drop="handleDrop"
+            :class="{
+                ' border-blue-500 bg-blue-50': isDragging,
+            }"
+        >
+            <div class="flex flex-col items-center justify-center">
+                <p v-if="isDragging" class="text-sm">Drop your files here</p>
+                <div v-else>
+                    <LButton :icon="ArrowUpOnSquareIcon" @click="showFilePicker">
+                        Drop image file or click to Upload
+                    </LButton>
+                    <input
+                        ref="uploadInput"
+                        type="file"
+                        class="mb-4 hidden"
+                        accept="image/jpeg, image/png, image/webp"
+                        @change="upload"
+                        data-test="image-upload"
+                        multiple
+                    />
+                </div>
+            </div>
+
+            <div
+                v-if="
+                    imageData &&
+                    (imageData.fileCollections?.length > 0 ||
+                        (imageData.uploadData?.length ?? 0) > 0)
+                "
+            >
+                <div v-if="!isDragging">
+                    <div class="flex flex-1 flex-wrap gap-2 pt-5" data-test="thumbnail-area">
+                        <!-- Display file collections as thumbnails -->
+                        <ImageEditorThumbnail
+                            v-for="c in imageData.fileCollections"
+                            :imageFileCollection="c"
+                            @deleteFileCollection="removeFileCollection"
+                            :key="c.aspectRatio"
+                        />
+
+                        <!-- Display uploaded image data as thumbnails -->
+                        <ImageEditorThumbnail
+                            v-for="u in imageData.uploadData"
+                            :imageUploadData="u"
+                            @deleteUploadData="removeFileUploadData"
+                            :key="u.filename"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
