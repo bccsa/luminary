@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
-import { watch } from "vue";
+import { toRefs, watch } from "vue";
 import BoldIcon from "./icons/BoldIcon.vue";
 import ItalicIcon from "./icons/ItalicIcon.vue";
 import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
@@ -13,6 +13,7 @@ type Props = {
     disabled: boolean;
 };
 const props = defineProps<Props>();
+const { disabled } = toRefs(props);
 const text = defineModel<string>();
 
 const editor = useEditor({
@@ -27,13 +28,16 @@ const editor = useEditor({
             openOnClick: false,
         }),
     ],
-    onUpdate: () => (text.value = JSON.stringify(editor.value?.getJSON())),
-    editable: !props.disabled,
+    editable: (() => !disabled.value as boolean | undefined)(),
     editorProps: {
         attributes: {
             class: "prose prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
         },
     },
+});
+
+watch(disabled, () => {
+    editor.value?.setEditable(disabled.value ? false : true);
 });
 
 // Wait for the editor to load before converting the JSON content to HTML format
