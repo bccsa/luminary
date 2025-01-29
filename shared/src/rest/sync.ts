@@ -295,59 +295,30 @@ export class Sync {
      * Calculates and updates current sync map
      * @returns
      */
-    // async calcSyncMap_old() {
-    //     if (syncMap.value.keys.length < 1) await db.getSyncMap();
-    //     const syncEntries: Array<SyncEntryKey> = this.calcSyncEntryKeys();
-    //     for (const v of syncEntries) {
-    //         const f = syncMap.value.get(v.id);
-    //         const block: SyncMapEntry = {
-    //             blockStart: 0,
-    //             blockEnd: 0,
-    //         };
-    //         // Add new entry if not exists
-    //         !f &&
-    //             syncMap.value.set(v.id, {
-    //                 id: v.id,
-    //                 type: v.type,
-    //                 contentOnly: v.contentOnly,
-    //                 group: v.group,
-    //                 syncPriority: v.syncPriority,
-    //                 blocks: [block],
-    //             });
-    //     }
-    //     // remove entries that is not in the syncEntries
-    //     const _sm = Object.fromEntries(syncMap.value);
-    //     for (const k of Object.keys(_sm)) {
-    //         const exists = syncEntries.find((e) => e.id == k);
-    //         if (!exists) syncMap.value.delete(k);
-    //     }
-    //     return syncMap;
-    // }
-
-    /**
-     * Calculates and updates current sync map
-     * @returns
-     */
-    calcSyncMap(): any {
+    async calcSyncMap() {
         const groups: Array<string> = Object.keys(accessMap.value);
+        await db.getSyncMap();
+
+        const syncPriorityContentOnly = this.options.docTypes?.filter(
+            (value, index, self) =>
+                index ===
+                self.findIndex(
+                    (t) =>
+                        t.syncPriority === value.syncPriority &&
+                        t.contentOnly === value.contentOnly,
+                ),
+        );
 
         // create new syncMap
         let _sm = Object.fromEntries(syncMap.value);
-        if (Object.values(_sm).length < 1) {
-            const syncPriorityContentOnly = this.options.docTypes?.filter(
-                (value, index, self) =>
-                    index ===
-                    self.findIndex(
-                        (t) =>
-                            t.syncPriority === value.syncPriority &&
-                            t.contentOnly === value.contentOnly,
-                    ),
-            );
-            for (const entry of syncPriorityContentOnly || []) {
-                const _id = this.syncMapEntryKey(
-                    entry.syncPriority || 10,
-                    entry.contentOnly || false,
-                );
+        for (const entry of syncPriorityContentOnly || []) {
+            const _id = this.syncMapEntryKey(entry.syncPriority, entry.contentOnly || false);
+            if (
+                !Object.values(_sm).find(
+                    (v) =>
+                        v.syncPriority == entry.syncPriority && v.contentOnly == entry.contentOnly,
+                )
+            )
                 syncMap.value.set(_id, {
                     id: _id,
                     types:
@@ -362,12 +333,9 @@ export class Sync {
                             }) || [],
                     contentOnly: entry.contentOnly,
                     groups: groups,
-                    syncPriority: entry.syncPriority || 10,
+                    syncPriority: entry.syncPriority,
                     blocks: [{ blockStart: 0, blockEnd: 0 }],
                 });
-            }
-
-            return syncMap;
         }
 
         // check if groups has been updated
@@ -377,7 +345,7 @@ export class Sync {
                 const newGroups = _.difference(groups, k.groups);
                 const removeGroups = _.difference(k.groups, groups);
 
-                const _id = this.syncMapEntryKey(k.syncPriority || 10, k.contentOnly || false);
+                const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
 
                 if (
                     newGroups &&
@@ -404,16 +372,13 @@ export class Sync {
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
             const types = this.options.docTypes
-                ?.filter(
-                    (d) =>
-                        k.syncPriority == (d.syncPriority || 10) && k.contentOnly == d.contentOnly,
-                )
+                ?.filter((d) => k.syncPriority == d.syncPriority && k.contentOnly == d.contentOnly)
                 .map((d) => d.type);
             if (!_.isEqual(types, k.types)) {
                 const newTypes = _.difference(types || [], k.types);
                 const removeTypes = _.difference(k.types, types || []);
 
-                const _id = this.syncMapEntryKey(k.syncPriority || 10, k.contentOnly || false);
+                const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
 
                 if (
                     newTypes &&
@@ -434,6 +399,18 @@ export class Sync {
                     });
                 }
             }
+        }
+
+        // cleanup syncMaps
+        _sm = Object.fromEntries(syncMap.value);
+        const outDated = Object.values(_sm).filter(
+            (d) =>
+                !syncPriorityContentOnly?.find(
+                    (s) => s.syncPriority == d.syncPriority && s.contentOnly == d.contentOnly,
+                ),
+        );
+        for (const k of outDated || []) {
+            syncMap.value.delete(k.id);
         }
 
         return syncMap;

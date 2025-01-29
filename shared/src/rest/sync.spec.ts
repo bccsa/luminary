@@ -120,9 +120,9 @@ describe("rest", () => {
         rest = getRest({
             apiUrl: "http://127.0.0.1:" + port,
             docTypes: [
-                { type: DocType.Post, contentOnly: true },
-                { type: DocType.Post, contentOnly: false },
-                { type: DocType.Group, contentOnly: false },
+                { type: DocType.Post, contentOnly: true, syncPriority: 10 },
+                { type: DocType.Post, contentOnly: false, syncPriority: 10 },
+                { type: DocType.Group, contentOnly: false, syncPriority: 10 },
             ],
         });
 
@@ -445,6 +445,21 @@ describe("rest", () => {
         expect(
             _.isEqual(_post?.groups, ["group-super-admins", "group-sync-map-merge-test"]),
         ).toBeTruthy();
+    });
+
+    it("can remove old values from the syncMap that is not valid anymore", async () => {
+        syncMap.value.clear();
+        syncMap.value.set("2_syncMap_main", {
+            ...syncMapEntry,
+            syncPriority: 2,
+            id: "2_syncMap_main",
+        });
+
+        await rest._sync.calcSyncMap();
+
+        const _post = syncMap.value.get("2_syncMap_main");
+
+        expect(_post).toBe(undefined);
     });
 
     // Test not working, syncMap does not update on test side, only in the syncFile

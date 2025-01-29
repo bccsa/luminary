@@ -176,6 +176,6 @@ export type ApiConnectionOptions = {
 
 type apiDocTypes = {
     type: DocType;
-    contentOnly?: boolean;
-    syncPriority?: number; // 10 is default, lower number is higher priority
+    contentOnly: boolean;
+    syncPriority: number; // 10 is default, lower number is higher priority
 };
