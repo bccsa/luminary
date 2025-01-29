@@ -10,7 +10,7 @@ import { useI18n } from "vue-i18n";
 type Props = {
     isVisible: boolean;
     icons?: boolean;
-    theme: string;
+    theme?: string;
 };
 const props = defineProps<Props>();
 
@@ -49,13 +49,6 @@ watch(selectedTheme, (newTheme) => {
     localStorage.setItem("theme", newTheme);
     applyTheme(newTheme);
 });
-
-// watch(
-//     () => props.theme,
-//     (newTheme) => {
-//         selectedTheme.value = newTheme;
-//     },
-// );
 
 watch(
     () => props.isVisible,
