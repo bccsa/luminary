@@ -13,6 +13,7 @@ export type ApiSearchQuery = {
     queryString?: string;
     from?: number;
     to?: number;
+    languages?: Array<string>;
 };
 
 export type ChangeRequestQuery = {
