@@ -120,18 +120,18 @@ const showImageElement2 = computed(
             :class="[
                 aspectRatios[aspectRatio],
                 rounded ? rounding[size] : '',
-                'relative -z-10 flex w-full flex-col items-center justify-center overflow-clip bg-cover bg-center object-cover shadow',
+                'relative flex w-full flex-col items-center justify-center overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
             <div
-                class="absolute bottom-0 left-0 right-0 top-0 -z-10 bg-yellow-600 bg-opacity-50 bg-cover bg-center object-cover"
+                class="absolute bottom-0 left-0 right-0 top-0 bg-yellow-600 bg-opacity-50 bg-cover bg-center object-cover"
             >
                 <div
                     :style="{
                         backgroundImage: 'url(' + fallbackImg + ')',
                         filter: showImageElement1 ? 'none' : 'blur(3.5px) brightness(0.83)',
                     }"
-                    class="absolute bottom-0 left-0 right-0 top-0 -z-[1] bg-white bg-cover"
+                    class="absolute bottom-0 left-0 right-0 top-0 bg-white bg-cover"
                 ></div>
             </div>
             <span
