@@ -3,8 +3,6 @@ import { nextTick } from "vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import HomePage from "@/pages/HomePage.vue";
 import SettingsPage from "@/pages/SettingsPage.vue";
-import LoginPage from "@/pages/LoginPage.vue";
-import { isNotAuthenticatedGuard } from "@/guards/isNotAuthenticatedGuard";
 import SingleContent from "@/pages/SingleContent.vue";
 import { appName } from "@/globalConfig";
 import ExplorePage from "@/pages/ExplorePage.vue";

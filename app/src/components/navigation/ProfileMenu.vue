@@ -84,7 +84,7 @@ const userNavigation = computed(() => {
             {
                 name: t("profile_menu.login"),
                 icon: ArrowLeftEndOnRectangleIcon,
-                action: () => router.push({ name: "login" }),
+                action: () => (showLoginModal.value = true),
             },
         ];
     }
@@ -165,4 +165,5 @@ const userNavigation = computed(() => {
     <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
     <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
+    <LoginPage v-model:showLoginModal="showLoginModal" />
 </template>

@@ -11,6 +11,7 @@ import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 import { useRouter } from "vue-router";
+import LoginPage from "./pages/LoginPage.vue";
 
 const router = useRouter();
 const { isAuthenticated, user } = useAuth0();
@@ -53,7 +54,7 @@ setTimeout(() => {
                     state: "warning",
                     type: "banner",
                     icon: ExclamationCircleIcon,
-                    link: { name: "login" },
+                    link: () => (showLoginModal.value = true),
                 });
             }
             if (!isConnected.value || isAuthenticated.value) {
@@ -96,6 +97,8 @@ const routeKey = computed(() => {
             class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
         />
     </div>
+
+    <LoginPage v-model:showLoginModal="showLoginModal" />
 
     <Teleport to="body">
         <NotificationToastManager />
