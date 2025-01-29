@@ -59,9 +59,9 @@ const commonNavigation = computed(() => {
             action: () => router.push({ name: "bookmarks" }),
         },
         {
-            name: "User Feedback",
+            name: "Contact",
             icon: EnvelopeIcon,
-            action: () => (showUserFeedbackModal.value = true),
+            action: () => router.push({ name: "contact" }),
         },
         {
             name: "Privacy policy",
@@ -173,5 +173,5 @@ const userNavigation = computed(() => {
     <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
     <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
-    <UserFeedbackModal v-model:show="showUserFeedbackModal" />
+    <!-- <UserFeedbackModal v-model:show="showUserFeedbackModal" /> -->
 </template>

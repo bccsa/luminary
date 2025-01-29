@@ -9,6 +9,7 @@ import SingleContent from "@/pages/SingleContent.vue";
 import { appName } from "@/globalConfig";
 import ExplorePage from "@/pages/ExplorePage.vue";
 import BookmarksPage from "@/pages/BookmarksPage.vue";
+import UserFeedbackModal from "@/components/navigation/UserFeedbackModal.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -51,6 +52,15 @@ const router = createRouter({
             name: "settings",
             meta: {
                 title: "Settings",
+            },
+        },
+
+        {
+            path: "/contact",
+            component: UserFeedbackModal,
+            name: "contact",
+            meta: {
+                title: "Contact",
             },
         },
 
