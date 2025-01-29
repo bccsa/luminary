@@ -5,7 +5,6 @@ import { useRoute, useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import { computed, onMounted, ref } from "vue";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
-import { useDark } from "@vueuse/core";
 
 const route = useRoute();
 const router = useRouter();
@@ -20,8 +19,20 @@ const isVisible = ref(false);
 const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL : LOGO));
 const logoDark = computed(() => (isSmallScreen.value ? LOGO_SMALL_DARK : LOGO_DARK));
 
-// Current theme state
-const isDarkMode = useDark();
+// Handle theme state manually
+const isDarkMode = ref(false);
+
+const toggleTheme = () => {
+    isDarkMode.value = !isDarkMode.value;
+    localStorage.setItem("theme", isDarkMode.value ? "Dark" : "Light");
+    document.documentElement.classList.toggle("dark", isDarkMode.value);
+};
+
+const syncTheme = () => {
+    const savedTheme = localStorage.getItem("theme") || "Light";
+    isDarkMode.value = savedTheme === "Dark";
+    document.documentElement.classList.toggle("dark", isDarkMode.value);
+};
 
 // Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js)
 const logoCss = computed(
@@ -34,6 +45,7 @@ const updateScreenSize = () => {
 };
 
 onMounted(() => {
+    syncTheme();
     updateScreenSize();
     window.addEventListener("resize", updateScreenSize);
 });
@@ -66,16 +78,20 @@ onMounted(() => {
                 <DesktopMenu class="hidden lg:flex" />
                 <div class="flex-1" />
                 <div class="mx-4">
-                    <div @click="isDarkMode = !isDarkMode" class="hidden items-center lg:flex">
-                        <div class="text-zinc-600 dark:text-slate-50">
+                    <div @click="toggleTheme" class="flex cursor-pointer items-center">
+                        <div class="text-zinc-500 dark:text-slate-300">
                             <MoonIcon class="h-6 w-6" v-if="isDarkMode" />
                             <SunIcon class="h-6 w-6" v-else />
                         </div>
                     </div>
                 </div>
-                <ProfileMenu />
+                <ProfileMenu class="ml-6" />
             </div>
         </div>
     </header>
-    <ThemeSelectorModal :isVisible="isVisible" @close="isVisible = false" />
+    <ThemeSelectorModal
+        :isVisible="isVisible"
+        :theme="isDarkMode ? 'Dark' : 'Light'"
+        @close="isVisible = false"
+    />
 </template>

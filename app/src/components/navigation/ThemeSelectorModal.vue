@@ -3,15 +3,16 @@ import { ref, watch, onMounted } from "vue";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import LModal from "../form/LModal.vue";
-import { SunIcon, MoonIcon, AdjustmentsHorizontalIcon } from "@heroicons/vue/24/outline";
+import { SunIcon, MoonIcon } from "@heroicons/vue/24/outline";
 import { ComputerDesktopIcon } from "@heroicons/vue/24/solid";
 import { useI18n } from "vue-i18n";
 
 type Props = {
     isVisible: boolean;
     icons?: boolean;
+    theme: string;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const { t } = useI18n();
 
@@ -48,6 +49,22 @@ watch(selectedTheme, (newTheme) => {
     localStorage.setItem("theme", newTheme);
     applyTheme(newTheme);
 });
+
+// watch(
+//     () => props.theme,
+//     (newTheme) => {
+//         selectedTheme.value = newTheme;
+//     },
+// );
+
+watch(
+    () => props.isVisible,
+    (newVal) => {
+        if (newVal) {
+            selectedTheme.value = localStorage.getItem("theme") || "System";
+        }
+    },
+);
 
 onMounted(() => {
     applyTheme(selectedTheme.value);
