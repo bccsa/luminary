@@ -149,12 +149,10 @@ class Database extends Dexie {
      */
     async requestIndexDbPersistent() {
         const isPersistent =
-            navigator.storage &&
-            navigator.storage.persisted &&
-            (await navigator.storage.persisted());
+            navigator?.storage?.persisted && (await navigator?.storage?.persisted());
 
         if (!isPersistent) {
-            navigator.storage.persist().then((granted) => {
+            navigator?.storage?.persist().then((granted) => {
                 if (granted) {
                     console.log("Permission to change storage persistence was granted");
                 } else {
