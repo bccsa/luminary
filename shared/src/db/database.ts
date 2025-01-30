@@ -140,6 +140,26 @@ class Database extends Dexie {
         watch(syncMap.value, () => {
             this.setSyncMap();
         });
+
+        this.requestIndexDbPersistent();
+    }
+
+    /**
+     * Request persistent storage for the database (to be called on load)
+     */
+    async requestIndexDbPersistent() {
+        const isPersistent =
+            navigator?.storage?.persisted && (await navigator?.storage?.persisted());
+
+        if (!isPersistent) {
+            navigator?.storage?.persist().then((granted) => {
+                if (granted) {
+                    console.log("Permission to change storage persistence was granted");
+                } else {
+                    console.log("Permission to change storage persistence was denied");
+                }
+            });
+        }
     }
 
     /**
