@@ -189,7 +189,10 @@ watch(
         if (!content.value.language) return;
         if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
             return;
-        if (appLanguagesPreferredAsRef.value[0]._id !== content.value.language) {
+        if (
+            appLanguagesPreferredAsRef.value[0] &&
+            appLanguagesPreferredAsRef.value[0]._id !== content.value.language
+        ) {
             const contentDocs = await db.whereParent(content.value.parentId);
             const preferred = contentDocs.find(
                 (c) => c.language == appLanguagesPreferredAsRef.value![0]._id,
@@ -199,7 +202,6 @@ watch(
                 // Check if the preferred translation is published
                 router.replace({ name: "content", params: { slug: preferred.slug } });
             } else {
-                if (!appLanguagesPreferredAsRef.value[0].name) return;
                 useNotificationStore().addNotification({
                     id: "translation-not-published",
                     title: "Translation not available",
