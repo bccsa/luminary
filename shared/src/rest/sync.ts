@@ -350,7 +350,12 @@ export class Sync {
                 if (
                     newGroups &&
                     newGroups.length > 0 &&
-                    !Object.values(_sm).find((v) => _.isEqual(v.groups, newGroups))
+                    !Object.values(_sm).find(
+                        (v) =>
+                            _.isEqual(v.groups, newGroups) &&
+                            k.syncPriority == v.syncPriority &&
+                            k.contentOnly == v.contentOnly,
+                    )
                 )
                     syncMap.value.set(_id, {
                         ..._.cloneDeep(k),
@@ -358,7 +363,8 @@ export class Sync {
                         groups: _.cloneDeep(newGroups),
                         blocks: [{ blockStart: 0, blockEnd: 0 }],
                     });
-                else if (removeGroups && removeGroups.length > 0) {
+
+                if (removeGroups && removeGroups.length > 0) {
                     const _groups = k.groups.filter((g) => !removeGroups.includes(g));
                     syncMap.value.set(k.id, {
                         ..._.cloneDeep(k),
@@ -383,7 +389,12 @@ export class Sync {
                 if (
                     newTypes &&
                     newTypes.length > 0 &&
-                    !Object.values(_sm).find((v) => _.isEqual(v.types, newTypes))
+                    !Object.values(_sm).find(
+                        (v) =>
+                            _.isEqual(v.types, newTypes) &&
+                            k.syncPriority == v.syncPriority &&
+                            k.contentOnly == v.contentOnly,
+                    )
                 )
                     syncMap.value.set(_id, {
                         ..._.cloneDeep(k),
@@ -391,7 +402,8 @@ export class Sync {
                         types: _.cloneDeep(newTypes),
                         blocks: [{ blockStart: 0, blockEnd: 0 }],
                     });
-                else if (removeTypes && removeTypes.length > 0) {
+
+                if (removeTypes && removeTypes.length > 0) {
                     const _types = k.types.filter((g) => !removeTypes.includes(g));
                     syncMap.value.set(k.id, {
                         ..._.cloneDeep(k),
@@ -407,7 +419,9 @@ export class Sync {
             (d) =>
                 !syncPriorityContentOnly?.find(
                     (s) => s.syncPriority == d.syncPriority && s.contentOnly == d.contentOnly,
-                ),
+                ) ||
+                d.groups?.length == 0 ||
+                d.types?.length == 0,
         );
         for (const k of outDated || []) {
             syncMap.value.delete(k.id);

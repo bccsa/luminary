@@ -123,10 +123,14 @@ describe("rest", () => {
                 { type: DocType.Post, contentOnly: true, syncPriority: 10 },
                 { type: DocType.Post, contentOnly: false, syncPriority: 10 },
                 { type: DocType.Group, contentOnly: false, syncPriority: 10 },
+                { type: DocType.Language, contentOnly: false, syncPriority: 9 },
             ],
         });
 
         accessMap.value["group-super-admins"] = {
+            post: { view: true, edit: true, delete: true, translate: true, publish: true },
+        };
+        accessMap.value["group-recursive-test"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
 
@@ -143,6 +147,7 @@ describe("rest", () => {
     afterEach(async () => {
         vi.clearAllMocks();
         await db.luminaryInternals.clear();
+        syncMap.value.clear();
     });
 
     afterAll(async () => {
@@ -153,40 +158,92 @@ describe("rest", () => {
         await db.localChanges.clear();
     });
 
-    it("can add a new entry into the syncMap when the user's access has changed", async () => {
-        // syncMap.value.set("pos_group-super-admins", syncMapEntry);
-
-        accessMap.value["group-public-users"] = {
+    it("can re-calculate syncMap when accessMap is updated", async () => {
+        accessMap.value["group-re-calc-sync-map"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
 
-        // await rest._sync.calcSyncMap();
-
-        waitForExpect(() => {
+        await waitForExpect(async () => {
+            await db.getSyncMap();
             const _sm = Object.fromEntries(syncMap.value);
-            const _post = Object.values(_sm).find((e: any) =>
-                e.groups.find((g) => g == "group-public-users"),
+            const post = Object.values(_sm).find((e: any) =>
+                _.isEqual(e.groups, ["group-re-calc-sync-map"]),
             );
-            expect(_post?.blocks[0].blockStart).toBe(0);
-            expect(_post?.blocks[0].blockEnd).toBe(0);
+            expect(post).toBeDefined();
+            expect(post?.blocks[0].blockStart).toBe(0);
+            expect(post?.blocks[0].blockEnd).toBe(0);
         });
     });
 
-    it("can remove a entry from the syncMap when the user's access has changed", async () => {
-        syncMap.value.set("pos_group-super-admins", syncMapEntry);
+    it("can remove a group entry from the syncMap when the user's access has changed", async () => {
+        await rest._sync.calcSyncMap();
 
         accessMap.value["group-public-users"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
 
         await rest._sync.calcSyncMap();
+
+        const _sm1 = Object.fromEntries(syncMap.value);
+        const _post1 = Object.values(_sm1).find((e: any) =>
+            _.isEqual(e.groups, ["group-public-users"]),
+        );
+        // added group
+        expect(_post1).toBeDefined();
 
         delete accessMap.value["group-public-users"];
 
         await rest._sync.calcSyncMap();
 
-        const _post = syncMap.value.get("post_group-public-users");
-        expect(_post).toBe(undefined);
+        const _sm2 = Object.fromEntries(syncMap.value);
+        const _post2 = Object.values(_sm2).find((e: any) =>
+            e.groups.includes("group-public-users"),
+        );
+        // removed group
+        expect(_post2).toBe(undefined);
+    });
+
+    it("can remove a type entry from the syncMap when the app's docTypes has changed", async () => {
+        await rest._sync.calcSyncMap();
+        rest._sync.options.docTypes = [
+            { type: DocType.Post, contentOnly: true, syncPriority: 10 },
+            { type: DocType.Post, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Group, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Tag, contentOnly: true, syncPriority: 9 },
+            { type: DocType.Language, contentOnly: false, syncPriority: 9 },
+            { type: DocType.Tag, contentOnly: false, syncPriority: 10 },
+        ];
+        await rest._sync.calcSyncMap();
+
+        const _sm1 = Object.fromEntries(syncMap.value);
+        const _post10 = Object.values(_sm1).find(
+            (e: any) => _.isEqual(e.types, [DocType.Tag]) && e.syncPriority == 10,
+        );
+        const _post9 = Object.values(_sm1).find(
+            (e: any) => _.isEqual(e.types, [DocType.Tag]) && e.syncPriority == 9,
+        );
+        const _otherPost = Object.values(_sm1).find(
+            (e: any) =>
+                e.types.includes(DocType.Tag) && !(e.id == _post10?.id || e.id == _post9?.id),
+        );
+        // added type
+        expect(_post10).toBeDefined();
+        expect(_post9).toBeDefined();
+        expect(_otherPost).toBe(undefined);
+
+        rest._sync.options.docTypes = [
+            { type: DocType.Post, contentOnly: true, syncPriority: 10 },
+            { type: DocType.Post, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Group, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Language, contentOnly: false, syncPriority: 9 },
+        ];
+
+        await rest._sync.calcSyncMap();
+
+        const _sm2 = Object.fromEntries(syncMap.value);
+        const _post2 = Object.values(_sm2).find((e: any) => e.types.includes(DocType.Tag));
+        // removed type
+        expect(_post2).toBe(undefined);
     });
 
     it("can insert a block into the syncMap", async () => {
@@ -373,6 +430,8 @@ describe("rest", () => {
     });
 
     it("can process clientDataReq", async () => {
+        syncMap.value.set("pos_group-super-admins", syncMapEntry);
+
         mockApiCheckFor = (res) => {
             if (_.isEqual(res.types, ["post"]) && _.isEqual(res.groups, ["group-super-admins"]))
                 mockApiCheckForRes = res;
@@ -422,7 +481,7 @@ describe("rest", () => {
         { timeout: 10000 },
     );
 
-    it("can merge 2 syncMap entries, if they have the same priority and the same contentOnly flag", async () => {
+    it("can merge 2 syncMap entries, if they have the same priority and the same contentOnly flag, and one of them us completed sync (group)", async () => {
         syncMap.value.clear();
         syncMap.value.set("2_syncMap_main", {
             ...syncMapEntry,
@@ -447,6 +506,29 @@ describe("rest", () => {
         ).toBeTruthy();
     });
 
+    it("can merge 2 syncMap entries, if they have the same priority and the same contentOnly flag, and one of them us completed sync (type)", async () => {
+        syncMap.value.clear();
+        syncMap.value.set("2_syncMap_main", {
+            ...syncMapEntry,
+            syncPriority: 2,
+            id: "2_syncMap_main",
+        });
+        syncMap.value.set("2_syncMap_sub", {
+            ...syncMapEntry,
+            id: "1_syncMap_sub",
+            types: [DocType.Tag],
+            blocks: [{ blockStart: 1000, blockEnd: 100 }],
+            syncPriority: 2,
+        });
+
+        rest._sync.mergeSyncMapEntries("2_syncMap_sub");
+
+        const _post = syncMap.value.get("2_syncMap_main");
+
+        expect(_post?.id).toBe("2_syncMap_main");
+        expect(_.isEqual(_post?.types, [DocType.Post, DocType.Tag])).toBeTruthy();
+    });
+
     it("can remove old values from the syncMap that is not valid anymore", async () => {
         syncMap.value.clear();
         syncMap.value.set("2_syncMap_main", {
@@ -461,25 +543,4 @@ describe("rest", () => {
 
         expect(_post).toBe(undefined);
     });
-
-    it(
-        "can re-calculate syncMap when accessMap is updated",
-        async () => {
-            accessMap.value["group-re-calc-sync-map"] = {
-                post: { view: true, edit: true, delete: true, translate: true, publish: true },
-            };
-
-            await waitForExpect(async () => {
-                await db.getSyncMap();
-                const _sm = Object.fromEntries(syncMap.value);
-                const post = Object.values(_sm).find((e: any) =>
-                    _.isEqual(e.groups, ["group-re-calc-sync-map"]),
-                );
-                expect(post).toBeDefined();
-                expect(post?.blocks[0].blockStart).toBe(0);
-                expect(post?.blocks[0].blockEnd).toBe(0);
-            }, 9000);
-        },
-        { timeout: 10000 },
-    );
 });
