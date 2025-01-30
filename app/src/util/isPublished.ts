@@ -1,4 +1,5 @@
 import { type ContentDto, type Uuid } from "luminary-shared";
+import { firstLanguageSupported } from "./firstSupportedLanguage";
 
 /**
  * Check if a content item is published
@@ -7,9 +8,7 @@ import { type ContentDto, type Uuid } from "luminary-shared";
  * @returns
  */
 export function isPublished(content: ContentDto, languageIds: Uuid[]): boolean {
-    const firstSupportedLang = languageIds.find((lang) =>
-        content.availableTranslations?.includes(lang),
-    );
+    const firstSupportedLang = firstLanguageSupported(languageIds, content.availableTranslations);
 
     if (!content) return false;
     if (!content.publishDate) return false;
