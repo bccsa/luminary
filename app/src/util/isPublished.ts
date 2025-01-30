@@ -8,6 +8,7 @@ import { firstLanguageSupported } from "./firstSupportedLanguage";
  * @returns
  */
 export function isPublished(content: ContentDto, languageIds: Uuid[]): boolean {
+    if (!content.availableTranslations) return false;
     const firstSupportedLang = firstLanguageSupported(languageIds, content.availableTranslations);
 
     if (!content) return false;
