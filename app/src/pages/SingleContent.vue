@@ -190,7 +190,7 @@ watch(
         if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
             return;
         if (
-            appLanguagesPreferredAsRef.value[0] &&
+            appLanguagesPreferredAsRef.value[0]._id &&
             appLanguagesPreferredAsRef.value[0]._id !== content.value.language
         ) {
             const contentDocs = await db.whereParent(content.value.parentId);
