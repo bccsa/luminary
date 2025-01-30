@@ -12,7 +12,6 @@ import {
     mockFrenchContentDto,
     mockLanguageDtoEng,
     mockCategoryDto,
-    mockLanguageDtoSwa,
     mockTopicContentDto,
     mockTopicDto,
     mockRedirectDto,
