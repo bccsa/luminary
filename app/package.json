@@ -23,6 +23,7 @@
         "@tiptap/html": "^2.3.0",
         "@tiptap/starter-kit": "^2.3.0",
         "@vueuse/core": "^10.9.0",
+        "doiuse": "^6.0.5",
         "dotenv": "^16.4.5",
         "iso-639-2": "^3.0.2",
         "luminary-shared": "file:../shared",
