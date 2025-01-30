@@ -195,7 +195,7 @@ watch(
         ) {
             const contentDocs = await db.whereParent(content.value.parentId);
             const preferred = contentDocs.find(
-                (c) => c.language == appLanguagesPreferredAsRef.value![0]._id,
+                (c) => c.language == appLanguagesPreferredAsRef.value[0]._id,
             );
 
             if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
