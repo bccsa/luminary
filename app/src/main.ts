@@ -63,15 +63,23 @@ if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID
     });
 
 // Start analytics on initial load
-// @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-if (window._paq)
-    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-    window._paq.push(
-        ["setCustomUrl", window.location.href],
-        ["setDocumentTitle", document.title],
-        ["trackPageView"],
-        ["trackVisibleContentImpressions"],
-    );
+router.afterEach((to) => {
+    const fullPath = to.fullPath;
+    const title = (to.meta.title as string) || (to.params.slug as string) || (to.path as string);
+    if (
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        window._paq &&
+        !fullPath.match(/(\/settings|\/explore)\/index\/login\/\?code/i) &&
+        !title.match(/^Home$|Loading...|Page not found/i)
+    )
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        window._paq.push(
+            ["setCustomUrl", window.location.origin + fullPath],
+            ["setDocumentTitle", title],
+            ["trackPageView"],
+            ["trackVisibleContentImpressions"],
+        );
+});
 
 // register matomo service worker
 if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID) {
