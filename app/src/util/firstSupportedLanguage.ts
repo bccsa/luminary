@@ -7,5 +7,6 @@ import type { Uuid } from "luminary-shared";
  * @returns the first supported languages
  */
 export function firstLanguageSupported(languages: Uuid[], availableLanguages: Uuid[]) {
+    if (!availableLanguages || !Array.isArray(availableLanguages)) return;
     return languages.find((lang) => availableLanguages.includes(lang));
 }
