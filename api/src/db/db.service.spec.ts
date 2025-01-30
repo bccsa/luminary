@@ -1,7 +1,10 @@
 import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
-import { DocType, Uuid } from "../enums";
+import { DeleteReason, DocType, PostType, Uuid } from "../enums";
 import { createTestingModule } from "../test/testingModule";
+import { PostDto } from "../dto/PostDto";
+import waitForExpect from "wait-for-expect";
+import { DeleteCmdDto } from "../dto/DeleteCmdDto";
 
 describe("DbService", () => {
     let service: DbService;
@@ -74,7 +77,9 @@ describe("DbService", () => {
             testData: "test123",
         };
 
-        await expect(service.upsertDoc(doc)).rejects.toBe(
+        const res = await service.upsertDoc(doc).catch((e) => e);
+
+        expect(res.message).toBe(
             "Invalid document: The passed document does not have an '_id' property",
         );
     });
@@ -477,6 +482,359 @@ describe("DbService", () => {
 
             expect(res.docs.length).toBeGreaterThan(1);
             expect(notEnglishDocs.length).toBeLessThan(1);
+        });
+    });
+
+    describe("Document delete functions", () => {
+        it("can delete a document", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+            };
+
+            await service.upsertDoc(doc);
+            await service.deleteDoc(doc._id);
+
+            const res: any = await service.getDoc(doc._id);
+
+            expect(res.docs.length).toBe(0);
+        });
+
+        it("can handle exceptions on deleting non-existing documents", async () => {
+            const res: any = await service.deleteDoc("non-existing-document");
+
+            expect(res.message).toBe("Document not found");
+        });
+
+        it("can create a delete instruction with reason 'deleted'", async () => {
+            const data: PostDto = {
+                _id: "delete-test-deleted",
+                type: DocType.Post,
+                memberOf: ["group-public-content"],
+                postType: PostType.Blog,
+                tags: [],
+                publishDateVisible: true,
+            };
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: data,
+            });
+
+            expect(insertResult.ok).toBe(true);
+            expect(insertResult.id).not.toBe(data._id); // delete command should have a unique ID
+
+            const res = await service.getDoc(insertResult.id);
+
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].deleteReason).toBe(DeleteReason.Deleted);
+            expect(res.docs[0].memberOf).toEqual(data.memberOf);
+            expect(res.docs[0].type).toBe(DocType.DeleteCmd);
+            expect(res.docs[0].docType).toBe(data.type);
+            expect(res.docs[0].docId).toBe(data._id);
+        });
+
+        it("fails when trying to create a delete instruction for a group document", async () => {
+            const doc = {
+                _id: "group-public-content",
+                testData: "test123",
+                type: DocType.Group,
+            };
+
+            const err = await service
+                .insertDeleteCmd({ reason: DeleteReason.Deleted, doc: doc })
+                .catch((e) => e);
+
+            expect(err.message).toBe(
+                "Permission change delete command is not valid for group documents, as they are not synced to clients",
+            );
+        });
+
+        it("fails when passing an previous document for a delete instruction", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Post,
+            };
+
+            await service.upsertDoc(doc);
+
+            const err = await service
+                .insertDeleteCmd({ reason: DeleteReason.Deleted, doc: doc, prevDoc: doc })
+                .catch((e) => e);
+
+            expect(err.message).toBe(
+                "Previous document must not be provided for 'deleted' type delete command",
+            );
+        });
+
+        it("can generate a delete instruction for a 'statusChange' reason", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Content,
+                status: "draft",
+                memberOf: ["group-public-content"],
+            };
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.StatusChange,
+                doc: doc,
+            });
+
+            expect(insertResult.ok).toBe(true);
+            expect(insertResult.id).not.toBe(doc._id); // delete command should have a unique ID
+
+            const res = await service.getDoc(insertResult.id);
+
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].deleteReason).toBe(DeleteReason.StatusChange);
+            expect(res.docs[0].memberOf).toEqual(doc.memberOf);
+            expect(res.docs[0].type).toBe(DocType.DeleteCmd);
+            expect(res.docs[0].docType).toBe(doc.type);
+            expect(res.docs[0].docId).toBe(doc._id);
+        });
+
+        it("fails when passing an previous document for a 'statusChanged' instruction", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Post,
+            };
+
+            await service.upsertDoc(doc);
+
+            const err = await service
+                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc, prevDoc: doc })
+                .catch((e) => e);
+
+            expect(err.message).toBe(
+                "Previous document must not be provided for 'statusChange' type delete command",
+            );
+        });
+
+        it("fails when trying to insert a delete instruction for a 'statusChanged' reason for documents other than ContentDto", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Post,
+            };
+
+            const err = await service
+                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc })
+                .catch((e) => e);
+
+            expect(err.message).toBe(
+                "Status change delete command is only valid for content documents",
+            );
+        });
+
+        it("fails when trying to insert a delete instruction for a 'statusChange' reason when the ContentDto status is 'published'", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Content,
+                status: "published",
+            };
+
+            const err = await service
+                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc })
+                .catch((e) => e);
+
+            expect(err.message).toBe(
+                "Status change delete command is only valid for unpublished content",
+            );
+        });
+
+        it("can generate a delete instruction for a 'permissionChange' reason", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Post,
+                memberOf: ["group-public-content"],
+            };
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.PermissionChange,
+                doc: doc,
+                prevDoc: { ...doc, memberOf: ["group-public-content", "group-private-content"] },
+            });
+
+            expect(insertResult.ok).toBe(true);
+            expect(insertResult.id).not.toBe(doc._id); // delete command should have a unique ID
+
+            const res = await service.getDoc(insertResult.id);
+
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].deleteReason).toBe(DeleteReason.PermissionChange);
+            expect(res.docs[0].memberOf).toEqual(["group-private-content"]); // only the removed groups should get the delete command
+            expect(res.docs[0].type).toBe(DocType.DeleteCmd);
+            expect(res.docs[0].docType).toBe(doc.type);
+            expect(res.docs[0].docId).toBe(doc._id);
+        });
+
+        it("does not generate a delete instruction for a 'permissionChange' reason if the permissions has been expanded", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Post,
+                memberOf: ["group-public-content", "group-private-content"],
+            };
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.PermissionChange,
+                doc: doc,
+                prevDoc: { ...doc, memberOf: ["group-public-content"] },
+            });
+
+            expect(insertResult.id).toBe("");
+            expect(insertResult.ok).toBe(true);
+            expect(insertResult.message).toBe("No delete command needed as no groups were removed");
+            expect(insertResult.rev).toBe("");
+        });
+
+        it("fails when trying to insert a delete instruction for a 'permissionChange' reason when no previous document is provided", async () => {
+            const doc = {
+                _id: "delete-test",
+                testData: "test123",
+                type: DocType.Post,
+                memberOf: ["group-public-content"],
+            };
+
+            const err = await service
+                .insertDeleteCmd({ reason: DeleteReason.PermissionChange, doc: doc })
+                .catch((e) => e);
+
+            expect(err.message).toBe(
+                "Previous document must be provided for 'permissionChange' type delete command",
+            );
+        });
+
+        describe("Document upsert with delete command generation", () => {
+            it("generates a delete instruction for a 'permissionChange' reason when a document is upserted with removed permissions", async () => {
+                const doc = {
+                    _id: "delete-test",
+                    testData: "test123",
+                    type: DocType.Post,
+                    memberOf: ["group-public-content", "group-private-content"],
+                };
+
+                await service.upsertDoc(doc);
+
+                const updatedDoc = {
+                    _id: "delete-test",
+                    testData: "test123",
+                    type: DocType.Post,
+                    memberOf: ["group-public-content"],
+                };
+
+                // Subscribe to the update event to check if the delete command is generated
+                let updateEventDoc: DeleteCmdDto;
+                const deleteCmdHandler = (update: DeleteCmdDto) => {
+                    if (update.type === DocType.DeleteCmd) {
+                        service.off("update", deleteCmdHandler);
+                        updateEventDoc = update;
+                    }
+                };
+                service.on("update", deleteCmdHandler);
+
+                const insertResult = await service.upsertDoc(updatedDoc);
+
+                expect(insertResult.ok).toBe(true);
+
+                await waitForExpect(() => {
+                    expect(updateEventDoc).toBeDefined();
+                    expect(updateEventDoc.docId).toBe("delete-test");
+                    expect(updateEventDoc.deleteReason).toBe(DeleteReason.PermissionChange);
+                    expect(updateEventDoc.memberOf).toEqual(["group-private-content"]); // only the removed groups should get the delete command
+                    expect(updateEventDoc.newMemberOf).toEqual(["group-public-content"]);
+                });
+            });
+
+            it("generates a delete instruction for a 'statusChange' reason when a document is upserted with a status change from 'published' to 'draft", async () => {
+                const doc = {
+                    _id: "delete-test-statusChange",
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+
+                await service.upsertDoc(doc);
+
+                const updatedDoc = {
+                    _id: "delete-test-statusChange",
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "draft",
+                    memberOf: ["group-public-content"],
+                };
+
+                // Subscribe to the update event to check if the delete command is generated
+                let updateEventDoc: DeleteCmdDto;
+                const deleteCmdHandler = (update: DeleteCmdDto) => {
+                    if (update.type === DocType.DeleteCmd) {
+                        service.off("update", deleteCmdHandler);
+                        updateEventDoc = update;
+                    }
+                };
+                service.on("update", deleteCmdHandler);
+
+                const insertResult = await service.upsertDoc(updatedDoc);
+
+                expect(insertResult.ok).toBe(true);
+
+                await waitForExpect(() => {
+                    expect(updateEventDoc).toBeDefined();
+                    expect(updateEventDoc.docId).toBe("delete-test-statusChange");
+                    expect(updateEventDoc.deleteReason).toBe(DeleteReason.StatusChange);
+                    expect(updateEventDoc.memberOf).toEqual(["group-public-content"]);
+                });
+            });
+
+            it("generates a delete instruction for a 'deleted' reason when a document is upserted with a deleteReq, and deletes the document itself", async () => {
+                const doc = {
+                    _id: "delete-test-deleted",
+                    testData: "test123",
+                    type: DocType.Post,
+                    memberOf: ["group-public-content"],
+                };
+
+                await service.upsertDoc(doc);
+
+                const updatedDoc = {
+                    _id: "delete-test-deleted",
+                    testData: "test123",
+                    type: DocType.Post,
+                    memberOf: ["group-public-content"],
+                    deleteReq: 1,
+                };
+
+                // Subscribe to the update event to check if the delete command is generated
+                let updateEventDoc: DeleteCmdDto;
+                const deleteCmdHandler = (update: DeleteCmdDto) => {
+                    if (update.type === DocType.DeleteCmd) {
+                        service.off("update", deleteCmdHandler);
+                        updateEventDoc = update;
+                    }
+                };
+                service.on("update", deleteCmdHandler);
+
+                const insertResult = await service.upsertDoc(updatedDoc);
+
+                expect(insertResult.ok).toBe(true);
+
+                await waitForExpect(() => {
+                    expect(updateEventDoc).toBeDefined();
+                    expect(updateEventDoc.docId).toBe("delete-test-deleted");
+                    expect(updateEventDoc.deleteReason).toBe(DeleteReason.Deleted);
+                    expect(updateEventDoc.memberOf).toEqual(["group-public-content"]);
+                });
+
+                const res: any = await service.getDoc(updatedDoc._id);
+
+                expect(res.docs.length).toBe(0);
+            });
         });
     });
 });
