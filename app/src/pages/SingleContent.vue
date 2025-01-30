@@ -202,6 +202,7 @@ watch(
                 // Check if the preferred translation is published
                 router.replace({ name: "content", params: { slug: preferred.slug } });
             } else {
+                if (!appLanguagesPreferredAsRef.value[0].name) return;
                 useNotificationStore().addNotification({
                     id: "translation-not-published",
                     title: "Translation not available",
