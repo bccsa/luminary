@@ -37,9 +37,9 @@ export type SyncMapEntry = {
 
 export type SyncMap = {
     blocks: Array<SyncMapEntry>;
-    group: string;
+    groups: Array<string>;
     contentOnly?: boolean;
-    type: string;
+    types: Array<string>;
     id: string;
     syncPriority: number; // default 0, a higher number is a higher priority
 };

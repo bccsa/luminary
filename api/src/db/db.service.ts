@@ -38,6 +38,7 @@ export type QueryDocsOptions = {
     offset?: number;
     contentOnly?: boolean;
     queryString?: string;
+    languages?: string[];
 };
 
 /**
@@ -346,91 +347,25 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Get data to which a user has access.
-     * @param {GetDocsOptions} options - Query configuration object.
-     * @returns - Promise containing the query result
-     */
-    getDocsPerTypePerGroup(options: GetDocsOptions): Promise<DbQueryResult> {
-        return new Promise(async (resolve, reject) => {
-            // To allow effective indexing, the structure inside an "$or" selector should be identical for all the sub-selectors
-            // within the "$or". Because of this restriction, it is necessary to do multiple queries and join the result externally
-            const limit = options.limit || 100;
-
-            // Construct time selectors
-            const selectors = [];
-            if (options.from || options.from === 0) {
-                selectors.push({
-                    updatedTimeUtc: {
-                        $gte: options.from - this.syncTolerance,
-                    },
-                });
-            }
-
-            if (options.to) {
-                selectors.push({
-                    updatedTimeUtc: {
-                        $lte: options.to + this.syncTolerance,
-                    },
-                });
-            }
-
-            const timeSelector = [];
-            if (selectors.length > 0) {
-                timeSelector.push({
-                    $and: selectors,
-                });
-            } else {
-                timeSelector.push(...selectors);
-            }
-
-            const docQuery = {
-                selector: {
-                    $and: [
-                        ...timeSelector,
-                        {
-                            type: options.contentOnly ? DocType.Content : options.type,
-                        },
-                    ],
-                },
-                limit: limit || Number.MAX_SAFE_INTEGER,
-                sort: [{ updatedTimeUtc: "desc" }],
-            };
-
-            if (options.type !== "group")
-                docQuery.selector["$and"].push({
-                    memberOf: {
-                        $in: [options.group],
-                    },
-                });
-
-            try {
-                const res = await this.db.find(docQuery);
-                const docs = res.docs;
-                // calculate the start and end of the block, used to pass back to the client for pagination
-                const { blockStart, blockEnd } = this.calcBlockStartEnd(docs);
-
-                resolve({
-                    docs,
-                    type: options.type,
-                    warnings: res.warning,
-                    blockStart: blockStart,
-                    blockEnd: blockEnd,
-                    group: options.group,
-                    contentOnly: options.contentOnly,
-                });
-            } catch (err) {
-                reject(err);
-            }
-        });
-    }
-
-    /**
      * Query DB for documents based on user access and query options
      * @param {QueryDocsOptions} options - Query configuration object.
      * @returns - Promise containing the query result
      */
     queryDocs(options: QueryDocsOptions): Promise<DbQueryResult> {
         return new Promise(async (resolve, reject) => {
+            /**
+             * Calculate the list of
+             * @param docType
+             * @returns
+             */
+            const calcGroups = (docType) => {
+                return options.groups && options.groups.length > 0
+                    ? options.groups.filter(
+                          (group) => options.userAccess[docType]?.indexOf(group) > -1,
+                      )
+                    : options.userAccess[docType];
+            };
+
             // Construct time selectors
             const selectors = [];
             if (options.from) {
@@ -456,8 +391,20 @@ export class DbService extends EventEmitter {
                 });
             }
 
+            const languageSelector =
+                options.languages?.length > 0
+                    ? [
+                          {
+                              $and: [
+                                  { language: { $in: options.languages } },
+                                  { memberOf: { $in: calcGroups(DocType.Language) } },
+                              ],
+                          },
+                      ]
+                    : [];
+
             const docQuery = {
-                selector: { $and: [...timeSelector] },
+                selector: { $and: [...timeSelector, ...languageSelector] },
                 limit: options.limit || Number.MAX_SAFE_INTEGER,
                 sort: options.sort || [{ updatedTimeUtc: "desc" }],
             };
@@ -469,12 +416,7 @@ export class DbService extends EventEmitter {
 
                 // reduce user requested groups to only the groups the user has access to
                 // default groups to user access groups if not provided
-                const groups =
-                    options.groups && options.groups.length > 0
-                        ? options.groups.filter(
-                              (group) => options.userAccess[docType].indexOf(group) > -1,
-                          )
-                        : options.userAccess[docType];
+                const groups = calcGroups(docType);
 
                 if (docType !== DocType.Group && !options.contentOnly)
                     $or.push({

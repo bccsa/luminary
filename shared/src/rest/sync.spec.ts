@@ -6,14 +6,15 @@ import { accessMap } from "../permissions/permissions";
 import { initLuminaryShared } from "../luminary";
 import { getRest } from "./RestApi";
 import express from "express";
-import { ApiQuery } from "./sync";
+import { ApiSearchQuery } from "./RestApi";
 import waitForExpect from "wait-for-expect";
+import _ from "lodash";
 
 const app = express();
 const port = 12349;
 let rest;
 let mockApiRequest;
-let apiRecursiveTest = { type: "", group: "", contentOnly: false }; // update parameters to run a recursive test on a specific doctype group
+let apiRecursiveTest = { types: [""], groups: [""], contentOnly: false }; // update parameters to run a recursive test on a specific doctype group
 let mockApiCheckFor = (res: any) => {
     return res;
 };
@@ -24,49 +25,49 @@ let mockApiCheckForRes;
 // ============================
 const mockApiResponse = {
     docs: [],
-    type: "tag",
+    types: ["tag"],
     warnings: "",
     blockStart: 4000,
     blockEnd: 3000,
-    group: "group-super-admins",
+    groups: ["group-super-admins"],
     contentOnly: true,
 };
 
 const mockApiRecursiveResponse = [
     {
         docs: [],
-        type: "post",
+        types: ["post"],
         warnings: "",
         blockStart: 2300,
         blockEnd: 2000,
-        group: "group-recursive-test",
+        groups: ["group-recursive-test"],
         contentOnly: false,
     },
     {
         docs: [],
-        type: "post",
+        types: ["post"],
         warnings: "",
         blockStart: 2700,
         blockEnd: 2300,
-        group: "group-recursive-test",
+        groups: ["group-recursive-test"],
         contentOnly: false,
     },
     {
         docs: [],
-        type: "post",
+        types: ["post"],
         warnings: "",
         blockStart: 3000,
         blockEnd: 2700,
-        group: "group-recursive-test",
+        groups: ["group-recursive-test"],
         contentOnly: false,
     },
 ];
 
 const syncMapEntry: SyncMap = {
     id: "post_group-super-admins",
-    type: DocType.Post,
+    types: [DocType.Post],
     contentOnly: false,
-    group: "group-super-admins",
+    groups: ["group-super-admins"],
     syncPriority: 1,
     blocks: [
         {
@@ -87,7 +88,7 @@ const syncMapEntry: SyncMap = {
 // ============================
 // Mock api
 // ============================
-app.get("/docs", (req, res) => {
+app.get("/search", (req, res) => {
     mockApiRequest = req.headers["x-query"];
     const a = apiRecursiveTest;
     const b = JSON.parse(mockApiRequest);
@@ -97,7 +98,9 @@ app.get("/docs", (req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.end(
         JSON.stringify(
-            a.type == b.type && a.group == b.group && a.contentOnly == b.contentOnly
+            _.isEqual(a.types, b.types) &&
+                _.isEqual(a.groups, b.groups) &&
+                a.contentOnly == b.contentOnly
                 ? mockApiRecursiveResponse.pop()
                 : mockApiResponse,
         ),
@@ -117,27 +120,34 @@ describe("rest", () => {
         rest = getRest({
             apiUrl: "http://127.0.0.1:" + port,
             docTypes: [
-                { type: DocType.Post, contentOnly: true },
-                { type: DocType.Post, contentOnly: false },
-                { type: DocType.Group, contentOnly: false },
+                { type: DocType.Post, contentOnly: true, syncPriority: 10 },
+                { type: DocType.Post, contentOnly: false, syncPriority: 10 },
+                { type: DocType.Group, contentOnly: false, syncPriority: 10 },
+                { type: DocType.Language, contentOnly: false, syncPriority: 9 },
             ],
         });
 
         accessMap.value["group-super-admins"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
+        accessMap.value["group-recursive-test"] = {
+            post: { view: true, edit: true, delete: true, translate: true, publish: true },
+        };
 
-        apiRecursiveTest = { type: "", group: "", contentOnly: false };
+        apiRecursiveTest = { types: [""], groups: [""], contentOnly: false };
         mockApiRequest = "";
 
         mockApiCheckFor = (res: any) => {
             return res;
         };
+
+        syncMap.value.clear();
     });
 
     afterEach(async () => {
         vi.clearAllMocks();
         await db.luminaryInternals.clear();
+        syncMap.value.clear();
     });
 
     afterAll(async () => {
@@ -148,35 +158,92 @@ describe("rest", () => {
         await db.localChanges.clear();
     });
 
-    it("can add a new entry into the syncMap when the user's access has changed", async () => {
-        syncMap.value.set("pos_group-super-admins", syncMapEntry);
-
-        accessMap.value["group-public-users"] = {
+    it("can re-calculate syncMap when accessMap is updated", async () => {
+        accessMap.value["group-re-calc-sync-map"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
 
-        await rest._sync.calcSyncMap();
-
-        const _post = syncMap.value.get("post_group-public-users");
-        expect(_post?.blocks[0].blockStart).toBe(0);
-        expect(_post?.blocks[0].blockEnd).toBe(0);
+        await waitForExpect(async () => {
+            await db.getSyncMap();
+            const _sm = Object.fromEntries(syncMap.value);
+            const post = Object.values(_sm).find((e: any) =>
+                _.isEqual(e.groups, ["group-re-calc-sync-map"]),
+            );
+            expect(post).toBeDefined();
+            expect(post?.blocks[0].blockStart).toBe(0);
+            expect(post?.blocks[0].blockEnd).toBe(0);
+        });
     });
 
-    it("can remove a entry from the syncMap when the user's access has changed", async () => {
-        syncMap.value.set("pos_group-super-admins", syncMapEntry);
+    it("can remove a group entry from the syncMap when the user's access has changed", async () => {
+        await rest._sync.calcSyncMap();
 
         accessMap.value["group-public-users"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
 
         await rest._sync.calcSyncMap();
+
+        const _sm1 = Object.fromEntries(syncMap.value);
+        const _post1 = Object.values(_sm1).find((e: any) =>
+            _.isEqual(e.groups, ["group-public-users"]),
+        );
+        // added group
+        expect(_post1).toBeDefined();
 
         delete accessMap.value["group-public-users"];
 
         await rest._sync.calcSyncMap();
 
-        const _post = syncMap.value.get("post_group-public-users");
-        expect(_post).toBe(undefined);
+        const _sm2 = Object.fromEntries(syncMap.value);
+        const _post2 = Object.values(_sm2).find((e: any) =>
+            e.groups.includes("group-public-users"),
+        );
+        // removed group
+        expect(_post2).toBe(undefined);
+    });
+
+    it("can remove a type entry from the syncMap when the app's docTypes has changed", async () => {
+        await rest._sync.calcSyncMap();
+        rest._sync.options.docTypes = [
+            { type: DocType.Post, contentOnly: true, syncPriority: 10 },
+            { type: DocType.Post, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Group, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Tag, contentOnly: true, syncPriority: 9 },
+            { type: DocType.Language, contentOnly: false, syncPriority: 9 },
+            { type: DocType.Tag, contentOnly: false, syncPriority: 10 },
+        ];
+        await rest._sync.calcSyncMap();
+
+        const _sm1 = Object.fromEntries(syncMap.value);
+        const _post10 = Object.values(_sm1).find(
+            (e: any) => _.isEqual(e.types, [DocType.Tag]) && e.syncPriority == 10,
+        );
+        const _post9 = Object.values(_sm1).find(
+            (e: any) => _.isEqual(e.types, [DocType.Tag]) && e.syncPriority == 9,
+        );
+        const _otherPost = Object.values(_sm1).find(
+            (e: any) =>
+                e.types.includes(DocType.Tag) && !(e.id == _post10?.id || e.id == _post9?.id),
+        );
+        // added type
+        expect(_post10).toBeDefined();
+        expect(_post9).toBeDefined();
+        expect(_otherPost).toBe(undefined);
+
+        rest._sync.options.docTypes = [
+            { type: DocType.Post, contentOnly: true, syncPriority: 10 },
+            { type: DocType.Post, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Group, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Language, contentOnly: false, syncPriority: 9 },
+        ];
+
+        await rest._sync.calcSyncMap();
+
+        const _sm2 = Object.fromEntries(syncMap.value);
+        const _post2 = Object.values(_sm2).find((e: any) => e.types.includes(DocType.Tag));
+        // removed type
+        expect(_post2).toBe(undefined);
     });
 
     it("can insert a block into the syncMap", async () => {
@@ -185,9 +252,9 @@ describe("rest", () => {
         let blocks;
         syncMap.value.set("post_group-super-admins", {
             id: "post_group-super-admins",
-            type: DocType.Post,
+            types: [DocType.Post],
             contentOnly: false,
-            group: "group-super-admins",
+            groups: ["group-super-admins"],
             syncPriority: 1,
             blocks: [
                 {
@@ -208,11 +275,11 @@ describe("rest", () => {
         // test expand to end
         await rest._sync.insertBlock({
             id: "post_group-super-admins",
-            group: "group-super-admins",
+            groups: ["group-super-admins"],
             blockStart: 500,
             blockEnd: 400,
             accessMap: accessMap,
-            type: DocType.Post,
+            types: [DocType.Post],
         });
 
         posts = syncMap.value.get("post_group-super-admins") || { blocks: [] };
@@ -223,11 +290,11 @@ describe("rest", () => {
         // test expand to start
         await rest._sync.insertBlock({
             id: "post_group-super-admins",
-            group: "group-super-admins",
+            groups: ["group-super-admins"],
             blockStart: 800,
             blockEnd: 700,
             accessMap: accessMap,
-            type: DocType.Post,
+            types: [DocType.Post],
         });
 
         posts = syncMap.value.get("post_group-super-admins") || { blocks: [] };
@@ -238,11 +305,11 @@ describe("rest", () => {
         // test expand overlap
         await rest._sync.insertBlock({
             id: "post_group-super-admins",
-            group: "group-super-admins",
+            groups: ["group-super-admins"],
             blockStart: 800,
             blockEnd: 400,
             accessMap: accessMap,
-            type: DocType.Post,
+            types: [DocType.Post],
         });
 
         posts = syncMap.value.get("post_group-super-admins") || { blocks: [] };
@@ -256,11 +323,11 @@ describe("rest", () => {
         // test contains
         await rest._sync.insertBlock({
             id: "post_group-super-admins",
-            group: "group-super-admins",
+            groups: ["group-super-admins"],
             blockStart: 4100,
             blockEnd: 4010,
             accessMap: accessMap,
-            type: DocType.Post,
+            types: [DocType.Post],
         });
 
         posts = syncMap.value.get("post_group-super-admins") || { blocks: [] };
@@ -274,11 +341,11 @@ describe("rest", () => {
         // test insert block
         await rest._sync.insertBlock({
             id: "post_group-super-admins",
-            group: "group-super-admins",
+            groups: ["group-super-admins"],
             blockStart: 200,
             blockEnd: 100,
             accessMap: accessMap,
-            type: DocType.Post,
+            types: [DocType.Post],
         });
 
         posts = syncMap.value.get("post_group-super-admins") || { blocks: [] };
@@ -296,11 +363,11 @@ describe("rest", () => {
         // test contains
         await rest._sync.insertBlock({
             id: "post_group-super-admins",
-            group: "group-super-admins",
+            groups: ["group-super-admins"],
             blockStart: 1100,
             blockEnd: 650,
             accessMap: accessMap,
-            type: DocType.Post,
+            types: [DocType.Post],
         });
 
         const posts = syncMap.value.get("post_group-super-admins") || { blocks: [] };
@@ -334,12 +401,12 @@ describe("rest", () => {
 
     it("can correctly sort the queue", async () => {
         const queue = [
-            { id: "a", syncPriority: 1, query: { gapEnd: 23 } },
-            { id: "b", syncPriority: 2, query: { gapEnd: 0 } },
-            { id: "c", syncPriority: 3, query: { gapEnd: 0 } },
-            { id: "d", syncPriority: 1, query: { gapEnd: 0 } },
-            { id: "e", syncPriority: 2, query: { gapEnd: 10 } },
-            { id: "f", syncPriority: 3, query: { gapEnd: 30 } },
+            { id: "a", syncPriority: 3, query: { from: 23 } },
+            { id: "b", syncPriority: 2, query: { from: 0 } },
+            { id: "c", syncPriority: 1, query: { from: 0 } },
+            { id: "d", syncPriority: 3, query: { from: 0 } },
+            { id: "e", syncPriority: 2, query: { from: 10 } },
+            { id: "f", syncPriority: 1, query: { from: 30 } },
         ];
 
         const q = rest._sync.sortQueue(queue);
@@ -349,12 +416,11 @@ describe("rest", () => {
     });
 
     it("can correctly query the api", async () => {
-        const query: ApiQuery = {
+        const query: ApiSearchQuery = {
             apiVersion: "0.0.0",
-            gapEnd: 0,
-            docTypes: [{ type: DocType.Post, contentOnly: true }],
-            group: "group-public-content",
-            type: DocType.Post,
+            from: 0,
+            types: [DocType.Post],
+            groups: ["group-public-content"],
         };
         await rest._sync.req(query);
 
@@ -364,16 +430,19 @@ describe("rest", () => {
     });
 
     it("can process clientDataReq", async () => {
+        syncMap.value.set("pos_group-super-admins", syncMapEntry);
+
         mockApiCheckFor = (res) => {
-            if (res.type == "post" && res.group == "group-super-admins") mockApiCheckForRes = res;
+            if (_.isEqual(res.types, ["post"]) && _.isEqual(res.groups, ["group-super-admins"]))
+                mockApiCheckForRes = res;
         };
 
         await rest._sync.clientDataReq();
 
         await waitForExpect(() => {
             const req = mockApiCheckForRes;
-            expect(req.type).toBe("post");
-            expect(req.group).toBe("group-super-admins");
+            expect(_.isEqual(req.types, ["post"])).toBeTruthy();
+            expect(_.isEqual(req.groups, ["group-super-admins"])).toBeTruthy();
         });
     });
 
@@ -381,18 +450,26 @@ describe("rest", () => {
     it(
         "can query the api recursively",
         async () => {
-            syncMapEntry.blocks = [];
-            syncMapEntry.blocks.push(
-                { blockStart: 20000, blockEnd: 3000 },
-                { blockStart: 2000, blockEnd: 1000 },
-            );
-            syncMapEntry.id = "post_group-recursive-test";
-            syncMapEntry.group = "group-recursive-test";
             accessMap.value["group-recursive-test"] = {
                 post: { view: true, edit: true, delete: true, translate: true, publish: true },
             };
-            syncMap.value.set("post_group-recursive-test", syncMapEntry);
-            apiRecursiveTest = { type: "post", group: "group-recursive-test", contentOnly: false };
+            syncMap.value.clear();
+            syncMap.value.set("post_group-recursive-test", {
+                ...syncMapEntry,
+                id: "post_group-recursive-test",
+                groups: ["group-recursive-test"],
+                types: [DocType.Post],
+                syncPriority: 10,
+                blocks: [
+                    { blockStart: 20000, blockEnd: 3000 },
+                    { blockStart: 2000, blockEnd: 1000 },
+                ],
+            });
+            apiRecursiveTest = {
+                types: ["post"],
+                groups: ["group-recursive-test"],
+                contentOnly: false,
+            };
             await rest._sync.clientDataReq();
 
             await waitForExpect(() => {
@@ -404,21 +481,66 @@ describe("rest", () => {
         { timeout: 10000 },
     );
 
-    // Test not working, syncMap does not update on test side, only in the syncFile
-    it.skip(
-        "re-calculates syncMap when accessMap is updated",
-        async () => {
-            accessMap.value["group-re-calc-sync-map"] = {
-                post: { view: true, edit: true, delete: true, translate: true, publish: true },
-            };
+    it("can merge 2 syncMap entries, if they have the same priority and the same contentOnly flag, and one of them us completed sync (group)", async () => {
+        syncMap.value.clear();
+        syncMap.value.set("2_syncMap_main", {
+            ...syncMapEntry,
+            syncPriority: 2,
+            id: "2_syncMap_main",
+        });
+        syncMap.value.set("2_syncMap_sub", {
+            ...syncMapEntry,
+            id: "1_syncMap_sub",
+            groups: ["group-sync-map-merge-test"],
+            blocks: [{ blockStart: 1000, blockEnd: 100 }],
+            syncPriority: 2,
+        });
 
-            await waitForExpect(() => {
-                const post = syncMap.value.get("group-re-calc-sync-map");
-                expect(post).toBeDefined();
-                expect(post?.blocks[0].blockStart).toBe(0);
-                expect(post?.blocks[0].blockEnd).toBe(0);
-            }, 9000);
-        },
-        { timeout: 10000 },
-    );
+        rest._sync.mergeSyncMapEntries("2_syncMap_sub");
+
+        const _post = syncMap.value.get("2_syncMap_main");
+
+        expect(_post?.id).toBe("2_syncMap_main");
+        expect(
+            _.isEqual(_post?.groups, ["group-super-admins", "group-sync-map-merge-test"]),
+        ).toBeTruthy();
+    });
+
+    it("can merge 2 syncMap entries, if they have the same priority and the same contentOnly flag, and one of them us completed sync (type)", async () => {
+        syncMap.value.clear();
+        syncMap.value.set("2_syncMap_main", {
+            ...syncMapEntry,
+            syncPriority: 2,
+            id: "2_syncMap_main",
+        });
+        syncMap.value.set("2_syncMap_sub", {
+            ...syncMapEntry,
+            id: "1_syncMap_sub",
+            types: [DocType.Tag],
+            blocks: [{ blockStart: 1000, blockEnd: 100 }],
+            syncPriority: 2,
+        });
+
+        rest._sync.mergeSyncMapEntries("2_syncMap_sub");
+
+        const _post = syncMap.value.get("2_syncMap_main");
+
+        expect(_post?.id).toBe("2_syncMap_main");
+        expect(_.isEqual(_post?.types, [DocType.Post, DocType.Tag])).toBeTruthy();
+    });
+
+    it("can remove old values from the syncMap that is not valid anymore", async () => {
+        syncMap.value.clear();
+        syncMap.value.set("2_syncMap_main", {
+            ...syncMapEntry,
+            syncPriority: 2,
+            id: "2_syncMap_main",
+        });
+
+        await rest._sync.calcSyncMap();
+
+        const _post = syncMap.value.get("2_syncMap_main");
+
+        expect(_post).toBe(undefined);
+    });
 });

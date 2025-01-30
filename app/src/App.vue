@@ -66,9 +66,9 @@ onBeforeMount(async () => {
             apiUrl,
             token,
             docTypes: [
-                { type: DocType.Tag, contentOnly: true, syncPriority: 9 },
-                { type: DocType.Post, contentOnly: true, syncPriority: 8 },
-                { type: DocType.Language, contentOnly: false, syncPriority: 10 },
+                { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
+                { type: DocType.Post, contentOnly: true, syncPriority: 2 },
+                { type: DocType.Language, contentOnly: false, syncPriority: 1 },
             ],
         });
 

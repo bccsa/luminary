@@ -25,7 +25,7 @@ const port = 12347;
 api({
     apiUrl: `http://localhost:${port}`,
     token: "test",
-    docTypes: [{ type: DocType.Group, contentOnly: true }],
+    docTypes: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
 });
 
 let mockApiRequest: string;

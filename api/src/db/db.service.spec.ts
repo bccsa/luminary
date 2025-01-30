@@ -1,4 +1,4 @@
-import { DbService, DbQueryResult, GetDocsOptions } from "./db.service";
+import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
 import { DocType, Uuid } from "../enums";
 import { createTestingModule } from "../test/testingModule";
@@ -146,120 +146,6 @@ describe("DbService", () => {
     }, 10000);
 
     // =================== upsertDoc ===================
-
-    // =================== getDocsPerTypePerGroup ===================
-
-    it("can retrieve documents using one group selector", async () => {
-        const userAccess = new Map<DocType, Uuid[]>();
-        userAccess[DocType.Post] = ["group-public-content"];
-
-        const res: any = await service.getDocsPerTypePerGroup({
-            userAccess: userAccess,
-            from: 0,
-            type: DocType.Post,
-            group: "group-public-content",
-        });
-
-        const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
-        expect(docCount).toBe(4);
-    });
-
-    it("can retrieve documents from a specific group", async () => {
-        const userAccess = new Map<DocType, Uuid[]>();
-        userAccess[DocType.Post] = ["group-public-content"];
-        userAccess[DocType.Tag] = ["group-public-content"];
-
-        const query: GetDocsOptions = {
-            userAccess: userAccess,
-            type: DocType.Post,
-            group: "group-public-content",
-        };
-
-        const res: any = await service.getDocsPerTypePerGroup(query);
-
-        const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
-        expect(docCount).toBe(4);
-    });
-
-    it("can retrieve content documents from a specific group", async () => {
-        const userAccess = new Map<DocType, Uuid[]>();
-        userAccess[DocType.Post] = ["group-public-content"];
-        userAccess[DocType.Tag] = ["group-public-content"];
-
-        const query: GetDocsOptions = {
-            userAccess: userAccess,
-            type: DocType.Post,
-            contentOnly: true,
-            group: "group-public-content",
-        };
-
-        const res: any = await service.getDocsPerTypePerGroup(query);
-
-        const docCount = res.docs.filter((t) => t.memberOf.includes("group-public-content")).length;
-        expect(docCount).toBe(12);
-    });
-
-    it("can retrieve documents using two group selectors", async () => {
-        const userAccess = new Map<DocType, Uuid[]>();
-        userAccess[DocType.Post] = ["group-public-content", "group-private-content"];
-
-        const res: any = await service.getDocsPerTypePerGroup({
-            userAccess: userAccess,
-            from: 0,
-            type: DocType.Post,
-            group: "group-public-content",
-        });
-
-        const docCount =
-            res.docs.filter((t) => t.memberOf.includes("group-public-content")).length +
-            res.docs.filter((t) => t.memberOf.includes("group-private-content")).length;
-        expect(docCount).toBe(4);
-    });
-
-    it.skip("can retrieve documents from a given time", async () => {
-        // This test is not valid anymore as sync tolerance is implemented with a default value of 1000ms. Probably need a bigger dataset to effectively test this.
-        // Update a document and query documents from a timestamp just before the updated time.
-        // Only one document should be returned (which is newer than the update time)
-        const doc = {
-            _id: "content-post1-eng",
-            type: DocType.Content,
-            memberOf: ["group-public-content"],
-            language: "lang-eng",
-            status: "published",
-            slug: "post1-eng",
-            title: "Post 1",
-            summary: "This is an example post",
-            author: "ChatGPT",
-            text: "Unique text " + Date.now(),
-            seo: "",
-            localisedImage: "",
-            audio: "",
-            video: "",
-            publishDate: 3,
-            expiryDate: 0,
-        };
-
-        await service.upsertDoc(doc);
-        const updatedDoc = (await service.getDoc(doc._id)).docs[0];
-
-        const userAccess = new Map<DocType, Uuid[]>();
-        userAccess[DocType.Post] = ["group-public-content"];
-        userAccess[DocType.Tag] = ["group-public-content"];
-        userAccess[DocType.Content] = ["group-public-content"];
-
-        const res: any = await service.getDocsPerTypePerGroup({
-            userAccess: userAccess,
-            from: updatedDoc.updatedTimeUtc,
-            type: DocType.Post,
-            group: "group-public-content",
-            contentOnly: true,
-        });
-
-        expect(res.docs.length).toBe(1);
-        expect(res.blockEnd).toBe(updatedDoc.updatedTimeUtc); // Ensure that the version (timestamp) is returned with the result
-    });
-
-    // =================== getDocsPerTypePerGroup ===================
 
     // =================== getGroups ===================
 
@@ -535,6 +421,43 @@ describe("DbService", () => {
 
         expect(notContentDocs.length).toBeLessThan(1);
     });
+
+    it("can retrieve only a specific language from the api", async () => {
+        const userAccess = new Map<DocType, Uuid[]>();
+        userAccess[DocType.Post] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Tag] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Group] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        userAccess[DocType.Language] = [
+            "group-super-admins",
+            "group-public-content",
+            "group-private-content",
+        ];
+        const options = {
+            userAccess: userAccess,
+            types: [DocType.Post, DocType.Tag, DocType.Language], // need to exclude group type, since it does not check the groups array for this
+            contentOnly: true,
+            groups: ["group-super-admins", "group-public-content", "group-private-content"],
+            languages: ["lang-eng"],
+        };
+
+        const res = await service.queryDocs(options);
+        const notEnglishDocs = res.docs.filter((d) => d.language !== "lang-eng");
+
+        expect(res.docs.length).toBeGreaterThan(1);
+        expect(notEnglishDocs.length).toBeLessThan(1);
+    }, 30000);
 
     // =================== queryDocs ===================
 });
