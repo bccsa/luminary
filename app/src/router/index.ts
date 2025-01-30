@@ -26,6 +26,7 @@ const router = createRouter({
             name: "home",
             meta: {
                 title: "Home",
+                analyticsIgnore: true,
             },
         },
         {
@@ -34,6 +35,7 @@ const router = createRouter({
             name: "login",
             meta: {
                 title: "Log in",
+                analyticsIgnore: true,
             },
             beforeEnter: isNotAuthenticatedGuard,
         },
@@ -51,6 +53,7 @@ const router = createRouter({
             name: "settings",
             meta: {
                 title: "Settings",
+                analyticsIgnore: true,
             },
         },
 
@@ -76,6 +79,9 @@ const router = createRouter({
             path: "/:pathMatch(.*)*",
             name: "404",
             component: NotFoundPage,
+            meta: {
+                analyticsIgnore: true,
+            },
         },
     ],
 });
