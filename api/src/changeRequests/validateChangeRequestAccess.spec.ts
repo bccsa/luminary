@@ -75,6 +75,26 @@ describe("validateChangeRequestAccess", () => {
         });
     });
 
+    describe("Delete requests", () => {
+        it("can reject a delete request if the user does not have delete access to the document", async () => {
+            const testChangeReq_delete = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "group-languages",
+                    type: "group",
+                    deleteReq: 1,
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_delete,
+                ["group-private-editors"],
+                db,
+            );
+            expect(res.error).toBe("No 'Delete' access to document");
+        });
+    });
+
     describe("Group documents", () => {
         it("higher level group with edit access can pass validation", async () => {
             const res = await validateChangeRequestAccess(
