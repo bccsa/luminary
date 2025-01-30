@@ -460,7 +460,7 @@ export class Sync {
     }
 
     /**
-     * Calculate the sync entry keyskeys
+     * Calculate the sync entry keys
      * @returns
      */
     syncMapEntryKey(syncPriority: number, contentOnly: boolean): string {
