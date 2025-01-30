@@ -14,6 +14,7 @@ const copyright = useDexieLiveQuery(
             })
             .filter((c) => {
                 const content = c as ContentDto;
+                if (!content.availableTranslations) return false;
                 if (
                     content.language ==
                     firstLanguageSupported(appLanguageIdsAsRef.value, content.availableTranslations)
