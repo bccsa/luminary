@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import * as nano from "nano";
 import { isDeepStrictEqual } from "util";
-import { DocType, Uuid } from "../enums";
+import { DeleteReason, DocType, PublishStatus, Uuid } from "../enums";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseConfig, SyncConfig } from "../configuration";
 import * as http from "http";
@@ -9,6 +9,11 @@ import { EventEmitter } from "stream";
 import { instanceToPlain } from "class-transformer";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
+import { _baseDto } from "../dto/_baseDto";
+import { DeleteCmdDto } from "../dto/DeleteCmdDto";
+import { randomUUID } from "crypto";
+import { _contentBaseDto } from "../dto/_contentBaseDto";
+import { ContentDto } from "../dto/ContentDto";
 import { removeEmptyValues } from "../util/removeEmptyValues";
 
 /**
@@ -44,7 +49,7 @@ export type QueryDocsOptions = {
 
 /**
  * Standardized format for database query results
- * @param {Array<any>} docs - Array of databased returned documents
+ * @param {Array<any>} docs - Array of database returned documents
  * @param {Array<string>} warnings - Array of warnings
  * @param {number} version - Timestamp of the latest document update
  */
@@ -153,104 +158,125 @@ export class DbService extends EventEmitter {
      * Insert or update a document with given ID.
      * @param doc - CouchDB document with an _id field
      */
-    upsertDoc(doc: any): Promise<DbUpsertResult> {
-        return new Promise((resolve, reject) => {
-            if (!doc._id) {
-                reject("Invalid document: The passed document does not have an '_id' property");
-            }
-            this.getDoc(doc._id)
-                .then((res) => {
-                    let existing; // if no existing document, this will be undefined
-                    if (res.docs && res.docs.length > 0) {
-                        existing = res.docs[0];
-                    }
+    async upsertDoc(doc: any): Promise<DbUpsertResult> {
+        if (!doc._id) {
+            throw new Error(
+                "Invalid document: The passed document does not have an '_id' property",
+            );
+        }
+        const res = await this.getDoc(doc._id);
 
-                    // Check that the document type is not changed
-                    if (existing && existing.type !== doc.type) {
-                        reject(
-                            `Document type change not allowed. Existing type: ${existing.type}, New type: ${doc.type}`,
-                        );
-                    }
+        let existing: _baseDto; // if no existing document, this will be undefined
+        if (res.docs && res.docs.length > 0) {
+            existing = res.docs[0];
+        }
 
-                    let rev: string;
+        // Check that the document type is not changed
+        if (existing && existing.type !== doc.type) {
+            throw new Error(
+                `Document type change not allowed. Existing type: ${existing.type}, New type: ${doc.type}`,
+            );
+        }
 
-                    // Remove revision and updateTimeUtc from existing doc from database for comparison purposes
-                    if (existing) {
-                        rev = existing._rev as string;
-                        delete existing._rev;
-                        delete existing.updatedTimeUtc;
-                    }
+        let rev: string;
 
-                    // Convert the document to plain object to compare with the existing document
-                    const docPlain = instanceToPlain(doc);
-                    delete docPlain.updatedTimeUtc;
-                    delete docPlain._rev;
-                    removeEmptyValues(docPlain);
+        // Generate delete command if the document's memberOf field has changed
+        if (
+            existing &&
+            doc.type !== DocType.Group &&
+            (existing as _contentBaseDto).memberOf !== doc.memberOf
+        ) {
+            await this.insertDeleteCmd({
+                reason: DeleteReason.PermissionChange,
+                doc: doc as _contentBaseDto,
+                prevDoc: existing as _contentBaseDto,
+            });
+        }
 
-                    if (!existing) {
-                        // Passed document does not exist in database: create
-                        docPlain.updatedTimeUtc = Date.now();
-                        this.insertDoc(docPlain)
-                            .then((insertResult) => {
-                                insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
-                                insertResult.changes = docPlain;
-                                resolve(insertResult);
-                            })
-                            .catch((err) => {
-                                reject(err);
-                            });
-                    } else if (
-                        existing &&
-                        isDeepStrictEqual(
-                            { ...docPlain, updatedBy: "" },
-                            { ...existing, updatedBy: "" },
-                        )
-                    ) {
-                        // Document in DB is the same as passed doc: do nothing
-                        resolve({
-                            id: docPlain._id,
-                            ok: true,
-                            rev: rev,
-                            message: "Document is identical to the one in the database",
-                        });
-                    } else if (existing) {
-                        // Passed document is different than document in DB: update
-                        docPlain._rev = rev;
-                        docPlain.updatedTimeUtc = Date.now();
+        // Generate delete command if the document's status has changed to draft
+        if (
+            existing &&
+            doc.type === DocType.Content &&
+            (existing as ContentDto).status === PublishStatus.Published &&
+            (doc as ContentDto).status === PublishStatus.Draft
+        ) {
+            await this.insertDeleteCmd({
+                reason: DeleteReason.StatusChange,
+                doc: doc as ContentDto,
+            });
+        }
 
-                        const changes = this.calculateDiff(docPlain, existing);
-                        this.insertDoc(docPlain)
-                            .then((insertResult) => {
-                                insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
-                                insertResult.changes = changes;
-                                resolve(insertResult);
-                            })
-                            .catch((err) => {
-                                if (err.reason == "Document update conflict.") {
-                                    // This error can happen when a document is updated near-simultaneously by another process, i.e.
-                                    // after the revision has been returned to this process but before this process could write the
-                                    // change to the database. To resolve this, just try again to get the updated revision ID and update
-                                    // the document.
-
-                                    // TODO: We should probably have a retry counter here to prevent the code from retrying endlessly.
-                                    delete docPlain._rev;
-                                    this.upsertDoc(docPlain)
-                                        .then((upsertResult) => {
-                                            resolve(upsertResult);
-                                        })
-                                        .catch((err) => {
-                                            reject(err);
-                                        });
-                                } else {
-                                    reject(err);
-                                }
-                            });
-                    }
-                })
-                .catch((err) => {
-                    reject(err);
+        // Generate delete command if the document is set to be deleted, and delete the document
+        if (doc.deleteReq) {
+            if (doc.type !== DocType.Group && doc.type !== DocType.User) {
+                // Delete command is not valid for group or user documents, as they are not synced to clients
+                await this.insertDeleteCmd({
+                    reason: DeleteReason.Deleted,
+                    doc: doc as _baseDto,
                 });
-        });
+            }
+
+            return await this.deleteDoc(doc._id);
+        }
+
+        // Remove revision and updateTimeUtc from existing doc from database for comparison purposes
+        if (existing) {
+            rev = existing._rev as string;
+            delete existing._rev;
+            delete existing.updatedTimeUtc;
+        }
+
+        // Convert the document to plain object to compare with the existing document
+        const docPlain = instanceToPlain(doc);
+        delete docPlain.updatedTimeUtc;
+        delete docPlain._rev;
+        removeEmptyValues(docPlain);
+
+        if (!existing) {
+            // Passed document does not exist in database: create
+            docPlain.updatedTimeUtc = Date.now();
+            const res = await this.insertDoc(docPlain);
+            res.updatedTimeUtc = docPlain.updatedTimeUtc;
+            res.changes = docPlain;
+            return res;
+        }
+
+        if (isDeepStrictEqual(docPlain, existing)) {
+            // Document in DB is the same as passed doc: do nothing
+            return {
+                id: docPlain._id,
+                ok: true,
+                rev: rev,
+                message: "Document is identical to the one in the database",
+            };
+        }
+
+        // Passed document is different than document in DB: update
+        docPlain._rev = rev;
+        docPlain.updatedTimeUtc = Date.now();
+
+        const changes = this.calculateDiff(docPlain, existing);
+        try {
+            const insertResult = await this.insertDoc(docPlain);
+            // .then((insertResult) => {
+            insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
+            insertResult.changes = changes;
+            return insertResult;
+            // })
+        } catch (err) {
+            if (err.reason == "Document update conflict.") {
+                // This error can happen when a document is updated near-simultaneously by another process, i.e.
+                // after the revision has been returned to this process but before this process could write the
+                // change to the database. To resolve this, just try again to get the updated revision ID and update
+                // the document.
+
+                // TODO: We should probably have a retry counter here to prevent the code from retrying endlessly.
+                delete docPlain._rev;
+                return await this.upsertDoc(docPlain);
+            } else {
+                throw new Error(err);
+            }
+        }
     }
 
     /**
@@ -267,8 +293,11 @@ export class DbService extends EventEmitter {
                 .catch((err) => {
                     if (err.reason == "missing") {
                         resolve({ docs: [], warnings: ["Document not found"] });
+                    }
+                    if (err.reason == "deleted") {
+                        resolve({ docs: [], warnings: ["Document is deleted"] });
                     } else {
-                        reject();
+                        reject(err);
                     }
                 });
         });
@@ -295,6 +324,119 @@ export class DbService extends EventEmitter {
                     reject(err);
                 });
         });
+    }
+
+    /**
+     * Insert a delete command document into the database. Note that this function is not deleting the document (doc) itself, but creating a command for the clients delete it.
+     * Note: This function cannot generate multiple delete commands (e.g. when both the the memberOf and status fields have changed). This needs to be handled by the caller.
+     * @param doc - Document to create a delete command for
+     * @param reason - Reason for the delete command
+     * @param prevDoc? - Previous version of the document (optional for if the document was updated and not deleted)
+     */
+    async insertDeleteCmd<T extends _baseDto>(options: {
+        reason: DeleteReason;
+        doc: T;
+        prevDoc?: T;
+    }): Promise<DbUpsertResult> {
+        const cmd = {
+            _id: randomUUID(),
+            type: DocType.DeleteCmd,
+            docId: options.doc._id,
+            docType: options.doc.type,
+            updatedTimeUtc: Date.now(),
+            deleteReason: options.reason,
+        } as DeleteCmdDto;
+
+        if (options.doc.type === DocType.Group) {
+            throw new Error(
+                "Permission change delete command is not valid for group documents, as they are not synced to clients",
+            );
+        }
+
+        const d = options.doc as unknown as _contentBaseDto;
+
+        if (options.reason === DeleteReason.Deleted) {
+            if (options.prevDoc) {
+                throw new Error(
+                    "Previous document must not be provided for 'deleted' type delete command",
+                );
+            }
+
+            cmd.memberOf = d.memberOf;
+        }
+
+        if (options.reason === DeleteReason.StatusChange) {
+            if (options.prevDoc) {
+                throw new Error(
+                    "Previous document must not be provided for 'statusChange' type delete command",
+                );
+            }
+
+            if (options.doc.type !== DocType.Content) {
+                throw new Error("Status change delete command is only valid for content documents");
+            }
+
+            const contentDoc = options.doc as unknown as ContentDto;
+
+            if (contentDoc.status === PublishStatus.Published) {
+                throw new Error(
+                    "Status change delete command is only valid for unpublished content",
+                );
+            }
+
+            cmd.memberOf = d.memberOf;
+        }
+
+        if (options.reason === DeleteReason.PermissionChange) {
+            if (!options.prevDoc) {
+                throw new Error(
+                    "Previous document must be provided for 'permissionChange' type delete command",
+                );
+            }
+
+            // Get a diff between the previous and current memberOf arrays. The delete command only needs to be sent to the groups that have been removed from the memberOf array.
+            const prevDoc = options.prevDoc as unknown as _contentBaseDto;
+            const memberOf = d.memberOf || [];
+            const prevMemberOf = prevDoc.memberOf || [];
+            const diff = prevMemberOf.filter((x) => !memberOf.includes(x));
+
+            if (diff.length < 1) {
+                return {
+                    id: "",
+                    ok: true,
+                    rev: "",
+                    message: "No delete command needed as no groups were removed",
+                } as DbUpsertResult;
+            }
+
+            cmd.memberOf = diff;
+            cmd.newMemberOf = d.memberOf;
+        }
+
+        return await this.insertDoc(cmd);
+    }
+
+    /**
+     * Delete a document from the database
+     * @param docId - Document ID to be deleted
+     */
+    async deleteDoc(docId: string): Promise<DbUpsertResult> {
+        const existingDoc = await this.getDoc(docId);
+        if (existingDoc.docs.length < 1) {
+            return {
+                id: docId,
+                ok: true,
+                rev: "",
+                message: "Document not found",
+            };
+        }
+
+        const res = await this.db.destroy(docId, existingDoc.docs[0]._rev);
+        return {
+            id: docId,
+            ok: res.ok,
+            rev: res.rev,
+        };
     }
 
     /**

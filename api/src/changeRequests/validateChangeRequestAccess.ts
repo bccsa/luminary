@@ -5,7 +5,7 @@ import { LanguageDto } from "../dto/LanguageDto";
 import { plainToInstance } from "class-transformer";
 import { ValidationResult } from "./ValidationResult";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { GroupAclEntryDto } from "src/dto/GroupAclEntryDto";
+import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 
 /**
  * Validate a change request against a user's access map
@@ -30,8 +30,25 @@ export async function validateChangeRequestAccess(
         };
     }
 
+    // Validate delete request access
+    if (
+        doc.deleteReq &&
+        !PermissionSystem.verifyAccess(
+            doc.type == DocType.Group ? [doc._id] : doc.memberOf,
+            doc.type,
+            AclPermission.Delete,
+            groupMembership,
+            "all",
+        )
+    ) {
+        return {
+            validated: false,
+            error: "No 'Delete' access to document",
+        };
+    }
+
     // Validate edit, translate and group ACL assign access
-    // ====================================================
+    // ============================================================
 
     if (doc.type === DocType.Group) {
         // Check group edit access
