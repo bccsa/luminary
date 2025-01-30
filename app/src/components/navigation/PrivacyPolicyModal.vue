@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { appLanguageIdAsRef, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { ShieldCheckIcon } from "@heroicons/vue/24/outline";
 import { db, useDexieLiveQuery, type ContentDto } from "luminary-shared";
@@ -18,7 +18,10 @@ const privacyPolicy = useDexieLiveQuery(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language == appLanguageIdAsRef.value) return true;
+                const firstSupportedLang = appLanguageIdsAsRef.value.find((lang) =>
+                    content.availableTranslations?.includes(lang),
+                );
+                if (content.language == firstSupportedLang) return true;
 
                 return false;
             })

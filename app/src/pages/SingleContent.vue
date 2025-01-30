@@ -18,7 +18,12 @@ import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
-import { appLanguageAsRef, appLanguageIdAsRef, appName } from "@/globalConfig";
+import {
+    appLanguagesPreferredAsRef,
+    appLanguageIdsAsRef,
+    appName,
+    appLanguagePreferredIdAsRef,
+} from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "../components/content/RelatedContent.vue";
@@ -54,7 +59,7 @@ const defaultContent: ContentDto = {
     updatedTimeUtc: 0,
     memberOf: [],
     parentId: "",
-    language: appLanguageIdAsRef.value,
+    language: appLanguagePreferredIdAsRef.value ? appLanguagePreferredIdAsRef.value : "",
     status: PublishStatus.Published,
     title: "Loading...",
     slug: "",
@@ -69,16 +74,15 @@ const content = computed(() => {
 });
 
 const tags = useDexieLiveQueryWithDeps(
-    [content, appLanguageIdAsRef],
-    ([content, appLanguageId]: [ContentDto, Uuid]) =>
+    [content, appLanguageIdsAsRef],
+    ([content, appLanguageIds]: [ContentDto, Uuid[]]) =>
         db.docs
             .where("parentId")
             .anyOf(content.parentTags.concat([content.parentId])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
             .filter((t) => {
                 const tag = t as ContentDto;
-                if (tag.language != appLanguageId) return false;
                 if (tag.parentType != DocType.Tag) return false;
-                return isPublished(tag);
+                return isPublished(tag, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },
@@ -178,24 +182,31 @@ watch([content, is404], () => {
     metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
 });
 
-// Redirect to preferred language
 watch(
-    () => [appLanguageAsRef.value, content.value.language],
+    [appLanguagesPreferredAsRef, content],
     async () => {
         if (!content.value) return;
-
-        if (appLanguageAsRef.value?._id != content.value.language) {
+        if (!content.value.language) return;
+        if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
+            return;
+        if (
+            appLanguagesPreferredAsRef.value[0]._id &&
+            appLanguagesPreferredAsRef.value[0]._id !== content.value.language
+        ) {
             const contentDocs = await db.whereParent(content.value.parentId);
-            const preferred = contentDocs.find((c) => c.language == appLanguageAsRef.value?._id);
+            const preferred = contentDocs.find(
+                (c) => c.language == appLanguagesPreferredAsRef.value[0]._id,
+            );
 
-            if (preferred && isPublished(preferred)) {
+            if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
                 // Check if the preferred translation is published
                 router.replace({ name: "content", params: { slug: preferred.slug } });
             } else {
+                if (!appLanguagesPreferredAsRef.value[0].name) return;
                 useNotificationStore().addNotification({
                     id: "translation-not-published",
-                    title: "Unpublished translation",
-                    description: `The ${appLanguageAsRef.value?.name} translation for this content is not yet available.`,
+                    title: "Translation not available",
+                    description: `The ${appLanguagesPreferredAsRef.value[0].name} translation for this content is not yet available.`,
                     state: "error",
                     type: "toast",
                 });
@@ -203,6 +214,7 @@ watch(
             return;
         }
     },
+    { deep: true },
 );
 
 const text = computed(() => {

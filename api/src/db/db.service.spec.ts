@@ -102,6 +102,31 @@ describe("DbService", () => {
         expect(testGet.docs[0].testData).toBe("changedData123");
     });
 
+    it("will only update a document if the document has changed, ignoring _rev and undefined fields", async () => {
+        const uuid = randomUUID();
+
+        // Insert a document
+        const originalDoc = {
+            _id: uuid,
+            testData: "test123",
+        };
+        await service.upsertDoc(originalDoc);
+
+        // Add a _rev property and some empty fields to the document
+        const changedDoc = {
+            _id: uuid,
+            testData: "test123",
+            _rev: "123",
+            test: undefined,
+            test2: null,
+        };
+
+        // Update the document with the same data
+        const res = await service.upsertDoc(changedDoc);
+
+        expect(res.message).toBe("Document is identical to the one in the database");
+    });
+
     it("can get the latest document updated time", async () => {
         // Add / update a document and check if the latest document update time is close to now.
         const doc = {

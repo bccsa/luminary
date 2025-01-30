@@ -9,14 +9,14 @@ import {
     TagType,
     PostType,
 } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { contentByTag } from "../contentByTag";
 import { isPublished } from "@/util/isPublished";
 
 const newest100Content = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
-    (appLanguageId) =>
+    appLanguageIdsAsRef,
+    (appLanguageIds: Uuid[]) =>
         db.docs
             .orderBy("publishDate")
             .reverse()
@@ -25,18 +25,24 @@ const newest100Content = useDexieLiveQueryWithDeps(
                 if (content.type !== DocType.Content) return false;
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
-                if (content.language !== appLanguageId) return false;
 
                 // Only include published content
                 if (content.status !== "published") return false;
                 if (!content.publishDate) return false;
                 if (content.publishDate > Date.now()) return false;
                 if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+
+                const firstSupportedLang = appLanguageIds.find((lang) =>
+                    content.availableTranslations?.includes(lang),
+                );
+
+                if (content.language !== firstSupportedLang) return false;
+
+                return true && content.language == firstSupportedLang;
             })
             .limit(100) // Limit to the newest posts
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_newest100Content") },
+    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_newest100Content"), deep: true },
 );
 
 watch(newest100Content, async (value) => {
@@ -53,8 +59,8 @@ const categoryIds = computed(() =>
 );
 
 const categories = useDexieLiveQueryWithDeps(
-    [categoryIds, appLanguageIdAsRef],
-    ([_categoryIds, appLanguageId]: [Uuid[], Uuid]) =>
+    [categoryIds, appLanguageIdsAsRef],
+    ([_categoryIds, appLanguageIds]: [Uuid[], Uuid[]]) =>
         db.docs
             .where("parentId")
             .anyOf(_categoryIds)
@@ -66,13 +72,15 @@ const categories = useDexieLiveQueryWithDeps(
 
                 // Use the `isPublished` helper function
                 return (
-                    isPublished(_content) &&
-                    _content.parentTagType === TagType.Category &&
-                    _content.language === appLanguageId
+                    isPublished(_content, appLanguageIds) &&
+                    _content.parentTagType === TagType.Category
                 );
             })
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_unpinnedCategories") },
+    {
+        initialValue: await db.getQueryCache<ContentDto[]>("homepage_unpinnedCategories"),
+        deep: true,
+    },
 );
 
 watch(

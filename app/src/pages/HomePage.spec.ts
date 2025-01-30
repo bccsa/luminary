@@ -15,7 +15,7 @@ import {
     viewAccessToAllContentMap,
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdAsRef, initLanguage } from "@/globalConfig";
+import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -35,7 +35,7 @@ describe("HomePage.vue", () => {
             isAuthenticated: ref(true),
         });
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
-        appLanguageIdAsRef.value = mockLanguageDtoEng._id;
+        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
     });
 
     afterEach(async () => {
@@ -63,15 +63,13 @@ describe("HomePage.vue", () => {
             // Mount the component
             const wrapper = mount(HomePage);
 
-            // Assert that the category title reflects the new language
-            await waitForExpect(() => {
+            await waitForExpect(async () => {
                 expect(wrapper.text()).toContain(mockCategoryContentDto.title);
                 expect(wrapper.text()).toContain(mockEnglishContentDto.title);
             });
 
             // Change the language
-            appLanguageIdAsRef.value = mockLanguageDtoFra._id;
-
+            appLanguageIdsAsRef.value.unshift(mockFrenchContentDto.language);
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("Catégorie 1");
                 expect(wrapper.text()).toContain("Poste 1");

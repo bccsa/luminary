@@ -3,7 +3,7 @@ import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "lumin
 import { toRef } from "vue";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import { DateTime } from "luxon";
 
@@ -22,15 +22,14 @@ const isContentSelected = (slug: string) => {
 };
 
 const tagged = useDexieLiveQueryWithDeps(
-    [appLanguageIdAsRef, toRef(() => props.tag.parentTaggedDocs)],
-    ([languageId, ids]: [Uuid, Uuid]) =>
+    [appLanguageIdsAsRef, toRef(() => props.tag.parentTaggedDocs)],
+    ([languageIds, ids]: [Uuid[], Uuid]) =>
         db.docs
             .where("parentId")
             .anyOf(ids)
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language != languageId) return false;
-                return isPublished(content);
+                return isPublished(content, languageIds);
             })
             .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },

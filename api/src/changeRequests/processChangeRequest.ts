@@ -33,12 +33,13 @@ export async function processChangeRequest(
         doc.slug = await validateSlug(doc.slug, doc._id, db);
     }
 
-    // Copy essential properties from Post / Tag documents to Content documents
     if (doc.type == DocType.Content) {
+        const contentDoc = doc as ContentDto;
         const parentQuery = await db.getDoc(doc.parentId);
         const parentDoc: PostDto | TagDto | undefined =
             parentQuery.docs.length > 0 ? parentQuery.docs[0] : undefined;
 
+        // Copy essential properties from Post / Tag documents to Content documents
         if (parentDoc) {
             const contentDoc = doc as ContentDto;
             contentDoc.memberOf = parentDoc.memberOf;
@@ -54,6 +55,19 @@ export async function processChangeRequest(
                 contentDoc.parentPinned = (parentDoc as TagDto).pinned;
             }
             contentDoc.parentPublishDateVisible = parentDoc.publishDateVisible;
+        }
+
+        // Find all available translations, and add them to the content document's availableTranslations property
+        const translations = await db.getContentByParentId(parentDoc._id);
+        const uniqueLanguages = new Set<Uuid>(translations.docs.map((doc) => doc.language));
+        uniqueLanguages.add(contentDoc.language);
+        const availableTranslations = Array.from(uniqueLanguages);
+        contentDoc.availableTranslations = availableTranslations;
+
+        // Update all translations with the new list of available translations
+        for (const translation of translations.docs) {
+            translation.availableTranslations = availableTranslations;
+            await db.upsertDoc(translation);
         }
     }
 

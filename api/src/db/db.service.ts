@@ -9,6 +9,7 @@ import { EventEmitter } from "stream";
 import { instanceToPlain } from "class-transformer";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
+import { removeEmptyValues } from "../util/removeEmptyValues";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -182,10 +183,9 @@ export class DbService extends EventEmitter {
 
                     // Convert the document to plain object to compare with the existing document
                     const docPlain = instanceToPlain(doc);
-                    Object.keys(docPlain).forEach(
-                        (key) => docPlain[key] === undefined && delete docPlain[key],
-                    );
                     delete docPlain.updatedTimeUtc;
+                    delete docPlain._rev;
+                    removeEmptyValues(docPlain);
 
                     if (!existing) {
                         // Passed document does not exist in database: create

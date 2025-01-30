@@ -6,7 +6,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdAsRef, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
 import BookmarksPage from "./BookmarksPage.vue";
 
 vi.mock("vue-router");
@@ -17,7 +17,7 @@ describe("BookmarksPage", () => {
         await db.docs.clear();
         await db.localChanges.clear();
 
-        appLanguageIdAsRef.value = mockLanguageDtoEng._id;
+        appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
 

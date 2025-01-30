@@ -4,6 +4,8 @@ import { isPublished } from "./isPublished";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { DocType, PublishStatus, type ContentDto } from "luminary-shared";
 
+const mockPreferredLanguages = ["lang-eng", "lang-fra"];
+
 describe("isPublished", () => {
     it("checks is there is content", () => {
         const content: ContentDto = {
@@ -18,7 +20,7 @@ describe("isPublished", () => {
             title: "",
             slug: "",
         };
-        expect(isPublished(content)).toBe(false);
+        expect(isPublished(content, mockPreferredLanguages)).toBe(false);
     });
 
     it("checks if the content has a publish date", () => {
@@ -26,7 +28,7 @@ describe("isPublished", () => {
             ...mockEnglishContentDto,
             publishDate: undefined,
         };
-        expect(isPublished(content)).toBe(false);
+        expect(isPublished(content, mockPreferredLanguages)).toBe(false);
     });
 
     it("checks if the content is not published", () => {
@@ -34,7 +36,7 @@ describe("isPublished", () => {
             ...mockEnglishContentDto,
             status: PublishStatus.Draft,
         };
-        expect(isPublished(content)).toBe(false);
+        expect(isPublished(content, mockPreferredLanguages)).toBe(false);
     });
 
     it("checks if the content is expired", () => {
@@ -45,7 +47,7 @@ describe("isPublished", () => {
             expiryDate: Date.now() - 1000,
         };
 
-        expect(isPublished(content)).toBe(false);
+        expect(isPublished(content, mockPreferredLanguages)).toBe(false);
     });
 
     it("checks if the content is published", () => {
@@ -54,6 +56,6 @@ describe("isPublished", () => {
             publishDate: Date.now(),
         };
 
-        expect(isPublished(content)).toBe(true);
+        expect(isPublished(content, mockPreferredLanguages)).toBe(true);
     });
 });

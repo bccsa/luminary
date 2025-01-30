@@ -10,7 +10,7 @@ import {
 import waitForExpect from "wait-for-expect";
 import { db } from "luminary-shared";
 import { ref } from "vue";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -32,7 +32,7 @@ describe("VerticalTagViewer", () => {
         await db.localChanges.clear();
 
         await db.docs.bulkPut([mockEnglishContentDto, mockCategoryContentDto]);
-        appLanguageIdAsRef.value = mockLanguageDtoEng._id;
+        appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
     });
 
     afterEach(async () => {

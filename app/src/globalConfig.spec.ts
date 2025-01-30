@@ -1,8 +1,8 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, afterAll, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
     appLanguageAsRef,
-    appLanguageIdAsRef,
+    appLanguageIdsAsRef,
     initLanguage,
     setMediaProgress,
     getMediaProgress,
@@ -19,25 +19,26 @@ import waitForExpect from "wait-for-expect";
 import { dynamicLoadPlugin } from "./util/pluginLoader";
 
 describe("globalConfig.ts", () => {
-    beforeAll(async () => {
+    beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         await db.docs.bulkPut([mockEnglishContentDto]);
-        initLanguage();
+        await initLanguage();
     });
 
-    afterAll(async () => {
+    afterEach(async () => {
         await db.docs.clear();
         await db.localChanges.clear();
     });
 
     it("can initialize the preferred language", async () => {
         await waitForExpect(() => {
-            expect(appLanguageIdAsRef.value).toBe(mockLanguageDtoEng._id);
+            expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoEng._id);
         });
     });
 
     it("can return the preferred language document", async () => {
-        await waitForExpect(() => {
+        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        await waitForExpect(async () => {
             expect(appLanguageAsRef.value).toEqual(mockLanguageDtoEng);
         });
     });

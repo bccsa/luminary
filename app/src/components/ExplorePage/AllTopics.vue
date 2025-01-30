@@ -1,38 +1,30 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
+import { isPublished } from "@/util/isPublished";
 
 const allTopics = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
-    (appLanguageId: Uuid) =>
+    appLanguageIdsAsRef,
+    (appLanguageIds: Uuid[]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
                 status: "published",
                 parentTagType: TagType.Topic,
             })
             .filter((c) => {
-                const content = c as ContentDto;
-
-                if (content.language !== appLanguageId) return false;
-
-                // Only include published content
-                if (content.status !== "published") return false;
-                if (!content.publishDate) return false;
-                if (content.publishDate > Date.now()) return false;
-                if (content.expiryDate && content.expiryDate < Date.now()) return false;
-                return true;
+                return isPublished(c as ContentDto, appLanguageIds);
             })
 
             .toArray() as unknown as Promise<ContentDto[]>,
     {
         initialValue: await db.getQueryCache<ContentDto[]>("explorepage_allTopics"),
+        deep: true,
     },
 );
 

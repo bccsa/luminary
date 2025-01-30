@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import {
     db,
     TagType,
@@ -28,15 +28,14 @@ const contentIds = computed(() =>
 );
 
 const contentDocs = useDexieLiveQueryWithDeps(
-    [appLanguageIdAsRef, contentIds],
-    ([languageId, ids]: [Uuid, Uuid[]]) =>
+    [appLanguageIdsAsRef, contentIds],
+    ([languageIds, ids]: [Uuid[], Uuid[]]) =>
         db.docs
             .where("parentId")
             .anyOf(ids)
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language !== languageId) return false;
-                return isPublished(content);
+                return isPublished(content, languageIds);
             })
             .sortBy("publishDate") as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },

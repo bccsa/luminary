@@ -266,7 +266,7 @@ describe("processChangeRequest", () => {
         ).toBe(category2Content.docs.length);
     });
 
-    it("changes all other language documents to false if new language doc is selected", async () => {
+    it("changes all other language documents' default flag to false if new language doc is selected", async () => {
         const changeRequest: ChangeReqDto = {
             id: 89,
             doc: {
@@ -288,5 +288,40 @@ describe("processChangeRequest", () => {
         );
 
         expect(processResult.ok).toBe(true);
+    });
+
+    it("updates 'availableTranslations' field when new translations are added to a parent", async () => {
+        // Create the initial content document
+        const changeRequest1 = changeRequest_content();
+        changeRequest1.doc.parentId = "post-blog1";
+        changeRequest1.doc._id = "content-en";
+        changeRequest1.doc.language = "lang-eng";
+        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db, s3);
+
+        // Add a new translation for the same parent
+        const changeRequest2 = changeRequest_content();
+        changeRequest2.doc.parentId = "post-blog1";
+        changeRequest2.doc._id = "content-fr";
+        changeRequest2.doc.language = "lang-fra";
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest2,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        // Fetch the documents from the database
+        const dbDocEn = await db.getDoc("content-en");
+        const dbDocFr = await db.getDoc("content-fr");
+
+        // Check that the availableTranslations field is updated correctly
+        expect(processResult.ok).toBe(true);
+        expect(dbDocEn.docs[0].availableTranslations).toEqual(
+            expect.arrayContaining(["lang-eng", "lang-fra"]),
+        );
+        expect(dbDocFr.docs[0].availableTranslations).toEqual(
+            expect.arrayContaining(["lang-eng", "lang-fra"]),
+        );
     });
 });

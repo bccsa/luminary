@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
+import { firstLanguageSupported } from "@/util/firstSupportedLanguage";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { useDexieLiveQuery, db, type ContentDto } from "luminary-shared";
@@ -13,7 +14,12 @@ const copyright = useDexieLiveQuery(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (content.language == appLanguageIdAsRef.value) return true;
+                if (!content.availableTranslations) return false;
+                if (
+                    content.language ==
+                    firstLanguageSupported(appLanguageIdsAsRef.value, content.availableTranslations)
+                )
+                    return true;
 
                 return false;
             })
