@@ -10,14 +10,16 @@ import {
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+// import { appLanguageIdAsRef } from "@/globalConfig";
+// import { appLanguagePreferredIdAsRef, appLanguagesPreferredAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
+    appLanguageIdsAsRef,
     (appLanguageId: Uuid) =>
         db.docs
             .where({
@@ -28,7 +30,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                return isPublished(content);
+                return isPublished(content, appLanguageIdsAsRef.value);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedCategories") },
@@ -39,7 +41,7 @@ watch(pinnedCategories, async (value) => {
 });
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdAsRef, pinnedCategories],
+    [appLanguageIdsAsRef, pinnedCategories],
     ([appLanguageId, pinnedCategories]: [Uuid, ContentDto[]]) =>
         db.docs
             .where({
@@ -49,7 +51,7 @@ const pinnedCategoryContent = useDexieLiveQueryWithDeps(
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!isPublished(content)) return false;
+                if (!isPublished(content, appLanguageIdsAsRef.value)) return false;
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
