@@ -591,7 +591,6 @@ describe("DbService", () => {
             expect(res.docs[0].deleteReason).toBe(DeleteReason.StatusChange);
             expect(res.docs[0].memberOf).toEqual(doc.memberOf);
             expect(res.docs[0].type).toBe(DocType.DeleteCmd);
-            expect(res.docs[0].docType).toBe(doc.type);
             expect(res.docs[0].docId).toBe(doc._id);
         });
 
@@ -895,6 +894,41 @@ describe("DbService", () => {
                     expect(updateEventDoc2.docId).toBe("delete-test-combined");
                     expect(updateEventDoc2.deleteReason).toBe(DeleteReason.StatusChange);
                     expect(updateEventDoc2.memberOf).toEqual(["group-private-content"]);
+                });
+            });
+
+            it("sets the docType field to the type of the parent document for content documents", async () => {
+                const doc = {
+                    _id: "delete-test-content123",
+                    testData: "test123",
+                    type: DocType.Content,
+                    parentType: DocType.Post,
+                    memberOf: ["group-public-content"],
+                };
+
+                await service.upsertDoc(doc);
+
+                // Subscribe to the update event to check if the delete command is generated
+                let updateEventDoc: DeleteCmdDto;
+                const deleteCmdHandler = (update: DeleteCmdDto) => {
+                    if (
+                        update.type === DocType.DeleteCmd &&
+                        update.docId === "delete-test-content123"
+                    ) {
+                        service.off("update", deleteCmdHandler);
+                        updateEventDoc = update;
+                    }
+                };
+                service.on("update", deleteCmdHandler);
+
+                const updatedDoc = { ...doc, deleteReq: 1 };
+                await service.upsertDoc(updatedDoc);
+
+                await waitForExpect(() => {
+                    expect(updateEventDoc).toBeDefined();
+                    expect(updateEventDoc.docId).toBe("delete-test-content123");
+                    expect(updateEventDoc.type).toBe(DocType.DeleteCmd);
+                    expect(updateEventDoc.docType).toBe(DocType.Post);
                 });
             });
         });

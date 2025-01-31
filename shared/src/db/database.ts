@@ -4,6 +4,8 @@ import {
     BaseDocumentDto,
     ChangeReqAckDto,
     ContentDto,
+    DeleteCmdDto,
+    DeleteReason,
     DocType,
     LocalChangeDto,
     PostType,
@@ -19,7 +21,7 @@ import { ref, type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
-import { accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import _ from "lodash";
 const dbName: string = "luminary-db";
@@ -231,10 +233,24 @@ class Database extends Dexie {
     }
 
     /**
-     * Bulk insert documents into the database
+     * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
     bulkPut(docs: BaseDocumentDto[]) {
-        return this.docs.bulkPut(docs);
+        // Delete documents that are marked for deletion
+        const toDeleteIds = docs
+            .filter((doc) => {
+                if (doc.type !== DocType.DeleteCmd) return false;
+
+                return this.validateDeleteCommand(doc as DeleteCmdDto);
+            })
+            .map((doc) => (doc as DeleteCmdDto).docId);
+
+        if (toDeleteIds.length > 0) {
+            this.docs.bulkDelete(toDeleteIds);
+        }
+
+        // Insert all documents except delete commands
+        return this.docs.bulkPut(docs.filter((doc) => doc.type !== DocType.DeleteCmd));
     }
 
     /**
@@ -716,6 +732,34 @@ class Database extends Dexie {
         }
 
         await this.docs.where("expiryDate").belowOrEqual(DateTime.now().toMillis()).delete();
+    }
+
+    /**
+     * Validates a delete command and returns true if the document referred to in the delete command should be deleted
+     */
+    validateDeleteCommand(cmd: DeleteCmdDto) {
+        if (cmd.deleteReason == DeleteReason.Deleted) {
+            return true;
+        }
+
+        if (cmd.deleteReason == DeleteReason.StatusChange) {
+            // Only delete the document if the client is not a CMS client
+            if (config.cms) {
+                return false;
+            }
+            return true;
+        }
+
+        if (
+            cmd.deleteReason == DeleteReason.PermissionChange &&
+            // Only delete the document if the client does not have access to the updated MemberOf group
+            cmd.newMemberOf &&
+            !verifyAccess(cmd.newMemberOf, cmd.docType, AclPermission.View, "any")
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
