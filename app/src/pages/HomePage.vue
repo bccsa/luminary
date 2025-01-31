@@ -60,8 +60,5 @@ setTimeout(() => {
         <Suspense>
             <HomePagePinned />
         </Suspense>
-        <Suspense>
-            <HomePageUnpinned />
-        </Suspense>
     </IgnorePagePadding>
 </template>
