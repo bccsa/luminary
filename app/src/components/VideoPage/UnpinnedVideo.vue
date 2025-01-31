@@ -9,14 +9,14 @@ import {
     TagType,
     PostType,
 } from "luminary-shared";
-import { appLanguageIdAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { contentByTag } from "../contentByTag";
 import { isPublished } from "@/util/isPublished";
 import IgnorePagePadding from "../IgnorePagePadding.vue";
 
 const unpinnedContent = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
+    appLanguageIdsAsRef,
     (appLanguageId) =>
         db.docs
             .orderBy("publishDate")
@@ -30,7 +30,7 @@ const unpinnedContent = useDexieLiveQueryWithDeps(
                 if (!content.video) return false;
 
                 // Only include published content
-                return isPublished(content);
+                return isPublished(content, [appLanguageId]);
             })
             .limit(50)
             .toArray() as unknown as Promise<ContentDto[]>,
@@ -51,7 +51,7 @@ const categoryIds = computed(() =>
 );
 
 const categories = useDexieLiveQueryWithDeps(
-    [categoryIds, appLanguageIdAsRef],
+    [categoryIds, appLanguageIdsAsRef],
     ([_categoryIds, appLanguageId]: [Uuid[], Uuid]) =>
         db.docs
             .where("parentId")
@@ -64,7 +64,7 @@ const categories = useDexieLiveQueryWithDeps(
 
                 // Use the `isPublished` helper function
                 return (
-                    isPublished(_content) &&
+                    isPublished(_content, [appLanguageId]) &&
                     _content.parentTagType === TagType.Category &&
                     _content.language === appLanguageId
                 );
