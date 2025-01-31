@@ -314,12 +314,9 @@ describe("SingleContent", () => {
         const notificationStore = useNotificationStore();
 
         await waitForExpect(() => {
-            console.info(appLanguageIdsAsRef.value);
             // simulate language change
-
             appLanguageIdsAsRef.value.unshift("lang-test");
 
-            console.info(appLanguageIdsAsRef.value);
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });
