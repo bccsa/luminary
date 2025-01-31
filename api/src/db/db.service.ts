@@ -342,7 +342,12 @@ export class DbService extends EventEmitter {
             _id: randomUUID(),
             type: DocType.DeleteCmd,
             docId: options.doc._id,
-            docType: options.doc.type,
+            // Set the docType field of delete commands for Content documents to the parentType field of the content document.
+            // This is needed as the permission system does not include Content documents, but bases permissions on the parent type (Post / Tag).
+            docType:
+                options.doc.type === DocType.Content
+                    ? (options.doc as unknown as ContentDto).parentType
+                    : options.doc.type,
             updatedTimeUtc: Date.now(),
             deleteReason: options.reason,
         } as DeleteCmdDto;

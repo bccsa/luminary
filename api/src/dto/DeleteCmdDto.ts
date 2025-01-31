@@ -2,7 +2,6 @@ import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class
 import { _baseDto } from "./_baseDto";
 import { Expose, Type } from "class-transformer";
 import { DeleteReason, DocType, Uuid } from "../enums";
-import { GroupAclEntryDto } from "./GroupAclEntryDto";
 
 /**
  * Database structured document delete command object
@@ -13,6 +12,9 @@ export class DeleteCmdDto extends _baseDto {
     @Expose()
     docId: Uuid;
 
+    /**
+     * The docType is used by the client to determine whether the client has permission to keep the document. For ContentDto documents, this field is set to the DocType of the parent document, as the permission system does not specify permissions for ContentDto documents.
+     */
     @IsString()
     @IsNotEmpty()
     @Expose()
@@ -39,21 +41,4 @@ export class DeleteCmdDto extends _baseDto {
     @IsOptional()
     @Expose()
     newMemberOf?: Uuid[];
-
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => GroupAclEntryDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
-    @IsOptional()
-    @Expose()
-    acl?: GroupAclEntryDto[];
-
-    /**
-     * ACL of groups which should not delete the document (only used when the delete reason is "permissionChange" for group documents)
-     */
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => GroupAclEntryDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
-    @IsOptional()
-    @Expose()
-    newAcl?: GroupAclEntryDto[];
 }
