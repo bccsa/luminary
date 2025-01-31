@@ -16,6 +16,7 @@ import {
 import {
     AckStatus,
     AclPermission,
+    DeleteCmdDto,
     DocType,
     PostType,
     TagType,
@@ -27,6 +28,7 @@ import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
+import { config } from "../config";
 
 describe("Database", async () => {
     beforeAll(async () => {
@@ -922,5 +924,107 @@ describe("Database", async () => {
         const _v2 = await getDbVersion();
 
         expect(_v1).toBeLessThan(_v2);
+    });
+
+    describe("document deletion", () => {
+        it("can delete a document when receiving a delete request with reason 'deleted'", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "deleted",
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeUndefined();
+        });
+
+        it("can delete a document when receiving a delete request with reason 'statusChange' in non-CMS mode", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+            config.cms = false;
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "statusChange",
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeUndefined();
+        });
+
+        it("does not delete a document when receiving a delete request with reason 'statusChange' in CMS mode", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+            config.cms = true;
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "statusChange",
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeDefined();
+        });
+
+        it("deletes a document when receiving a delete request with reason 'permissionChange' and the document's group membership is not in the access map", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "permissionChange",
+                    newMemberOf: ["inaccessible-group"],
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeUndefined();
+        });
+
+        it("does not delete a document when receiving a delete request with reason 'permissionChange' and the document's group membership in the access map", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docType: DocType.Post,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "permissionChange",
+                    newMemberOf: ["group-public-content"],
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeDefined();
+        });
     });
 });
