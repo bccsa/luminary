@@ -10,8 +10,6 @@ import {
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
-// import { appLanguageIdAsRef } from "@/globalConfig";
-// import { appLanguagePreferredIdAsRef, appLanguagesPreferredAsRef } from "@/globalConfig";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
@@ -20,20 +18,20 @@ import IgnorePagePadding from "../IgnorePagePadding.vue";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageId: Uuid) =>
+    (appLanguageIds: Uuid[]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
-                status: "published",
                 parentPinned: 1, // 1 = true
             })
             .filter((c) => {
-                const content = c as ContentDto;
-                return isPublished(content, appLanguageIdsAsRef.value);
+                return isPublished(c as ContentDto, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedCategories") },
+    {
+        initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedCategories"),
+        deep: true,
+    },
 );
 
 watch(pinnedCategories, async (value) => {
@@ -42,24 +40,25 @@ watch(pinnedCategories, async (value) => {
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
     [appLanguageIdsAsRef, pinnedCategories],
-    ([appLanguageId, pinnedCategories]: [Uuid, ContentDto[]]) =>
+    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
                 status: PublishStatus.Published,
             })
             .filter((c) => {
                 const content = c as ContentDto;
-                if (!isPublished(content, appLanguageIdsAsRef.value)) return false;
+                if (!content.video) return false;
 
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
 
-                if (!content.video) return false;
-
                 for (const tagId of content.parentTags) {
-                    if (pinnedCategories.some((p) => p.parentId == tagId)) return true;
+                    if (
+                        pinnedCategories.some((p) => p.parentId == tagId) &&
+                        isPublished(content, appLanguageIds)
+                    )
+                        return true;
                 }
 
                 return false;
