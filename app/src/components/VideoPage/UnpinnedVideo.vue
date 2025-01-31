@@ -63,6 +63,7 @@ const unpinnedCategoryContent = useDexieLiveQueryWithDeps(
 
                 return false;
             })
+            .limit(50)
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedContent") },
 );
