@@ -835,6 +835,68 @@ describe("DbService", () => {
 
                 expect(res.docs.length).toBe(0);
             });
+
+            it("generates two delete instructions when a document is upserted with removed permissions and a status change", async () => {
+                const doc = {
+                    _id: "delete-test-combined",
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content", "group-private-content"],
+                };
+
+                await service.upsertDoc(doc);
+
+                // Subscribe to the update event to check if the delete command is generated
+                let updateEventDoc1: DeleteCmdDto;
+                const deleteCmdHandler1 = (update: DeleteCmdDto) => {
+                    if (
+                        update.type === DocType.DeleteCmd &&
+                        update.deleteReason === DeleteReason.PermissionChange
+                    ) {
+                        service.off("update", deleteCmdHandler1);
+                        updateEventDoc1 = update;
+                    }
+                };
+                service.on("update", deleteCmdHandler1);
+
+                let updateEventDoc2: DeleteCmdDto;
+                const deleteCmdHandler2 = (update: DeleteCmdDto) => {
+                    if (
+                        update.type === DocType.DeleteCmd &&
+                        update.deleteReason === DeleteReason.StatusChange
+                    ) {
+                        service.off("update", deleteCmdHandler1);
+                        updateEventDoc2 = update;
+                    }
+                };
+                service.on("update", deleteCmdHandler2);
+
+                const updatedDoc = {
+                    _id: "delete-test-combined",
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "draft",
+                    memberOf: ["group-private-content"],
+                };
+                const insertResult = await service.upsertDoc(updatedDoc);
+
+                expect(insertResult.ok).toBe(true);
+
+                await waitForExpect(() => {
+                    expect(updateEventDoc1).toBeDefined();
+                    expect(updateEventDoc1.docId).toBe("delete-test-combined");
+                    expect(updateEventDoc1.deleteReason).toBe(DeleteReason.PermissionChange);
+                    expect(updateEventDoc1.memberOf).toEqual(["group-public-content"]);
+                });
+
+                await waitForExpect(() => {
+                    expect(updateEventDoc2).toBeDefined();
+                    expect(updateEventDoc2.docId).toBe("delete-test-combined");
+                    expect(updateEventDoc2.deleteReason).toBe(DeleteReason.StatusChange);
+                    expect(updateEventDoc2.memberOf).toEqual(["group-private-content"]);
+                });
+            });
         });
     });
 });
