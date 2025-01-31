@@ -1,4 +1,3 @@
-r
 <script setup lang="ts">
 import { ref } from "vue";
 import { type ContentDto, DocType, db } from "luminary-shared";
@@ -6,6 +5,7 @@ import { useAuth0 } from "@auth0/auth0-vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
+import HomePageUnpinned from "@/components/HomePage/HomePageUnpinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import { isPublished } from "@/util/isPublished";
 
@@ -55,11 +55,13 @@ setTimeout(() => {
     </div>
     <IgnorePagePadding v-else class="mb-4">
         <Suspense>
+            <HomePageNewest />
+        </Suspense>
+        <Suspense>
             <HomePagePinned />
         </Suspense>
-
         <Suspense>
-            <HomePageNewest />
+            <HomePageUnpinned />
         </Suspense>
     </IgnorePagePadding>
 </template>
