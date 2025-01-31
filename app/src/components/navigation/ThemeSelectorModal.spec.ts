@@ -4,11 +4,7 @@ import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LButton from "../button/LButton.vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
-import {
-    appLanguageIdsAsRef,
-    appLanguagePreferredIdAsRef,
-    appLanguagesPreferredAsRef,
-} from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
