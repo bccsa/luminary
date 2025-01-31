@@ -5,6 +5,7 @@ import {
     ChangeReqAckDto,
     LocalChangeDto,
     ApiConnectionOptions,
+    DocType,
 } from "../types";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
@@ -56,7 +57,15 @@ class Socketio {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
-            await db.bulkPut(data.docs);
+            if (!data.docs) return;
+            const docs = data.docs.filter(
+                (doc) =>
+                    doc.type &&
+                    this.docTypes.filter(
+                        (d) => (d.contentOnly ? DocType.Content : d.type) == doc.type,
+                    )?.length > 1,
+            );
+            await db.bulkPut(docs);
         });
 
         this.socket.on("changeRequestAck", this.handleAck.bind(this));

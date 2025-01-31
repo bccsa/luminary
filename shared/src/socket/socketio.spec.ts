@@ -28,6 +28,11 @@ describe("socketio", () => {
         // initialize the socket client
         const socket = getSocket({
             apiUrl: "http://localhost:12345",
+            docTypes: [
+                { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
+                { type: DocType.Post, contentOnly: true, syncPriority: 2 },
+                { type: DocType.Language, contentOnly: false, syncPriority: 1 },
+            ],
         });
         socket.disconnect();
     });
@@ -236,6 +241,30 @@ describe("socketio", () => {
         await waitForExpect(() => {
             expect(accessMap.value).toEqual(clientConfig.accessMap);
             expect(maxUploadFileSize.value).toEqual(clientConfig.maxUploadFileSize);
+        });
+    });
+
+    it("can filter out docs that is not specified in the docTypes array", async () => {
+        const doc1 = { _id: "doc1", type: DocType.Post, updatedTimeUtc: 1234 };
+        const doc2 = { _id: "doc2", type: DocType.Tag, updatedTimeUtc: 1234 };
+        const doc3 = { _id: "doc3", type: DocType.Content, updatedTimeUtc: 1234 };
+
+        socketServer.on("connection", (socket) => {
+            socket.emit("data", { docs: [doc1] });
+            socket.emit("data", { docs: [doc2] });
+            socket.emit("data", { docs: [doc3] });
+        });
+
+        getSocket({ reconnect: true });
+
+        await waitForExpect(async () => {
+            const _doc1 = await db.get("doc1");
+            const _doc2 = await db.get("doc2");
+            const _doc3 = await db.get("doc3");
+
+            expect(_doc1?.type).toBe(undefined);
+            expect(_doc2?.type).toBe(undefined);
+            expect(_doc3?.type).toBe(DocType.Content);
         });
     });
 });
