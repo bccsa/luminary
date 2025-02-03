@@ -2,6 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
+import LModal from "@/components/common/LModal.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
@@ -64,6 +65,7 @@ const isLoading = computed(() => parent.value == undefined);
 const parentPrev = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
 const contentDocs = ref<ContentDto[]>([]);
 const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+const showDeleteModal = ref(false);
 
 let icon = DocumentIcon;
 if (props.docType == DocType.Tag) {
@@ -221,6 +223,11 @@ const canEditParent = computed(() => {
     return false;
 });
 
+const canDelete = computed(() => {
+    if (!parent.value) return false;
+    return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Delete, "all");
+});
+
 // Dirty check and save
 const isDirty = computed(
     () =>
@@ -233,7 +240,7 @@ const isDirty = computed(
 
 const isValid = ref(true);
 
-const save = async () => {
+const saveChanges = async () => {
     if (!isValid.value) {
         addNotification({
             title: "Changes not saved",
@@ -252,6 +259,19 @@ const save = async () => {
         return;
     }
 
+    await save();
+
+    addNotification({
+        title: `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
+        description: `The ${props.tagOrPostType} was saved successfully`,
+        state: "success",
+    });
+
+    parentPrev.value = _.cloneDeep(parent.value);
+    contentDocsPrev.value = _.cloneDeep(contentDocs.value);
+};
+
+const save = async () => {
     // Save the parent document
     await db.upsert(parent.value);
 
@@ -264,15 +284,6 @@ const save = async () => {
     });
 
     await Promise.all(pList);
-
-    addNotification({
-        title: `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
-        description: `The ${props.tagOrPostType} was saved successfully`,
-        state: "success",
-    });
-
-    parentPrev.value = _.cloneDeep(parent.value);
-    contentDocsPrev.value = _.cloneDeep(contentDocs.value);
 };
 
 const revertChanges = () => {
@@ -298,6 +309,37 @@ const revertChanges = () => {
         title: `${capitaliseFirstLetter(props.tagOrPostType)} reverted`,
         description: `The changes to the ${props.tagOrPostType} have been reverted`,
         state: "success",
+    });
+};
+
+const deleteParent = async () => {
+    if (!parent.value) return;
+
+    if (!canDelete.value) {
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You do not have delete permission",
+            state: "error",
+        });
+        return;
+    }
+
+    contentDocs.value.forEach((c) => {
+        c.deleteReq = 1;
+    });
+    parent.value.deleteReq = 1;
+
+    save();
+
+    addNotification({
+        title: `${capitaliseFirstLetter(props.tagOrPostType)} deleted`,
+        description: `The ${props.tagOrPostType} was deleted successfully`,
+        state: "success",
+    });
+
+    router.push({
+        name: "overview",
+        params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
     });
 };
 
@@ -351,8 +393,22 @@ watch(selectedLanguage, () => {
                     >
                         Revert
                     </LButton>
-                    <LButton type="button" @click="save" data-test="save-button" variant="primary">
+                    <LButton
+                        type="button"
+                        @click="saveChanges"
+                        data-test="save-button"
+                        variant="primary"
+                    >
                         Save
+                    </LButton>
+                    <LButton
+                        type="button"
+                        @click="showDeleteModal = true"
+                        data-test="delete-button"
+                        variant="secondary"
+                        context="danger"
+                    >
+                        Delete
                     </LButton>
                 </div>
             </div>
@@ -426,6 +482,21 @@ watch(selectedLanguage, () => {
         </div>
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty" />
+    <LModal
+        :open="showDeleteModal"
+        :title="`Delete ${props.tagOrPostType}`"
+        :description="`Are you sure you want to delete this ${props.tagOrPostType}? This action cannot be undone.`"
+        :primaryAction="
+            () => {
+                deleteParent();
+                showDeleteModal = false;
+            }
+        "
+        :secondaryAction="() => (showDeleteModal = false)"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="danger"
+    ></LModal>
 </template>
 
 <style>

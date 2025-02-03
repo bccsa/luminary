@@ -532,7 +532,7 @@ class Database extends Dexie {
     }
 
     /**
-     * Update or insert a document into the database and queue the change to be sent to the API
+     * Update or insert a document into the database and queue the change to be sent to the API. If the deleteReq flag is set, the document will be deleted from the local database and the document with deleteReq flag will be queued to be sent to the API.
      * @param doc - The document to upsert
      * @param overwiteLocalChanges - If true, the entry in the local changes table will be overwritten with the new change
      */
@@ -540,7 +540,13 @@ class Database extends Dexie {
         // Unwrap the (possibly) reactive object
         const raw = toRaw(doc);
 
-        await this.docs.put(raw, raw._id);
+        if (doc.deleteReq) {
+            // Delete the document from the local database. The document will be deleted from the API when the change is sent from the localChanges table
+            await this.docs.delete(raw._id);
+            overwiteLocalChanges = true;
+        } else {
+            await this.docs.put(raw, raw._id);
+        }
 
         if (overwiteLocalChanges) {
             // Delete the previous change from the localChanges table (if any)
