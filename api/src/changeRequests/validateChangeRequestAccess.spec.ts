@@ -730,6 +730,8 @@ describe("validateChangeRequestAccess", () => {
                 memberOf: ["group-languages"],
                 type: DocType.Language,
                 default: 0,
+                //@ts-expect-error Makes an error go away to have this field here.
+                translations: [""],
             };
 
             await db.upsertDoc(language);
