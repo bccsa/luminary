@@ -1,6 +1,6 @@
 <script setup lang="ts">
 type Props = {
-    state?: "default" | "error";
+    state?: "default" | "error" | "warning";
 };
 
 withDefaults(defineProps<Props>(), {
@@ -11,7 +11,11 @@ withDefaults(defineProps<Props>(), {
 <template>
     <p
         class="mt-2 text-sm"
-        :class="{ 'text-zinc-600': state == 'default', 'text-red-600': state == 'error' }"
+        :class="{
+            'text-zinc-600': state == 'default',
+            'text-red-600': state == 'error',
+            'text-yellow-600': state == 'warning',
+        }"
     >
         <slot />
     </p>

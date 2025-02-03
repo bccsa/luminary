@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LButton from "../button/LButton.vue";
 import waitForExpect from "wait-for-expect";
+import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -22,8 +24,16 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
+
 describe("ThemeSelectorModal.vue", () => {
     beforeEach(() => {
+        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
+
         window.matchMedia = vi.fn().mockImplementation((query) => ({
             matches: query === "(prefers-color-scheme: dark)",
             media: query,
@@ -44,7 +54,7 @@ describe("ThemeSelectorModal.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Select Theme");
+            expect(wrapper.html()).toContain("Select theme");
         });
     });
 
@@ -61,6 +71,8 @@ describe("ThemeSelectorModal.vue", () => {
     });
 
     it("displays the correct themes", async () => {
+        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
+
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
@@ -84,7 +96,7 @@ describe("ThemeSelectorModal.vue", () => {
 
         const themeItems = wrapper.findAll("[data-test='switch-theme-button']");
         await themeItems[1].trigger("click");
-        expect(localStorage.getItem("theme")).toBe("Dark");
+        expect(localStorage.getItem("theme")).toBe("dark");
     });
 
     it("emits close event when close button is clicked", async () => {
@@ -101,7 +113,7 @@ describe("ThemeSelectorModal.vue", () => {
     });
 
     it("applies the correct theme class on mount", () => {
-        localStorage.setItem("theme", "Dark");
+        localStorage.setItem("theme", "dark");
         mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
@@ -109,7 +121,7 @@ describe("ThemeSelectorModal.vue", () => {
         });
         expect(document.documentElement.classList.contains("dark")).toBe(true);
 
-        localStorage.setItem("theme", "Light");
+        localStorage.setItem("theme", "light");
         mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,

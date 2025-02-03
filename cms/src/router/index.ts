@@ -90,6 +90,12 @@ export const router = createRouter({
                     component: () => import("../components/languages/LanguageOverview.vue"),
                 },
                 {
+                    path: "languages/:id",
+                    name: "language",
+                    component: () => import("../components/languages/EditLanguage.vue"),
+                    props: true,
+                },
+                {
                     path: "redirects",
                     name: "redirects",
                     component: () => import("../components/redirects/RedirectOverview.vue"),

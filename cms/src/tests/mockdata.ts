@@ -271,8 +271,64 @@ export const mockLanguageDtoEng: LanguageDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-languages"],
     languageCode: "eng",
-    default: 0,
     name: "English",
+    translations: {
+        "menu.home": "Home",
+        "menu.explore": "Explore",
+        "profile_menu.settings": "Settings",
+        "profile_menu.theme": "Theme",
+        "profile_menu.language": "Language",
+        "profile_menu.bookmarks": "Bookmarks",
+        "profile_menu.privacy_policy": "Privacy Policy",
+        "profile_menu.login": "Login",
+        "profile_menu.logout": "Logout",
+        "settings.local_cache.title": "Local cache",
+        "settings.local_cache.description":
+            "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
+        "settings.local_cache.button": "Delete local cache",
+        "home.title": "Home",
+        "explore.title": "Explore",
+        "notification.login.title": "You are missing out!",
+        "notification.login.message": "Click here to create an account or log in",
+        "notification.offline.title": "You are offline.",
+        "notification.offline.message":
+            "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
+        "notification.privacy_policy.title": "Privacy Policy",
+        "notification.privacy_policy.message":
+            "Click here to accept our privacy policy for a fully featured app experience.",
+        "notification.clearCache_offline.title": "Can't clear local cache",
+        "notification.clearCache_offline.description":
+            "You are offline, new data can't be loaded. Wait until you are online.",
+        "notification.clearCache_success.title": "Local cache cleared",
+        "notification.clearCache_success.description":
+            "New data is loading from the server, it might take a minute.",
+        "privacy_policy.modal.title": "Privacy Policy",
+        "privacy_policy.modal.message": "By using this app, you agree to our privacy policy.",
+        "privacy_policy.modal.button_accept": "Accept",
+        "privacy_policy.modal.button_decline": "Decline",
+        "privacy_policy.modal.button_close": "Close",
+        "privacy_policy.modal.message_map.accepted":
+            "You have already accepted the privacy policy.",
+        "privacy_policy.modal.message_map.declined":
+            "You have previously declined the privacy policy. Please accept it for a fully featured app experience.",
+        "privacy_policy.modal.message_map.outdated":
+            "We have updated our privacy policy. Please accept it for a fully featured app experience.",
+        "privacy_policy.modal.message_map.unaccepted":
+            "Please accept our privacy policy for a fully featured app experience.",
+        "privacy_policy.banner.message_map.outdated":
+            "We have updated our privacy policy. Click here to accept it for a fully featured app experience.",
+        "privacy_policy.banner.message_map.unaccepted":
+            "Click here to accept our privacy policy for a fully featured app experience.",
+        "privacy_policy.banner.title": "Privacy Policy",
+        "privacy_policy.modal.link_text": "here",
+        "privacy_policy.modal.message_link": "Click {link} to read our privacy policy.",
+        "login.bcc.button": "Login in with BCC",
+        "login.guest.button": "Login in as guest",
+        "select_theme.title": "Select theme",
+        "bookmarks.title": "Bookmarks",
+        "bookmarks.empty_page":
+            "You should try this! Click on this icon on any post to bookmark it.",
+    },
 };
 export const mockLanguageDtoFra: LanguageDto = {
     _id: "lang-fra",
@@ -281,6 +337,65 @@ export const mockLanguageDtoFra: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "fra",
     name: "Français",
+    translations: {
+        "menu.home": "Accueil",
+        "menu.explore": "Explorer",
+        "profile_menu.settings": "Paramètres",
+        "profile_menu.theme": "Thème",
+        "profile_menu.language": "Langue",
+        "profile_menu.bookmarks": "Signets",
+        "profile_menu.privacy_policy": "Politique de confidentialité",
+        "profile_menu.login": "Connexion",
+        "profile_menu.logout": "Déconnexion",
+        "settings.local_cache.title": "Cache local",
+        "settings.local_cache.description":
+            "La plupart des données sont enregistrées localement sur votre appareil. Si vous rencontrez des problèmes, essayez de supprimer toutes les données locales. En fonction de la quantité de données disponibles sur le serveur, cela peut prendre un certain temps avant que toutes les données soient à nouveau disponibles.",
+        "settings.local_cache.button": "Supprimer le cache local",
+        "home.title": "Accueil",
+        "explore.title": "Explorer",
+        "notification.login.title": "Vous manquez quelque chose!",
+        "notification.login.message": "Cliquez ici pour créer un compte ou vous connecter.",
+        "notification.offline.title": "Vous êtes hors ligne.",
+        "notification.offline.message":
+            "Vous pouvez toujours utiliser l'application et parcourir le contenu hors ligne, mais certains contenus (comme les vidéos) pourraient ne pas être disponibles.",
+        "notification.privacy_policy.title": "Politique de confidentialité",
+        "notification.privacy_policy.message":
+            "Cliquez ici pour accepter notre politique de confidentialité et profiter pleinement de l'application.",
+        "notification.clearCache_offline.title": "Impossible de vider le cache local",
+        "notification.clearCache_offline.description":
+            "Vous êtes hors ligne, les nouvelles données ne peuvent pas être chargées. Veuillez attendre d'être en ligne.",
+        "notification.clearCache_success.title": "Cache local vidé",
+        "notification.clearCache_success.description":
+            "Les nouvelles données sont en cours de chargement depuis le serveur, cela peut prendre une minute.",
+        "privacy_policy.modal.title": "Politique de confidentialité",
+        "privacy_policy.modal.message":
+            "En utilisant cette application, vous acceptez notre politique de confidentialité.",
+        "privacy_policy.modal.button_accept": "Accepter",
+        "privacy_policy.modal.button_decline": "Refuser",
+        "privacy_policy.modal.button_close": "Fermer",
+        "privacy_policy.modal.message_map.accepted":
+            "Vous avez déjà accepté la politique de confidentialité.",
+        "privacy_policy.modal.message_map.declined":
+            "Vous avez précédemment refusé la politique de confidentialité. Veuillez l'accepter pour profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.modal.message_map.outdated":
+            "Nous avons mis à jour notre politique de confidentialité. Veuillez l'accepter pour profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.modal.message_map.unaccepted":
+            "Veuillez accepter notre politique de confidentialité pour profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.banner.message_map.outdated":
+            "Nous avons mis à jour notre politique de confidentialité. Cliquez ici pour l'accepter et profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.banner.message_map.unaccepted":
+            "Cliquez ici pour accepter notre politique de confidentialité et profiter pleinement des fonctionnalités de l'application.",
+        "privacy_policy.banner.title": "Politique de confidentialité",
+        "privacy_policy.modal.link_text": "ici",
+        "privacy_policy.modal.message_link":
+            "Cliquez {link} pour lire notre politique de confidentialité.",
+        "login.bcc.button": "Se connecter avec BCC",
+        "login.guest.button": "Se connecter en tant qu'invité",
+        "select_theme.title": "Sélectionner un thème",
+        "bookmarks.title": "Signets",
+        "bookmarks.empty_page":
+            "Vous devriez essayer ça ! Cliquez sur cette icône sur n'importe quel post pour l'ajouter aux favoris.",
+    },
 };
 
 export const mockLanguageDtoSwa: LanguageDto = {
@@ -290,6 +405,23 @@ export const mockLanguageDtoSwa: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "swa",
     name: "Swahili",
+    translations: {
+        "menu.home": "Nyumbani",
+        "menu.explore": "Chunguza",
+        "profile_menu.settings": "Mipangilio",
+        "profile_menu.theme": "Mandhari",
+        "profile_menu.language": "Lugha",
+        "profile_menu.bookmarks": "Vialamisho",
+        "profile_menu.privacy_policy": "Sera ya Faragha",
+        "profile_menu.login": "Ingia",
+        "profile_menu.logout": "Toka",
+        "settings.local_cache.title": "Kumbukumbu ya Mitaa",
+        "settings.local_cache.description":
+            "Takwimu nyingi zimehifadhiwa kwenye kifaa chako. Ikiwa unakutana na matatizo, jaribu kufuta data zote za ndani. Kulingana na kiasi cha data inayopatikana kwenye seva, inaweza kuchukua muda kabla ya data zote kupatikana tena.",
+        "settings.local_cache.button": "Futa Kumbukumbu ya Mitaa",
+        "pages.home.title": "Nyumbani",
+        "pages.explore.title": "Chunguza",
+    },
 };
 
 export const mockLocalChange1: LocalChangeDto = {

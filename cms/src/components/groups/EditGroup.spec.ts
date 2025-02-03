@@ -195,7 +195,7 @@ describe("EditGroup.vue", () => {
     });
 
     it("can edit the group name", async () => {
-        const groupNameInput = 'input[data-test="groupNameInput"]';
+        const groupNameInput = 'textarea[data-test="groupNameInput"]';
         const groupName = '[data-test="groupName"]';
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 

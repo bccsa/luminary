@@ -4,12 +4,19 @@ import { mount, RouterLinkStub } from "@vue/test-utils";
 import MobileMenu from "./MobileMenu.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
+import { mockLanguageDtoEng } from "@/tests/mockdata";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
     useRouter: vi.fn().mockImplementation(() => ({
         push: routePushMock,
     })),
+}));
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
 }));
 
 describe("MobileMenu.vue", () => {

@@ -2,25 +2,11 @@
 import BasePage from "@/components/BasePage.vue";
 import LanguageTable from "@/components/languages/LanguageTable.vue";
 import LButton from "@/components/button/LButton.vue";
-import { AclPermission, DocType, hasAnyPermission } from "luminary-shared";
-import { computed, ref } from "vue";
+import { AclPermission, db, DocType, hasAnyPermission } from "luminary-shared";
+import { computed } from "vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import CreateLanguageModal from "@/components/languages/CreateOrEditLanguageModal.vue";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
-
-// State to control modal visibility
-const isModalVisible = ref(false);
-
-// Function to open the modal
-const openCreateModal = () => {
-    isModalVisible.value = true;
-};
-
-// Function to handle modal close
-const closeModal = () => {
-    isModalVisible.value = false;
-};
 </script>
 
 <template>
@@ -31,7 +17,7 @@ const closeModal = () => {
                     v-if="canCreateNew"
                     variant="primary"
                     :icon="PlusIcon"
-                    @click="openCreateModal"
+                    @click="$router.push({ name: 'language', params: { id: db.uuid() } })"
                     name="createLanguageBtn"
                 >
                     Create language
@@ -40,12 +26,5 @@ const closeModal = () => {
         </template>
 
         <LanguageTable />
-
-        <!-- Include the modal -->
-        <CreateLanguageModal
-            v-if="isModalVisible"
-            :isVisible="isModalVisible"
-            @close="closeModal"
-        />
     </BasePage>
 </template>

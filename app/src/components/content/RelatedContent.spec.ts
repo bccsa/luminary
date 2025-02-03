@@ -19,6 +19,12 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
+
 describe("RelatedContent", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([

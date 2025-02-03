@@ -38,10 +38,21 @@ vi.mock("vue-router", async (importOriginal) => {
         })),
     };
 });
-
 vi.mock("@auth0/auth0-vue");
 
-describe.skip("SingleContent", () => {
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
+
+describe("SingleContent", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -303,12 +314,9 @@ describe.skip("SingleContent", () => {
         const notificationStore = useNotificationStore();
 
         await waitForExpect(() => {
-            console.info(appLanguageIdsAsRef.value);
             // simulate language change
-
             appLanguageIdsAsRef.value.unshift("lang-test");
 
-            console.info(appLanguageIdsAsRef.value);
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });

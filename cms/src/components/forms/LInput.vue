@@ -5,7 +5,7 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { computed, type Component, type StyleValue, ref } from "vue";
+import { computed, type Component, type StyleValue, ref, onMounted, watch } from "vue";
 import { useId } from "@/util/useId";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
@@ -38,23 +38,42 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // Expose the focus method to parent components.
-const input = ref<HTMLInputElement | undefined>(undefined);
+const input = ref<HTMLTextAreaElement | undefined>(undefined);
 const focus = () => {
     input.value?.focus();
 };
 defineExpose({ focus });
 
-const { errorMessage, value, handleBlur, handleChange } = useField(() => props.name, undefined, {
-    syncVModel: true,
-    validateOnValueUpdate: false,
-});
+const { errorMessage, value, handleBlur, handleChange } = useField<string>(
+    () => props.name,
+    undefined,
+    {
+        syncVModel: true,
+        validateOnValueUpdate: false,
+    },
+);
+
+// Auto-resize function
+const autoResize = () => {
+    if (input.value) {
+        input.value.style.height = "auto"; // Reset height to calculate the new height
+        input.value.style.height = input.value.scrollHeight + "px"; // Set to the new scroll height
+    }
+};
+
+// Call autoResize on mount and when content changes
+onMounted(() => autoResize());
+watch(value, () => autoResize());
 
 // Initially and if field is valid, only validate when user leaves field.
 // If the field is invalid, validate as user is typing.
 const validationListeners = {
     blur: (e: any) => handleBlur(e, true),
     change: handleChange,
-    input: (e: any) => handleChange(e, !!errorMessage.value),
+    input: (e: any) => {
+        handleChange(e, !!errorMessage.value);
+        autoResize();
+    },
 };
 
 const computedState = computed(() => {
@@ -69,11 +88,14 @@ const states = {
     default:
         "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
     error: "text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
+    warning:
+        "text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500",
 };
 
 const addOnStates = {
     default: "border-zinc-300 px-3 text-zinc-500",
     error: "border-red-300 bg-red-50 px-3 text-red-600",
+    warning: "border-yellow-300 bg-yellow-50 px-3 text-yellow-600",
 };
 
 const sizes = {
@@ -113,7 +135,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             >
                 {{ leftAddOn }}
             </span>
-            <input
+
+            <!-- We use textarea instead of input so that we can auto-resize and preserve line breaks -->
+            <textarea
                 ref="input"
                 v-model="value"
                 v-on="validationListeners"
@@ -126,7 +150,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'pl-10': icon,
                         'pr-10': state == 'error',
                     },
-                    'block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
+                    'block w-full resize-none border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
                 ]"
                 :id="id"
                 :name="name"
@@ -135,6 +159,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :placeholder="placeholder"
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
+                rows="1"
             />
             <span
                 v-if="rightAddOn"

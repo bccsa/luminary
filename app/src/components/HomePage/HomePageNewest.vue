@@ -5,6 +5,9 @@ import { type ContentDto, DocType, PostType, TagType, type Uuid, db } from "lumi
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import { isPublished } from "@/util/isPublished";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const newest10Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -37,7 +40,7 @@ watch(newest10Content, async (value) => {
 <template>
     <HorizontalContentTileCollection
         :contentDocs="newest10Content"
-        title="Newest"
+        :title="t('home.newest')"
         :showPublishDate="true"
     />
 </template>

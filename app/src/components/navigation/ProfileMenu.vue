@@ -20,6 +20,7 @@ import {
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
 import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
+import { useI18n } from "vue-i18n";
 
 const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
@@ -27,28 +28,35 @@ const router = useRouter();
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showPrivacyPolicyModal = ref(false);
+const { t } = useI18n();
 
 const commonNavigation = computed(() => {
     return [
         {
-            name: "Settings",
+            name: t("profile_menu.settings"),
             icon: Cog6ToothIcon,
             action: () => router.push({ name: "settings" }),
         },
-        { name: "Theme", icon: SunIcon, action: () => (showThemeSelector.value = true) },
         {
-            name: "Language",
-            language: appLanguageAsRef.value,
-            icon: LanguageIcon,
-            action: () => (showLanguageModal.value = true),
+            name: t("profile_menu.theme"),
+            icon: SunIcon,
+            action: () => (showThemeSelector.value = true),
         },
         {
-            name: "Bookmarks",
+            name: t("profile_menu.language"),
+            language: appLanguageAsRef.value,
+            icon: LanguageIcon,
+            action: (): void => {
+                showLanguageModal.value = true;
+            },
+        },
+        {
+            name: t("profile_menu.bookmarks"),
             icon: BookmarkIcon,
             action: () => router.push({ name: "bookmarks" }),
         },
         {
-            name: "Privacy policy",
+            name: t("profile_menu.privacy_policy"),
             icon: ShieldCheckIcon,
             action: () => (showPrivacyPolicyModal.value = true),
         },
@@ -61,7 +69,7 @@ const userNavigation = computed(() => {
             ...commonNavigation.value,
 
             {
-                name: "Log out",
+                name: t("profile_menu.logout"),
                 icon: ArrowRightEndOnRectangleIcon,
                 action: async () => {
                     localStorage.removeItem("usedAuth0Connection");
@@ -74,7 +82,7 @@ const userNavigation = computed(() => {
             ...commonNavigation.value,
 
             {
-                name: "Log In",
+                name: t("profile_menu.login"),
                 icon: ArrowLeftEndOnRectangleIcon,
                 action: () => router.push({ name: "login" }),
             },

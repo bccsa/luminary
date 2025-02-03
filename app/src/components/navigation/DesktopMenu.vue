@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { commonNavigation } from "./navigationItems";
+// import { commonNavigation } from "./navigationItems";
+import { getNavigationItems } from "./navigationItems";
 </script>
 
 <template>
     <nav>
         <RouterLink
-            v-for="item in commonNavigation"
+            v-for="item in getNavigationItems()"
             :key="item.name"
             :to="item.to"
             v-slot="{ isActive }"

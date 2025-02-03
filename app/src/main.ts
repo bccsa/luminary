@@ -1,19 +1,24 @@
 import "./assets/main.css";
-
-import { createApp } from "vue";
+import { createApp, ref, watch } from "vue";
 import { createPinia } from "pinia";
-
-// import { createAuth0 } from "@auth0/auth0-vue";
 import * as Sentry from "@sentry/vue";
-
 import App from "./App.vue";
 import router from "./router";
 import auth from "./auth";
-import { initLuminaryShared } from "luminary-shared";
+import {
+    db,
+    DocType,
+    initLuminaryShared,
+    useDexieLiveQuery,
+    type LanguageDto,
+} from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
 import { loadPlugins } from "./util/pluginLoader";
+import { createI18n } from "vue-i18n";
+import { appLanguageAsRef, initLanguage } from "./globalConfig";
 
+// Startup
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
     if (favicon) {
@@ -31,11 +36,6 @@ if (import.meta.env.PROD) {
     });
 }
 
-app.use(createPinia());
-
-app.use(router);
-
-// Startup
 async function Startup() {
     await initLuminaryShared({
         cms: false,
@@ -49,10 +49,65 @@ async function Startup() {
     // wait to load plugins before mounting the app
     await loadPlugins();
 
-    app.mount("#app");
+    initLanguage();
 }
+await Startup();
 
-Startup();
+// Initialize i18n with empty messages
+const i18n = createI18n({
+    legacy: false,
+    locale: appLanguageAsRef.value?.languageCode || "en", // Default locale
+    messages: {}, // Empty messages to start
+});
+
+// Get default language document. This should move to globalConfig.ts
+const defaultLanguage = useDexieLiveQuery(
+    () =>
+        db.docs
+            .where("type")
+            .equals(DocType.Language)
+            .and((doc) => {
+                const languageDoc = doc as LanguageDto;
+                return languageDoc.default == 1;
+            })
+            .first() as unknown as Promise<LanguageDto>,
+);
+
+// Create a list of localised strings with fallback to the default language if not existing in the preferred language
+watch(
+    [appLanguageAsRef, defaultLanguage],
+    ([newLanguage, defaultLang]) => {
+        // TODO: This watcher is triggering multiple times on app startup. Need to investigate why
+
+        if (!newLanguage) return;
+        // copy translations in the preferred language
+        const messages: Record<string, string> = {};
+        Object.keys(newLanguage.translations).forEach((k: string) => {
+            messages[k] = newLanguage.translations[k];
+        });
+
+        // Fill in missing translations with default language strings
+        if (defaultLang && defaultLang.translations && newLanguage._id != defaultLang._id) {
+            Object.keys(defaultLang.translations).forEach((k: string) => {
+                if (!messages[k]) {
+                    messages[k] = defaultLang.translations[k];
+                }
+            });
+        }
+
+        // Add new translations to i18n
+        i18n.global.setLocaleMessage(newLanguage.languageCode, messages);
+
+        // Change the active locale
+        i18n.global.locale.value = newLanguage.languageCode;
+    },
+    { immediate: true },
+);
+
+app.use(createPinia());
+app.use(router);
+app.use(i18n);
+app.mount("#app");
 
 // Matomo Analytics
 if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID)
