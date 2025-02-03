@@ -66,6 +66,7 @@ onBeforeMount(async () => {
                 { type: DocType.Post, contentOnly: false, syncPriority: 2 },
                 { type: DocType.Redirect, contentOnly: false, syncPriority: 2 },
                 { type: DocType.Language, contentOnly: false, syncPriority: 1 },
+                { type: DocType.Group, contentOnly: false, syncPriority: 1 },
             ],
         });
 

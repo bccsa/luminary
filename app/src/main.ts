@@ -74,7 +74,6 @@ const defaultLanguage = useDexieLiveQuery(
 );
 
 // Create a list of localised strings with fallback to the default language if not existing in the preferred language
-const localeInitDone = ref(false);
 watch(
     [appLanguageAsRef, defaultLanguage],
     ([newLanguage, defaultLang]) => {
@@ -101,8 +100,6 @@ watch(
 
         // Change the active locale
         i18n.global.locale.value = newLanguage.languageCode;
-
-        localeInitDone.value = true;
     },
     { immediate: true },
 );
@@ -110,18 +107,7 @@ watch(
 app.use(createPinia());
 app.use(router);
 app.use(i18n);
-
-// Wait for locale to be initialized before mounting the app
-const appStartupHandler = watch(
-    localeInitDone,
-    (done) => {
-        if (done) {
-            app.mount("#app");
-            appStartupHandler(); // Stop watching after app is mounted
-        }
-    },
-    { immediate: true },
-);
+app.mount("#app");
 
 // Matomo Analytics
 if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID)
