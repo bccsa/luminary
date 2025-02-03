@@ -9,6 +9,7 @@ export type AuthPlugin = Auth0Plugin & {
 };
 
 async function setupAuth(app: App<Element>, router: Router) {
+    app.config.globalProperties.$auth = null; // Clear existing auth
     const web_origin = window.location.origin;
 
     const oauth = createAuth0(

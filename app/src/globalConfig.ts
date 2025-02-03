@@ -43,9 +43,7 @@ export const appLanguagesPreferredAsRef = computed(
     () =>
         appLanguageIdsAsRef.value
             .map((id) =>
-                cmsLanguages && cmsLanguages.value
-                    ? cmsLanguages.value.find((l) => l._id === id)
-                    : undefined,
+                cmsLanguages.value ? cmsLanguages.value.find((l) => l._id === id) : undefined,
             )
             .filter((l) => l) as LanguageDto[],
 );
@@ -64,53 +62,77 @@ export const appLanguagePreferredIdAsRef = computed(() =>
     appLanguageAsRef.value ? appLanguageAsRef.value._id : undefined,
 );
 
-let cmsLanguages: ShallowRef<LanguageDto[]> | undefined;
+/**
+ * The list of CMS defined languages as Vue ref.
+ */
+export const cmsLanguages = ref<LanguageDto[]>([]);
+
+/**
+ * The default language document as Vue ref.
+ */
+export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
+
 /**
  * Initialize the language settings. If no user preferred language is set, the browser preferred language is used if it is supported. Otherwise, the CMS default language is used.
  */
 export const initLanguage = () => {
-    cmsLanguages = useDexieLiveQuery(
-        async () =>
-            (await db.docs.where("type").equals(DocType.Language).toArray()) as unknown as Promise<
-                LanguageDto[]
-            >,
-    );
-
-    // Set the preferred language to the preferred language returned by the browser if it is not set
-    // The language is only set if there is a supported language for it otherwise it defaults to the CMS configured default language
-    if (appLanguageIdsAsRef.value.length === 0) {
-        watch(cmsLanguages, (_languages) => {
-            if (!_languages || _languages.length == 0) return;
-            if (!appLanguageIdsAsRef.value) return;
-
-            // Check for the browser preferred language in the list of available content languages
-            const browserPreferredLanguageId = _languages.find((l) =>
-                navigator.languages.includes(l.languageCode),
-            )?._id;
-
-            // If a browser preferred language exists, set it
-            if (browserPreferredLanguageId) {
-                setAppDefaultLanguage(browserPreferredLanguageId);
-                return;
-            }
-
-            // Find the CMS defined default language
-            const cmsDefaultLanguage = _languages.find((l) => l.default === 1);
-
-            // If the browser preferred language does not match any of the available content languages,
-            // set the CMS defined default language as the preferred language. If no default language is defined
-            // in the CMS, set the first available language as the preferred language.
-            appLanguageIdsAsRef.value[0] = cmsDefaultLanguage?._id || _languages[0]._id; // ??
-
-            // Add the CMS defined default language to the list of preferred languages if it is not already there
-            if (
-                cmsDefaultLanguage &&
-                !appLanguageIdsAsRef.value.some((l) => l === cmsDefaultLanguage._id)
-            ) {
-                appLanguageIdsAsRef.value.push(cmsDefaultLanguage._id);
-            }
+    return new Promise<void>((resolve) => {
+        const _cmsLanguages = useDexieLiveQuery(
+            async () =>
+                (await db.docs
+                    .where("type")
+                    .equals(DocType.Language)
+                    .toArray()) as unknown as Promise<LanguageDto[]>,
+            { initialValue: [] },
+        );
+        watch(_cmsLanguages, (newVal) => {
+            cmsLanguages.value.slice(0, cmsLanguages.value.length);
+            cmsLanguages.value.push(...newVal);
+            cmsDefaultLanguage.value = newVal.find((l) => l.default === 1);
         });
-    }
+
+        // Set the preferred language to the preferred language returned by the browser if it is not set
+        // The language is only set if there is a supported language for it otherwise it defaults to the CMS configured default language
+        if (appLanguageIdsAsRef.value.length === 0) {
+            const unwatchCmsLanguages = watch(cmsLanguages, (_languages) => {
+                if (!_languages || _languages.length == 0) return;
+                if (!appLanguageIdsAsRef.value) return;
+
+                // Check for the browser preferred language in the list of available content languages
+                const browserPreferredLanguageId = _languages.find((l) =>
+                    navigator.languages.includes(l.languageCode),
+                )?._id;
+
+                // If a browser preferred language exists, set it
+                if (browserPreferredLanguageId) {
+                    unwatchCmsLanguages();
+                    setAppDefaultLanguage(browserPreferredLanguageId);
+                    resolve();
+                }
+
+                // Find the CMS defined default language
+                const cmsDefaultLanguage = _languages.find((l) => l.default === 1);
+
+                // If the browser preferred language does not match any of the available content languages,
+                // set the CMS defined default language as the preferred language. If no default language is defined
+                // in the CMS, set the first available language as the preferred language.
+                appLanguageIdsAsRef.value[0] = cmsDefaultLanguage?._id || _languages[0]._id; // ??
+
+                // Add the CMS defined default language to the list of preferred languages if it is not already there
+                if (
+                    cmsDefaultLanguage &&
+                    !appLanguageIdsAsRef.value.some((l) => l === cmsDefaultLanguage._id)
+                ) {
+                    appLanguageIdsAsRef.value.push(cmsDefaultLanguage._id);
+                }
+
+                unwatchCmsLanguages();
+                resolve();
+            });
+        }
+
+        resolve();
+    });
 };
 
 export type mediaProgressEntry = {

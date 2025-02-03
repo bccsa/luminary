@@ -1,32 +1,26 @@
 import "./assets/main.css";
-import { createApp, ref, watch } from "vue";
+import { createApp } from "vue";
 import { createPinia } from "pinia";
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
-import auth from "./auth";
-import {
-    db,
-    DocType,
-    initLuminaryShared,
-    useDexieLiveQuery,
-    type LanguageDto,
-} from "luminary-shared";
+import auth, { type AuthPlugin } from "./auth";
+import { DocType, api, initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
 import { loadPlugins } from "./util/pluginLoader";
-import { createI18n } from "vue-i18n";
-import { appLanguageAsRef, initLanguage } from "./globalConfig";
+import { initLanguage } from "./globalConfig";
+import { apiUrl } from "./globalConfig";
+import { initI18n } from "./i18n";
 
-// Startup
+export const app = createApp(App);
+
 if (import.meta.env.VITE_FAV_ICON) {
     const favicon = document.getElementById("favicon") as HTMLLinkElement;
     if (favicon) {
         favicon.href = import.meta.env.VITE_LOGO_FAVICON;
     }
 }
-
-export const app = createApp(App);
 
 if (import.meta.env.PROD) {
     Sentry.init({
@@ -36,78 +30,100 @@ if (import.meta.env.PROD) {
     });
 }
 
+const loginRedirect = async (oauth: AuthPlugin) => {
+    const { loginWithRedirect, logout } = oauth;
+
+    const usedConnection = localStorage.getItem("usedAuth0Connection");
+    const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");
+
+    // Try to login. If this fails (e.g. the user cancels the login), log the user out after the second attempt
+    if (retryCount < 2) {
+        localStorage.setItem("auth0AuthFailedRetryCount", (retryCount + 1).toString());
+        await loginWithRedirect({
+            authorizationParams: {
+                connection: usedConnection ? usedConnection : undefined,
+                redirect_uri: window.location.origin,
+            },
+        });
+        return;
+    }
+
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+    localStorage.removeItem("usedAuth0Connection");
+    await logout({ logoutParams: { returnTo: window.location.origin } });
+};
+
+// Clear the auth0AuthFailedRetryCount if the user logs in successfully (if the app is not redirecting to the login page, we assume the user either logged out or the login was successful)
+setTimeout(() => {
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+}, 10000);
+
+const getToken = async (oauth: AuthPlugin) => {
+    const { isAuthenticated, getAccessTokenSilently } = oauth;
+
+    if (isAuthenticated.value) {
+        try {
+            return await getAccessTokenSilently();
+        } catch (err) {
+            Sentry.captureException(err);
+            await loginRedirect(oauth);
+        }
+    }
+};
+
 async function Startup() {
+    // setup auth0
+    const oauth = await auth.setupAuth(app, router);
+
+    // await waitUntilAuth0IsLoaded();
+    const token = await getToken(oauth);
+
     await initLuminaryShared({
         cms: false,
         docsIndex:
             "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
     });
-    // setup auth0
-    app.config.globalProperties.$auth = null; // Clear existing auth
-    const oauth = await auth.setupAuth(app, router);
-    app.use(oauth);
-    // wait to load plugins before mounting the app
-    await loadPlugins();
 
-    initLanguage();
-}
-await Startup();
-
-// Initialize i18n with empty messages
-const i18n = createI18n({
-    legacy: false,
-    locale: appLanguageAsRef.value?.languageCode || "en", // Default locale
-    messages: {}, // Empty messages to start
-});
-
-// Get default language document. This should move to globalConfig.ts
-const defaultLanguage = useDexieLiveQuery(
-    () =>
-        db.docs
-            .where("type")
-            .equals(DocType.Language)
-            .and((doc) => {
-                const languageDoc = doc as LanguageDto;
-                return languageDoc.default == 1;
-            })
-            .first() as unknown as Promise<LanguageDto>,
-);
-
-// Create a list of localised strings with fallback to the default language if not existing in the preferred language
-watch(
-    [appLanguageAsRef, defaultLanguage],
-    ([newLanguage, defaultLang]) => {
-        // TODO: This watcher is triggering multiple times on app startup. Need to investigate why
-
-        if (!newLanguage) return;
-        // copy translations in the preferred language
-        const messages: Record<string, string> = {};
-        Object.keys(newLanguage.translations).forEach((k: string) => {
-            messages[k] = newLanguage.translations[k];
+    // TODO: This can be simplified by moving the api init logic to initLuminaryShared
+    // Initialize the api connection
+    try {
+        const _api = api({
+            apiUrl,
+            token,
+            docTypes: [
+                { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
+                { type: DocType.Post, contentOnly: true, syncPriority: 2 },
+                { type: DocType.Language, contentOnly: false, syncPriority: 1 },
+            ],
         });
 
-        // Fill in missing translations with default language strings
-        if (defaultLang && defaultLang.translations && newLanguage._id != defaultLang._id) {
-            Object.keys(defaultLang.translations).forEach((k: string) => {
-                if (!messages[k]) {
-                    messages[k] = defaultLang.translations[k];
-                }
-            });
-        }
+        // ask for updated bulk docs
+        const rest = _api.rest();
+        rest.clientDataReq();
 
-        // Add new translations to i18n
-        i18n.global.setLocaleMessage(newLanguage.languageCode, messages);
+        const socket = _api.socket();
 
-        // Change the active locale
-        i18n.global.locale.value = newLanguage.languageCode;
-    },
-    { immediate: true },
-);
+        // handle API authentication failed messages
+        socket.on("apiAuthFailed", async () => {
+            console.error("API authentication failed, redirecting to login");
+            Sentry.captureMessage("API authentication failed, redirecting to login");
 
-app.use(createPinia());
-app.use(router);
-app.use(i18n);
-app.mount("#app");
+            await loginRedirect(oauth);
+        });
+    } catch (err) {
+        console.error(err);
+        Sentry.captureException(err);
+    }
+
+    await initLanguage();
+    const i18n = await initI18n();
+    await loadPlugins();
+
+    app.use(createPinia());
+    app.use(router);
+    app.use(i18n);
+    app.mount("#app");
+}
 
 // Matomo Analytics
 if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID)
@@ -154,3 +170,5 @@ if (import.meta.env.VITE_ANALYTICS_HOST && import.meta.env.VITE_ANALYTICS_SITEID
         });
     }
 }
+
+Startup();
