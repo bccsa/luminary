@@ -7,7 +7,7 @@ import {
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
-import { AclPermission, AckStatus, Uuid } from "./enums";
+import { AclPermission, AckStatus, Uuid, DocType } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
@@ -131,7 +131,9 @@ export class Socketio implements OnGatewayInit {
                     );
                     return;
                 }
-                refDoc = res.docs[0];
+                refDoc.memberOf = res.docs[0]?.memberOf;
+                // create a new type for the content document (<doctype>_content)
+                refDoc.type = `${res.docs[0]?.type}_${refDoc.type}`;
             }
 
             // Get groups of reference document
@@ -220,9 +222,21 @@ export class Socketio implements OnGatewayInit {
 
         // Join user to group rooms
         for (const docType of Object.keys(userViewGroups)) {
-            for (const group of userViewGroups[docType]) {
-                socket.join(`${docType}-${group}`);
-            }
+            const _isNormalDoc =
+                reqData.docTypes.filter((doc) => doc.type == docType && !doc.contentOnly).length >
+                0;
+            if (_isNormalDoc)
+                for (const group of userViewGroups[docType]) {
+                    socket.join(`${docType}-${group}`);
+                }
+
+            // Join content document rooms
+            const _isContentDoc =
+                reqData.docTypes.filter((doc) => doc.type == docType && doc.contentOnly).length > 0;
+            if (_isContentDoc)
+                for (const group of userViewGroups[docType]) {
+                    socket.join(`${docType}_${DocType.Content}-${group}`);
+                }
         }
     }
 

@@ -3,6 +3,9 @@ import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
 import { createTestingModule } from "./test/testingModule";
 import { socketioTestClient } from "./test/socketioTestClient";
+import { DocType } from "./enums";
+import waitForExpect from "wait-for-expect";
+import { changeRequest_content, changeRequest_language } from "./test/changeRequestDocuments";
 
 jest.mock("./configuration", () => {
     const originalModule = jest.requireActual("./configuration");
@@ -120,6 +123,55 @@ describe("Socketio", () => {
             expect(res.ack.doc._id).toBe("lang-eng");
             expect(res.ack.doc.type).toBe("language");
             expect(res.ack.doc.name).toBe("English");
+        });
+    });
+
+    describe("JoinSocketRooms", () => {
+        const docTypes = [
+            { type: DocType.Post, contentOnly: true },
+            { type: DocType.Tag, contentOnly: true },
+            { type: DocType.Language },
+        ];
+        it("can join a room", async () => {
+            client.emit("joinSocketGroups", { docTypes });
+
+            let _roomRes;
+            client.on(`data`, (data) => {
+                _roomRes = data;
+            });
+
+            client.connect();
+
+            await socketioTestClient({
+                cms: false,
+                version: Date.now() + 1000000,
+                changeRequest: changeRequest_language(),
+            });
+
+            await waitForExpect(() => {
+                expect(_roomRes).toBeDefined();
+            });
+        });
+
+        it("can join a room for content docs", async () => {
+            client.emit("joinSocketGroups", { docTypes });
+
+            let _roomRes;
+            client.on(`data`, (data) => {
+                _roomRes = data;
+            });
+
+            client.connect();
+
+            await socketioTestClient({
+                cms: false,
+                version: Date.now() + 1000000,
+                changeRequest: changeRequest_content(),
+            });
+
+            await waitForExpect(() => {
+                expect(_roomRes).toBeDefined();
+            });
         });
     });
 });
