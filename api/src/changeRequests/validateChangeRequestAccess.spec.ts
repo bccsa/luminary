@@ -4,6 +4,7 @@ import { plainToClass } from "class-transformer";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { createTestingModule } from "../test/testingModule";
+import { DocType } from "../enums";
 
 describe("validateChangeRequestAccess", () => {
     let db: DbService;
@@ -492,6 +493,31 @@ describe("validateChangeRequestAccess", () => {
                 db,
             );
             expect(res.validated).toBe(true);
+        });
+    });
+    describe("Language documents", () => {
+        it("Can validate: Edit Access to all languages is required to change default language", async () => {
+            const testChangeRequest_Language: ChangeReqDto = {
+                id: 20,
+                doc: {
+                    _id: 200,
+                    name: "lang-eng",
+                    languageCode: "eng",
+                    memberOf: ["group-languages"],
+                    type: DocType.Language,
+                    default: 1,
+                },
+            };
+            const res = await validateChangeRequestAccess(
+                testChangeRequest_Language,
+                ["group-public-editors"],
+                db,
+            );
+
+            expect(res.validated).toBe(false);
+            expect(res.error).toBe(
+                "Edit access to all languages is required to change the default language",
+            );
         });
     });
 });
