@@ -35,6 +35,7 @@ export type BaseDocumentDto = {
     parentTagType?: TagType;
     parentTags?: Uuid[];
     parentPinned?: number;
+    deleteReq?: number;
 };
 
 export enum AclPermission {
