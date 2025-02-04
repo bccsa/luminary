@@ -1,14 +1,15 @@
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, toRaw, watch } from "vue";
+import * as _ from "lodash";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
 export const isDevMode = import.meta.env.DEV;
 
-// Note: We could have used useLocalStorage from vueuse, but it seems to be difficult
-// to test as mocking localStorage is not working very well. For this reason
-// we are using a watcher so that we can use the ref directly and test it easily
-// without interactions with localStorage (which we choose to ignore for now in testing).
+/**
+ * The list of CMS defined languages as Vue ref.
+ */
+export const cmsLanguages = ref<LanguageDto[]>([]);
 
 /**
  * The preferred language ID as Vue ref.
@@ -28,6 +29,10 @@ function setAppDefaultLanguage(languageId: Uuid) {
 }
 
 // Save the preferred languages to local storage
+// Note: We could have used useLocalStorage from vueuse, but it seems to be difficult
+// to test as mocking localStorage is not working very well. For this reason
+// we are using a watcher so that we can use the ref directly and test it easily
+// without interactions with localStorage (which we choose to ignore for now in testing).
 watch(
     appLanguageIdsAsRef,
     (newVal) => {
@@ -49,13 +54,6 @@ export const appLanguagesPreferredAsRef = computed(
 );
 
 /**
- * The preferred language document as Vue ref.
- */
-export const appLanguageAsRef = computed(() =>
-    appLanguagesPreferredAsRef.value.length ? appLanguagesPreferredAsRef.value[0] : undefined,
-);
-
-/**
  * The preferred language's ID as Vue ref.
  */
 export const appLanguagePreferredIdAsRef = computed(() =>
@@ -63,9 +61,15 @@ export const appLanguagePreferredIdAsRef = computed(() =>
 );
 
 /**
- * The list of CMS defined languages as Vue ref.
+ * The preferred language document as Vue ref.
  */
-export const cmsLanguages = ref<LanguageDto[]>([]);
+export const appLanguageAsRef = ref<LanguageDto | undefined>();
+watch(appLanguagesPreferredAsRef, (newVal) => {
+    if (!newVal || !newVal.length) return;
+    // Prevent updating the value if the language is the same
+    if (_.isEqual(toRaw(appLanguageAsRef.value), toRaw(newVal[0]))) return;
+    appLanguageAsRef.value = newVal[0];
+});
 
 /**
  * The default language document as Vue ref.
@@ -90,7 +94,13 @@ export const initLanguage = () => {
             (newVal) => {
                 cmsLanguages.value.slice(0, cmsLanguages.value.length);
                 cmsLanguages.value.push(...newVal);
-                cmsDefaultLanguage.value = newVal.find((l) => l.default === 1);
+
+                const defaultLang = newVal.find((l) => l.default === 1);
+
+                // Prevent updating the value if the language is the same
+                if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
+
+                cmsDefaultLanguage.value = defaultLang;
             },
             { deep: true },
         );
