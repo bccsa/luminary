@@ -1,6 +1,8 @@
-import { ApiConnectionOptions, DocType } from "../types";
+import { DocType } from "../types";
 import { Sync } from "./sync";
 import { HttpReq } from "./http";
+import { config } from "../config";
+import { accessMap } from "../permissions/permissions";
 
 export type ApiSearchQuery = {
     apiVersion?: string;
@@ -16,6 +18,12 @@ export type ApiSearchQuery = {
     languages?: Array<string>;
 };
 
+export type ApiDocTypes = {
+    type: DocType;
+    contentOnly: boolean;
+    syncPriority: number; // 10 is default, lower number is higher priority
+};
+
 export type ChangeRequestQuery = {
     id: number;
     doc: any;
@@ -29,9 +37,26 @@ class RestApi {
      * Create a new docs instance
      * @param options - Options
      */
-    constructor(options: ApiConnectionOptions) {
-        this._sync = new Sync(options);
-        this.http = new HttpReq(options.apiUrl || "", options.token);
+    constructor() {
+        if (!config) {
+            throw new Error("The REST API connection requires options object");
+        }
+        if (!config.apiUrl) {
+            throw new Error("The REST API connection requires an API URL");
+        }
+        if (!config.docTypes || !config.docTypes[0]) {
+            throw new Error(
+                "The REST API connection requires an array of DocTypes that needs to be synced",
+            );
+        }
+        if (!accessMap.value || Object.keys(accessMap.value).length === 0) {
+            throw new Error(
+                "The REST API connection requires an access map to be set before connecting",
+            );
+        }
+
+        this._sync = new Sync();
+        this.http = new HttpReq(config.apiUrl || "", config.token);
     }
 
     async clientDataReq() {
@@ -55,22 +80,9 @@ let rest: RestApi;
  * Returns a singleton instance of the restApi client class. The api URL, token and CMS flag is only used when calling the function for the first time.
  * @param options - Socket connection options
  */
-export function getRest(options?: ApiConnectionOptions) {
+export function getRest() {
     if (rest) return rest;
 
-    if (!options) {
-        throw new Error("Rest API connection requires options object");
-    }
-    if (!options.apiUrl) {
-        throw new Error("Rest API connection requires an API URL");
-    }
-    if (!options.docTypes || !options.docTypes[0]) {
-        throw new Error(
-            "Rest API connection requires an array of DocTypes that needs to be synced",
-        );
-    }
-
-    rest = new RestApi(options);
-
+    rest = new RestApi();
     return rest;
 }

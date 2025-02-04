@@ -1,4 +1,4 @@
-import { Ref } from "vue";
+import { Ref, watch } from "vue";
 import { DocType, Uuid, AclPermission } from "../types";
 import { useLocalStorage } from "@vueuse/core";
 
@@ -72,3 +72,17 @@ export function getAccessibleGroups(permission: AclPermission): Record<DocType, 
     });
     return groups;
 }
+
+/**
+ * Validate that the access map has been loaded
+ */
+export const waitForAccessMap = async () => {
+    return new Promise<void>((resolve) => {
+        const unwatchAccessMap = watch(accessMap, () => {
+            if (accessMap.value && Object.keys(accessMap.value).length > 0) {
+                unwatchAccessMap();
+                resolve();
+            }
+        });
+    });
+};

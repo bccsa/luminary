@@ -3,10 +3,10 @@ import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest
 import waitForExpect from "wait-for-expect";
 import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
 import { Server } from "socket.io";
-import { db } from "../db/database";
+import { db, initDatabase } from "../db/database";
 import { AckStatus, ChangeReqDto, DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
-import { initLuminaryShared } from "../luminary";
+import { initConfig } from "../config";
 
 vi.mock("../config/config", () => ({
     config: {
@@ -23,12 +23,17 @@ describe("socketio", () => {
     const socketServer = new Server(12345);
 
     beforeAll(async () => {
-        await initLuminaryShared({ cms: true, docsIndex: "parentId, language, [type+docType]" });
-
-        // initialize the socket client
-        const socket = getSocket({
+        initConfig({
+            cms: true,
+            docsIndex: "parentId, language, [type+docType]",
             apiUrl: "http://localhost:12345",
         });
+
+        // Initialize the IndexedDB database
+        await initDatabase();
+
+        // initialize the socket client
+        const socket = getSocket();
         socket.disconnect();
     });
 

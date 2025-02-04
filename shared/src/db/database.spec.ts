@@ -23,17 +23,21 @@ import {
     type PostDto,
     type TagDto,
 } from "../types";
-import { db, getDbVersion } from "../db/database";
+import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
-import { initLuminaryShared } from "../luminary";
 import { DateTime } from "luxon";
+import { initConfig } from "../config";
 
 describe("Database", async () => {
     beforeAll(async () => {
-        await initLuminaryShared({
+        initConfig({
             cms: true,
             docsIndex: "",
+            apiUrl: "http://localhost:12345",
         });
+
+        // Initialize the IndexedDB database
+        await initDatabase();
     });
 
     beforeEach(async () => {
@@ -865,10 +869,12 @@ describe("Database", async () => {
     });
 
     it("deletes expired documents when not in cms-mode", async () => {
-        initLuminaryShared({
+        initConfig({
             cms: false,
             docsIndex: "parentId, language, expiryDate, [type+docType]",
+            apiUrl: "http://localhost:12345",
         });
+        await initDatabase();
 
         const now = DateTime.now();
         const expiredDate = now.minus({ days: 5 }).toMillis();
@@ -904,11 +910,15 @@ describe("Database", async () => {
 
     it("upgrade indexdb version by changing the docs index", async () => {
         const _v1 = await getDbVersion();
+
         // update db index schema
-        await initLuminaryShared({
+        initConfig({
             cms: false,
             docsIndex: "[type+docType+language]",
+            apiUrl: "http://localhost:12345",
         });
+        await initDatabase();
+
         const _v2 = await getDbVersion();
 
         expect(_v1).toBeLessThan(_v2);

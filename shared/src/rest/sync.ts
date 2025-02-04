@@ -1,10 +1,10 @@
-import { api } from "../api/api";
-import { ApiSearchQuery } from "./RestApi";
-import { ApiConnectionOptions, DocType } from "../types";
+import { ApiSearchQuery, getRest } from "./RestApi";
+import { DocType } from "../types";
 import { db, SyncMap, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { watch } from "vue";
 import _ from "lodash";
+import { config } from "../config";
 
 type MissingGap = {
     gapStart: number;
@@ -18,14 +18,12 @@ type QueueReqEntry = {
 };
 
 export class Sync {
-    private options: ApiConnectionOptions;
     private queue: number = 0;
     /**
      * Create a new Sync instance
      * @param options - Options
      */
-    constructor(options: ApiConnectionOptions) {
-        this.options = options;
+    constructor() {
         watch(
             accessMap.value,
             async () => {
@@ -34,8 +32,8 @@ export class Sync {
             { immediate: true },
         );
 
-        this.options.appLanguageIdsAsRef &&
-            watch(this.options.appLanguageIdsAsRef.value, async () => {
+        config.appLanguageIdsAsRef &&
+            watch(config.appLanguageIdsAsRef.value, async () => {
                 await this.clientDataReq();
             });
     }
@@ -95,7 +93,7 @@ export class Sync {
      * @param id   - id of the syncMap entry
      */
     async req(query: ApiSearchQuery, id: string): Promise<any> {
-        const data = await api().rest().search(query);
+        const data = await getRest().search(query);
         if (data && data.docs.length > 0) await db.bulkPut(data.docs);
         if (!data)
             return setTimeout(() => {
@@ -305,7 +303,7 @@ export class Sync {
         const groups: Array<string> = Object.keys(accessMap.value);
         await db.getSyncMap();
 
-        const syncPriorityContentOnly = this.options.docTypes?.filter(
+        const syncPriorityContentOnly = config.docTypes?.filter(
             (value, index, self) =>
                 index ===
                 self.findIndex(
@@ -328,7 +326,7 @@ export class Sync {
                 syncMap.value.set(_id, {
                     id: _id,
                     types:
-                        this.options.docTypes
+                        config.docTypes
                             ?.filter(
                                 (d) =>
                                     d.syncPriority == entry.syncPriority &&
@@ -339,7 +337,7 @@ export class Sync {
                             }) || [],
                     contentOnly: entry.contentOnly,
                     groups: groups,
-                    languages: this.options.appLanguageIdsAsRef?.value || [],
+                    languages: config.appLanguageIdsAsRef?.value || [],
                     syncPriority: entry.syncPriority,
                     blocks: [{ blockStart: 0, blockEnd: 0 }],
                 });
@@ -354,7 +352,7 @@ export class Sync {
         // check if types has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            const types = this.options.docTypes
+            const types = config.docTypes
                 ?.filter((d) => k.syncPriority == d.syncPriority && k.contentOnly == d.contentOnly)
                 .map((d) => d.type);
             this.compareEntires(_sm, k, types || [], "types");
@@ -363,7 +361,7 @@ export class Sync {
         // check if languages has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            this.compareEntires(_sm, k, this.options.appLanguageIdsAsRef?.value || [], "languages");
+            this.compareEntires(_sm, k, config.appLanguageIdsAsRef?.value || [], "languages");
         }
 
         // cleanup syncMaps
