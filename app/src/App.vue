@@ -11,7 +11,6 @@ import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 import { useRouter } from "vue-router";
-import { appLanguageIdsAsRef } from "@/globalConfig";
 
 const router = useRouter();
 const { isAuthenticated, user } = useAuth0();

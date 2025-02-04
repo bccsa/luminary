@@ -172,6 +172,11 @@ async function getToken(oauth: AuthPlugin) {
     }
 }
 
+// Clear the auth0AuthFailedRetryCount if the user logs in successfully (if the app is not redirecting to the login page, we assume the user either logged out or the login was successful)
+setTimeout(() => {
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+}, 10000);
+
 export default {
     setupAuth,
     loginRedirect,
