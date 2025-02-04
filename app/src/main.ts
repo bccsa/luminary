@@ -4,7 +4,7 @@ import { createPinia } from "pinia";
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
-import auth, { type AuthPlugin } from "./auth";
+import auth from "./auth";
 import { DocType, api, initLuminaryShared } from "luminary-shared";
 // @ts-expect-error matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
