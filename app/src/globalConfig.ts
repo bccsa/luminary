@@ -1,5 +1,5 @@
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
-import { computed, ref, watch, type ShallowRef } from "vue";
+import { computed, ref, watch } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
