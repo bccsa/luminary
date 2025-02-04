@@ -85,16 +85,23 @@ export const initLanguage = () => {
                     .toArray()) as unknown as Promise<LanguageDto[]>,
             { initialValue: [] },
         );
-        watch(_cmsLanguages, (newVal) => {
-            cmsLanguages.value.slice(0, cmsLanguages.value.length);
-            cmsLanguages.value.push(...newVal);
-            cmsDefaultLanguage.value = newVal.find((l) => l.default === 1);
-        });
+        watch(
+            _cmsLanguages,
+            (newVal) => {
+                cmsLanguages.value.slice(0, cmsLanguages.value.length);
+                cmsLanguages.value.push(...newVal);
+                cmsDefaultLanguage.value = newVal.find((l) => l.default === 1);
+            },
+            { deep: true },
+        );
 
         // Set the preferred language to the preferred language returned by the browser if it is not set
         // The language is only set if there is a supported language for it otherwise it defaults to the CMS configured default language
-        if (appLanguageIdsAsRef.value.length === 0) {
-            const unwatchCmsLanguages = watch(cmsLanguages, (_languages) => {
+        if (appLanguageIdsAsRef.value.length > 0) resolve();
+
+        const unwatchCmsLanguages = watch(
+            cmsLanguages,
+            (_languages) => {
                 if (!_languages || _languages.length == 0) return;
                 if (!appLanguageIdsAsRef.value) return;
 
@@ -128,10 +135,9 @@ export const initLanguage = () => {
 
                 unwatchCmsLanguages();
                 resolve();
-            });
-        }
-
-        resolve();
+            },
+            { deep: true },
+        );
     });
 };
 

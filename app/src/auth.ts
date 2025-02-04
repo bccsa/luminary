@@ -1,6 +1,7 @@
 import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
 import { type App, watch } from "vue";
 import type { Router } from "vue-router";
+import * as Sentry from "@sentry/vue";
 
 const authDomain = import.meta.env.VITE_AUTH0_DOMAIN;
 
@@ -8,6 +9,9 @@ export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;
 };
 
+/**
+ * Setup the Auth0 plugin.
+ */
 async function setupAuth(app: App<Element>, router: Router) {
     app.config.globalProperties.$auth = null; // Clear existing auth
     const web_origin = window.location.origin;
@@ -126,6 +130,50 @@ async function setupAuth(app: App<Element>, router: Router) {
     return oauth as AuthPlugin;
 }
 
+/**
+ * Redirect the user to the login page.
+ */
+async function loginRedirect(oauth: AuthPlugin) {
+    const { loginWithRedirect, logout } = oauth;
+
+    const usedConnection = localStorage.getItem("usedAuth0Connection");
+    const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");
+
+    // Try to login. If this fails (e.g. the user cancels the login), log the user out after the second attempt
+    if (retryCount < 2) {
+        localStorage.setItem("auth0AuthFailedRetryCount", (retryCount + 1).toString());
+        await loginWithRedirect({
+            authorizationParams: {
+                connection: usedConnection ? usedConnection : undefined,
+                redirect_uri: window.location.origin,
+            },
+        });
+        return;
+    }
+
+    localStorage.removeItem("auth0AuthFailedRetryCount");
+    localStorage.removeItem("usedAuth0Connection");
+    await logout({ logoutParams: { returnTo: window.location.origin } });
+}
+
+/**
+ * Get the user's auth token. Redirect to login if necessary.
+ */
+async function getToken(oauth: AuthPlugin) {
+    const { isAuthenticated, getAccessTokenSilently } = oauth;
+
+    if (isAuthenticated.value) {
+        try {
+            return await getAccessTokenSilently();
+        } catch (err) {
+            Sentry.captureException(err);
+            await loginRedirect(oauth);
+        }
+    }
+}
+
 export default {
     setupAuth,
+    loginRedirect,
+    getToken,
 };
