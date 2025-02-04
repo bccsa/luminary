@@ -20,7 +20,11 @@ import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@auth0/auth0-vue", () => ({
+    useAuth0: () => ({
+        isAuthenticated: ref(true),
+    }),
+}));
 vi.mock("vue-router");
 
 vi.mock("vue-i18n", () => ({
@@ -30,9 +34,8 @@ vi.mock("vue-i18n", () => ({
 }));
 
 describe("HomePage.vue", () => {
-    beforeAll(() => {
+    beforeAll(async () => {
         accessMap.value = viewAccessToAllContentMap;
-        initLanguage();
     });
 
     beforeEach(async () => {
@@ -41,7 +44,7 @@ describe("HomePage.vue", () => {
             isAuthenticated: ref(true),
         });
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
-        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
+        await initLanguage();
     });
 
     afterEach(async () => {
