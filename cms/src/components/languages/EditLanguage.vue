@@ -79,6 +79,11 @@ const originalLoadedHandler = watch(original, () => {
     if (!original.value) return;
     editable.value = _.cloneDeep(original.value);
 
+    // Ensure the translations field exists
+    if (!editable.value.translations) {
+        editable.value.translations = {};
+    }
+
     // Transform the translations into an array of translationKeyValuePair objects
     translations.value = Object.entries(editable.value.translations)
         .map(([key, value]) => ({
@@ -196,6 +201,12 @@ const confirmDelete = () => {
 
 // Save the current JSON to the database
 const save = async () => {
+    // Ensure translations object is fully updated before saving
+    editable.value.translations = {};
+    translations.value.forEach(({ translationKey, translationValue }) => {
+        editable.value.translations[translationKey] = translationValue;
+    });
+
     editable.value.updatedTimeUtc = Date.now();
     await db.upsert(editable.value);
 
@@ -204,6 +215,9 @@ const save = async () => {
         description: "Language updated successfully",
         state: "success",
     });
+
+    // Ensure changes are marked as saved
+    isDirty.value = false;
 };
 
 // Revert to the initial state
@@ -264,7 +278,7 @@ watch(comparisonLanguage, () => {
 });
 
 // Computed property to check if at least one group is selected
-const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
+const hasGroupsSelected = computed(() => editable.value.memberOf.length >= 0);
 </script>
 
 <template>
