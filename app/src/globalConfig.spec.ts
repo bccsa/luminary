@@ -24,7 +24,7 @@ describe("globalConfig.ts", () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
         await initLanguage();
 
-        // appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
+        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
     });
 
     afterEach(async () => {
