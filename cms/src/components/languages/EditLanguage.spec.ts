@@ -30,7 +30,7 @@ describe("EditLanguage.vue", () => {
             },
         });
 
-        const currentLanguage = wrapper.findAll("textarea");
+        const currentLanguage = wrapper.findAll("input");
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
@@ -45,8 +45,8 @@ describe("EditLanguage.vue", () => {
             },
         });
 
-        // Find inputs and set their values
-        const currentLanguage = wrapper.findAll("textarea");
+        // Find textareas and set their values
+        const currentLanguage = wrapper.findAll("input");
 
         // Update language name and code
         await currentLanguage[0].setValue("English (updated)");
@@ -73,21 +73,21 @@ describe("EditLanguage.vue", () => {
             },
         });
 
-        // Wait for the inputs and buttons to be available in the DOM
-        const keyInput = wrapper.find("textarea[data-test='key-input']");
-        const valueInput = wrapper.find("textarea[data-test='value-input']");
+        // Wait for the textareas and buttons to be available in the DOM
+        const keytextarea = wrapper.find("input[data-test='key-input']");
+        const valuetextarea = wrapper.find("input[data-test='value-input']");
         const addButton = wrapper.find("button[data-test='add-key-button']");
         const saveButton = wrapper.find("button[data-test='save-button']");
 
         // Assert that all required elements are present
-        expect(keyInput.exists()).toBe(true);
-        expect(valueInput.exists()).toBe(true);
+        expect(keytextarea.exists()).toBe(true);
+        expect(valuetextarea.exists()).toBe(true);
         expect(addButton.exists()).toBe(true);
         expect(saveButton.exists()).toBe(true);
 
         // Set values for the new translation
-        await keyInput.setValue("newKey.test");
-        await valueInput.setValue("New value");
+        await keytextarea.setValue("newKey.test");
+        await valuetextarea.setValue("New value");
 
         // Click the add button to add the new translation
         await addButton.trigger("click");
@@ -116,9 +116,9 @@ describe("EditLanguage.vue", () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
             const translationRow = wrapper.findAll("tr")[2];
-            const input = translationRow.findAll("textarea");
+            const textarea = translationRow.findAll("textarea");
 
-            await input[0].setValue("bookmarks.empty_page_updated");
+            await textarea[0].setValue("bookmarks.empty_page_updated");
 
             await wrapper.findComponent(PlusCircleIcon).trigger("click");
             await wrapper.find("button[data-test='save-button']").trigger("click");
@@ -144,9 +144,9 @@ describe("EditLanguage.vue", () => {
             expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
 
             const translationRow = wrapper.findAll("tr")[2];
-            const input = translationRow.findAll("textarea");
+            const textarea = translationRow.findAll("textarea");
 
-            await input[1].setValue("You should try this!");
+            await textarea[1].setValue("You should try this!");
 
             await wrapper.findComponent(PlusCircleIcon).trigger("click");
             await wrapper.find("button[data-test='save-button']").trigger("click");

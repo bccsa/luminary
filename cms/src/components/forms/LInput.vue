@@ -5,7 +5,7 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { computed, type Component, type StyleValue, ref, onMounted, watch } from "vue";
+import { computed, type Component, type StyleValue, ref, watch, onMounted } from "vue";
 import { useId } from "@/util/useId";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
@@ -27,6 +27,7 @@ type Props = {
     fullHeight?: boolean;
     leftAddOn?: string;
     rightAddOn?: string;
+    as?: "input" | "textarea";
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -35,10 +36,11 @@ const props = withDefaults(defineProps<Props>(), {
     required: false,
     disabled: false,
     fullHeight: false,
+    as: "input",
 });
 
 // Expose the focus method to parent components.
-const input = ref<HTMLTextAreaElement | undefined>(undefined);
+const input = ref<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
 const focus = () => {
     input.value?.focus();
 };
@@ -53,17 +55,23 @@ const { errorMessage, value, handleBlur, handleChange } = useField<string>(
     },
 );
 
+const isTextarea = computed(() => props.as == "textarea");
+
 // Auto-resize function
 const autoResize = () => {
-    if (input.value) {
+    if (isTextarea.value && input.value) {
         input.value.style.height = "auto"; // Reset height to calculate the new height
         input.value.style.height = input.value.scrollHeight + "px"; // Set to the new scroll height
     }
 };
 
-// Call autoResize on mount and when content changes
-onMounted(() => autoResize());
-watch(value, () => autoResize());
+// Call autoResize if input is a textarea on mount and when content changes
+if (isTextarea.value) {
+    onMounted(() => autoResize());
+    watch(value, () => {
+        if (isTextarea.value) autoResize();
+    });
+}
 
 // Initially and if field is valid, only validate when user leaves field.
 // If the field is invalid, validate as user is typing.
@@ -72,7 +80,7 @@ const validationListeners = {
     change: handleChange,
     input: (e: any) => {
         handleChange(e, !!errorMessage.value);
-        autoResize();
+        if (isTextarea.value) autoResize();
     },
 };
 
@@ -135,9 +143,33 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             >
                 {{ leftAddOn }}
             </span>
+            <input
+                v-if="as == 'input'"
+                ref="input"
+                v-model="value"
+                v-on="validationListeners"
+                :class="[
+                    sizes[size],
+                    states[computedState],
+                    {
+                        'rounded-l-md': !leftAddOn,
+                        'rounded-r-md': !rightAddOn,
+                        'pl-10': icon,
+                        'pr-10': state == 'error',
+                    },
+                    'block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
+                ]"
+                :id="id"
+                :name="name"
+                :disabled="disabled"
+                :required="required"
+                :placeholder="placeholder"
+                v-bind="attrsWithoutStyles"
+                :aria-describedby="$slots.default ? `${id}-message` : undefined"
+            />
 
-            <!-- We use textarea instead of input so that we can auto-resize and preserve line breaks -->
             <textarea
+                v-else-if="as == 'textarea'"
                 ref="input"
                 v-model="value"
                 v-on="validationListeners"

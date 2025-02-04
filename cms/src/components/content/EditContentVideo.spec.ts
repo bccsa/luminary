@@ -9,7 +9,7 @@ import { ref } from "vue";
 import EditContentVideo from "./EditContentVideo.vue";
 import LInput from "../forms/LInput.vue";
 
-describe("EditContentPreview.vue", () => {
+describe("EditContentVideo.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
@@ -63,7 +63,7 @@ describe("EditContentPreview.vue", () => {
         });
 
         // Find the input field within LInput
-        const videoInputWrapper = wrapper.find("textarea[name='video']");
+        const videoInputWrapper = wrapper.find("input[name='video']");
         const videoInput = videoInputWrapper.element as HTMLInputElement;
 
         // Check if the input value is correctly set
@@ -82,7 +82,7 @@ describe("EditContentPreview.vue", () => {
             },
         });
 
-        const videoInputWrapper = wrapper.findComponent(LInput).find("textarea[name='video']");
+        const videoInputWrapper = wrapper.findComponent(LInput).find("input[name='video']");
         const videoInput = videoInputWrapper.element as HTMLInputElement;
 
         await videoInputWrapper.setValue("https://example.com/new-video.mp4");
