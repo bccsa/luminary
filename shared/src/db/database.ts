@@ -40,6 +40,7 @@ export type SyncMap = {
     groups: Array<string>;
     contentOnly?: boolean;
     types: Array<string>;
+    languages: Array<string>;
     id: string;
     syncPriority: number; // default 0, a higher number is a higher priority
 };

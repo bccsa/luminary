@@ -1,3 +1,4 @@
+import { Ref } from "vue";
 import type { DocType, TagType, PublishStatus, PostType, RedirectType } from "../types";
 
 export enum AckStatus {
@@ -166,6 +167,10 @@ export type ApiConnectionOptions = {
      * Access token
      */
     token?: string;
+    /**
+     * Array of language IDs to use as a reference for syncing
+     */
+    appLanguageIdsAsRef?: Ref<string[]>;
     /**
      * Force a reconnect to the server if the socket already exists
      */
