@@ -51,10 +51,6 @@ async function setupAuth(app: App<Element>, router: Router) {
         await oauth.handleRedirectCallback(url.toString()).catch(() => null);
 
         const to = getRedirectTo() || "/";
-
-        // Clear redirect_to
-        localStorage.removeItem("redirect_to");
-
         location.href = to;
 
         return true;
@@ -63,37 +59,16 @@ async function setupAuth(app: App<Element>, router: Router) {
     // Handle redirects, if user needs to login and open the app via link with slug
     function getRedirectTo(): string {
         const route = router.currentRoute.value;
-        let to =
+        return (
             (route.query.redirect_to as string) ||
-            (new URLSearchParams(location.search).get("redirect_to") as string);
-        if (!to || to === "/") {
-            to = localStorage.getItem("redirect_to") || "";
-        }
-        return to;
-    }
-
-    // Handle redirects, if user needs to login and open the app via link with slug
-    function storeRedirectTo(to?: string): string | false {
-        to = to || getRedirectTo() || location.pathname;
-        if (to && to !== "/") {
-            try {
-                localStorage.setItem("redirect_to", to);
-            } catch (e) {
-                // ignore
-            }
-
-            return to;
-        }
-
-        return false;
+            (new URLSearchParams(location.search).get("redirect_to") as string)
+        );
     }
 
     app.use(oauth);
 
     // Handle login
-    if ((await redirectCallback(location.href)) === false) {
-        storeRedirectTo();
-    }
+    await redirectCallback(location.href);
 
     // Handle logout
     const _Logout = oauth.logout;
