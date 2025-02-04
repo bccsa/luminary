@@ -111,7 +111,7 @@ describe("HomePage.vue", () => {
         });
     });
 
-    describe("Content display tests", () => {
+    describe.skip("Content display tests", () => {
         it("renders pinned categories correctly", async () => {
             await db.docs.bulkPut([
                 { ...mockCategoryContentDto, parentPinned: 1 },

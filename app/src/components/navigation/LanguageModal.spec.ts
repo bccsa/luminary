@@ -19,6 +19,7 @@ describe("LanguageModal.vue", () => {
 
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
     });
 
     afterEach(async () => {

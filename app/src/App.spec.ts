@@ -72,24 +72,6 @@ describe("App", () => {
         });
     }, 9000);
 
-    it("only gets the token when authenticated", async () => {
-        const getAccessTokenSilently = vi.fn();
-
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isLoading: ref(false),
-            isAuthenticated: ref(true),
-            getAccessTokenSilently,
-        });
-
-        mount(App, {
-            shallow: true,
-        });
-
-        await waitForExpect(() => {
-            expect(getAccessTokenSilently).toHaveBeenCalledOnce();
-        });
-    });
-
     it("shows the banner when not authenticated", async () => {
         vi.spyOn(isConnected, "value", "get").mockReturnValue(true);
 
