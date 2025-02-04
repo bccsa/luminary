@@ -8,6 +8,7 @@ import { getRest } from "./RestApi";
 import express from "express";
 import { ApiSearchQuery } from "./RestApi";
 import waitForExpect from "wait-for-expect";
+import { ref } from "vue";
 import _ from "lodash";
 
 const app = express();
@@ -68,6 +69,7 @@ const syncMapEntry: SyncMap = {
     types: [DocType.Post],
     contentOnly: false,
     groups: ["group-super-admins"],
+    languages: [],
     syncPriority: 1,
     blocks: [
         {
@@ -100,7 +102,8 @@ app.get("/search", (req, res) => {
         JSON.stringify(
             _.isEqual(a.types, b.types) &&
                 _.isEqual(a.groups, b.groups) &&
-                a.contentOnly == b.contentOnly
+                a.contentOnly == b.contentOnly &&
+                mockApiRecursiveResponse.length > 0
                 ? mockApiRecursiveResponse.pop()
                 : mockApiResponse,
         ),
@@ -119,6 +122,7 @@ describe("rest", () => {
         await initLuminaryShared({ cms: true, docsIndex: "parentId, language, [type+docType]" });
         rest = getRest({
             apiUrl: "http://127.0.0.1:" + port,
+            appLanguageIdsAsRef: ref(["lang-eng"]),
             docTypes: [
                 { type: DocType.Post, contentOnly: true, syncPriority: 10 },
                 { type: DocType.Post, contentOnly: false, syncPriority: 10 },
@@ -246,6 +250,44 @@ describe("rest", () => {
         expect(_post2).toBe(undefined);
     });
 
+    it("can remove a type entry from the syncMap when the app's languages has changed", async () => {
+        await rest._sync.calcSyncMap();
+        rest._sync.options.appLanguageIdsAsRef.value.push("lang-ger");
+        await rest._sync.calcSyncMap();
+
+        const _sm1 = Object.fromEntries(syncMap.value);
+        const _post10 = Object.values(_sm1).find(
+            (e: any) =>
+                _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 10 && !e.contentOnly,
+        );
+        const _post10_content = Object.values(_sm1).find(
+            (e: any) =>
+                _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 10 && e.contentOnly,
+        );
+        const _post9 = Object.values(_sm1).find(
+            (e: any) =>
+                _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 9 && !e.contentOnly,
+        );
+        const _otherPost = Object.values(_sm1).find(
+            (e: any) =>
+                e.languages.includes("lang-ger") &&
+                !(e.id == _post10?.id || e.id == _post9?.id || e.id == _post10_content?.id),
+        );
+        // added type
+        expect(_post10).toBeDefined();
+        expect(_post9).toBeDefined();
+        expect(_otherPost).toBe(undefined);
+
+        rest._sync.options.appLanguageIdsAsRef.value.pop();
+
+        await rest._sync.calcSyncMap();
+
+        const _sm2 = Object.fromEntries(syncMap.value);
+        const _post2 = Object.values(_sm2).find((e: any) => e.languages.includes("lang-ger"));
+        // removed type
+        expect(_post2).toBe(undefined);
+    });
+
     it("can insert a block into the syncMap", async () => {
         let post;
         let posts;
@@ -255,6 +297,7 @@ describe("rest", () => {
             types: [DocType.Post],
             contentOnly: false,
             groups: ["group-super-admins"],
+            languages: [],
             syncPriority: 1,
             blocks: [
                 {

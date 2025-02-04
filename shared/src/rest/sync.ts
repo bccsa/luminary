@@ -1,7 +1,7 @@
 import { api } from "../api/api";
 import { ApiSearchQuery } from "./RestApi";
 import { ApiConnectionOptions, DocType } from "../types";
-import { db, syncMap, SyncMapEntry } from "../db/database";
+import { db, SyncMap, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { watch } from "vue";
 import _ from "lodash";
@@ -33,6 +33,11 @@ export class Sync {
             },
             { immediate: true },
         );
+
+        this.options.appLanguageIdsAsRef &&
+            watch(this.options.appLanguageIdsAsRef.value, async () => {
+                await this.clientDataReq();
+            });
     }
 
     async clientDataReq() {
@@ -46,6 +51,7 @@ export class Sync {
                 from: 0,
                 types: v.types as DocType[],
                 groups: v.groups,
+                languages: v.languages,
                 contentOnly: v.contentOnly,
                 limit: 100,
             };
@@ -333,6 +339,7 @@ export class Sync {
                             }) || [],
                     contentOnly: entry.contentOnly,
                     groups: groups,
+                    languages: this.options.appLanguageIdsAsRef?.value || [],
                     syncPriority: entry.syncPriority,
                     blocks: [{ blockStart: 0, blockEnd: 0 }],
                 });
@@ -341,37 +348,7 @@ export class Sync {
         // check if groups has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            if (!_.isEqual(groups, k.groups)) {
-                const newGroups = _.difference(groups, k.groups);
-                const removeGroups = _.difference(k.groups, groups);
-
-                const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
-
-                if (
-                    newGroups &&
-                    newGroups.length > 0 &&
-                    !Object.values(_sm).find(
-                        (v) =>
-                            _.isEqual(v.groups, newGroups) &&
-                            k.syncPriority == v.syncPriority &&
-                            k.contentOnly == v.contentOnly,
-                    )
-                )
-                    syncMap.value.set(_id, {
-                        ..._.cloneDeep(k),
-                        id: _id,
-                        groups: _.cloneDeep(newGroups),
-                        blocks: [{ blockStart: 0, blockEnd: 0 }],
-                    });
-
-                if (removeGroups && removeGroups.length > 0) {
-                    const _groups = k.groups.filter((g) => !removeGroups.includes(g));
-                    syncMap.value.set(k.id, {
-                        ..._.cloneDeep(k),
-                        groups: _.cloneDeep(_groups),
-                    });
-                }
-            }
+            this.compareEntires(_sm, k, groups, "groups");
         }
 
         // check if types has been updated
@@ -380,37 +357,13 @@ export class Sync {
             const types = this.options.docTypes
                 ?.filter((d) => k.syncPriority == d.syncPriority && k.contentOnly == d.contentOnly)
                 .map((d) => d.type);
-            if (!_.isEqual(types, k.types)) {
-                const newTypes = _.difference(types || [], k.types);
-                const removeTypes = _.difference(k.types, types || []);
+            this.compareEntires(_sm, k, types || [], "types");
+        }
 
-                const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
-
-                if (
-                    newTypes &&
-                    newTypes.length > 0 &&
-                    !Object.values(_sm).find(
-                        (v) =>
-                            _.isEqual(v.types, newTypes) &&
-                            k.syncPriority == v.syncPriority &&
-                            k.contentOnly == v.contentOnly,
-                    )
-                )
-                    syncMap.value.set(_id, {
-                        ..._.cloneDeep(k),
-                        id: _id,
-                        types: _.cloneDeep(newTypes),
-                        blocks: [{ blockStart: 0, blockEnd: 0 }],
-                    });
-
-                if (removeTypes && removeTypes.length > 0) {
-                    const _types = k.types.filter((g) => !removeTypes.includes(g));
-                    syncMap.value.set(k.id, {
-                        ..._.cloneDeep(k),
-                        types: _.cloneDeep(_types),
-                    });
-                }
-            }
+        // check if languages has been updated
+        _sm = Object.fromEntries(syncMap.value);
+        for (const k of Object.values(_sm)) {
+            this.compareEntires(_sm, k, this.options.appLanguageIdsAsRef?.value || [], "languages");
         }
 
         // cleanup syncMaps
@@ -428,6 +381,48 @@ export class Sync {
         }
 
         return syncMap;
+    }
+
+    /**
+     * Compare the syncMap entries and update the syncMap
+     * @param _sm - syncMap (Object.fromEntries)
+     * @param k - syncMap entry
+     * @param gtl - Array of Groups | Types | Languages
+     * @param key - groups | types | languages
+     */
+    compareEntires(_sm: Object, k: SyncMap, gtl: Array<string>, key: keyof SyncMap) {
+        if (!_.isEqual(gtl, k.types)) {
+            const newT = _.difference(gtl || [], k[key] as Array<string>);
+            const removeT = _.difference(k[key] as Array<string>, gtl || []);
+
+            const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
+
+            if (
+                newT &&
+                newT.length > 0 &&
+                !Object.values(_sm).find(
+                    (v) =>
+                        _.isEqual(v.types, newT) &&
+                        k.syncPriority == v.syncPriority &&
+                        k.contentOnly == v.contentOnly,
+                )
+            )
+                syncMap.value.set(_id, {
+                    ..._.cloneDeep(k),
+                    id: _id,
+                    [key]: _.cloneDeep(newT),
+                    blocks: [{ blockStart: 0, blockEnd: 0 }],
+                });
+
+            if (removeT && removeT.length > 0) {
+                const _F = k[key] as Array<string>;
+                const _T = _F.filter((g) => !removeT.includes(g));
+                syncMap.value.set(k.id, {
+                    ..._.cloneDeep(k),
+                    [key]: _.cloneDeep(_T),
+                });
+            }
+        }
     }
 
     /**

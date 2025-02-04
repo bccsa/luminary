@@ -13,6 +13,7 @@ import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 import { useRouter } from "vue-router";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 
 const { isAuthenticated, user, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 const router = useRouter();
@@ -63,6 +64,7 @@ onBeforeMount(async () => {
         const _api = api({
             apiUrl,
             token,
+            appLanguageIdsAsRef,
             docTypes: [
                 { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
                 { type: DocType.Post, contentOnly: true, syncPriority: 2 },
