@@ -5,9 +5,9 @@ import LInput from "./LInput.vue";
 describe("LInput", () => {
     it("emits update event on input", async () => {
         const wrapper = mount(LInput, {
-            props: { name: "textarea" },
+            props: { name: "input" },
         });
-        await wrapper.find("textarea").setValue("test value");
+        await wrapper.find("input").setValue("test value");
 
         expect(wrapper.emitted("update:modelValue")?.length).toBe(1);
         expect(wrapper.emitted("update:modelValue")![0]).toEqual(["test value"]);
