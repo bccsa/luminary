@@ -69,7 +69,7 @@ const syncMapEntry: SyncMap = {
     types: [DocType.Post],
     contentOnly: false,
     groups: ["group-super-admins"],
-    languages: [],
+    languages: ["lang-eng"],
     syncPriority: 1,
     blocks: [
         {
@@ -132,10 +132,27 @@ describe("rest", () => {
             apiUrl: "http://127.0.0.1:" + port,
             appLanguageIdsAsRef: ref(["lang-eng"]),
             docTypes: [
-                { type: DocType.Post, contentOnly: true, syncPriority: 10 },
-                { type: DocType.Post, contentOnly: false, syncPriority: 10 },
-                { type: DocType.Group, contentOnly: false, syncPriority: 10 },
-                { type: DocType.Language, contentOnly: false, syncPriority: 9 },
+                {
+                    type: DocType.Post,
+                    contentOnly: true,
+                    syncPriority: 10,
+                },
+                {
+                    type: DocType.Post,
+                    contentOnly: false,
+                    syncPriority: 10,
+                },
+                {
+                    type: DocType.Group,
+                    contentOnly: false,
+                    syncPriority: 10,
+                },
+                {
+                    type: DocType.Language,
+                    contentOnly: false,
+                    syncPriority: 9,
+                    skipPerLanguageSync: true,
+                },
             ],
         });
 
@@ -215,12 +232,22 @@ describe("rest", () => {
     it("can remove a type entry from the syncMap when the app's docTypes has changed", async () => {
         await rest._sync.calcSyncMap();
         config.docTypes = [
-            { type: DocType.Post, contentOnly: true, syncPriority: 10 },
-            { type: DocType.Post, contentOnly: false, syncPriority: 10 },
-            { type: DocType.Group, contentOnly: false, syncPriority: 10 },
-            { type: DocType.Tag, contentOnly: true, syncPriority: 9 },
-            { type: DocType.Language, contentOnly: false, syncPriority: 9 },
-            { type: DocType.Tag, contentOnly: false, syncPriority: 10 },
+            { type: DocType.Post, contentOnly: true, syncPriority: 10, skipPerLanguageSync: true },
+            { type: DocType.Post, contentOnly: false, syncPriority: 10, skipPerLanguageSync: true },
+            {
+                type: DocType.Group,
+                contentOnly: false,
+                syncPriority: 10,
+                skipPerLanguageSync: true,
+            },
+            { type: DocType.Tag, contentOnly: true, syncPriority: 9, skipPerLanguageSync: true },
+            {
+                type: DocType.Language,
+                contentOnly: false,
+                syncPriority: 9,
+                skipPerLanguageSync: true,
+            },
+            { type: DocType.Tag, contentOnly: false, syncPriority: 10, skipPerLanguageSync: true },
         ];
         await rest._sync.calcSyncMap();
 
@@ -244,7 +271,12 @@ describe("rest", () => {
             { type: DocType.Post, contentOnly: true, syncPriority: 10 },
             { type: DocType.Post, contentOnly: false, syncPriority: 10 },
             { type: DocType.Group, contentOnly: false, syncPriority: 10 },
-            { type: DocType.Language, contentOnly: false, syncPriority: 9 },
+            {
+                type: DocType.Language,
+                contentOnly: false,
+                syncPriority: 9,
+                skipPerLanguageSync: true,
+            },
         ];
 
         await rest._sync.calcSyncMap();
@@ -255,7 +287,7 @@ describe("rest", () => {
         expect(_post2).toBe(undefined);
     });
 
-    it("can remove a type entry from the syncMap when the app's languages has changed", async () => {
+    it("can remove a languages entry from the syncMap when the app's languages has changed", async () => {
         await rest._sync.calcSyncMap();
         config.appLanguageIdsAsRef!.value.push("lang-ger");
         await rest._sync.calcSyncMap();
@@ -280,7 +312,7 @@ describe("rest", () => {
         );
         // added type
         expect(_post10).toBeDefined();
-        expect(_post9).toBeDefined();
+        expect(_post9).toBe(undefined);
         expect(_otherPost).toBe(undefined);
 
         config.appLanguageIdsAsRef!.value.pop();
@@ -447,22 +479,6 @@ describe("rest", () => {
         expect(block).toBe(undefined);
     });
 
-    it("can correctly sort the queue", async () => {
-        const queue = [
-            { id: "a", syncPriority: 3, query: { from: 23 } },
-            { id: "b", syncPriority: 2, query: { from: 0 } },
-            { id: "c", syncPriority: 1, query: { from: 0 } },
-            { id: "d", syncPriority: 3, query: { from: 0 } },
-            { id: "e", syncPriority: 2, query: { from: 10 } },
-            { id: "f", syncPriority: 1, query: { from: 30 } },
-        ];
-
-        const q = rest._sync.sortQueue(queue);
-
-        expect(q[0]?.id).toBe("f");
-        expect(q[5]?.id).toBe("d");
-    });
-
     it("can correctly query the api", async () => {
         const query: ApiSearchQuery = {
             apiVersion: "0.0.0",
@@ -575,6 +591,29 @@ describe("rest", () => {
 
         expect(_post?.id).toBe("2_syncMap_main");
         expect(_.isEqual(_post?.types, [DocType.Post, DocType.Tag])).toBeTruthy();
+    });
+
+    it("can merge 2 syncMap entries, if they have the same priority and the same contentOnly flag, and one of them us completed sync (languages)", async () => {
+        syncMap.value.clear();
+        syncMap.value.set("2_syncMap_main", {
+            ...syncMapEntry,
+            syncPriority: 2,
+            id: "2_syncMap_main",
+        });
+        syncMap.value.set("2_syncMap_sub", {
+            ...syncMapEntry,
+            id: "1_syncMap_sub",
+            languages: ["lang-ger"],
+            blocks: [{ blockStart: 1000, blockEnd: 100 }],
+            syncPriority: 2,
+        });
+
+        rest._sync.mergeSyncMapEntries("2_syncMap_sub");
+
+        const _post = syncMap.value.get("2_syncMap_main");
+
+        expect(_post?.id).toBe("2_syncMap_main");
+        expect(_.isEqual(_post?.languages, ["lang-eng", "lang-ger"])).toBeTruthy();
     });
 
     it("can remove old values from the syncMap that is not valid anymore", async () => {

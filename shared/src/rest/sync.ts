@@ -11,14 +11,7 @@ type MissingGap = {
     gapEnd: number;
 };
 
-type QueueReqEntry = {
-    query: ApiSearchQuery;
-    id: string;
-    syncPriority: number;
-};
-
 export class Sync {
-    private queue: number = 0;
     /**
      * Create a new Sync instance
      * @param options - Options
@@ -40,10 +33,10 @@ export class Sync {
 
     async clientDataReq() {
         await this.calcSyncMap();
-        const queue: Array<QueueReqEntry> = [];
 
         const _sm = Object.fromEntries(syncMap.value);
-        for (const v of Object.values(_sm)) {
+        const _sm_sorted = Object.values(_sm).sort((a, b) => a.syncPriority - b.syncPriority);
+        for (const v of _sm_sorted) {
             const query: ApiSearchQuery = {
                 apiVersion: "0.0.0",
                 from: 0,
@@ -61,29 +54,7 @@ export class Sync {
 
             query.from = newest?.blockStart || 0;
 
-            // request newest data
-            // implement a queue that will handle 10 request at a time
-            queue.push({ query, id: v.id, syncPriority: v.syncPriority });
-        }
-
-        this.processQueue(this.sortQueue(queue));
-    }
-
-    /**
-     * Process the queue of requests according to priority
-     * @param queue - queue of requests
-     */
-    async processQueue(queueReq: Array<QueueReqEntry>) {
-        const queueSize = 10;
-
-        if (this.queue <= queueSize && queueReq.length > 0) {
-            this.queue++;
-            this.processQueue(queueReq);
-            const req = queueReq.shift();
-            if (!req?.query && !req?.id) return;
-            await this.req(req.query, req.id);
-            this.queue--;
-            this.processQueue(queueReq);
+            await this.req(query, v.id);
         }
     }
 
@@ -271,25 +242,32 @@ export class Sync {
         if (blocks && blocks.length < 2) {
             const groups = syncMap.value.get(id)?.groups;
             const types = syncMap.value.get(id)?.types;
+            const languages = syncMap.value.get(id)?.languages;
             const contentOnly = syncMap.value.get(id)?.contentOnly;
             const syncPriority = syncMap.value.get(id)?.syncPriority;
+            const skipPerLanguageSync = syncMap.value.get(id)?.skipPerLanguageSync;
 
             const _sm = Object.fromEntries(syncMap.value);
             const parent = Object.values(_sm).find(
                 (f) =>
                     f.contentOnly == contentOnly &&
                     f.syncPriority == syncPriority &&
+                    f.skipPerLanguageSync == skipPerLanguageSync &&
                     !_.isEqual(f, entry),
             );
 
             if (!parent) return;
             const newGroups = Array.from(new Set([...(parent.groups || []), ...(groups || [])]));
             const newTypes = Array.from(new Set([...(parent.types || []), ...(types || [])]));
+            const newLanguages = Array.from(
+                new Set([...(parent.languages || []), ...(languages || [])]),
+            );
 
             syncMap.value.set(parent.id, {
                 ..._.cloneDeep(parent),
                 groups: _.cloneDeep(newGroups),
                 types: _.cloneDeep(newTypes),
+                languages: _.cloneDeep(newLanguages),
             });
             syncMap.value.delete(id);
         }
@@ -323,24 +301,32 @@ export class Sync {
                         v.syncPriority == entry.syncPriority && v.contentOnly == entry.contentOnly,
                 )
             )
-                syncMap.value.set(_id, {
-                    id: _id,
-                    types:
-                        config.docTypes
-                            ?.filter(
-                                (d) =>
-                                    d.syncPriority == entry.syncPriority &&
-                                    d.contentOnly == entry.contentOnly,
-                            )
-                            .map((d) => {
-                                return d.type;
-                            }) || [],
-                    contentOnly: entry.contentOnly,
-                    groups: groups,
-                    languages: config.appLanguageIdsAsRef?.value || [],
-                    syncPriority: entry.syncPriority,
-                    blocks: [{ blockStart: 0, blockEnd: 0 }],
-                });
+                if (
+                    entry.skipPerLanguageSync ||
+                    (config.appLanguageIdsAsRef?.value &&
+                        config.appLanguageIdsAsRef?.value.length > 0)
+                )
+                    syncMap.value.set(_id, {
+                        id: _id,
+                        types:
+                            config.docTypes
+                                ?.filter(
+                                    (d) =>
+                                        d.syncPriority == entry.syncPriority &&
+                                        d.contentOnly == entry.contentOnly,
+                                )
+                                .map((d) => {
+                                    return d.type;
+                                }) || [],
+                        contentOnly: entry.contentOnly,
+                        groups: groups,
+                        skipPerLanguageSync: entry.skipPerLanguageSync,
+                        languages: entry.skipPerLanguageSync
+                            ? []
+                            : config.appLanguageIdsAsRef?.value || [],
+                        syncPriority: entry.syncPriority,
+                        blocks: [{ blockStart: 0, blockEnd: 0 }],
+                    });
         }
 
         // check if groups has been updated
@@ -361,7 +347,8 @@ export class Sync {
         // check if languages has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            this.compareEntires(_sm, k, config.appLanguageIdsAsRef?.value || [], "languages");
+            if (!k.skipPerLanguageSync)
+                this.compareEntires(_sm, k, config.appLanguageIdsAsRef?.value || [], "languages");
         }
 
         // cleanup syncMaps
@@ -435,21 +422,6 @@ export class Sync {
         if (!group) return;
         const block = group.blocks.find((b) => b.blockEnd == 0 && b.blockStart == 0);
         if (block) group.blocks.splice(group.blocks.indexOf(block), 1);
-    }
-
-    /**
-     * Sort queue according to gapEnd and syncPriority
-     * @param queue - queue of requests
-     * @returns
-     */
-    sortQueue(queue: Array<QueueReqEntry>) {
-        // sort queue according to gapEnd (if gapEnd is 0 move down in queue)
-        queue.sort((a) => {
-            if (a.query.from == 0) return 1;
-            else return -1;
-        });
-        // sort queue according to syncPriority
-        return queue.sort((a, b) => a.syncPriority - b.syncPriority);
     }
 
     /**

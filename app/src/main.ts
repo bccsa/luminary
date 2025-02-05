@@ -8,7 +8,7 @@ import auth from "./auth";
 import { DocType, getSocket, initLuminaryShared } from "luminary-shared";
 
 import { loadPlugins } from "./util/pluginLoader";
-import { initLanguage } from "./globalConfig";
+import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
@@ -40,10 +40,16 @@ async function Startup() {
             "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
         apiUrl,
         token,
+        appLanguageIdsAsRef,
         docTypes: [
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
             { type: DocType.Post, contentOnly: true, syncPriority: 2 },
-            { type: DocType.Language, contentOnly: false, syncPriority: 1 },
+            {
+                type: DocType.Language,
+                contentOnly: false,
+                syncPriority: 1,
+                skipPerLanguageSync: true,
+            },
         ],
     }).catch((err) => {
         console.error(err);

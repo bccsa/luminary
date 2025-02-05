@@ -26,7 +26,7 @@ export const initI18n = () => {
                 console.log("Setting language", newLanguage.languageCode);
                 // copy translations in the preferred language
                 const messages: Record<string, string> = {};
-                Object.keys(newLanguage.translations).forEach((k: string) => {
+                Object.keys(newLanguage.translations || {}).forEach((k: string) => {
                     messages[k] = newLanguage.translations[k];
                 });
 

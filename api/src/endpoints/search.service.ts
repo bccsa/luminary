@@ -1,6 +1,6 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbQueryResult, DbService, QueryDocsOptions } from "../db/db.service";
-import { AclPermission } from "../enums";
+import { AclPermission, DocType } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -44,11 +44,10 @@ export class SearchService {
         const accessMap: AccessMap = PermissionSystem.getAccessMap(permissions.groups);
 
         // Get user accessible groups
-        const userViewGroups = PermissionSystem.accessMapToGroups(
-            accessMap,
-            AclPermission.View,
-            query.types,
-        );
+        const userViewGroups = PermissionSystem.accessMapToGroups(accessMap, AclPermission.View, [
+            ...query.types,
+            DocType.Language,
+        ]);
 
         if (Object.keys(userViewGroups).length < 1)
             throw new HttpException(
