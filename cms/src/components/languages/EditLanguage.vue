@@ -41,6 +41,9 @@ const translations = ref<translationKeyValuePair[]>([]);
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const isLocalChange = db.isLocalChangeAsRef(props.id);
 
+const original = useDexieLiveQuery(
+    () => db.docs.where("_id").equals(props.id).first() as unknown as Promise<LanguageDto>,
+);
 const editable = ref<LanguageDto>({
     _id: props.id,
     name: "New language",
@@ -51,11 +54,6 @@ const editable = ref<LanguageDto>({
     updatedTimeUtc: Date.now(),
     translations: {},
 });
-
-const original = useDexieLiveQuery(
-    () => db.docs.where("_id").equals(props.id).first() as unknown as Promise<LanguageDto>,
-);
-
 const isNew = computed(() => !original.value?._id);
 
 watch(
@@ -75,12 +73,6 @@ watch(
     },
     { deep: true, immediate: true },
 );
-
-watch(isNew, () => {
-    if (isNew.value) {
-        original.value = _.cloneDeep(editable.value);
-    }
-});
 
 // Clone the original language when it's loaded into the editable object
 const originalLoadedHandler = watch(original, () => {
@@ -210,6 +202,7 @@ const save = async () => {
     original.value = _.cloneDeep(editable.value);
 
     editable.value.updatedTimeUtc = Date.now();
+    await db.upsert(editable.value);
 
     useNotificationStore().addNotification({
         title: "Language updated",
@@ -218,8 +211,6 @@ const save = async () => {
     });
 
     isDirty.value = false;
-
-    await db.upsert(editable.value);
 };
 
 // Revert to the initial state
