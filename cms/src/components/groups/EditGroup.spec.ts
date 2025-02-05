@@ -48,12 +48,6 @@ app.use(
 
 const port = 12348;
 
-// api({
-//     apiUrl: `http://localhost:${port}`,
-//     token: "test",
-//     docTypes: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
-// });
-
 let mockApiRequest: { doc: any };
 app.post("/changerequest", (req, res) => {
     mockApiRequest = req.body;
