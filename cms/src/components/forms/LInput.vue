@@ -27,7 +27,7 @@ type Props = {
     fullHeight?: boolean;
     leftAddOn?: string;
     rightAddOn?: string;
-    as?: "input" | "textarea";
+    inputType?: "input" | "textarea";
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,7 +36,7 @@ const props = withDefaults(defineProps<Props>(), {
     required: false,
     disabled: false,
     fullHeight: false,
-    as: "input",
+    inputType: "input",
 });
 
 // Expose the focus method to parent components.
@@ -55,7 +55,7 @@ const { errorMessage, value, handleBlur, handleChange } = useField<string>(
     },
 );
 
-const isTextarea = computed(() => props.as == "textarea");
+const isTextarea = computed(() => props.inputType == "textarea");
 
 // Auto-resize function
 const autoResize = () => {
@@ -144,7 +144,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <input
-                v-if="as == 'input'"
+                v-if="inputType == 'input'"
                 ref="input"
                 v-model="value"
                 v-on="validationListeners"
@@ -169,7 +169,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             />
 
             <textarea
-                v-else-if="as == 'textarea'"
+                v-else-if="inputType == 'textarea'"
                 ref="input"
                 v-model="value"
                 v-on="validationListeners"
