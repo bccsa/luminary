@@ -79,6 +79,8 @@ const originalLoadedHandler = watch(original, () => {
     if (!original.value) return;
     editable.value = _.cloneDeep(original.value);
 
+    if (!editable.value.translations) editable.value.translations = {};
+
     // Transform the translations into an array of translationKeyValuePair objects
     translations.value = Object.entries(editable.value.translations)
         .map(([key, value]) => ({
@@ -196,6 +198,9 @@ const confirmDelete = () => {
 
 // Save the current JSON to the database
 const save = async () => {
+    // Update the original object to reflect the newly saved state
+    original.value = _.cloneDeep(editable.value);
+
     editable.value.updatedTimeUtc = Date.now();
     await db.upsert(editable.value);
 
@@ -204,6 +209,8 @@ const save = async () => {
         description: "Language updated successfully",
         state: "success",
     });
+
+    isDirty.value = false;
 };
 
 // Revert to the initial state
