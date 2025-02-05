@@ -7,7 +7,6 @@ import { ref } from "vue";
 import { createTestingPinia } from "@pinia/testing";
 import LoadingSpinner from "./components/LoadingSpinner.vue";
 import { setActivePinia } from "pinia";
-import waitForExpect from "wait-for-expect";
 import { getSocket } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
 import { router } from "./router";
