@@ -147,7 +147,7 @@ class SocketIO {
 let socket: SocketIO;
 
 /**
- * Returns a singleton instance of the SocketIO client class. The api URL, token and CMS flag is only used when calling the function for the first time.
+ * Returns a singleton instance of the SocketIO client class.
  * @param options - Socket connection options
  */
 export function getSocket(

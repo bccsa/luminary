@@ -78,11 +78,18 @@ class RestApi {
 let rest: RestApi;
 
 /**
- * Returns a singleton instance of the restApi client class. The api URL, token and CMS flag is only used when calling the function for the first time.
+ * Returns a singleton instance of the REST client class. The api URL, token and CMS flag is only used when calling the function for the first time.
  * @param options - Socket connection options
  */
-export function getRest() {
-    if (rest) return rest;
+export function getRest(
+    options: {
+        /**
+         * If true, the singleton instance of the REST client will be reset
+         */
+        reset?: boolean;
+    } = { reset: false },
+): RestApi {
+    if (rest && !options.reset) return rest;
 
     rest = new RestApi();
     return rest;

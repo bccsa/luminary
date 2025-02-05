@@ -48,24 +48,6 @@ describe("App", () => {
         expect(wrapper.findComponent(LoadingSpinner).exists()).toBe(true);
     });
 
-    it("only gets the token when authenticated", async () => {
-        const getAccessTokenSilently = vi.fn();
-
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isLoading: ref(false),
-            isAuthenticated: ref(true),
-            getAccessTokenSilently,
-        });
-
-        mount(App, {
-            shallow: true,
-        });
-
-        await waitForExpect(() => {
-            expect(getAccessTokenSilently).toHaveBeenCalledOnce();
-        });
-    });
-
     it("displays notification when change request fails", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isLoading: ref(false),
@@ -79,10 +61,7 @@ describe("App", () => {
             },
         });
 
-        const socket = getSocket({
-            apiUrl: "test",
-            token: "test-token",
-        });
+        const socket = getSocket();
 
         const changeRequestAckHandler = vi.fn((data) => {
             if (data.ack === "rejected") {

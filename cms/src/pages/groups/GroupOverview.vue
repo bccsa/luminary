@@ -6,7 +6,7 @@ import {
     AclPermission,
     db,
     DocType,
-    api,
+    getRest,
     hasAnyPermission,
     type ApiSearchQuery,
     type GroupDto,
@@ -28,7 +28,7 @@ const getDbGroups = async () => {
     }, 0);
 
     latest ? (groupsQuery.from = latest) : delete groupsQuery.from;
-    const _q = await api().rest().search(groupsQuery);
+    const _q = await getRest().search(groupsQuery);
     _q &&
         _q.docs &&
         _q.docs.forEach((d: GroupDto) => {
