@@ -21,7 +21,6 @@ import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
-import { SharedConfig } from "../config";
 import _ from "lodash";
 const dbName: string = "luminary-db";
 
@@ -40,6 +39,8 @@ export type SyncMap = {
     groups: Array<string>;
     contentOnly?: boolean;
     types: Array<string>;
+    languages: Array<string>;
+    skipWaitForLanguageSync?: boolean;
     id: string;
     syncPriority: number; // default 0, a higher number is a higher priority
 };
@@ -744,9 +745,9 @@ class Database extends Dexie {
 
 export let db: Database;
 
-export async function initDatabase({ docsIndex }: SharedConfig) {
+export async function initDatabase() {
     const _v: number = await getDbVersion();
-    db = new Database(_v, docsIndex);
+    db = new Database(_v, config.docsIndex);
 }
 
 /**

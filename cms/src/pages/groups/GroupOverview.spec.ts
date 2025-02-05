@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import GroupOverview from "./GroupOverview.vue";
 import { createTestingPinia } from "@pinia/testing";
@@ -12,7 +12,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, api, DocType } from "luminary-shared";
+import { accessMap, DocType, getRest, initConfig } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router");
@@ -22,11 +22,6 @@ vi.mock("vue-router");
 // ============================
 const app = express();
 const port = 12347;
-api({
-    apiUrl: `http://localhost:${port}`,
-    token: "test",
-    docTypes: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
-});
 
 let mockApiRequest: string;
 app.get("/search", (req, res) => {
@@ -49,7 +44,19 @@ app.listen(port, () => {
 });
 
 describe("GroupOverview", () => {
-    accessMap.value = superAdminAccessMap;
+    beforeAll(async () => {
+        accessMap.value = superAdminAccessMap;
+        initConfig({
+            cms: false,
+            docsIndex:
+                "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
+            apiUrl: `http://localhost:${port}`,
+            docTypes: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
+        });
+
+        // Reset the rest api client to use the new config
+        getRest({ reset: true });
+    });
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());

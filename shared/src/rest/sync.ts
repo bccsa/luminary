@@ -1,31 +1,22 @@
-import { api } from "../api/api";
-import { ApiSearchQuery } from "./RestApi";
-import { ApiConnectionOptions, DocType } from "../types";
-import { db, syncMap, SyncMapEntry } from "../db/database";
+import { ApiSearchQuery, getRest } from "./RestApi";
+import { DocType } from "../types";
+import { db, SyncMap, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { watch } from "vue";
 import _ from "lodash";
+import { config } from "../config";
 
 type MissingGap = {
     gapStart: number;
     gapEnd: number;
 };
 
-type QueueReqEntry = {
-    query: ApiSearchQuery;
-    id: string;
-    syncPriority: number;
-};
-
 export class Sync {
-    private options: ApiConnectionOptions;
-    private queue: number = 0;
     /**
      * Create a new Sync instance
      * @param options - Options
      */
-    constructor(options: ApiConnectionOptions) {
-        this.options = options;
+    constructor() {
         watch(
             accessMap.value,
             async () => {
@@ -33,19 +24,25 @@ export class Sync {
             },
             { immediate: true },
         );
+
+        config.appLanguageIdsAsRef &&
+            watch(config.appLanguageIdsAsRef.value, async () => {
+                await this.clientDataReq();
+            });
     }
 
     async clientDataReq() {
         await this.calcSyncMap();
-        const queue: Array<QueueReqEntry> = [];
 
         const _sm = Object.fromEntries(syncMap.value);
-        for (const v of Object.values(_sm)) {
+        const _sm_sorted = Object.values(_sm).sort((a, b) => a.syncPriority - b.syncPriority);
+        for (const v of _sm_sorted) {
             const query: ApiSearchQuery = {
                 apiVersion: "0.0.0",
                 from: 0,
                 types: v.types as DocType[],
                 groups: v.groups,
+                languages: v.languages,
                 contentOnly: v.contentOnly,
                 limit: 100,
             };
@@ -57,29 +54,7 @@ export class Sync {
 
             query.from = newest?.blockStart || 0;
 
-            // request newest data
-            // implement a queue that will handle 10 request at a time
-            queue.push({ query, id: v.id, syncPriority: v.syncPriority });
-        }
-
-        this.processQueue(this.sortQueue(queue));
-    }
-
-    /**
-     * Process the queue of requests according to priority
-     * @param queue - queue of requests
-     */
-    async processQueue(queueReq: Array<QueueReqEntry>) {
-        const queueSize = 10;
-
-        if (this.queue <= queueSize && queueReq.length > 0) {
-            this.queue++;
-            this.processQueue(queueReq);
-            const req = queueReq.shift();
-            if (!req?.query && !req?.id) return;
-            await this.req(req.query, req.id);
-            this.queue--;
-            this.processQueue(queueReq);
+            await this.req(query, v.id);
         }
     }
 
@@ -89,7 +64,7 @@ export class Sync {
      * @param id   - id of the syncMap entry
      */
     async req(query: ApiSearchQuery, id: string): Promise<any> {
-        const data = await api().rest().search(query);
+        const data = await getRest().search(query);
         if (data && data.docs.length > 0) await db.bulkPut(data.docs);
         if (!data)
             return setTimeout(() => {
@@ -267,25 +242,32 @@ export class Sync {
         if (blocks && blocks.length < 2) {
             const groups = syncMap.value.get(id)?.groups;
             const types = syncMap.value.get(id)?.types;
+            const languages = syncMap.value.get(id)?.languages;
             const contentOnly = syncMap.value.get(id)?.contentOnly;
             const syncPriority = syncMap.value.get(id)?.syncPriority;
+            const skipWaitForLanguageSync = syncMap.value.get(id)?.skipWaitForLanguageSync;
 
             const _sm = Object.fromEntries(syncMap.value);
             const parent = Object.values(_sm).find(
                 (f) =>
                     f.contentOnly == contentOnly &&
                     f.syncPriority == syncPriority &&
+                    f.skipWaitForLanguageSync == skipWaitForLanguageSync &&
                     !_.isEqual(f, entry),
             );
 
             if (!parent) return;
             const newGroups = Array.from(new Set([...(parent.groups || []), ...(groups || [])]));
             const newTypes = Array.from(new Set([...(parent.types || []), ...(types || [])]));
+            const newLanguages = Array.from(
+                new Set([...(parent.languages || []), ...(languages || [])]),
+            );
 
             syncMap.value.set(parent.id, {
                 ..._.cloneDeep(parent),
                 groups: _.cloneDeep(newGroups),
                 types: _.cloneDeep(newTypes),
+                languages: _.cloneDeep(newLanguages),
             });
             syncMap.value.delete(id);
         }
@@ -299,7 +281,7 @@ export class Sync {
         const groups: Array<string> = Object.keys(accessMap.value);
         await db.getSyncMap();
 
-        const syncPriorityContentOnly = this.options.docTypes?.filter(
+        const syncPriorityContentOnly = config.docTypes?.filter(
             (value, index, self) =>
                 index ===
                 self.findIndex(
@@ -319,98 +301,54 @@ export class Sync {
                         v.syncPriority == entry.syncPriority && v.contentOnly == entry.contentOnly,
                 )
             )
-                syncMap.value.set(_id, {
-                    id: _id,
-                    types:
-                        this.options.docTypes
-                            ?.filter(
-                                (d) =>
-                                    d.syncPriority == entry.syncPriority &&
-                                    d.contentOnly == entry.contentOnly,
-                            )
-                            .map((d) => {
-                                return d.type;
-                            }) || [],
-                    contentOnly: entry.contentOnly,
-                    groups: groups,
-                    syncPriority: entry.syncPriority,
-                    blocks: [{ blockStart: 0, blockEnd: 0 }],
-                });
+                if (
+                    entry.skipWaitForLanguageSync ||
+                    (config.appLanguageIdsAsRef?.value &&
+                        config.appLanguageIdsAsRef?.value.length > 0)
+                )
+                    syncMap.value.set(_id, {
+                        id: _id,
+                        types:
+                            config.docTypes
+                                ?.filter(
+                                    (d) =>
+                                        d.syncPriority == entry.syncPriority &&
+                                        d.contentOnly == entry.contentOnly,
+                                )
+                                .map((d) => {
+                                    return d.type;
+                                }) || [],
+                        contentOnly: entry.contentOnly,
+                        groups: groups,
+                        skipWaitForLanguageSync: entry.skipWaitForLanguageSync,
+                        languages: entry.skipWaitForLanguageSync
+                            ? []
+                            : config.appLanguageIdsAsRef?.value || [],
+                        syncPriority: entry.syncPriority,
+                        blocks: [{ blockStart: 0, blockEnd: 0 }],
+                    });
         }
 
         // check if groups has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            if (!_.isEqual(groups, k.groups)) {
-                const newGroups = _.difference(groups, k.groups);
-                const removeGroups = _.difference(k.groups, groups);
-
-                const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
-
-                if (
-                    newGroups &&
-                    newGroups.length > 0 &&
-                    !Object.values(_sm).find(
-                        (v) =>
-                            _.isEqual(v.groups, newGroups) &&
-                            k.syncPriority == v.syncPriority &&
-                            k.contentOnly == v.contentOnly,
-                    )
-                )
-                    syncMap.value.set(_id, {
-                        ..._.cloneDeep(k),
-                        id: _id,
-                        groups: _.cloneDeep(newGroups),
-                        blocks: [{ blockStart: 0, blockEnd: 0 }],
-                    });
-
-                if (removeGroups && removeGroups.length > 0) {
-                    const _groups = k.groups.filter((g) => !removeGroups.includes(g));
-                    syncMap.value.set(k.id, {
-                        ..._.cloneDeep(k),
-                        groups: _.cloneDeep(_groups),
-                    });
-                }
-            }
+            this.compareEntires(_sm, k, groups, "groups");
         }
 
         // check if types has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            const types = this.options.docTypes
+            const types = config.docTypes
                 ?.filter((d) => k.syncPriority == d.syncPriority && k.contentOnly == d.contentOnly)
                 .map((d) => d.type);
-            if (!_.isEqual(types, k.types)) {
-                const newTypes = _.difference(types || [], k.types);
-                const removeTypes = _.difference(k.types, types || []);
+            this.compareEntires(_sm, k, types || [], "types");
+        }
 
-                const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
-
-                if (
-                    newTypes &&
-                    newTypes.length > 0 &&
-                    !Object.values(_sm).find(
-                        (v) =>
-                            _.isEqual(v.types, newTypes) &&
-                            k.syncPriority == v.syncPriority &&
-                            k.contentOnly == v.contentOnly,
-                    )
-                )
-                    syncMap.value.set(_id, {
-                        ..._.cloneDeep(k),
-                        id: _id,
-                        types: _.cloneDeep(newTypes),
-                        blocks: [{ blockStart: 0, blockEnd: 0 }],
-                    });
-
-                if (removeTypes && removeTypes.length > 0) {
-                    const _types = k.types.filter((g) => !removeTypes.includes(g));
-                    syncMap.value.set(k.id, {
-                        ..._.cloneDeep(k),
-                        types: _.cloneDeep(_types),
-                    });
-                }
-            }
+        // check if languages has been updated
+        _sm = Object.fromEntries(syncMap.value);
+        for (const k of Object.values(_sm)) {
+            if (!k.skipWaitForLanguageSync)
+                this.compareEntires(_sm, k, config.appLanguageIdsAsRef?.value || [], "languages");
         }
 
         // cleanup syncMaps
@@ -431,6 +369,48 @@ export class Sync {
     }
 
     /**
+     * Compare the syncMap entries and update the syncMap
+     * @param _sm - syncMap (Object.fromEntries)
+     * @param k - syncMap entry
+     * @param gtl - Array of Groups | Types | Languages
+     * @param key - groups | types | languages
+     */
+    compareEntires(_sm: Object, k: SyncMap, gtl: Array<string>, key: keyof SyncMap) {
+        if (!_.isEqual(gtl, k.types)) {
+            const newT = _.difference(gtl || [], k[key] as Array<string>);
+            const removeT = _.difference(k[key] as Array<string>, gtl || []);
+
+            const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
+
+            if (
+                newT &&
+                newT.length > 0 &&
+                !Object.values(_sm).find(
+                    (v) =>
+                        _.isEqual(v.types, newT) &&
+                        k.syncPriority == v.syncPriority &&
+                        k.contentOnly == v.contentOnly,
+                )
+            )
+                syncMap.value.set(_id, {
+                    ..._.cloneDeep(k),
+                    id: _id,
+                    [key]: _.cloneDeep(newT),
+                    blocks: [{ blockStart: 0, blockEnd: 0 }],
+                });
+
+            if (removeT && removeT.length > 0) {
+                const _F = k[key] as Array<string>;
+                const _T = _F.filter((g) => !removeT.includes(g));
+                syncMap.value.set(k.id, {
+                    ..._.cloneDeep(k),
+                    [key]: _.cloneDeep(_T),
+                });
+            }
+        }
+    }
+
+    /**
      * Remove the block from the syncMap with blockStart == 0 and blockEnd == 0,
      * this will help that the client does not hammer the api unnecessarily,
      * since it will not request for back fill data between 00 and next block anymore
@@ -442,21 +422,6 @@ export class Sync {
         if (!group) return;
         const block = group.blocks.find((b) => b.blockEnd == 0 && b.blockStart == 0);
         if (block) group.blocks.splice(group.blocks.indexOf(block), 1);
-    }
-
-    /**
-     * Sort queue according to gapEnd and syncPriority
-     * @param queue - queue of requests
-     * @returns
-     */
-    sortQueue(queue: Array<QueueReqEntry>) {
-        // sort queue according to gapEnd (if gapEnd is 0 move down in queue)
-        queue.sort((a) => {
-            if (a.query.from == 0) return 1;
-            else return -1;
-        });
-        // sort queue according to syncPriority
-        return queue.sort((a, b) => a.syncPriority - b.syncPriority);
     }
 
     /**

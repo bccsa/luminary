@@ -1,14 +1,15 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest";
-import { db, SyncMap, syncMap } from "../db/database";
+import { db, initDatabase, SyncMap, syncMap } from "../db/database";
 import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
-import { initLuminaryShared } from "../luminary";
 import { getRest } from "./RestApi";
 import express from "express";
 import { ApiSearchQuery } from "./RestApi";
 import waitForExpect from "wait-for-expect";
+import { ref } from "vue";
 import _ from "lodash";
+import { config, initConfig } from "../config";
 
 const app = express();
 const port = 12349;
@@ -68,6 +69,7 @@ const syncMapEntry: SyncMap = {
     types: [DocType.Post],
     contentOnly: false,
     groups: ["group-super-admins"],
+    languages: ["lang-eng"],
     syncPriority: 1,
     blocks: [
         {
@@ -100,7 +102,8 @@ app.get("/search", (req, res) => {
         JSON.stringify(
             _.isEqual(a.types, b.types) &&
                 _.isEqual(a.groups, b.groups) &&
-                a.contentOnly == b.contentOnly
+                a.contentOnly == b.contentOnly &&
+                mockApiRecursiveResponse.length > 0
                 ? mockApiRecursiveResponse.pop()
                 : mockApiResponse,
         ),
@@ -116,23 +119,46 @@ app.listen(port, () => {
 // ============================
 describe("rest", () => {
     beforeAll(async () => {
-        await initLuminaryShared({ cms: true, docsIndex: "parentId, language, [type+docType]" });
-        rest = getRest({
-            apiUrl: "http://127.0.0.1:" + port,
-            docTypes: [
-                { type: DocType.Post, contentOnly: true, syncPriority: 10 },
-                { type: DocType.Post, contentOnly: false, syncPriority: 10 },
-                { type: DocType.Group, contentOnly: false, syncPriority: 10 },
-                { type: DocType.Language, contentOnly: false, syncPriority: 9 },
-            ],
-        });
-
         accessMap.value["group-super-admins"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
         accessMap.value["group-recursive-test"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
         };
+
+        initConfig({
+            cms: true,
+            docsIndex: "parentId, language, [type+docType]",
+            apiUrl: "http://127.0.0.1:" + port,
+            appLanguageIdsAsRef: ref(["lang-eng"]),
+            docTypes: [
+                {
+                    type: DocType.Post,
+                    contentOnly: true,
+                    syncPriority: 10,
+                },
+                {
+                    type: DocType.Post,
+                    contentOnly: false,
+                    syncPriority: 10,
+                },
+                {
+                    type: DocType.Group,
+                    contentOnly: false,
+                    syncPriority: 10,
+                },
+                {
+                    type: DocType.Language,
+                    contentOnly: false,
+                    syncPriority: 9,
+                    skipWaitForLanguageSync: true,
+                },
+            ],
+        });
+
+        await initDatabase();
+
+        rest = getRest();
 
         apiRecursiveTest = { types: [""], groups: [""], contentOnly: false };
         mockApiRequest = "";
@@ -205,13 +231,43 @@ describe("rest", () => {
 
     it("can remove a type entry from the syncMap when the app's docTypes has changed", async () => {
         await rest._sync.calcSyncMap();
-        rest._sync.options.docTypes = [
-            { type: DocType.Post, contentOnly: true, syncPriority: 10 },
-            { type: DocType.Post, contentOnly: false, syncPriority: 10 },
-            { type: DocType.Group, contentOnly: false, syncPriority: 10 },
-            { type: DocType.Tag, contentOnly: true, syncPriority: 9 },
-            { type: DocType.Language, contentOnly: false, syncPriority: 9 },
-            { type: DocType.Tag, contentOnly: false, syncPriority: 10 },
+        config.docTypes = [
+            {
+                type: DocType.Post,
+                contentOnly: true,
+                syncPriority: 10,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Post,
+                contentOnly: false,
+                syncPriority: 10,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Group,
+                contentOnly: false,
+                syncPriority: 10,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Tag,
+                contentOnly: true,
+                syncPriority: 9,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Language,
+                contentOnly: false,
+                syncPriority: 9,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Tag,
+                contentOnly: false,
+                syncPriority: 10,
+                skipWaitForLanguageSync: true,
+            },
         ];
         await rest._sync.calcSyncMap();
 
@@ -231,17 +287,60 @@ describe("rest", () => {
         expect(_post9).toBeDefined();
         expect(_otherPost).toBe(undefined);
 
-        rest._sync.options.docTypes = [
+        config.docTypes = [
             { type: DocType.Post, contentOnly: true, syncPriority: 10 },
             { type: DocType.Post, contentOnly: false, syncPriority: 10 },
             { type: DocType.Group, contentOnly: false, syncPriority: 10 },
-            { type: DocType.Language, contentOnly: false, syncPriority: 9 },
+            {
+                type: DocType.Language,
+                contentOnly: false,
+                syncPriority: 9,
+                skipWaitForLanguageSync: true,
+            },
         ];
 
         await rest._sync.calcSyncMap();
 
         const _sm2 = Object.fromEntries(syncMap.value);
         const _post2 = Object.values(_sm2).find((e: any) => e.types.includes(DocType.Tag));
+        // removed type
+        expect(_post2).toBe(undefined);
+    });
+
+    it("can remove a languages entry from the syncMap when the app's languages has changed", async () => {
+        await rest._sync.calcSyncMap();
+        config.appLanguageIdsAsRef!.value.push("lang-ger");
+        await rest._sync.calcSyncMap();
+
+        const _sm1 = Object.fromEntries(syncMap.value);
+        const _post10 = Object.values(_sm1).find(
+            (e: any) =>
+                _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 10 && !e.contentOnly,
+        );
+        const _post10_content = Object.values(_sm1).find(
+            (e: any) =>
+                _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 10 && e.contentOnly,
+        );
+        const _post9 = Object.values(_sm1).find(
+            (e: any) =>
+                _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 9 && !e.contentOnly,
+        );
+        const _otherPost = Object.values(_sm1).find(
+            (e: any) =>
+                e.languages.includes("lang-ger") &&
+                !(e.id == _post10?.id || e.id == _post9?.id || e.id == _post10_content?.id),
+        );
+        // added type
+        expect(_post10).toBeDefined();
+        expect(_post9).toBe(undefined);
+        expect(_otherPost).toBe(undefined);
+
+        config.appLanguageIdsAsRef!.value.pop();
+
+        await rest._sync.calcSyncMap();
+
+        const _sm2 = Object.fromEntries(syncMap.value);
+        const _post2 = Object.values(_sm2).find((e: any) => e.languages.includes("lang-ger"));
         // removed type
         expect(_post2).toBe(undefined);
     });
@@ -255,6 +354,7 @@ describe("rest", () => {
             types: [DocType.Post],
             contentOnly: false,
             groups: ["group-super-admins"],
+            languages: [],
             syncPriority: 1,
             blocks: [
                 {
@@ -399,22 +499,6 @@ describe("rest", () => {
         expect(block).toBe(undefined);
     });
 
-    it("can correctly sort the queue", async () => {
-        const queue = [
-            { id: "a", syncPriority: 3, query: { from: 23 } },
-            { id: "b", syncPriority: 2, query: { from: 0 } },
-            { id: "c", syncPriority: 1, query: { from: 0 } },
-            { id: "d", syncPriority: 3, query: { from: 0 } },
-            { id: "e", syncPriority: 2, query: { from: 10 } },
-            { id: "f", syncPriority: 1, query: { from: 30 } },
-        ];
-
-        const q = rest._sync.sortQueue(queue);
-
-        expect(q[0]?.id).toBe("f");
-        expect(q[5]?.id).toBe("d");
-    });
-
     it("can correctly query the api", async () => {
         const query: ApiSearchQuery = {
             apiVersion: "0.0.0",
@@ -527,6 +611,29 @@ describe("rest", () => {
 
         expect(_post?.id).toBe("2_syncMap_main");
         expect(_.isEqual(_post?.types, [DocType.Post, DocType.Tag])).toBeTruthy();
+    });
+
+    it("can merge 2 syncMap entries, if they have the same priority and the same contentOnly flag, and one of them us completed sync (languages)", async () => {
+        syncMap.value.clear();
+        syncMap.value.set("2_syncMap_main", {
+            ...syncMapEntry,
+            syncPriority: 2,
+            id: "2_syncMap_main",
+        });
+        syncMap.value.set("2_syncMap_sub", {
+            ...syncMapEntry,
+            id: "1_syncMap_sub",
+            languages: ["lang-ger"],
+            blocks: [{ blockStart: 1000, blockEnd: 100 }],
+            syncPriority: 2,
+        });
+
+        rest._sync.mergeSyncMapEntries("2_syncMap_sub");
+
+        const _post = syncMap.value.get("2_syncMap_main");
+
+        expect(_post?.id).toBe("2_syncMap_main");
+        expect(_.isEqual(_post?.languages, ["lang-eng", "lang-ger"])).toBeTruthy();
     });
 
     it("can remove old values from the syncMap that is not valid anymore", async () => {

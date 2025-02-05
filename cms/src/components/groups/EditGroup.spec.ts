@@ -18,11 +18,12 @@ import {
     AclPermission,
     db,
     DocType,
-    api,
     type GroupAclEntryDto,
     type GroupDto,
     isConnected,
     AckStatus,
+    initConfig,
+    getRest,
 } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import EditGroup from "./EditGroup.vue";
@@ -44,12 +45,8 @@ app.use(
         extended: true,
     }),
 );
+
 const port = 12348;
-api({
-    apiUrl: `http://localhost:${port}`,
-    token: "test",
-    docTypes: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
-});
 
 let mockApiRequest: { doc: any };
 app.post("/changerequest", (req, res) => {
@@ -98,6 +95,16 @@ describe("EditGroup.vue", () => {
 
     beforeAll(async () => {
         accessMap.value = superAdminAccessMap;
+        initConfig({
+            cms: false,
+            docsIndex:
+                "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
+            apiUrl: `http://localhost:${port}`,
+            docTypes: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
+        });
+
+        // Reset the rest api client to use the new config
+        getRest({ reset: true });
     });
 
     beforeEach(() => {

@@ -5,11 +5,11 @@ import {
     db,
     DocType,
     verifyAccess,
-    api,
     AckStatus,
     type ChangeRequestQuery,
     type GroupDto,
     isConnected,
+    getRest,
 } from "luminary-shared";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { DocumentDuplicateIcon, ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
@@ -317,12 +317,10 @@ const copyGroupId = (group: GroupDto) => {
 };
 
 const saveChanges = async () => {
-    const res = await api()
-        .rest()
-        .changeRequest({
-            id: 10,
-            doc: editableGroupWithoutEmpty.value,
-        } as ChangeRequestQuery);
+    const res = await getRest().changeRequest({
+        id: 10,
+        doc: editableGroupWithoutEmpty.value,
+    } as ChangeRequestQuery);
 
     res && res.ack == AckStatus.Accepted && groups.value.set(res.doc._id, res.doc);
 
