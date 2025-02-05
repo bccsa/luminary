@@ -47,7 +47,7 @@ async function Startup() {
                 type: DocType.Language,
                 contentOnly: false,
                 syncPriority: 1,
-                skipPerLanguageSync: true,
+                skipWaitForLanguageSync: true,
             },
         ],
     }).catch((err) => {

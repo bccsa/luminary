@@ -22,7 +22,7 @@ export type ApiDocTypes = {
     type: DocType;
     contentOnly: boolean;
     syncPriority: number; // 10 is default, lower number is higher priority
-    skipPerLanguageSync?: boolean;
+    skipWaitForLanguageSync?: boolean;
 };
 
 export type ChangeRequestQuery = {

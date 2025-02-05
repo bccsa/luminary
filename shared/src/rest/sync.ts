@@ -245,14 +245,14 @@ export class Sync {
             const languages = syncMap.value.get(id)?.languages;
             const contentOnly = syncMap.value.get(id)?.contentOnly;
             const syncPriority = syncMap.value.get(id)?.syncPriority;
-            const skipPerLanguageSync = syncMap.value.get(id)?.skipPerLanguageSync;
+            const skipWaitForLanguageSync = syncMap.value.get(id)?.skipWaitForLanguageSync;
 
             const _sm = Object.fromEntries(syncMap.value);
             const parent = Object.values(_sm).find(
                 (f) =>
                     f.contentOnly == contentOnly &&
                     f.syncPriority == syncPriority &&
-                    f.skipPerLanguageSync == skipPerLanguageSync &&
+                    f.skipWaitForLanguageSync == skipWaitForLanguageSync &&
                     !_.isEqual(f, entry),
             );
 
@@ -302,7 +302,7 @@ export class Sync {
                 )
             )
                 if (
-                    entry.skipPerLanguageSync ||
+                    entry.skipWaitForLanguageSync ||
                     (config.appLanguageIdsAsRef?.value &&
                         config.appLanguageIdsAsRef?.value.length > 0)
                 )
@@ -320,8 +320,8 @@ export class Sync {
                                 }) || [],
                         contentOnly: entry.contentOnly,
                         groups: groups,
-                        skipPerLanguageSync: entry.skipPerLanguageSync,
-                        languages: entry.skipPerLanguageSync
+                        skipWaitForLanguageSync: entry.skipWaitForLanguageSync,
+                        languages: entry.skipWaitForLanguageSync
                             ? []
                             : config.appLanguageIdsAsRef?.value || [],
                         syncPriority: entry.syncPriority,
@@ -347,7 +347,7 @@ export class Sync {
         // check if languages has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            if (!k.skipPerLanguageSync)
+            if (!k.skipWaitForLanguageSync)
                 this.compareEntires(_sm, k, config.appLanguageIdsAsRef?.value || [], "languages");
         }
 

@@ -151,7 +151,7 @@ describe("rest", () => {
                     type: DocType.Language,
                     contentOnly: false,
                     syncPriority: 9,
-                    skipPerLanguageSync: true,
+                    skipWaitForLanguageSync: true,
                 },
             ],
         });
@@ -232,22 +232,42 @@ describe("rest", () => {
     it("can remove a type entry from the syncMap when the app's docTypes has changed", async () => {
         await rest._sync.calcSyncMap();
         config.docTypes = [
-            { type: DocType.Post, contentOnly: true, syncPriority: 10, skipPerLanguageSync: true },
-            { type: DocType.Post, contentOnly: false, syncPriority: 10, skipPerLanguageSync: true },
+            {
+                type: DocType.Post,
+                contentOnly: true,
+                syncPriority: 10,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Post,
+                contentOnly: false,
+                syncPriority: 10,
+                skipWaitForLanguageSync: true,
+            },
             {
                 type: DocType.Group,
                 contentOnly: false,
                 syncPriority: 10,
-                skipPerLanguageSync: true,
+                skipWaitForLanguageSync: true,
             },
-            { type: DocType.Tag, contentOnly: true, syncPriority: 9, skipPerLanguageSync: true },
+            {
+                type: DocType.Tag,
+                contentOnly: true,
+                syncPriority: 9,
+                skipWaitForLanguageSync: true,
+            },
             {
                 type: DocType.Language,
                 contentOnly: false,
                 syncPriority: 9,
-                skipPerLanguageSync: true,
+                skipWaitForLanguageSync: true,
             },
-            { type: DocType.Tag, contentOnly: false, syncPriority: 10, skipPerLanguageSync: true },
+            {
+                type: DocType.Tag,
+                contentOnly: false,
+                syncPriority: 10,
+                skipWaitForLanguageSync: true,
+            },
         ];
         await rest._sync.calcSyncMap();
 
@@ -275,7 +295,7 @@ describe("rest", () => {
                 type: DocType.Language,
                 contentOnly: false,
                 syncPriority: 9,
-                skipPerLanguageSync: true,
+                skipWaitForLanguageSync: true,
             },
         ];
 

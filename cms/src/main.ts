@@ -37,11 +37,36 @@ async function Startup() {
         apiUrl,
         token,
         docTypes: [
-            { type: DocType.Tag, contentOnly: false, syncPriority: 2 },
-            { type: DocType.Post, contentOnly: false, syncPriority: 2 },
-            { type: DocType.Redirect, contentOnly: false, syncPriority: 2 },
-            { type: DocType.Language, contentOnly: false, syncPriority: 1 },
-            { type: DocType.Group, contentOnly: false, syncPriority: 1 },
+            {
+                type: DocType.Tag,
+                contentOnly: false,
+                syncPriority: 2,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Post,
+                contentOnly: false,
+                syncPriority: 2,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Redirect,
+                contentOnly: false,
+                syncPriority: 2,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Language,
+                contentOnly: false,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Group,
+                contentOnly: false,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
         ],
     }).catch((err) => {
         console.error(err);
