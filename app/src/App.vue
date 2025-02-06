@@ -20,6 +20,7 @@ setTimeout(() => {
     watch(
         isConnected,
         () => {
+            console.log(2);
             if (!isConnected.value) {
                 useNotificationStore().addNotification({
                     id: "offlineBanner",
@@ -45,6 +46,7 @@ setTimeout(() => {
     watch(
         [isConnected, isAuthenticated],
         () => {
+            console.log(1);
             if (isConnected.value && !isAuthenticated.value) {
                 useNotificationStore().addNotification({
                     id: "accountBanner",

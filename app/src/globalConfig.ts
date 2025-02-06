@@ -36,6 +36,7 @@ function setAppDefaultLanguage(languageId: Uuid) {
 watch(
     appLanguageIdsAsRef,
     (newVal) => {
+        console.log(5);
         if (appLanguageIdsAsRef.value.includes(typeof null))
             appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) => id !== null);
         localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id != null)));
@@ -67,10 +68,12 @@ export const appLanguagePreferredIdAsRef = computed(() =>
  */
 export const appLanguageAsRef = ref<LanguageDto | undefined>();
 watch(appLanguagesPreferredAsRef, (newVal) => {
+    console.log(4);
     if (!newVal || !newVal.length) return;
     // Prevent updating the value if the language is the same
     if (_.isEqual(toRaw(appLanguageAsRef.value), toRaw(newVal[0]))) return;
     appLanguageAsRef.value = newVal[0];
+    console.log(4);
 });
 
 /**
@@ -114,6 +117,7 @@ export const initLanguage = () => {
         const unwatchCmsLanguages = watch(
             cmsLanguages,
             (_languages) => {
+                console.log(3);
                 if (!_languages || _languages.length == 0) return;
                 if (!appLanguageIdsAsRef.value) return;
 
@@ -135,12 +139,12 @@ export const initLanguage = () => {
                 // If the browser preferred language does not match any of the available content languages,
                 // set the CMS defined default language as the preferred language. If no default language is defined
                 // in the CMS, set the first available language as the preferred language.
-                appLanguageIdsAsRef.value[0] = cmsDefaultLanguage?._id || _languages[0]._id; // ??
+                // appLanguageIdsAsRef.value[0] = cmsDefaultLanguage?._id || _languages[0]._id; // ??
 
                 // Add the CMS defined default language to the list of preferred languages if it is not already there
                 if (
                     cmsDefaultLanguage &&
-                    !appLanguageIdsAsRef.value.some((l) => l === cmsDefaultLanguage._id)
+                    !appLanguageIdsAsRef.value.includes(cmsDefaultLanguage._id)
                 ) {
                     appLanguageIdsAsRef.value.push(cmsDefaultLanguage._id);
                 }

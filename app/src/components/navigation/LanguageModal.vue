@@ -21,7 +21,7 @@ const emit = defineEmits(["close"]);
 const defaultLanguage = computed(() => languages.value.find((lang) => lang.default == 1));
 
 const setLanguage = (id: string) => {
-    if (!appLanguageIdsAsRef.value.includes(id)) {
+    if (!new Set(appLanguageIdsAsRef.value).has(id)) {
         appLanguageIdsAsRef.value.push(id);
     }
 };
