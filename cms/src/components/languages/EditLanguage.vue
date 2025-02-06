@@ -209,8 +209,6 @@ const save = async () => {
         description: "Language updated successfully",
         state: "success",
     });
-
-    isDirty.value = false;
 };
 
 // Revert to the initial state
