@@ -26,9 +26,13 @@ export class Sync {
         );
 
         config.appLanguageIdsAsRef &&
-            watch(config.appLanguageIdsAsRef.value, async () => {
-                await this.clientDataReq();
-            });
+            watch(
+                config.appLanguageIdsAsRef,
+                async () => {
+                    await this.clientDataReq();
+                },
+                { deep: true },
+            );
     }
 
     async clientDataReq() {
