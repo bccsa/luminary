@@ -80,8 +80,8 @@ onMounted(() => {
                 <div class="mx-4">
                     <div @click="toggleTheme" class="flex cursor-pointer items-center">
                         <div class="text-zinc-500 dark:text-slate-300">
-                            <MoonIcon class="h-6 w-6" v-if="isDarkMode" />
-                            <SunIcon class="h-6 w-6" v-else />
+                            <SunIcon class="h-6 w-6" v-if="isDarkMode" />
+                            <MoonIcon class="h-6 w-6" v-else />
                         </div>
                     </div>
                 </div>
