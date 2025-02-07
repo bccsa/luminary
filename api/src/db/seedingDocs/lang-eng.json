@@ -4,7 +4,7 @@
     "memberOf": ["group-languages"],
     "languageCode": "en",
     "name": "English",
-    "default": 0,
+    "default": 1,
     "translations": {
         "topic.search_placeholder": "Search",
         "topic.no_results_found": "No results found for",
