@@ -19,25 +19,25 @@ const { t } = useI18n();
 const themeIcons = [SunIcon, MoonIcon, ComputerDesktopIcon];
 
 // Use a key-based system for themes
-const themeKeys = ["light", "dark", "system"]; // Non-translated keys
+const themeKeys = ["Light", "Dark", "System"]; // Non-translated keys
 const themes = themeKeys.map((key) => ({
     key,
-    label: t(`select_theme.${key}`), // Translated for display
+    label: t(`select_theme.${key.toLowerCase()}`), // Translated for display
 }));
 
 // Initialize with the value from localStorage (default to "system")
-const selectedTheme = ref(localStorage.getItem("theme") || "system");
+const selectedTheme = ref(localStorage.getItem("theme") || "System");
 
 const emit = defineEmits(["close"]);
 
 const applyTheme = (theme: string) => {
-    if (theme === "system") {
+    if (theme === "System") {
         if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
             document.documentElement.classList.add("dark");
         } else {
             document.documentElement.classList.remove("dark");
         }
-    } else if (theme === "dark") {
+    } else if (theme === "Dark") {
         document.documentElement.classList.add("dark");
     } else {
         document.documentElement.classList.remove("dark");
