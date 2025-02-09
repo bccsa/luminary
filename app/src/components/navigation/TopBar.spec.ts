@@ -7,6 +7,8 @@ import { setActivePinia } from "pinia";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { showContentQuickControls } from "@/globalConfig";
+import waitForExpect from "wait-for-expect";
 
 vi.mock("@auth0/auth0-vue");
 const routePushMock = vi.fn();
@@ -79,5 +81,29 @@ describe("TopBar", () => {
 
         expect(ProfileMenu.exists()).toBe(true);
         expect(ProfileMenu.text()).toContain("Test Person");
+    });
+
+    it("shows the quick controls when showContentQuickControls is true", async () => {
+        showContentQuickControls.value = true;
+
+        const wrapper = mount(TopBar, {
+            shallow: false,
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findAll('[data-test="quickControls"]').length).toBe(1);
+            expect(wrapper.findAll('[data-test="backButton"]').length).toBe(1);
+        });
+
+        showContentQuickControls.value = false;
+
+        const wrapper2 = mount(TopBar, {
+            shallow: false,
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper2.findAll('[data-test="quickControls"]').length).toBe(0);
+            expect(wrapper2.findAll('[data-test="backButton"]').length).toBe(0);
+        });
     });
 });

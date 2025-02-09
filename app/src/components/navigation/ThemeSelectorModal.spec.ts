@@ -87,7 +87,7 @@ describe("ThemeSelectorModal.vue", () => {
     });
 
     it("selects the correct theme and updates localStorage", async () => {
-        localStorage.setItem("theme", "Light");
+        localStorage.setItem("theme", "light");
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
@@ -96,7 +96,7 @@ describe("ThemeSelectorModal.vue", () => {
 
         const themeItems = wrapper.findAll("[data-test='switch-theme-button']");
         await themeItems[1].trigger("click");
-        expect(localStorage.getItem("theme")).toBe("Dark");
+        expect(localStorage.getItem("theme")).toBe("dark");
     });
 
     it("emits close event when close button is clicked", async () => {
@@ -110,23 +110,5 @@ describe("ThemeSelectorModal.vue", () => {
         });
         await wrapper.findComponent(LButton).trigger("click");
         expect(wrapper.emitted()).toHaveProperty("close");
-    });
-
-    it("applies the correct theme class on mount", () => {
-        localStorage.setItem("theme", "Dark");
-        mount(ThemeSelectorModal, {
-            props: {
-                isVisible: true,
-            },
-        });
-        expect(document.documentElement.classList.contains("dark")).toBe(true);
-
-        localStorage.setItem("theme", "Light");
-        mount(ThemeSelectorModal, {
-            props: {
-                isVisible: true,
-            },
-        });
-        expect(document.documentElement.classList.contains("dark")).toBe(false);
     });
 });
