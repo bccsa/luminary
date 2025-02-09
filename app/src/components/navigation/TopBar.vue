@@ -49,7 +49,7 @@ onMounted(() => {
 
 <template>
     <header>
-        <div class="z-40 bg-zinc-100 dark:bg-slate-800" v-bind="$attrs">
+        <div class="z-40 bg-zinc-100 dark:bg-slate-800">
             <div class="flex items-center py-5 pl-6 pr-6 lg:pr-5">
                 <div class="mr-4 flex items-center">
                     <div
