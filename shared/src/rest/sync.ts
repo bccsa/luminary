@@ -80,7 +80,10 @@ export class Sync {
 
         // only continue if there is more than one block
         const blocks = syncMap.value.get(id)?.blocks;
-        if (!blocks || blocks.length < 2) return;
+        if (!blocks || blocks.length < 2) {
+            this.mergeSyncMapEntries(id);
+            return;
+        }
 
         const missingData = this.calcMissingData(id);
         // stop loop when gap is the same as previous round, this means that no new data was added
@@ -380,9 +383,16 @@ export class Sync {
      * @param key - groups | types | languages
      */
     compareEntires(_sm: Object, k: SyncMap, gtl: Array<string>, key: keyof SyncMap) {
-        if (!_.isEqual(gtl, k.types)) {
-            const newT = _.difference(gtl || [], k[key] as Array<string>);
-            const removeT = _.difference(k[key] as Array<string>, gtl || []);
+        const typeSet = new Set();
+        Object.values(_sm).forEach((entry) => {
+            if (k.contentOnly == entry.contentOnly && k.syncPriority == entry.syncPriority)
+                entry[key].forEach((type: string) => typeSet.add(type));
+        });
+        const currentGtl = Array.from(typeSet);
+
+        if (!_.isEqual(gtl, currentGtl)) {
+            const newT = _.difference(gtl || [], currentGtl);
+            const removeT = _.difference(currentGtl, gtl || []);
 
             const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
 
@@ -391,7 +401,7 @@ export class Sync {
                 newT.length > 0 &&
                 !Object.values(_sm).find(
                     (v) =>
-                        _.isEqual(v.types, newT) &&
+                        _.isEqual(v[key], newT) &&
                         k.syncPriority == v.syncPriority &&
                         k.contentOnly == v.contentOnly,
                 )

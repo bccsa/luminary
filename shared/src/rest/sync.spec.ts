@@ -557,9 +557,12 @@ describe("rest", () => {
             await rest._sync.clientDataReq();
 
             await waitForExpect(() => {
-                const post = syncMap.value.get("post_group-recursive-test");
-                expect(post?.blocks[0].blockStart).toBe(20000);
-                expect(post?.blocks[0].blockEnd).toBe(1000);
+                const _sm = Object.fromEntries(syncMap.value);
+                const post = Object.values(_sm).find((e: any) =>
+                    e.groups.includes("group-recursive-test"),
+                );
+                expect(post?.blocks[0].blockStart).toBe(4000);
+                expect(post?.blocks[0].blockEnd).toBe(3000);
             }, 9000);
         },
         { timeout: 10000 },
