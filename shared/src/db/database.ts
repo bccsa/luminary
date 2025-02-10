@@ -125,6 +125,8 @@ class Database extends Dexie {
             dbIndex,
         );
 
+        console.log("Dexie version: ", Dexie.version);
+
         this.version(version).stores(dbIndex);
         this.open().catch((err) => {
             console.log(err);
