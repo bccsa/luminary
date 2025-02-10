@@ -37,7 +37,7 @@ export class Sync {
     }
 
     async clientDataReq() {
-        await this.calcSyncMap();
+        // await this.calcSyncMap();
 
         const _sm = Object.fromEntries(syncMap.value);
         const _sm_sorted = Object.values(_sm).sort((a, b) => a.syncPriority - b.syncPriority);
