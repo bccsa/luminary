@@ -61,7 +61,7 @@ class RestApi {
     }
 
     async clientDataReq() {
-        // this._sync.clientDataReq();
+        this._sync.clientDataReq();
     }
 
     async search(query: ApiSearchQuery) {
