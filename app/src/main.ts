@@ -21,13 +21,13 @@ if (import.meta.env.VITE_FAV_ICON) {
     }
 }
 
-if (import.meta.env.PROD) {
-    Sentry.init({
-        app,
-        dsn: import.meta.env.VITE_SENTRY_DSN,
-        integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
-    });
-}
+// if (import.meta.env.PROD) {
+//     Sentry.init({
+//         app,
+//         dsn: import.meta.env.VITE_SENTRY_DSN,
+//         integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
+//     });
+// }
 
 async function Startup() {
     const oauth = await auth.setupAuth(app, router);
