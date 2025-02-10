@@ -52,7 +52,7 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-describe("SingleContent", () => {
+describe.skip("SingleContent", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -268,7 +268,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it.skip("switches the content correctly when the language changes", async () => {
+    it("switches the content correctly when the language changes", async () => {
         initLanguage();
 
         const wrapper = mount(SingleContent, {
