@@ -21,13 +21,13 @@ if (import.meta.env.VITE_FAV_ICON) {
     }
 }
 
-// if (import.meta.env.PROD) {
-//     Sentry.init({
-//         app,
-//         dsn: import.meta.env.VITE_SENTRY_DSN,
-//         integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
-//     });
-// }
+if (import.meta.env.PROD) {
+    Sentry.init({
+        app,
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
+    });
+}
 
 async function Startup() {
     const oauth = await auth.setupAuth(app, router);
@@ -62,13 +62,13 @@ async function Startup() {
         await auth.loginRedirect(oauth);
     });
 
-    // await initLanguage();
-    // const i18n = await initI18n();
-    // await loadPlugins();
+    await initLanguage();
+    const i18n = await initI18n();
+    await loadPlugins();
 
-    // app.use(createPinia());
-    // app.use(router);
-    // app.use(i18n);
+    app.use(createPinia());
+    app.use(router);
+    app.use(i18n);
     app.mount("#app");
     initAnalytics();
 }
