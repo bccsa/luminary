@@ -20,7 +20,8 @@ export class Sync {
         watch(
             accessMap.value,
             async () => {
-                await this.calcSyncMap();
+                // await this.calcSyncMap();
+                console.log("accessMap changed", accessMap.value);
             },
             { immediate: true },
         );
