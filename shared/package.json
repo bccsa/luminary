@@ -9,7 +9,7 @@
     ],
     "scripts": {
         "dev": "vite",
-        "build": "vite build",
+        "build": "vue-tsc && vite build",
         "test": "vitest",
         "test:watch": "vitest",
         "test:unit": "vitest",
