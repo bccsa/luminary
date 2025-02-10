@@ -126,6 +126,12 @@ class Database extends Dexie {
         );
 
         this.version(version).stores(dbIndex);
+        this.open().catch((err) => {
+            console.log(err);
+
+            // force bump version
+            // bumpDBVersion((dbVersion >= 10 && dbVersion / 10) || 1, "{}", dbIndex);
+        });
 
         this.deleteExpired();
 
