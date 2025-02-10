@@ -62,13 +62,13 @@ async function Startup() {
         await auth.loginRedirect(oauth);
     });
 
-    await initLanguage();
-    const i18n = await initI18n();
-    await loadPlugins();
+    // await initLanguage();
+    // const i18n = await initI18n();
+    // await loadPlugins();
 
-    app.use(createPinia());
-    app.use(router);
-    app.use(i18n);
+    // app.use(createPinia());
+    // app.use(router);
+    // app.use(i18n);
     app.mount("#app");
     initAnalytics();
 }
