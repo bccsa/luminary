@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 import auth from "./auth";
-import { DocType, getSocket, initLuminaryShared, db } from "luminary-shared";
+import { DocType, getSocket, initLuminaryShared } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
@@ -53,7 +53,6 @@ async function Startup() {
     }).catch((err) => {
         console.error(err);
         Sentry.captureException(err);
-        return;
     });
 
     // Redirect to login if the API authentication fails

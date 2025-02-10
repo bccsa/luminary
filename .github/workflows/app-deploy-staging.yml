@@ -17,14 +17,14 @@ env:
   CI: true
 
 jobs:
-  # test-app:
-  #     uses: ./.github/workflows/app-unit-tests.yml
+  test-app:
+    uses: ./.github/workflows/app-unit-tests.yml
 
-  # test-shared:
-  #     uses: ./.github/workflows/shared-unit-tests.yml
+  test-shared:
+    uses: ./.github/workflows/shared-unit-tests.yml
 
   deploy:
-    # needs: [test-app, test-shared]
+    needs: [test-app, test-shared]
     runs-on: [self-hosted, ac]
     environment: app-staging
 

@@ -117,7 +117,7 @@ app.listen(port, () => {
 // ============================
 // Tests
 // ============================
-describe.skip("rest", () => {
+describe("rest", () => {
     beforeAll(async () => {
         accessMap.value["group-super-admins"] = {
             post: { view: true, edit: true, delete: true, translate: true, publish: true },
