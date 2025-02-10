@@ -8,7 +8,10 @@ export async function initLuminaryShared(config: SharedConfig) {
     initConfig(config);
 
     // Initialize the IndexedDB database
-    await initDatabase();
+    await initDatabase().catch((err) => {
+        console.error(err);
+        return Promise.reject(err);
+    });
 
     // Initialize the SocketIO connection (initialized on first call)
     getSocket();

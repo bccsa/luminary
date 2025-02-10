@@ -53,6 +53,7 @@ async function Startup() {
     }).catch((err) => {
         console.error(err);
         Sentry.captureException(err);
+        return;
     });
 
     // Redirect to login if the API authentication fails
