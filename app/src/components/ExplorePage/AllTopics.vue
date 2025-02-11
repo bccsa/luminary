@@ -3,7 +3,6 @@ import { computed, ref } from "vue";
 import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
-import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
 import { isPublished } from "@/util/isPublished";
@@ -32,7 +31,7 @@ const allTopics = useDexieLiveQueryWithDeps(
 );
 
 const tagContent = useDexieLiveQueryWithDeps(
-    appLanguageIdAsRef,
+    appLanguageIdsAsRef,
     (appLanguageId: Uuid) =>
         db.docs
             .where({
@@ -121,7 +120,7 @@ const filteredTopics = computed(() => {
                             {{ content.summary }}
                         </p>
                     </div>
-                </div>
+                </RouterLink>
             </div>
         </div>
     </div>
