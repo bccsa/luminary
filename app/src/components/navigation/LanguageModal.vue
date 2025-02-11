@@ -82,8 +82,6 @@ const removeFromSelected = (id: string) => {
         :is-visible="isVisible"
         @close="emit('close')"
     >
-        {{ appLanguageIdsAsRef }}
-
         <transition-group
             name="language"
             tag="div"
