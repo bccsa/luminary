@@ -26,7 +26,6 @@ import EditContentStatus from "@/components/content/EditContentStatus.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
-import EditContentPreview from "@/components/content/EditContentPreview.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
