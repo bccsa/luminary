@@ -269,7 +269,7 @@ describe("SingleContent", () => {
     });
 
     it("switches the content correctly when the language changes", async () => {
-        initLanguage();
+        await initLanguage();
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -281,10 +281,9 @@ describe("SingleContent", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
         });
 
-        // Simulate language change
-        appLanguageIdsAsRef.value.unshift(mockLanguageDtoFra._id);
-
         await waitForExpect(() => {
+            // Simulate language change
+            appLanguageIdsAsRef.value.unshift(mockLanguageDtoFra._id);
             expect(routeReplaceMock).toBeCalledWith({
                 name: "content",
                 params: { slug: mockFrenchContentDto.slug },
