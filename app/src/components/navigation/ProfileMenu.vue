@@ -9,7 +9,7 @@ import {
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
-import { computed, ref } from "vue";
+import { computed, ref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
     BookmarkIcon,
@@ -31,7 +31,14 @@ const showLanguageModal = ref(false);
 const showPrivacyPolicyModal = ref(false);
 const { t } = useI18n();
 
-const commonNavigation = computed(() => {
+type NavigationItems = {
+    name: string;
+    language?: string;
+    icon: any;
+    action: () => void;
+};
+
+const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
     return [
         {
             name: t("profile_menu.settings"),
@@ -45,7 +52,7 @@ const commonNavigation = computed(() => {
         },
         {
             name: t("profile_menu.language"),
-            language: appLanguageAsRef.value,
+            language: appLanguageAsRef.value?.name,
             icon: LanguageIcon,
             action: (): void => {
                 showLanguageModal.value = true;
@@ -152,9 +159,9 @@ const userNavigation = computed(() => {
                         <div class="flex flex-col text-nowrap leading-none">
                             {{ item.name }}
                             <span
+                                v-if="'language' in item && item.language"
                                 class="mt-1 text-[12px] text-zinc-500 dark:text-white"
-                                v-if="item.language"
-                                >{{ item.language.name }}</span
+                                >{{ item.language }}</span
                             >
                         </div>
                     </button>
