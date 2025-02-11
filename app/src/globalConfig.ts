@@ -37,9 +37,7 @@ function setAppDefaultLanguage(languageId: Uuid) {
 watch(
     appLanguageIdsAsRef,
     (newVal) => {
-        if (appLanguageIdsAsRef.value.includes(typeof null))
-            appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) => id !== null);
-        localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id)));
+        localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id != null)));
     },
     { deep: true },
 );
