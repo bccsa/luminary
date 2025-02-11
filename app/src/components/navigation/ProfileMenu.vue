@@ -18,9 +18,10 @@ import {
     SunIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
-import { appLanguageAsRef } from "@/globalConfig";
+import { appLanguageAsRef, showLoginModal } from "@/globalConfig";
 import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 import { useI18n } from "vue-i18n";
+import LoginModal from "@/pages/LoginModal.vue";
 
 const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
@@ -84,7 +85,7 @@ const userNavigation = computed(() => {
             {
                 name: t("profile_menu.login"),
                 icon: ArrowLeftEndOnRectangleIcon,
-                action: () => (showLoginModal.value = true),
+                action: () => showLoginModal(),
             },
         ];
     }
@@ -165,5 +166,5 @@ const userNavigation = computed(() => {
     <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
     <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
     <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
-    <LoginPage v-model:showLoginModal="showLoginModal" />
+    <LoginModal v-model="showLoginModal" />
 </template>

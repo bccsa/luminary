@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import LoginPage from "./LoginPage.vue";
+import LoginModal from "./LoginModal.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { isConnected } from "luminary-shared";
+import { loginModalVisible } from "@/globalConfig";
 
 vi.mock("vue-router");
 vi.mock("@auth0/auth0-vue");
 
-describe("LoginPage", () => {
+describe("LoginModal", () => {
     beforeEach(() => {
         isConnected.value = true;
+        loginModalVisible.value = true;
     });
 
     it("can log in with BCC", async () => {
@@ -18,11 +20,7 @@ describe("LoginPage", () => {
             loginWithRedirect,
         });
 
-        const wrapper = mount(LoginPage, {
-            props: {
-                showLoginModal: true,
-            },
-        });
+        const wrapper = mount(LoginModal);
 
         await wrapper.find("button[data-test='login-bcc']").trigger("click");
 
@@ -39,11 +37,7 @@ describe("LoginPage", () => {
             loginWithRedirect,
         });
 
-        const wrapper = mount(LoginPage, {
-            props: {
-                showLoginModal: true,
-            },
-        });
+        const wrapper = mount(LoginModal);
 
         await wrapper.find("button[data-test='login-guest']").trigger("click");
 

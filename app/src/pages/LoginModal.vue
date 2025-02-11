@@ -4,10 +4,9 @@ import LCard from "@/components/common/LCard.vue";
 import LModal from "@/components/form/LModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { isConnected } from "luminary-shared";
+import { loginModalVisible } from "@/globalConfig";
 
 const { loginWithRedirect } = useAuth0();
-
-const showLoginModal = defineModel<boolean>("showLoginModal");
 
 const loginWithBcc = async () => {
     // Set the used connection so we can use it again when trying to reauthenticate
@@ -32,16 +31,16 @@ const loginAsGuest = async () => {
 
 <template>
     <LModal
-        :isVisible="showLoginModal || false"
+        :isVisible="loginModalVisible || false"
         heading="Log in"
         class="mx-auto max-w-lg"
-        @close="showLoginModal = false"
+        @close="loginModalVisible = false"
     >
         <p class="my-4" v-if="!isConnected">
             You are offline. Please connect to the internet to log in.
         </p>
 
-        <LCard>
+        <LCard v-else>
             <div class="flex flex-col gap-5">
                 <LButton
                     :disabled="!isConnected"

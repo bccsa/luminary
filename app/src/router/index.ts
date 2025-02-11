@@ -28,16 +28,6 @@ const router = createRouter({
             },
         },
         {
-            path: "/login",
-            component: LoginPage,
-            name: "login",
-            meta: {
-                title: "Log in",
-                analyticsIgnore: true,
-            },
-            beforeEnter: isNotAuthenticatedGuard,
-        },
-        {
             path: "/explore",
             component: ExplorePage,
             name: "explore",

@@ -229,49 +229,10 @@ watch(userPreferencesAsRef.value, (newVal) => {
  */
 export const queryParams = new URLSearchParams(window.location.search);
 
-const _theme = ref(localStorage.getItem("theme") || "system");
-
+export const loginModalVisible = ref(false);
 /**
- * The selected theme as Vue ref.
+ * Show the login modal
  */
-export const theme = computed<"system" | "dark" | "light">({
-    get: () => {
-        if (_theme.value != "dark" && _theme.value != "light") return "system";
-        return _theme.value;
-    },
-    set: (value) => {
-        _theme.value = value;
-        localStorage.setItem("theme", value);
-    },
-});
-
-/**
- * Returns true if the theme is dark, false if it is light. When the theme is set to "System", it returns true if the system's preferred color scheme is dark.
- */
-export const isDarkTheme = ref(document.documentElement.classList.contains("dark"));
-
-// Watch the theme and apply to the document's CSS classes
-watch(
-    theme,
-    (t) => {
-        if (t === "system") {
-            if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-                document.documentElement.classList.add("dark");
-            } else {
-                document.documentElement.classList.remove("dark");
-            }
-        } else if (t === "dark") {
-            document.documentElement.classList.add("dark");
-        } else {
-            document.documentElement.classList.remove("dark");
-        }
-
-        isDarkTheme.value = document.documentElement.classList.contains("dark");
-    },
-    { immediate: true },
-);
-
-/**
- * This ref is used to control the visibility of the quick controls (dark/light mode switch, back button) in content view (SingleContent.vue).
- */
-export const showContentQuickControls = ref(false);
+export const showLoginModal = () => {
+    loginModalVisible.value = true;
+};

@@ -4,14 +4,14 @@ import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
 import { computed, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { userPreferencesAsRef } from "./globalConfig";
+import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 import { useRouter } from "vue-router";
-import LoginPage from "./pages/LoginPage.vue";
+import LoginModal from "./pages/LoginModal.vue";
 
 const router = useRouter();
 const { isAuthenticated, user } = useAuth0();
@@ -54,7 +54,7 @@ setTimeout(() => {
                     state: "warning",
                     type: "banner",
                     icon: ExclamationCircleIcon,
-                    link: () => (showLoginModal.value = true),
+                    link: () => showLoginModal(),
                 });
             }
             if (!isConnected.value || isAuthenticated.value) {
@@ -98,7 +98,7 @@ const routeKey = computed(() => {
         />
     </div>
 
-    <LoginPage v-model:showLoginModal="showLoginModal" />
+    <LoginModal v-model="showLoginModal" />
 
     <Teleport to="body">
         <NotificationToastManager />
