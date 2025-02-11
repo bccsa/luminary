@@ -1,3 +1,4 @@
+import { db, type LanguageDto } from "luminary-shared";
 import { ref, watch } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
@@ -17,3 +18,16 @@ watch(
     },
     { deep: true },
 );
+
+export async function initLanguage() {
+    const languages = (await db.docs.where("type").equals("language").toArray()) as LanguageDto[];
+    const browserPreferredLanguage = navigator.languages[0];
+
+    if (languages.some((lang) => lang.languageCode == browserPreferredLanguage)) {
+        cmsLanguageIdAsRef.value = languages.filter(
+            (lang) => lang.languageCode === browserPreferredLanguage,
+        )[0]._id;
+    } else {
+        cmsLanguageIdAsRef.value = languages.filter((lang) => lang.default === 1)[0]._id;
+    }
+}
