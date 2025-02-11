@@ -43,9 +43,7 @@ const props = defineProps<Props>();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const selectedLanguage = ref<Uuid>(cmsLanguageIdAsRef.value || "");
-watch(cmsLanguageIdAsRef, () => {
-    selectedLanguage.value = cmsLanguageIdAsRef.value;
-});
+
 const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
@@ -65,16 +63,6 @@ const queryOptions = ref<ContentOverviewQueryOptions>({
 });
 
 const queryKey = computed(() => JSON.stringify(queryOptions.value));
-
-watch(
-    languages,
-    () => {
-        if (languages.value.length > 0 && !selectedLanguage.value) {
-            selectedLanguage.value = cmsLanguageIdAsRef.value || languages.value[0]._id;
-        }
-    },
-    { once: true },
-);
 
 watch(
     selectedLanguage,
