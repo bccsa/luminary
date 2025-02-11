@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { db, DocType, type LanguageDto } from "luminary-shared";
 import LButton from "../button/LButton.vue";
-import { appLanguageIdsAsRef, appLanguagesPreferredAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
 import { ArrowDownIcon, ArrowUpIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
