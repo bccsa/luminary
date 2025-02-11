@@ -4,7 +4,7 @@ import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-share
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import { RouterLink } from "vue-router";
-import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
+import { ListBulletIcon, MagnifyingGlassIcon, Squares2X2Icon } from "@heroicons/vue/24/solid";
 import { isPublished } from "@/util/isPublished";
 import { useI18n } from "vue-i18n";
 
