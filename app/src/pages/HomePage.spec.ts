@@ -123,6 +123,8 @@ describe("HomePage.vue", () => {
 
             const wrapper = mount(HomePage);
 
+            appLanguageIdsAsRef.value.unshift("lang-eng");
+
             await waitForExpect(() => {
                 const pinnedComponent = wrapper.findComponent(HomePagePinned);
                 expect(pinnedComponent.exists()).toBe(true);
@@ -138,6 +140,8 @@ describe("HomePage.vue", () => {
 
             const wrapper = mount(HomePage);
 
+            appLanguageIdsAsRef.value.unshift("lang-eng");
+
             await waitForExpect(() => {
                 const unpinnedComponent = wrapper.findComponent(HomePage);
                 expect(unpinnedComponent.exists()).toBe(true);
@@ -149,6 +153,8 @@ describe("HomePage.vue", () => {
             await db.docs.bulkPut([mockEnglishContentDto]);
 
             const wrapper = mount(HomePage);
+
+            appLanguageIdsAsRef.value.unshift("lang-eng");
 
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("Newest");
