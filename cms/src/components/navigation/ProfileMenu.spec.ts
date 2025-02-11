@@ -5,11 +5,6 @@ import * as auth0 from "@auth0/auth0-vue";
 import { setActivePinia, createPinia } from "pinia";
 
 const routePushMock = vi.hoisted(() => vi.fn());
-// vi.mock("vue-router", () => ({
-//     useRouter: vi.fn().mockImplementation(() => ({
-//         push: routePushMock,
-//     })),
-// }));
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
