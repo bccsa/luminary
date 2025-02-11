@@ -318,10 +318,10 @@ watch(selectedLanguage, () => {
                 </div>
             </div>
         </template>
-        <div class="relative grid grid-cols-3 gap-8">
+        <div class="relative grid min-h-screen grid-cols-3 gap-8">
             <!-- Sidebar -->
-            <div class="col-span-3 md:col-span-1" v-if="parent">
-                <div class="sticky top-20 space-y-6">
+            <div class="scrollbar col-span-3 h-screen overflow-y-auto md:col-span-1" v-if="parent">
+                <div class="sticky top-0 space-y-6">
                     <EditContentParentValidation
                         :can-translate="canTranslate"
                         :can-publish="canPublish"
@@ -345,7 +345,7 @@ watch(selectedLanguage, () => {
                     />
                 </div>
             </div>
-            <div class="col-span-3 md:col-span-2">
+            <div class="scrollbar col-span-3 h-screen overflow-y-auto md:col-span-2">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="TagIcon"
@@ -385,3 +385,14 @@ watch(selectedLanguage, () => {
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 </template>
+
+<style>
+.scrollbar::-webkit-scrollbar {
+    display: none; /* Hide scrollbar in Chrome, Safari */
+}
+
+.scrollbar {
+    -ms-overflow-style: none; /* Hide scrollbar in IE/Edge */
+    scrollbar-width: none; /* Hide scrollbar in Firefox */
+}
+</style>

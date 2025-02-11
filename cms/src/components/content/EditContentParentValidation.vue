@@ -10,12 +10,16 @@ import {
     PublishStatus,
     db,
     type ContentParentDto,
+    type TagDto,
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
 
 type Props = {
     languages: LanguageDto[];
@@ -59,6 +63,19 @@ const createTranslation = (language: LanguageDto) => {
         parentTags: [],
     };
     contentDocs.value?.push(newContent);
+
+    router.replace({
+        name: "edit",
+        params: {
+            docType: parent.value?.docType,
+            tagType:
+                parent.value?.docType == DocType.Tag
+                    ? (parent.value as unknown as TagDto).tagType
+                    : undefined,
+            id: parent.value?._id,
+            languageCode: language.languageCode,
+        },
+    });
 };
 
 // Overall validation checking

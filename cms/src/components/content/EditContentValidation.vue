@@ -5,6 +5,7 @@ import {
     type LanguageDto,
     DocType,
     type TagDto,
+    isConnected,
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
@@ -126,7 +127,7 @@ const liveUrl = computed(() => {
     return url.toString();
 });
 
-const ensureRedirect = () => (window.location.href = liveUrl.value);
+const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 </script>
 
 <template>
@@ -150,14 +151,32 @@ const ensureRedirect = () => (window.location.href = liveUrl.value);
                 'rounded-md p-4',
                 {
                     'bg-white  shadow': isActive,
-                    'border bg-zinc-50 hover:bg-stone-100': !isActive,
+                    'border bg-zinc-100 hover:bg-stone-100': !isActive,
                 },
             ]"
         >
             <div class="flex flex-col">
                 <span class="flex items-center justify-between text-sm text-zinc-900">
-                    {{ usedLanguage?.name }}
-
+                    <div class="flex h-8 w-full items-center justify-start">
+                        {{ usedLanguage?.name }}
+                        <LButton
+                            v-if="
+                                isConnected &&
+                                content &&
+                                content.status == PublishStatus.Published &&
+                                content.title
+                            "
+                            :icon="ArrowTopRightOnSquareIcon"
+                            iconRight
+                            class="-ml-2 font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
+                            variant="tertiary"
+                            is="a"
+                            @click="ensureRedirect"
+                            :href="liveUrl"
+                            target="_blank"
+                            title="View live version"
+                        ></LButton>
+                    </div>
                     <div class="flex items-center gap-1">
                         <template v-if="statusChanged">
                             <LBadge
@@ -169,22 +188,7 @@ const ensureRedirect = () => (window.location.href = liveUrl.value);
                             </LBadge>
                             <ArrowRightIcon class="h-4 w-4 text-zinc-700" />
                         </template>
-                        <LButton
-                            v-if="
-                                content &&
-                                content.status == PublishStatus.Published &&
-                                content.title
-                            "
-                            :icon="ArrowTopRightOnSquareIcon"
-                            iconRight
-                            class="font-extralight text-zinc-100"
-                            variant="tertiary"
-                            is="a"
-                            @click="ensureRedirect"
-                            :href="liveUrl"
-                            target="_blank"
-                            >View live version</LButton
-                        >
+
                         <LBadge withIcon :variant="statusBadge(content).variant">
                             {{ statusBadge(content).title }}
                         </LBadge>

@@ -46,7 +46,7 @@ const pinned = computed({
         v-if="parent"
     >
         <GroupSelector v-model:groups="parent.memberOf" :disabled="disabled" :docType="docType" />
-        <ImageEditor :disabled="disabled" v-model:parent="parent" class="mb-4" />
+        <ImageEditor :disabled="disabled" v-model:parent="parent" class="my-4" />
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"
