@@ -133,11 +133,6 @@ export const initLanguage = () => {
                 // Find the CMS defined default language
                 const cmsDefaultLanguage = _languages.find((l) => l.default === 1);
 
-                // If the browser preferred language does not match any of the available content languages,
-                // set the CMS defined default language as the preferred language. If no default language is defined
-                // in the CMS, set the first available language as the preferred language.
-                // appLanguageIdsAsRef.value[0] = cmsDefaultLanguage?._id || _languages[0]._id; // ??
-
                 // Add the CMS defined default language to the list of preferred languages if it is not already there
                 if (
                     cmsDefaultLanguage &&
