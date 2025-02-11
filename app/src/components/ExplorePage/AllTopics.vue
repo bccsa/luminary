@@ -44,7 +44,7 @@ const tagContent = useDexieLiveQueryWithDeps(
                 const content = c as ContentDto;
 
                 // Filter logic for valid, published categories
-                return isPublished(content);
+                return isPublished(content, [appLanguageId]);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     {
