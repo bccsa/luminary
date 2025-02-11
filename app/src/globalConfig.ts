@@ -22,6 +22,7 @@ export const appLanguageIdsAsRef = ref<string[]>(
  * Set the default language of the app.
  */
 function setAppDefaultLanguage(languageId: Uuid) {
+    if (appLanguageIdsAsRef.value.length > 1) return;
     appLanguageIdsAsRef.value = [
         languageId,
         ...appLanguageIdsAsRef.value.filter((l) => l !== languageId),
@@ -36,7 +37,6 @@ function setAppDefaultLanguage(languageId: Uuid) {
 watch(
     appLanguageIdsAsRef,
     (newVal) => {
-        console.log(5);
         if (appLanguageIdsAsRef.value.includes(typeof null))
             appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) => id !== null);
         localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id != null)));
@@ -68,12 +68,10 @@ export const appLanguagePreferredIdAsRef = computed(() =>
  */
 export const appLanguageAsRef = ref<LanguageDto | undefined>();
 watch(appLanguagesPreferredAsRef, (newVal) => {
-    console.log(4);
     if (!newVal || !newVal.length) return;
     // Prevent updating the value if the language is the same
     if (_.isEqual(toRaw(appLanguageAsRef.value), toRaw(newVal[0]))) return;
     appLanguageAsRef.value = newVal[0];
-    console.log(4);
 });
 
 /**
@@ -117,7 +115,6 @@ export const initLanguage = () => {
         const unwatchCmsLanguages = watch(
             cmsLanguages,
             (_languages) => {
-                console.log(3);
                 if (!_languages || _languages.length == 0) return;
                 if (!appLanguageIdsAsRef.value) return;
 

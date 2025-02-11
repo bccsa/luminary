@@ -12,7 +12,6 @@ export const initI18n = () => {
 
         // Wait for the app language to be set before resolving
         const unwatchAppLanguage = watch(i18n.global.locale, () => {
-            console.log(5);
             unwatchAppLanguage();
             resolve(i18n);
         });
@@ -21,11 +20,7 @@ export const initI18n = () => {
         watch(
             [appLanguageAsRef, cmsDefaultLanguage],
             ([newLanguage, defaultLang]) => {
-                console.log(6);
                 if (!newLanguage || !defaultLang) return;
-                // TODO: This watcher is triggering multiple times on app startup. Need to investigate why
-
-                console.log("Setting language", newLanguage.languageCode);
                 // copy translations in the preferred language
                 const messages: Record<string, string> = {};
                 Object.keys(newLanguage.translations || {}).forEach((k: string) => {
