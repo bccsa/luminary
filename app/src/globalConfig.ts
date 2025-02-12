@@ -18,16 +18,6 @@ export const appLanguageIdsAsRef = ref<string[]>(
     JSON.parse(localStorage.getItem("languages") || "[]") as string[],
 );
 
-/**
- * Set the default language of the app.
- */
-function setAppDefaultLanguage(languageId: Uuid) {
-    appLanguageIdsAsRef.value = [
-        languageId,
-        ...appLanguageIdsAsRef.value.filter((l) => l !== languageId),
-    ];
-}
-
 // Save the preferred languages to local storage
 // Note: We could have used useLocalStorage from VueUse, but it seems to be difficult
 // to test as mocking localStorage is not working very well. For this reason
@@ -36,7 +26,7 @@ function setAppDefaultLanguage(languageId: Uuid) {
 watch(
     appLanguageIdsAsRef,
     (newVal) => {
-        localStorage.setItem("languages", JSON.stringify(newVal));
+        localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id != null)));
     },
     { deep: true },
 );
@@ -123,22 +113,23 @@ export const initLanguage = () => {
                 // If a browser preferred language exists, set it
                 if (browserPreferredLanguageId) {
                     unwatchCmsLanguages();
-                    setAppDefaultLanguage(browserPreferredLanguageId);
+                    //Set the default language of the app
+                    appLanguageIdsAsRef.value = [
+                        browserPreferredLanguageId,
+                        ...appLanguageIdsAsRef.value.filter(
+                            (l) => l !== browserPreferredLanguageId,
+                        ),
+                    ];
                     resolve();
                 }
 
                 // Find the CMS defined default language
                 const cmsDefaultLanguage = _languages.find((l) => l.default === 1);
 
-                // If the browser preferred language does not match any of the available content languages,
-                // set the CMS defined default language as the preferred language. If no default language is defined
-                // in the CMS, set the first available language as the preferred language.
-                appLanguageIdsAsRef.value[0] = cmsDefaultLanguage?._id || _languages[0]._id; // ??
-
                 // Add the CMS defined default language to the list of preferred languages if it is not already there
                 if (
                     cmsDefaultLanguage &&
-                    !appLanguageIdsAsRef.value.some((l) => l === cmsDefaultLanguage._id)
+                    !appLanguageIdsAsRef.value.includes(cmsDefaultLanguage._id)
                 ) {
                     appLanguageIdsAsRef.value.push(cmsDefaultLanguage._id);
                 }
