@@ -51,6 +51,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslateOrPublish: true,
                 canPublish: true,
                 canTranslate: true,
+                untranslatedLanguages: [],
             },
         });
 
@@ -82,6 +83,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslateOrPublish: false,
                 canPublish: false,
                 canTranslate: false,
+                untranslatedLanguages: [],
             },
         });
 
@@ -113,6 +115,7 @@ describe("EditContentParentValidation.vue", () => {
                     canTranslateOrPublish: true,
                     canTranslate: true,
                     canPublish: true,
+                    untranslatedLanguages: [],
                 },
             });
 
@@ -143,6 +146,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslateOrPublish: true,
                 canTranslate: true,
                 canPublish: true,
+                untranslatedLanguages: [],
             },
         });
 
@@ -171,6 +175,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslateOrPublish: true,
                 canPublish: true,
                 canTranslate: true,
+                untranslatedLanguages: [],
             },
         });
 
@@ -195,6 +200,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslateOrPublish: true,
                 canTranslate: true,
                 canPublish: true,
+                untranslatedLanguages: [],
             },
         });
 
@@ -219,6 +225,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslateOrPublish: true,
                 canTranslate: true,
                 canPublish: true,
+                untranslatedLanguages: [],
             },
         });
 
@@ -243,6 +250,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslateOrPublish: true,
                 canTranslate: true,
                 canPublish: true,
+                untranslatedLanguages: [],
             },
         });
 
@@ -267,6 +275,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslateOrPublish: true,
                 canTranslate: true,
                 canPublish: true,
+                untranslatedLanguages: [],
             },
         });
 

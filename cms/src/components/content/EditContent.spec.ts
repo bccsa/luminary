@@ -200,7 +200,7 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("The content is not yet available in");
+            expect(wrapper.html()).toContain("Please select a language to start editing");
         });
     });
 
