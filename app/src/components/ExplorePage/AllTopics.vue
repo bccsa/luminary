@@ -7,9 +7,6 @@ import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
 import { ChevronDownIcon } from "@heroicons/vue/24/solid";
 import { isPublished } from "@/util/isPublished";
-import { useI18n } from "vue-i18n";
-
-const { t } = useI18n();
 
 const allTopics = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -73,57 +70,6 @@ const toggleTag = (tagId: string) => {
 </script>
 
 <template>
-    <div v-if="allTopics" class="lg:mx-32">
-        <div class="mb-4 mt-6">
-            <div class="relative">
-                <MagnifyingGlassIcon
-                    class="absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500"
-                />
-                <input
-                    v-model="searchTerm"
-                    name="input"
-                    type="text"
-                    :placeholder="t('topic.search_placeholder') + '...'"
-                    class="w-full rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
-                />
-            </div>
-        </div>
-
-        <!-- Show "No results found" message if filteredTopics is empty and searchTerm is not blank -->
-        <div
-            v-if="filteredTopics.length === 0 && searchTerm.trim()"
-            class="text-center text-gray-500"
-        >
-            {{ t("topic.no_results_found") }} "{{ searchTerm }}"
-        </div>
-
-        <div class="space-y-2">
-            <div
-                v-for="content in filteredTopics"
-                :key="content._id"
-                class="flex overflow-clip rounded-lg bg-zinc-50 pl-2 shadow-sm hover:bg-yellow-500/10 dark:bg-slate-800 dark:hover:bg-yellow-500/10 md:pl-4"
-            >
-                <RouterLink
-                    :to="{ name: 'content', params: { slug: content.slug } }"
-                    class="flex w-full justify-between"
-                >
-                    <div class="my-auto flex flex-col gap-y-1 text-zinc-800 dark:text-slate-50">
-                        <h3 class="text-sm">{{ content.title }}</h3>
-                        <p
-                            v-if="content.summary"
-                            class="line-clamp-1 text-xs text-zinc-500 dark:text-slate-300"
-                        >
-                            {{ content.summary }}
-                        </p>
-                    </div>
-                    <LImage
-                        :image="content.parentImageData"
-                        aspectRatio="classic"
-                        size="small"
-                        class="flex items-center"
-                        :rounded="false"
-                    />
-                </RouterLink>
     <div v-if="allTopics" class="mt-8 lg:mx-32">
         <div
             v-for="tag in tagContent.slice().sort((a, b) => a.title.localeCompare(b.title))"
