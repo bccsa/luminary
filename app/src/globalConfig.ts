@@ -18,17 +18,6 @@ export const appLanguageIdsAsRef = ref<string[]>(
     JSON.parse(localStorage.getItem("languages") || "[]") as string[],
 );
 
-/**
- * Set the default language of the app.
- */
-function setAppDefaultLanguage(languageId: Uuid) {
-    if (appLanguageIdsAsRef.value.length > 1) return;
-    appLanguageIdsAsRef.value = [
-        languageId,
-        ...appLanguageIdsAsRef.value.filter((l) => l !== languageId),
-    ];
-}
-
 // Save the preferred languages to local storage
 // Note: We could have used useLocalStorage from VueUse, but it seems to be difficult
 // to test as mocking localStorage is not working very well. For this reason
@@ -124,7 +113,13 @@ export const initLanguage = () => {
                 // If a browser preferred language exists, set it
                 if (browserPreferredLanguageId) {
                     unwatchCmsLanguages();
-                    setAppDefaultLanguage(browserPreferredLanguageId);
+                    //Set the default language of the app
+                    appLanguageIdsAsRef.value = [
+                        browserPreferredLanguageId,
+                        ...appLanguageIdsAsRef.value.filter(
+                            (l) => l !== browserPreferredLanguageId,
+                        ),
+                    ];
                     resolve();
                 }
 
