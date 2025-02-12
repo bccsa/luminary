@@ -48,7 +48,7 @@ export async function validateChangeRequestAccess(
     }
 
     // Validate edit, translate and group ACL assign access
-    // ============================================================
+    // ====================================================
 
     if (doc.type === DocType.Group) {
         // Check group edit access
