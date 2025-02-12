@@ -2,12 +2,11 @@
 import { ChevronLeftIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { MoonIcon } from "@heroicons/vue/24/outline";
 import ProfileMenu from "./ProfileMenu.vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { isDarkTheme, showContentQuickControls, theme } from "@/globalConfig";
 
-const route = useRoute();
 const router = useRouter();
 const LOGO = import.meta.env.VITE_LOGO;
 const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL;

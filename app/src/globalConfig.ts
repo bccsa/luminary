@@ -275,3 +275,11 @@ watch(
  * This ref is used to control the visibility of the quick controls (dark/light mode switch, back button) in content view (SingleContent.vue).
  */
 export const showContentQuickControls = ref(false);
+
+export const loginModalVisible = ref(false);
+/**
+ * Show the login modal
+ */
+export const showLoginModal = () => {
+    loginModalVisible.value = true;
+};

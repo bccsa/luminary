@@ -4,7 +4,7 @@ import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
 import { computed, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { userPreferencesAsRef } from "./globalConfig";
+import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
@@ -53,7 +53,7 @@ setTimeout(() => {
                     state: "warning",
                     type: "banner",
                     icon: ExclamationCircleIcon,
-                    link: { name: "login" },
+                    link: () => showLoginModal(),
                 });
             }
             if (!isConnected.value || isAuthenticated.value) {

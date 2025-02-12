@@ -3,8 +3,6 @@ import { nextTick } from "vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import HomePage from "@/pages/HomePage.vue";
 import SettingsPage from "@/pages/SettingsPage.vue";
-import LoginPage from "@/pages/LoginPage.vue";
-import { isNotAuthenticatedGuard } from "@/guards/isNotAuthenticatedGuard";
 import SingleContent from "@/pages/SingleContent.vue";
 import { appName } from "@/globalConfig";
 import ExplorePage from "@/pages/ExplorePage.vue";
@@ -28,16 +26,6 @@ const router = createRouter({
                 title: "Home",
                 analyticsIgnore: true,
             },
-        },
-        {
-            path: "/login",
-            component: LoginPage,
-            name: "login",
-            meta: {
-                title: "Log in",
-                analyticsIgnore: true,
-            },
-            beforeEnter: isNotAuthenticatedGuard,
         },
         {
             path: "/explore",
