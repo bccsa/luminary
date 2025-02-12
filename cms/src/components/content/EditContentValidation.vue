@@ -150,8 +150,8 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
             :class="[
                 'rounded-md p-4',
                 {
-                    'bg-white  shadow': isActive,
-                    'border bg-zinc-100 hover:bg-stone-100': !isActive,
+                    'cursor-default bg-white shadow': isActive,
+                    'border bg-white/25 hover:bg-white/50': !isActive,
                 },
             ]"
         >
@@ -197,7 +197,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
             </div>
 
             <div v-if="!isValid || isContentDirty" class="mt-2 flex flex-col gap-0.5">
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-2">
                     <p>
                         <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
                     </p>
@@ -206,7 +206,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                 <div
                     v-for="validation in validations.filter((v) => !v.isValid)"
                     :key="validation.id"
-                    class="flex items-center gap-1"
+                    class="flex items-center gap-2"
                 >
                     <p>
                         <XCircleIcon class="h-4 w-4 text-red-400" />
