@@ -95,7 +95,6 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 let _selectedLanguageId = ref<Uuid | undefined>(undefined);
 const selectedLanguageId = computed({
     get() {
-        if (_selectedLanguageId.value) return _selectedLanguageId.value;
         if (!languages.value) return undefined;
         if (props.languageCode) {
             const preferred = languages.value.find((l) => l.languageCode == props.languageCode);
@@ -239,7 +238,11 @@ const save = async () => {
 
 const revertChanges = () => {
     // Restore the parent document to the previous version
-    if (_.isEqual(contentDocs.value, contentDocsPrev.value)) {
+    if (
+        _.isEqual(contentDocs.value, contentDocsPrev.value) ||
+        contentDocs.value.length < 1 ||
+        !contentDocsPrev.value
+    ) {
         addNotification({
             title: "No changes",
             description: `There were no changes to revert`,
