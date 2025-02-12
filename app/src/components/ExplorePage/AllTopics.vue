@@ -32,11 +32,10 @@ const allTopics = useDexieLiveQueryWithDeps(
 
 const tagContent = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
-    (appLanguageId: Uuid) =>
+    (appLanguageId: Uuid[]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                language: appLanguageId,
                 status: "published",
                 parentTagType: TagType.Category,
             })
@@ -44,7 +43,7 @@ const tagContent = useDexieLiveQueryWithDeps(
                 const content = c as ContentDto;
 
                 // Filter logic for valid, published categories
-                return isPublished(content, [appLanguageId]);
+                return isPublished(content, appLanguageId);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     {
