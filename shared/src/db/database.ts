@@ -750,10 +750,7 @@ class Database extends Dexie {
 
         if (cmd.deleteReason == DeleteReason.StatusChange) {
             // Only delete the document if the client is not a CMS client
-            if (config.cms) {
-                return false;
-            }
-            return true;
+            if (!config.cms) return true;
         }
 
         if (
