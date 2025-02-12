@@ -19,14 +19,14 @@ import { PlayIcon } from "@heroicons/vue/16/solid";
 const { user, logout } = useAuth0();
 const router = useRouter();
 
-const shouldDisplayLanguageModal = ref(false);
+const showLanguageModal = ref(false);
 
 const userNavigation = [
     { name: "Settings", action: () => router.push({ name: "settings" }), icon: Cog6ToothIcon },
     {
         name: "Language",
         language: cmsLanguageIdAsRef.value,
-        action: () => (shouldDisplayLanguageModal.value = true),
+        action: () => (showLanguageModal.value = true),
         icon: LanguageIcon,
     },
     {
@@ -114,8 +114,5 @@ if (isDevMode) {
             </MenuItems>
         </transition>
     </Menu>
-    <LanguageModal
-        :is-visible="shouldDisplayLanguageModal"
-        @close="shouldDisplayLanguageModal = false"
-    />
+    <LanguageModal :is-visible="showLanguageModal" @close="showLanguageModal = false" />
 </template>

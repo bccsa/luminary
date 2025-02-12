@@ -65,10 +65,9 @@ const queryOptions = ref<ContentOverviewQueryOptions>({
 const queryKey = computed(() => JSON.stringify(queryOptions.value));
 
 watch(
-    selectedLanguage,
+    cmsLanguageIdAsRef,
     () => {
-        queryOptions.value.languageId = selectedLanguage.value;
-        cmsLanguageIdAsRef.value = selectedLanguage.value;
+        queryOptions.value.languageId = cmsLanguageIdAsRef.value;
     },
     { immediate: true },
 );
@@ -206,13 +205,6 @@ watch(tagsSelected.value, () => {
     <BasePage :is-full-width="true" :title="`${capitaliseFirstLetter(tagOrPostType)} overview`">
         <template #actions>
             <div class="flex gap-4">
-                <LSelect
-                    v-model="selectedLanguage"
-                    :options="languageOptions"
-                    :required="true"
-                    size="lg"
-                    data-test="language-selector"
-                />
                 <LButton
                     v-if="canCreateNew"
                     variant="primary"
@@ -232,28 +224,6 @@ watch(tagsSelected.value, () => {
                 </LButton>
             </div>
         </template>
-        <!-- TODO: Move empty state to ContentTable as the ContentOverview does not anymore know if there are content documents or not -->
-        <!-- <EmptyState
-            v-if="!contentParents || contentParents.length == 0"
-            :icon="docType == DocType.Post ? DocumentIcon : TagIcon"
-            :title="`No ${titleType}(s) yet`"
-            :description="
-                canCreateNew
-                    ? `Get started by creating a new ${titleType}.`
-                    : `You do not have permission to create a new ${titleType}.`
-            "
-            :buttonText="`Create ${titleType}`"
-            :buttonLink="{
-                name: `edit`,
-                params: {
-                    docType: docType,
-                    tagType: tagType ? tagType.toString() : 'default',
-                    id: 'new',
-                },
-            }"
-            :buttonPermission="canCreateNew"
-            data-test="no-content"
-        /> -->
         <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
             <LInput
                 type="text"
