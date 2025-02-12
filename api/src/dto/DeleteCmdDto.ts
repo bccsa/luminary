@@ -13,7 +13,7 @@ export class DeleteCmdDto extends _baseDto {
     docId: Uuid;
 
     /**
-     * The docType is used by the client to determine whether the client has permission to keep the document. For ContentDto documents, this field is set to the DocType of the parent document, as the permission system does not specify permissions for ContentDto documents.
+     * docType is used by the client to determine whether the client has permission to keep the document. For ContentDto documents, this field is set to the DocType of the parent document, as the permission system does not specify permissions for ContentDto documents.
      */
     @IsString()
     @IsNotEmpty()
