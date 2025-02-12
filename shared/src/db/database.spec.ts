@@ -1006,7 +1006,7 @@ describe("Database", async () => {
             expect(deletedDoc).toBeUndefined();
         });
 
-        it("does not delete a document when receiving a delete request with reason 'permissionChange' and the document's group membership in the access map", async () => {
+        it("does not delete a document when receiving a delete request with reason 'permissionChange' and the document's group membership is in the access map", async () => {
             await db.docs.bulkPut([mockEnglishContentDto]);
 
             const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
