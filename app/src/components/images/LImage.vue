@@ -135,7 +135,7 @@ const showImageElement2 = computed(
                 ></div>
             </div>
             <span
-                class="z-10 w-full truncate text-pretty p-2 text-center font-serif text-xl text-zinc-100 shadow-md drop-shadow-[2px_2px_rgba(0,0,0,1)]"
+                class="z-10 h-full w-full truncate text-pretty p-2 text-center font-serif text-xl text-zinc-100 shadow-md drop-shadow-[2px_2px_rgba(0,0,0,1)]"
                 v-if="contentTitle && !showImageElement1"
                 >{{ contentTitle }}</span
             >
