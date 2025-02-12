@@ -23,7 +23,7 @@ const setLanguage = (id: string) => {
 <template>
     <LModal
         name="lModal-languages"
-        heading="Select Language"
+        heading="Select preferred content language"
         :is-visible="isVisible"
         @close="emit('close')"
     >
