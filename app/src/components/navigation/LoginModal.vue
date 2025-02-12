@@ -40,27 +40,27 @@ const loginAsGuest = async () => {
             You are offline. Please connect to the internet to log in.
         </p>
 
-        <LCard v-else>
-            <div class="flex flex-col gap-5">
-                <LButton
-                    :disabled="!isConnected"
-                    @click="loginWithBcc"
-                    variant="bcc"
-                    size="xl"
-                    data-test="login-bcc"
-                >
-                    Log in with BCC
-                </LButton>
-                <LButton
-                    @click="loginAsGuest"
-                    variant="secondary"
-                    :disabled="!isConnected"
-                    size="xl"
-                    data-test="login-guest"
-                >
-                    Log in as guest
-                </LButton>
-            </div>
-        </LCard>
+        <!-- <LCard v-else> -->
+        <div class="flex flex-col gap-5" v-else>
+            <LButton
+                :disabled="!isConnected"
+                @click="loginWithBcc"
+                variant="bcc"
+                size="xl"
+                data-test="login-bcc"
+            >
+                Log in with BCC
+            </LButton>
+            <LButton
+                @click="loginAsGuest"
+                variant="secondary"
+                :disabled="!isConnected"
+                size="xl"
+                data-test="login-guest"
+            >
+                Log in as guest
+            </LButton>
+        </div>
+        <!-- </LCard> -->
     </LModal>
 </template>

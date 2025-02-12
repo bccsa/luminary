@@ -11,7 +11,6 @@ import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 import { useRouter } from "vue-router";
-import LoginModal from "./pages/LoginModal.vue";
 
 const router = useRouter();
 const { isAuthenticated, user } = useAuth0();
@@ -97,8 +96,6 @@ const routeKey = computed(() => {
             class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
         />
     </div>
-
-    <LoginModal v-model="showLoginModal" />
 
     <Teleport to="body">
         <NotificationToastManager />
