@@ -87,7 +87,7 @@ describe("ThemeSelectorModal.vue", () => {
     });
 
     it("selects the correct theme and updates localStorage", async () => {
-        localStorage.setItem("theme", "Light");
+        localStorage.setItem("theme", "light");
         const wrapper = mount(ThemeSelectorModal, {
             props: {
                 isVisible: true,
@@ -110,23 +110,5 @@ describe("ThemeSelectorModal.vue", () => {
         });
         await wrapper.findComponent(LButton).trigger("click");
         expect(wrapper.emitted()).toHaveProperty("close");
-    });
-
-    it("applies the correct theme class on mount", () => {
-        localStorage.setItem("theme", "dark");
-        mount(ThemeSelectorModal, {
-            props: {
-                isVisible: true,
-            },
-        });
-        expect(document.documentElement.classList.contains("dark")).toBe(true);
-
-        localStorage.setItem("theme", "light");
-        mount(ThemeSelectorModal, {
-            props: {
-                isVisible: true,
-            },
-        });
-        expect(document.documentElement.classList.contains("dark")).toBe(false);
     });
 });

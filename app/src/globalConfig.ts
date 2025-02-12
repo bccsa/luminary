@@ -29,7 +29,7 @@ function setAppDefaultLanguage(languageId: Uuid) {
 }
 
 // Save the preferred languages to local storage
-// Note: We could have used useLocalStorage from vueuse, but it seems to be difficult
+// Note: We could have used useLocalStorage from VueUse, but it seems to be difficult
 // to test as mocking localStorage is not working very well. For this reason
 // we are using a watcher so that we can use the ref directly and test it easily
 // without interactions with localStorage (which we choose to ignore for now in testing).
@@ -237,3 +237,50 @@ watch(userPreferencesAsRef.value, (newVal) => {
  * Query string parameters captured on app startup
  */
 export const queryParams = new URLSearchParams(window.location.search);
+
+const _theme = ref(localStorage.getItem("theme") || "system");
+
+/**
+ * The selected theme as Vue ref.
+ */
+export const theme = computed<"system" | "dark" | "light">({
+    get: () => {
+        if (_theme.value != "dark" && _theme.value != "light") return "system";
+        return _theme.value;
+    },
+    set: (value) => {
+        _theme.value = value;
+        localStorage.setItem("theme", value);
+    },
+});
+
+/**
+ * Returns true if the theme is dark, false if it is light. When the theme is set to "System", it returns true if the system's preferred color scheme is dark.
+ */
+export const isDarkTheme = ref(document.documentElement.classList.contains("dark"));
+
+// Watch the theme and apply to the document's CSS classes
+watch(
+    theme,
+    (t) => {
+        if (t === "system") {
+            if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                document.documentElement.classList.add("dark");
+            } else {
+                document.documentElement.classList.remove("dark");
+            }
+        } else if (t === "dark") {
+            document.documentElement.classList.add("dark");
+        } else {
+            document.documentElement.classList.remove("dark");
+        }
+
+        isDarkTheme.value = document.documentElement.classList.contains("dark");
+    },
+    { immediate: true },
+);
+
+/**
+ * This ref is used to control the visibility of the quick controls (dark/light mode switch, back button) in content view (SingleContent.vue).
+ */
+export const showContentQuickControls = ref(false);
