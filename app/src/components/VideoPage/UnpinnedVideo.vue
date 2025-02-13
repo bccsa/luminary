@@ -85,6 +85,7 @@ const unpinnedContentByCategory = contentByTag(unpinnedCategoryContent, unpinned
             :title="c.tag.title"
             :summary="c.tag.summary"
             :showPublishDate="false"
+            class="pb-1 pt-2"
         />
     </IgnorePagePadding>
 </template>
