@@ -169,6 +169,7 @@ describe("processChangeRequest", () => {
             } as PostDto,
         };
 
+        PermissionSystem.upsertGroups((await db.getGroups()).docs);
         await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
 
         const res = await db.getContentByParentId(changeRequest.doc._id);
