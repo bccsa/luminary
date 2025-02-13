@@ -31,5 +31,6 @@ export class _baseDto {
 
     @IsOptional()
     @IsNumber()
+    @Expose()
     deleteReq?: number;
 }
