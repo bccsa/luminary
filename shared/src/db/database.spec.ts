@@ -588,7 +588,7 @@ describe("Database", async () => {
         await db.applyLocalChangeAck({
             id: localChange!.id!,
             ack: AckStatus.Rejected,
-            doc: ackDoc,
+            docs: [ackDoc],
         });
 
         // Check if the local change is removed

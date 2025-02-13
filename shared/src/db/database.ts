@@ -633,9 +633,9 @@ class Database extends Dexie {
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto) {
         if (ack.ack == "rejected") {
-            if (ack.doc) {
-                // Replace our local copy with the provided database version
-                await this.docs.update(ack.doc._id, ack.doc);
+            if (ack.docs && Array.isArray(ack.docs)) {
+                // Replace our local copy(s) with the provided database version
+                await this.docs.bulkPut(ack.docs);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
                 const change = await this.localChanges.get(ack.id);
