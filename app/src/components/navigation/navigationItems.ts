@@ -22,6 +22,12 @@ export function getNavigationItems() {
             selectedIcon: FilledBookOpenIcon,
             to: { name: "explore" },
         },
+        {
+            name: t("menu.video"),
+            defaultIcon: PlayIcon,
+            selectedIcon: FilledPlayIcon,
+            to: { name: "video" },
+        },
     ];
 
     // Exclude the "Explore" navigation item if the env variable "VITE_HIDE_EXPLORE" is set to "true"
