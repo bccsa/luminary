@@ -544,6 +544,12 @@ class Database extends Dexie {
             // Delete the document from the local database. The document will be deleted from the API when the change is sent from the localChanges table
             await this.docs.delete(raw._id);
             overwiteLocalChanges = true;
+
+            // If the document is a post or tag, delete all the associated content documents
+            // Note: We do not need to send delete requests to the API, as the API will delete the content documents when the parent document is deleted
+            if (raw.type == DocType.Post || raw.type == DocType.Tag) {
+                await this.docs.where("parentId").equals(raw._id).delete();
+            }
         } else {
             await this.docs.put(raw, raw._id);
         }

@@ -232,7 +232,7 @@ describe("Database", async () => {
     it("can sort tags by the latest publish date of the content of the posts / tags tagged with the tag", async () => {
         // Category 1
         // Update the publish date of the English content to be 2
-        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 });
+        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 } as any);
 
         // Add a second post's content document
         await db.docs.bulkPut([
@@ -273,9 +273,9 @@ describe("Database", async () => {
         ]);
 
         // Test 1: the order should be Category 1, Category 2
-        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 });
-        await db.docs.update("post2-content", { publishDate: 2 });
-        await db.docs.update("post3-content", { publishDate: 1 });
+        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 } as any);
+        await db.docs.update("post2-content", { publishDate: 2 } as any);
+        await db.docs.update("post3-content", { publishDate: 1 } as any);
 
         const tags = await db.tagsWhereTagType(TagType.Category, {
             languageId: mockLanguageDtoEng._id,
@@ -285,9 +285,9 @@ describe("Database", async () => {
         expect(tags[0]._id).toBe(mockCategoryDto._id);
 
         // Test 2: the order should be Category 2, Category 1
-        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 });
-        await db.docs.update("post2-content", { publishDate: 1 });
-        await db.docs.update("post3-content", { publishDate: 2 });
+        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 } as any);
+        await db.docs.update("post2-content", { publishDate: 1 } as any);
+        await db.docs.update("post3-content", { publishDate: 2 } as any);
 
         const tags2 = await db.tagsWhereTagType(TagType.Category, {
             languageId: mockLanguageDtoEng._id,
@@ -403,7 +403,7 @@ describe("Database", async () => {
             publishDate: 0,
             tags: [mockCategoryDto._id],
             title: "Post 1",
-        });
+        } as any);
 
         // Add a second post's content document
         await db.docs.bulkPut([
@@ -1025,6 +1025,30 @@ describe("Database", async () => {
 
             const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
             expect(deletedDoc).toBeDefined();
+        });
+
+        it("can delete related content documents when a parent document is deleted locally through marking a document with deleteReq: 1", async () => {
+            await db.docs.bulkPut([mockPostDto, mockEnglishContentDto, mockFrenchContentDto]);
+
+            const addedDoc = await db.get<ContentDto>(mockPostDto._id);
+            expect(addedDoc).toBeDefined();
+
+            const addedContent1 = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedContent1).toBeDefined();
+
+            const addedContent2 = await db.get<ContentDto>(mockFrenchContentDto._id);
+            expect(addedContent2).toBeDefined();
+
+            await db.upsert({ ...mockPostDto, deleteReq: 1 });
+
+            const deletedDoc = await db.get<PostDto>(mockPostDto._id);
+            expect(deletedDoc).toBeUndefined();
+
+            const deletedContent1 = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedContent1).toBeUndefined();
+
+            const deletedContent2 = await db.get<ContentDto>(mockFrenchContentDto._id);
+            expect(deletedContent2).toBeUndefined();
         });
     });
 });
