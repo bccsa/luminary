@@ -153,7 +153,7 @@ export type ChangeReqAckDto = {
     id: number;
     ack: AckStatus;
     message?: string;
-    doc?: any;
+    docs?: any[];
 };
 
 export type LocalChangeDto = {
