@@ -4,16 +4,11 @@ import {
     type ContentDto,
     type Uuid,
     type LanguageDto,
-    AclPermission,
-    DocType,
-    verifyAccess,
     PublishStatus,
-    db,
     type ContentParentDto,
 } from "luminary-shared";
-import { computed, ref, watch, watchEffect } from "vue";
+import { ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 
@@ -25,41 +20,11 @@ type Props = {
     canEdit: boolean;
     canTranslate: boolean;
     canPublish: boolean;
+    untranslatedLanguages: LanguageDto[];
 };
-const props = defineProps<Props>();
+defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
 const contentDocs = defineModel<ContentDto[]>("contentDocs");
-
-const untranslatedLanguages = computed(() => {
-    if (!contentDocs.value) {
-        return [];
-    }
-
-    return props.languages
-        .filter(
-            (l) =>
-                !contentDocs.value?.find((c) => c.language == l._id) &&
-                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
-        )
-        .sort(sortByName);
-});
-
-const createTranslation = (language: LanguageDto) => {
-    const newContent: ContentDto = {
-        _id: db.uuid(),
-        type: DocType.Content,
-        updatedTimeUtc: Date.now(),
-        memberOf: [],
-        parentId: parent.value?._id as Uuid,
-        parentType: parent.value?.docType as DocType.Post | DocType.Tag,
-        language: language._id,
-        status: PublishStatus.Draft,
-        title: `Translation for ${language.name}`,
-        slug: "",
-        parentTags: [],
-    };
-    contentDocs.value?.push(newContent);
-};
 
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
@@ -76,7 +41,10 @@ const setOverallValidation = (id: Uuid, isValid: boolean) => {
     overallIsValid.value = overallValidations.value.every((v) => v.isValid);
 };
 
-const emit = defineEmits(["updateIsValid"]);
+const emit = defineEmits<{
+    (e: "updateIsValid", value: boolean): void;
+    (e: "createTranslation", language: LanguageDto): void;
+}>();
 
 watchEffect(() => {
     emit("updateIsValid", overallIsValid.value);
@@ -163,20 +131,17 @@ watch(
                     permission</span
                 >
             </div>
-            <div v-if="!parentIsValid" class="mb-2 rounded-md bg-zinc-50 p-4 shadow">
-                <span class="text-sm"
-                    >Errors were found in your {{ parent?.type }}'s settings:</span
-                >
-                <div class="mt-1 flex flex-col gap-0.5">
+            <div v-if="!parentIsValid">
+                <div class="mb-1 mt-1 flex flex-col gap-0.5">
                     <div
                         v-for="validation in parentValidations.filter((v) => !v.isValid)"
                         :key="validation.id"
                         class="-mb-[1px] flex items-center gap-1"
                     >
-                        <p class="flex items-center gap-1">
-                            <XCircleIcon class="h-[18px] text-red-400" />
+                        <div class="flex items-center gap-2">
+                            <XCircleIcon class="h-[18px] w-[18px] min-w-[18px] text-red-400" />
                             <span class="text-xs text-zinc-700">{{ validation.message }}</span>
-                        </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -196,7 +161,7 @@ watch(
                     :languages="untranslatedLanguages"
                     :parent="parent"
                     :content="contentDocs"
-                    @create-translation="createTranslation"
+                    @create-translation="(language) => emit('createTranslation', language)"
                 />
             </div>
         </div>

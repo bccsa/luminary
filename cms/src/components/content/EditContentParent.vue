@@ -45,7 +45,8 @@ const pinned = computed({
         collapsible
         v-if="parent"
     >
-        <ImageEditor :disabled="disabled" v-model:parent="parent" class="mb-4" />
+        <GroupSelector v-model:groups="parent.memberOf" :disabled="disabled" :docType="docType" />
+        <ImageEditor :disabled="disabled" v-model:parent="parent" class="my-4" />
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"
@@ -59,13 +60,6 @@ const pinned = computed({
             <FormLabel>Show publish date</FormLabel>
             <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
         </div>
-
-        <GroupSelector
-            v-model:groups="parent.memberOf"
-            :disabled="disabled"
-            :docType="docType"
-            class="mt-6"
-        />
 
         <TagSelector
             v-model:parent="parent"
