@@ -16,7 +16,6 @@ import {
     AclPermission,
     DocType,
     TagType,
-    type LanguageDto,
     type Uuid,
     hasAnyPermission,
     type ContentDto,
