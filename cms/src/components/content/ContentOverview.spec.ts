@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vite
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
-import { db, accessMap, DocType, type ContentDto, PostType } from "luminary-shared";
+import { db, accessMap, DocType, PostType } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
