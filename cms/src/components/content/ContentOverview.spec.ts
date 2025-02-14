@@ -44,7 +44,9 @@ describe("ContentOverview.vue", () => {
         await db.localChanges.clear();
     });
 
-    it("should display content", async () => {
+    it.only("should display content", async () => {
+        //@ts-ignore as this code is valid
+        console.log(await db.docs.toArray());
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
@@ -55,10 +57,16 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
+        wrapper.vm.cmsLanguageIdAsRef = "lang-eng";
+
+        console.log(wrapper.vm.cmsLanguageIdAsRef);
+
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(async () => {
+            expect(await wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
         });
-    }, 10000);
+    });
 
     it("should show edit button with correct router link and icon", async () => {
         const wrapper = mount(ContentOverview, {
@@ -177,7 +185,7 @@ describe("ContentOverview.vue", () => {
 
         await waitForExpect(async () => {
             //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-eng";
+            wrapper.vm.cmsLanguageIdAsRef = "lang-eng";
 
             const contentTable = await wrapper.findComponent(ContentTable);
 
@@ -187,14 +195,14 @@ describe("ContentOverview.vue", () => {
             expect(contentRows.length).toBe(3);
 
             //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-fra";
+            wrapper.vm.cmsLanguageIdAsRef = "lang-fra";
             const updatedFrenchContentRows = await contentTable.findAll(
                 '[data-test="content-row"]',
             );
             expect(updatedFrenchContentRows.length).toBe(3);
 
             //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-swa";
+            wrapper.vm.cmsLanguageIdAsRef = "lang-swa";
             const updatedSwahiliContentRows = await contentTable.findAll(
                 '[data-test="content-row"]',
             );
