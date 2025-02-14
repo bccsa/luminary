@@ -5,6 +5,7 @@ import {
     type LanguageDto,
     DocType,
     type TagDto,
+    isConnected,
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
@@ -13,6 +14,9 @@ import LBadge, { variants } from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
+import { clientAppUrl } from "@/globalConfig";
+import LButton from "../button/LButton.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -113,6 +117,17 @@ watch(
     },
     { immediate: true, deep: true },
 );
+
+const liveUrl = computed(() => {
+    if (!content.value) return "";
+    const url = new URL(
+        content.value.slug,
+        clientAppUrl.value ? clientAppUrl.value : "http://localhost",
+    );
+    return url.toString();
+});
+
+const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 </script>
 
 <template>
@@ -135,15 +150,33 @@ watch(
             :class="[
                 'rounded-md p-4',
                 {
-                    'bg-white  shadow': isActive,
-                    'border bg-zinc-50 hover:bg-stone-100': !isActive,
+                    'cursor-default bg-white shadow': isActive,
+                    'border bg-white/25 hover:bg-white/50': !isActive,
                 },
             ]"
         >
             <div class="flex flex-col">
                 <span class="flex items-center justify-between text-sm text-zinc-900">
-                    {{ usedLanguage?.name }}
-
+                    <div class="flex h-8 w-full items-center justify-start">
+                        {{ usedLanguage?.name }}
+                        <LButton
+                            v-if="
+                                isConnected &&
+                                content &&
+                                content.status == PublishStatus.Published &&
+                                content.title
+                            "
+                            :icon="ArrowTopRightOnSquareIcon"
+                            iconRight
+                            class="-ml-2 font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
+                            variant="tertiary"
+                            is="a"
+                            @click="ensureRedirect"
+                            :href="liveUrl"
+                            target="_blank"
+                            title="View live version"
+                        ></LButton>
+                    </div>
                     <div class="flex items-center gap-1">
                         <template v-if="statusChanged">
                             <LBadge
@@ -164,7 +197,7 @@ watch(
             </div>
 
             <div v-if="!isValid || isContentDirty" class="mt-2 flex flex-col gap-0.5">
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-2">
                     <p>
                         <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
                     </p>
@@ -173,7 +206,7 @@ watch(
                 <div
                     v-for="validation in validations.filter((v) => !v.isValid)"
                     :key="validation.id"
-                    class="flex items-center gap-1"
+                    class="flex items-center gap-2"
                 >
                     <p>
                         <XCircleIcon class="h-4 w-4 text-red-400" />

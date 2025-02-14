@@ -26,7 +26,6 @@ import EditContentStatus from "@/components/content/EditContentStatus.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
-import EditContentPreview from "@/components/content/EditContentPreview.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
@@ -34,6 +33,7 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
+import { sortByName } from "@/util/sortByName";
 
 type Props = {
     id: Uuid;
@@ -65,6 +65,11 @@ const parentPrev = ref<ContentParentDto>(); // Previous version of the parent do
 const contentDocs = ref<ContentDto[]>([]);
 const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 
+let icon = DocumentIcon;
+if (props.docType == DocType.Tag) {
+    icon = TagIcon;
+}
+
 if (newDocument) {
     // Set default tag properties if it is a new tag
     if (props.docType == DocType.Tag) {
@@ -91,6 +96,20 @@ if (newDocument) {
 
 // Languages and language selection
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+
+const untranslatedLanguages = computed(() => {
+    if (!contentDocs.value) {
+        return [];
+    }
+
+    return languages.value
+        .filter(
+            (l) =>
+                !contentDocs.value?.find((c) => c.language == l._id) &&
+                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
+        )
+        .sort(sortByName);
+});
 
 let _selectedLanguageId = ref<Uuid | undefined>(undefined);
 const selectedLanguageId = computed({
@@ -119,20 +138,34 @@ const selectedContent = computed(() => {
 });
 
 const createTranslation = (language: LanguageDto) => {
-    contentDocs.value.push({
+    const newContent: ContentDto = {
         _id: db.uuid(),
         type: DocType.Content,
         updatedTimeUtc: Date.now(),
         memberOf: [],
-        parentId: parent.value._id,
-        parentType: props.docType,
+        parentId: parent.value?._id as Uuid,
+        parentType: parent.value?.docType as DocType.Post | DocType.Tag,
         language: language._id,
         status: PublishStatus.Draft,
         title: `Translation for ${language.name}`,
         slug: "",
         parentTags: [],
-    });
+    };
+    contentDocs.value?.push(newContent);
     selectedLanguageId.value = language._id;
+
+    router.replace({
+        name: "edit",
+        params: {
+            docType: parent.value?.docType,
+            tagType:
+                parent.value?.docType == DocType.Tag
+                    ? (parent.value as unknown as TagDto).tagType
+                    : undefined,
+            id: parent.value?._id,
+            languageCode: language.languageCode,
+        },
+    });
 };
 
 const canTranslate = computed(() => {
@@ -287,7 +320,7 @@ watch(selectedLanguage, () => {
     </div>
     <BasePage
         :title="selectedContent ? selectedContent.title : `Edit ${props.tagOrPostType}`"
-        :icon="DocumentIcon"
+        :icon="icon"
         :loading="isLoading"
         :backLinkLocation="{ name: 'overview' }"
         :backLinkText="`${capitaliseFirstLetter(tagOrPostType)} overview`"
@@ -318,19 +351,47 @@ watch(selectedLanguage, () => {
                 </div>
             </div>
         </template>
-        <div class="relative grid grid-cols-3 gap-8">
-            <div class="col-span-3 md:col-span-2">
+        <div class="relative grid min-h-screen grid-cols-3 gap-8">
+            <!-- Sidebar -->
+            <div class="scrollbar col-span-3 h-screen overflow-y-auto md:col-span-1" v-if="parent">
+                <div class="sticky top-0 space-y-6">
+                    <EditContentParentValidation
+                        :can-translate="canTranslate"
+                        :can-publish="canPublish"
+                        :can-edit="canEditParent"
+                        v-if="contentDocs"
+                        v-model:parent="parent"
+                        v-model:contentDocs="contentDocs"
+                        :languages="languages"
+                        :untranslatedLanguages="untranslatedLanguages"
+                        :dirty="isDirty"
+                        :contentPrev="contentDocsPrev"
+                        :parentPrev="parentPrev"
+                        @updateIsValid="(val) => (isValid = val)"
+                        @createTranslation="(language) => createTranslation(language)"
+                    />
+
+                    <EditContentParent
+                        v-if="parent"
+                        :docType="props.docType"
+                        :language="selectedLanguage"
+                        v-model="parent"
+                        :disabled="!canEditParent"
+                    />
+                </div>
+            </div>
+            <div class="scrollbar col-span-3 h-screen overflow-y-auto md:col-span-2">
                 <EmptyState
                     v-if="!selectedContent"
-                    :icon="TagIcon"
-                    :title="`The content is not yet available in ${selectedLanguage?.name}`"
-                    :description="`Please select a language before starting editing
+                    :icon="icon"
+                    title=""
+                    :description="`Please select a language to start editing
                     `"
                     data-test="no-content"
                     ><LanguageSelector
                         :parent="parent"
                         :content="contentDocs"
-                        :languages="languages"
+                        :languages="untranslatedLanguages"
                         v-model="selectedLanguageId"
                         @createTranslation="createTranslation"
                 /></EmptyState>
@@ -355,33 +416,18 @@ watch(selectedLanguage, () => {
                     />
                 </div>
             </div>
-            <!-- Sidebar -->
-            <div class="col-span-3 md:col-span-1" v-if="parent">
-                <div class="sticky top-20 space-y-6">
-                    <EditContentParentValidation
-                        :can-translate="canTranslate"
-                        :can-publish="canPublish"
-                        :can-edit="canEditParent"
-                        v-if="contentDocs"
-                        v-model:parent="parent"
-                        v-model:contentDocs="contentDocs"
-                        :languages="languages"
-                        :dirty="isDirty"
-                        :contentPrev="contentDocsPrev"
-                        :parentPrev="parentPrev"
-                        @updateIsValid="(val) => (isValid = val)"
-                    />
-                    <EditContentPreview v-if="selectedContent" :content="selectedContent" />
-                    <EditContentParent
-                        v-if="parent"
-                        :docType="props.docType"
-                        :language="selectedLanguage"
-                        v-model="parent"
-                        :disabled="!canEditParent"
-                    />
-                </div>
-            </div>
         </div>
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty" />
 </template>
+
+<style>
+.scrollbar::-webkit-scrollbar {
+    display: none; /* Hide scrollbar in Chrome, Safari */
+}
+
+.scrollbar {
+    -ms-overflow-style: none; /* Hide scrollbar in IE/Edge */
+    scrollbar-width: none; /* Hide scrollbar in Firefox */
+}
+</style>

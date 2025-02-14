@@ -35,7 +35,11 @@ watch(
         const slugChanged = previousSlug != content.value.slug;
 
         // Only update the slug if the title or slug has changed
-        if (!titleChanged && !slugChanged) {
+        if (
+            !titleChanged &&
+            !slugChanged &&
+            ((content.value.title && content.value.slug) || !content.value.title)
+        ) {
             return;
         }
 
@@ -68,7 +72,7 @@ watch(
         previousTitle = content.value.title;
         previousSlug = content.value.slug;
     },
-    { deep: true },
+    { deep: true, immediate: true },
 );
 
 const validateSlug = async () => {
