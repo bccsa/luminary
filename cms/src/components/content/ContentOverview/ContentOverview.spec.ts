@@ -47,9 +47,7 @@ describe("ContentOverview.vue", () => {
         await db.localChanges.clear();
     });
 
-    it.only("should display content", async () => {
-        //@ts-ignore as this code is valid
-        console.log(await db.docs.toArray());
+    it("should display content", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
@@ -61,6 +59,8 @@ describe("ContentOverview.vue", () => {
         });
 
         await wrapper.vm.$nextTick();
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(async () => {
             expect(await wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
@@ -77,6 +77,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(() => {
             const editButton = wrapper.find('[data-test="edit-button"]');
@@ -107,6 +110,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(() => {
             const viewButton = wrapper.find('[data-test="edit-button"]');
@@ -221,6 +227,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(() => {
             const searchInput = wrapper.find('[data-test="search-input"]');
             expect(searchInput.exists()).toBe(true);
@@ -237,6 +246,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const searchInput = wrapper.find('[data-test="search-input"]');
 
@@ -259,6 +271,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(async () => {
             const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
@@ -290,6 +305,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
         await sortToggleBtn.trigger("click");
@@ -342,6 +360,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(() => {
             const createButton = wrapper.find('[data-test="create-button"]');
             expect(createButton.text()).toBe("Create post");
@@ -367,6 +388,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(async () => {
             const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
             expect(filterInputSelects.length).toBe(2);
@@ -383,6 +407,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
 
