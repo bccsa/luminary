@@ -21,7 +21,7 @@ import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
-import _ from "lodash";
+import _, { forEach } from "lodash";
 const dbName: string = "luminary-db";
 
 type LuminaryInternals = {
@@ -143,6 +143,25 @@ class Database extends Dexie {
         });
 
         this.requestIndexDbPersistent();
+
+        if (config.appLanguageIdsAsRef) {
+            watch(config.appLanguageIdsAsRef, async () => {
+                const languages = await db.docs.where("type").equals(DocType.Language).toArray();
+
+                console.log("Selected Languages:", config.appLanguageIdsAsRef?.value);
+
+                const languageIds = languages.map((l) => l._id);
+                const idsToDelete = languageIds.filter(
+                    (id) => !config.appLanguageIdsAsRef!.value.includes(id),
+                );
+
+                console.log("Languages to be Deleted:", idsToDelete);
+
+                forEach(idsToDelete, async (id) => {
+                    await db.docs.where("language").equals(id).delete();
+                });
+            });
+        }
     }
 
     /**
