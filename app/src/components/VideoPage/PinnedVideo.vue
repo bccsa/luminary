@@ -76,7 +76,7 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCatego
 </script>
 
 <template>
-    <IgnorePagePadding>
+    <IgnorePagePadding ignoreTop>
         <HorizontalContentTileCollection
             v-for="c in pinnedContentByCategory"
             :key="c.tag._id"
@@ -84,7 +84,7 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCatego
             :title="c.tag.title"
             :summary="c.tag.summary"
             :showPublishDate="false"
-            class="bg-yellow-500/10 dark:bg-yellow-500/5"
+            class="bg-yellow-500/10 pt-4 dark:bg-yellow-500/5"
         />
     </IgnorePagePadding>
 </template>

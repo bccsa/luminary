@@ -37,11 +37,11 @@ const router = createRouter({
             },
         },
         {
-            path: "/video",
+            path: "/watch",
             component: VideoPage,
-            name: "video",
+            name: "watch",
             meta: {
-                title: "Video",
+                title: "Watch",
             },
         },
         {
