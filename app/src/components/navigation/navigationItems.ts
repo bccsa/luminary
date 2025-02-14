@@ -23,10 +23,10 @@ export function getNavigationItems() {
             to: { name: "explore" },
         },
         {
-            name: t("menu.video"),
+            name: t("menu.watch"),
             defaultIcon: PlayIcon,
             selectedIcon: FilledPlayIcon,
-            to: { name: "video" },
+            to: { name: "watch" },
         },
     ];
 
