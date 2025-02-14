@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import LanguageModal from "./LanguageModal.vue";
 import { db } from "luminary-shared";
@@ -27,7 +27,7 @@ describe("LanguageModal.vue", () => {
             props: { isVisible: true },
         });
 
-        expect(wrapper.find("h2").text()).toBe("Select Language");
+        expect(wrapper.find("h2").text()).toBe("Select preferred content language");
     });
 
     it("does not render when isVisible is false", () => {
