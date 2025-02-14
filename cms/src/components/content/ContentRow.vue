@@ -29,6 +29,13 @@ const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
 // Get the tags
 const tagsContent = ref<ContentDto[]>([]);
 
+// Filter languages that the user has translate access to
+const accessibleLanguages = computed(() =>
+    props.languages.filter((language) =>
+        verifyAccess(language.memberOf, DocType.Language, AclPermission.Translate),
+    ),
+);
+
 watch(
     contentDocs,
     async () => {
@@ -95,7 +102,7 @@ const translationStatus = computed(() => {
             <div class="flex flex-wrap gap-2" v-if="contentDocs.length > 0">
                 <RouterLink
                     custom
-                    v-for="language in languages"
+                    v-for="language in accessibleLanguages"
                     :key="language._id"
                     v-slot="{ navigate }"
                     :to="{
