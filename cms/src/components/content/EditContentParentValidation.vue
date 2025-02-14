@@ -4,7 +4,6 @@ import {
     type ContentDto,
     type Uuid,
     type LanguageDto,
-    PublishStatus,
     type ContentParentDto,
 } from "luminary-shared";
 import { ref, watch, watchEffect } from "vue";
