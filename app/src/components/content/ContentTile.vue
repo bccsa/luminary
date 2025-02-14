@@ -26,12 +26,7 @@ const openContent = () => {
         <div
             class="avoid-inside ease-out-expo -m-2 cursor-pointer p-2 active:shadow-inner group-hover:scale-[101%]"
         >
-            <LImage
-                :image="content.parentImageData"
-                :aspectRatio="aspectRatio"
-                size="thumbnail"
-                :contentTitle="content.title"
-            >
+            <LImage :image="content.parentImageData" :aspectRatio="aspectRatio" size="thumbnail">
                 <div class="w-full">
                     <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
                         {{ content.title }}
