@@ -9,7 +9,7 @@ import ExplorePage from "@/pages/ExplorePage.vue";
 import BookmarksPage from "@/pages/BookmarksPage.vue";
 import { initI18n } from "@/i18n";
 
-let i18n;
+let i18n: any;
 
 async function init() {
     i18n = await initI18n();
