@@ -34,6 +34,6 @@ export async function initLanguage() {
     } else {
         cmsLanguageIdAsRef.value = languages.filter((lang) => lang.default === 1)[0]._id;
     }
-
+    console.log(cmsLanguageIdAsRef.value);
     localStorage.setItem("language_initialised", JSON.stringify(true));
 }

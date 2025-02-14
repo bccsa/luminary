@@ -41,12 +41,7 @@ type Props = {
 
 const props = defineProps<Props>();
 
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const selectedLanguage = ref<Uuid>(cmsLanguageIdAsRef.value || "");
-
-const languageOptions = computed(() =>
-    languages.value.map((l) => ({ value: l._id, label: l.name })),
-);
 
 const queryOptions = ref<ContentOverviewQueryOptions>({
     languageId: "",
