@@ -275,15 +275,17 @@ const save = async () => {
     // Save the parent document
     await db.upsert(parent.value);
 
-    // Save the content documents that changed
-    const pList: Promise<any>[] = [];
-    contentDocs.value.forEach((c) => {
-        const prevContentDoc = contentDocsPrev.value?.find((d) => d._id == c._id);
-        if (_.isEqual(c, prevContentDoc)) return;
-        pList.push(db.upsert(c));
-    });
+    if (!parent.value.deleteReq) {
+        // Save the content documents that changed
+        const pList: Promise<any>[] = [];
+        contentDocs.value.forEach((c) => {
+            const prevContentDoc = contentDocsPrev.value?.find((d) => d._id == c._id);
+            if (_.isEqual(c, prevContentDoc)) return;
+            pList.push(db.upsert(c));
+        });
 
-    await Promise.all(pList);
+        await Promise.all(pList);
+    }
 };
 
 const revertChanges = () => {
@@ -324,9 +326,6 @@ const deleteParent = async () => {
         return;
     }
 
-    contentDocs.value.forEach((c) => {
-        c.deleteReq = 1;
-    });
     parent.value.deleteReq = 1;
 
     save();
@@ -481,11 +480,11 @@ watch(selectedLanguage, () => {
             </div>
         </div>
     </BasePage>
-    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
+    <ConfirmBeforeLeavingModal :isDirty="isDirty && !parent.deleteReq" />
     <LModal
         :open="showDeleteModal"
-        :title="`Delete ${props.tagOrPostType}`"
-        :description="`Are you sure you want to delete this ${props.tagOrPostType}? This action cannot be undone.`"
+        :title="`Delete ${props.tagOrPostType} and all translations`"
+        :description="`Are you sure you want to delete this ${props.tagOrPostType} and all the translations? This action cannot be undone.`"
         :primaryAction="
             () => {
                 deleteParent();
