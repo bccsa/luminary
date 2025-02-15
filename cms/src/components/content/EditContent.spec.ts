@@ -393,22 +393,26 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.skip("enables post/tag settings editing when no groups are set", async () => {
-        await db.docs.bulkPut([{ ...mockData.mockPostDto, memberOf: [] }]);
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-                tagOrPostType: PostType.Blog,
-            },
-        });
+    // it.only(
+    //     "enables post/tag settings editing when no groups are set",
+    //     async () => {
+    //         await db.docs.bulkPut([{ ...mockData.mockPostDto, memberOf: [] }]);
+    //         const wrapper = await mount(EditContent, {
+    //             props: {
+    //                 docType: DocType.Post,
+    //                 id: mockData.mockPostDto._id,
+    //                 languageCode: "eng",
+    //                 tagOrPostType: PostType.Blog,
+    //             },
+    //         });
 
-        await waitForExpect(async () => {
-            await wait(100); // The disabled prop is not updated immediately, so when testing for false, we need to wait a bit
-            expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(false);
-        });
-    });
+    //         await waitForExpect(async () => {
+    //             await wait(100); // The disabled prop is not updated immediately, so when testing for false, we need to wait a bit
+    //             expect(await wrapper.findComponent(EditContentParent).props().disabled).toBe(false);
+    //         });
+    //     },
+    //     { timeout: 999999 },
+    // );
 
     it("disables post/tag settings editing when the user does not have access to one of the groups", async () => {
         await db.docs.bulkPut([
