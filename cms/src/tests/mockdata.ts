@@ -14,6 +14,7 @@ import {
     type RedirectDto,
     RedirectType,
     type AccessMap,
+    type UserDto,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -423,6 +424,15 @@ export const mockLanguageDtoSwa: LanguageDto = {
         "pages.home.title": "Nyumbani",
         "pages.explore.title": "Chunguza",
     },
+};
+
+export const mockUserDto: UserDto = {
+    _id: "user-1",
+    type: DocType.User,
+    email: "john@doe.com",
+    name: "John Doe",
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-super-admins"],
 };
 
 export const mockLocalChange1: LocalChangeDto = {
