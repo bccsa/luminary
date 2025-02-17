@@ -170,9 +170,15 @@ const createTranslation = (language: LanguageDto) => {
 
 const canTranslate = computed(() => {
     if (!parent.value || !selectedLanguage.value) return false;
+
     if (
-        !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) ||
-        !verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)
+        parent.value.memberOf.length > 0 &&
+        (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) ||
+            !verifyAccess(
+                selectedLanguage.value.memberOf,
+                DocType.Language,
+                AclPermission.Translate,
+            ))
     ) {
         return false;
     }

@@ -9,6 +9,8 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import LanguageSelector from "./LanguageSelector.vue";
+import { MenuItem } from "@headlessui/vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -393,7 +395,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.skip("enables post/tag settings editing when no groups are set", async () => {
+    it("enables post/tag settings editing when no groups are set", async () => {
         await db.docs.bulkPut([{ ...mockData.mockPostDto, memberOf: [] }]);
         const wrapper = mount(EditContent, {
             props: {
@@ -405,7 +407,6 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(async () => {
-            await wait(100); // The disabled prop is not updated immediately, so when testing for false, we need to wait a bit
             expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(false);
         });
     });
