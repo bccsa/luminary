@@ -15,7 +15,7 @@ import {
     type UserDto,
     type Uuid,
 } from "luminary-shared";
-import { computed, provide, ref, toRaw, watch, watchEffect } from "vue";
+import { computed, provide, ref, toRaw, watch } from "vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";
@@ -62,21 +62,32 @@ const editable = ref<UserDto>({
     name: "New user",
 });
 
-watchEffect(() => {
-    if (userData.has(props.id)) {
-        original.value = _.cloneDeep(userData.get(props.id) as UserDto);
-        editable.value = _.cloneDeep(original.value); // Set editable from original
-    }
-});
-
 watch(
-    [editable, original],
-    () => {
-        if (original.value) {
-            isDirty.value = !_.isEqual(toRaw(editable.value), original.value);
+    () => userData.get(props.id),
+    (user) => {
+        if (user) {
+            original.value = _.cloneDeep(user); // Ensure a deep clone
+            editable.value = _.cloneDeep(original.value);
         }
     },
     { immediate: true, deep: true },
+);
+
+// Check if the language is dirty (has unsaved changes)
+watch(
+    [editable, original],
+    () => {
+        if (!original.value) {
+            isDirty.value = true;
+            return;
+        }
+
+        isDirty.value = !_.isEqual(
+            { ...toRaw(original.value), updatedTimeUtc: 0, _rev: "" },
+            { ...toRaw(editable.value), updatedTimeUtc: 0, _rev: "" },
+        );
+    },
+    { deep: true, immediate: true },
 );
 
 // Track if this is a new user
