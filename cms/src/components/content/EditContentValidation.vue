@@ -9,7 +9,12 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import { ExclamationCircleIcon, XCircleIcon, ArrowRightIcon } from "@heroicons/vue/16/solid";
+import {
+    ExclamationCircleIcon,
+    XCircleIcon,
+    ArrowRightIcon,
+    TrashIcon as TrashIconSolid,
+} from "@heroicons/vue/16/solid";
 import LBadge, { variants } from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import _ from "lodash";
@@ -17,6 +22,7 @@ import { capitaliseFirstLetter } from "@/util/string";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
 import LButton from "../button/LButton.vue";
+import LModal from "../common/LModal.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -29,6 +35,7 @@ const sortedLanguages = computed(() => {
     return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
 });
 
+const showDeleteModal = ref(false);
 const usedLanguage = computed(() => {
     if (!content.value || !sortedLanguages.value) return null;
     return sortedLanguages.value.find((l) => content.value?.language == l._id);
@@ -128,6 +135,11 @@ const liveUrl = computed(() => {
 });
 
 const ensureRedirect = () => window.open(liveUrl.value, "_blank");
+
+const deleteTranslation = () => {
+    if (!content.value) return;
+    content.value.deleteReq = 1;
+};
 </script>
 
 <template>
@@ -193,6 +205,10 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                             {{ statusBadge(content).title }}
                         </LBadge>
                     </div>
+                    <TrashIconSolid
+                        class="ml-2 h-4 min-h-4 w-4 min-w-4 cursor-pointer text-slate-400 hover:text-red-500"
+                        @click="showDeleteModal = true"
+                    />
                 </span>
             </div>
 
@@ -216,4 +232,19 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
             </div>
         </div>
     </RouterLink>
+    <LModal
+        :open="showDeleteModal"
+        :title="`Delete ${usedLanguage?.name}`"
+        :description="`Are you sure you want to delete this ${usedLanguage?.name}?`"
+        :primaryAction="
+            () => {
+                deleteTranslation();
+                showDeleteModal = false;
+            }
+        "
+        :secondaryAction="() => (showDeleteModal = false)"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="default"
+    ></LModal>
 </template>
