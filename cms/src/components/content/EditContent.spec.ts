@@ -9,8 +9,6 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
-import LanguageSelector from "./LanguageSelector.vue";
-import { MenuItem } from "@headlessui/vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
