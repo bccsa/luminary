@@ -942,7 +942,11 @@ describe("Database", async () => {
 
         await waitForExpect(async () => {
             const remainingDocs = await db.docs.toArray();
-            expect(remainingDocs.some((doc) => doc.language === "lang-eng")).toBe(false);
+            expect(remainingDocs.some((doc) => doc.language === mockLanguageDtoEng._id)).toBe(
+                false,
+            );
+            expect(remainingDocs.includes(mockLanguageDtoEng)).toBe(false);
+            expect(remainingDocs.includes(mockEnglishContentDto)).toBe(false);
         });
     });
 });
