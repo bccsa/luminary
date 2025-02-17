@@ -21,7 +21,13 @@ import {
     type ContentParentDto,
     PostType,
 } from "luminary-shared";
-import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
+import {
+    DocumentIcon,
+    TagIcon,
+    FolderArrowDownIcon,
+    ArrowUturnLeftIcon,
+    TrashIcon,
+} from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentStatus from "@/components/content/EditContentStatus.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
@@ -107,7 +113,7 @@ const untranslatedLanguages = computed(() => {
     return languages.value
         .filter(
             (l) =>
-                !editableContent.value?.find((c) => c.language == l._id) &&
+                !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq) &&
                 verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
         )
         .sort(sortByName);
@@ -136,7 +142,9 @@ const selectedLanguage = computed(() => {
 // Content language selection
 const selectedContent = computed(() => {
     if (editableContent.value.length == 0) return undefined;
-    return editableContent.value.find((c) => c.language == selectedLanguageId.value);
+    return editableContent.value.find(
+        (c) => c.language == selectedLanguageId.value && !c.deleteReq,
+    );
 });
 
 const createTranslation = (language: LanguageDto) => {
@@ -260,6 +268,11 @@ const saveChanges = async () => {
         });
         return;
     }
+
+    // remove new content documents marked for deletion
+    editableContent.value = editableContent.value.filter(
+        (c) => !(c.deleteReq && !existingContent.value?.some((e) => e._id == c._id)),
+    );
 
     await save();
 
@@ -391,6 +404,7 @@ watch(selectedLanguage, () => {
                         data-test="revert-changes-button"
                         variant="secondary"
                         title="Revert Changes"
+                        :icon="ArrowUturnLeftIcon"
                     >
                         Revert
                     </LButton>
@@ -399,6 +413,7 @@ watch(selectedLanguage, () => {
                         @click="saveChanges"
                         data-test="save-button"
                         variant="primary"
+                        :icon="FolderArrowDownIcon"
                     >
                         Save
                     </LButton>
@@ -408,6 +423,7 @@ watch(selectedLanguage, () => {
                         data-test="delete-button"
                         variant="secondary"
                         context="danger"
+                        :icon="TrashIcon"
                     >
                         Delete
                     </LButton>
