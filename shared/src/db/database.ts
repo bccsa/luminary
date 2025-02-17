@@ -21,7 +21,7 @@ import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups } from "../permissions/permissions";
 import { config } from "../config";
-import _, { forEach } from "lodash";
+import _ from "lodash";
 const dbName: string = "luminary-db";
 
 type LuminaryInternals = {
@@ -146,20 +146,39 @@ class Database extends Dexie {
 
         if (config.appLanguageIdsAsRef) {
             watch(config.appLanguageIdsAsRef, async () => {
+                const selectedLanguageIds = config.appLanguageIdsAsRef?.value || [];
+
+                console.log("Selected Languages:", selectedLanguageIds);
+
+                // Fetch all language documents
                 const languages = await db.docs.where("type").equals(DocType.Language).toArray();
-
-                console.log("Selected Languages:", config.appLanguageIdsAsRef?.value);
-
                 const languageIds = languages.map((l) => l._id);
-                const idsToDelete = languageIds.filter(
-                    (id) => !config.appLanguageIdsAsRef!.value.includes(id),
-                );
 
+                // Identify language IDs to delete
+                const idsToDelete = languageIds.filter((id) => !selectedLanguageIds.includes(id));
                 console.log("Languages to be Deleted:", idsToDelete);
 
-                forEach(idsToDelete, async (id) => {
-                    await db.docs.where("language").equals(id).delete();
-                });
+                if (idsToDelete.length > 0) {
+                    try {
+                        // Delete language documents in bulk
+                        await db.docs.where("language").anyOf(idsToDelete).delete();
+
+                        // Delete content documents related to removed languages
+                        await db.docs
+                            .where("type")
+                            .equals(DocType.Content)
+                            .and((doc) => idsToDelete.includes(doc.language!))
+                            .delete();
+
+                        console.log("Deleted languages and related content documents.");
+                        // Your deletion logic
+                    } catch (error) {
+                        console.error(
+                            "Error deleting languages and related content documents:",
+                            error,
+                        );
+                    }
+                }
             });
         }
     }

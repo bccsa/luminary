@@ -26,7 +26,9 @@ import {
 import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { DateTime } from "luxon";
-import { initConfig } from "../config";
+import { config, initConfig } from "../config";
+import { nextTick, ref } from "vue";
+import { mock } from "node:test";
 
 describe("Database", async () => {
     beforeAll(async () => {
@@ -922,5 +924,25 @@ describe("Database", async () => {
         const _v2 = await getDbVersion();
 
         expect(_v1).toBeLessThan(_v2);
+    });
+
+    it("deletes the languages and related content documents when a language changed ", async () => {
+        initConfig({
+            cms: false,
+            docsIndex: "parentId, language, type, expiryDate, [type+docType]",
+            apiUrl: "http://localhost:12345",
+            appLanguageIdsAsRef: ref([mockLanguageDtoEng._id, mockLanguageDtoFra._id]),
+        });
+        await initDatabase();
+
+        // Simulate changing the app language to French
+        config.appLanguageIdsAsRef
+            ? (config.appLanguageIdsAsRef.value = [mockLanguageDtoFra._id])
+            : config.appLanguageIdsAsRef!.value;
+
+        await waitForExpect(async () => {
+            const remainingDocs = await db.docs.toArray();
+            expect(remainingDocs.some((doc) => doc.language === "lang-eng")).toBe(false);
+        });
     });
 });
