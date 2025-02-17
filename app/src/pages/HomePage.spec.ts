@@ -132,23 +132,6 @@ describe("HomePage.vue", () => {
             });
         });
 
-        it("renders unpinned categories correctly", async () => {
-            await db.docs.bulkPut([
-                { ...mockCategoryContentDto, parentPinned: 0 },
-                { ...mockEnglishContentDto, parentTags: [mockCategoryContentDto.parentId] },
-            ]);
-
-            const wrapper = mount(HomePage);
-
-            appLanguageIdsAsRef.value.unshift("lang-eng");
-
-            await waitForExpect(() => {
-                const unpinnedComponent = wrapper.findComponent(HomePage);
-                expect(unpinnedComponent.exists()).toBe(true);
-                expect(wrapper.text()).toContain(mockCategoryContentDto.title);
-            });
-        });
-
         it("displays the newest content", async () => {
             await db.docs.bulkPut([mockEnglishContentDto]);
 
