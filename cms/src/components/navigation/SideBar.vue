@@ -8,6 +8,7 @@ import {
     RectangleStackIcon,
     GlobeEuropeAfricaIcon,
     ArrowUturnRightIcon,
+    UsersIcon,
 } from "@heroicons/vue/20/solid";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { appName, isDevMode, logo } from "@/globalConfig";
@@ -64,6 +65,12 @@ const navigation = ref<NavigationEntry[]>([
         to: { name: "languages" },
         icon: GlobeEuropeAfricaIcon,
         visible: hasAnyPermission(DocType.Language, AclPermission.View),
+    },
+    {
+        name: "Users",
+        to: { name: "users" },
+        icon: UsersIcon,
+        visible: hasAnyPermission(DocType.User, AclPermission.View),
     },
 ]);
 
