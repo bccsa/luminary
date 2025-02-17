@@ -26,10 +26,10 @@ import LModal from "../common/LModal.vue";
 
 type Props = {
     languages: LanguageDto[];
-    contentPrev?: ContentDto;
+    existingContent?: ContentDto;
 };
 const props = defineProps<Props>();
-const content = defineModel<ContentDto>("content");
+const editableContent = defineModel<ContentDto>("editableContent");
 const sortedLanguages = computed(() => {
     if (!props.languages) return [];
     return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -37,11 +37,11 @@ const sortedLanguages = computed(() => {
 
 const showDeleteModal = ref(false);
 const usedLanguage = computed(() => {
-    if (!content.value || !sortedLanguages.value) return null;
-    return sortedLanguages.value.find((l) => content.value?.language == l._id);
+    if (!editableContent.value || !sortedLanguages.value) return null;
+    return sortedLanguages.value.find((l) => editableContent.value?.language == l._id);
 });
 
-const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
+const isContentDirty = computed(() => !_.isEqual(editableContent.value, props.existingContent));
 
 const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
@@ -76,14 +76,16 @@ const statusBadge: ComputedRef<
 });
 
 const statusChanged = computed(
-    () => statusBadge.value(props.contentPrev).title != statusBadge.value(content.value).title,
+    () =>
+        statusBadge.value(props.existingContent).title !=
+        statusBadge.value(editableContent.value).title,
 );
 
 const validations = ref([] as Validation[]);
 
 const isValid = ref(true);
 watch(
-    content,
+    editableContent,
     (content) => {
         if (!content) return;
 
@@ -126,9 +128,9 @@ watch(
 );
 
 const liveUrl = computed(() => {
-    if (!content.value) return "";
+    if (!editableContent.value) return "";
     const url = new URL(
-        content.value.slug,
+        editableContent.value.slug,
         clientAppUrl.value ? clientAppUrl.value : "http://localhost",
     );
     return url.toString();
@@ -137,8 +139,8 @@ const liveUrl = computed(() => {
 const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 
 const deleteTranslation = () => {
-    if (!content.value) return;
-    content.value.deleteReq = 1;
+    if (!editableContent.value) return;
+    editableContent.value.deleteReq = 1;
 };
 </script>
 
@@ -147,13 +149,14 @@ const deleteTranslation = () => {
         :to="{
             name: 'edit',
             params: {
-                docType: content?.parentType,
+                docType: editableContent?.parentType,
                 tagType:
-                    content?.parentType == DocType.Tag
-                        ? (content as unknown as TagDto).tagType
+                    editableContent?.parentType == DocType.Tag
+                        ? (editableContent as unknown as TagDto).tagType
                         : undefined,
-                id: content?.parentId,
-                languageCode: languages.find((l) => l._id == content?.language)?.languageCode,
+                id: editableContent?.parentId,
+                languageCode: languages.find((l) => l._id == editableContent?.language)
+                    ?.languageCode,
             },
         }"
         v-slot="{ isActive }"
@@ -174,9 +177,9 @@ const deleteTranslation = () => {
                         <LButton
                             v-if="
                                 isConnected &&
-                                content &&
-                                content.status == PublishStatus.Published &&
-                                content.title
+                                editableContent &&
+                                editableContent.status == PublishStatus.Published &&
+                                editableContent.title
                             "
                             :icon="ArrowTopRightOnSquareIcon"
                             iconRight
@@ -193,16 +196,16 @@ const deleteTranslation = () => {
                         <template v-if="statusChanged">
                             <LBadge
                                 withIcon
-                                :variant="statusBadge(contentPrev).variant"
+                                :variant="statusBadge(existingContent).variant"
                                 class="opacity-70"
                             >
-                                {{ statusBadge(contentPrev).title }}
+                                {{ statusBadge(existingContent).title }}
                             </LBadge>
                             <ArrowRightIcon class="h-4 w-4 text-zinc-700" />
                         </template>
 
-                        <LBadge withIcon :variant="statusBadge(content).variant">
-                            {{ statusBadge(content).title }}
+                        <LBadge withIcon :variant="statusBadge(editableContent).variant">
+                            {{ statusBadge(editableContent).title }}
                         </LBadge>
                     </div>
                     <TrashIconSolid

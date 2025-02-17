@@ -14,16 +14,16 @@ import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 type Props = {
     languages: LanguageDto[];
     dirty: boolean;
-    parentPrev: ContentParentDto | undefined;
-    contentPrev: ContentDto[] | undefined;
+    existingParent: ContentParentDto | undefined;
+    existingContent: ContentDto[] | undefined;
     canEdit: boolean;
     canTranslate: boolean;
     canPublish: boolean;
     untranslatedLanguages: LanguageDto[];
 };
 defineProps<Props>();
-const parent = defineModel<ContentParentDto>("parent");
-const contentDocs = defineModel<ContentDto[]>("contentDocs");
+const editableParent = defineModel<ContentParentDto>("editableParent");
+const editableContent = defineModel<ContentDto[]>("editableContent");
 
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
@@ -53,7 +53,7 @@ watchEffect(() => {
 const parentValidations = ref([] as Validation[]);
 const parentIsValid = ref(true);
 watch(
-    [parent, contentDocs],
+    [editableParent, editableContent],
     ([newParent, newContentDocs]) => {
         if (!newParent) return;
 
@@ -129,20 +129,20 @@ watch(
             </div>
             <div class="flex flex-col gap-2">
                 <EditContentValidation
-                    v-for="content in contentDocs"
-                    :content="content"
+                    v-for="content in editableContent"
+                    :editableContent="content"
                     :languages="languages"
                     :key="content._id"
                     @isValid="(val) => setOverallValidation(content._id, val)"
-                    :contentPrev="contentPrev?.find((c) => c._id == content._id)"
+                    :existingContent="existingContent?.find((c) => c._id == content._id)"
                 />
             </div>
             <div class="flex justify-center">
                 <LanguageSelector
                     v-if="untranslatedLanguages.length > 0"
                     :languages="untranslatedLanguages"
-                    :parent="parent"
-                    :content="contentDocs"
+                    :parent="editableParent"
+                    :content="editableContent"
                     @create-translation="(language) => emit('createTranslation', language)"
                 />
             </div>
