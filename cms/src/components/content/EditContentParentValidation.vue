@@ -54,32 +54,36 @@ const parentValidations = ref([] as Validation[]);
 const parentIsValid = ref(true);
 watch(
     [editableParent, editableContent],
-    ([newParent, newContentDocs]) => {
-        if (!newParent) return;
+    ([_editableParent, _editableContent]) => {
+        if (!_editableParent) return;
 
         validate(
             "At least one group membership is required",
             "groups",
             parentValidations.value,
-            newParent,
-            () => newParent.memberOf.length > 0,
+            _editableParent,
+            () => _editableParent.memberOf.length > 0,
         );
 
         validate(
             "At least one translation is required",
             "translations",
             parentValidations.value,
-            newParent,
-            () => newContentDocs != undefined && newContentDocs.length > 0,
+            _editableParent,
+            () =>
+                _editableContent != undefined &&
+                _editableContent.filter((c) => !c.deleteReq).length > 0,
         );
 
         parentIsValid.value = parentValidations.value.every((v) => v.isValid);
 
         // Update overall validation
-        let parentOverallValidation = overallValidations.value.find((v) => v.id == newParent._id);
+        let parentOverallValidation = overallValidations.value.find(
+            (v) => v.id == _editableParent._id,
+        );
         if (!parentOverallValidation) {
             parentOverallValidation = {
-                id: newParent._id,
+                id: _editableParent._id,
                 isValid: parentIsValid.value,
                 message: "",
             };
@@ -129,7 +133,7 @@ watch(
             </div>
             <div class="flex flex-col gap-2">
                 <EditContentValidation
-                    v-for="content in editableContent"
+                    v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                     :editableContent="content"
                     :languages="languages"
                     :key="content._id"
