@@ -26,7 +26,6 @@ describe("LoginModal", () => {
         expect(wrapper.html()).toContain(
             "You are offline. Please connect to the internet to log in.",
         );
-        console.log(wrapper.html());
     });
 
     it("can log in with BCC", async () => {
