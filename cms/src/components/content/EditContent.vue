@@ -288,6 +288,11 @@ const saveChanges = async () => {
 };
 
 const save = async () => {
+    // Bypass saving if the parent document is new and is marked for deletion
+    if (!existingContent.value && editableParent.value.deleteReq) {
+        return;
+    }
+
     // Save the parent document
     await db.upsert(editableParent.value);
 
