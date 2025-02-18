@@ -5,8 +5,8 @@ import { processChangeRequest } from "./processChangeRequest";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { changeRequest_content, changeRequest_post } from "../test/changeRequestDocuments";
 import { S3Service } from "../s3/s3.service";
-import { ChangeReqDto } from "src/dto/ChangeReqDto";
-import { PostDto } from "src/dto/PostDto";
+import { ChangeReqDto } from "../dto/ChangeReqDto";
+import { PostDto } from "../dto/PostDto";
 import waitForExpect from "wait-for-expect";
 
 describe("processChangeRequest", () => {

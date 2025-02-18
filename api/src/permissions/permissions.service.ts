@@ -1,7 +1,7 @@
 import { Uuid, DocType, AclPermission } from "../enums";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { GroupDto } from "../dto/GroupDto";
-import { DbService } from "src/db/db.service";
+import { DbService } from "../db/db.service";
 import { EventEmitter } from "node:events";
 
 let dbService: DbService;
