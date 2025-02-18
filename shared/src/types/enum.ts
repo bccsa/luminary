@@ -6,6 +6,7 @@ export enum DocType {
     Post = "post",
     Tag = "tag",
     User = "user",
+    DeleteCmd = "deleteCmd",
 }
 
 export enum PublishStatus {
@@ -27,4 +28,10 @@ export enum PostType {
 export enum RedirectType {
     Permanent = "permanent",
     Temporary = "temporary",
+}
+
+export enum DeleteReason {
+    Deleted = "deleted",
+    PermissionChange = "permissionChange",
+    StatusChange = "statusChange",
 }

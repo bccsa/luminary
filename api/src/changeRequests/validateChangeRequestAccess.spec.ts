@@ -4,6 +4,7 @@ import { plainToClass } from "class-transformer";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { createTestingModule } from "../test/testingModule";
+import * as _ from "lodash";
 
 describe("validateChangeRequestAccess", () => {
     let db: DbService;
@@ -73,6 +74,72 @@ describe("validateChangeRequestAccess", () => {
             );
             expect(res.error).toBe("Invalid document type - cannot submit Change documents");
         });
+
+        it("can reject a document type change", async () => {
+            const testChangeReq_change = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "lang-eng",
+                    type: "post",
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_change,
+                ["group-super-admins"],
+                db,
+            );
+            expect(res.error).toBe("Document type change not allowed");
+        });
+    });
+
+    describe("Delete requests", () => {
+        it("can reject a delete request if the user does not have delete access to the document", async () => {
+            const testChangeReq_delete = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "group-languages",
+                    type: "group",
+                    deleteReq: 1,
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_delete,
+                ["group-private-editors"],
+                db,
+            );
+            expect(res.error).toBe("No 'Delete' access to document");
+        });
+
+        it("can reject a delete request if the user does not have translate access to one of the associated content documents of a post or tag", async () => {
+            // Change the memberOf of lang-french to a group that group-public-editors does not have translate access to
+            const french = await db.getDoc("lang-fra");
+            await db.upsertDoc({ ...french.docs[0], memberOf: ["group-super-admins"] });
+
+            const testChangeReq_delete = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "post-blog2",
+                    type: "post",
+                    deleteReq: 1,
+                    memberOf: ["group-private-content"],
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_delete,
+                ["group-private-editors"],
+                db,
+            );
+
+            // Restore document for further tests
+            await db.upsertDoc(french.docs[0]);
+
+            expect(res.error).toBe(
+                "Unable to delete post: No 'Translate' access to one or more associated content documents",
+            );
+        });
     });
 
     describe("Group documents", () => {
@@ -94,11 +161,51 @@ describe("validateChangeRequestAccess", () => {
             expect(res.error).toBe("No access to 'Edit' document type 'Group'");
         });
 
-        it("can not assign a group to another group's ACL without 'Assign' access to the second group", async () => {
+        it("can not assign an existing group to another group's ACL without 'Assign' access to the second group", async () => {
             const testChangeReq_groupAcl = plainToClass(ChangeReqDto, {
                 id: 1,
                 doc: {
                     _id: "group-languages",
+                    type: "group",
+                    name: "Languages",
+                    acl: [
+                        {
+                            type: "language",
+                            groupId: "group-public-content",
+                            permission: ["view"],
+                        },
+                        {
+                            type: "language",
+                            groupId: "group-private-content",
+                            permission: ["view"],
+                        },
+                        {
+                            type: "language",
+                            groupId: "group-public-editors",
+                            permission: ["view", "translate"],
+                        },
+                        {
+                            type: "language",
+                            groupId: "invalid-group",
+                            permission: ["view", "translate"],
+                        },
+                    ],
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_groupAcl,
+                ["group-super-admins"],
+                db,
+            );
+            expect(res.error).toBe("No access to 'Assign' one or more groups to the group ACL");
+        });
+
+        it("can not assign a new group to another group's ACL without 'Assign' access to the second group", async () => {
+            const testChangeReq_groupAcl = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "test-new-group-languages",
                     type: "group",
                     name: "Languages",
                     acl: [
@@ -260,7 +367,7 @@ describe("validateChangeRequestAccess", () => {
             expect(res.error).toBe("No 'Translate' access to the language of the Content object");
         });
 
-        it("can validate: No 'Publish' access to document type 'Content'", async () => {
+        it("can validate: No 'Publish' access to an existing document of type 'Content'", async () => {
             // Add permission to access the language of the Content document to run the next test
             PermissionSystem.upsertGroups([
                 {
@@ -299,6 +406,54 @@ describe("validateChangeRequestAccess", () => {
 
             const res = await validateChangeRequestAccess(
                 testChangeReq_Content,
+                ["group-test-language-translate-access"],
+                db,
+            );
+            expect(res.error).toBe("No 'Publish' access to document type 'Content'");
+        });
+
+        it("can validate: No 'Publish' access to a new document of type 'Content'", async () => {
+            // Add permission to access the language of the Content document to run the next test
+            PermissionSystem.upsertGroups([
+                {
+                    _id: "group-languages",
+                    type: "group",
+                    name: "Languages",
+                    acl: [
+                        {
+                            type: "language",
+                            groupId: "group-test-language-translate-access",
+                            permission: ["view", "translate"],
+                        },
+                        {
+                            type: "language",
+                            groupId: "group-public-content",
+                            permission: ["view"],
+                        },
+                        {
+                            type: "language",
+                            groupId: "group-private-content",
+                            permission: ["view"],
+                        },
+                        {
+                            type: "language",
+                            groupId: "group-public-editors",
+                            permission: ["view", "translate"],
+                        },
+                        {
+                            type: "language",
+                            groupId: "group-private-editors",
+                            permission: ["view", "translate"],
+                        },
+                    ],
+                },
+            ]);
+
+            const changeReq = _.cloneDeep(testChangeReq_Content);
+            changeReq.doc._id = "test-new-content-doc";
+
+            const res = await validateChangeRequestAccess(
+                changeReq,
                 ["group-test-language-translate-access"],
                 db,
             );
@@ -370,11 +525,11 @@ describe("validateChangeRequestAccess", () => {
             expect(res.error).toBe("No 'Edit' access to document");
         });
 
-        it("can reject a document without group membership", async () => {
+        it("can reject a new document without group membership", async () => {
             const testChangeReq_noGroup = plainToClass(ChangeReqDto, {
                 id: 1,
                 doc: {
-                    _id: "post-post2",
+                    _id: "test-new-post-123",
                     type: "post",
                     memberOf: [],
                     content: ["content-post2-eng", "content-post2-fra"],
@@ -388,9 +543,64 @@ describe("validateChangeRequestAccess", () => {
                 ["group-private-editors"],
                 db,
             );
-            expect(res.error).toBe(
-                "Unable to verify access. The document is not a group or does not have group membership",
+            expect(res.error).toBe("The document is not a group or does not have group membership");
+        });
+
+        it("can reject an existing document without group membership", async () => {
+            const testChangeReq_noGroup = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "post-blog2",
+                    type: "post",
+                    memberOf: [],
+                    content: ["content-post2-eng", "content-post2-fra"],
+                    image: "",
+                    tags: ["tag-category2", "tag-topicB"],
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_noGroup,
+                ["group-private-editors"],
+                db,
             );
+            expect(res.error).toBe("The document is not a group or does not have group membership");
+        });
+
+        it("can reject an update to an existing document when a group is added to the memberOf array to which the user does not have 'Assign' access", async () => {
+            const testChangeReq_noAssign = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "post-blog2",
+                    type: "post",
+                    memberOf: ["group-private-content", "group-private-users"],
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_noAssign,
+                ["group-private-editors"],
+                db,
+            );
+            expect(res.error).toBe("No 'Assign' access to one or more groups");
+        });
+
+        it("can reject a new document when the user does not have 'Assign' access to all the groups in the memberOf array", async () => {
+            const testChangeReq_noAssign = plainToClass(ChangeReqDto, {
+                id: 1,
+                doc: {
+                    _id: "test-new-post-doc",
+                    type: "post",
+                    memberOf: ["group-private-content", "group-private-users"],
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_noAssign,
+                ["group-private-editors"],
+                db,
+            );
+            expect(res.error).toBe("No 'Assign' access to one or more groups");
         });
     });
 
