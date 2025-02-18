@@ -758,6 +758,12 @@ export const superAdminAccessMap = {
             assign: true,
             delete: true,
         },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-content": {
         post: {
@@ -792,6 +798,12 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
             delete: true,
         },
     },
@@ -830,6 +842,12 @@ export const superAdminAccessMap = {
             assign: true,
             delete: true,
         },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-editors": {
         post: {
@@ -864,6 +882,12 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
             delete: true,
         },
     },
@@ -902,6 +926,12 @@ export const superAdminAccessMap = {
             assign: true,
             delete: true,
         },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-users": {
         post: {
@@ -938,6 +968,12 @@ export const superAdminAccessMap = {
             assign: true,
             delete: true,
         },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-languages": {
         post: {
@@ -971,6 +1007,12 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
             delete: true,
         },
     },
