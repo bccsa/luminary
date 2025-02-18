@@ -33,8 +33,6 @@ describe("LModal", () => {
             },
         });
 
-        // This test is very simple because the modal doesn't render properly
-        // in tests currently, because of transitions and teleporting
         expect(wrapper.exists()).toBe(true);
     });
 });
