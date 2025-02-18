@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import ConfirmBeforeLeavingModal from "./ConfirmBeforeLeavingModal.vue";
 import { useRouter } from "vue-router";
-import LModal from "../common/LModal.vue";
+import LDialog from "../common/LDialog.vue";
 import waitForExpect from "wait-for-expect";
 
 // @ts-expect-error
@@ -44,7 +44,7 @@ describe("ConfirmBeforeLeavingModal", () => {
         const callback = onBeforeRouteLeave.mock.calls[0][0];
         expect(callback()).toBe(false);
 
-        const modal = wrapper.findComponent(LModal);
+        const modal = wrapper.findComponent(LDialog);
         await waitForExpect(() => {
             expect(modal.props().open).toBe(true);
         });
@@ -63,7 +63,7 @@ describe("ConfirmBeforeLeavingModal", () => {
         const callback = onBeforeRouteLeave.mock.calls[0][0];
         expect(callback()).toBe(true);
 
-        const modal = wrapper.findComponent(LModal);
+        const modal = wrapper.findComponent(LDialog);
         await waitForExpect(() => {
             expect(modal.props().open).toBe(false);
         });

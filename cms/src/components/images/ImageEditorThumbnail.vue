@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { TrashIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
-import LModal from "@/components/common/LModal.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import type { ImageFileCollectionDto, ImageUploadDto } from "luminary-shared";
 import fallbackImage from "@/assets/fallback-image-cms.webp";
 
@@ -72,7 +72,7 @@ const imageElementError = ref(false);
             />
         </div>
     </div>
-    <LModal
+    <LDialog
         v-model:open="showModal"
         title="Delete file version"
         :description="deleteMessage"

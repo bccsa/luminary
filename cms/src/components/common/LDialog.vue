@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import App from "@/App.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 
