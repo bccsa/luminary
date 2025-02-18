@@ -1,19 +1,39 @@
 import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import EditLanguage from "./EditLanguage.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db, type LanguageDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
-import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
-import { fullAccessToAllContentMap } from "../../tests/mockdata";
+import {
+    mockLanguageDtoEng,
+    mockLanguageDtoFra,
+    mockLanguageDtoSwa,
+    superAdminAccessMap,
+} from "@/tests/mockdata";
 import { PlusCircleIcon } from "@heroicons/vue/20/solid";
+import { ref } from "vue";
 
+// Mock the vue router
+const routeReplaceMock = vi.fn();
+const currentRouteMock = ref({ fullPath: `languages/${mockLanguageDtoEng.name}` });
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRouter: vi.fn().mockImplementation(() => ({
+            currentRoute: currentRouteMock,
+            replace: routeReplaceMock,
+        })),
+    };
+});
 describe("EditLanguage.vue", () => {
     beforeEach(async () => {
         setActivePinia(createTestingPinia());
-        accessMap.value = fullAccessToAllContentMap;
+        accessMap.value = superAdminAccessMap;
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
     });
 
@@ -48,6 +68,12 @@ describe("EditLanguage.vue", () => {
         // Find textareas and set their values
         const currentLanguage = wrapper.findAll("input");
 
+        // Wait for the language to be loaded
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+            expect(currentLanguage[1].element.value).toBe(mockLanguageDtoEng.languageCode);
+        });
+
         // Update language name and code
         await currentLanguage[0].setValue("English (updated)");
         await currentLanguage[1].setValue("eng (updated)");
@@ -71,6 +97,11 @@ describe("EditLanguage.vue", () => {
             props: {
                 id: mockLanguageDtoEng._id,
             },
+        });
+
+        // Wait for the editor to be loaded
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
         });
 
         // Wait for the textareas and buttons to be available in the DOM
@@ -161,6 +192,39 @@ describe("EditLanguage.vue", () => {
                     "You should try this!",
                 );
             });
+        });
+    });
+
+    it("can delete a language", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        // Wait for the editor to be loaded
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        });
+
+        let deleteButton;
+        await waitForExpect(async () => {
+            deleteButton = wrapper.find('[data-test="delete-button"]');
+            expect(deleteButton.exists()).toBe(true);
+        });
+        await deleteButton!.trigger("click"); // Click the delete button
+
+        let deleteModalButton;
+        await waitForExpect(async () => {
+            deleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
+            expect(deleteModalButton.exists()).toBe(true);
+        });
+        await deleteModalButton!.trigger("click"); // Accept dialog
+
+        await waitForExpect(async () => {
+            const deletedLanguage = await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray();
+
+            expect(deletedLanguage.length).toBe(0);
         });
     });
 });
