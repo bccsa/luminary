@@ -28,7 +28,7 @@ import {
     ArrowUturnLeftIcon,
     TrashIcon,
 } from "@heroicons/vue/24/solid";
-import LModal from "../common/LModal.vue";
+import LDialog from "../common/LDialog.vue";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 
@@ -579,7 +579,7 @@ const deleteLanguage = async () => {
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editable.deleteReq" />
 
-    <LModal
+    <LDialog
         v-model:open="showStringDeleteModal"
         context="default"
         title="Are you sure you want to delete this translation?"
@@ -589,7 +589,7 @@ const deleteLanguage = async () => {
         :secondaryAction="() => (showStringDeleteModal = false)"
     />
 
-    <LModal
+    <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete ${editable.name}?`"
         :description="`Are you sure you want to delete this language? All content in this language will become unavailable! This action cannot be undone.`"
@@ -604,5 +604,5 @@ const deleteLanguage = async () => {
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         context="danger"
-    ></LModal>
+    ></LDialog>
 </template>

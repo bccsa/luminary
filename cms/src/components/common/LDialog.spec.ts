@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterAll, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
-import LModal from "./LModal.vue";
+import LDialog from "./LDialog.vue";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -21,7 +21,7 @@ describe("LModal", () => {
     it("renders a modal", async () => {
         const primaryAction = vi.fn();
         const secondaryAction = vi.fn();
-        const wrapper = mount(LModal, {
+        const wrapper = mount(LDialog, {
             props: {
                 open: true,
                 title: "Are you sure?",
