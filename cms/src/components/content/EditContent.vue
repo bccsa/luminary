@@ -2,7 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
-import LModal from "@/components/common/LModal.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
@@ -515,7 +515,7 @@ watch(selectedLanguage, () => {
         </div>
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />
-    <LModal
+    <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete ${props.tagOrPostType} and all translations`"
         :description="`Are you sure you want to delete this ${props.tagOrPostType} and all the translations? This action cannot be undone.`"
@@ -529,7 +529,7 @@ watch(selectedLanguage, () => {
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         context="danger"
-    ></LModal>
+    ></LDialog>
 </template>
 
 <style>

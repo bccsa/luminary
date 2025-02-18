@@ -22,7 +22,7 @@ import { capitaliseFirstLetter } from "@/util/string";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
 import LButton from "../button/LButton.vue";
-import LModal from "../common/LModal.vue";
+import LDialog from "../common/LDialog.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -236,7 +236,7 @@ const deleteTranslation = () => {
             </div>
         </div>
     </RouterLink>
-    <LModal
+    <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete ${usedLanguage?.name}`"
         :description="`Are you sure you want to delete this ${usedLanguage?.name}?`"
@@ -250,5 +250,5 @@ const deleteTranslation = () => {
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         context="default"
-    ></LModal>
+    ></LDialog>
 </template>
