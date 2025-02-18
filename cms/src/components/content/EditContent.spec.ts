@@ -427,7 +427,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    describe.only("delete requests", () => {
+    describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
                 props: {
