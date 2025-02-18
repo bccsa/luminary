@@ -359,7 +359,7 @@ const deleteParent = async () => {
 
     addNotification({
         title: `${capitaliseFirstLetter(props.tagOrPostType)} deleted`,
-        description: `The ${props.tagOrPostType} was deleted successfully`,
+        description: `The ${props.tagOrPostType} was successfully deleted`,
         state: "success",
     });
 
@@ -417,6 +417,7 @@ watch(selectedLanguage, () => {
                         variant="secondary"
                         title="Revert Changes"
                         :icon="ArrowUturnLeftIcon"
+                        v-if="isDirty && !newDocument"
                     >
                         Revert
                     </LButton>
