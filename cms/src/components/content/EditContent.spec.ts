@@ -41,7 +41,7 @@ describe("EditContent.vue", () => {
         await db.docs.clear();
         await db.localChanges.clear();
 
-        // seed the fake indexDB with mock datas
+        // seed the fake indexDB with mock data
         await db.docs.bulkPut([mockData.mockPostDto]);
         await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
         await db.docs.bulkPut([
@@ -50,7 +50,7 @@ describe("EditContent.vue", () => {
             mockData.mockLanguageDtoSwa,
         ]);
 
-        accessMap.value = mockData.fullAccessToAllContentMap;
+        accessMap.value = mockData.superAdminAccessMap;
     });
 
     afterEach(async () => {
@@ -424,6 +424,116 @@ describe("EditContent.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(true);
+        });
+    });
+
+    describe.only("delete requests", () => {
+        it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for translations to load
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+            });
+
+            let translationDeleteButton;
+            await waitForExpect(async () => {
+                translationDeleteButton = wrapper.find('[data-test="translation-delete-button"]');
+                expect(translationDeleteButton.exists()).toBe(true);
+            });
+            await translationDeleteButton!.trigger("click"); // Delete the English translation
+
+            let translationDeleteModalButton;
+            await waitForExpect(async () => {
+                translationDeleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
+                expect(translationDeleteModalButton.exists()).toBe(true);
+            });
+            await translationDeleteModalButton!.trigger("click"); // Accept dialog
+
+            let postDeleteButton;
+            await waitForExpect(async () => {
+                postDeleteButton = wrapper.find('[data-test="delete-button"]');
+                expect(postDeleteButton.exists()).toBe(true);
+            });
+            await postDeleteButton!.trigger("click"); // Delete the post
+
+            let postDeleteModalButton;
+            await waitForExpect(async () => {
+                postDeleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
+                expect(postDeleteModalButton.exists()).toBe(true);
+            });
+            await postDeleteModalButton!.trigger("click"); // Accept dialog
+
+            await waitForExpect(async () => {
+                const res = await db.localChanges
+                    .where({ docId: mockData.mockPostDto._id })
+                    .toArray();
+
+                // Only the post/tag document should be marked for deletion
+                expect(res.length).toBe(1);
+                expect(res[0].doc).toMatchObject({
+                    _id: mockData.mockPostDto._id,
+                    deleteReq: 1,
+                });
+            });
+        });
+
+        it("marks a content document for deletion when the user deletes a content document", async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            // Wait for translations to load
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+            });
+
+            let translationDeleteButton;
+            await waitForExpect(async () => {
+                translationDeleteButton = wrapper.find('[data-test="translation-delete-button"]');
+                expect(translationDeleteButton.exists()).toBe(true);
+            });
+            await translationDeleteButton!.trigger("click"); // Delete the English translation
+
+            let translationDeleteModalButton;
+            await waitForExpect(async () => {
+                translationDeleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
+                expect(translationDeleteModalButton.exists()).toBe(true);
+            });
+            await translationDeleteModalButton!.trigger("click"); // Accept dialog
+
+            // Save the changes
+            let saveButton;
+            await waitForExpect(async () => {
+                saveButton = wrapper.find('[data-test="save-button"]');
+                expect(saveButton.exists()).toBe(true);
+            });
+            await saveButton!.trigger("click");
+
+            await waitForExpect(async () => {
+                const res = await db.localChanges
+                    .where({ docId: mockData.mockEnglishContentDto._id })
+                    .toArray();
+
+                // The content document should be marked for deletion
+                expect(res.length).toBe(1);
+                expect(res[0].doc).toMatchObject({
+                    _id: mockData.mockEnglishContentDto._id,
+                    deleteReq: 1,
+                });
+            });
         });
     });
 });
