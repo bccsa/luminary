@@ -334,4 +334,61 @@ describe("processChangeRequest", () => {
             expect.arrayContaining(["lang-eng", "lang-fra"]),
         );
     });
+
+    it("fails to update a language document if the document is marked for deletion and is the default language", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 90,
+            doc: {
+                _id: "lang-eng",
+                type: "language",
+                memberOf: ["group-languages"],
+                languageCode: "eng",
+                name: "English",
+                default: 1,
+                translations: {
+                    stringTranslation: "String Translation",
+                },
+                deleteReq: 1,
+            },
+        };
+
+        await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+        ).catch((err) => {
+            expect(err.message).toBe("Cannot delete the default language document");
+        });
+    });
+
+    it("can cascade delete requests for post / tag documents to content documents", async () => {
+        // Create the initial post document
+        const changeRequest1 = changeRequest_post();
+        changeRequest1.doc._id = "post-blog3";
+        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db, s3);
+
+        // Create the initial content document
+        const changeRequest2 = changeRequest_content();
+        changeRequest2.doc.parentId = "post-blog3";
+        changeRequest2.doc._id = "content-en";
+        changeRequest2.doc.language = "lang-eng";
+        await processChangeRequest("test-user", changeRequest2, ["group-super-admins"], db, s3);
+
+        // Mark the post document for deletion
+        const changeRequest3 = changeRequest_post();
+        changeRequest3.doc._id = "post-blog3";
+        // @ts-expect-error - ignore error
+        changeRequest3.doc.deleteReq = 1;
+        await processChangeRequest("test-user", changeRequest3, ["group-super-admins"], db, s3);
+
+        // Fetch the documents from the database
+        const dbPost = await db.getDoc("post-blog3");
+        const dbContent = await db.getDoc("content-en");
+
+        // Check that the documents are deleted
+        expect(dbPost.docs.length).toBe(0);
+        expect(dbContent.docs.length).toBe(0);
+    });
 });
