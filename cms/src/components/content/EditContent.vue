@@ -269,11 +269,6 @@ const saveChanges = async () => {
         return;
     }
 
-    // remove new content documents marked for deletion
-    editableContent.value = editableContent.value.filter(
-        (c) => !(c.deleteReq && !existingContent.value?.some((e) => e._id == c._id)),
-    );
-
     await save();
 
     addNotification({
@@ -295,7 +290,13 @@ const save = async () => {
         const pList: Promise<any>[] = [];
         editableContent.value.forEach((c) => {
             const prevContentDoc = existingContent.value?.find((d) => d._id == c._id);
+
+            // Only save the document if it has changed
             if (_.isEqual(c, prevContentDoc)) return;
+
+            // Do not save newly created documents that are marked for deletion
+            if (c.deleteReq && !prevContentDoc) return;
+
             pList.push(db.upsert(c));
         });
 
@@ -502,7 +503,7 @@ watch(selectedLanguage, () => {
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />
     <LModal
-        :open="showDeleteModal"
+        v-model:open="showDeleteModal"
         :title="`Delete ${props.tagOrPostType} and all translations`"
         :description="`Are you sure you want to delete this ${props.tagOrPostType} and all the translations? This action cannot be undone.`"
         :primaryAction="

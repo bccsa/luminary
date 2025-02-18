@@ -208,10 +208,11 @@ const deleteTranslation = () => {
                             {{ statusBadge(editableContent).title }}
                         </LBadge>
                     </div>
-                    <TrashIconSolid
-                        class="ml-2 h-4 min-h-4 w-4 min-w-4 cursor-pointer text-slate-400 hover:text-red-500"
-                        @click="showDeleteModal = true"
-                    />
+                    <div data-test="translation-delete-button" @click="showDeleteModal = true">
+                        <TrashIconSolid
+                            class="ml-2 h-4 min-h-4 w-4 min-w-4 cursor-pointer text-slate-400 hover:text-red-500"
+                        />
+                    </div>
                 </span>
             </div>
 
@@ -236,7 +237,7 @@ const deleteTranslation = () => {
         </div>
     </RouterLink>
     <LModal
-        :open="showDeleteModal"
+        v-model:open="showDeleteModal"
         :title="`Delete ${usedLanguage?.name}`"
         :description="`Are you sure you want to delete this ${usedLanguage?.name}?`"
         :primaryAction="
