@@ -6,10 +6,10 @@ import { plainToInstance } from "class-transformer";
 import { ValidationResult } from "./ValidationResult";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
-import { ContentDto } from "src/dto/ContentDto";
-import { _baseDto } from "src/dto/_baseDto";
-import { _contentBaseDto } from "src/dto/_contentBaseDto";
-import { GroupDto } from "src/dto/GroupDto";
+import { ContentDto } from "../dto/ContentDto";
+import { _baseDto } from "../dto/_baseDto";
+import { _contentBaseDto } from "../dto/_contentBaseDto";
+import { GroupDto } from "../dto/GroupDto";
 
 /**
  * Validate a change request against a user's access map
