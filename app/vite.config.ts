@@ -5,6 +5,7 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 import util from "util";
 import child_process from "child_process";
 const exec = util.promisify(child_process.exec);
+const env = loadEnv("", process.cwd());
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -48,6 +49,6 @@ export default defineConfig({
     build: {
         target: "es2015",
         sourcemap: true,
-        minify: true,
+        minify: env.VITE_MINIFY === "true",
     },
 });
