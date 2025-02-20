@@ -153,4 +153,26 @@ describe("GroupSelector", () => {
             expect(wrapper.findComponent(LTag).props().disabled).toBe(true);
         });
     });
+
+    it("only displays groups to which the user has group assign access", async () => {
+        // Remove assign access to the Public Editors group
+        // @ts-ignore
+        accessMap.value[mockGroupDtoPublicEditors._id].group.assign = false;
+
+        const wrapper = mount(GroupSelector, {
+            props: {
+                groups: [],
+                docType: DocType.Post,
+            },
+        });
+
+        await wrapper.find("button").trigger("click");
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Public Content");
+            expect(wrapper.text()).toContain("Private Content");
+
+            expect(wrapper.text()).not.toContain("Public Editors");
+        });
+    });
 });
