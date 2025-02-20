@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { type ContentDto, DocType, TagType, type Uuid, db } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIds } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
@@ -12,7 +12,7 @@ import { useI18n } from "vue-i18n";
 const { t } = useI18n();
 
 const allTopics = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
+    appLanguageIds,
     (appLanguageIds: Uuid[]) =>
         db.docs
             .where({

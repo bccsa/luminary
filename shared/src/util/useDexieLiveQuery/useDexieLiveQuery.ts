@@ -91,6 +91,11 @@ export function useDexieLiveQuery<T, I = undefined>(
             },
             error: (error) => {
                 onError?.(error);
+
+                // Retry after a delay
+                setTimeout(() => {
+                    start();
+                }, 10);
             },
         });
     }

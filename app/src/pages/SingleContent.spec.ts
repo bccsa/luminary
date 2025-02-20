@@ -18,7 +18,7 @@ import {
 } from "@/tests/mockdata";
 import { db, DocType, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIds, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
@@ -53,12 +53,14 @@ vi.mock("vue-i18n", () => ({
 }));
 
 describe("SingleContent", () => {
+    // beforeAll(async () => {
+
+    // });
+
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
         await db.localChanges.clear();
-
-        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, "lang-eng"];
 
         await db.docs.bulkPut([
             mockPostDto,
@@ -68,10 +70,12 @@ describe("SingleContent", () => {
             mockCategoryContentDto,
             mockEnglishContentDto,
             mockFrenchContentDto,
-            mockLanguageDtoEng,
-            mockLanguageDtoFra,
             mockRedirectDto,
         ]);
+        await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra]);
+
+        await initLanguage();
+        appLanguageIds.value = [mockLanguageDtoEng._id];
 
         setActivePinia(createTestingPinia());
 
@@ -268,9 +272,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("switches the content correctly when the language changes", async () => {
-        await initLanguage();
-
+    it.only("switches the content correctly when the language changes", async () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -281,10 +283,13 @@ describe("SingleContent", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
         });
 
+        // Simulate language change
+        console.log("changing language to FRA");
+        appLanguageIds.value = [mockLanguageDtoFra._id, mockLanguageDtoEng._id];
+        console.log("test log", appLanguageIds.value);
+
         await waitForExpect(() => {
-            // Simulate language change
-            appLanguageIdsAsRef.value.unshift(mockLanguageDtoFra._id);
-            expect(routeReplaceMock).toBeCalledWith({
+            expect(routeReplaceMock).toHaveBeenCalledWith({
                 name: "content",
                 params: { slug: mockFrenchContentDto.slug },
             });
@@ -314,7 +319,7 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             // simulate language change
-            appLanguageIdsAsRef.value.unshift("lang-test");
+            appLanguageIds.value.unshift("lang-test");
 
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
             expect(notificationStore.addNotification).toHaveBeenCalled();

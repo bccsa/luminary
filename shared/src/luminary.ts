@@ -13,9 +13,11 @@ export async function initLuminaryShared(config: SharedConfig) {
     // Initialize the SocketIO connection (initialized on first call)
     getSocket();
 
+    console.log("Waiting for access map");
     // Wait for the access map to be set through SocketIO
     await waitForAccessMap();
+    console.log("Access map received");
 
     // Initialize the REST API connection (initialized on first call) and start syncing
-    getRest().clientDataReq();
+    await getRest().clientDataReq();
 }

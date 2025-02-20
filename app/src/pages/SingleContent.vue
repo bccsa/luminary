@@ -19,10 +19,10 @@ import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import {
-    appLanguagesPreferredAsRef,
-    appLanguageIdsAsRef,
+    appLanguageList,
+    appLanguageIds,
     appName,
-    appLanguagePreferredIdAsRef,
+    appLanguageId,
     showContentQuickControls,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
@@ -62,7 +62,7 @@ const defaultContent: ContentDto = {
     updatedTimeUtc: 0,
     memberOf: [],
     parentId: "",
-    language: appLanguagePreferredIdAsRef.value ? appLanguagePreferredIdAsRef.value : "",
+    language: appLanguageId.value ? appLanguageId.value : "",
     status: PublishStatus.Published,
     title: "Loading...",
     slug: "",
@@ -77,7 +77,7 @@ const content = computed(() => {
 });
 
 const tags = useDexieLiveQueryWithDeps(
-    [content, appLanguageIdsAsRef],
+    [content, appLanguageIds],
     ([content, appLanguageIds]: [ContentDto, Uuid[]]) =>
         db.docs
             .where("parentId")
@@ -185,40 +185,38 @@ watch([content, is404], () => {
 });
 
 watch(
-    [appLanguagesPreferredAsRef, content],
+    [appLanguageId, content],
     async () => {
+        console.log("appLanguageId - SingleContent", appLanguageId.value);
         if (!content.value) return;
         if (!content.value.language) return;
-        if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
-            return;
-        if (
-            appLanguagesPreferredAsRef.value[0]._id &&
-            appLanguagesPreferredAsRef.value[0]._id !== content.value.language
-        ) {
-            const contentDocs = await db.whereParent(content.value.parentId);
-            const preferred = contentDocs.find(
-                (c) => c.language == appLanguagesPreferredAsRef.value[0]?._id,
-            );
+        if (!appLanguageId.value) return;
+        if (appLanguageId.value == content.value.language) return;
+        // if (
+        //     appLanguageList.value[0]._id &&
+        //     appLanguageList.value[0]._id !== content.value.language
+        // ) {
+        const contentDocs = await db.whereParent(content.value.parentId);
+        const preferred = contentDocs.find((c) => c.language == appLanguageList.value[0]?._id);
 
-            if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
-                // Check if the preferred translation is published
-                router.replace({ name: "content", params: { slug: preferred.slug } });
-            } else {
-                if (!appLanguagesPreferredAsRef.value[0]?.name) return;
-                useNotificationStore().addNotification({
-                    id: "translation-not-published",
-                    title: t("notification.content_not_available.title"),
-                    description: t("notification.content_not_available.description", {
-                        language: appLanguagesPreferredAsRef.value[0].name,
-                    }),
-                    state: "error",
-                    type: "toast",
-                });
-            }
-            return;
+        if (preferred && isPublished(preferred, appLanguageIds.value)) {
+            // Check if the preferred translation is published
+            router.replace({ name: "content", params: { slug: preferred.slug } });
+        } else {
+            if (!appLanguageList.value[0]?.name) return;
+            useNotificationStore().addNotification({
+                id: "translation-not-published",
+                title: t("notification.content_not_available.title"),
+                description: t("notification.content_not_available.description", {
+                    language: appLanguageList.value[0].name,
+                }),
+                state: "error",
+                type: "toast",
+            });
         }
+        // }
     },
-    { deep: true },
+    // { deep: true, immediate: true },
 );
 
 const text = computed(() => {

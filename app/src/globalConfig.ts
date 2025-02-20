@@ -1,20 +1,17 @@
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
-import { computed, ref, toRaw, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import * as _ from "lodash";
+import { setAppLanguages } from "./setAppLanguages";
+import { watchArray } from "@vueuse/core";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
 export const isDevMode = import.meta.env.DEV;
 
 /**
- * The list of CMS defined languages as Vue ref.
+ * The preferred language IDs as Vue ref.
  */
-export const cmsLanguages = ref<LanguageDto[]>([]);
-
-/**
- * The preferred language ID as Vue ref.
- */
-export const appLanguageIdsAsRef = ref<string[]>(
+export const appLanguageIds = ref<string[]>(
     JSON.parse(localStorage.getItem("languages") || "[]") as string[],
 );
 
@@ -24,42 +21,28 @@ export const appLanguageIdsAsRef = ref<string[]>(
 // we are using a watcher so that we can use the ref directly and test it easily
 // without interactions with localStorage (which we choose to ignore for now in testing).
 watch(
-    appLanguageIdsAsRef,
+    appLanguageIds,
     (newVal) => {
+        if (!newVal) return;
         localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id != null)));
     },
     { deep: true },
 );
 
 /**
+ * The list of CMS defined languages as Vue ref.
+ */
+export const cmsLanguages = ref([] as LanguageDto[]);
+
+/**
  * The list of user selected languages sorted by preference as Vue ref.
  */
-export const appLanguagesPreferredAsRef = computed(
-    () =>
-        appLanguageIdsAsRef.value
-            .map((id) =>
-                cmsLanguages.value ? cmsLanguages.value.find((l) => l._id === id) : undefined,
-            )
-            .filter((l) => l) as LanguageDto[],
-);
+export const appLanguageList = ref<LanguageDto[]>([]);
 
 /**
  * The preferred language's ID as Vue ref.
  */
-export const appLanguagePreferredIdAsRef = computed(() =>
-    appLanguageAsRef.value ? appLanguageAsRef.value._id : undefined,
-);
-
-/**
- * The preferred language document as Vue ref.
- */
-export const appLanguageAsRef = ref<LanguageDto | undefined>();
-watch(appLanguagesPreferredAsRef, (newVal) => {
-    if (!newVal || !newVal.length) return;
-    // Prevent updating the value if the language is the same
-    if (_.isEqual(toRaw(appLanguageAsRef.value), toRaw(newVal[0]))) return;
-    appLanguageAsRef.value = newVal[0];
-});
+export const appLanguageId = ref<Uuid>();
 
 /**
  * The default language document as Vue ref.
@@ -67,78 +50,57 @@ watch(appLanguagesPreferredAsRef, (newVal) => {
 export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
 
 /**
+ * The preferred language document as Vue ref.
+ */
+export const appLanguageAsRef = ref<LanguageDto | undefined>();
+
+/**
  * Initialize the language settings. If no user preferred language is set, the browser preferred language is used if it is supported. Otherwise, the CMS default language is used.
  */
-export const initLanguage = () => {
-    return new Promise<void>((resolve) => {
-        const _cmsLanguages = useDexieLiveQuery(
-            async () =>
-                (await db.docs
-                    .where("type")
-                    .equals(DocType.Language)
-                    .toArray()) as unknown as Promise<LanguageDto[]>,
-            { initialValue: [] },
-        );
-        watch(
-            _cmsLanguages,
-            (newVal) => {
-                cmsLanguages.value.slice(0, cmsLanguages.value.length);
-                cmsLanguages.value.push(...newVal);
+export const initLanguage = async () => {
+    console.log("initLanguage");
+    const _cmsLanguages = db.toRef<LanguageDto[]>(
+        () =>
+            db.docs.where("type").equals(DocType.Language).toArray() as unknown as Promise<
+                LanguageDto[]
+            >,
+        [],
+    );
+    watch(_cmsLanguages, (newVal) => {
+        console.log("cmsLanguages lenght", _cmsLanguages.value.length);
+        cmsLanguages.value = newVal;
+    });
 
-                const defaultLang = newVal.find((l) => l.default === 1);
+    // const test = await db.docs.toArray();
+    // console.log("test", test);
 
-                // Prevent updating the value if the language is the same
-                if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
+    watch(appLanguageIds, setAppLanguages, {
+        deep: true,
+    });
+    watch(cmsLanguages, setAppLanguages, {
+        deep: true,
+        immediate: true,
+    });
 
-                cmsDefaultLanguage.value = defaultLang;
-            },
-            { deep: true },
-        );
-
-        // Set the preferred language to the preferred language returned by the browser if it is not set
-        // The language is only set if there is a supported language for it otherwise it defaults to the CMS configured default language
-        if (appLanguageIdsAsRef.value.length > 0) resolve();
-
-        const unwatchCmsLanguages = watch(
-            cmsLanguages,
-            (_languages) => {
-                if (!_languages || _languages.length == 0) return;
-                if (!appLanguageIdsAsRef.value) return;
-
-                // Check for the browser preferred language in the list of available content languages
-                const browserPreferredLanguageId = _languages.find((l) =>
-                    navigator.languages.includes(l.languageCode),
-                )?._id;
-
-                // If a browser preferred language exists, set it
-                if (browserPreferredLanguageId) {
-                    unwatchCmsLanguages();
-                    //Set the default language of the app
-                    appLanguageIdsAsRef.value = [
-                        browserPreferredLanguageId,
-                        ...appLanguageIdsAsRef.value.filter(
-                            (l) => l !== browserPreferredLanguageId,
-                        ),
-                    ];
-                    resolve();
-                }
-
-                // Find the CMS defined default language
-                const cmsDefaultLanguage = _languages.find((l) => l.default === 1);
-
-                // Add the CMS defined default language to the list of preferred languages if it is not already there
-                if (
-                    cmsDefaultLanguage &&
-                    !appLanguageIdsAsRef.value.includes(cmsDefaultLanguage._id)
-                ) {
-                    appLanguageIdsAsRef.value.push(cmsDefaultLanguage._id);
-                }
-
-                unwatchCmsLanguages();
-                resolve();
-            },
-            { deep: true },
-        );
+    await new Promise<void>((resolve) => {
+        // Resolve if the app language list is already set
+        if (appLanguageId.value) {
+            console.log("appLanguage set 1");
+            resolve();
+        } else {
+            // Wait for the App language to be set to be loaded
+            const unwatch = watch(
+                appLanguageId,
+                (newVal) => {
+                    if (newVal) {
+                        unwatch();
+                        console.log("appLanguage set 2");
+                        resolve();
+                    }
+                },
+                { deep: true },
+            );
+        }
     });
 };
 

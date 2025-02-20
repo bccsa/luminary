@@ -78,6 +78,11 @@ export function getAccessibleGroups(permission: AclPermission): Record<DocType, 
  */
 export const waitForAccessMap = async () => {
     return new Promise<void>((resolve) => {
+        // If the access map is already set, resolve immediately
+        if (accessMap.value && Object.keys(accessMap.value).length > 0) {
+            resolve();
+        }
+
         const unwatchAccessMap = watch(accessMap, () => {
             if (accessMap.value && Object.keys(accessMap.value).length > 0) {
                 unwatchAccessMap();

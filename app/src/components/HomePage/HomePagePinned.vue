@@ -10,13 +10,13 @@ import {
     db,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIds } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
+    appLanguageIds,
     (appLanguageIds: Uuid[]) =>
         db.docs
             .where({
@@ -35,7 +35,7 @@ watch(pinnedCategories, async (value) => {
 });
 
 const pinnedCategoryContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, pinnedCategories],
+    [appLanguageIds, pinnedCategories],
     ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) =>
         db.docs
             .where({

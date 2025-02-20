@@ -10,17 +10,24 @@ export const initI18n = () => {
         // Initialize i18n with empty messages
         const i18n = createI18n({ legacy: false });
 
-        // Wait for the app language to be set before resolving
-        const unwatchAppLanguage = watch(i18n.global.locale, () => {
-            unwatchAppLanguage();
-            resolve(i18n);
-        });
+        // // Wait for the app language to be set before resolving
+        // if (i18n.global.locale.value) {
+        //     console.log("i18n.global.locale.value", i18n.global.locale.value);
+        //     resolve(i18n);
+        // } else {
+        //     const unwatchAppLanguage = watch(i18n.global.locale, () => {
+        //         unwatchAppLanguage();
+        //         resolve(i18n);
+        //     });
+        // }
 
         // Create a list of localized strings with fallback to the default language if not existing in the preferred language
         watch(
             [appLanguageAsRef, cmsDefaultLanguage],
             ([newLanguage, defaultLang]) => {
                 if (!newLanguage || !defaultLang) return;
+                console.log("newLanguage", newLanguage);
+                console.log("defaultLang", defaultLang);
                 // copy translations in the preferred language
                 const messages: Record<string, string> = {};
                 Object.keys(newLanguage.translations || {}).forEach((k: string) => {
@@ -41,6 +48,7 @@ export const initI18n = () => {
 
                 // Change the active locale
                 i18n.global.locale.value = newLanguage.languageCode;
+                if (resolve) resolve(i18n);
             },
             { immediate: true },
         );

@@ -15,7 +15,7 @@ import {
     viewAccessToAllContentMap,
 } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
+import { appLanguageIds, initLanguage } from "@/globalConfig";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -78,7 +78,7 @@ describe("HomePage.vue", () => {
             });
 
             // Change the language
-            appLanguageIdsAsRef.value.unshift(mockFrenchContentDto.language);
+            appLanguageIds.value.unshift(mockFrenchContentDto.language);
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("Catégorie 1");
                 expect(wrapper.text()).toContain("Poste 1");
@@ -123,7 +123,7 @@ describe("HomePage.vue", () => {
 
             const wrapper = mount(HomePage);
 
-            appLanguageIdsAsRef.value.unshift("lang-eng");
+            appLanguageIds.value.unshift("lang-eng");
 
             await waitForExpect(() => {
                 const pinnedComponent = wrapper.findComponent(HomePagePinned);
@@ -140,7 +140,7 @@ describe("HomePage.vue", () => {
 
             const wrapper = mount(HomePage);
 
-            appLanguageIdsAsRef.value.unshift("lang-eng");
+            appLanguageIds.value.unshift("lang-eng");
 
             await waitForExpect(() => {
                 const unpinnedComponent = wrapper.findComponent(HomePage);
@@ -154,7 +154,7 @@ describe("HomePage.vue", () => {
 
             const wrapper = mount(HomePage);
 
-            appLanguageIdsAsRef.value.unshift("lang-eng");
+            appLanguageIds.value.unshift("lang-eng");
 
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("Newest");

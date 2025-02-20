@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ContentTile from "@/components/content/ContentTile.vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIds } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import {
     db,
@@ -13,7 +13,7 @@ import {
 import { watch } from "vue";
 
 const topics = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
+    appLanguageIds,
     (languageIds: Uuid[]) =>
         db.docs
             .where({

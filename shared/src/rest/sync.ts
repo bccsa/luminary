@@ -36,7 +36,9 @@ export class Sync {
     }
 
     async clientDataReq() {
+        console.log("calculating syncMap");
         await this.calcSyncMap();
+        console.log("syncMap calculated");
 
         const _sm = Object.fromEntries(syncMap.value);
         const _sm_sorted = Object.values(_sm).sort((a, b) => a.syncPriority - b.syncPriority);
@@ -285,8 +287,10 @@ export class Sync {
      * @returns
      */
     async calcSyncMap() {
+        console.log("reading syncMap from DB");
         const groups: Array<string> = Object.keys(accessMap.value);
         await db.getSyncMap();
+        console.log("syncMap read from DB");
 
         const syncPriorityContentOnly = config.docTypes?.filter(
             (value, index, self) =>

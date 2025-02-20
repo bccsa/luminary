@@ -171,11 +171,13 @@ class Database extends Dexie {
     }
 
     async getSyncMap() {
+        console.log("getSyncMap");
         const _v = await this.getLuminaryInternals("syncMap");
         if (_v)
             for (const [k, v] of Object.entries(_v)) {
                 syncMap.value.set(k, v as SyncMap);
             }
+        console.log(syncMap.value);
         return _v;
     }
 

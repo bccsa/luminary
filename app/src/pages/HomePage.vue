@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { type ContentDto, DocType, db } from "luminary-shared";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIds } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageUnpinned from "@/components/HomePage/HomePageUnpinned.vue";
@@ -18,7 +18,7 @@ const hasPosts = db.toRef<boolean>(
                 type: DocType.Content,
                 status: "published",
             })
-            .filter((c) => isPublished(c as ContentDto, appLanguageIdsAsRef.value))
+            .filter((c) => isPublished(c as ContentDto, appLanguageIds.value))
             .first()
             .then((c) => c != undefined),
     true,

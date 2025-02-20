@@ -4,7 +4,7 @@ import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LButton from "../button/LButton.vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIds } from "@/globalConfig";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -32,7 +32,7 @@ vi.mock("vue-i18n", () => ({
 
 describe("ThemeSelectorModal.vue", () => {
     beforeEach(() => {
-        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
+        appLanguageIds.value = [...appLanguageIds.value, mockLanguageDtoEng._id];
 
         window.matchMedia = vi.fn().mockImplementation((query) => ({
             matches: query === "(prefers-color-scheme: dark)",
@@ -71,7 +71,7 @@ describe("ThemeSelectorModal.vue", () => {
     });
 
     it("displays the correct themes", async () => {
-        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
+        appLanguageIds.value = [...appLanguageIds.value, mockLanguageDtoEng._id];
 
         const wrapper = mount(ThemeSelectorModal, {
             props: {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { db, DocType, type LanguageDto } from "luminary-shared";
 import LButton from "../button/LButton.vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIds } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
 import { ArrowDownIcon, ArrowUpIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
@@ -21,31 +21,31 @@ const emit = defineEmits(["close"]);
 const defaultLanguage = computed(() => languages.value.find((lang) => lang.default == 1));
 
 const setLanguage = (id: string) => {
-    if (!new Set(appLanguageIdsAsRef.value).has(id)) {
-        appLanguageIdsAsRef.value.push(id);
+    if (!new Set(appLanguageIds.value).has(id)) {
+        appLanguageIds.value.push(id);
     }
 };
 
 const indexLanguageUp = (id: string) => {
-    const index = appLanguageIdsAsRef.value.indexOf(id);
+    const index = appLanguageIds.value.indexOf(id);
     if (index >= 0) {
-        const temp = appLanguageIdsAsRef.value[index - 1];
-        appLanguageIdsAsRef.value[index - 1] = appLanguageIdsAsRef.value[index];
-        appLanguageIdsAsRef.value[index] = temp;
+        const temp = appLanguageIds.value[index - 1];
+        appLanguageIds.value[index - 1] = appLanguageIds.value[index];
+        appLanguageIds.value[index] = temp;
     }
 };
 
 const indexLanguageDown = (id: string) => {
-    const index = appLanguageIdsAsRef.value.indexOf(id);
+    const index = appLanguageIds.value.indexOf(id);
     if (index >= 0) {
-        const temp = appLanguageIdsAsRef.value[index + 1];
-        appLanguageIdsAsRef.value[index + 1] = appLanguageIdsAsRef.value[index];
-        appLanguageIdsAsRef.value[index] = temp;
+        const temp = appLanguageIds.value[index + 1];
+        appLanguageIds.value[index + 1] = appLanguageIds.value[index];
+        appLanguageIds.value[index] = temp;
     }
 };
 
 const languagesSelected = computed(() => {
-    const preferredOrder = appLanguageIdsAsRef.value;
+    const preferredOrder = appLanguageIds.value;
     return preferredOrder
         .map((id) => languages.value.find((lang) => lang._id === id))
         .filter(Boolean) as LanguageDto[];
@@ -53,7 +53,7 @@ const languagesSelected = computed(() => {
 
 const availableLanguages = computed(() => {
     return languages.value
-        .filter((lang) => !appLanguageIdsAsRef.value.includes(lang._id))
+        .filter((lang) => !appLanguageIds.value.includes(lang._id))
         .sort((a, b) => {
             if (a.name < b.name) {
                 return -1;
@@ -70,7 +70,7 @@ const removeFromSelected = (id: string) => {
         return;
     }
 
-    appLanguageIdsAsRef.value.splice(appLanguageIdsAsRef.value.indexOf(id), 1);
+    appLanguageIds.value.splice(appLanguageIds.value.indexOf(id), 1);
 };
 </script>
 
@@ -106,7 +106,7 @@ const removeFromSelected = (id: string) => {
                         @click="removeFromSelected(language._id)"
                     >
                         <CheckCircleIcon
-                            v-if="appLanguageIdsAsRef.includes(language._id)"
+                            v-if="appLanguageIds.includes(language._id)"
                             class="h-5 w-5 cursor-pointer text-yellow-500 hover:text-yellow-400"
                             :class="
                                 defaultLanguage?._id === language._id
@@ -123,14 +123,12 @@ const removeFromSelected = (id: string) => {
 
                     <div class="flex items-center gap-2">
                         <ArrowUpIcon
-                            v-if="language._id !== appLanguageIdsAsRef[0]"
+                            v-if="language._id !== appLanguageIds[0]"
                             @click="indexLanguageUp(language._id)"
                             class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
                         />
                         <ArrowDownIcon
-                            v-if="
-                                language._id !== appLanguageIdsAsRef[appLanguageIdsAsRef.length - 1]
-                            "
+                            v-if="language._id !== appLanguageIds[appLanguageIds.length - 1]"
                             class="curser-pointer h-6 w-6 rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
                             @click="indexLanguageDown(language._id)"
                         />

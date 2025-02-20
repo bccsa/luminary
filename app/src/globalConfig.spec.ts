@@ -1,8 +1,8 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
-    appLanguageAsRef,
-    appLanguageIdsAsRef,
+    appLanguageId,
+    appLanguageIds,
     initLanguage,
     setMediaProgress,
     getMediaProgress,
@@ -32,14 +32,14 @@ describe("globalConfig.ts", () => {
 
     it("can initialize the preferred language", async () => {
         await waitForExpect(() => {
-            expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoEng._id);
+            expect(appLanguageIds.value).toContain(mockLanguageDtoEng._id);
         });
     });
 
     it("can return the preferred language document", async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         await waitForExpect(async () => {
-            expect(appLanguageAsRef.value).toEqual(mockLanguageDtoEng);
+            expect(appLanguageId.value).toEqual(mockLanguageDtoEng._id);
         });
     });
 

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIds } from "@/globalConfig";
 import { firstLanguageSupported } from "@/util/firstSupportedLanguage";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -17,7 +17,7 @@ const copyright = useDexieLiveQuery(
                 if (!content.availableTranslations) return false;
                 if (
                     content.language ==
-                    firstLanguageSupported(appLanguageIdsAsRef.value, content.availableTranslations)
+                    firstLanguageSupported(appLanguageIds.value, content.availableTranslations)
                 )
                     return true;
 

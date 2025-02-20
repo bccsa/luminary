@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import ContentTile from "@/components/content/ContentTile.vue";
-import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIds, userPreferencesAsRef } from "@/globalConfig";
 import { db, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
 import { computed } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
@@ -15,7 +15,7 @@ const bookmarks = computed(
 );
 
 const content = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
+    appLanguageIds,
     (appLanguageIds: Uuid[]) =>
         db.docs
             .where("parentId")
