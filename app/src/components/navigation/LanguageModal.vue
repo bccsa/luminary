@@ -77,6 +77,7 @@ const removeFromSelected = (id: string) => {
 };
 
 const translatedHeading = computed(() => t("language.modal.title"));
+const translatedClose = computed(() => t("language.modal.close"));
 </script>
 
 <template>
@@ -171,7 +172,7 @@ const translatedHeading = computed(() => t("language.modal.title"));
                 class="w-full"
                 @click="emit('close')"
             >
-                Close
+                {{ translatedClose }}
             </LButton>
         </template>
     </LModal>
