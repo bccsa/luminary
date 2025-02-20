@@ -1,7 +1,14 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, type ContentDto, accessMap, PostType } from "luminary-shared";
+import {
+    db,
+    DocType,
+    type ContentDto,
+    accessMap,
+    PostType,
+    type LanguageDto,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -9,6 +16,7 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import LanguageSelector from "./LanguageSelector.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
