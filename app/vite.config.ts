@@ -49,6 +49,6 @@ export default defineConfig({
     build: {
         target: "es2015",
         sourcemap: true,
-        minify: env.VITE_MINIFY === "true",
+        minify: env.VITE_BYPASS_MINIFY === "false",
     },
 });
