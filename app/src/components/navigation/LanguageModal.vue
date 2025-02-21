@@ -75,16 +75,13 @@ const removeFromSelected = (id: string) => {
 
     appLanguageIdsAsRef.value.splice(appLanguageIdsAsRef.value.indexOf(id), 1);
 };
-
-const translatedHeading = computed(() => t("language.modal.title"));
-const translatedClose = computed(() => t("language.modal.close"));
 </script>
 
 <template>
     <LModal
         name="lModal-languages"
         class="flex flex-col"
-        :heading="translatedHeading"
+        :heading="t('language.modal.title')"
         :is-visible="isVisible"
         @close="emit('close')"
     >
@@ -172,7 +169,7 @@ const translatedClose = computed(() => t("language.modal.close"));
                 class="w-full"
                 @click="emit('close')"
             >
-                {{ translatedClose }}
+                {{ t("language.modal.close") }}
             </LButton>
         </template>
     </LModal>
