@@ -114,10 +114,7 @@ export const initLanguage = () => {
 
                 // If a browser preferred language exists, set it if the ordering has not
                 // already been changed by the user.
-                if (
-                    browserPreferredLanguageId &&
-                    appLanguageIdsAsRef.value !== appLanguageIdsCopy.value
-                ) {
+                if (browserPreferredLanguageId && appLanguageIdsAsRef.value.length == 0) {
                     unwatchCmsLanguages();
                     //Set the default language of the app
                     appLanguageIdsAsRef.value = [
