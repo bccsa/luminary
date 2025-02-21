@@ -18,8 +18,6 @@ export const appLanguageIdsAsRef = ref<string[]>(
     JSON.parse(localStorage.getItem("languages") || "[]") as string[],
 );
 
-const appLanguageIdsCopy = ref(appLanguageIdsAsRef.value);
-
 // Save the preferred languages to local storage
 // Note: We could have used useLocalStorage from VueUse, but it seems to be difficult
 // to test as mocking localStorage is not working very well. For this reason
