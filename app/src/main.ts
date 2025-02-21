@@ -14,7 +14,11 @@ import { initAnalytics } from "./analytics";
 import { createI18n } from "vue-i18n";
 
 window.onbeforeunload = () => {
-    db.close();
+    try {
+        db.close();
+    } catch (e) {
+        console.error(e);
+    }
 };
 
 export const app = createApp(App);
