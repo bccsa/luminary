@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LButton from "@/components/button/LButton.vue";
-import LCard from "@/components/common/LCard.vue";
 import LModal from "@/components/form/LModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { isConnected } from "luminary-shared";
