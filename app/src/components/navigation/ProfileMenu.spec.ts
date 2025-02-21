@@ -8,6 +8,9 @@ import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { db } from "luminary-shared";
+import { appLanguageIdsAsRef } from "@/globalConfig";
+import { useI18n } from "vue-i18n";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -64,6 +67,8 @@ describe("ProfileMenu", () => {
     });
 
     it("shows the modal when clicking the language button", async () => {
+        const { t } = useI18n();
+
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
         });
@@ -79,7 +84,7 @@ describe("ProfileMenu", () => {
         //@ts-ignore
         wrapper.vm.showLanguageModal = true;
 
-        expect(wrapper.html()).toContain("Select Language");
+        expect(wrapper.html()).toContain(t("language.modal.title"));
     });
 
     it("logs the user out after clicking logout", async () => {
