@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// Image component with automatic aspect ratio selection and fallback image
-
 import { computed, ref } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
@@ -11,6 +9,7 @@ type Props = {
     size?: keyof typeof sizes;
     rounded?: boolean;
 };
+
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
@@ -27,7 +26,6 @@ const aspectRatios = {
     classic: "aspect-[4/3]",
 };
 
-// Rounded to two decimal places
 const aspectRatioNumbers = {
     video: 1.78,
     square: 1,
@@ -48,112 +46,76 @@ const rounding = {
     post: "md:rounded-lg",
 };
 
+// Find closest aspect ratio
 let closestAspectRatio = 0;
-
-// Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
-    // Check if there is uploaded image data available and return a blob URL
-    if (props.image?.uploadData && props.image.uploadData.length > 0) {
-        return URL.createObjectURL(
+    if (props.image?.uploadData?.length) {
+        URL.createObjectURL(
             new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
                 type: "image/*",
             }),
         );
     }
 
-    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
+    if (!props.image?.fileCollections?.length) return "";
 
-    // Get the available aspect ratios
-    const aspectRatios = props.image.fileCollections
-        .map((collection) => collection.aspectRatio)
-        .reduce((acc, cur) => {
-            if (!acc.includes(cur)) acc.push(cur);
-            return acc;
-        }, [] as number[])
-        .sort((a, b) => a - b);
+    const aspectRatios = [...new Set(props.image.fileCollections.map((c) => c.aspectRatio))].sort(
+        (a, b) => a - b,
+    );
 
-    // Get the aspect ratio closest to the desired aspect ratio
     const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
-    closestAspectRatio = aspectRatios.reduce((acc, cur) => {
-        return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
-    }, aspectRatios[0]);
+    closestAspectRatio = aspectRatios.reduce((acc, cur) =>
+        Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc,
+    );
 
     return props.image.fileCollections
-        .filter((collection) => collection.aspectRatio == closestAspectRatio)
-        .map((collection) => {
-            return collection.imageFiles
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                .join(", ");
-        })
+        .filter((c) => c.aspectRatio === closestAspectRatio)
+        .flatMap((c) => c.imageFiles)
+        .sort((a, b) => a.width - b.width)
+        .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
         .join(", ");
 });
 
-// Source set for the secondary image element (used if the primary image element fails to load) with the non-preferred aspect ratios
 const srcset2 = computed(() => {
-    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
+    if (!props.image?.fileCollections?.length) return "";
 
     return props.image.fileCollections
-        .filter((collection) => collection.aspectRatio != closestAspectRatio)
-        .map((collection) => {
-            return collection.imageFiles
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                .join(", ");
-        })
+        .filter((c) => c.aspectRatio !== closestAspectRatio)
+        .flatMap((c) => c.imageFiles)
+        .sort((a, b) => a.width - b.width)
+        .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
         .join(", ");
 });
 
-const imageElement1Error = ref(false);
-const imageElement2Error = ref(false);
-
-const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.value != "");
-const showImageElement2 = computed(
-    () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
-);
+const imageError = ref(false);
 </script>
 
 <template>
     <div :class="sizes[size]">
         <div
-            :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
+            :style="{ backgroundImage: `url(${fallbackImg})` }"
             :class="[
                 aspectRatios[aspectRatio],
                 rounded ? rounding[size] : '',
-                'relative flex w-full flex-col items-center justify-center overflow-clip bg-cover bg-center object-cover shadow',
+                'w-full overflow-hidden bg-cover bg-center object-cover shadow',
             ]"
         >
-            <img
-                v-if="showImageElement1"
-                src=""
-                :srcset="srcset1"
-                :class="[
-                    aspectRatios[aspectRatio],
-                    sizes[size],
-                    'bg-cover bg-center object-cover object-center',
-                ]"
-                alt=""
-                data-test="image-element1"
-                loading="lazy"
-                @error="imageElement1Error = true"
-            />
-            <img
-                v-if="showImageElement2"
-                src=""
-                :srcset="srcset2"
-                :class="[
-                    aspectRatios[aspectRatio],
-                    sizes[size],
-                    'bg-cover bg-center object-cover object-center',
-                ]"
-                alt=""
-                data-test="image-element2"
-                loading="lazy"
-                @error="imageElement2Error = true"
-            />
-            <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
-                <slot name="imageOverlay"></slot>
-            </div>
+            <picture>
+                <source v-if="srcset1" :srcset="srcset1" />
+                <source v-if="srcset2" :srcset="srcset2" />
+                <img
+                    v-if="srcset1 || srcset2"
+                    :src="srcset1 ? srcset1.split(' ')[0] : fallbackImg"
+                    :class="[
+                        aspectRatios[aspectRatio],
+                        sizes[size],
+                        'bg-cover bg-center object-cover object-center',
+                    ]"
+                    alt=""
+                    loading="lazy"
+                    @error="imageError = true"
+                />
+            </picture>
         </div>
 
         <slot></slot>
