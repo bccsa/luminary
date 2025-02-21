@@ -8,8 +8,6 @@ import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
-import { db } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useI18n } from "vue-i18n";
 
 const routePushMock = vi.hoisted(() => vi.fn());
