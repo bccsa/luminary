@@ -155,7 +155,7 @@ watch(
                     :contentPrev="contentPrev?.find((c) => c._id == content._id)"
                 />
             </div>
-            <div class="flex justify-center">
+            <div class="flex flex-col items-center">
                 <LanguageSelector
                     v-if="untranslatedLanguages.length > 0"
                     :languages="untranslatedLanguages"
