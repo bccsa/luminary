@@ -5,6 +5,7 @@ import LModal from "@/components/form/LModal.vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { isConnected } from "luminary-shared";
 import { loginModalVisible } from "@/globalConfig";
+import { db } from "luminary-shared";
 
 const { loginWithRedirect } = useAuth0();
 
@@ -12,6 +13,7 @@ const loginWithBcc = async () => {
     // Set the used connection so we can use it again when trying to reauthenticate
     localStorage.setItem("usedAuth0Connection", "bcc-login");
 
+    db.close({ disableAutoOpen: true });
     await loginWithRedirect({
         authorizationParams: {
             connection: "bcc-login",
@@ -21,6 +23,7 @@ const loginWithBcc = async () => {
 };
 
 const loginAsGuest = async () => {
+    db.close({ disableAutoOpen: true });
     await loginWithRedirect({
         authorizationParams: {
             redirect_uri: window.location.origin,

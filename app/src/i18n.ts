@@ -42,7 +42,7 @@ export const initI18n = () => {
                 // Change the active locale
                 i18n.global.locale.value = newLanguage.languageCode;
             },
-            { immediate: true },
+            { immediate: true, deep: true },
         );
     });
 };
