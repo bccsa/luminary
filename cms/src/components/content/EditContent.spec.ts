@@ -438,22 +438,18 @@ describe("EditContent.vue", () => {
     it.only(
         "only displays languages the user has Translate access to in languageSelector",
         async () => {
+            accessMap.value["group-public-content"].language = {
+                view: true,
+                translate: false,
+                edit: false,
+                publish: true,
+            };
             await db.docs.bulkPut([
-                mockData.mockLanguageDtoEng,
-                mockData.mockLanguageDtoFra,
-                mockData.mockLanguageDtoSwa,
+                { ...mockData.mockLanguageDtoEng, memberOf: ["group-public-content"] },
             ]);
-            // accessMap.value = { ...mockData.viewAccessToAllContentMap };
-            // accessMap.value["group-public-content"].language = {
-            //     view: true,
-            //     translate: true,
-            //     edit: false,
-            //     publish: true,
-            // };
 
-            console.log(
-                (await db.docs.toArray()).filter((doc) => doc.docType === DocType.Language),
-            );
+            console.log(await db.docs.toArray());
+            console.log(accessMap.value);
 
             const wrapper = mount(EditContent, {
                 props: {
