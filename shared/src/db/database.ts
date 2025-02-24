@@ -127,21 +127,6 @@ class Database extends Dexie {
 
         this.version(version).stores(dbIndex);
 
-        this.deleteExpired();
-
-        // Listen for changes to the access map and delete documents that the user no longer has access to
-        watch(
-            accessMap,
-            () => {
-                this.deleteRevoked();
-            },
-            { immediate: true },
-        );
-
-        watch(syncMap.value, () => {
-            this.setSyncMap();
-        });
-
         this.requestIndexDbPersistent();
     }
 
@@ -694,7 +679,7 @@ class Database extends Dexie {
      * Delete documents to which access has been revoked
      * @param options - changeDocs: If true, deletes change documents instead of regular documents
      */
-    private deleteRevoked() {
+    deleteRevoked() {
         const groupsPerDocType = getAccessibleGroups(AclPermission.View);
 
         Object.values(DocType)
@@ -721,7 +706,11 @@ class Database extends Dexie {
             });
     }
 
-    private async deleteExpired() {
+    /**
+     * Delete expired documents from the database for non-cms clients
+     * @returns
+     */
+    async deleteExpired() {
         if (config.cms) {
             return;
         }
@@ -748,6 +737,25 @@ export let db: Database;
 export async function initDatabase() {
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
+
+    db.on("blocked", () => {
+        console.error("Database blocked");
+    });
+
+    await db.deleteExpired();
+
+    // Listen for changes to the access map and delete documents that the user no longer has access to
+    watch(
+        accessMap,
+        () => {
+            db.deleteRevoked();
+        },
+        { immediate: true },
+    );
+
+    watch(syncMap.value, () => {
+        db.setSyncMap();
+    });
 }
 
 /**
@@ -764,11 +772,17 @@ export const getDbVersion = async () => {
             db.close();
             resolve(version);
         };
+        request.onblocked = () => {
+            console.error("Database blocked");
+        };
+        request.onerror = () => {
+            console.error("Database error");
+        };
     }) as unknown as Promise<number>;
 };
 
 /**
- * Concatinate Shared Library index with the external index, to avoid having duplicate indexes
+ * Concatenate Shared Library index with the external index, to avoid having duplicate indexes
  * @param index1 - Shared Library Index
  * @param index2 - External Index
  * @returns

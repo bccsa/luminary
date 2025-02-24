@@ -50,6 +50,10 @@ export function useDexieLiveQueryWithDeps<
             },
             error: (error) => {
                 onError?.(error);
+
+                setTimeout(() => {
+                    start(...data);
+                }, 100);
             },
         });
     }
@@ -91,6 +95,10 @@ export function useDexieLiveQuery<T, I = undefined>(
             },
             error: (error) => {
                 onError?.(error);
+
+                setTimeout(() => {
+                    start();
+                }, 100);
             },
         });
     }
