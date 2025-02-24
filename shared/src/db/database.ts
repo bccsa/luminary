@@ -148,36 +148,22 @@ class Database extends Dexie {
             watch(config.appLanguageIdsAsRef, async () => {
                 const selectedLanguageIds = config.appLanguageIdsAsRef?.value || [];
 
-                console.log("Selected Languages:", selectedLanguageIds);
-
                 // Fetch all language documents
                 const languages = await db.docs.where("type").equals(DocType.Language).toArray();
                 const languageIds = languages.map((l) => l._id);
 
                 // Identify language IDs to delete
                 const idsToDelete = languageIds.filter((id) => !selectedLanguageIds.includes(id));
-                console.log("Languages to be Deleted:", idsToDelete);
 
                 if (idsToDelete.length > 0) {
-                    try {
-                        // Delete language documents in bulk
-                        await db.docs.where("language").anyOf(idsToDelete).delete();
+                    // Delete content documents related to removed languages
+                    await db.docs
+                        .where("type")
+                        .equals(DocType.Content)
+                        .and((doc) => idsToDelete.includes(doc.language!))
+                        .delete();
 
-                        // Delete content documents related to removed languages
-                        await db.docs
-                            .where("type")
-                            .equals(DocType.Content)
-                            .and((doc) => idsToDelete.includes(doc.language!))
-                            .delete();
-
-                        console.log("Deleted languages and related content documents.");
-                        // Your deletion logic
-                    } catch (error) {
-                        console.error(
-                            "Error deleting languages and related content documents:",
-                            error,
-                        );
-                    }
+                    console.log("Deleted languages and related content documents.");
                 }
             });
         }
