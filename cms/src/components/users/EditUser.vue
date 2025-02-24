@@ -107,6 +107,7 @@ const revertChanges = () => {
 };
 const save = async () => {
     await db.upsert(editable.value);
+    original.value = _.cloneDeep(editable.value);
 
     useNotificationStore().addNotification({
         title: "User saved",
@@ -157,7 +158,7 @@ const save = async () => {
             <LCard class="rounded-lg bg-white shadow-lg">
                 <LInput
                     label="Name"
-                    name="languageName"
+                    name="userName"
                     v-model="editable.name"
                     class="mb-4 w-full"
                     placeholder="Enter user name"
@@ -166,7 +167,7 @@ const save = async () => {
 
                 <LInput
                     label="Email"
-                    name="email"
+                    name="userEmail"
                     v-model="editable.email"
                     class="mb-4 w-full"
                     placeholder="Enter email"
