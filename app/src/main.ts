@@ -12,15 +12,6 @@ import { apiUrl } from "./globalConfig";
 import { initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 
-// Close the IndexedDB connection when the window is closed. This attempts to prevent database lock issues.
-window.onbeforeunload = () => {
-    try {
-        db.close();
-    } catch (e) {
-        console.error(e);
-    }
-};
-
 export const app = createApp(App);
 
 if (import.meta.env.VITE_FAV_ICON) {
@@ -69,7 +60,6 @@ async function Startup() {
     getSocket().on("apiAuthFailed", async () => {
         console.error("API authentication failed, redirecting to login");
         Sentry.captureMessage("API authentication failed, redirecting to login");
-        db.close();
         await auth.loginRedirect(oauth);
     });
 
