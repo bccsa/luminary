@@ -17,7 +17,7 @@ export async function init(config: SharedConfig) {
 
 /**
  * Start communication with the Luminary API
- * @param token
+ * @param token - Authentication token
  */
 export async function start(token?: string) {
     config.token = token;
