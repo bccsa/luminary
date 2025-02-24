@@ -27,8 +27,7 @@ import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { DateTime } from "luxon";
 import { config, initConfig } from "../config";
-import { nextTick, ref } from "vue";
-import { mock } from "node:test";
+import { ref } from "vue";
 
 describe("Database", async () => {
     beforeAll(async () => {
@@ -926,7 +925,7 @@ describe("Database", async () => {
         expect(_v1).toBeLessThan(_v2);
     });
 
-    it("deletes the languages and related content documents when a language changed ", async () => {
+    it(" deletes unrelated content documents when a language is removed from the user's preferred language list ", async () => {
         initConfig({
             cms: false,
             docsIndex: "parentId, language, type, expiryDate, [type+docType]",
