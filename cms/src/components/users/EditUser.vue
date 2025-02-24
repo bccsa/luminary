@@ -106,8 +106,8 @@ const revertChanges = () => {
     editable.value = _.cloneDeep(original.value) as UserDto;
 };
 const save = async () => {
-    await db.upsert(editable.value);
     original.value = _.cloneDeep(editable.value);
+    await db.upsert(editable.value);
 
     useNotificationStore().addNotification({
         title: "User saved",
