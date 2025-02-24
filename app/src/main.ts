@@ -39,8 +39,6 @@ if (import.meta.env.PROD) {
 }
 
 async function Startup() {
-    console.log(Date.now().toString(), "Startup");
-
     await init({
         cms: false,
         docsIndex:
@@ -61,14 +59,10 @@ async function Startup() {
         console.error(err);
         Sentry.captureException(err);
     });
-    console.log(Date.now().toString(), "Luminary shared init complete");
 
     const oauth = await auth.setupAuth(app, router);
-    console.log(Date.now().toString(), "Auth setup complete");
     const token = await auth.getToken(oauth);
-    console.log(Date.now().toString(), "Token received");
 
-    console.log(Date.now().toString(), "Starting luminary shared");
     await start(token);
 
     // Redirect to login if the API authentication fails
@@ -78,12 +72,9 @@ async function Startup() {
         db.close();
         await auth.loginRedirect(oauth);
     });
-    console.log(Date.now().toString(), "Socket setup complete");
 
     await initLanguage();
-    console.log(Date.now().toString(), "Language setup complete");
     const i18n = await initI18n();
-    console.log(Date.now().toString(), "i18n setup complete");
     await loadPlugins();
 
     app.use(createPinia());
