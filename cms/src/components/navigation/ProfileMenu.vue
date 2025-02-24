@@ -10,7 +10,7 @@ import {
 import { useAuth0 } from "@auth0/auth0-vue";
 import { cmsLanguageIdAsRef, isDevMode } from "@/globalConfig";
 import { useRouter } from "vue-router";
-import { computed, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import LanguageModal from "../modals/LanguageModal.vue";
 import type { LanguageDto } from "luminary-shared";
 import { db, DocType } from "luminary-shared";
@@ -41,10 +41,7 @@ const userNavigation = [
 ];
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const languageToDisplay = computed(() => {
-    const language = languages.value.find((lang) => lang._id === cmsLanguageIdAsRef.value);
-    return language?.name;
-});
+const languageToDisplay = ref("");
 
 if (isDevMode) {
     userNavigation.push({
@@ -53,6 +50,25 @@ if (isDevMode) {
         icon: PlayIcon,
     });
 }
+
+onMounted(() => {
+    // Update languageToDisplay when languages or cmsLanguageIdAsRef changes
+    watch(
+        [languages, cmsLanguageIdAsRef],
+        ([newLanguages, langId]) => {
+            if (newLanguages.length > 0) {
+                const matchedLanguage = newLanguages.find((l) => l._id == langId);
+                languageToDisplay.value = matchedLanguage?.name ?? "Default Language";
+
+                // Set cmsLanguageIdAsRef if it's not already defined
+                if (!langId) {
+                    cmsLanguageIdAsRef.value = newLanguages[0]._id;
+                }
+            }
+        },
+        { immediate: true },
+    );
+});
 </script>
 
 <template>
@@ -105,7 +121,7 @@ if (isDevMode) {
                             {{ item.name }}
                             <span
                                 class="text-[12px] text-zinc-500 dark:text-white"
-                                v-if="item.language"
+                                v-if="item.name == 'Language'"
                                 >{{ languageToDisplay }}</span
                             >
                         </div>
