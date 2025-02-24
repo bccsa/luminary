@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { computed, watch } from "vue";
+import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
@@ -11,6 +11,7 @@ import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
 import { useRouter } from "vue-router";
+import * as Sentry from "@sentry/vue";
 
 const router = useRouter();
 const { isAuthenticated, user } = useAuth0();
@@ -77,6 +78,16 @@ const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
 
 const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
+});
+
+onErrorCaptured((err) => {
+    console.error(err);
+    Sentry.captureException(err);
+});
+
+router.onError((err) => {
+    console.error(err);
+    Sentry.captureException(err);
 });
 </script>
 
