@@ -735,9 +735,6 @@ class Database extends Dexie {
 export let db: Database;
 
 export async function initDatabase() {
-    // console.log(indexedDB.deleteDatabase("luminary-db"));
-
-    console.log("Initializing database");
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
 
@@ -745,30 +742,8 @@ export async function initDatabase() {
         console.error("Database blocked");
     });
 
-    // await new Promise<void>((resolve) => {
-    // console.log("Database opening...");
-    // if (!db.isOpen()) await db.open();
-
-    // console.log("tables", db.tables);
-    // console.log(db.docs.name);
-
-    // db.close();
-    // await db.delete();
-
-    // db.on("ready", async () => {
-
-    // });
-
-    // setTimeout(async () => {
-    //     console.log("Database ready timeout. Retrying...");
-    //     db.close({ disableAutoOpen: true });
-
-    //     await initDatabase();
-    // }, 1000);
-
-    console.log("Database ready - deleting expired documents (if applicable)");
     await db.deleteExpired();
-    console.log("Expired documents deleted");
+
     // Listen for changes to the access map and delete documents that the user no longer has access to
     watch(
         accessMap,
@@ -781,8 +756,6 @@ export async function initDatabase() {
     watch(syncMap.value, () => {
         db.setSyncMap();
     });
-    //     resolve();
-    // });
 }
 
 /**
