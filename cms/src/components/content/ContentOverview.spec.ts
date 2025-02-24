@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vite
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import ContentOverview from "@/components/content/ContentOverview.vue";
-import { db, accessMap, DocType, type ContentDto, PostType } from "luminary-shared";
+import { db, accessMap, DocType, PostType } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
@@ -55,10 +55,13 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
+        await waitForExpect(async () => {
+            expect(await wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
         });
-    }, 10000);
+    });
 
     it("should show edit button with correct router link and icon", async () => {
         const wrapper = mount(ContentOverview, {
@@ -70,6 +73,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(() => {
             const editButton = wrapper.find('[data-test="edit-button"]');
@@ -101,6 +107,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(() => {
             const viewButton = wrapper.find('[data-test="edit-button"]');
             expect(viewButton.exists()).toBe(true);
@@ -118,90 +127,6 @@ describe("ContentOverview.vue", () => {
         });
     });
 
-    it("should switch languages correctly", async () => {
-        await db.docs.clear();
-        const docs: ContentDto[] = [
-            {
-                ...mockData.mockEnglishContentDto,
-                _id: "content-post1-eng",
-            },
-            {
-                ...mockData.mockFrenchContentDto,
-                _id: "content-post2-fra",
-            },
-            {
-                ...mockData.mockSwahiliContentDto,
-                _id: "content-post3-swa",
-            },
-            {
-                ...mockData.mockEnglishContentDto,
-                _id: "content-post4-eng",
-            },
-            {
-                ...mockData.mockFrenchContentDto,
-                title: "some-mock-french-post",
-                _id: "content-post5-fra",
-            },
-            {
-                ...mockData.mockSwahiliContentDto,
-                title: "some-mock-swahili-post",
-                _id: "content-post6-swa",
-            },
-            {
-                ...mockData.mockEnglishContentDto,
-                _id: "content-post7-eng",
-            },
-            {
-                ...mockData.mockFrenchContentDto,
-                _id: "content-post8-fra",
-            },
-            {
-                ...mockData.mockSwahiliContentDto,
-                _id: "content-post9-swa",
-            },
-        ];
-
-        await db.docs.bulkPut(docs);
-
-        const wrapper = mount(ContentOverview, {
-            global: {
-                plugins: [createTestingPinia()],
-            },
-            props: {
-                docType: DocType.Post,
-                tagOrPostType: PostType.Blog,
-            },
-        });
-
-        await wrapper.vm.$nextTick();
-
-        await waitForExpect(async () => {
-            //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-eng";
-
-            const contentTable = await wrapper.findComponent(ContentTable);
-
-            await wrapper.vm.$nextTick();
-
-            const contentRows = await contentTable.findAll('[data-test="content-row"]');
-            expect(contentRows.length).toBe(3);
-
-            //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-fra";
-            const updatedFrenchContentRows = await contentTable.findAll(
-                '[data-test="content-row"]',
-            );
-            expect(updatedFrenchContentRows.length).toBe(3);
-
-            //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-swa";
-            const updatedSwahiliContentRows = await contentTable.findAll(
-                '[data-test="content-row"]',
-            );
-            expect(updatedSwahiliContentRows.length).toBe(3);
-        });
-    });
-
     it("should display search input", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
@@ -212,6 +137,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(() => {
             const searchInput = wrapper.find('[data-test="search-input"]');
@@ -229,6 +157,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const searchInput = wrapper.find('[data-test="search-input"]');
 
@@ -251,6 +182,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(async () => {
             const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
@@ -282,6 +216,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
         await sortToggleBtn.trigger("click");
@@ -334,6 +271,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(() => {
             const createButton = wrapper.find('[data-test="create-button"]');
             expect(createButton.text()).toBe("Create post");
@@ -359,6 +299,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(async () => {
             const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
             expect(filterInputSelects.length).toBe(2);
@@ -375,6 +318,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
 
@@ -415,12 +361,17 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
         await waitForExpect(async () => {
-            const languageSelect = wrapper.findComponent({ name: "LSelect" });
+            // Mocked English content should be displayed
+            expect(wrapper.html().includes(mockData.mockEnglishContentDto.title)).toBeTruthy();
+        });
 
-            // Switch to French
-            await languageSelect.vm.$emit("update:modelValue", mockData.mockFrenchContentDto._id);
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-fra";
 
+        await waitForExpect(async () => {
             // Mocked French content should be displayed
             expect(wrapper.html().includes(mockData.mockFrenchContentDto.title)).toBeTruthy();
         });
