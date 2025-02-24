@@ -143,6 +143,30 @@ class Database extends Dexie {
         });
 
         this.requestIndexDbPersistent();
+
+        if (config.appLanguageIdsAsRef) {
+            watch(config.appLanguageIdsAsRef, async () => {
+                const selectedLanguageIds = config.appLanguageIdsAsRef?.value || [];
+
+                // Fetch all language documents
+                const languages = await db.docs.where("type").equals(DocType.Language).toArray();
+                const languageIds = languages.map((l) => l._id);
+
+                // Identify language IDs to delete
+                const idsToDelete = languageIds.filter((id) => !selectedLanguageIds.includes(id));
+
+                if (idsToDelete.length > 0) {
+                    // Delete content documents related to removed languages
+                    await db.docs
+                        .where("type")
+                        .equals(DocType.Content)
+                        .and((doc) => idsToDelete.includes(doc.language!))
+                        .delete();
+
+                    console.log("Deleted languages and related content documents.");
+                }
+            });
+        }
     }
 
     /**
