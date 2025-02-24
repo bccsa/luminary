@@ -8,6 +8,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { isConnected } from "luminary-shared";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -88,6 +89,8 @@ describe("ProfileMenu", () => {
             isAuthenticated: ref(true),
             logout,
         });
+
+        isConnected.value = true;
 
         const wrapper = mount(ProfileMenu);
 
