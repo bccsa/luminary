@@ -5,14 +5,14 @@ import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 import auth from "./auth";
-import { db, DocType, getSocket, initLuminaryShared, type BaseDocumentDto } from "luminary-shared";
+import { db, DocType, getSocket, init, start } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
-import { createI18n } from "vue-i18n";
 
+// Close the IndexedDB connection when the window is closed
 window.onbeforeunload = () => {
     try {
         db.close();
@@ -29,7 +29,6 @@ if (import.meta.env.VITE_FAV_ICON) {
         favicon.href = import.meta.env.VITE_LOGO_FAVICON;
     }
 }
-console.log("window.indexeddb", window.indexedDB);
 
 if (import.meta.env.PROD) {
     Sentry.init({
@@ -39,46 +38,14 @@ if (import.meta.env.PROD) {
     });
 }
 
-function getDocumentsByType(): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open("luminary-db");
-
-        request.onerror = () => reject("Failed to open IndexedDB");
-
-        request.onsuccess = (event) => {
-            const db = (event.target as IDBOpenDBRequest).result;
-            console.log(Date.now().toString(), "Database version:", db.version);
-            const transaction = db.transaction("docs", "readonly");
-            console.log(Date.now().toString(), "Transaction created");
-            const store = transaction.objectStore("docs");
-            console.log(Date.now().toString(), "Store created");
-            const index = store.index("type");
-            console.log(Date.now().toString(), "Index created");
-            const request1 = index.getAll("language");
-            console.log(Date.now().toString(), "Request created");
-
-            request1.onsuccess = () => resolve(request1.result);
-            request1.onerror = () => reject("Failed to retrieve documents");
-        };
-    });
-}
-
-const timeout = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 async function Startup() {
-    // await timeout(1000);
     console.log(Date.now().toString(), "Startup");
-    const oauth = await auth.setupAuth(app, router);
-    console.log(Date.now().toString(), "Auth setup complete");
-    const token = await auth.getToken(oauth);
-    console.log(Date.now().toString(), "Token received");
 
-    await initLuminaryShared({
+    await init({
         cms: false,
         docsIndex:
             "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
         apiUrl,
-        token,
         appLanguageIdsAsRef,
         docTypes: [
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
@@ -94,20 +61,15 @@ async function Startup() {
         console.error(err);
         Sentry.captureException(err);
     });
-    console.log(Date.now().toString(), "Luminary shared setup complete");
+    console.log(Date.now().toString(), "Luminary shared init complete");
 
-    // await db.docs.put({
-    //     _id: "test",
-    //     type: DocType.Language,
-    //     language: "xx",
-    // } as BaseDocumentDto);
-    // console.log(Date.now().toString(), "Test document added");
+    const oauth = await auth.setupAuth(app, router);
+    console.log(Date.now().toString(), "Auth setup complete");
+    const token = await auth.getToken(oauth);
+    console.log(Date.now().toString(), "Token received");
 
-    // const ldocs = await db.docs.where("type").equals(DocType.Language).toArray();
-    // console.log("language docs", ldocs);
-
-    // const test = await getDocumentsByType().catch((err) => console.error(err));
-    // console.log(Date.now().toString(), "test", test);
+    console.log(Date.now().toString(), "Starting luminary shared");
+    await start(token);
 
     // Redirect to login if the API authentication fails
     getSocket().on("apiAuthFailed", async () => {
@@ -126,7 +88,6 @@ async function Startup() {
 
     app.use(createPinia());
     app.use(router);
-    // const i18n = createI18n({ legacy: false });
     app.use(i18n);
     app.mount("#app");
     initAnalytics();
