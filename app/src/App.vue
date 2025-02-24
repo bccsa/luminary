@@ -84,11 +84,6 @@ onErrorCaptured((err) => {
     console.error(err);
     Sentry.captureException(err);
 });
-
-router.onError((err) => {
-    console.error(err);
-    Sentry.captureException(err);
-});
 </script>
 
 <template>
