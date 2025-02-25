@@ -108,17 +108,19 @@ class Database extends Dexie {
      */
     constructor(dbVersion: number, docsIndex: string) {
         super(dbName);
+        this.requestIndexDbPersistent();
 
         const index: string = concatIndex(
             "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],[type+postType]",
             docsIndex,
-        ); // Concatinate and compact app specific indexed fields with shared library indexed fields
+        ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
             docs: index,
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
         };
+
         const version: number = bumpDBVersion(
             (dbVersion >= 10 && dbVersion / 10) || 1,
             localStorage.getItem("dexie.dbIndex") || "{}",
@@ -126,8 +128,6 @@ class Database extends Dexie {
         );
 
         this.version(version).stores(dbIndex);
-
-        this.requestIndexDbPersistent();
     }
 
     /**
@@ -738,11 +738,30 @@ export async function initDatabase() {
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
 
+    // Open the database and wait for it to be ready
+    await new Promise<void>((resolve) => {
+        if (db.isOpen()) {
+            resolve();
+            return;
+        }
+
+        db.on("ready", () => {
+            resolve();
+        });
+
+        if (!db.isOpen()) {
+            db.open();
+        }
+    });
+
     db.on("blocked", () => {
         console.error("Database blocked");
     });
 
-    await db.deleteExpired();
+    // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
+    setTimeout(() => {
+        db.deleteExpired();
+    }, 5000);
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
     watch(
@@ -753,9 +772,13 @@ export async function initDatabase() {
         { immediate: true },
     );
 
-    watch(syncMap.value, () => {
-        db.setSyncMap();
-    });
+    watch(
+        syncMap,
+        () => {
+            db.setSyncMap();
+        },
+        { deep: true },
+    );
 }
 
 /**
