@@ -130,7 +130,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :is="inputType === 'textarea' ? 'textarea' : 'input'"
                 ref="input"
                 :value="modelValue"
-                @input="(e) => emit('update:modelValue', (e.target as HTMLInputElement).value)"
+                @input="
+                    (e: Event) => emit('update:modelValue', (e.target as HTMLInputElement).value)
+                "
                 :class="[
                     sizes[size],
                     states[computedState],
