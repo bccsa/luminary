@@ -11,12 +11,10 @@ import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
-import { useField } from "vee-validate";
-import { renderErrorMessage } from "@/util/renderErrorMessage";
 
 type Props = {
     name: string;
-    modelValue?: string;
+    modelValue?: string; // modelValue is directly used
     state?: keyof typeof states;
     size?: keyof typeof sizes;
     label?: string;
@@ -39,6 +37,10 @@ const props = withDefaults(defineProps<Props>(), {
     inputType: "input",
 });
 
+const emit = defineEmits<{
+    (event: "update:modelValue", value: string): void;
+}>();
+
 // Expose the focus method to parent components.
 const input = ref<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
 const focus = () => {
@@ -46,51 +48,29 @@ const focus = () => {
 };
 defineExpose({ focus });
 
-const { errorMessage, value, handleBlur, handleChange } = useField<string>(
-    () => props.name,
-    undefined,
-    {
-        syncVModel: true,
-        validateOnValueUpdate: false,
-    },
-);
-
-const isTextarea = computed(() => props.inputType == "textarea");
+const isTextarea = computed(() => props.inputType === "textarea");
 
 // Auto-resize function
 const autoResize = () => {
     if (isTextarea.value && input.value) {
-        input.value.style.height = "auto"; // Reset height to calculate the new height
-        input.value.style.height = input.value.scrollHeight + "px"; // Set to the new scroll height
+        input.value.style.height = "auto"; // Reset height for recalculation
+        input.value.style.height = input.value.scrollHeight + "px";
     }
 };
 
-// Call autoResize if input is a textarea on mount and when content changes
-if (isTextarea.value) {
-    onMounted(() => autoResize());
-    watch(value, () => {
-        if (isTextarea.value) autoResize();
-    });
-}
+onMounted(() => {
+    if (isTextarea.value) autoResize();
+});
 
-// Initially and if field is valid, only validate when user leaves field.
-// If the field is invalid, validate as user is typing.
-const validationListeners = {
-    blur: (e: any) => handleBlur(e, true),
-    change: handleChange,
-    input: (e: any) => {
-        handleChange(e, !!errorMessage.value);
+// Trigger auto-resize on input updates
+watch(
+    () => props.modelValue,
+    () => {
         if (isTextarea.value) autoResize();
     },
-};
+);
 
-const computedState = computed(() => {
-    if (errorMessage.value) {
-        return "error";
-    }
-
-    return props.state;
-});
+const computedState = computed(() => props.state);
 
 const states = {
     default:
@@ -121,6 +101,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
         <FormLabel v-if="label" :for="id" :required="required" class="mb-2">
             {{ label }}
         </FormLabel>
+
         <div class="relative flex rounded-md shadow-sm" :class="fullHeight ? 'h-full' : ''">
             <div
                 v-if="icon"
@@ -136,6 +117,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     }"
                 />
             </div>
+
             <span
                 v-if="leftAddOn"
                 class="inline-flex items-center rounded-l-md border border-r-0 px-3 sm:text-sm"
@@ -143,11 +125,12 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             >
                 {{ leftAddOn }}
             </span>
-            <input
-                v-if="inputType == 'input'"
+
+            <component
+                :is="inputType === 'textarea' ? 'textarea' : 'input'"
                 ref="input"
-                v-model="value"
-                v-on="validationListeners"
+                :value="modelValue"
+                @input="(e) => emit('update:modelValue', (e.target as HTMLInputElement).value)"
                 :class="[
                     sizes[size],
                     states[computedState],
@@ -156,6 +139,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'rounded-r-md': !rightAddOn,
                         'pl-10': icon,
                         'pr-10': state == 'error',
+                        'resize-none': inputType === 'textarea',
                     },
                     'block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
                 ]"
@@ -166,33 +150,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :placeholder="placeholder"
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
+                :rows="inputType === 'textarea' ? '1' : undefined"
             />
 
-            <textarea
-                v-else-if="inputType == 'textarea'"
-                ref="input"
-                v-model="value"
-                v-on="validationListeners"
-                :class="[
-                    sizes[size],
-                    states[computedState],
-                    {
-                        'rounded-l-md': !leftAddOn,
-                        'rounded-r-md': !rightAddOn,
-                        'pl-10': icon,
-                        'pr-10': state == 'error',
-                    },
-                    'block w-full resize-none border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
-                ]"
-                :id="id"
-                :name="name"
-                :disabled="disabled"
-                :required="required"
-                :placeholder="placeholder"
-                v-bind="attrsWithoutStyles"
-                :aria-describedby="$slots.default ? `${id}-message` : undefined"
-                rows="1"
-            />
             <span
                 v-if="rightAddOn"
                 class="inline-flex items-center rounded-r-md border border-l-0 px-3 sm:text-sm"
@@ -200,6 +160,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             >
                 {{ rightAddOn }}
             </span>
+
             <div
                 v-if="computedState == 'error' && !rightAddOn"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
@@ -207,13 +168,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
             </div>
         </div>
-        <FormMessage
-            v-if="$slots.default || errorMessage"
-            :state="computedState"
-            :id="`${id}-message`"
-        >
-            <template v-if="errorMessage">{{ renderErrorMessage(errorMessage) }}</template>
-            <slot v-else-if="$slots.default" />
+
+        <FormMessage v-if="$slots.default" :state="computedState" :id="`${id}-message`">
+            <slot />
         </FormMessage>
     </div>
 </template>
