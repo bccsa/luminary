@@ -1,4 +1,4 @@
-import { initConfig, SharedConfig, config } from "./config";
+import { initConfig, SharedConfig } from "./config";
 import { initDatabase } from "./db/database";
 import { getRest } from "./rest/RestApi";
 import { getSocket } from "./socket/socketio";
