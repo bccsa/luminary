@@ -49,22 +49,14 @@ const rounding = {
 // Find closest aspect ratio
 let closestAspectRatio = 0;
 const srcset1 = computed(() => {
-    if (props.image?.uploadData?.length) {
-        URL.createObjectURL(
-            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
-                type: "image/*",
-            }),
-        );
-    }
-
     if (!props.image?.fileCollections?.length) return "";
 
+    const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
     const aspectRatios = [...new Set(props.image.fileCollections.map((c) => c.aspectRatio))].sort(
         (a, b) => a - b,
     );
 
-    const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
-    closestAspectRatio = aspectRatios.reduce((acc, cur) =>
+    const closestAspectRatio = aspectRatios.reduce((acc, cur) =>
         Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc,
     );
 
@@ -101,17 +93,16 @@ const imageError = ref(false);
             ]"
         >
             <picture>
-                <source v-if="srcset1" :srcset="srcset1" />
-                <source v-if="srcset2" :srcset="srcset2" />
+                <source v-if="srcset1" :srcset="srcset1" @error="imageError = true" />
+                <source v-if="srcset2" :srcset="srcset2" @error="imageError = true" />
                 <img
-                    v-if="srcset1 || srcset2"
-                    :src="srcset1 ? srcset1.split(' ')[0] : fallbackImg"
+                    :src="fallbackImg"
                     :class="[
                         aspectRatios[aspectRatio],
                         sizes[size],
                         'bg-cover bg-center object-cover object-center',
                     ]"
-                    alt=""
+                    alt="Image"
                     loading="lazy"
                     @error="imageError = true"
                 />
