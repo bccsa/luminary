@@ -5,21 +5,12 @@ import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 import auth from "./auth";
-import { db, DocType, getSocket, init, start } from "luminary-shared";
+import { DocType, getSocket, init, start } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
-import { initI18n } from "./i18n";
+import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
-
-// Close the IndexedDB connection when the window is closed
-window.onbeforeunload = () => {
-    try {
-        db.close();
-    } catch (e) {
-        console.error(e);
-    }
-};
 
 export const app = createApp(App);
 
@@ -69,7 +60,6 @@ async function Startup() {
     getSocket().on("apiAuthFailed", async () => {
         console.error("API authentication failed, redirecting to login");
         Sentry.captureMessage("API authentication failed, redirecting to login");
-        db.close();
         await auth.loginRedirect(oauth);
     });
 
@@ -81,6 +71,7 @@ async function Startup() {
     app.use(router);
     app.use(i18n);
     app.mount("#app");
+    initAppTitle(i18n);
     initAnalytics();
 }
 
