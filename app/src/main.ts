@@ -30,11 +30,15 @@ if (import.meta.env.PROD) {
 }
 
 async function Startup() {
+    const oauth = await auth.setupAuth(app, router);
+    const token = await auth.getToken(oauth);
+
     await init({
         cms: false,
         docsIndex:
             "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
         apiUrl,
+        token,
         appLanguageIdsAsRef,
         docTypes: [
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
@@ -50,11 +54,6 @@ async function Startup() {
         console.error(err);
         Sentry.captureException(err);
     });
-
-    const oauth = await auth.setupAuth(app, router);
-    const token = await auth.getToken(oauth);
-
-    await start(token);
 
     // Redirect to login if the API authentication fails
     getSocket().on("apiAuthFailed", async () => {

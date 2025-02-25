@@ -27,11 +27,15 @@ if (import.meta.env.PROD) {
 }
 
 async function Startup() {
+    const oauth = await auth.setupAuth(app, router);
+    const token = await auth.getToken(oauth);
+
     await init({
         cms: true,
         docsIndex:
             "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug",
         apiUrl,
+        token,
         docTypes: [
             {
                 type: DocType.Tag,
@@ -68,11 +72,6 @@ async function Startup() {
         console.error(err);
         Sentry.captureException(err);
     });
-
-    const oauth = await auth.setupAuth(app, router);
-    const token = await auth.getToken(oauth);
-
-    await start(token);
 
     const socket = getSocket();
 

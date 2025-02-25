@@ -12,14 +12,6 @@ export async function init(config: SharedConfig) {
 
     // Initialize the IndexedDB database
     await initDatabase();
-}
-
-/**
- * Start communication with the Luminary API
- * @param token - Authentication token
- */
-export async function start(token?: string) {
-    config.token = token;
 
     // Initialize the SocketIO connection (initialized on first call)
     getSocket();
