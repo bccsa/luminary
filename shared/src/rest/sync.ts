@@ -18,7 +18,7 @@ export class Sync {
      */
     constructor() {
         watch(
-            accessMap.value,
+            accessMap,
             async () => {
                 await this.calcSyncMap();
             },
