@@ -5,12 +5,20 @@ import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
+import { createI18n } from "vue-i18n";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
     observe() {}
     disconnect() {}
 };
+
+const i18n = createI18n({
+    locale: "en",
+    messages: {
+        en: { "language.modal.title": "Select Language" },
+    },
+});
 
 describe("LanguageModal.vue", () => {
     beforeAll(async () => {
@@ -29,6 +37,9 @@ describe("LanguageModal.vue", () => {
     it("renders correctly when visible", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
+            global: {
+                plugins: [i18n],
+            },
         });
 
         expect(wrapper.find("h2").text()).toBe("Select Language");
@@ -37,6 +48,9 @@ describe("LanguageModal.vue", () => {
     it("does not render when isVisible is false", () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: false },
+            global: {
+                plugins: [i18n],
+            },
         });
 
         expect(wrapper.find("h2").exists()).toBe(false);
@@ -45,6 +59,9 @@ describe("LanguageModal.vue", () => {
     it("stores the selected language", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
+            global: {
+                plugins: [i18n],
+            },
         });
 
         //@ts-expect-error -- valid code
@@ -59,6 +76,9 @@ describe("LanguageModal.vue", () => {
     it("emits the close event on close button click", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
+            global: {
+                plugins: [i18n],
+            },
         });
 
         await wrapper.findComponent({ name: "LButton" }).trigger("click");
