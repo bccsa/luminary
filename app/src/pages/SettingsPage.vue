@@ -20,7 +20,7 @@ const deleteLocalData = async () => {
     }
 
     await db.purge();
-    getRest().clientDataReq();
+    getRest().sync.restartSync();
 
     return addNotification({
         title: t("notification.clearCache_success.title"),

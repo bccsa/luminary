@@ -1,7 +1,7 @@
 import { initConfig, SharedConfig, config } from "./config";
 import { initDatabase } from "./db/database";
-import { getSocket } from "./socket/socketio";
 import { getRest } from "./rest/RestApi";
+import { getSocket } from "./socket/socketio";
 
 /**
  * Initialize the Luminary database
@@ -24,6 +24,6 @@ export async function start(token?: string) {
     // Initialize the SocketIO connection (initialized on first call)
     getSocket();
 
-    // Initialize the REST API connection (initialized on first call) and start syncing
-    getRest().clientDataReq();
+    // Initialize the REST API connection (initialized on first call) to start syncing
+    getRest();
 }
