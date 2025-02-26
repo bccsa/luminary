@@ -1,21 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { nextTick, watch } from "vue";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import HomePage from "@/pages/HomePage.vue";
 import SettingsPage from "@/pages/SettingsPage.vue";
 import SingleContent from "@/pages/SingleContent.vue";
-import { appName } from "@/globalConfig";
 import ExplorePage from "@/pages/ExplorePage.vue";
 import BookmarksPage from "@/pages/BookmarksPage.vue";
-import { initI18n } from "@/i18n";
-
-let i18n: any;
-
-async function init() {
-    i18n = await initI18n();
-}
-
-init();
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -81,25 +70,6 @@ const router = createRouter({
             },
         },
     ],
-});
-
-router.afterEach((to) => {
-    // We handle posts in their own component
-    if (to.name == "post") return;
-
-    const { t } = i18n.global;
-
-    watch(
-        i18n.global.locale,
-        () => {
-            nextTick(() => {
-                document.title = to.meta.title
-                    ? `${t(to.meta.title as string)} - ${appName}`
-                    : appName;
-            });
-        },
-        { immediate: true },
-    );
 });
 
 export default router;

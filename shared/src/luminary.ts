@@ -1,10 +1,13 @@
 import { initConfig, SharedConfig } from "./config";
 import { initDatabase } from "./db/database";
-import { waitForAccessMap } from "./permissions/permissions";
-import { getSocket } from "./socket/socketio";
 import { getRest } from "./rest/RestApi";
+import { getSocket } from "./socket/socketio";
 
-export async function initLuminaryShared(config: SharedConfig) {
+/**
+ * Initialize the Luminary database
+ * @param config
+ */
+export async function init(config: SharedConfig) {
     initConfig(config);
 
     // Initialize the IndexedDB database
@@ -13,9 +16,6 @@ export async function initLuminaryShared(config: SharedConfig) {
     // Initialize the SocketIO connection (initialized on first call)
     getSocket();
 
-    // Wait for the access map to be set through SocketIO
-    await waitForAccessMap();
-
-    // Initialize the REST API connection (initialized on first call) and start syncing
-    getRest().clientDataReq();
+    // Initialize the REST API connection (initialized on first call) to start syncing
+    getRest();
 }

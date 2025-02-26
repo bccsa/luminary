@@ -8,6 +8,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { isConnected } from "luminary-shared";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -90,6 +91,8 @@ describe("ProfileMenu", () => {
         });
 
         const wrapper = mount(ProfileMenu);
+
+        isConnected.value = true;
 
         await wrapper.find("button").trigger("click");
         const profileMenuButtons = wrapper.findAll("button");

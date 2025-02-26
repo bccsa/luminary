@@ -4,7 +4,7 @@ import { createPinia } from "pinia";
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
-import { DocType, getSocket, initLuminaryShared } from "luminary-shared";
+import { DocType, getSocket, init } from "luminary-shared";
 import { apiUrl } from "@/globalConfig";
 import auth from "./auth";
 import { useNotificationStore } from "./stores/notification";
@@ -30,7 +30,7 @@ async function Startup() {
     const oauth = await auth.setupAuth(app, router);
     const token = await auth.getToken(oauth);
 
-    await initLuminaryShared({
+    await init({
         cms: true,
         docsIndex:
             "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug",

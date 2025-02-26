@@ -2,14 +2,19 @@ import { ApiSearchQuery, getRest } from "./RestApi";
 import { DocType } from "../types";
 import { db, SyncMap, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
-import { watch } from "vue";
+import { ref, watch } from "vue";
 import _ from "lodash";
 import { config } from "../config";
+import { isConnected } from "../socket/socketio";
 
 type MissingGap = {
     gapStart: number;
     gapEnd: number;
 };
+
+const syncLock = ref(false);
+const syncRestartCounter = ref(0);
+let cancelSync = false;
 
 export class Sync {
     /**
@@ -17,30 +22,65 @@ export class Sync {
      * @param options - Options
      */
     constructor() {
-        watch(
-            accessMap.value,
-            async () => {
-                await this.calcSyncMap();
-            },
-            { immediate: true },
-        );
-
+        // Monitor the appLanguageIdsAsRef for changes if it exists (app clients only)
         config.appLanguageIdsAsRef &&
-            watch(
-                config.appLanguageIdsAsRef,
-                async () => {
-                    await this.clientDataReq();
-                },
-                { deep: true },
-            );
+            watch(config.appLanguageIdsAsRef, () => {
+                syncRestartCounter.value++;
+            });
+
+        watch(
+            [syncRestartCounter, isConnected, accessMap],
+            async () => {
+                await this.cancel();
+                if (!isConnected.value) return;
+
+                this.start();
+            },
+            { immediate: true, deep: true },
+        );
     }
 
-    async clientDataReq() {
+    /**
+     * Cancel the current sync cycle
+     */
+    async cancel() {
+        return new Promise<void>((resolve) => {
+            if (syncLock.value) {
+                watch(
+                    syncLock,
+                    (value) => {
+                        if (!value) resolve();
+                    },
+                    { once: true },
+                );
+
+                cancelSync = true;
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * Manually restart the sync cycle
+     */
+    restart() {
+        syncRestartCounter.value++;
+    }
+
+    async start() {
+        if (syncLock.value) return;
+        syncLock.value = true;
+
         await this.calcSyncMap();
 
         const _sm = Object.fromEntries(syncMap.value);
         const _sm_sorted = Object.values(_sm).sort((a, b) => a.syncPriority - b.syncPriority);
         for (const v of _sm_sorted) {
+            if (cancelSync) {
+                break;
+            }
+
             const query: ApiSearchQuery = {
                 apiVersion: "0.0.0",
                 from: 0,
@@ -60,6 +100,8 @@ export class Sync {
 
             await this.req(query, v.id);
         }
+        syncLock.value = false;
+        cancelSync = false;
     }
 
     /**
@@ -68,6 +110,8 @@ export class Sync {
      * @param id   - id of the syncMap entry
      */
     async req(query: ApiSearchQuery, id: string): Promise<any> {
+        if (!isConnected.value) return;
+
         const data = await getRest().search(query);
         if (data && data.docs.length > 0) await db.bulkPut(data.docs);
         if (!data)

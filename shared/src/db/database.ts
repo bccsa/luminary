@@ -108,17 +108,19 @@ class Database extends Dexie {
      */
     constructor(dbVersion: number, docsIndex: string) {
         super(dbName);
+        this.requestIndexDbPersistent();
 
         const index: string = concatIndex(
             "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],[type+postType]",
             docsIndex,
-        ); // Concatinate and compact app specific indexed fields with shared library indexed fields
+        ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
             docs: index,
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
         };
+
         const version: number = bumpDBVersion(
             (dbVersion >= 10 && dbVersion / 10) || 1,
             localStorage.getItem("dexie.dbIndex") || "{}",
@@ -126,23 +128,6 @@ class Database extends Dexie {
         );
 
         this.version(version).stores(dbIndex);
-
-        this.deleteExpired();
-
-        // Listen for changes to the access map and delete documents that the user no longer has access to
-        watch(
-            accessMap,
-            () => {
-                this.deleteRevoked();
-            },
-            { immediate: true },
-        );
-
-        watch(syncMap.value, () => {
-            this.setSyncMap();
-        });
-
-        this.requestIndexDbPersistent();
     }
 
     /**
@@ -694,7 +679,7 @@ class Database extends Dexie {
      * Delete documents to which access has been revoked
      * @param options - changeDocs: If true, deletes change documents instead of regular documents
      */
-    private deleteRevoked() {
+    deleteRevoked() {
         const groupsPerDocType = getAccessibleGroups(AclPermission.View);
 
         Object.values(DocType)
@@ -721,7 +706,11 @@ class Database extends Dexie {
             });
     }
 
-    private async deleteExpired() {
+    /**
+     * Delete expired documents from the database for non-cms clients
+     * @returns
+     */
+    async deleteExpired() {
         if (config.cms) {
             return;
         }
@@ -748,6 +737,48 @@ export let db: Database;
 export async function initDatabase() {
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
+
+    // Open the database and wait for it to be ready
+    await new Promise<void>((resolve) => {
+        if (db.isOpen()) {
+            resolve();
+            return;
+        }
+
+        db.on("ready", () => {
+            resolve();
+        });
+
+        if (!db.isOpen()) {
+            db.open();
+        }
+    });
+
+    db.on("blocked", () => {
+        console.error("Database blocked");
+    });
+
+    // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
+    setTimeout(() => {
+        db.deleteExpired();
+    }, 5000);
+
+    // Listen for changes to the access map and delete documents that the user no longer has access to
+    watch(
+        accessMap,
+        () => {
+            db.deleteRevoked();
+        },
+        { immediate: true },
+    );
+
+    watch(
+        syncMap,
+        () => {
+            db.setSyncMap();
+        },
+        { deep: true },
+    );
 }
 
 /**
@@ -764,11 +795,17 @@ export const getDbVersion = async () => {
             db.close();
             resolve(version);
         };
+        request.onblocked = () => {
+            console.error("Database blocked");
+        };
+        request.onerror = () => {
+            console.error("Database error");
+        };
     }) as unknown as Promise<number>;
 };
 
 /**
- * Concatinate Shared Library index with the external index, to avoid having duplicate indexes
+ * Concatenate Shared Library index with the external index, to avoid having duplicate indexes
  * @param index1 - Shared Library Index
  * @param index2 - External Index
  * @returns

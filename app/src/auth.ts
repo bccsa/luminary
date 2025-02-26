@@ -49,7 +49,9 @@ async function setupAuth(app: App<Element>, router: Router) {
         await oauth.handleRedirectCallback(url.toString()).catch(() => null);
 
         const to = getRedirectTo() || "/";
-        location.href = to;
+
+        // Remove query string parameters which were included in the callback. Note: Never do a hard-reload here, as it locks indexedDb in Safari due to the immediate reload
+        router.push(to);
 
         return true;
     }

@@ -35,7 +35,7 @@ class RestApi {
     private _sync: Sync;
     private http: HttpReq<any>;
     /**
-     * Create a new docs instance
+     * Create a new REST API client instance
      * @param options - Options
      */
     constructor() {
@@ -60,8 +60,11 @@ class RestApi {
         this.http = new HttpReq(config.apiUrl || "", config.token);
     }
 
-    async clientDataReq() {
-        this._sync.clientDataReq();
+    /**
+     * Returns the REST API Client's sync instance
+     */
+    get sync() {
+        return this._sync;
     }
 
     async search(query: ApiSearchQuery) {

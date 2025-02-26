@@ -5,11 +5,11 @@ import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 import auth from "./auth";
-import { DocType, getSocket, initLuminaryShared } from "luminary-shared";
+import { DocType, getSocket, init } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
 import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
-import { initI18n } from "./i18n";
+import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 
 export const app = createApp(App);
@@ -33,7 +33,7 @@ async function Startup() {
     const oauth = await auth.setupAuth(app, router);
     const token = await auth.getToken(oauth);
 
-    await initLuminaryShared({
+    await init({
         cms: false,
         docsIndex:
             "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
@@ -70,6 +70,7 @@ async function Startup() {
     app.use(router);
     app.use(i18n);
     app.mount("#app");
+    initAppTitle(i18n);
     initAnalytics();
 }
 
