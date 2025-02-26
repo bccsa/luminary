@@ -5,14 +5,16 @@ import {
     PublishStatus,
     TagType,
     db,
+    getRest,
     useDexieLiveQuery,
     useDexieLiveQueryWithDeps,
+    type ApiSearchQuery,
     type ContentDto,
     type RedirectDto,
     type Uuid,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeMount, onBeforeUnmount, provide, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -54,6 +56,37 @@ const docsBySlug = useDexieLiveQuery(
     () => db.docs.where("slug").equals(props.slug).toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: Array<ContentDto>() },
 );
+
+db.docs
+    .where("slug")
+    .equals(props.slug)
+    .toArray()
+    .then((docs) => {
+        if (!docs.length) {
+            const contentsQuery: ApiSearchQuery = {
+                types: [DocType.Content],
+            };
+
+            const contents = ref<Map<string, ContentDto>>(new Map());
+            provide("contents", contents);
+
+            const getDbGroups = async () => {
+                const _s = Object.fromEntries(contents.value);
+                const latest = Object.values(_s).reduce((acc, curr) => {
+                    return curr.updatedTimeUtc > acc ? curr.updatedTimeUtc : acc;
+                }, 0);
+
+                latest ? (contentsQuery.from = latest) : delete contentsQuery.from;
+                const _q = await getRest().search(contentsQuery);
+                _q &&
+                    _q.docs &&
+                    _q.docs.forEach((d: ContentDto) => {
+                        contents.value.set(d._id, d);
+                    });
+            };
+            getDbGroups();
+        }
+    });
 
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
