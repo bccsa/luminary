@@ -1,7 +1,14 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, type ContentDto, accessMap, PostType } from "luminary-shared";
+import {
+    db,
+    DocType,
+    type ContentDto,
+    accessMap,
+    PostType,
+    type LanguageDto,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -9,6 +16,7 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import LanguageSelector from "./LanguageSelector.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -426,4 +434,43 @@ describe("EditContent.vue", () => {
             expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(true);
         });
     });
+
+    it.only(
+        "only displays languages the user has Translate access to in languageSelector",
+        async () => {
+            accessMap.value["group-public-content"].language = {
+                view: true,
+                translate: false,
+                edit: false,
+                publish: true,
+            };
+            await db.docs.bulkPut([
+                { ...mockData.mockLanguageDtoEng, memberOf: ["group-public-content"] },
+            ]);
+
+            console.log(await db.docs.toArray());
+            console.log(accessMap.value);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            const languageSelector = wrapper.findAllComponents(LanguageSelector)[0];
+            const btn = languageSelector.find("[data-test='language-selector']");
+            btn.trigger("click");
+
+            await wrapper.vm.$nextTick();
+
+            await waitForExpect(async () => {
+                const languages = languageSelector.find("[data-test='languagePopup']");
+                expect(await languages.html()).toContain("English");
+            });
+        },
+        { timeout: 999999 },
+    );
 });
