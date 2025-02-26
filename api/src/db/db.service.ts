@@ -1,6 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
 import * as nano from "nano";
-import { isDeepStrictEqual } from "util";
 import { DeleteReason, DocType, PublishStatus, Uuid } from "../enums";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseConfig, SyncConfig } from "../configuration";
@@ -14,7 +13,8 @@ import { DeleteCmdDto } from "../dto/DeleteCmdDto";
 import { randomUUID } from "crypto";
 import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { ContentDto } from "../dto/ContentDto";
-import { removeEmptyValues } from "../util/removeEmptyValues";
+import { isEqualDoc } from "../util/isEqualDoc";
+import { isDeepStrictEqual } from "util";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -184,7 +184,9 @@ export class DbService extends EventEmitter {
         if (
             existing &&
             doc.type !== DocType.Group &&
-            (existing as _contentBaseDto).memberOf !== doc.memberOf
+            (existing as _contentBaseDto).memberOf &&
+            doc.memberOf &&
+            !isDeepStrictEqual((existing as _contentBaseDto).memberOf.sort(), doc.memberOf.sort())
         ) {
             await this.insertDeleteCmd({
                 reason: DeleteReason.PermissionChange,
@@ -222,26 +224,22 @@ export class DbService extends EventEmitter {
         // Remove revision and updateTimeUtc from existing doc from database for comparison purposes
         if (existing) {
             rev = existing._rev as string;
-            delete existing._rev;
-            delete existing.updatedTimeUtc;
         }
 
         // Convert the document to plain object to compare with the existing document
         const docPlain = instanceToPlain(doc);
-        delete docPlain.updatedTimeUtc;
-        delete docPlain._rev;
-        removeEmptyValues(docPlain);
+        docPlain.updatedTimeUtc = Date.now();
+        docPlain._rev = rev;
 
         if (!existing) {
             // Passed document does not exist in database: create
-            docPlain.updatedTimeUtc = Date.now();
             const res = await this.insertDoc(docPlain);
             res.updatedTimeUtc = docPlain.updatedTimeUtc;
             res.changes = docPlain;
             return res;
         }
 
-        if (isDeepStrictEqual(docPlain, existing)) {
+        if (isEqualDoc(docPlain, existing)) {
             // Document in DB is the same as passed doc: do nothing
             return {
                 id: docPlain._id,
@@ -252,17 +250,12 @@ export class DbService extends EventEmitter {
         }
 
         // Passed document is different than document in DB: update
-        docPlain._rev = rev;
-        docPlain.updatedTimeUtc = Date.now();
-
         const changes = this.calculateDiff(docPlain, existing);
         try {
             const insertResult = await this.insertDoc(docPlain);
-            // .then((insertResult) => {
             insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
             insertResult.changes = changes;
             return insertResult;
-            // })
         } catch (err) {
             if (err.reason == "Document update conflict.") {
                 // This error can happen when a document is updated near-simultaneously by another process, i.e.
