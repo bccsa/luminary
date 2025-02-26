@@ -4,7 +4,7 @@ import { createPinia } from "pinia";
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
-import { DocType, getSocket, init, start } from "luminary-shared";
+import { DocType, getSocket, init } from "luminary-shared";
 import { apiUrl } from "@/globalConfig";
 import auth from "./auth";
 import { useNotificationStore } from "./stores/notification";
