@@ -275,6 +275,7 @@ const selectedCategory = computed(() => {
                             :image="content.parentImageData"
                             aspectRatio="video"
                             size="post"
+                            :zoomable="true"
                         />
                     </IgnorePagePadding>
 
