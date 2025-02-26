@@ -120,7 +120,7 @@ const showImageElement2 = computed(
             :class="[
                 aspectRatios[aspectRatio],
                 rounded ? rounding[size] : '',
-                'w-full overflow-clip bg-cover bg-center object-cover shadow',
+                'relative flex w-full flex-col items-center justify-center overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
             <img
