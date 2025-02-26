@@ -1,5 +1,5 @@
 import { validateChangeRequest } from "./validateChangeRequest";
-import { DbService } from "../db/db.service";
+import { DbService, DbUpsertResult } from "../db/db.service";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { DocType, Uuid } from "../enums";
 import { validateSlug } from "./validateSlug";
@@ -9,6 +9,7 @@ import { PostDto } from "../dto/PostDto";
 import { TagDto } from "../dto/TagDto";
 import { ContentDto } from "../dto/ContentDto";
 import { LanguageDto } from "../dto/LanguageDto";
+import { isEqualDoc } from "../util/isEqualDoc";
 
 export async function processChangeRequest(
     userId: string,
@@ -34,6 +35,16 @@ export async function processChangeRequest(
     }
 
     const doc = validationResult.validatedData;
+    const prevDoc = await db.getDoc(doc._id);
+
+    // Check if the document has changed
+    if (prevDoc.docs && prevDoc.docs.length && isEqualDoc(doc, prevDoc.docs[0])) {
+        return {
+            ok: true,
+            message: "Document is identical to the one in the database",
+        } as DbUpsertResult;
+    }
+
     // insert user id into the change request document, so that we can keep a record of who made the change
     doc.updatedBy = userId;
 
@@ -82,8 +93,6 @@ export async function processChangeRequest(
         }
 
         if (doc.type == DocType.Post || doc.type == DocType.Tag) {
-            const prevDoc = await db.getDoc(doc._id);
-
             // Process image uploads
             if ((doc as PostDto).imageData) {
                 const prevImageData =
