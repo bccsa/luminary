@@ -270,6 +270,7 @@ onBeforeUnmount(() => {
                         :image="content.parentImageData"
                         aspectRatio="video"
                         size="post"
+                        :zoomable="true"
                     />
                 </IgnorePagePadding>
 
