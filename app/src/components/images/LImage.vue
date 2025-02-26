@@ -9,11 +9,13 @@ type Props = {
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
+    zoomable?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
     rounded: true,
+    zoomable: false,
 });
 
 const aspectRatiosCSS = {
