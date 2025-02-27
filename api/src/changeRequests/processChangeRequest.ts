@@ -189,6 +189,19 @@ export async function processChangeRequest(
         }
     }
 
+    if (doc.deleteReq && doc.type == DocType.Content) {
+        const parentQuery = await db.getDoc(doc.parentId);
+        const parentDoc: PostDto | TagDto | undefined = parentQuery.docs.length
+            ? parentQuery.docs[0]
+            : undefined;
+
+        // We still need to replicate the parent document's memberOf property to the content document, as this is not (and should not be) done in the CMS.
+        if (parentDoc) {
+            const contentDoc = doc as ContentDto;
+            contentDoc.memberOf = parentDoc.memberOf;
+        }
+    }
+
     // Insert / update the document in the database
     const upsertResult = await db.upsertDoc(doc);
 
