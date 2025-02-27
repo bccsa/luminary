@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { type ContentDto, DocType, db } from "luminary-shared";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, loginModalVisible } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageUnpinned from "@/components/HomePage/HomePageUnpinned.vue";
@@ -44,10 +44,10 @@ setTimeout(() => {
 
                 <p class="mt-1">
                     Please
-                    <router-link
-                        :to="{ name: 'login' }"
-                        class="text-yellow-600 underline hover:text-yellow-500"
-                        >log in </router-link
+                    <span
+                        class="cursor-pointer text-yellow-600 underline hover:text-yellow-500"
+                        @click="loginModalVisible = true"
+                        >log in </span
                     >if you have an account.
                 </p>
             </div>

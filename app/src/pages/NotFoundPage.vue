@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import { useAuth0 } from "@auth0/auth0-vue";
+import { loginModalVisible } from "@/globalConfig";
 
 const { isAuthenticated } = useAuth0();
 </script>
@@ -25,9 +26,12 @@ const { isAuthenticated } = useAuth0();
             </div>
             <div v-else class="mt-10 flex items-center justify-center gap-x-1">
                 Please click
-                <RouterLink :to="{ name: 'login' }" class="text-yellow-700 underline">
+                <span
+                    class="cursor-pointer text-yellow-700 underline"
+                    @click="loginModalVisible = true"
+                >
                     here
-                </RouterLink>
+                </span>
                 to log in.
             </div>
         </div>
