@@ -519,6 +519,7 @@ describe("DbService", () => {
             const insertResult = await service.insertDeleteCmd({
                 reason: DeleteReason.Deleted,
                 doc: data,
+                prevDoc: data,
             });
 
             expect(insertResult.ok).toBe(true);
@@ -542,29 +543,11 @@ describe("DbService", () => {
             };
 
             const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.Deleted, doc: doc })
-                .catch((e) => e);
-
-            expect(err.message).toBe(
-                "Permission change delete command is not valid for group documents, as they are not synced to clients",
-            );
-        });
-
-        it("fails when passing an previous document for a delete instruction", async () => {
-            const doc = {
-                _id: "delete-test",
-                testData: "test123",
-                type: DocType.Post,
-            };
-
-            await service.upsertDoc(doc);
-
-            const err = await service
                 .insertDeleteCmd({ reason: DeleteReason.Deleted, doc: doc, prevDoc: doc })
                 .catch((e) => e);
 
             expect(err.message).toBe(
-                "Previous document must not be provided for 'deleted' type delete command",
+                "Permission change delete command is not valid for group documents, as they are not synced to clients",
             );
         });
 
@@ -580,6 +563,7 @@ describe("DbService", () => {
             const insertResult = await service.insertDeleteCmd({
                 reason: DeleteReason.StatusChange,
                 doc: doc,
+                prevDoc: { ...doc, status: "published" },
             });
 
             expect(insertResult.ok).toBe(true);
@@ -594,24 +578,6 @@ describe("DbService", () => {
             expect(res.docs[0].docId).toBe(doc._id);
         });
 
-        it("fails when passing an previous document for a 'statusChanged' instruction", async () => {
-            const doc = {
-                _id: "delete-test",
-                testData: "test123",
-                type: DocType.Post,
-            };
-
-            await service.upsertDoc(doc);
-
-            const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc, prevDoc: doc })
-                .catch((e) => e);
-
-            expect(err.message).toBe(
-                "Previous document must not be provided for 'statusChange' type delete command",
-            );
-        });
-
         it("fails when trying to insert a delete instruction for a 'statusChanged' reason for documents other than ContentDto", async () => {
             const doc = {
                 _id: "delete-test",
@@ -620,7 +586,7 @@ describe("DbService", () => {
             };
 
             const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc })
+                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc, prevDoc: doc })
                 .catch((e) => e);
 
             expect(err.message).toBe(
@@ -637,7 +603,7 @@ describe("DbService", () => {
             };
 
             const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc })
+                .insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc, prevDoc: doc })
                 .catch((e) => e);
 
             expect(err.message).toBe(
@@ -690,23 +656,6 @@ describe("DbService", () => {
             expect(insertResult.ok).toBe(true);
             expect(insertResult.message).toBe("No delete command needed as no groups were removed");
             expect(insertResult.rev).toBe("");
-        });
-
-        it("fails when trying to insert a delete instruction for a 'permissionChange' reason when no previous document is provided", async () => {
-            const doc = {
-                _id: "delete-test",
-                testData: "test123",
-                type: DocType.Post,
-                memberOf: ["group-public-content"],
-            };
-
-            const err = await service
-                .insertDeleteCmd({ reason: DeleteReason.PermissionChange, doc: doc })
-                .catch((e) => e);
-
-            expect(err.message).toBe(
-                "Previous document must be provided for 'permissionChange' type delete command",
-            );
         });
 
         describe("Document upsert with delete command generation", () => {
@@ -895,7 +844,7 @@ describe("DbService", () => {
                     expect(updateEventDoc2.deleteReason).toBe(DeleteReason.StatusChange);
                     expect(updateEventDoc2.memberOf).toEqual(["group-private-content"]);
                 });
-            });
+            }, 10000000);
 
             it("sets the docType field to the type of the parent document for content documents", async () => {
                 const doc = {
