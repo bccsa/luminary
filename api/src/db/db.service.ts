@@ -164,6 +164,11 @@ export class DbService extends EventEmitter {
                 "Invalid document: The passed document does not have an '_id' property",
             );
         }
+
+        if (doc.type === DocType.Group && doc.type === DocType.User) {
+            throw new Error(`Delete command is not implemented for ${doc.type} documents`);
+        }
+
         const res = await this.getDoc(doc._id);
 
         let existing: _baseDto; // if no existing document, this will be undefined
@@ -180,45 +185,48 @@ export class DbService extends EventEmitter {
 
         let rev: string;
 
-        // Generate delete command if the document's memberOf field has changed
-        if (
-            existing &&
-            doc.type !== DocType.Group &&
-            (existing as _contentBaseDto).memberOf &&
-            doc.memberOf &&
-            !isDeepStrictEqual((existing as _contentBaseDto).memberOf.sort(), doc.memberOf.sort())
-        ) {
-            await this.insertDeleteCmd({
-                reason: DeleteReason.PermissionChange,
-                doc: doc as _contentBaseDto,
-                prevDoc: existing as _contentBaseDto,
-            });
-        }
-
-        // Generate delete command if the document's status has changed to draft
-        if (
-            existing &&
-            doc.type === DocType.Content &&
-            (existing as ContentDto).status === PublishStatus.Published &&
-            (doc as ContentDto).status === PublishStatus.Draft
-        ) {
-            await this.insertDeleteCmd({
-                reason: DeleteReason.StatusChange,
-                doc: doc as ContentDto,
-            });
-        }
-
         // Generate delete command if the document is set to be deleted, and delete the document
         if (doc.deleteReq) {
-            if (doc.type !== DocType.Group && doc.type !== DocType.User) {
-                // Delete command is not valid for group or user documents, as they are not synced to clients
+            // Delete command is not valid for group or user documents, as they are not synced to clients
+            await this.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: doc as _baseDto,
+                prevDoc: existing as _contentBaseDto,
+            });
+
+            return await this.deleteDoc(doc._id);
+        } else {
+            // Generate delete command if the document's memberOf field has changed
+            if (
+                existing &&
+                doc.type !== DocType.Group &&
+                (existing as _contentBaseDto).memberOf &&
+                doc.memberOf &&
+                !isDeepStrictEqual(
+                    (existing as _contentBaseDto).memberOf.sort(),
+                    doc.memberOf.sort(),
+                )
+            ) {
                 await this.insertDeleteCmd({
-                    reason: DeleteReason.Deleted,
-                    doc: doc as _baseDto,
+                    reason: DeleteReason.PermissionChange,
+                    doc: doc as _contentBaseDto,
+                    prevDoc: existing as _contentBaseDto,
                 });
             }
 
-            return await this.deleteDoc(doc._id);
+            // Generate delete command if the document's status has changed to draft
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (existing as ContentDto).status === PublishStatus.Published &&
+                (doc as ContentDto).status === PublishStatus.Draft
+            ) {
+                await this.insertDeleteCmd({
+                    reason: DeleteReason.StatusChange,
+                    doc: doc as ContentDto,
+                    prevDoc: existing as _contentBaseDto,
+                });
+            }
         }
 
         // Remove revision and updateTimeUtc from existing doc from database for comparison purposes
@@ -331,6 +339,20 @@ export class DbService extends EventEmitter {
         doc: T;
         prevDoc?: T;
     }): Promise<DbUpsertResult> {
+        if (!options.prevDoc) {
+            return {
+                id: "",
+                ok: true,
+                message: "No delete command needed as the document does not exist in the database",
+            } as DbUpsertResult;
+        }
+
+        if (options.doc.type === DocType.Group) {
+            throw new Error(
+                "Permission change delete command is not valid for group documents, as they are not synced to clients",
+            );
+        }
+
         const cmd = {
             _id: randomUUID(),
             type: DocType.DeleteCmd,
@@ -345,31 +367,14 @@ export class DbService extends EventEmitter {
             deleteReason: options.reason,
         } as DeleteCmdDto;
 
-        if (options.doc.type === DocType.Group) {
-            throw new Error(
-                "Permission change delete command is not valid for group documents, as they are not synced to clients",
-            );
-        }
-
         const d = options.doc as unknown as _contentBaseDto;
+        const p = options.prevDoc as unknown as _contentBaseDto;
 
         if (options.reason === DeleteReason.Deleted) {
-            if (options.prevDoc) {
-                throw new Error(
-                    "Previous document must not be provided for 'deleted' type delete command",
-                );
-            }
-
-            cmd.memberOf = d.memberOf;
+            cmd.memberOf = p.memberOf;
         }
 
         if (options.reason === DeleteReason.StatusChange) {
-            if (options.prevDoc) {
-                throw new Error(
-                    "Previous document must not be provided for 'statusChange' type delete command",
-                );
-            }
-
             if (options.doc.type !== DocType.Content) {
                 throw new Error("Status change delete command is only valid for content documents");
             }
@@ -386,16 +391,9 @@ export class DbService extends EventEmitter {
         }
 
         if (options.reason === DeleteReason.PermissionChange) {
-            if (!options.prevDoc) {
-                throw new Error(
-                    "Previous document must be provided for 'permissionChange' type delete command",
-                );
-            }
-
             // Get a diff between the previous and current memberOf arrays. The delete command only needs to be sent to the groups that have been removed from the memberOf array.
-            const prevDoc = options.prevDoc as unknown as _contentBaseDto;
             const memberOf = d.memberOf || [];
-            const prevMemberOf = prevDoc.memberOf || [];
+            const prevMemberOf = p.memberOf || [];
             const diff = prevMemberOf.filter((x) => !memberOf.includes(x));
 
             if (diff.length < 1) {
