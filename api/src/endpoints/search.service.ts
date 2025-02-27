@@ -49,6 +49,10 @@ export class SearchService {
             DocType.Language,
         ]);
 
+        // Get accessible groups for delete command documents (all groups to which the user has view access to)
+        const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
+        userViewGroups[DocType.DeleteCmd] = userAccessibleGroups;
+
         if (Object.keys(userViewGroups).length < 1)
             throw new HttpException(
                 "User does not have access to requested types",
@@ -58,7 +62,7 @@ export class SearchService {
         const options: QueryDocsOptions = {
             userAccess: userViewGroups,
             groups: query.groups,
-            types: query.types,
+            types: [...query.types, DocType.DeleteCmd],
             limit: query.limit,
             contentOnly: query.contentOnly,
             from: query.from,
