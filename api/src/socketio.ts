@@ -224,6 +224,12 @@ export class Socketio implements OnGatewayInit {
                 socket.join(`${docType}-${group}`);
             }
         }
+
+        // Join deleted documents rooms
+        const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
+        for (const group of userAccessibleGroups) {
+            socket.join(`${DocType.DeleteCmd}-${group}`);
+        }
     }
 
     /**
