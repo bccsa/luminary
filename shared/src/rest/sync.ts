@@ -33,6 +33,7 @@ export class Sync {
             async () => {
                 await this.cancel();
                 if (!isConnected.value) return;
+                if (!accessMap.value || Object.keys(accessMap.value).length === 0) return;
 
                 this.start();
             },
