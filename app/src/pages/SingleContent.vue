@@ -242,6 +242,21 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
+
+onBeforeMount(() => {
+    window.addEventListener(
+        "wheel",
+        (e) => {
+            if (e.ctrlKey) e.preventDefault(); // Block zoom gestures
+        },
+        { passive: false },
+    );
+});
+
+showContentQuickControls.value = true;
+onBeforeUnmount(() => {
+    showContentQuickControls.value = false;
+});
 </script>
 
 <template>
