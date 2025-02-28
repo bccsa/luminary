@@ -251,7 +251,15 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
-onBeforeMount(() => {});
+onBeforeMount(() => {
+    window.addEventListener(
+        "wheel",
+        (e) => {
+            if (e.ctrlKey) e.preventDefault(); // Block zoom gestures
+        },
+        { passive: false },
+    );
+});
 
 showContentQuickControls.value = true;
 onBeforeUnmount(() => {
@@ -281,6 +289,7 @@ onBeforeUnmount(() => {
                         :image="content.parentImageData"
                         aspectRatio="video"
                         size="post"
+                        :zoomable="true"
                     />
                 </IgnorePagePadding>
 
