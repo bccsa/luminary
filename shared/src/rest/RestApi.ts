@@ -2,7 +2,6 @@ import { DocType } from "../types";
 import { Sync } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
-import { accessMap } from "../permissions/permissions";
 
 export type ApiSearchQuery = {
     apiVersion?: string;
@@ -48,11 +47,6 @@ class RestApi {
         if (!config.docTypes || !config.docTypes[0]) {
             throw new Error(
                 "The REST API connection requires an array of DocTypes that needs to be synced",
-            );
-        }
-        if (!accessMap.value || Object.keys(accessMap.value).length === 0) {
-            throw new Error(
-                "The REST API connection requires an access map to be set before connecting",
             );
         }
 
