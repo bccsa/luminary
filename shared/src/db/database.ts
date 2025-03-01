@@ -4,6 +4,8 @@ import {
     BaseDocumentDto,
     ChangeReqAckDto,
     ContentDto,
+    DeleteCmdDto,
+    DeleteReason,
     DocType,
     LocalChangeDto,
     PostType,
@@ -19,7 +21,7 @@ import { ref, type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
-import { accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import _ from "lodash";
 const dbName: string = "luminary-db";
@@ -231,10 +233,24 @@ class Database extends Dexie {
     }
 
     /**
-     * Bulk insert documents into the database
+     * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
     bulkPut(docs: BaseDocumentDto[]) {
-        return this.docs.bulkPut(docs);
+        // Delete documents that are marked for deletion
+        const toDeleteIds = docs
+            .filter((doc) => {
+                if (doc.type !== DocType.DeleteCmd) return false;
+
+                return this.validateDeleteCommand(doc as DeleteCmdDto);
+            })
+            .map((doc) => (doc as DeleteCmdDto).docId);
+
+        if (toDeleteIds.length > 0) {
+            this.docs.bulkDelete(toDeleteIds);
+        }
+
+        // Insert all documents except delete commands
+        return this.docs.bulkPut(docs.filter((doc) => doc.type !== DocType.DeleteCmd));
     }
 
     /**
@@ -516,7 +532,7 @@ class Database extends Dexie {
     }
 
     /**
-     * Update or insert a document into the database and queue the change to be sent to the API
+     * Update or insert a document into the database and queue the change to be sent to the API. If the deleteReq flag is set, the document will be deleted from the local database and the document with deleteReq flag will be queued to be sent to the API.
      * @param doc - The document to upsert
      * @param overwiteLocalChanges - If true, the entry in the local changes table will be overwritten with the new change
      */
@@ -524,7 +540,19 @@ class Database extends Dexie {
         // Unwrap the (possibly) reactive object
         const raw = toRaw(doc);
 
-        await this.docs.put(raw, raw._id);
+        if (doc.deleteReq) {
+            // Delete the document from the local database. The document will be deleted from the API when the change is sent from the localChanges table
+            await this.docs.delete(raw._id);
+            overwiteLocalChanges = true;
+
+            // If the document is a post or tag, delete all the associated content documents
+            // Note: We do not need to send delete requests to the API, as the API will delete the content documents when the parent document is deleted
+            if (raw.type == DocType.Post || raw.type == DocType.Tag) {
+                await this.docs.where("parentId").equals(raw._id).delete();
+            }
+        } else {
+            await this.docs.put(raw, raw._id);
+        }
 
         if (overwiteLocalChanges) {
             // Delete the previous change from the localChanges table (if any)
@@ -605,9 +633,9 @@ class Database extends Dexie {
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto) {
         if (ack.ack == "rejected") {
-            if (ack.doc) {
-                // Replace our local copy with the provided database version
-                await this.docs.update(ack.doc._id, ack.doc);
+            if (ack.docs && Array.isArray(ack.docs)) {
+                // Replace our local copy(s) with the provided database version
+                await this.docs.bulkPut(ack.docs);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
                 const change = await this.localChanges.get(ack.id);
@@ -716,6 +744,31 @@ class Database extends Dexie {
         }
 
         await this.docs.where("expiryDate").belowOrEqual(DateTime.now().toMillis()).delete();
+    }
+
+    /**
+     * Validates a delete command and returns true if the document referred to in the delete command should be deleted
+     */
+    validateDeleteCommand(cmd: DeleteCmdDto) {
+        if (cmd.deleteReason == DeleteReason.Deleted) {
+            return true;
+        }
+
+        if (cmd.deleteReason == DeleteReason.StatusChange) {
+            // Only delete the document if the client is not a CMS client
+            if (!config.cms) return true;
+        }
+
+        if (
+            cmd.deleteReason == DeleteReason.PermissionChange &&
+            // Only delete the document if the client does not have access to the updated MemberOf group
+            cmd.newMemberOf &&
+            !verifyAccess(cmd.newMemberOf, cmd.docType, AclPermission.View, "any")
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
