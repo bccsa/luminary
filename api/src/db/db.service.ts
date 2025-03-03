@@ -354,7 +354,7 @@ export class DbService extends EventEmitter {
     queryDocs(options: QueryDocsOptions): Promise<DbQueryResult> {
         return new Promise(async (resolve, reject) => {
             /**
-             * Calculate the list of
+             * Calculate the list of group memberships. If a list of group memberships is passed, only include the group memberships requested (e.g. for incremental sync of newly added access). Else include all the user available group memberships.
              * @param docType
              * @returns
              */
@@ -392,19 +392,10 @@ export class DbService extends EventEmitter {
             }
 
             const languageSelector =
-                options.languages?.length > 0
-                    ? [
-                          {
-                              $and: [
-                                  { language: { $in: options.languages } },
-                                  { memberOf: { $in: calcGroups(DocType.Language) } },
-                              ],
-                          },
-                      ]
-                    : [];
+                options.languages?.length > 0 ? [{ language: { $in: options.languages } }] : [];
 
             const docQuery = {
-                selector: { $and: [...timeSelector, ...languageSelector] },
+                selector: { $and: [...timeSelector] },
                 limit: options.limit || Number.MAX_SAFE_INTEGER,
                 sort: options.sort || [{ updatedTimeUtc: "desc" }],
             };
@@ -423,13 +414,14 @@ export class DbService extends EventEmitter {
                         $and: [{ type: { $in: [docType] } }, { memberOf: { $in: groups } }],
                     });
 
-                //content only docs
+                // content only docs
                 if (docType === DocType.Post || docType === DocType.Tag)
                     $or.push({
                         $and: [
                             { type: { $in: [DocType.Content] } },
                             { memberOf: { $in: groups } },
                             { parentType: docType },
+                            ...languageSelector,
                         ],
                     });
 
