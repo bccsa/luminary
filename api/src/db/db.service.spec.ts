@@ -477,6 +477,6 @@ describe("DbService", () => {
 
             expect(res.docs.length).toBeGreaterThan(1);
             expect(notEnglishDocs.length).toBeLessThan(1);
-        }, 30000);
+        });
     });
 });
