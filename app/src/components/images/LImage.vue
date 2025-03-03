@@ -1,20 +1,21 @@
 <script setup lang="ts">
-// Image component with automatic aspect ratio selection and fallback image
-
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
+import LModal from "../form/LModal.vue";
 
 type Props = {
     image?: ImageDto;
     aspectRatio?: keyof typeof aspectRatios;
     size?: keyof typeof sizes;
     rounded?: boolean;
+    zoomable?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
     rounded: true,
+    zoomable: false,
 });
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
@@ -111,6 +112,47 @@ const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.va
 const showImageElement2 = computed(
     () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
 );
+
+const showPopup = ref(false);
+
+watch(showPopup, (newVal) => {
+    if (newVal) {
+        document.body.style.overflow = "hidden";
+        document.body.style.userSelect = "none";
+        document.body.style.touchAction = "none";
+    } else {
+        document.body.style.overflow = "";
+        document.body.style.userSelect = "";
+        document.body.style.touchAction = "";
+    }
+});
+
+// pinch to zoom
+const scale = ref(1);
+const initialDistance = ref(0);
+const zoomContainer = ref<HTMLElement | null>(null);
+
+const onTouchStart = (event: TouchEvent) => {
+    if (event.touches.length === 2) {
+        const [touch1, touch2] = event.touches;
+        initialDistance.value = getDistance(touch1, touch2);
+    }
+};
+
+const onTouchMove = (event: TouchEvent) => {
+    if (event.touches.length === 2) {
+        const [touch1, touch2] = event.touches;
+        const newDistance = getDistance(touch1, touch2);
+        scale.value = Math.max(1, Math.min(3, scale.value * (newDistance / initialDistance.value)));
+        initialDistance.value = newDistance;
+    }
+};
+
+const getDistance = (touch1: Touch, touch2: Touch) => {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+};
 </script>
 
 <template>
@@ -121,7 +163,9 @@ const showImageElement2 = computed(
                 aspectRatios[aspectRatio],
                 rounded ? rounding[size] : '',
                 'w-full overflow-clip bg-cover bg-center object-cover shadow',
+                zoomable ? 'cursor-zoom-in' : '',
             ]"
+            @click="showPopup = true"
         >
             <img
                 v-if="showImageElement1"
@@ -154,4 +198,35 @@ const showImageElement2 = computed(
         </div>
         <slot></slot>
     </div>
+
+    <LModal
+        v-if="zoomable"
+        heading=""
+        :isVisible="showPopup"
+        @close="showPopup = false"
+        :withBackground="false"
+        size="xlarge"
+        :scrollable="false"
+    >
+        <div @wheel.prevent ref="zoomContainer" @touchstart="onTouchStart" @touchmove="onTouchMove">
+            <img
+                src=""
+                :srcset="showImageElement1 ? srcset1 || fallbackImg : srcset2 || fallbackImg"
+                :class="[
+                    aspectRatios[aspectRatio],
+                    sizes[size],
+                    'rounded-md bg-cover bg-center object-cover object-center',
+                    zoomable ? 'cursor-zoom-out' : '',
+                ]"
+                alt=""
+                :data-test="showImageElement1 ? 'image-element1' : 'image-element2'"
+                loading="lazy"
+                @error="
+                    showImageElement1 ? (imageElement1Error = true) : (imageElement2Error = true)
+                "
+                @click="showPopup = false"
+                :style="{ transform: `scale(${scale})` }"
+            />
+        </div>
+    </LModal>
 </template>
