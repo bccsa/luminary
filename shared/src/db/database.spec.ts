@@ -924,28 +924,4 @@ describe("Database", async () => {
 
         expect(_v1).toBeLessThan(_v2);
     });
-
-    it(" deletes unrelated content documents when a language is removed from the user's preferred language list ", async () => {
-        initConfig({
-            cms: false,
-            docsIndex: "parentId, language, type, expiryDate, [type+docType]",
-            apiUrl: "http://localhost:12345",
-            appLanguageIdsAsRef: ref([mockLanguageDtoEng._id, mockLanguageDtoFra._id]),
-        });
-        await initDatabase();
-
-        // Simulate changing the app language to French
-        config.appLanguageIdsAsRef
-            ? (config.appLanguageIdsAsRef.value = [mockLanguageDtoFra._id])
-            : config.appLanguageIdsAsRef!.value;
-
-        await waitForExpect(async () => {
-            const remainingDocs = await db.docs.toArray();
-            expect(remainingDocs.some((doc) => doc.language === mockLanguageDtoEng._id)).toBe(
-                false,
-            );
-            expect(remainingDocs.includes(mockLanguageDtoEng)).toBe(false);
-            expect(remainingDocs.includes(mockEnglishContentDto)).toBe(false);
-        });
-    });
 });

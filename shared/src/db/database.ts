@@ -779,25 +779,6 @@ export async function initDatabase() {
         },
         { deep: true },
     );
-
-    // Remove content documents from database if the user deselected the language(s) from the preferred languages list.
-    if (config.appLanguageIdsAsRef) {
-        watch(config.appLanguageIdsAsRef, async (langIds) => {
-            // Fetch all language documents
-            const languages = await db.docs.where("type").equals(DocType.Language).toArray();
-            const languageIds = languages.map((l) => l._id);
-
-            // Identify language IDs to delete
-            const idsToDelete = languageIds.filter((id) => !langIds.includes(id));
-
-            if (idsToDelete.length > 0) {
-                // Delete content documents related to removed languages
-                for (const langId of idsToDelete) {
-                    await db.docs.where({ type: DocType.Content, language: langId }).delete();
-                }
-            }
-        });
-    }
 }
 
 /**
