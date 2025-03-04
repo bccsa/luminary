@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
+import { connectionSpeed } from "../../globalConfig";
 
 type Props = {
     image?: ImageDto;
@@ -140,12 +141,6 @@ const cleanSrcset = (src: string | string[], size: keyof typeof sizes, downloadS
 
     return desiredSize;
 };
-
-const connectionSpeed = (
-    (navigator as any).connection ||
-    (navigator as any).mozConnection ||
-    (navigator as any).webkitConnection
-).downlink;
 
 const dynamicSizes = ref(
     srcset1.value
