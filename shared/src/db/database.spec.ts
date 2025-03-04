@@ -26,6 +26,7 @@ import {
 import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { DateTime } from "luxon";
+import { initConfig } from "../config";
 
 describe("Database", async () => {
     beforeAll(async () => {
