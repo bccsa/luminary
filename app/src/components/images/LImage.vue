@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
 
 type Props = {
     image?: ImageDto;
-    aspectRatio?: keyof typeof aspectRatios;
+    aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
 };
-
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
@@ -18,7 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
-const aspectRatios = {
+const aspectRatiosCSS = {
     video: "aspect-video",
     square: "aspect-square",
     vertical: "aspect-[9/16]",
@@ -46,67 +45,164 @@ const rounding = {
     post: "md:rounded-lg",
 };
 
-// Find closest aspect ratio
 let closestAspectRatio = 0;
+
+// Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
-    if (!props.image?.fileCollections?.length) return "";
+    if (props.image?.uploadData && props.image.uploadData.length > 0) {
+        return URL.createObjectURL(
+            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
+                type: "image/*",
+            }),
+        );
+    }
+
+    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
+
+    const aspectRatios = props.image.fileCollections
+        .map((collection) => collection.aspectRatio)
+        .reduce((acc, cur) => {
+            if (!acc.includes(cur)) acc.push(cur);
+            return acc;
+        }, [] as number[])
+        .sort((a, b) => a - b);
 
     const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
-    const aspectRatios = [...new Set(props.image.fileCollections.map((c) => c.aspectRatio))].sort(
-        (a, b) => a - b,
-    );
-
-    const closestAspectRatio = aspectRatios.reduce((acc, cur) =>
-        Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc,
-    );
+    closestAspectRatio = aspectRatios.reduce((acc, cur) => {
+        return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
+    }, aspectRatios[0]);
 
     return props.image.fileCollections
-        .filter((c) => c.aspectRatio === closestAspectRatio)
-        .flatMap((c) => c.imageFiles)
-        .sort((a, b) => a.width - b.width)
-        .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-        .join(", ");
+        .filter((collection) => collection.aspectRatio == closestAspectRatio)
+        .map((collection) => {
+            return collection.imageFiles
+                .sort((a, b) => a.width - b.width)
+                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                .join(", ");
+        });
 });
 
+// Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
-    if (!props.image?.fileCollections?.length) return "";
+    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
 
     return props.image.fileCollections
-        .filter((c) => c.aspectRatio !== closestAspectRatio)
-        .flatMap((c) => c.imageFiles)
-        .sort((a, b) => a.width - b.width)
-        .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+        .filter((collection) => collection.aspectRatio != closestAspectRatio)
+        .map((collection) => {
+            return collection.imageFiles
+                .sort((a, b) => a.width - b.width)
+                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                .join(", ");
+        })
         .join(", ");
 });
 
-const imageError = ref(false);
+const imageElement1Error = ref(false);
+const imageElement2Error = ref(false);
+
+const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.value != "");
+const showImageElement2 = computed(
+    () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
+);
+
+/**
+ * A function to determine the image size suitable for the sizes parameter in `img`
+ * @param src
+ * @param size
+ * @param downloadSpeed
+ * @returns the desired resolution size based on what is given in the parent
+ */
+const cleanSrcset = (src: string | string[], size: keyof typeof sizes, downloadSpeed: number) => {
+    const srcAsArray = src.toString().split(",");
+    let desiredSize;
+    if (size == "post") {
+        desiredSize =
+            downloadSpeed > 8 && srcAsArray.length > 1
+                ? srcAsArray[3].split(" ")[1]
+                : srcAsArray[0].split(" ")[1];
+    } else if (size == "thumbnail") {
+        desiredSize =
+            downloadSpeed > 8 && srcAsArray.length > 1
+                ? srcAsArray[0].split(" ")[1]
+                : srcAsArray[0].split(" ")[1];
+    } else if (size == "small") {
+        desiredSize =
+            downloadSpeed > 8 && srcAsArray.length > 1
+                ? srcAsArray[2].split(" ")[1]
+                : srcAsArray[0].split(" ")[1];
+    }
+
+    if (!desiredSize) return "";
+
+    const w = desiredSize.indexOf("w");
+    desiredSize = desiredSize.slice(0, w - 1);
+    desiredSize = desiredSize.concat("vw");
+
+    return desiredSize;
+};
+
+const connectionSpeed = (
+    (navigator as any).connection ||
+    (navigator as any).mozConnection ||
+    (navigator as any).webkitConnection
+).downlink;
+
+const dynamicSizes = ref(
+    srcset1.value
+        ? cleanSrcset(srcset1.value, props.size, connectionSpeed)
+        : srcset2.value
+          ? cleanSrcset(srcset2.value, props.size, connectionSpeed)
+          : "33vw",
+);
+
+onMounted(() => {
+    if (srcset1.value) {
+        dynamicSizes.value = cleanSrcset(srcset1.value, props.size, connectionSpeed);
+    } else if (srcset2.value) {
+        dynamicSizes.value = cleanSrcset(srcset2.value, props.size, connectionSpeed);
+    }
+});
 </script>
 
 <template>
     <div :class="sizes[size]">
         <div
-            :style="{ backgroundImage: `url(${fallbackImg})` }"
+            :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
-                aspectRatios[aspectRatio],
+                aspectRatiosCSS[aspectRatio],
                 rounded ? rounding[size] : '',
-                'w-full overflow-hidden bg-cover bg-center object-cover shadow',
+                'w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
-            <picture>
-                <source v-if="srcset1" :srcset="srcset1" @error="imageError = true" />
-                <source v-if="srcset2" :srcset="srcset2" @error="imageError = true" />
-                <img
-                    :src="fallbackImg"
-                    :class="[
-                        aspectRatios[aspectRatio],
-                        sizes[size],
-                        'bg-cover bg-center object-cover object-center',
-                    ]"
-                    alt="Image"
-                    loading="lazy"
-                    @error="imageError = true"
-                />
-            </picture>
+            <img
+                v-if="showImageElement1 && srcset1"
+                :srcset="srcset1"
+                :sizes="dynamicSizes"
+                :class="[
+                    aspectRatiosCSS[aspectRatio],
+                    sizes[size],
+                    'bg-cover bg-center object-cover object-center',
+                ]"
+                alt=""
+                data-test="image-element1"
+                loading="lazy"
+                @error="imageElement1Error = true"
+            />
+            <img
+                v-if="showImageElement2 && srcset2"
+                src=""
+                :srcset="srcset2"
+                :sizes="dynamicSizes"
+                :class="[
+                    aspectRatiosCSS[aspectRatio],
+                    sizes[size],
+                    'bg-cover bg-center object-cover object-center',
+                ]"
+                alt=""
+                data-test="image-element2"
+                loading="lazy"
+                @error="imageElement2Error = true"
+            />
         </div>
 
         <slot></slot>
