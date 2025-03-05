@@ -1,10 +1,10 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import LanguageModal from "./LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
-import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
+import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -13,10 +13,6 @@ global.ResizeObserver = class FakeResizeObserver {
 };
 
 describe("LanguageModal.vue", () => {
-    beforeAll(async () => {
-        initLanguage();
-    });
-
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
     });
@@ -31,7 +27,7 @@ describe("LanguageModal.vue", () => {
             props: { isVisible: true },
         });
 
-        expect(wrapper.find("h2").text()).toBe("Select Language");
+        expect(wrapper.find("h2").text()).toBe("Select preferred content language");
     });
 
     it("does not render when isVisible is false", () => {
@@ -42,7 +38,7 @@ describe("LanguageModal.vue", () => {
         expect(wrapper.find("h2").exists()).toBe(false);
     });
 
-    it("stores the selected language", async () => {
+    it("emits close event on language click and stores the selected language", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
         });
@@ -50,10 +46,13 @@ describe("LanguageModal.vue", () => {
         //@ts-expect-error -- valid code
         wrapper.vm.languages = await db.docs.toArray();
 
-        const languageButtons = await wrapper.findAll('[data-test="add-language-button"]');
-        await languageButtons[0].trigger("click");
+        const languageButtons = await wrapper.findAll('[data-test="switch-language-button"]');
 
-        expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+        await languageButtons[1].trigger("click");
+
+        expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoFra._id);
+
+        expect(wrapper.emitted()).toHaveProperty("close");
     });
 
     it("emits the close event on close button click", async () => {
