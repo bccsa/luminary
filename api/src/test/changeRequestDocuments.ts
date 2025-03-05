@@ -17,6 +17,7 @@ export const changeRequest_post = () => {
             tags: ["tag-category1", "tag-topicA"],
             publishDateVisible: true,
             postType: "blog",
+            deleteReq: 0,
         },
     };
 };
