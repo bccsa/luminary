@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
-import { toRefs, watch } from "vue";
+import { computed, toRefs, watch } from "vue";
 import BoldIcon from "./icons/BoldIcon.vue";
 import ItalicIcon from "./icons/ItalicIcon.vue";
 import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
@@ -16,8 +16,18 @@ const props = defineProps<Props>();
 const { disabled } = toRefs(props);
 const text = defineModel<string>("text");
 
+const editorText = computed(() => {
+    if (!text.value) return "";
+    try {
+        return JSON.parse(text.value);
+    } catch {
+        // If the JSON is invalid, return the text as is as it probably is in HTML format
+        return text.value;
+    }
+});
+
 const editor = useEditor({
-    content: text,
+    content: editorText.value,
     extensions: [
         StarterKit.configure({
             heading: {
@@ -40,22 +50,6 @@ const editor = useEditor({
 watch(disabled, () => {
     editor.value?.setEditable(disabled.value ? false : true);
 });
-
-// Wait for the editor to load before converting the JSON content to HTML format
-watch(
-    [editor, text],
-    () => {
-        if (!editor.value) return;
-        if (text.value == undefined) return;
-        try {
-            const parsedText = JSON.parse(text.value);
-            editor.value?.commands.setContent(parsedText, false);
-        } catch {
-            // Ignore. Probably the text is already HTML
-        }
-    },
-    { once: true },
-);
 </script>
 
 <template>
