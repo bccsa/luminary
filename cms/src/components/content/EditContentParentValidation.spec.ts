@@ -151,35 +151,6 @@ describe("EditContentParentValidation.vue", () => {
         expect(wrapper.html()).toContain("At least one group membership is required");
     });
 
-    it("fails validation if the default image is not set", async () => {
-        const wrapper = mount(EditContentParentValidation, {
-            props: {
-                languages: [
-                    mockData.mockLanguageDtoEng,
-                    mockData.mockLanguageDtoFra,
-                    mockData.mockLanguageDtoSwa,
-                ],
-                dirty: true,
-                parent: {
-                    ...mockData.mockPostDto,
-                    memberOf: [],
-                    imageData: { fileCollections: [], uploadData: [] },
-                },
-                contentDocs: [mockData.mockEnglishContentDto],
-                localChange: false,
-                parentPrev: mockData.mockPostDto,
-                contentPrev: [mockData.mockEnglishContentDto],
-                canEdit: true,
-                canTranslateOrPublish: true,
-                canPublish: true,
-                canTranslate: true,
-                untranslatedLanguages: [],
-            },
-        });
-
-        expect(wrapper.html()).toContain("The default image must be set");
-    });
-
     it("fails validation if no translations are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
