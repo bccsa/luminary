@@ -882,4 +882,21 @@ describe("DbService", () => {
             });
         });
     });
+
+    describe("getDocsByType", () => {
+        it("can retrieve all documents of a specific type", async () => {
+            const res = await service.getDocsByType(DocType.Post, 1);
+            expect(res.docs.length).toBe(1);
+            expect(res.docs.every((d) => d.type === DocType.Post)).toBe(true);
+        });
+    });
+
+    describe("getContentByLanguage", () => {
+        it("can retrieve all content documents of a specific language", async () => {
+            const res = await service.getContentByLanguage("lang-eng", 1);
+            expect(res.docs.length).toBe(1);
+            expect(res.docs.every((d) => d.type === DocType.Content)).toBe(true);
+            expect(res.docs.every((d) => d.language === "lang-eng")).toBe(true);
+        });
+    });
 });

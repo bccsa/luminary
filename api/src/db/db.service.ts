@@ -686,15 +686,52 @@ export class DbService extends EventEmitter {
     /**
      * Get all documents with a specific type
      * @param docType - Type of documents to retrieve
+     * @param limit - Maximum number of documents to retrieve (optional)
      * @returns All documents with specified type
      */
-    getDocsByType(docType: DocType): Promise<DbQueryResult> {
+    getDocsByType(
+        docType: DocType,
+        limit: number = Number.MAX_SAFE_INTEGER,
+    ): Promise<DbQueryResult> {
         return new Promise((resolve, reject) => {
             const query = {
                 selector: {
                     type: docType,
                 },
-                limit: Number.MAX_SAFE_INTEGER,
+                limit,
+            };
+            this.db
+                .find(query)
+                .then((res) => {
+                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
+    }
+
+    /**
+     * Get all content documents with a specific language
+     * @param language - Language ID
+     * @param limit - Maximum number of documents to retrieve (optional)
+     * @returns
+     */
+    getContentByLanguage(
+        language: Uuid,
+        limit: number = Number.MAX_SAFE_INTEGER,
+    ): Promise<DbQueryResult> {
+        return new Promise((resolve, reject) => {
+            const query = {
+                selector: {
+                    $and: [
+                        {
+                            type: DocType.Content,
+                        },
+                        { language: language },
+                    ],
+                },
+                limit,
             };
             this.db
                 .find(query)
