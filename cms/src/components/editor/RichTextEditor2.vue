@@ -14,10 +14,10 @@ type Props = {
 };
 const props = defineProps<Props>();
 const { disabled } = toRefs(props);
-const text = defineModel<string>();
+const text = defineModel<string>("text");
 
 const editor = useEditor({
-    content: text.value,
+    content: text,
     extensions: [
         StarterKit.configure({
             heading: {
@@ -34,6 +34,7 @@ const editor = useEditor({
             class: "prose prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
         },
     },
+    onUpdate: ({ editor }) => (text.value = JSON.stringify(editor.getJSON())),
 });
 
 watch(disabled, () => {
