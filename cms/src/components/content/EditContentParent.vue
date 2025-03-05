@@ -7,6 +7,7 @@ import {
     type TagDto,
     type LanguageDto,
     type ContentParentDto,
+    PostType,
 } from "luminary-shared";
 import { computed } from "vue";
 import TagSelector from "./TagSelector.vue";
@@ -18,6 +19,7 @@ import ImageEditor from "../images/ImageEditor.vue";
 
 type Props = {
     docType: DocType;
+    tagOrPostType: TagType | PostType;
     language?: LanguageDto;
     disabled: boolean;
 };
@@ -39,7 +41,7 @@ const pinned = computed({
 
 <template>
     <LCard
-        :title="`${capitaliseFirstLetter(docType.toString())} settings`"
+        :title="`${capitaliseFirstLetter(tagOrPostType)} settings`"
         :icon="Cog6ToothIcon"
         class="sticky top-20"
         collapsible

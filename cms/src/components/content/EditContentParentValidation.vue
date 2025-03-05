@@ -4,7 +4,6 @@ import {
     type ContentDto,
     type Uuid,
     type LanguageDto,
-    PublishStatus,
     type ContentParentDto,
 } from "luminary-shared";
 import { ref, watch, watchEffect } from "vue";
@@ -65,23 +64,6 @@ watch(
             newParent,
             () => newParent.memberOf.length > 0,
         );
-
-        if (newContentDocs && newContentDocs.length > 0 && newContentDocs[0].status) {
-            const contentDocStatus = newContentDocs[0].status;
-            if (contentDocStatus !== PublishStatus.Draft) {
-                validate(
-                    "The default image must be set",
-                    "image",
-                    parentValidations.value,
-                    newParent,
-                    () =>
-                        newParent.imageData != undefined &&
-                        (newParent.imageData.fileCollections.length > 0 ||
-                            (Array.isArray(newParent.imageData.uploadData) &&
-                                newParent.imageData.uploadData?.length > 0)),
-                );
-            }
-        }
 
         validate(
             "At least one translation is required",
