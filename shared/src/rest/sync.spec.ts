@@ -12,6 +12,7 @@ import { ref } from "vue";
 import _ from "lodash";
 import { config, initConfig } from "../config";
 import { isConnected } from "../socket/socketio";
+import { mockFrenchContentDto, mockLanguageDtoFra } from "../tests/mockdata";
 
 const app = express();
 const port = 12349;
@@ -274,6 +275,24 @@ describe("rest", () => {
 
             await waitForExpect(async () => {
                 expect(spy).toHaveBeenCalled();
+            });
+        });
+
+        it("deletes unrelated content documents when a language is removed from the user's preferred language list", async () => {
+            config.appLanguageIdsAsRef!.value = ["lang-eng", "lang-fra"];
+            await db.docs.bulkPut([mockFrenchContentDto]);
+
+            const docFra = await db.docs.get(mockFrenchContentDto._id);
+            expect(docFra).toBeDefined();
+
+            config.appLanguageIdsAsRef!.value = ["lang-eng"];
+
+            await waitForExpect(async () => {
+                const remainingDocs = await db.docs.toArray();
+                expect(remainingDocs.some((doc) => doc.language === mockLanguageDtoFra._id)).toBe(
+                    false,
+                );
+                expect(remainingDocs.includes(mockFrenchContentDto)).toBe(false);
             });
         });
     });
