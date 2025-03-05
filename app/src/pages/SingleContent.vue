@@ -12,7 +12,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -238,16 +238,6 @@ watch(tags, () => {
 const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
-});
-
-onBeforeMount(() => {
-    window.addEventListener(
-        "wheel",
-        (e) => {
-            if (e.ctrlKey) e.preventDefault(); // Block zoom gestures
-        },
-        { passive: false },
-    );
 });
 
 showContentQuickControls.value = true;
