@@ -380,6 +380,7 @@ watch(selectedLanguage, () => {
                     <EditContentParent
                         v-if="parent"
                         :docType="props.docType"
+                        :tagOrPostType="props.tagOrPostType"
                         :language="selectedLanguage"
                         v-model="parent"
                         :disabled="!canEditParent"
