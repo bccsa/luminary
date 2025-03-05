@@ -70,7 +70,7 @@ db.docs
             const contents = ref<Map<string, ContentDto>>(new Map());
             provide("contents", contents);
 
-            const getDbGroups = async () => {
+            const getDbContents = async () => {
                 const _s = Object.fromEntries(contents.value);
                 const latest = Object.values(_s).reduce((acc, curr) => {
                     return curr.updatedTimeUtc > acc ? curr.updatedTimeUtc : acc;
@@ -84,7 +84,20 @@ db.docs
                         contents.value.set(d._id, d);
                     });
             };
-            getDbGroups();
+            getDbContents();
+
+            // check in contents if there content that matches the slug
+            docsBySlug.value = Array.from(contents.value.values()).filter((content) => {
+                if (
+                    content.slug == props.slug &&
+                    content.language == appLanguagePreferredIdAsRef.value
+                ) {
+                    router.push({ name: "content", params: { slug: content.slug } });
+                } else {
+                    // trigger not found
+                    router.push({ name: "404" });
+                }
+            });
         }
     });
 
@@ -284,9 +297,8 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
-onBeforeMount(() => {});
-
 showContentQuickControls.value = true;
+
 onBeforeUnmount(() => {
     showContentQuickControls.value = false;
 });
