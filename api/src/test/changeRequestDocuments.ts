@@ -1,6 +1,6 @@
 // This file generates the documents for the change request tests some random data
 
-import { ContentDto } from "src/dto/ContentDto";
+import { ContentDto } from "../dto/ContentDto";
 
 function randomString() {
     return Math.random().toString(36).substring(7);
@@ -17,6 +17,7 @@ export const changeRequest_post = () => {
             tags: ["tag-category1", "tag-topicA"],
             publishDateVisible: true,
             postType: "blog",
+            deleteReq: 0,
         },
     };
 };

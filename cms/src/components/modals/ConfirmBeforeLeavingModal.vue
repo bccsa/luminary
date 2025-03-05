@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, toRefs } from "vue";
-import LModal from "@/components/common/LModal.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import { onBeforeRouteLeave, useRouter, type RouteLocationRaw } from "vue-router";
 
 type Props = {
@@ -42,7 +42,7 @@ const leave = async () => {
 </script>
 
 <template>
-    <LModal
+    <LDialog
         v-model:open="isModalOpen"
         context="danger"
         title="Are you sure you want to leave the page?"
