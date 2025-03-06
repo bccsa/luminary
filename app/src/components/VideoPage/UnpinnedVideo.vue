@@ -40,7 +40,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
 
                 if (content.language !== firstSupportedLang) return false;
 
-                return true && content.language == firstSupportedLang;
+                return true;
             })
             .limit(100) // Limit to the newest posts
             .toArray() as unknown as Promise<ContentDto[]>,
@@ -73,6 +73,7 @@ const categories = useDexieLiveQueryWithDeps(
                 const _content = content as ContentDto;
                 if (_content.parentType !== DocType.Tag) return false;
                 if (!_content.parentTagType) return false;
+                if (_content.parentTagType !== TagType.Category) return false;
                 if (_content.parentPinned) return false;
 
                 // Use the `isPublished` helper function
@@ -106,7 +107,6 @@ const unpinnedNewestContentByCategory = contentByTag(newest100Content, categorie
             :contentDocs="c.content"
             :title="c.tag.title"
             :summary="c.tag.summary"
-            :showPublishDate="false"
             class="pb-1 pt-2"
         />
     </IgnorePagePadding>
