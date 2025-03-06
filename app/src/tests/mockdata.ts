@@ -210,6 +210,7 @@ export const mockCategoryContentDto: ContentDto = {
     memberOf: [],
     parentTags: [],
     parentTaggedDocs: ["post-post1"],
+    parentTagType: TagType.Category,
     language: "lang-eng",
     status: PublishStatus.Published,
     slug: "content-tag-category1",
