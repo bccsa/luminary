@@ -8,11 +8,14 @@ import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { PlusCircleIcon } from "@heroicons/vue/24/outline";
 
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
 type Props = {
     isVisible: boolean;
 };
 defineProps<Props>();
+
+const { t } = useI18n();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
@@ -78,7 +81,7 @@ const removeFromSelected = (id: string) => {
     <LModal
         name="lModal-languages"
         class="flex flex-col"
-        heading="Select Language"
+        :heading="t('language.modal.title')"
         :is-visible="isVisible"
         @close="emit('close')"
     >
@@ -166,7 +169,7 @@ const removeFromSelected = (id: string) => {
                 class="w-full"
                 @click="emit('close')"
             >
-                Close
+                {{ t("language.modal.close") }}
             </LButton>
         </template>
     </LModal>
