@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import LImage from "../images/LImage.vue";
 import { PlayIcon } from "@heroicons/vue/24/solid";
-import { queryParams } from "@/globalConfig";
+import { PlayIcon as PlayIconOutline } from "@heroicons/vue/24/outline";
 
 type Props = {
     content: ContentDto;
@@ -19,9 +19,6 @@ const props = withDefaults(defineProps<Props>(), {
 const router = useRouter();
 
 const openContent = () => {
-    if (props.content.video) {
-        queryParams.set("autoplay", "true"); // Add autoplay parameter if content has a video
-    }
     router.push({ name: "content", params: { slug: props.content.slug } });
 };
 </script>
@@ -40,9 +37,17 @@ const openContent = () => {
                 <!-- Play Icon (Only if content has a video) -->
                 <div
                     v-if="content.video"
-                    class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/15 dark:bg-slate-800/30"
+                    class="absolute inset-0 flex items-center justify-center rounded-lg"
                 >
-                    <PlayIcon class="h-8 w-8 text-white lg:h-12 lg:w-12" />
+                    <PlayIcon class="relative h-8 w-8 text-white lg:h-12 lg:w-12" />
+                </div>
+                <div
+                    v-if="content.video"
+                    class="absolute inset-0 flex items-center justify-center rounded-lg"
+                >
+                    <PlayIconOutline
+                        class="relative z-20 h-8 w-8 stroke-1 text-zinc-600 dark:text-slate-600 lg:h-12 lg:w-12"
+                    />
                 </div>
             </div>
 
