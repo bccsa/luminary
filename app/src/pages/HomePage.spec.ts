@@ -57,7 +57,7 @@ describe("HomePage.vue", () => {
         it("updates the category title and content when the language is changed", async () => {
             // Mock initial database setup with English content
             await db.docs.bulkPut([
-                mockCategoryContentDto,
+                { ...mockCategoryContentDto, parentPinned: 1 },
                 { ...mockEnglishContentDto, parentTags: [mockCategoryContentDto.parentId] },
                 {
                     ...mockCategoryContentDto,
@@ -65,6 +65,7 @@ describe("HomePage.vue", () => {
                     language: mockLanguageDtoFra._id,
                     title: "Catégorie 1",
                     summary: "Exemple de tag",
+                    parentPinned: 1,
                 },
                 { ...mockFrenchContentDto, title: "Poste 1" },
             ]);
