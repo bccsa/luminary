@@ -22,11 +22,34 @@ export class Sync {
      * @param options - Options
      */
     constructor() {
-        // Monitor the appLanguageIdsAsRef for changes if it exists (app clients only)
+        let langListPrev: string[] | undefined = _.cloneDeep(
+            config.appLanguageIdsAsRef?.value,
+        )?.sort();
+
+        // Monitor the appLanguageIdsAsRef for changes - if it exists (app clients only) to restart sync and to cleanup unwanted languages
         config.appLanguageIdsAsRef &&
-            watch(config.appLanguageIdsAsRef, () => {
-                syncRestartCounter.value++;
-            });
+            watch(
+                config.appLanguageIdsAsRef,
+                async (langIds) => {
+                    // Only trigger if language ID's have been added / removed. (Ignore if order has changed)
+                    if (!_.isEqual(langListPrev, _.cloneDeep(langIds)?.sort())) {
+                        syncRestartCounter.value++;
+
+                        // Identify language IDs to delete
+                        const idsToDelete = langListPrev?.filter((id) => !langIds.includes(id));
+
+                        if (idsToDelete && idsToDelete.length) {
+                            // Delete content documents related to removed languages
+                            for (const langId of idsToDelete) {
+                                await db.docs.where({ language: langId }).delete();
+                            }
+                        }
+                    }
+
+                    langListPrev = _.cloneDeep(langIds).sort();
+                },
+                { deep: true },
+            );
 
         watch(
             [syncRestartCounter, isConnected, accessMap],
