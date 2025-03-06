@@ -78,7 +78,7 @@ const srcset1 = computed(() => {
         .map((collection) => {
             return collection.imageFiles
                 .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                .map((f) => `${baseUrl}/${f.filename} ${f.width}x`)
                 .join(", ");
         });
 });
@@ -92,7 +92,7 @@ const srcset2 = computed(() => {
         .map((collection) => {
             return collection.imageFiles
                 .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                .map((f) => `${baseUrl}/${f.filename} ${f.width}x`)
                 .join(", ");
         })
         .join(", ");
@@ -105,58 +105,6 @@ const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.va
 const showImageElement2 = computed(
     () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
 );
-
-/**
- * A function to determine the image size suitable for the sizes parameter in `img`
- * @param src
- * @param size
- * @param downloadSpeed
- * @returns the desired resolution size based on what is given in the parent
- */
-const cleanSrcset = (src: string | string[], size: keyof typeof sizes, downloadSpeed: number) => {
-    const srcAsArray = src.toString().split(",");
-    let desiredSize;
-    if (size == "post") {
-        desiredSize =
-            downloadSpeed > 8 && srcAsArray.length > 1
-                ? srcAsArray[3].split(" ")[1]
-                : srcAsArray[0].split(" ")[1];
-    } else if (size == "thumbnail") {
-        desiredSize =
-            downloadSpeed > 8 && srcAsArray.length > 1
-                ? srcAsArray[0].split(" ")[1]
-                : srcAsArray[0].split(" ")[1];
-    } else if (size == "small") {
-        desiredSize =
-            downloadSpeed > 8 && srcAsArray.length > 1
-                ? srcAsArray[2].split(" ")[1]
-                : srcAsArray[0].split(" ")[1];
-    }
-
-    if (!desiredSize) return "";
-
-    const w = desiredSize.indexOf("w");
-    desiredSize = desiredSize.slice(0, w - 1);
-    desiredSize = desiredSize.concat("vw");
-
-    return desiredSize;
-};
-
-const dynamicSizes = ref(
-    srcset1.value
-        ? cleanSrcset(srcset1.value, props.size, connectionSpeed)
-        : srcset2.value
-          ? cleanSrcset(srcset2.value, props.size, connectionSpeed)
-          : "33vw",
-);
-
-onMounted(() => {
-    if (srcset1.value) {
-        dynamicSizes.value = cleanSrcset(srcset1.value, props.size, connectionSpeed);
-    } else if (srcset2.value) {
-        dynamicSizes.value = cleanSrcset(srcset2.value, props.size, connectionSpeed);
-    }
-});
 </script>
 
 <template>
@@ -172,7 +120,6 @@ onMounted(() => {
             <img
                 v-if="showImageElement1 && srcset1"
                 :srcset="srcset1"
-                :sizes="dynamicSizes"
                 :class="[
                     aspectRatiosCSS[aspectRatio],
                     sizes[size],
@@ -187,7 +134,6 @@ onMounted(() => {
                 v-if="showImageElement2 && srcset2"
                 src=""
                 :srcset="srcset2"
-                :sizes="dynamicSizes"
                 :class="[
                     aspectRatiosCSS[aspectRatio],
                     sizes[size],
