@@ -25,6 +25,7 @@ const pinnedCategories = useDexieLiveQueryWithDeps(
                 parentPinned: 1, // 1 = true
             })
             .filter((c) => {
+                if (c.parentTagType !== TagType.Category) return false;
                 return isPublished(c as ContentDto, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
