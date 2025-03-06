@@ -32,42 +32,40 @@ const openContent = () => {
                     :image="content.parentImageData"
                     :aspectRatio="aspectRatio"
                     size="thumbnail"
-                />
-
-                <!-- Play Icon (Only if content has a video) -->
-                <div
-                    v-if="content.video"
-                    class="absolute inset-0 flex items-center justify-center rounded-lg"
                 >
-                    <PlayIcon class="relative h-8 w-8 text-white lg:h-12 lg:w-12" />
-                </div>
-                <div
-                    v-if="content.video"
-                    class="absolute inset-0 flex items-center justify-center rounded-lg"
-                >
-                    <PlayIconOutline
-                        class="relative z-20 h-8 w-8 stroke-1 text-zinc-600 dark:text-slate-600 lg:h-12 lg:w-12"
-                    />
-                </div>
-            </div>
-
-            <!-- Content Title -->
-            <div class="w-full">
-                <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
-                    {{ content.title }}
-                </h3>
-                <div
-                    v-if="showPublishDate && content.parentPublishDateVisible"
-                    class="mt-0.5 text-xs text-zinc-500 dark:text-slate-400"
-                >
-                    {{
-                        content.publishDate
-                            ? db
-                                  .toDateTime(content.publishDate!)
-                                  .toLocaleString(DateTime.DATETIME_MED)
-                            : ""
-                    }}
-                </div>
+                    <div class="w-full">
+                        <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
+                            {{ content.title }}
+                        </h3>
+                        <div
+                            v-if="showPublishDate && content.parentPublishDateVisible"
+                            class="mt-0.5 text-xs text-zinc-500 dark:text-slate-400"
+                        >
+                            {{
+                                content.publishDate
+                                    ? db
+                                          .toDateTime(content.publishDate!)
+                                          .toLocaleString(DateTime.DATETIME_MED)
+                                    : ""
+                            }}
+                        </div>
+                    </div>
+                    <!-- Play Icon (Only if content has a video) -->
+                    <div
+                        v-if="content.video"
+                        class="absolute inset-0 flex items-center justify-center rounded-lg"
+                    >
+                        <PlayIcon class="relative h-8 w-8 text-white lg:h-12 lg:w-12" />
+                    </div>
+                    <div
+                        v-if="content.video"
+                        class="absolute inset-0 flex items-center justify-center rounded-lg"
+                    >
+                        <PlayIconOutline
+                            class="relative z-20 h-8 w-8 stroke-1 text-zinc-600 dark:text-slate-600 lg:h-12 lg:w-12"
+                        />
+                    </div>
+                </LImage>
             </div>
         </div>
     </div>
