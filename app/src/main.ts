@@ -75,3 +75,7 @@ async function Startup() {
 }
 
 Startup();
+
+if (import.meta.env.DEV == true) {
+    import("./util/cssCompatibilityTester");
+}
