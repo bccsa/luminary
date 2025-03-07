@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
 import { connectionSpeed } from "../../globalConfig";
+import LImageProvider from "./LImageProvider.vue";
 
 type Props = {
     image?: ImageDto;
@@ -16,22 +17,12 @@ const props = withDefaults(defineProps<Props>(), {
     rounded: true,
 });
 
-const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
-
 const aspectRatiosCSS = {
     video: "aspect-video",
     square: "aspect-square",
     vertical: "aspect-[9/16]",
     wide: "aspect-[18/9]",
     classic: "aspect-[4/3]",
-};
-
-const aspectRatioNumbers = {
-    video: 1.78,
-    square: 1,
-    vertical: 0.56,
-    wide: 2,
-    classic: 1.33,
 };
 
 const sizes = {
@@ -46,69 +37,23 @@ const rounding = {
     post: "md:rounded-lg",
 };
 
-let closestAspectRatio = 0;
+const parentRef = ref<HTMLElement | undefined>(undefined);
+const parentWidth = ref<number | undefined>(undefined);
 
-// Source set for the primary image element with the closest aspect ratio
-const srcset1 = computed(() => {
-    if (props.image?.uploadData && props.image.uploadData.length > 0) {
-        return URL.createObjectURL(
-            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
-                type: "image/*",
-            }),
-        );
-    }
-
-    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
-
-    const aspectRatios = props.image.fileCollections
-        .map((collection) => collection.aspectRatio)
-        .reduce((acc, cur) => {
-            if (!acc.includes(cur)) acc.push(cur);
-            return acc;
-        }, [] as number[])
-        .sort((a, b) => a - b);
-
-    const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
-    closestAspectRatio = aspectRatios.reduce((acc, cur) => {
-        return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
-    }, aspectRatios[0]);
-
-    return props.image.fileCollections
-        .filter((collection) => collection.aspectRatio == closestAspectRatio)
-        .map((collection) => {
-            return collection.imageFiles
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}x`)
-                .join(", ");
-        });
+onMounted(() => {
+    parentWidth.value = parentRef.value?.clientWidth || 0;
+    // Watch for changes in the width if needed
+    watch(
+        () => parentRef.value?.clientWidth,
+        (newWidth) => {
+            parentWidth.value = newWidth || 0;
+        },
+    );
 });
-
-// Source set for the secondary image element (used if the primary image element fails to load)
-const srcset2 = computed(() => {
-    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
-
-    return props.image.fileCollections
-        .filter((collection) => collection.aspectRatio != closestAspectRatio)
-        .map((collection) => {
-            return collection.imageFiles
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}x`)
-                .join(", ");
-        })
-        .join(", ");
-});
-
-const imageElement1Error = ref(false);
-const imageElement2Error = ref(false);
-
-const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.value != "");
-const showImageElement2 = computed(
-    () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
-);
 </script>
 
 <template>
-    <div :class="sizes[size]">
+    <div ref="parentRef" :class="sizes[size]">
         <div
             :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
@@ -117,32 +62,12 @@ const showImageElement2 = computed(
                 'w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
-            <img
-                v-if="showImageElement1 && srcset1"
-                :srcset="srcset1"
-                :class="[
-                    aspectRatiosCSS[aspectRatio],
-                    sizes[size],
-                    'bg-cover bg-center object-cover object-center',
-                ]"
-                alt=""
-                data-test="image-element1"
-                loading="lazy"
-                @error="imageElement1Error = true"
-            />
-            <img
-                v-if="showImageElement2 && srcset2"
-                src=""
-                :srcset="srcset2"
-                :class="[
-                    aspectRatiosCSS[aspectRatio],
-                    sizes[size],
-                    'bg-cover bg-center object-cover object-center',
-                ]"
-                alt=""
-                data-test="image-element2"
-                loading="lazy"
-                @error="imageElement2Error = true"
+            <LImageProvider
+                :parent-width="parentWidth"
+                :image="props.image"
+                :aspect-ratio="props.aspectRatio"
+                :rounded="props.rounded"
+                :size="props.size"
             />
         </div>
 
