@@ -5,7 +5,6 @@ import { useAuth0 } from "@auth0/auth0-vue";
 import { appLanguageIdsAsRef, loginModalVisible } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
-import HomePageUnpinned from "@/components/HomePage/HomePageUnpinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import { isPublished } from "@/util/isPublished";
 
@@ -59,9 +58,6 @@ setTimeout(() => {
         </Suspense>
         <Suspense>
             <HomePagePinned />
-        </Suspense>
-        <Suspense>
-            <HomePageUnpinned />
         </Suspense>
     </IgnorePagePadding>
 </template>

@@ -1,7 +1,8 @@
-import { BookOpenIcon, HomeIcon } from "@heroicons/vue/24/outline";
+import { BookOpenIcon, HomeIcon, PlayIcon } from "@heroicons/vue/24/outline";
 import {
     BookOpenIcon as FilledBookOpenIcon,
     HomeIcon as FilledHomeIcon,
+    PlayIcon as FilledPlayIcon,
 } from "@heroicons/vue/24/solid";
 import { useI18n } from "vue-i18n";
 
@@ -20,6 +21,12 @@ export function getNavigationItems() {
             defaultIcon: BookOpenIcon,
             selectedIcon: FilledBookOpenIcon,
             to: { name: "explore" },
+        },
+        {
+            name: t("menu.watch"),
+            defaultIcon: PlayIcon,
+            selectedIcon: FilledPlayIcon,
+            to: { name: "watch" },
         },
     ];
 

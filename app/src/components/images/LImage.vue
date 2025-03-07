@@ -151,7 +151,11 @@ const showImageElement2 = computed(
                 loading="lazy"
                 @error="imageElement2Error = true"
             />
+            <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
+                <slot name="imageOverlay"></slot>
+            </div>
         </div>
+
         <slot></slot>
     </div>
 </template>
