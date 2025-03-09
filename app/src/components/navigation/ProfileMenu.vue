@@ -129,7 +129,7 @@ const userNavigation = computed(() => {
             <MenuButton name="profile-menu-btn" class="-m-1.5 flex items-center p-1.5">
                 <span class="sr-only">Open user menu</span>
                 <img
-                    class="h-8 w-8 rounded-full bg-slate-50"
+                    class="h-8 min-w-8 rounded-full bg-slate-50"
                     :src="user?.picture"
                     v-if="isAuthenticated && user?.picture"
                     alt=""

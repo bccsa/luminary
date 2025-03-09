@@ -30,7 +30,7 @@ const updateScreenSize = () => {
         return;
     }
 
-    isSmallScreen.value = window.innerWidth < 250;
+    isSmallScreen.value = window.innerWidth < 360;
 };
 
 onMounted(() => {
@@ -64,10 +64,10 @@ onMounted(() => {
 
                     <div
                         :style="logoCss"
-                        class="bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
+                        class="bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)] truncate"
                     >
                         <!-- Show the image with 0 opacity to set the outer div's size. We assume that the dark mode logo will have the same size as the light mode logo. -->
-                        <img class="h-8 opacity-0" :src="logo" />
+                        <img class="h-8 opacity-0 w-full" :src="logo" />
                     </div>
                 </div>
 
