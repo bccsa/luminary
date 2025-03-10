@@ -3,6 +3,7 @@ import { type LanguageDto, DocType, db } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
 import LCard from "../common/LCard.vue";
 import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "./query";
+import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     queryOptions: ContentOverviewQueryOptions;
@@ -86,6 +87,15 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                         />
                     </tbody>
                 </table>
+                <div
+                    class="flex h-32 w-full items-center justify-center gap-2"
+                    v-if="contentDocs.length < 1"
+                >
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-600" />
+                    <p class="text-sm font-extralight text-zinc-600">
+                        No content found with the matched filter.
+                    </p>
+                </div>
             </div>
         </div>
     </LCard>
