@@ -57,7 +57,7 @@ describe("LanguageModal.vue", () => {
     });
 
 
-    it.only("should switch languages correctly", async () => {
+    it("should switch languages correctly", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true }
         });
