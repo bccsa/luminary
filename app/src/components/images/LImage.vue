@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
-import LModal from "../form/LModal.vue";
+import ImageModal from "./ImageModal.vue";
 
 type Props = {
     image?: ImageDto;
@@ -126,33 +126,6 @@ watch(showPopup, (newVal) => {
         document.body.style.touchAction = "";
     }
 });
-
-// pinch to zoom
-const scale = ref(1);
-const initialDistance = ref(0);
-const zoomContainer = ref<HTMLElement | null>(null);
-
-const onTouchStart = (event: TouchEvent) => {
-    if (event.touches.length === 2) {
-        const [touch1, touch2] = event.touches;
-        initialDistance.value = getDistance(touch1, touch2);
-    }
-};
-
-const onTouchMove = (event: TouchEvent) => {
-    if (event.touches.length === 2) {
-        const [touch1, touch2] = event.touches;
-        const newDistance = getDistance(touch1, touch2);
-        scale.value = Math.max(1, Math.min(3, scale.value * (newDistance / initialDistance.value)));
-        initialDistance.value = newDistance;
-    }
-};
-
-const getDistance = (touch1: Touch, touch2: Touch) => {
-    const dx = touch1.clientX - touch2.clientX;
-    const dy = touch1.clientY - touch2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-};
 </script>
 
 <template>
@@ -180,6 +153,7 @@ const getDistance = (touch1: Touch, touch2: Touch) => {
                 data-test="image-element1"
                 loading="lazy"
                 @error="imageElement1Error = true"
+                draggable="false"
             />
             <img
                 v-if="showImageElement2"
@@ -194,43 +168,21 @@ const getDistance = (touch1: Touch, touch2: Touch) => {
                 data-test="image-element2"
                 loading="lazy"
                 @error="imageElement2Error = true"
+                draggable="false"
             />
             <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
                 <slot name="imageOverlay"></slot>
             </div>
         </div>
+        <ImageModal
+            v-if="image && zoomable && showPopup"
+            :image="image"
+            :aspectRatio="aspectRatio"
+            :size="size"
+            rounded
+            @close="showPopup = false"
+        />
 
         <slot></slot>
     </div>
-
-    <LModal
-        v-if="zoomable"
-        heading=""
-        :isVisible="showPopup"
-        @close="showPopup = false"
-        :withBackground="false"
-        size="xlarge"
-        :scrollable="false"
-    >
-        <div @wheel.prevent ref="zoomContainer" @touchstart="onTouchStart" @touchmove="onTouchMove">
-            <img
-                src=""
-                :srcset="showImageElement1 ? srcset1 || fallbackImg : srcset2 || fallbackImg"
-                :class="[
-                    aspectRatios[aspectRatio],
-                    sizes[size],
-                    'rounded-md bg-cover bg-center object-cover object-center',
-                    zoomable ? 'cursor-zoom-out' : '',
-                ]"
-                alt=""
-                :data-test="showImageElement1 ? 'image-element1' : 'image-element2'"
-                loading="lazy"
-                @error="
-                    showImageElement1 ? (imageElement1Error = true) : (imageElement2Error = true)
-                "
-                @click="showPopup = false"
-                :style="{ transform: `scale(${scale})` }"
-            />
-        </div>
-    </LModal>
 </template>
