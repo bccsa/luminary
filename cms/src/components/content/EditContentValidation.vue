@@ -5,7 +5,6 @@ import {
     type LanguageDto,
     DocType,
     type TagDto,
-    isConnected,
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";

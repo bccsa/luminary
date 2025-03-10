@@ -20,6 +20,7 @@ import {
     verifyAccess,
     type ContentParentDto,
     PostType,
+    isConnected,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -41,6 +42,8 @@ import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
+import { clientAppUrl } from "@/globalConfig";
 
 type Props = {
     id: Uuid;
@@ -381,6 +384,17 @@ watch(selectedLanguage, () => {
         );
     }
 });
+
+const liveUrl = computed(() => {
+    if (!selectedContent.value) return "";
+    const url = new URL(
+        selectedContent.value.slug,
+        clientAppUrl.value ? clientAppUrl.value : "http://localhost",
+    );
+    return url.toString();
+});
+
+const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 </script>
 
 <template>
@@ -404,8 +418,26 @@ watch(selectedLanguage, () => {
             parentId: editableParent._id,
             languageCode: languageCode,
         }"
-        v-if="editableParent"
+        class="relative"
+        v-if="parent"
     >
+        <LButton
+            v-if="
+                isConnected &&
+                selectedContent &&
+                selectedContent.status == PublishStatus.Published &&
+                selectedContent.title
+            "
+            :icon="ArrowTopRightOnSquareIcon"
+            iconRight
+            class="absolute left-36 top-8 z-20 font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
+            variant="tertiary"
+            is="a"
+            @click="ensureRedirect"
+            :href="liveUrl"
+            target="_blank"
+            title="View live version"
+        ></LButton>
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
