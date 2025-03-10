@@ -312,6 +312,9 @@ export class DbService extends EventEmitter {
      */
     getDocs(docIds: Uuid[], types: DocType[]): Promise<DbQueryResult> {
         return new Promise((resolve, reject) => {
+            if (!docIds || docIds.length < 1 || !types || types.length < 1) {
+                resolve({ docs: [], warnings: ["No document IDs or document types specified"] });
+            }
             this.db
                 .fetch({ keys: docIds })
                 .then((res: nano.DocumentFetchResponse<unknown>) => {

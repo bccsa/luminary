@@ -13,282 +13,299 @@ describe("DbService", () => {
         service = (await createTestingModule("db-service")).dbService;
     });
 
-    // =================== general ===================
+    describe("general", () => {
+        it("can be instantiated", () => {
+            expect(service).toBeDefined();
+        });
 
-    it("can be instantiated", () => {
-        expect(service).toBeDefined();
+        it("can read a single existing document", async () => {
+            const res: any = await service.getDoc("user-public");
+
+            expect(res.docs[0]._id).toBe("user-public");
+        });
+
+        it("can handle exceptions on reading non-exising documents", async () => {
+            const res: any = await service.getDoc("non-existing-document");
+
+            expect(res.docs.length).toBe(0);
+        });
+
+        it("gracefully handles document get requests with no document ID's or document types specified", async () => {
+            const res1 = await service.getDocs([], []);
+            const res2 = await service.getDocs([], [DocType.Post]);
+            const res3 = await service.getDocs(["lang-eng"], []);
+
+            expect(res1.docs.length).toBe(0);
+            expect(res2.docs.length).toBe(0);
+            expect(res3.docs.length).toBe(0);
+
+            expect(res1.warnings).toContain("No document IDs or document types specified");
+            expect(res2.warnings).toContain("No document IDs or document types specified");
+            expect(res3.warnings).toContain("No document IDs or document types specified");
+        });
+
+        it("can get a list of documents filtered by document ID and document type", async () => {
+            // Test if we can return two documents with the passed IDs and valid document types
+            const res: any = await service.getDocs(
+                ["lang-eng", "user-public"],
+                [DocType.Language, DocType.User],
+            );
+
+            expect(res.docs.length).toBe(2);
+            expect(res.docs.some((d) => d._id === "lang-eng")).toBe(true);
+            expect(res.docs.some((d) => d._id === "user-public")).toBe(true);
+
+            // Test if we can return one document with a correct document type, while the other document is discarded due to an incorrect document type
+            const res2: any = await service.getDocs(
+                ["lang-eng", "user-public"],
+                [DocType.Language, DocType.Group],
+            );
+
+            expect(res2.docs.length).toBe(1);
+            expect(res2.docs.some((d) => d._id === "lang-eng")).toBe(true);
+            expect(res2.docs.some((d) => d._id === "user-public")).toBe(false);
+        });
+
+        it("can get content documents by their parent ID", async () => {
+            const res: any = await service.getContentByParentId("post-blog1");
+
+            expect(res.docs.length).toBe(2);
+            expect(res.docs.some((d) => d._id == "content-blog1-eng")).toBe(true);
+            expect(res.docs.some((d) => d._id == "content-blog1-fra")).toBe(true);
+        });
+
+        it("does not return indexing warnings on getGroups queries", async () => {
+            const res: DbQueryResult = await service.getGroups();
+            expect(res.warnings).toBe(undefined);
+        });
+
+        it("can retrieve all documents of a specific type", async () => {
+            const res = await service.getDocsByType(DocType.Post, 1);
+            expect(res.docs.length).toBe(1);
+            expect(res.docs.every((d) => d.type === DocType.Post)).toBe(true);
+        });
+
+        it("can retrieve all content documents of a specific language", async () => {
+            const res = await service.getContentByLanguage("lang-eng", 1);
+            expect(res.docs.length).toBe(1);
+            expect(res.docs.every((d) => d.type === DocType.Content)).toBe(true);
+            expect(res.docs.every((d) => d.language === "lang-eng")).toBe(true);
+        });
     });
 
-    it("can read a single existing document", async () => {
-        const res: any = await service.getDoc("user-public");
+    describe("upsert", () => {
+        it("can insert a new document and return the full document in the result's 'changes' field", async () => {
+            const uuid = randomUUID();
+            const doc = {
+                _id: uuid,
+                testData: "test123",
+            };
 
-        expect(res.docs[0]._id).toBe("user-public");
-    });
+            const res = await service.upsertDoc(doc);
 
-    it("can handle exceptions on reading non-exising documents", async () => {
-        const res: any = await service.getDoc("non-existing-document");
+            const testGet = (await service.getDoc(uuid)) as any;
 
-        expect(res.docs.length).toBe(0);
-    });
+            expect(testGet.docs[0]._id).toBe(uuid);
+            expect(testGet.docs[0].testData).toBe("test123");
+            expect(res.changes.testData).toBe("test123");
+            expect(res.changes._id).toBe(uuid);
+        });
 
-    // =================== general ===================
+        it("can calculate a document diff and return the diff with the upsert result", async () => {
+            const doc1 = {
+                _id: "diffTest",
+                testData: "test123",
+                unchangedData: "test123",
+            };
+            const doc2 = {
+                _id: "diffTest",
+                testData: "changedData123",
+                unchangedData: "test123",
+            };
 
-    // =================== upsertDoc ===================
+            await service.upsertDoc(doc1);
+            const res = await service.upsertDoc(doc2);
 
-    it("can insert a new document and return the full document in the result's 'changes' field", async () => {
-        const uuid = randomUUID();
-        const doc = {
-            _id: uuid,
-            testData: "test123",
-        };
+            expect(res.changes.testData).toBe("changedData123");
+            expect(res.changes._id).toBe("diffTest");
+            expect(res.changes.unchangedData).toBe(undefined);
+        });
 
-        const res = await service.upsertDoc(doc);
+        it("cannot insert a new document without an id", async () => {
+            const doc = {
+                testData: "test123",
+            };
 
-        const testGet = (await service.getDoc(uuid)) as any;
+            const res = await service.upsertDoc(doc).catch((e) => e);
 
-        expect(testGet.docs[0]._id).toBe(uuid);
-        expect(testGet.docs[0].testData).toBe("test123");
-        expect(res.changes.testData).toBe("test123");
-        expect(res.changes._id).toBe(uuid);
-    });
+            expect(res.message).toBe(
+                "Invalid document: The passed document does not have an '_id' property",
+            );
+        });
 
-    it("can calculate a document diff and return the diff with the upsert result", async () => {
-        const doc1 = {
-            _id: "diffTest",
-            testData: "test123",
-            unchangedData: "test123",
-        };
-        const doc2 = {
-            _id: "diffTest",
-            testData: "changedData123",
-            unchangedData: "test123",
-        };
+        it("can update an existing document", async () => {
+            const uuid = randomUUID();
 
-        await service.upsertDoc(doc1);
-        const res = await service.upsertDoc(doc2);
+            // Insert a document
+            const originalDoc = {
+                _id: uuid,
+                testData: "test123",
+            };
+            await service.upsertDoc(originalDoc);
 
-        expect(res.changes.testData).toBe("changedData123");
-        expect(res.changes._id).toBe("diffTest");
-        expect(res.changes.unchangedData).toBe(undefined);
-    });
+            // Update the document
+            const changedDoc = {
+                _id: uuid,
+                testData: "changedData123",
+            };
+            await service.upsertDoc(changedDoc);
 
-    it("cannot insert a new document without an id", async () => {
-        const doc = {
-            testData: "test123",
-        };
+            const testGet = (await service.getDoc(uuid)) as any;
 
-        const res = await service.upsertDoc(doc).catch((e) => e);
+            expect(testGet.docs[0]._id).toBe(uuid);
+            expect(testGet.docs[0].testData).toBe("changedData123");
+        });
 
-        expect(res.message).toBe(
-            "Invalid document: The passed document does not have an '_id' property",
-        );
-    });
+        it("will only update a document if the document has changed, ignoring _rev and undefined fields", async () => {
+            const uuid = randomUUID();
 
-    it("can update an existing document", async () => {
-        const uuid = randomUUID();
+            // Insert a document
+            const originalDoc = {
+                _id: uuid,
+                testData: "test123",
+            };
+            await service.upsertDoc(originalDoc);
 
-        // Insert a document
-        const originalDoc = {
-            _id: uuid,
-            testData: "test123",
-        };
-        await service.upsertDoc(originalDoc);
+            // Add a _rev property and some empty fields to the document
+            const changedDoc = {
+                _id: uuid,
+                testData: "test123",
+                _rev: "123",
+                test: undefined,
+                test2: null,
+            };
 
-        // Update the document
-        const changedDoc = {
-            _id: uuid,
-            testData: "changedData123",
-        };
-        await service.upsertDoc(changedDoc);
+            // Update the document with the same data
+            const res = await service.upsertDoc(changedDoc);
 
-        const testGet = (await service.getDoc(uuid)) as any;
+            expect(res.message).toBe("Document is identical to the one in the database");
+        });
 
-        expect(testGet.docs[0]._id).toBe(uuid);
-        expect(testGet.docs[0].testData).toBe("changedData123");
-    });
+        it("can get the latest document updated time", async () => {
+            // Add / update a document and check if the latest document update time is close to now.
+            const doc = {
+                _id: "docUpdateTimeTest",
+                testData: "newData123",
+            };
+            await service.upsertDoc(doc);
+            const newDoc = (await service.getDoc(doc._id)).docs[0];
 
-    it("will only update a document if the document has changed, ignoring _rev and undefined fields", async () => {
-        const uuid = randomUUID();
+            const res: number = await service.getLatestDocUpdatedTime();
 
-        // Insert a document
-        const originalDoc = {
-            _id: uuid,
-            testData: "test123",
-        };
-        await service.upsertDoc(originalDoc);
+            expect(res).toBe(newDoc.updatedTimeUtc);
+        });
 
-        // Add a _rev property and some empty fields to the document
-        const changedDoc = {
-            _id: uuid,
-            testData: "test123",
-            _rev: "123",
-            test: undefined,
-            test2: null,
-        };
+        it("can detect that a document is exactly the same as the document in the database", async () => {
+            const doc = {
+                _id: "docIdenticalTest",
+                testData: "test123",
+            };
+            await service.upsertDoc(doc);
+            const res: any = await service.upsertDoc(doc);
+            expect(res.message).toBe("Document is identical to the one in the database");
+        });
 
-        // Update the document with the same data
-        const res = await service.upsertDoc(changedDoc);
+        it("can handle simultaneous updates to a single existing document", async () => {
+            // Insert a document into the database to ensure there is an existing document
+            await service.upsertDoc({ _id: "simultaneousTest", testVal: 0 });
 
-        expect(res.message).toBe("Document is identical to the one in the database");
-    });
+            // Generate changes to the document and submit them in parallel
+            const pList = new Array<Promise<any>>();
 
-    it("can get the latest document updated time", async () => {
-        // Add / update a document and check if the latest document update time is close to now.
-        const doc = {
-            _id: "docUpdateTimeTest",
-            testData: "newData123",
-        };
-        await service.upsertDoc(doc);
-        const newDoc = (await service.getDoc(doc._id)).docs[0];
-
-        const res: number = await service.getLatestDocUpdatedTime();
-
-        expect(res).toBe(newDoc.updatedTimeUtc);
-    });
-
-    it("can detect that a document is exactly the same as the document in the database", async () => {
-        const doc = {
-            _id: "docIdenticalTest",
-            testData: "test123",
-        };
-        await service.upsertDoc(doc);
-        const res: any = await service.upsertDoc(doc);
-        expect(res.message).toBe("Document is identical to the one in the database");
-    });
-
-    it("can handle simultaneous updates to a single existing document", async () => {
-        // Insert a document into the database to ensure there is an existing document
-        await service.upsertDoc({ _id: "simultaneousTest", testVal: 0 });
-
-        // Generate changes to the document and submit them in parallel
-        const pList = new Array<Promise<any>>();
-
-        for (let index = 1; index <= 50; index++) {
-            pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
-        }
-
-        let res: boolean = false;
-        await Promise.all(pList);
-
-        // if we got past this point without an exception, the test was successful
-        res = true;
-        expect(res).toBe(true);
-    }, 10000);
-
-    // =================== upsertDoc ===================
-
-    // =================== getGroups ===================
-
-    it("can get all groups", async () => {
-        const res: any = await service.getGroups();
-
-        const docCount = res.docs.length;
-        expect(docCount).toBe(8);
-    });
-
-    // =================== getGroups ===================
-
-    it("can get a list of documents filtered by document ID and document type", async () => {
-        // Test if we can return two documents with the passed IDs and valid document types
-        const res: any = await service.getDocs(
-            ["lang-eng", "user-public"],
-            [DocType.Language, DocType.User],
-        );
-
-        expect(res.docs.length).toBe(2);
-        expect(res.docs.some((d) => d._id === "lang-eng")).toBe(true);
-        expect(res.docs.some((d) => d._id === "user-public")).toBe(true);
-
-        // Test if we can return one document with a correct document type, while the other document is discarded due to an incorrect document type
-        const res2: any = await service.getDocs(
-            ["lang-eng", "user-public"],
-            [DocType.Language, DocType.Group],
-        );
-
-        expect(res2.docs.length).toBe(1);
-        expect(res2.docs.some((d) => d._id === "lang-eng")).toBe(true);
-        expect(res2.docs.some((d) => d._id === "user-public")).toBe(false);
-    });
-
-    it("can get content documents by their parent ID", async () => {
-        const res: any = await service.getContentByParentId("post-blog1");
-
-        expect(res.docs.length).toBe(2);
-        expect(res.docs.some((d) => d._id == "content-blog1-eng")).toBe(true);
-        expect(res.docs.some((d) => d._id == "content-blog1-fra")).toBe(true);
-    });
-
-    it("does not return indexing warnings on getGroups queries", async () => {
-        const res: DbQueryResult = await service.getGroups();
-        expect(res.warnings).toBe(undefined);
-    });
-
-    it("emits two 'update' events when a document is added or updated", async () => {
-        const doc = {
-            _id: "post-post1",
-            type: "post",
-            memberOf: ["group-public-content"],
-            image: "test-data",
-            tags: ["tag-category1", "tag-topicA"],
-        };
-
-        // check if an update is emitted with the updated document
-        const postUpdateHandler = (update: any) => {
-            if (update.type === DocType.Post) {
-                expect(update._id).toBe("post-post1");
-                expect(update.image).toBe("test-data");
-                service.off("update", postUpdateHandler);
+            for (let index = 1; index <= 50; index++) {
+                pList.push(service.upsertDoc({ _id: "simultaneousTest", testVal: index }));
             }
-        };
 
-        // check if an update is emitted with the change document
-        const changeUpdateHandler = (update: any) => {
-            if (update.type === DocType.Change) {
-                expect(update.docId).toBe("post-post1");
-                expect(update.change.image).toBe("test-data");
-                service.off("update", changeUpdateHandler);
-            }
-        };
+            let res: boolean = false;
+            await Promise.all(pList);
 
-        service.on("update", postUpdateHandler);
-        service.on("update", changeUpdateHandler);
+            // if we got past this point without an exception, the test was successful
+            res = true;
+            expect(res).toBe(true);
+        }, 10000);
 
-        await service.upsertDoc(doc);
+        it("emits two 'update' events when a document is added or updated", async () => {
+            const doc = {
+                _id: "post-post1",
+                type: "post",
+                memberOf: ["group-public-content"],
+                image: "test-data",
+                tags: ["tag-category1", "tag-topicA"],
+            };
+
+            // check if an update is emitted with the updated document
+            const postUpdateHandler = (update: any) => {
+                if (update.type === DocType.Post) {
+                    expect(update._id).toBe("post-post1");
+                    expect(update.image).toBe("test-data");
+                    service.off("update", postUpdateHandler);
+                }
+            };
+
+            // check if an update is emitted with the change document
+            const changeUpdateHandler = (update: any) => {
+                if (update.type === DocType.Change) {
+                    expect(update.docId).toBe("post-post1");
+                    expect(update.change.image).toBe("test-data");
+                    service.off("update", changeUpdateHandler);
+                }
+            };
+
+            service.on("update", postUpdateHandler);
+            service.on("update", changeUpdateHandler);
+
+            await service.upsertDoc(doc);
+        });
     });
 
-    // =================== getUserGroups ===================
+    describe("group documents", () => {
+        it("can get all groups", async () => {
+            const res: any = await service.getGroups();
 
-    it("can retrieve a list of groups from the db (getUserGroups)", async () => {
-        const userAccess = new Map<DocType, Uuid[]>();
-        userAccess[DocType.Group] = [
-            "group-super-admins",
-            "group-public-content",
-            "group-private-content",
-            "group-public-tags",
-            "group-private-tags",
-            "group-public-users",
-            "group-private-users",
-        ];
+            const docCount = res.docs.length;
+            expect(docCount).toBe(8);
+        });
 
-        const res: any = await service.getUserGroups(userAccess);
+        it("can retrieve a list of groups from the db (getUserGroups)", async () => {
+            const userAccess = new Map<DocType, Uuid[]>();
+            userAccess[DocType.Group] = [
+                "group-super-admins",
+                "group-public-content",
+                "group-private-content",
+                "group-public-tags",
+                "group-private-tags",
+                "group-public-users",
+                "group-private-users",
+            ];
 
-        expect(res.docs).toBeDefined();
-        expect(res.docs.length).toBeGreaterThan(0);
+            const res: any = await service.getUserGroups(userAccess);
+
+            expect(res.docs).toBeDefined();
+            expect(res.docs.length).toBeGreaterThan(0);
+        });
+
+        it("returns no groups if user does not have the right access (getUserGroups)", async () => {
+            const userAccess = new Map<DocType, Uuid[]>();
+            userAccess[DocType.Post] = ["group-super-admins"];
+
+            const res: any = await service.getUserGroups(userAccess);
+
+            expect(res.docs).toBeDefined();
+            expect(res.docs.length).toBe(0);
+        });
     });
 
-    it("returns no groups if user does not have the right access (getUserGroups)", async () => {
-        const userAccess = new Map<DocType, Uuid[]>();
-        userAccess[DocType.Post] = ["group-super-admins"];
-
-        const res: any = await service.getUserGroups(userAccess);
-
-        expect(res.docs).toBeDefined();
-        expect(res.docs.length).toBe(0);
-    });
-
-    // =================== getUserGroups ===================
-
-    describe("queryDocs", () => {
+    describe("search", () => {
         it("can retrieve documents queryDocs, with a limit of 10 (queryDocs)", async () => {
             const userAccess = new Map<DocType, Uuid[]>();
             userAccess[DocType.Post] = ["group-public-content"];
@@ -485,7 +502,7 @@ describe("DbService", () => {
         });
     });
 
-    describe("Document delete functions", () => {
+    describe("delete", () => {
         it("can delete a document", async () => {
             const doc = {
                 _id: "delete-test",
@@ -880,23 +897,6 @@ describe("DbService", () => {
                     expect(updateEventDoc.docType).toBe(DocType.Post);
                 });
             });
-        });
-    });
-
-    describe("getDocsByType", () => {
-        it("can retrieve all documents of a specific type", async () => {
-            const res = await service.getDocsByType(DocType.Post, 1);
-            expect(res.docs.length).toBe(1);
-            expect(res.docs.every((d) => d.type === DocType.Post)).toBe(true);
-        });
-    });
-
-    describe("getContentByLanguage", () => {
-        it("can retrieve all content documents of a specific language", async () => {
-            const res = await service.getContentByLanguage("lang-eng", 1);
-            expect(res.docs.length).toBe(1);
-            expect(res.docs.every((d) => d.type === DocType.Content)).toBe(true);
-            expect(res.docs.every((d) => d.language === "lang-eng")).toBe(true);
         });
     });
 });
