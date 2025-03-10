@@ -7,7 +7,7 @@ import { ArrowDownIcon, ArrowUpIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { PlusCircleIcon } from "@heroicons/vue/24/outline";
 
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -18,6 +18,18 @@ defineProps<Props>();
 const { t } = useI18n();
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+
+watch(
+    languages,
+    () =>
+        appLanguageIdsAsRef.value.filter((id) => {
+            if (!languages.value.find((lang) => id == lang._id)) {
+                return true;
+            }
+            return false;
+        }),
+    { immediate: true },
+);
 
 const emit = defineEmits(["close"]);
 
