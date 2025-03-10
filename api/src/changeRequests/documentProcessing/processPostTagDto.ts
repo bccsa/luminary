@@ -21,7 +21,8 @@ export default async function processPostTagDto(
     if (doc.deleteReq) {
         const contentDocs = await db.getContentByParentId(doc._id);
         for (const contentDoc of contentDocs.docs) {
-            await db.deleteDoc(contentDoc._id);
+            contentDoc.deleteReq = true;
+            await db.upsertDoc(contentDoc);
         }
 
         return; // no need to process further

@@ -6,6 +6,7 @@ import { PermissionSystem } from "../../permissions/permissions.service";
 import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
+import { DocType } from "../../enums";
 
 describe("processPostTagDto", () => {
     let db: DbService;
@@ -148,5 +149,10 @@ describe("processPostTagDto", () => {
         // Check that the documents are deleted
         expect(dbPost.docs.length).toBe(0);
         expect(dbContent.docs.length).toBe(0);
+
+        // Check that delete commands are generated for the deleted parent Post child Content documents
+        const deleteCommands = await db.getDocsByType(DocType.DeleteCmd);
+        expect(deleteCommands.docs.find((d) => d.docId == "post-blog3")).toBeDefined();
+        expect(deleteCommands.docs.find((d) => d.docId == "content-en")).toBeDefined();
     });
 });
