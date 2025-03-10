@@ -3,7 +3,7 @@ import { validateSlug } from "../validateSlug";
 import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
-import { DocType, Uuid } from "../../enums";
+import { DocType, PublishStatus, Uuid } from "../../enums";
 
 /**
  * Process Content DTO
@@ -37,7 +37,10 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
     // Find all available translations, and add them to the content document's availableTranslations property
     const translationsQuery = await db.getContentByParentId(parentDoc._id);
     const translations = translationsQuery.docs.filter((d) => d._id !== doc._id);
-    const uniqueLanguages = new Set<Uuid>(translations.map((d) => d.language)).add(doc.language);
+    const uniqueLanguages = new Set<Uuid>(translations.map((d) => d.language));
+
+    // If this content doc is published, add its language to the list of available translations
+    if (doc.status == PublishStatus.Published) uniqueLanguages.add(doc.language);
 
     // Remove the current document's language from the list of available translations if the document is being deleted
     if (doc.deleteReq) uniqueLanguages.delete(doc.language);

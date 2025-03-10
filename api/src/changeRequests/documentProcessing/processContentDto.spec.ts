@@ -7,6 +7,7 @@ import { changeRequest_content } from "../../test/changeRequestDocuments";
 import { S3Service } from "../../s3/s3.service";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { PostDto } from "../../dto/PostDto";
+import { PublishStatus } from "../../enums";
 
 describe("processContentDto", () => {
     let db: DbService;
@@ -133,6 +134,7 @@ describe("processContentDto", () => {
             ).length,
         ).toBe(docsCount);
     });
+
     it("updates 'availableTranslations' field when new translations are added to a parent", async () => {
         // Create the initial content document
         const changeRequest1 = changeRequest_content();
@@ -165,6 +167,59 @@ describe("processContentDto", () => {
         );
         expect(dbDocFr.docs[0].availableTranslations).toEqual(
             expect.arrayContaining(["lang-eng", "lang-fra"]),
+        );
+    });
+
+    it("removes the current document's language from the list of available translations if the document is set to draft", async () => {
+        // Create the initial content document
+        const changeRequest1 = changeRequest_content();
+        changeRequest1.doc.parentId = "post-blog1";
+        changeRequest1.doc._id = "content-en";
+        changeRequest1.doc.language = "lang-eng";
+        changeRequest1.doc.status = PublishStatus.Published;
+        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db, s3);
+
+        // Add a new translation for the same parent
+        const changeRequest2 = changeRequest_content();
+        changeRequest2.doc.parentId = "post-blog1";
+        changeRequest2.doc._id = "content-fr";
+        changeRequest2.doc.language = "lang-fra";
+        changeRequest2.doc.status = PublishStatus.Published;
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest2,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        // Fetch the documents from the database
+        const dbDocEn1 = await db.getDoc("content-en");
+        const dbDocFr1 = await db.getDoc("content-fr");
+
+        // Check that the availableTranslations field is updated correctly (should show both languages)
+        expect(processResult.ok).toBe(true);
+        expect(dbDocEn1.docs[0].availableTranslations).toEqual(
+            expect.arrayContaining(["lang-eng", "lang-fra"]),
+        );
+        expect(dbDocFr1.docs[0].availableTranslations).toEqual(
+            expect.arrayContaining(["lang-eng", "lang-fra"]),
+        );
+
+        // Update the English content document to draft
+        changeRequest1.doc.status = PublishStatus.Draft;
+        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db, s3);
+
+        // Fetch the documents from the database
+        const dbDocEn2 = await db.getDoc("content-en");
+        const dbDocFr2 = await db.getDoc("content-fr");
+
+        // Check that the availableTranslations field is updated correctly (should only show the non-draft language)
+        expect(dbDocEn2.docs[0].availableTranslations).toEqual(
+            expect.arrayContaining(["lang-fra"]),
+        );
+        expect(dbDocFr2.docs[0].availableTranslations).toEqual(
+            expect.arrayContaining(["lang-fra"]),
         );
     });
 });
