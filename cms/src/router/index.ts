@@ -61,7 +61,7 @@ export const router = createRouter({
                 {
                     path: ":docType/overview/:tagOrPostType/:languageCode?",
                     name: "overview",
-                    component: () => import("../components/content/ContentOverview.vue"),
+                    component: () => import("../components/content/ContentOverview/ContentOverview.vue"),
                     props: true,
                 },
                 {
