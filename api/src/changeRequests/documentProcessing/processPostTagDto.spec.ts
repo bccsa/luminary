@@ -153,6 +153,10 @@ describe("processPostTagDto", () => {
         // Check that delete commands are generated for the deleted parent Post child Content documents
         const deleteCommands = await db.getDocsByType(DocType.DeleteCmd);
         expect(deleteCommands.docs.find((d) => d.docId == "post-blog3")).toBeDefined();
+        expect(deleteCommands.docs.find((d) => d.docId == "post-blog3").docType).toBe(DocType.Post);
         expect(deleteCommands.docs.find((d) => d.docId == "content-en")).toBeDefined();
+        expect(deleteCommands.docs.find((d) => d.docId == "content-en").docType).toBe(
+            DocType.Post, // This is needed as the permission system does not include Content documents, but bases permissions on the parent type (Post / Tag).
+        );
     });
 });
