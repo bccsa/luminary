@@ -156,8 +156,6 @@ watch(selectedSortOption, () => {
         | "updatedTimeUtc"
         | "publishDate"
         | "expiryDate";
-
-    console.info("selectedSortOption", selectedSortOption.value);
 });
 
 onClickOutside(sortOptionsAsRef, () => {
