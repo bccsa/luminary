@@ -37,9 +37,7 @@ const { image, rounded, size, aspectRatio, zoomable } = props;
             @click="closeModal"
         >
             <!-- Image Container with LImage -->
-            <div
-                class="flex h-full w-full items-center justify-center overflow-x-auto overflow-y-hidden"
-            >
+            <div class="flex h-[160vh] w-[165vh] items-center justify-center">
                 <LImage
                     :image="image"
                     :size="isMobile ? 'post' : size"
