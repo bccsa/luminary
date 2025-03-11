@@ -80,8 +80,6 @@ describe("EditUser.vue", () => {
     });
 
     it("should update and save the current user", async () => {
-        // await db.docs.bulkPut([mockUserDto, mockGroupDtoSuperAdmins]);
-
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
