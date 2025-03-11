@@ -646,5 +646,25 @@ describe("EditContent.vue", () => {
                 });
             });
         });
+    it("only displays languages the user has Translate access to in languageSelector", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                id: mockData.mockPostDto._id,
+                languageCode: "en",
+                //@ts-expect-error --> Makes the test pass but incorrect prop type, so error is expected, as this only tests the language selector, this prop doesn't matter here.
+                docType: DocType.Content,
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        const languageSelector = wrapper.findAllComponents(LanguageSelector)[0];
+        const btn = languageSelector.find("[data-test='language-selector']");
+        btn.trigger("click");
+
+        await waitForExpect(async () => {
+            const languages = languageSelector.find("[data-test='languagePopup']");
+            expect(await languages.html()).toContain("English");
+        });
     });
+});
 });
