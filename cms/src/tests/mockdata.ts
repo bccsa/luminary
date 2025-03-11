@@ -730,6 +730,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         tag: {
             view: true,
@@ -738,6 +739,7 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
         },
         language: {
             view: true,
@@ -745,6 +747,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         group: {
             view: true,
@@ -753,6 +756,13 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
         },
     },
     "group-public-content": {
@@ -762,6 +772,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         tag: {
             view: true,
@@ -770,6 +781,7 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
         },
         language: {
             view: true,
@@ -777,6 +789,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         group: {
             view: true,
@@ -785,6 +798,13 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
         },
     },
     "group-private-editors": {
@@ -794,6 +814,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         tag: {
             view: true,
@@ -802,6 +823,7 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
         },
         language: {
             view: true,
@@ -809,6 +831,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         group: {
             view: true,
@@ -817,6 +840,13 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
         },
     },
     "group-public-editors": {
@@ -826,6 +856,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         tag: {
             view: true,
@@ -834,6 +865,7 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
         },
         language: {
             view: true,
@@ -841,6 +873,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         group: {
             view: true,
@@ -849,6 +882,13 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
         },
     },
     "group-private-users": {
@@ -858,6 +898,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         tag: {
             view: true,
@@ -866,6 +907,7 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
         },
         language: {
             view: true,
@@ -873,6 +915,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         group: {
             view: true,
@@ -881,6 +924,13 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
         },
     },
     "group-public-users": {
@@ -890,6 +940,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         tag: {
             view: true,
@@ -898,6 +949,7 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
         },
         language: {
             view: true,
@@ -905,6 +957,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         group: {
             view: true,
@@ -913,6 +966,13 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
         },
     },
     "group-languages": {
@@ -922,6 +982,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         tag: {
             view: true,
@@ -930,6 +991,7 @@ export const superAdminAccessMap = {
             translate: true,
             publish: true,
             assign: true,
+            delete: true,
         },
         language: {
             view: true,
@@ -937,6 +999,7 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
         },
         group: {
             view: true,
@@ -944,6 +1007,13 @@ export const superAdminAccessMap = {
             edit: true,
             translate: true,
             publish: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
         },
     },
 };

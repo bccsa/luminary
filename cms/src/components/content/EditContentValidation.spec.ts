@@ -28,7 +28,7 @@ describe("EditContentValidation.vue", () => {
         const wrapper = mount(EditContentValidation, {
             props: {
                 languages: [mockData.mockLanguageDtoEng],
-                content: { ...mockData.mockEnglishContentDto, title: "" },
+                editableContent: { ...mockData.mockEnglishContentDto, title: "" },
             },
         });
 
@@ -39,7 +39,7 @@ describe("EditContentValidation.vue", () => {
         const wrapper = mount(EditContentValidation, {
             props: {
                 languages: [mockData.mockLanguageDtoEng],
-                content: { ...mockData.mockEnglishContentDto, slug: "" },
+                editableContent: { ...mockData.mockEnglishContentDto, slug: "" },
             },
         });
 
@@ -50,7 +50,7 @@ describe("EditContentValidation.vue", () => {
         const wrapper = mount(EditContentValidation, {
             props: {
                 languages: [mockData.mockLanguageDtoEng],
-                content: {
+                editableContent: {
                     ...mockData.mockEnglishContentDto,
                     publishDate: 1704114000000,
                     expiryDate: 1604114000000,
@@ -65,7 +65,7 @@ describe("EditContentValidation.vue", () => {
         const wrapper = mount(EditContentValidation, {
             props: {
                 languages: [mockData.mockLanguageDtoFra],
-                content: { ...mockData.mockFrenchContentDto, title: "" },
+                editableContent: { ...mockData.mockFrenchContentDto, title: "" },
             },
         });
 
@@ -77,7 +77,7 @@ describe("EditContentValidation.vue", () => {
             const wrapper = mount(EditContentValidation, {
                 props: {
                     languages: [mockData.mockLanguageDtoFra],
-                    content: mockData.mockFrenchContentDto,
+                    editableContent: mockData.mockFrenchContentDto,
                 },
             });
 
@@ -91,7 +91,10 @@ describe("EditContentValidation.vue", () => {
             const wrapper = mount(EditContentValidation, {
                 props: {
                     languages: [mockData.mockLanguageDtoSwa],
-                    content: { ...mockData.mockSwahiliContentDto, expiryDate: Date.now() - 1 },
+                    editableContent: {
+                        ...mockData.mockSwahiliContentDto,
+                        expiryDate: Date.now() - 1,
+                    },
                 },
             });
 
@@ -105,7 +108,7 @@ describe("EditContentValidation.vue", () => {
             const wrapper = mount(EditContentValidation, {
                 props: {
                     languages: [mockData.mockLanguageDtoEng],
-                    content: {
+                    editableContent: {
                         ...mockData.mockEnglishContentDto,
                         publishDate: Date.now() + 100000,
                     },
@@ -122,7 +125,10 @@ describe("EditContentValidation.vue", () => {
             const wrapper = mount(EditContentValidation, {
                 props: {
                     languages: [mockData.mockLanguageDtoEng],
-                    content: { ...mockData.mockEnglishContentDto, status: PublishStatus.Draft },
+                    editableContent: {
+                        ...mockData.mockEnglishContentDto,
+                        status: PublishStatus.Draft,
+                    },
                 },
             });
 
@@ -136,8 +142,11 @@ describe("EditContentValidation.vue", () => {
             const wrapper = mount(EditContentValidation, {
                 props: {
                     languages: [mockData.mockLanguageDtoEng],
-                    content: { ...mockData.mockEnglishContentDto, status: PublishStatus.Draft },
-                    contentPrev: {
+                    editableContent: {
+                        ...mockData.mockEnglishContentDto,
+                        status: PublishStatus.Draft,
+                    },
+                    existingContent: {
                         ...mockData.mockCategoryContentDto,
                         status: PublishStatus.Published,
                     },

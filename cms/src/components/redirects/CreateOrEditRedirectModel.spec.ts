@@ -98,7 +98,7 @@ describe("CreateOrEditRedirectModal.vue", () => {
         await wrapper.find("[name='RedirectToSlug']").setValue("");
 
         // Assert that the save button is disabled
-        const saveButton = wrapper.findAllComponents(LButton).at(3);
+        const saveButton = wrapper.findAllComponents(LButton).at(4);
         expect(saveButton!.props("disabled")).toBe(true);
     });
 
@@ -111,7 +111,7 @@ describe("CreateOrEditRedirectModal.vue", () => {
 
         // The default redirect modal has no groups set if no RedirectDto is passed to the modal
         // Assert that the save button is disabled
-        const saveButton = wrapper.findAllComponents(LButton).at(3);
+        const saveButton = wrapper.findAllComponents(LButton).at(4);
         expect(saveButton?.props("disabled")).toBe(true);
     });
 
@@ -126,5 +126,34 @@ describe("CreateOrEditRedirectModal.vue", () => {
 
         // Assert the close event was emitted
         expect(wrapper.emitted().close).toBeTruthy();
+    });
+
+    it("can delete a redirect", async () => {
+        const wrapper = mount(CreateOrEditRedirectModal, {
+            props: {
+                isVisible: true,
+                redirect: mockRedirectDto,
+            },
+        });
+
+        let deleteButton;
+        await waitForExpect(async () => {
+            deleteButton = wrapper.find('[data-test="delete"]');
+            expect(deleteButton.exists()).toBe(true);
+        });
+        await deleteButton!.trigger("click"); // Press Delete button
+
+        let modalButton;
+        await waitForExpect(async () => {
+            modalButton = wrapper.find('[data-test="modal-primary-button"]');
+            expect(modalButton.exists()).toBe(true);
+        });
+        await modalButton!.trigger("click"); // Accept dialog
+
+        await waitForExpect(async () => {
+            const res = await db.docs.where({ _id: mockRedirectDto._id }).first();
+            console.log(res);
+            expect(res).toBeUndefined();
+        });
     });
 });

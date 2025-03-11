@@ -22,8 +22,15 @@ import LSelect from "../forms/LSelect.vue";
 import { useNotificationStore } from "@/stores/notification";
 import * as _ from "lodash";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
-import { TrashIcon, PlusCircleIcon } from "@heroicons/vue/20/solid";
-import LModal from "../common/LModal.vue";
+import {
+    PlusCircleIcon,
+    FolderArrowDownIcon,
+    ArrowUturnLeftIcon,
+    TrashIcon,
+} from "@heroicons/vue/24/solid";
+import LDialog from "../common/LDialog.vue";
+import router from "@/router";
+import { capitaliseFirstLetter } from "@/util/string";
 
 type translationKeyValuePair = {
     rowKey: Uuid;
@@ -37,9 +44,12 @@ type Props = {
 };
 const props = defineProps<Props>();
 
+const { addNotification } = useNotificationStore();
+
 const translations = ref<translationKeyValuePair[]>([]);
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 const isLocalChange = db.isLocalChangeAsRef(props.id);
+const showDeleteModal = ref(false);
 
 const original = useDexieLiveQuery(
     () => db.docs.where("_id").equals(props.id).first() as unknown as Promise<LanguageDto>,
@@ -125,7 +135,7 @@ watch(
 
 const keyInput = ref(""); // Holds the key being edited or added
 const valueInput = ref(""); // Holds the value for the key being edited or added
-const isModalOpen = ref(false); // Modal to confirm deletion of a translation
+const showStringDeleteModal = ref(false); // Modal to confirm deletion of a translation string key:value pair
 const keyToDelete = ref<string | null>(null); // Add a ref to store the key to delete
 
 const comparisonLanguage = ref<Uuid>(editable.value ? editable.value._id : "");
@@ -153,7 +163,7 @@ const canTranslate = computed(() => {
 // Add a new translation key-value pair
 const addProperty = () => {
     if (translations.value.find((row) => row.translationKey === keyInput.value)) {
-        useNotificationStore().addNotification({
+        addNotification({
             title: "Key already exists",
             description: `The key '${keyInput.value}' already exists in the translations`,
             state: "error",
@@ -163,7 +173,7 @@ const addProperty = () => {
     }
 
     if (!keyInput.value || !valueInput.value) {
-        useNotificationStore().addNotification({
+        addNotification({
             title: "Key or value missing",
             description: "Please enter both a key and a value to add a new translation",
             state: "error",
@@ -192,23 +202,30 @@ const confirmDelete = () => {
             (row) => row.translationKey !== keyToDelete.value,
         );
         keyToDelete.value = null; // Reset after deletion
-        isModalOpen.value = false; // Close the modal
+        showStringDeleteModal.value = false; // Close the modal
     }
 };
 
 // Save the current JSON to the database
 const save = async () => {
+    // Bypass save if the language is new and marked for deletion
+    if (isNew.value && editable.value.deleteReq) {
+        return;
+    }
+
     // Update the original object to reflect the newly saved state
     original.value = _.cloneDeep(editable.value);
 
     editable.value.updatedTimeUtc = Date.now();
     await db.upsert(editable.value);
 
-    useNotificationStore().addNotification({
-        title: "Language updated",
-        description: "Language updated successfully",
-        state: "success",
-    });
+    if (!editable.value.deleteReq) {
+        addNotification({
+            title: "Language saved",
+            description: "Language saved successfully",
+            state: "success",
+        });
+    }
 };
 
 // Revert to the initial state
@@ -225,7 +242,7 @@ const revertChanges = () => {
         }))
         .sort((a, b) => (a.translationKey > b.translationKey ? 1 : -1));
 
-    useNotificationStore().addNotification({
+    addNotification({
         title: "Changes reverted",
         description: `The changes of the ${editable.value.name} have been reverted`,
         state: "success",
@@ -269,7 +286,47 @@ watch(comparisonLanguage, () => {
 });
 
 // Computed property to check if at least one group is selected
-const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
+const hasGroupsSelected = ref(false);
+watch(
+    editable,
+    () => {
+        hasGroupsSelected.value = editable.value.memberOf.length > 0;
+    },
+    { deep: true, immediate: true },
+);
+
+// Language deletion
+const canDelete = computed(() => {
+    if (!editable.value) return false;
+    return verifyAccess(editable.value.memberOf, DocType.Language, AclPermission.Delete, "all");
+});
+
+const deleteLanguage = async () => {
+    if (!editable.value) return;
+
+    if (!canDelete.value) {
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You do not have delete permission",
+            state: "error",
+        });
+        return;
+    }
+
+    editable.value.deleteReq = 1;
+
+    save();
+
+    addNotification({
+        title: `${capitaliseFirstLetter(editable.value.name)} deleted`,
+        description: `The language was successfully deleted`,
+        state: "success",
+    });
+
+    router.push({
+        name: "languages",
+    });
+};
 </script>
 
 <template>
@@ -295,6 +352,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
                         variant="secondary"
                         v-if="isDirty && !isNew"
                         @click="revertChanges"
+                        :icon="ArrowUturnLeftIcon"
                         >Revert</LButton
                     >
                     <LButton
@@ -303,8 +361,20 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
                         data-test="save-button"
                         variant="primary"
                         :disabled="!isDirty || !hasGroupsSelected"
+                        :icon="FolderArrowDownIcon"
                     >
                         Save
+                    </LButton>
+                    <LButton
+                        type="button"
+                        @click="showDeleteModal = true"
+                        data-test="delete-button"
+                        variant="secondary"
+                        context="danger"
+                        :icon="TrashIcon"
+                        :disabled="!canDelete"
+                    >
+                        Delete
                     </LButton>
                 </div>
             </div>
@@ -488,7 +558,7 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
                                     title="Delete this line"
                                     @click="
                                         keyToDelete = row.translationKey;
-                                        isModalOpen = true;
+                                        showStringDeleteModal = true;
                                     "
                                     data-test="delete-key-button"
                                 />
@@ -507,15 +577,32 @@ const hasGroupsSelected = computed(() => editable.value.memberOf?.length >= 0);
             </LCard>
         </div>
     </BasePage>
-    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
+    <ConfirmBeforeLeavingModal :isDirty="isDirty && !editable.deleteReq" />
 
-    <LModal
-        v-model:open="isModalOpen"
+    <LDialog
+        v-model:open="showStringDeleteModal"
         context="default"
         title="Are you sure you want to delete this translation?"
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         :primaryAction="confirmDelete"
-        :secondaryAction="() => (isModalOpen = false)"
+        :secondaryAction="() => (showStringDeleteModal = false)"
     />
+
+    <LDialog
+        v-model:open="showDeleteModal"
+        :title="`Delete ${editable.name}?`"
+        :description="`Are you sure you want to delete this language? All content in this language will become unavailable! This action cannot be undone.`"
+        :primaryAction="
+            () => {
+                showDeleteModal = false;
+                console.log('Delete language');
+                deleteLanguage();
+            }
+        "
+        :secondaryAction="() => (showDeleteModal = false)"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="danger"
+    ></LDialog>
 </template>

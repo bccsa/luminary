@@ -19,6 +19,7 @@ export enum DocType {
     Redirect = "redirect",
     Group = "group",
     Change = "change",
+    DeleteCmd = "deleteCmd",
 }
 
 /**
@@ -95,4 +96,13 @@ export enum PostType {
 export enum RedirectType {
     Permanent = "permanent",
     Temporary = "temporary",
+}
+
+/**
+ * Delete command reason
+ */
+export enum DeleteReason {
+    Deleted = "deleted",
+    PermissionChange = "permissionChange",
+    StatusChange = "statusChange",
 }

@@ -1,4 +1,11 @@
-import type { DocType, TagType, PublishStatus, PostType, RedirectType } from "../types";
+import type {
+    DocType,
+    TagType,
+    PublishStatus,
+    PostType,
+    RedirectType,
+    DeleteReason,
+} from "../types";
 
 export enum AckStatus {
     Accepted = "accepted",
@@ -28,6 +35,7 @@ export type BaseDocumentDto = {
     parentTagType?: TagType;
     parentTags?: Uuid[];
     parentPinned?: number;
+    deleteReq?: number;
 };
 
 export enum AclPermission {
@@ -43,6 +51,14 @@ export type GroupAclEntryDto = {
     type: DocType;
     groupId: Uuid;
     permission: AclPermission[];
+};
+
+export type DeleteCmdDto = BaseDocumentDto & {
+    docId: Uuid;
+    docType: DocType;
+    deleteReason: DeleteReason;
+    memberOf?: Uuid[];
+    newMemberOf?: Uuid[];
 };
 
 export type ContentBaseDto = BaseDocumentDto & {
@@ -137,7 +153,7 @@ export type ChangeReqAckDto = {
     id: number;
     ack: AckStatus;
     message?: string;
-    doc?: any;
+    docs?: any[];
 };
 
 export type LocalChangeDto = {

@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { db, DocType, type RedirectDto, RedirectType } from "luminary-shared";
+import {
+    AclPermission,
+    db,
+    DocType,
+    type RedirectDto,
+    RedirectType,
+    verifyAccess,
+} from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
@@ -8,6 +15,13 @@ import _ from "lodash";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 import { useNotificationStore } from "@/stores/notification";
 import { Slug } from "@/util/slug";
+import {
+    PlusCircleIcon,
+    FolderArrowDownIcon,
+    ArrowUturnLeftIcon,
+    TrashIcon,
+} from "@heroicons/vue/24/solid";
+import LDialog from "../common/LDialog.vue";
 
 // Props for visibility and Redirect to edit
 type Props = {
@@ -16,8 +30,11 @@ type Props = {
 };
 const props = defineProps<Props>();
 
+const { addNotification } = useNotificationStore();
+
 const emit = defineEmits(["close"]);
-const isEditMode = computed(() => props.redirect != undefined);
+const isNew = computed(() => !props.redirect);
+const showDeleteModal = ref(false);
 
 const editable = ref<RedirectDto>({
     _id: db.uuid(), // Generate new ID for create mode
@@ -54,14 +71,19 @@ watch(
 );
 
 const save = async () => {
-    editable.value.updatedTimeUtc = Date.now();
-    await db.upsert(editable.value);
+    // Bypass save if a new redirect is being deleted
+    if (!(isNew.value && editable.value.deleteReq)) {
+        editable.value.updatedTimeUtc = Date.now();
+        await db.upsert(editable.value);
+    }
 
-    useNotificationStore().addNotification({
-        title: isEditMode.value ? `Redirect updated` : `Redirect created`,
-        description: `Redirecting ${editable.value.slug} to ${editable.value.toSlug ?? "HOMEPAGE"}`,
-        state: "success",
-    });
+    if (!editable.value.deleteReq) {
+        useNotificationStore().addNotification({
+            title: !isNew.value ? `Redirect updated` : `Redirect created`,
+            description: `Redirecting ${editable.value.slug} to ${editable.value.toSlug ?? "HOMEPAGE"}`,
+            state: "success",
+        });
+    }
     emit("close");
 };
 
@@ -107,6 +129,33 @@ const validateSlug = (slug: string | undefined) => {
     if (!slug) return undefined;
     return slug.replace(/[^a-zA-Z0-9-_]/g, "").toLowerCase();
 };
+
+// Redirect deletion
+const canDelete = computed(() => {
+    if (!editable.value) return false;
+    return verifyAccess(editable.value.memberOf, DocType.Redirect, AclPermission.Delete, "all");
+});
+
+const deleteRedirect = () => {
+    if (!canDelete.value) {
+        addNotification({
+            title: "Access denied",
+            description: "You do not have permission to delete this redirect",
+            state: "error",
+        });
+        return;
+    }
+
+    editable.value.deleteReq = 1;
+
+    save();
+
+    addNotification({
+        title: `Redirect deleted`,
+        description: `The redirect was successfully deleted`,
+        state: "success",
+    });
+};
 </script>
 
 <template>
@@ -117,7 +166,7 @@ const validateSlug = (slug: string | undefined) => {
         <div class="w-96 rounded-lg bg-white p-6 shadow-lg">
             <!-- Dynamic title based on mode -->
             <h2 class="mb-4 text-xl font-bold">
-                {{ isEditMode ? "Edit redirect" : "Create new redirect" }}
+                {{ !isNew ? "Edit redirect" : "Create new redirect" }}
             </h2>
 
             <div class="mb-2 flex flex-col items-center">
@@ -168,8 +217,21 @@ const validateSlug = (slug: string | undefined) => {
                 v-model:groups="editable.memberOf"
                 :docType="DocType.Redirect"
             />
-            <div class="flex justify-end gap-4 pt-5">
-                <LButton variant="secondary" data-test="cancel" @click="emit('close')"
+            <div class="flex gap-4 pt-5">
+                <LButton
+                    variant="secondary"
+                    context="danger"
+                    data-test="delete"
+                    :icon="TrashIcon"
+                    @click="showDeleteModal = true"
+                    >Delete</LButton
+                >
+                <div class="flex-1" />
+                <LButton
+                    variant="secondary"
+                    data-test="cancel"
+                    @click="emit('close')"
+                    :icon="ArrowUturnLeftIcon"
                     >Cancel</LButton
                 >
                 <LButton
@@ -177,10 +239,26 @@ const validateSlug = (slug: string | undefined) => {
                     data-test="save-button"
                     @click="save"
                     :disabled="!canSave"
+                    :icon="!isNew ? FolderArrowDownIcon : PlusCircleIcon"
                 >
-                    {{ isEditMode ? "Save" : "Create" }}
+                    {{ !isNew ? "Save" : "Create" }}
                 </LButton>
             </div>
         </div>
     </div>
+    <LDialog
+        v-model:open="showDeleteModal"
+        :title="`Delete redirect?`"
+        :description="`Are you sure you want to delete this redirect? This action cannot be undone.`"
+        :primaryAction="
+            () => {
+                showDeleteModal = false;
+                deleteRedirect();
+            }
+        "
+        :secondaryAction="() => (showDeleteModal = false)"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="danger"
+    ></LDialog>
 </template>
