@@ -66,8 +66,8 @@ watch(
     () => userData.get(props.id),
     (user) => {
         if (user) {
-            original.value = _.cloneDeep(user); // Ensure a deep clone
-            editable.value = _.cloneDeep(original.value);
+            original.value = _.cloneDeep(user); // Update the original object
+            Object.assign(editable.value, user); // Instead of overwriting, update fields reactively
         }
     },
     { immediate: true, deep: true },

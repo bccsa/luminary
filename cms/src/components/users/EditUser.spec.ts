@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { flushPromises, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from "vitest";
 import EditUser from "./EditUser.vue";
 import { createTestingPinia } from "@pinia/testing";
@@ -8,6 +8,7 @@ import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import { mockGroupDtoSuperAdmins, mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
 import express from "express";
+import { nextTick } from "vue";
 
 vi.mock("vue-router");
 
@@ -15,7 +16,7 @@ vi.mock("vue-router");
 // Mock api
 // ============================
 const app = express();
-const port = 12347;
+const port = 12348;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 let mockApiRequest: string;
@@ -52,7 +53,8 @@ describe("EditUser.vue", () => {
     });
 
     beforeEach(async () => {
-        await db.docs.bulkPut([mockGroupDtoSuperAdmins]);
+        await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockUserDto]);
+        await nextTick();
         setActivePinia(createTestingPinia());
     });
 
@@ -77,7 +79,9 @@ describe("EditUser.vue", () => {
         });
     });
 
-    it.skip("should update and save the current user", async () => {
+    it("should update and save the current user", async () => {
+        // await db.docs.bulkPut([mockUserDto, mockGroupDtoSuperAdmins]);
+
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
@@ -89,25 +93,62 @@ describe("EditUser.vue", () => {
             expect(wrapper.text()).toContain(mockUserDto.name);
         });
 
-        // Modify user data
-        const nameInput = wrapper.find('input[name="userName"]');
-        await nameInput.setValue("Updated User Name");
-
-        const emailInput = wrapper.find('input[name="userEmail"]');
-        await emailInput.setValue("updated@user.com");
-
-        // Save user
         const saveButton = wrapper.find('[data-test="save-button"]');
+
+        await nextTick(); // Ensure Vue updates the UI before proceeding
+
+        // @ts-expect-error
+        wrapper.vm.editable.name = "Updated User Name";
+
+        // @ts-expect-error
+        wrapper.vm.editable.email = "updated@user.com";
+
+        await nextTick(); // Ensure Vue updates the UI before proceeding
+
         await saveButton.trigger("click");
 
-        await flushPromises();
-
-        // Ensure save completes and user is updated
         await waitForExpect(async () => {
             const updatedUser = (await db.docs.get({ _id: mockUserDto._id })) as UserDto;
 
             expect(updatedUser.name).toBe("Updated User Name");
             expect(updatedUser.email).toBe("updated@user.com");
+        });
+    });
+
+    it("cant update the user if no group is selected", async () => {
+        const wrapper = mount(EditUser, {
+            props: {
+                id: mockUserDto._id,
+            },
+        });
+
+        // Ensure user is loaded
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockUserDto.name);
+        });
+
+        const saveButton = wrapper.find('[data-test="save-button"]');
+
+        await nextTick(); // Ensure Vue updates the UI before proceeding
+
+        // @ts-expect-error
+        wrapper.vm.editable.name = "Updated User Name";
+
+        // @ts-expect-error
+        wrapper.vm.editable.email = "updated@user.com";
+
+        // @ts-expect-error
+        wrapper.vm.editable.memberOf = [];
+
+        await nextTick(); // Ensure Vue updates the UI before proceeding
+
+        await saveButton.trigger("click");
+
+        await waitForExpect(async () => {
+            const updatedUser = (await db.docs.get({ _id: mockUserDto._id })) as UserDto;
+
+            expect(updatedUser.name).toBe(mockUserDto.name);
+            expect(updatedUser.email).toBe(mockUserDto.email);
         });
     });
 });
