@@ -2,6 +2,8 @@
 
 Offline-first content platform consisting of an API, CMS, web app and native apps.
 
+![API](https://github.com/github/docs/actions/workflows/api-unit-tests.yml/badge.svg) ![Shared library](https://github.com/github/docs/actions/workflows/shared-unit-tests.yml/badge.svg) ![CMS](https://github.com/github/docs/actions/workflows/cms-unit-tests.yml/badge.svg) ![App](https://github.com/github/docs/actions/workflows/app-unit-tests.yml/badge.svg)
+
 ## Name
 
 lu·​mi·​nary - ˈlü-mə-ˌner-ē
