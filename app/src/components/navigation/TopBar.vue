@@ -14,14 +14,6 @@ const LOGO_DARK = import.meta.env.VITE_LOGO_DARK;
 const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK;
 
 const logoWidth = ref(parseInt(sessionStorage.getItem("logoWidth") || "0"));
-if (!logoWidth.value) {
-    const img = new Image();
-    img.src = LOGO;
-    img.onload = () => {
-        logoWidth.value = img.width;
-        sessionStorage.setItem("logoWidth", img.width.toString());
-    };
-}
 
 const logoContainer = ref<HTMLElement | undefined>(undefined);
 
@@ -43,6 +35,16 @@ const updateScreenSize = () => {
 };
 
 onMounted(() => {
+    if (!logoWidth.value) {
+        const img = new Image();
+        img.src = LOGO;
+        img.onload = () => {
+            if (!logoContainer.value) return;
+            logoWidth.value = (img.width * logoContainer.value.clientHeight) / img.height;
+            sessionStorage.setItem("logoWidth", img.width.toString());
+        };
+    }
+
     watch(
         [showContentQuickControls, logoWidth],
         async () => {
