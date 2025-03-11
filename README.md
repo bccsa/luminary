@@ -2,7 +2,7 @@
 
 Offline-first content platform consisting of an API, CMS and web app.
 
-![API](https://github.com/github/docs/actions/workflows/api-unit-tests.yml/badge.svg) ![Shared library](https://github.com/github/docs/actions/workflows/shared-unit-tests.yml/badge.svg) ![CMS](https://github.com/github/docs/actions/workflows/cms-unit-tests.yml/badge.svg) ![App](https://github.com/github/docs/actions/workflows/app-unit-tests.yml/badge.svg)
+![API](https://github.com/bccsa/luminary/actions/workflows/api-unit-tests.yml/badge.svg) ![Shared library](https://github.com/bccsa/luminary/actions/workflows/shared-unit-tests.yml/badge.svg) ![CMS](https://github.com/bccsa/luminary/actions/workflows/cms-unit-tests.yml/badge.svg) ![App](https://github.com/bccsa/luminary/actions/workflows/app-unit-tests.yml/badge.svg)
 
 ## Name
 
