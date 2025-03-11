@@ -656,7 +656,7 @@ describe("EditContent.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
-        //
+
         const languageSelector = wrapper.findAllComponents(LanguageSelector)[0];
         const btn = languageSelector.find("[data-test='language-selector']");
         btn.trigger("click");
