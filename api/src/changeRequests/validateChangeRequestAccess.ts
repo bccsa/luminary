@@ -29,7 +29,6 @@ export async function validateChangeRequestAccess(
 
     // Get the original document from the database for access verification of existing documents to prevent malicious changes to permissions / group membership
     let originalDoc: _baseDto;
-    let isNewDoc = false;
 
     if (changeRequest.doc._id) {
         const res = await dbService.getDoc(changeRequest.doc._id);
@@ -37,7 +36,6 @@ export async function validateChangeRequestAccess(
             originalDoc = res.docs[0];
         } else {
             originalDoc = doc;
-            isNewDoc = true;
         }
     }
 
@@ -273,69 +271,10 @@ export async function validateChangeRequestAccess(
         const getRequest = await dbService.getDoc(doc._id);
         const prevDefault =
             getRequest.docs.length && (getRequest.docs[0] as LanguageDto).default == 1;
-    }
-
-    if (
-        doc.type !== DocType.Content &&
-        doc.memberOf &&
-        Array.isArray(doc.memberOf) &&
-        doc.memberOf.length > 0
-    ) {
-        // Check if user has existing and new edit access to any other types of documents
-        if (
-            !PermissionSystem.verifyAccess(
-                (originalDoc as _contentBaseDto).memberOf,
-                originalDoc.type,
-                AclPermission.Edit,
-                groupMembership,
-                "any",
-            ) ||
-            !PermissionSystem.verifyAccess(
-                (doc as _contentBaseDto).memberOf,
-                originalDoc.type,
-                AclPermission.Edit,
-                groupMembership,
-                "any",
-            )
-        ) {
-            return {
-                validated: false,
-                error: "No 'Edit' access to document",
-            };
-        }
-
-        // Check if the user has assign access to all added groups in the memberOf property
-        // TODO: Write tests for this
-        if (
-            !PermissionSystem.verifyAccess(
-                isNewDoc
-                    ? doc.memberOf // For new documents, check if the user has assign access to all groups in the memberOf property
-                    : doc.memberOf.filter(
-                          // For updated documents, check if the user has assign access to all new groups in the memberOf property
-                          (g: Uuid) => !(originalDoc as _contentBaseDto).memberOf.includes(g),
-                      ),
-                DocType.Group,
-                AclPermission.Assign,
-                groupMembership,
-                "all",
-            )
-        ) {
-            return {
-                validated: false,
-                error: "No 'Assign' access to one or more groups",
-            };
-        }
-    }
-
-    if (doc.type == DocType.Language) {
-        // Check if the existing document is a default language
-        const prevDefault = (originalDoc as LanguageDto).default == 1;
 
         if (doc.default === 1 && !prevDefault) {
             const languageDocs = await dbService.getDocsByType(DocType.Language);
             const languageGroups = languageDocs.docs.map((d) => d.memberOf).flat();
-
-            console.info(languageGroups);
 
             // Check if the user has edit access to all language documents to be able to change the default language
             if (
@@ -368,6 +307,28 @@ export async function validateChangeRequestAccess(
                 };
             }
         }
+    } else if (doc.memberOf && Array.isArray(doc.memberOf) && doc.memberOf.length > 0) {
+        // Check if user has edit access to any other types of documents
+        // -------------------------------------------------------------
+        if (
+            !PermissionSystem.verifyAccess(
+                doc.memberOf,
+                doc.type,
+                AclPermission.Edit,
+                groupMembership,
+                "any",
+            )
+        ) {
+            return {
+                validated: false,
+                error: "No 'Edit' access to document",
+            };
+        }
+    } else {
+        return {
+            validated: false,
+            error: "Unable to verify access. The document is not a group or does not have group membership",
+        };
     }
 
     // Validate tag assign access
