@@ -5,6 +5,7 @@ import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { createTestingModule } from "../test/testingModule";
 import { DocType } from "../enums";
+import { LanguageDto } from "src/dto/LanguageDto";
 
 describe("validateChangeRequestAccess", () => {
     let db: DbService;
@@ -15,7 +16,7 @@ describe("validateChangeRequestAccess", () => {
         const res: any = await db.getGroups();
         PermissionSystem.upsertGroups(res.docs);
 
-        // Wait a little bit for the permission system to update
+        // Wait a little bit for theadd-tests-for-pr-465 permission system to update
         function timeout() {
             return new Promise((resolve) => {
                 setTimeout(resolve, 500);
@@ -496,21 +497,72 @@ describe("validateChangeRequestAccess", () => {
         });
     });
     describe("Language documents", () => {
-        it("Can validate: Edit Access to all languages is required to change default language", async () => {
-            const testChangeRequest_Language: ChangeReqDto = {
-                id: 20,
+        it.only("Can reject if Edit Access to all languages is required to change default language", async () => {
+            //1. Update a group and send to permission system in DB
+            //2.
+
+            PermissionSystem.upsertGroups([
+                {
+                    _id: "group-private-content",
+                    type: "group",
+                    name: "Private Content",
+                    acl: [
+                        {
+                            type: "post",
+                            groupId: "group-private-users",
+                            permission: ["view"],
+                        },
+                        {
+                            type: "tag",
+                            groupId: "group-private-users",
+                            permission: ["view"],
+                        },
+                        {
+                            type: "post",
+                            groupId: "group-private-editors",
+                            permission: ["view", "edit", "translate", "publish"],
+                        },
+                        {
+                            type: "tag",
+                            groupId: "group-private-editors",
+                            permission: ["view", "translate"],
+                        },
+                        {
+                            type: "group",
+                            groupId: "group-private-editors",
+                            permission: ["view", "assign"],
+                        },
+                        {
+                            type: "language",
+                            groupId: "group-private-users",
+                            permission: ["view"],
+                        },
+                    ],
+                },
+            ]);
+
+            const language: LanguageDto = {
+                _id: "200",
+                name: "lang-test",
+                languageCode: "eng",
+                memberOf: ["group-languages"],
+                type: DocType.Language,
+                default: 0,
+            };
+
+            await db.upsertDoc(language);
+
+            const testChangeRequest_Language = {
+                id: 44,
                 doc: {
-                    _id: 200,
-                    name: "lang-eng",
-                    languageCode: "eng",
-                    memberOf: ["group-languages"],
-                    type: DocType.Language,
+                    ...language,
                     default: 1,
                 },
             };
+
             const res = await validateChangeRequestAccess(
                 testChangeRequest_Language,
-                ["group-public-editors"],
+                ["group-private-users"],
                 db,
             );
 
