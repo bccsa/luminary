@@ -15,10 +15,8 @@ watch(cmsLanguageIdAsRef, (newVal) => {
     localStorage.setItem("cms_selectedLanguage", newVal);
 });
 
-const languageInitialised = JSON.parse(localStorage.getItem("language_initialised") || "false");
-
 export async function initLanguage() {
-    if (languageInitialised && cmsLanguageIdAsRef.value) return;
+    if (cmsLanguageIdAsRef.value) return;
 
     const languages = (await db.docs.where("type").equals("language").toArray()) as LanguageDto[];
     const browserPreferredLanguage = navigator.languages[0];
@@ -33,5 +31,4 @@ export async function initLanguage() {
     } else {
         cmsLanguageIdAsRef.value = languages.filter((lang) => lang.default === 1)[0]._id;
     }
-    localStorage.setItem("language_initialised", JSON.stringify(true));
 }
