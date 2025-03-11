@@ -82,6 +82,13 @@ export const initLanguage = () => {
         watch(
             _cmsLanguages,
             (newVal) => {
+                appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) => {
+                    if (newVal.find((lang) => id == lang._id)) {
+                        return true;
+                    }
+                    return false;
+                });
+
                 cmsLanguages.value.slice(0, cmsLanguages.value.length);
                 cmsLanguages.value.push(...newVal);
 
