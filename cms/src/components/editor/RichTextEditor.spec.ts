@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import RichTextEditor from "./RichTextEditor2.vue";
+import RichTextEditor from "./RichTextEditor.vue";
 import waitForExpect from "wait-for-expect";
 
 describe("RichTextEditor", () => {
@@ -8,7 +8,7 @@ describe("RichTextEditor", () => {
         const wrapper = mount(RichTextEditor, {
             props: {
                 disabled: false,
-                modelValue: "<p>Gandalf the Grey</p>",
+                text: "<p>Gandalf the Grey</p>",
             },
         });
 

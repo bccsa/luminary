@@ -25,6 +25,7 @@ export class ContentDto extends _contentBaseDto {
 
     @IsOptional()
     @IsString()
+    @Expose()
     parentType?: DocType;
 
     @IsNotEmpty()

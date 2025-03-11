@@ -2,7 +2,6 @@ import { DocType } from "../types";
 import { Sync } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
-import { accessMap } from "../permissions/permissions";
 
 export type ApiSearchQuery = {
     apiVersion?: string;
@@ -35,7 +34,7 @@ class RestApi {
     private _sync: Sync;
     private http: HttpReq<any>;
     /**
-     * Create a new docs instance
+     * Create a new REST API client instance
      * @param options - Options
      */
     constructor() {
@@ -50,18 +49,16 @@ class RestApi {
                 "The REST API connection requires an array of DocTypes that needs to be synced",
             );
         }
-        if (!accessMap.value || Object.keys(accessMap.value).length === 0) {
-            throw new Error(
-                "The REST API connection requires an access map to be set before connecting",
-            );
-        }
 
         this._sync = new Sync();
         this.http = new HttpReq(config.apiUrl || "", config.token);
     }
 
-    async clientDataReq() {
-        this._sync.clientDataReq();
+    /**
+     * Returns the REST API Client's sync instance
+     */
+    get sync() {
+        return this._sync;
     }
 
     async search(query: ApiSearchQuery) {

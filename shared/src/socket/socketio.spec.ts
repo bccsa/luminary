@@ -60,6 +60,7 @@ describe("socketio", () => {
             socket.on("changeRequest", (data) => {
                 changeReq = data;
             });
+            socket.emit("clientConfig", {});
         });
 
         // Connect to the server
@@ -88,6 +89,7 @@ describe("socketio", () => {
             socket.on("changeRequest", (data) => {
                 changeReq = data;
             });
+            socket.emit("clientConfig", {});
         });
 
         // Connect to the server
@@ -114,6 +116,7 @@ describe("socketio", () => {
             socket.on("changeRequest", (data) => {
                 changeReq = data;
             });
+            socket.emit("clientConfig", {});
         });
 
         // Create a local change
@@ -139,14 +142,14 @@ describe("socketio", () => {
 
     it("can connect to a socket server and set the connection status", async () => {
         let serverConnectCalled = false;
-        socketServer.on("connection", () => {
+        socketServer.on("connection", (socket) => {
             serverConnectCalled = true;
+            socket.emit("clientConfig", {});
         });
 
         expect(isConnected.value).toEqual(false); // Should be false immediately after creating the instance
 
         getSocket({ reconnect: true });
-
         await waitForExpect(() => {
             expect(serverConnectCalled).toEqual(true);
             expect(isConnected.value).toEqual(true);
@@ -155,8 +158,9 @@ describe("socketio", () => {
 
     it("can force reload the connection", async () => {
         let serverConnectCalled = false;
-        socketServer.on("connection", () => {
+        socketServer.on("connection", (socket) => {
             serverConnectCalled = true;
+            socket.emit("clientConfig", {});
         });
 
         getSocket({ reconnect: true });
@@ -182,6 +186,7 @@ describe("socketio", () => {
             socket.on("changeRequest", (data) => {
                 changeReq = data;
             });
+            socket.emit("clientConfig", {});
         });
         getSocket({ reconnect: true });
 
@@ -207,6 +212,7 @@ describe("socketio", () => {
 
         // Mock the ack from the server
         socketServer.on("connection", (socket) => {
+            socket.emit("clientConfig", {});
             socket.emit("changeRequestAck", { id: 1234, ack: AckStatus.Accepted });
         });
 

@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { AccessMap } from "src/permissions/permissions.service";
+import { AccessMap } from "../permissions/permissions.service";
 
 export type socketioTestRequest = {
     cms: boolean;

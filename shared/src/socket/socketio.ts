@@ -42,9 +42,8 @@ class SocketIO {
         this.docTypes = docTypes;
 
         this.socket.on("connect", () => {
-            isConnected.value = true;
             this.socket.emit("joinSocketGroups", { docTypes: this.docTypes });
-            this.processChangeReqLock = false; // reset process log on connection
+            this.processChangeReqLock = false; // reset process lock on connection
         });
 
         this.socket.on("disconnect", () => {
@@ -60,6 +59,7 @@ class SocketIO {
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
 
         // watch for local changes

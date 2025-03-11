@@ -22,6 +22,8 @@ import { appLanguageAsRef, showLoginModal } from "@/globalConfig";
 import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 import { useI18n } from "vue-i18n";
 import LoginModal from "@/components/navigation/LoginModal.vue";
+import { isConnected } from "luminary-shared";
+import { useNotificationStore, type Notification } from "@/stores/notification";
 
 const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
@@ -80,8 +82,18 @@ const userNavigation = computed(() => {
                 name: t("profile_menu.logout"),
                 icon: ArrowRightEndOnRectangleIcon,
                 action: async () => {
-                    localStorage.removeItem("usedAuth0Connection");
-                    await logout({ logoutParams: { returnTo: window.location.origin } });
+                    if (isConnected.value) {
+                        localStorage.removeItem("usedAuth0Connection");
+                        await logout({ logoutParams: { returnTo: window.location.origin } });
+                        return;
+                    }
+                    useNotificationStore().addNotification({
+                        id: "no-internet-connection-logout",
+                        title: t("profile_menu.logout.offline_notification_title"),
+                        description: t("profile_menu.logout.offline_notification"),
+                        type: "toast",
+                        state: "error",
+                    } as Notification);
                 },
             },
         ];
@@ -92,7 +104,19 @@ const userNavigation = computed(() => {
             {
                 name: t("profile_menu.login"),
                 icon: ArrowLeftEndOnRectangleIcon,
-                action: () => showLoginModal(),
+                action: () => {
+                    if (isConnected.value) {
+                        showLoginModal();
+                        return;
+                    }
+                    useNotificationStore().addNotification({
+                        id: "no-internet-connection-login",
+                        title: t("profile_menu.login.offline_notification_title"),
+                        description: t("profile_menu.login.offline_notification"),
+                        type: "toast",
+                        state: "error",
+                    } as Notification);
+                },
             },
         ];
     }

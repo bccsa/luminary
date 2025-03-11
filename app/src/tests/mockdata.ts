@@ -210,6 +210,7 @@ export const mockCategoryContentDto: ContentDto = {
     memberOf: [],
     parentTags: [],
     parentTaggedDocs: ["post-post1"],
+    parentTagType: TagType.Category,
     language: "lang-eng",
     status: PublishStatus.Published,
     slug: "content-tag-category1",
@@ -288,7 +289,13 @@ export const mockLanguageDtoEng: LanguageDto = {
         "profile_menu.bookmarks": "Bookmarks",
         "profile_menu.privacy_policy": "Privacy Policy",
         "profile_menu.login": "Login",
+        "profile_menu.login.offline_notification":
+            "Oops! We could not log you in. Please connect to the internet before logging in.",
+        "profile_menu.login.offline_notification_title": "Offline",
         "profile_menu.logout": "Logout",
+        "profile_menu.logout.offline_notification":
+            "Oops! We could not log you out. Please connect to the internet before logging out.",
+        "profile_menu.logout.offline_notification_title": "Offline",
         "settings.local_cache.title": "Local cache",
         "settings.local_cache.description":
             "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",

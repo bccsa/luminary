@@ -271,13 +271,13 @@ onBeforeUnmount(() => {
     </div>
 
     <NotFoundPage v-if="is404" />
-    <div v-else class="flex h-full flex-col gap-6">
-        <div class="flex justify-center">
+    <div v-else class="flex min-h-full flex-col gap-6">
+        <div class="flex flex-grow justify-center">
             <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
                 <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                     <VideoPlayer v-if="content.video" :content="content" />
                     <LImage
-                        v-else
+                        v-else-if="content.parentImageData"
                         :image="content.parentImageData"
                         aspectRatio="video"
                         size="post"
@@ -377,9 +377,11 @@ onBeforeUnmount(() => {
             :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
         />
 
-        <!-- Copyright info -->
-        <IgnorePagePadding>
-            <CopyrightBanner />
+        <!-- Sticky Copyright -->
+        <IgnorePagePadding :ignoreBottom="true">
+            <div class="sticky bottom-0">
+                <CopyrightBanner />
+            </div>
         </IgnorePagePadding>
     </div>
 

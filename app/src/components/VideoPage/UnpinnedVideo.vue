@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { watch, computed } from "vue";
 import {
     type ContentDto,
     DocType,
-    db,
-    type Uuid,
-    useDexieLiveQueryWithDeps,
-    TagType,
     PostType,
+    TagType,
+    type Uuid,
+    db,
+    useDexieLiveQueryWithDeps,
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { contentByTag } from "../contentByTag";
+import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
+import IgnorePagePadding from "../IgnorePagePadding.vue";
 
 const newest100Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -22,6 +23,7 @@ const newest100Content = useDexieLiveQueryWithDeps(
             .reverse()
             .filter((c) => {
                 const content = c as ContentDto;
+                if (!content.video) return false;
                 if (content.type !== DocType.Content) return false;
                 if (content.parentPostType && content.parentPostType == PostType.Page) return false;
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
@@ -38,15 +40,18 @@ const newest100Content = useDexieLiveQueryWithDeps(
 
                 if (content.language !== firstSupportedLang) return false;
 
-                return true && content.language == firstSupportedLang;
+                return true;
             })
             .limit(100) // Limit to the newest posts
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("homepage_newest100Content"), deep: true },
+    {
+        initialValue: await db.getQueryCache<ContentDto[]>("videopage_newest100Content"),
+        deep: true,
+    },
 );
 
 watch(newest100Content, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_newest100Content", value);
+    db.setQueryCache<ContentDto[]>("videopage_newest100Content", value);
 });
 
 const categoryIds = computed(() =>
@@ -68,6 +73,7 @@ const categories = useDexieLiveQueryWithDeps(
                 const _content = content as ContentDto;
                 if (_content.parentType !== DocType.Tag) return false;
                 if (!_content.parentTagType) return false;
+                if (_content.parentTagType !== TagType.Category) return false;
                 if (_content.parentPinned) return false;
 
                 // Use the `isPublished` helper function
@@ -78,7 +84,7 @@ const categories = useDexieLiveQueryWithDeps(
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     {
-        initialValue: await db.getQueryCache<ContentDto[]>("homepage_unpinnedCategories"),
+        initialValue: await db.getQueryCache<ContentDto[]>("videopage_unpinnedCategories"),
         deep: true,
     },
 );
@@ -86,7 +92,7 @@ const categories = useDexieLiveQueryWithDeps(
 watch(
     () => categories.value,
     (value) => {
-        db.setQueryCache<ContentDto[]>("homepage_unpinnedCategories", value);
+        db.setQueryCache<ContentDto[]>("videopage_unpinnedCategories", value);
     },
 );
 
@@ -94,12 +100,14 @@ const unpinnedNewestContentByCategory = contentByTag(newest100Content, categorie
 </script>
 
 <template>
-    <HorizontalContentTileCollection
-        v-for="c in unpinnedNewestContentByCategory"
-        :key="c.tag._id"
-        :contentDocs="c.content"
-        :title="c.tag.title"
-        :summary="c.tag.summary"
-        class="pt-2"
-    />
+    <IgnorePagePadding>
+        <HorizontalContentTileCollection
+            v-for="c in unpinnedNewestContentByCategory"
+            :key="c.tag._id"
+            :contentDocs="c.content"
+            :title="c.tag.title"
+            :summary="c.tag.summary"
+            class="pb-1 pt-2"
+        />
+    </IgnorePagePadding>
 </template>

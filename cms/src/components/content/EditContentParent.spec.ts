@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import EditContentParent from "./EditContentParent.vue";
-import { DocType, type PostDto, type TagDto, accessMap } from "luminary-shared";
+import { DocType, type PostDto, PostType, type TagDto, TagType, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { ref } from "vue";
 
@@ -22,6 +22,7 @@ describe("EditContentParent.vue", () => {
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Tag,
+                tagOrPostType: TagType.Category,
                 modelValue: parent.value,
                 disabled: false,
             },
@@ -42,6 +43,7 @@ describe("EditContentParent.vue", () => {
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
                 modelValue: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
@@ -60,6 +62,7 @@ describe("EditContentParent.vue", () => {
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Tag,
+                tagOrPostType: TagType.Category,
                 modelValue: parent.value,
                 disabled: false,
             },
@@ -73,6 +76,7 @@ describe("EditContentParent.vue", () => {
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
                 modelValue: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
