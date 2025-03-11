@@ -335,6 +335,8 @@ export async function validateChangeRequestAccess(
             const languageDocs = await dbService.getDocsByType(DocType.Language);
             const languageGroups = languageDocs.docs.map((d) => d.memberOf).flat();
 
+            console.info(languageGroups);
+
             // Check if the user has edit access to all language documents to be able to change the default language
             if (
                 !PermissionSystem.verifyAccess(

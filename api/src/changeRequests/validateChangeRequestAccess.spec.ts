@@ -746,7 +746,7 @@ describe("validateChangeRequestAccess", () => {
 
             const res = await validateChangeRequestAccess(
                 testChangeRequest_Language,
-                ["group-private-content"], // Include both groups explicitly
+                ["group-private-content"],
                 db,
             );
 
