@@ -277,6 +277,8 @@ describe("processChangeRequest", () => {
                 languageCode: "en",
                 name: "English",
                 default: 1,
+                //Translations field needed here to fix a error in github actions
+                translations: [""],
             },
         };
 
@@ -289,6 +291,8 @@ describe("processChangeRequest", () => {
                 languageCode: "fra",
                 name: "French",
                 default: 1,
+                //Translations field needed here to fix a error in github actions
+                translations: [""],
             },
         };
 
