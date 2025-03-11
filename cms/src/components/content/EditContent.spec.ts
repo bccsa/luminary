@@ -541,9 +541,10 @@ describe("EditContent.vue", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
                 props: {
-                    docType: DocType.Post,
                     id: mockData.mockPostDto._id,
-                    languageCode: "eng",
+                    languageCode: "en",
+                    //@ts-expect-error --> Makes the test pass but incorrect prop type, so error is expected, as this only tests the language selector, this prop doesn't matter here.
+                    docType: DocType.Content,
                     tagOrPostType: PostType.Blog,
                 },
             });
