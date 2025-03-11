@@ -82,13 +82,6 @@ export const initLanguage = () => {
         watch(
             _cmsLanguages,
             (newVal) => {
-                appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) => {
-                    if (newVal.find((lang) => id == lang._id)) {
-                        return true;
-                    }
-                    return false;
-                });
-
                 cmsLanguages.value.slice(0, cmsLanguages.value.length);
                 cmsLanguages.value.push(...newVal);
 
@@ -111,6 +104,13 @@ export const initLanguage = () => {
             (_languages) => {
                 if (!_languages || _languages.length == 0) return;
                 if (!appLanguageIdsAsRef.value) return;
+
+                appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) => {
+                    if (_languages.find((lang) => id == lang._id)) {
+                        return true;
+                    }
+                    return false;
+                });
 
                 // Check for the browser preferred language in the list of available content languages
                 const browserPreferredLanguageId = _languages.find((l) =>
