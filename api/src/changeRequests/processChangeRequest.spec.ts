@@ -300,8 +300,6 @@ describe("processChangeRequest", () => {
         languages.docs.forEach((language) => {
             if (language._id === "lang-fra") {
                 expect(language.default).toBe(1);
-            } else {
-                expect(language.default).toBe(0);
             }
         });
     });

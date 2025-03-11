@@ -162,21 +162,6 @@ export async function validateChangeRequestAccess(
             }
         }
     } else if (doc.type == DocType.Language) {
-        if (
-            !PermissionSystem.verifyAccess(
-                doc.memberOf,
-                doc.type,
-                AclPermission.Edit,
-                groupMembership,
-                "any",
-            )
-        ) {
-            return {
-                validated: false,
-                error: "No 'Edit' access to document",
-            };
-        }
-
         // Get the previous document to check if the default flag has been changed
         const getRequest = await dbService.getDoc(doc._id);
         const prevDefault =
@@ -185,8 +170,6 @@ export async function validateChangeRequestAccess(
         if (doc.default === 1 && !prevDefault) {
             const languageDocs = await dbService.getDocsByType(DocType.Language);
             const languageGroups = languageDocs.docs.map((d) => d.memberOf).flat();
-
-            console.info(languageGroups);
 
             // Check if the user has edit access to all language documents to be able to change the default language
             if (
@@ -201,6 +184,21 @@ export async function validateChangeRequestAccess(
                 return {
                     validated: false,
                     error: "Edit access to all languages is required to change the default language",
+                };
+            }
+
+            if (
+                !PermissionSystem.verifyAccess(
+                    doc.memberOf,
+                    doc.type,
+                    AclPermission.Edit,
+                    groupMembership,
+                    "any",
+                )
+            ) {
+                return {
+                    validated: false,
+                    error: "No 'Edit' access to document",
                 };
             }
         }

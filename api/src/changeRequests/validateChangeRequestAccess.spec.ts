@@ -498,9 +498,6 @@ describe("validateChangeRequestAccess", () => {
     });
     describe("Language documents", () => {
         it.only("Can reject if Edit Access to all languages is required to change default language", async () => {
-            //1. Update a group and send to permission system in DB
-            //2.
-
             PermissionSystem.upsertGroups([
                 {
                     _id: "group-private-content",
@@ -508,33 +505,8 @@ describe("validateChangeRequestAccess", () => {
                     name: "Private Content",
                     acl: [
                         {
-                            type: "post",
-                            groupId: "group-private-users",
-                            permission: ["view"],
-                        },
-                        {
-                            type: "tag",
-                            groupId: "group-private-users",
-                            permission: ["view"],
-                        },
-                        {
-                            type: "post",
-                            groupId: "group-private-editors",
-                            permission: ["view", "edit", "translate", "publish"],
-                        },
-                        {
-                            type: "tag",
-                            groupId: "group-private-editors",
-                            permission: ["view", "translate"],
-                        },
-                        {
-                            type: "group",
-                            groupId: "group-private-editors",
-                            permission: ["view", "assign"],
-                        },
-                        {
                             type: "language",
-                            groupId: "group-private-users",
+                            groupId: "group-languages",
                             permission: ["view"],
                         },
                     ],
@@ -562,7 +534,7 @@ describe("validateChangeRequestAccess", () => {
 
             const res = await validateChangeRequestAccess(
                 testChangeRequest_Language,
-                ["group-private-users"],
+                ["group-private-content"], // Include both groups explicitly
                 db,
             );
 
