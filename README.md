@@ -1,6 +1,6 @@
 <img src="https://github.com/bccsa/luminary/blob/main/logo.svg?raw=true" width="200" style="margin-bottom: 10px;">
 
-Offline-first content platform consisting of an API, CMS, web app and native apps.
+Offline-first content platform consisting of an API, CMS and web app.
 
 ![API](https://github.com/github/docs/actions/workflows/api-unit-tests.yml/badge.svg) ![Shared library](https://github.com/github/docs/actions/workflows/shared-unit-tests.yml/badge.svg) ![CMS](https://github.com/github/docs/actions/workflows/cms-unit-tests.yml/badge.svg) ![App](https://github.com/github/docs/actions/workflows/app-unit-tests.yml/badge.svg)
 
@@ -16,6 +16,7 @@ lu·​mi·​nary - ˈlü-mə-ˌner-ē
 - `api`: API layer over CouchDB
 - `app`: Web and native frontend app
 - `cms`: Backend CMS for managing content
+- `shared`: Shared library used by the CMS and app
 - `docs`: Documentation, including ADRs
 
 ## Architectural Decision Records
