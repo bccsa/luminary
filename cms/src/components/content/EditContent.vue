@@ -423,6 +423,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
         <template #links>
             <LButton
                 v-if="
+                    isConnected &&
                     selectedContent &&
                     selectedContent.status == PublishStatus.Published &&
                     selectedContent.title
