@@ -418,26 +418,26 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
             parentId: editableParent._id,
             languageCode: languageCode,
         }"
-        class="relative"
-        v-if="parent"
+        v-if="parentId"
     >
-        <LButton
-            v-if="
-                isConnected &&
-                selectedContent &&
-                selectedContent.status == PublishStatus.Published &&
-                selectedContent.title
-            "
-            :icon="ArrowTopRightOnSquareIcon"
-            iconRight
-            class="absolute left-36 top-8 z-20 font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
-            variant="tertiary"
-            is="a"
-            @click="ensureRedirect"
-            :href="liveUrl"
-            target="_blank"
-            title="View live version"
-        ></LButton>
+        <template #links>
+            <LButton
+                v-if="
+                    selectedContent &&
+                    selectedContent.status == PublishStatus.Published &&
+                    selectedContent.title
+                "
+                :icon="ArrowTopRightOnSquareIcon"
+                iconRight
+                class="font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
+                variant="tertiary"
+                is="a"
+                @click="ensureRedirect"
+                :href="liveUrl"
+                target="_blank"
+                title="View live version"
+            />
+        </template>
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
