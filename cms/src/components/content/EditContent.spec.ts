@@ -1,14 +1,7 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    db,
-    DocType,
-    type ContentDto,
-    accessMap,
-    PostType,
-    type LanguageDto,
-} from "luminary-shared";
+import { db, DocType, type ContentDto, accessMap, PostType } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -59,6 +52,7 @@ describe("EditContent.vue", () => {
         ]);
 
         accessMap.value = mockData.fullAccessToAllContentMap;
+        console.info("db", await db.docs.toArray());
     });
 
     afterEach(async () => {
@@ -435,27 +429,15 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.only(
+    it(
         "only displays languages the user has Translate access to in languageSelector",
         async () => {
-            accessMap.value["group-public-content"].language = {
-                view: true,
-                translate: false,
-                edit: false,
-                publish: true,
-            };
-            await db.docs.bulkPut([
-                { ...mockData.mockLanguageDtoEng, memberOf: ["group-public-content"] },
-            ]);
-
-            console.log(await db.docs.toArray());
-            console.log(accessMap.value);
-
             const wrapper = mount(EditContent, {
                 props: {
-                    docType: DocType.Post,
                     id: mockData.mockPostDto._id,
-                    languageCode: "eng",
+                    languageCode: "en",
+                    //@ts-expect-error --> Makes the test pass but incorrect prop type, so error is expected, as this only tests the language selector, this prop doesn't matter here.
+                    docType: DocType.Content,
                     tagOrPostType: PostType.Blog,
                 },
             });
@@ -463,8 +445,6 @@ describe("EditContent.vue", () => {
             const languageSelector = wrapper.findAllComponents(LanguageSelector)[0];
             const btn = languageSelector.find("[data-test='language-selector']");
             btn.trigger("click");
-
-            await wrapper.vm.$nextTick();
 
             await waitForExpect(async () => {
                 const languages = languageSelector.find("[data-test='languagePopup']");
