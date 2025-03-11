@@ -25,11 +25,14 @@ export default async function processPostTagDto(
             await db.upsertDoc(contentDoc);
         }
 
+        // Remove images from S3
+        if (doc.imageData) await processImage({ fileCollections: [] }, prevDoc?.imageData, s3);
+
         return; // no need to process further
     }
 
     // Process image uploads
-    if ((doc as PostDto).imageData) {
+    if (doc.imageData) {
         await processImage(doc.imageData, prevDoc?.imageData, s3);
         delete (doc as any).image; // Remove the legacy image field
     }

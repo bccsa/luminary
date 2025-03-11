@@ -7,6 +7,12 @@ import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { DocType } from "../../enums";
+import { processImage } from "../../s3/s3.imagehandling";
+
+// Mock processImage from s3.imagehandling
+jest.mock("../../s3/s3.imagehandling", () => ({
+    processImage: jest.fn(),
+}));
 
 describe("processPostTagDto", () => {
     let db: DbService;
@@ -157,6 +163,52 @@ describe("processPostTagDto", () => {
         expect(deleteCommands.docs.find((d) => d.docId == "content-en")).toBeDefined();
         expect(deleteCommands.docs.find((d) => d.docId == "content-en").docType).toBe(
             DocType.Post, // This is needed as the permission system does not include Content documents, but bases permissions on the parent type (Post / Tag).
+        );
+    });
+
+    it("can process image uploads", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog4";
+        (changeRequest.doc as PostDto).imageData = {
+            fileCollections: [
+                {
+                    aspectRatio: 1,
+                    imageFiles: [{ filename: "test-blog-image.jpg", height: 1, width: 1 }],
+                },
+            ],
+        };
+
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db, s3);
+        expect(processImage).toHaveBeenCalledWith(
+            (changeRequest.doc as PostDto).imageData,
+            undefined,
+            s3,
+        );
+    });
+
+    it("can remove images from S3 when a post/tag document is marked for deletion", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-blog5";
+        (changeRequest.doc as PostDto).imageData = {
+            fileCollections: [
+                {
+                    aspectRatio: 1,
+                    imageFiles: [{ filename: "test-blog-image.jpg", height: 1, width: 1 }],
+                },
+            ],
+        };
+
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db, s3);
+
+        // Mark the post document for deletion
+        const deleteRequest = JSON.parse(JSON.stringify(changeRequest)) as ChangeReqDto;
+        deleteRequest.doc.deleteReq = 1;
+        await processChangeRequest("test-user", deleteRequest, ["group-super-admins"], db, s3);
+
+        expect(processImage).toHaveBeenCalledWith(
+            { fileCollections: [] }, // Empty fileCollections to remove the image from S3
+            (changeRequest.doc as PostDto).imageData,
+            s3,
         );
     });
 });
