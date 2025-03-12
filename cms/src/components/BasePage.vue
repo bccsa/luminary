@@ -53,7 +53,7 @@ withDefaults(defineProps<Props>(), {
                     <slot name="links" />
                 </h1>
 
-                <div class="flex justify-between bg-red-500" v-if="$slots.actions">
+                <div class="flex justify-between" v-if="$slots.actions">
                     <slot name="actions" />
                 </div>
             </header>

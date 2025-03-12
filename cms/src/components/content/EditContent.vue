@@ -415,7 +415,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
         :backLinkParams="{
             docType: docType,
             tagOrPostType: tagOrPostType,
-            parentId: editableParent._id,
+            parentId: parentId,
             languageCode: languageCode,
         }"
         v-if="parentId"
