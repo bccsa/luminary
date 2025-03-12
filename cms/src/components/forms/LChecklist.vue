@@ -1,134 +1,96 @@
 <script setup lang="ts">
-import { ref, watch, type Component, type StyleValue } from "vue";
-import { ChevronDownIcon, XMarkIcon } from "@heroicons/vue/20/solid";
-import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
-import { onClickOutside } from "@vueuse/core";
+import { computed, ref, watch, type Component } from "vue";
+import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
+import {
+    Combobox,
+    ComboboxButton,
+    ComboboxInput,
+    ComboboxOption,
+    ComboboxOptions,
+} from "@headlessui/vue";
+import LTag from "@/components/content/LTag.vue";
 
-type Option = { label: string; value: string; isChecked: boolean; disabled?: boolean };
+type ChecklistOption = { label: string; value: string | number };
 
 type Props = {
-    options: Option[];
-    searchable?: boolean;
-    state?: keyof typeof states;
-    placeholder?: string;
+    options: ChecklistOption[];
     disabled?: boolean;
-    required?: boolean;
     icon?: Component | Function;
 };
-
 const props = withDefaults(defineProps<Props>(), {
-    searchable: false,
-    placeholder: "Select Options",
     disabled: false,
-    required: false,
-    state: "default",
 });
-
-const states = {
-    default: "text-zinc-900 ring-zinc-300 focus:ring-zinc-950",
-    error: "text-red-900 bg-red-50 ring-red-300 focus:ring-red-500",
-};
-
-const givenOptions = ref(props.options);
-const selectedValues = defineModel<Option[]>("modelValue", { default: () => [] });
-
-const toggleOption = (option: Option) => {
-    const index = selectedValues.value.findIndex((v) => v.value === option.value);
-
-    if (index > -1) {
-        // Remove option if already selected
-        selectedValues.value.splice(index, 1);
-    } else {
-        // Add option if not selected
-        selectedValues.value.push(option);
-    }
-
-    props.options.forEach((opt) => {
-        opt.isChecked = selectedValues.value.some((v) => v.value === opt.value);
-    });
-};
-
-const isOptionSelected = (option: Option) => {
-    return selectedValues.value.some((v) => v.value === option.value);
-};
+const selectedValues = defineModel<Array<string | number>>("selectedValues");
 
 const query = ref("");
+const filtered = computed(() =>
+    query.value === ""
+        ? props.options
+        : props.options.filter((o) => {
+              return o.label.toLowerCase().includes(query.value.toLowerCase());
+          }),
+);
 
-const showOptions = ref(false);
+const selectedOptions = ref<ChecklistOption[]>([]);
+watch(
+    [selectedValues, props],
+    () => {
+        if (!selectedValues.value) return;
+        selectedOptions.value = props.options.filter((t) =>
+            selectedValues.value?.some((s) => s == t.value),
+        );
+    },
+    { deep: true },
+);
 
-const optionsAsRef = ref(undefined);
-onClickOutside(optionsAsRef, () => (showOptions.value = false));
-
-watch(query, () => {
-    givenOptions.value = props.options.filter((option) =>
-        option.label.toLowerCase().includes(query.value.toLowerCase().trim()),
-    );
+const isSelected = computed(() => {
+    return (option: ChecklistOption) => {
+        return selectedValues.value?.some((t) => t == option.value);
+    };
 });
 
-const emit = defineEmits(["clear-selected-values"]);
-
-const clearSelectedValues = () => {
-    selectedValues.value = [];
-    emit("clear-selected-values");
+const onSelected = (option: ChecklistOption) => {
+    /*The action that should happen if @update:modelValue is triggered in "Combobox"
+      This was implemented inline but moved here to make it a function that can be triggered.
+    */
+    if (!option || !selectedValues.value) return;
+    if (!selectedValues.value.some((s) => s == option.value)) {
+        selectedValues.value = [...selectedValues.value, option.value];
+    }
 };
 
-const { attrsWithoutStyles } = useAttrsWithoutStyles();
+/* This function was implemented for the @click on the "li" 
+   that was triggered in the test but didn't trigger the "update:modelValue"
+   in the headlessUI combobox. So the "selectedValues" remained *[]*
+   This method ensures that "update:modelValue" is triggered. */
+const onClick = (option: ChecklistOption) => {
+    // Emit the value to trigger `update:modelValue`
+    onSelected(option);
+};
 </script>
 
 <template>
-    <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <div
-            class="group relative h-full w-64 cursor-default rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:bg-zinc-50 focus:ring-2 focus:ring-zinc-950 sm:text-sm"
-            @focus="showOptions = true"
-            @blur="showOptions = false"
-            tabindex="0"
-            :disabled="state === 'error'"
-            v-bind="attrsWithoutStyles"
-        >
-            <div
-                class="h-full"
-                @click="showOptions = true"
-                :disabled="state === 'error'"
-                data-test="main-div"
+    <Combobox
+        as="div"
+        @update:modelValue="onSelected"
+        nullable
+        :disabled="disabled"
+        data-test="selector"
+    >
+        <div class="relative">
+            <ComboboxInput
+                :class="[
+                    ' h-10 w-full rounded-md border-0 bg-white py-1.5 pl-3 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400  focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6',
+                    { 'hover:ring-zinc-400': !disabled, 'bg-zinc-100': disabled },
+                ]"
+                @change="query = $event.target.value"
+                placeholder="Type to select..."
+            />
+            <ComboboxButton
+                class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
             >
-                <div class="absolute inset-y-0 left-0 flex h-full items-center pl-3">
-                    <component
-                        v-if="props.icon"
-                        :is="props.icon"
-                        :class="{
-                            'text-zinc-400': props.state === 'default' && !props.disabled,
-                            'text-zinc-300': props.state === 'default' && props.disabled,
-                            'text-red-400': props.state === 'error',
-                        }"
-                        class="h-5 w-5 bg-inherit sm:text-sm"
-                    />
-                </div>
-
-                <input
-                    v-if="searchable"
-                    :placeholder="props.placeholder"
-                    class="h-full w-full border-0 bg-inherit p-0 text-sm focus:ring-0 group-hover:bg-zinc-50"
-                    v-model="query"
-                    @input="
-                        givenOptions = props.options.filter((option) =>
-                            option.label.toLowerCase().includes(query.toLowerCase()),
-                        )
-                    "
-                    tabindex="-8"
-                    :disabled="props.state === 'error'"
-                />
-
-                <span v-if="!searchable" class="flex-1">{{ placeholder }}</span>
-                <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                    <XMarkIcon
-                        @click="clearSelectedValues"
-                        v-if="selectedValues.length > 0"
-                        class="h-5 w-5 cursor-pointer text-zinc-700"
-                        aria-hidden="true"
-                    />
-                    <ChevronDownIcon class="h-5 w-5 text-zinc-700" aria-hidden="true" />
-                </div>
-            </div>
+                <ChevronUpDownIcon class="h-5 w-5 text-zinc-400" aria-hidden="true" />
+            </ComboboxButton>
 
             <transition
                 enter-active-class="transition duration-100 ease-out"
@@ -138,35 +100,60 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 leave-from-class="transform scale-100 opacity-100"
                 leave-to-class="transform scale-95 opacity-0"
             >
-                <div
-                    ref="optionsAsRef"
-                    :disabled="state === 'error'"
-                    v-if="showOptions"
-                    class="absolute left-0 z-10 mt-2 max-h-48 w-64 overflow-auto rounded-md bg-white px-1 py-2 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
-                    data-test="options-div"
+                <ComboboxOptions
+                    v-if="filtered.length > 0"
+                    class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
                 >
-                    <div
-                        v-for="option in givenOptions"
-                        :key="option.value"
-                        @click.stop="toggleOption(option)"
-                        class="flex cursor-default select-none items-center rounded-md px-2 py-1 hover:bg-zinc-100"
+                    <ComboboxOption
+                        v-for="content in filtered"
+                        :key="content.value"
+                        :value="content"
+                        :disabled="isSelected(content)"
+                        as="template"
+                        v-slot="{ active, disabled }"
                     >
-                        <input
-                            type="checkbox"
-                            :id="option.value"
-                            :class="{
-                                'text-zinc-900': props.state === 'default' && !props.disabled,
-                                'text-zinc-300': props.state === 'default' && props.disabled,
-                                'text-red-400': props.state === 'error',
-                            }"
-                            :checked="isOptionSelected(option)"
-                            class="mr-1 rounded-lg"
-                            readonly
-                        />
-                        <span class="block whitespace-pre-wrap">{{ option.label }}</span>
-                    </div>
-                </div>
+                        <li
+                            @click="onClick(content)"
+                            :class="[
+                                'relative cursor-default select-none py-2 pl-3 pr-9',
+                                { 'bg-zinc-100': active },
+                                { 'text-zinc-900': active && !disabled },
+                                { 'text-zinc-500': disabled },
+                            ]"
+                        >
+                            <span class="block truncate" data-test="selector">
+                                {{ content.label }}
+                            </span>
+                        </li>
+                    </ComboboxOption>
+                </ComboboxOptions>
             </transition>
         </div>
+    </Combobox>
+
+    <!-- Selected options -->
+    <div class="mt-3 flex flex-wrap gap-3">
+        <TransitionGroup
+            enter-active-class="transition duration-150 delay-75"
+            enter-from-class="transform scale-90 opacity-0"
+            enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-100"
+            leave-from-class="transform scale-100 opacity-100"
+            leave-to-class="transform scale-90 opacity-0"
+        >
+            <LTag
+                v-for="option in selectedOptions"
+                :key="option.value"
+                @remove="
+                    () => {
+                        if (!selectedValues) return;
+                        selectedValues = selectedValues.filter((v) => v != option.value);
+                    }
+                "
+                :disabled="disabled"
+            >
+                {{ options.find((o) => o.value == option.value)?.label }}
+            </LTag>
+        </TransitionGroup>
     </div>
 </template>
