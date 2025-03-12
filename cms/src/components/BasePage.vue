@@ -47,12 +47,13 @@ withDefaults(defineProps<Props>(), {
                     },
                 ]"
             >
-                <h1 class="flex items-center gap-2 text-lg font-semibold leading-7">
+                <h1 class="flex items-center gap-1 text-lg font-semibold leading-7">
                     <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
                     {{ title }}
+                    <slot name="links" />
                 </h1>
 
-                <div v-if="$slots.actions">
+                <div class="flex justify-between" v-if="$slots.actions">
                     <slot name="actions" />
                 </div>
             </header>
