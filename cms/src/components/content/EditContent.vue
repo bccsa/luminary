@@ -484,6 +484,7 @@ watch(selectedLanguage, () => {
                     :description="`Please select a language to start editing
                     `"
                     data-test="no-content"
+                    class="flex flex-col items-center"
                     ><LanguageSelector
                         :parent="editableParent"
                         :content="editableContent"

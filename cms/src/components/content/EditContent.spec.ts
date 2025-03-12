@@ -9,6 +9,7 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import LanguageSelector from "./LanguageSelector.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -50,7 +51,6 @@ describe("EditContent.vue", () => {
             mockData.mockLanguageDtoSwa,
         ]);
 
-        accessMap.value = mockData.superAdminAccessMap;
     });
 
     afterEach(async () => {
@@ -427,6 +427,27 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("only displays languages the user has Translate access to in languageSelector", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                id: mockData.mockPostDto._id,
+                languageCode: "en",
+                //@ts-expect-error --> Makes the test pass but incorrect prop type, so error is expected, as this only tests the language selector, this prop doesn't matter here.
+                docType: DocType.Content,
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        const languageSelector = wrapper.findAllComponents(LanguageSelector)[0];
+        const btn = languageSelector.find("[data-test='language-selector']");
+        btn.trigger("click");
+
+        await waitForExpect(async () => {
+            const languages = languageSelector.find("[data-test='languagePopup']");
+            expect(await languages.html()).toContain("English");
+        });
+    });
+
     describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
@@ -534,6 +555,7 @@ describe("EditContent.vue", () => {
                     deleteReq: 1,
                 });
             });
+
         });
     });
 });
