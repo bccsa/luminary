@@ -774,6 +774,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        user: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-content": {
         post: {
@@ -811,6 +817,12 @@ export const superAdminAccessMap = {
             delete: true,
         },
         redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
+        user: {
             view: true,
             create: true,
             edit: true,
@@ -858,6 +870,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        user: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-editors": {
         post: {
@@ -895,6 +913,12 @@ export const superAdminAccessMap = {
             delete: true,
         },
         redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
+        user: {
             view: true,
             create: true,
             edit: true,
@@ -942,6 +966,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        user: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-users": {
         post: {
@@ -984,6 +1014,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        user: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-languages": {
         post: {
@@ -1020,6 +1056,12 @@ export const superAdminAccessMap = {
             delete: true,
         },
         redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
+        user: {
             view: true,
             create: true,
             edit: true,
