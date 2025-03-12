@@ -20,10 +20,10 @@ export const contentByTag = (
     const result = ref<ContentByTag[]>([]);
 
     watchEffect(() => {
-        // Clear removed tags
-        for (const r of result.value) {
-            if (!tags.value.some((c) => c._id === r.tag._id)) {
-                result.value = result.value.filter((f) => f.tag._id !== r.tag._id);
+        // Remove tags that no longer exist
+        for (let i = result.value.length - 1; i >= 0; i--) {
+            if (!tags.value.some((c) => c._id === result.value[i].tag._id)) {
+                result.value.splice(i, 1);
             }
         }
 
@@ -31,37 +31,25 @@ export const contentByTag = (
         tags.value.forEach((tag) => {
             const sorted = content.value
                 .filter((c) => c.publishDate && c.parentTags.includes(tag.parentId))
-                .sort((a, b) => {
-                    if (!a.publishDate) return 1;
-                    if (!b.publishDate) return -1;
-                    if (a.publishDate < b.publishDate) return -1;
-                    if (a.publishDate > b.publishDate) return 1;
-                    return 0;
-                });
+                .sort((a, b) => (a.publishDate ?? 0) - (b.publishDate ?? 0));
 
             if (sorted.length) {
                 const index = result.value.findIndex((r) => r.tag._id === tag._id);
-                // Replace the tag if it already exists. For some or other reason the tags are
-                // duplicated on initial page load, and this logic prevents showing duplicate tags.
+
                 if (index !== -1) {
-                    result.value[index] = {
-                        tag: tag,
+                    Object.assign(result.value[index], {
                         newestContentDate: sorted[sorted.length - 1].publishDate || 0,
                         content: sorted,
-                    };
+                    });
                 } else {
                     result.value.push({
-                        tag: tag,
+                        tag,
                         newestContentDate: sorted[sorted.length - 1].publishDate || 0,
                         content: sorted,
                     });
-
-                    result.value.sort((a, b) => {
-                        if (a.newestContentDate > b.newestContentDate) return -1;
-                        if (a.newestContentDate < b.newestContentDate) return 1;
-                        return 0;
-                    });
                 }
+
+                result.value.sort((a, b) => b.newestContentDate - a.newestContentDate);
             }
         });
     });

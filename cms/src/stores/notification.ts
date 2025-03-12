@@ -30,7 +30,7 @@ export const useNotificationStore = defineStore("notification", () => {
             () => {
                 notifications.value = notifications.value.filter((n) => n.id != notificationId);
             },
-            notification.timer ? notification.timer : 2000,
+            notification.timer ? notification.timer : 5000,
         );
     };
 

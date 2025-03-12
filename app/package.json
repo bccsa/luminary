@@ -31,7 +31,8 @@
         "tailwind-scrollbar-hide": "^1.1.7",
         "video.js": "^8.10.0",
         "videojs-mobile-ui": "^1.1.1",
-        "vue": "^3.3.11",
+        "vue": "^3.5.13",
+        "vue-i18n": "^10.0.5",
         "vue-router": "^4.2.5"
     },
     "devDependencies": {
@@ -50,6 +51,7 @@
         "@vue/test-utils": "^2.4.3",
         "@vue/tsconfig": "^0.5.0",
         "autoprefixer": "^10.4.16",
+        "doiuse": "^6.0.5",
         "eslint": "^8.49.0",
         "eslint-plugin-vue": "^9.17.0",
         "fake-indexeddb": "^5.0.2",

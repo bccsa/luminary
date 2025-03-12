@@ -1,6 +1,6 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbQueryResult, DbService, QueryDocsOptions } from "../db/db.service";
-import { AclPermission } from "../enums";
+import { AclPermission, DocType } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -44,11 +44,14 @@ export class SearchService {
         const accessMap: AccessMap = PermissionSystem.getAccessMap(permissions.groups);
 
         // Get user accessible groups
-        const userViewGroups = PermissionSystem.accessMapToGroups(
-            accessMap,
-            AclPermission.View,
-            query.types,
-        );
+        const userViewGroups = PermissionSystem.accessMapToGroups(accessMap, AclPermission.View, [
+            ...query.types,
+            DocType.Language,
+        ]);
+
+        // Get accessible groups for delete command documents (all groups to which the user has view access to)
+        const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
+        userViewGroups[DocType.DeleteCmd] = userAccessibleGroups;
 
         if (Object.keys(userViewGroups).length < 1)
             throw new HttpException(
@@ -59,7 +62,7 @@ export class SearchService {
         const options: QueryDocsOptions = {
             userAccess: userViewGroups,
             groups: query.groups,
-            types: query.types,
+            types: [...query.types, DocType.DeleteCmd],
             limit: query.limit,
             contentOnly: query.contentOnly,
             from: query.from,

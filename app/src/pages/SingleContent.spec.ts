@@ -38,10 +38,21 @@ vi.mock("vue-router", async (importOriginal) => {
         })),
     };
 });
-
 vi.mock("@auth0/auth0-vue");
 
-describe.skip("SingleContent", () => {
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
+
+describe("SingleContent", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -77,7 +88,7 @@ describe.skip("SingleContent", () => {
         await db.docs.update(mockEnglishContentDto._id, {
             parentImage: "",
             video: "test-video.mp4",
-        });
+        } as any);
 
         const wrapper = shallowMount(SingleContent, {
             props: {
@@ -194,7 +205,7 @@ describe.skip("SingleContent", () => {
         // Set a future publish date and an expired date
         await db.docs.update(mockEnglishContentDto._id, {
             publishDate: Date.now() + 10000,
-        });
+        } as any);
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -213,7 +224,7 @@ describe.skip("SingleContent", () => {
         await db.docs.update(mockEnglishContentDto._id, {
             publishDate: Date.now(),
             expiryDate: Date.now() - 1000,
-        });
+        } as ContentDto);
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -230,7 +241,7 @@ describe.skip("SingleContent", () => {
     it("displays the 404 error page when content has a draft status", async () => {
         await db.docs.update(mockEnglishContentDto._id, {
             status: "draft",
-        });
+        } as any);
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -258,7 +269,7 @@ describe.skip("SingleContent", () => {
     });
 
     it("switches the content correctly when the language changes", async () => {
-        initLanguage();
+        await initLanguage();
 
         const wrapper = mount(SingleContent, {
             props: {
@@ -270,10 +281,9 @@ describe.skip("SingleContent", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
         });
 
-        // Simulate language change
-        appLanguageIdsAsRef.value.unshift(mockLanguageDtoFra._id);
-
         await waitForExpect(() => {
+            // Simulate language change
+            appLanguageIdsAsRef.value.unshift(mockLanguageDtoFra._id);
             expect(routeReplaceMock).toBeCalledWith({
                 name: "content",
                 params: { slug: mockFrenchContentDto.slug },
@@ -303,12 +313,9 @@ describe.skip("SingleContent", () => {
         const notificationStore = useNotificationStore();
 
         await waitForExpect(() => {
-            console.info(appLanguageIdsAsRef.value);
             // simulate language change
-
             appLanguageIdsAsRef.value.unshift("lang-test");
 
-            console.info(appLanguageIdsAsRef.value);
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });

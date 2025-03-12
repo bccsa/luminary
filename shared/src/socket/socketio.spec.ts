@@ -3,10 +3,10 @@ import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest
 import waitForExpect from "wait-for-expect";
 import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
 import { Server } from "socket.io";
-import { db } from "../db/database";
+import { db, initDatabase } from "../db/database";
 import { AckStatus, ChangeReqDto, DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
-import { initLuminaryShared } from "../luminary";
+import { initConfig } from "../config";
 
 vi.mock("../config/config", () => ({
     config: {
@@ -23,12 +23,17 @@ describe("socketio", () => {
     const socketServer = new Server(12345);
 
     beforeAll(async () => {
-        await initLuminaryShared({ cms: true, docsIndex: "parentId, language, [type+docType]" });
-
-        // initialize the socket client
-        const socket = getSocket({
+        initConfig({
+            cms: true,
+            docsIndex: "parentId, language, [type+docType]",
             apiUrl: "http://localhost:12345",
         });
+
+        // Initialize the IndexedDB database
+        await initDatabase();
+
+        // initialize the socket client
+        const socket = getSocket();
         socket.disconnect();
     });
 
@@ -55,6 +60,7 @@ describe("socketio", () => {
             socket.on("changeRequest", (data) => {
                 changeReq = data;
             });
+            socket.emit("clientConfig", {});
         });
 
         // Connect to the server
@@ -83,6 +89,7 @@ describe("socketio", () => {
             socket.on("changeRequest", (data) => {
                 changeReq = data;
             });
+            socket.emit("clientConfig", {});
         });
 
         // Connect to the server
@@ -109,6 +116,7 @@ describe("socketio", () => {
             socket.on("changeRequest", (data) => {
                 changeReq = data;
             });
+            socket.emit("clientConfig", {});
         });
 
         // Create a local change
@@ -134,14 +142,14 @@ describe("socketio", () => {
 
     it("can connect to a socket server and set the connection status", async () => {
         let serverConnectCalled = false;
-        socketServer.on("connection", () => {
+        socketServer.on("connection", (socket) => {
             serverConnectCalled = true;
+            socket.emit("clientConfig", {});
         });
 
         expect(isConnected.value).toEqual(false); // Should be false immediately after creating the instance
 
         getSocket({ reconnect: true });
-
         await waitForExpect(() => {
             expect(serverConnectCalled).toEqual(true);
             expect(isConnected.value).toEqual(true);
@@ -150,8 +158,9 @@ describe("socketio", () => {
 
     it("can force reload the connection", async () => {
         let serverConnectCalled = false;
-        socketServer.on("connection", () => {
+        socketServer.on("connection", (socket) => {
             serverConnectCalled = true;
+            socket.emit("clientConfig", {});
         });
 
         getSocket({ reconnect: true });
@@ -177,6 +186,7 @@ describe("socketio", () => {
             socket.on("changeRequest", (data) => {
                 changeReq = data;
             });
+            socket.emit("clientConfig", {});
         });
         getSocket({ reconnect: true });
 
@@ -202,6 +212,7 @@ describe("socketio", () => {
 
         // Mock the ack from the server
         socketServer.on("connection", (socket) => {
+            socket.emit("clientConfig", {});
             socket.emit("changeRequestAck", { id: 1234, ack: AckStatus.Accepted });
         });
 

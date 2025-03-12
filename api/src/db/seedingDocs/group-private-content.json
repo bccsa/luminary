@@ -26,12 +26,12 @@
         {
             "type": "post",
             "groupId": "group-private-editors",
-            "permission": ["view", "edit", "translate", "publish"]
+            "permission": ["view", "edit", "translate", "publish", "delete"]
         },
         {
             "type": "tag",
             "groupId": "group-private-editors",
-            "permission": ["view", "translate", "assign"]
+            "permission": ["view", "edit", "translate", "publish", "delete", "assign"]
         },
         {
             "type": "group",

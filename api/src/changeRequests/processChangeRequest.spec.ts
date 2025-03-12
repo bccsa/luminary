@@ -3,10 +3,7 @@ import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { processChangeRequest } from "./processChangeRequest";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { changeRequest_content, changeRequest_post } from "../test/changeRequestDocuments";
 import { S3Service } from "../s3/s3.service";
-import { ChangeReqDto } from "src/dto/ChangeReqDto";
-import { PostDto } from "src/dto/PostDto";
 import waitForExpect from "wait-for-expect";
 import { DocType } from "../enums";
 
@@ -48,6 +45,9 @@ describe("processChangeRequest", () => {
                 languageCode: "xho",
                 name: "Xhoza",
                 default: 0,
+                translations: {
+                    stringTranslation: "String Translation",
+                },
             },
         };
         const changeRequest2 = {
@@ -59,6 +59,9 @@ describe("processChangeRequest", () => {
                 languageCode: "xho",
                 name: "Xhoza",
                 default: 0,
+                translations: {
+                    stringTranslation: "String Translation",
+                },
             },
         };
         await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
@@ -74,7 +77,7 @@ describe("processChangeRequest", () => {
             expect(processResult.changes).toBeUndefined();
         });
     });
-
+  
     it("can validate a unique slug for a content document that does not exists", async () => {
         const changeRequest = changeRequest_content();
         changeRequest.doc.parentId = "post-blog1";

@@ -29,6 +29,9 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "eng",
                 name: "English",
+                translations: {
+                    stringTranslation: "String Translation",
+                },
             },
         };
 
@@ -59,6 +62,10 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "eng",
                 name: "English",
+                default: 1,
+                translations: {
+                    stringTranslation: "String Translation",
+                },
             },
         };
 
@@ -77,6 +84,10 @@ describe("validateChangeRequest", () => {
                 memberOf: "invalid data (should have been an array)",
                 languageCode: "eng",
                 name: "English",
+                default: 1,
+                translations: {
+                    stringTranslation: "String Translation",
+                },
             },
         };
 
@@ -151,6 +162,9 @@ describe("validateChangeRequest", () => {
                 memberOf: ["group-languages"],
                 languageCode: "new",
                 name: "New Language",
+                translations: {
+                    stringTranslation: "String Translation",
+                },
                 invalidField: "invalid",
             },
         };

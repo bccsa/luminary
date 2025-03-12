@@ -1,14 +1,10 @@
 import { io, Socket } from "socket.io-client";
 import { ref, watch } from "vue";
-import {
-    ApiDataResponseDto,
-    ChangeReqAckDto,
-    LocalChangeDto,
-    ApiConnectionOptions,
-} from "../types";
+import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
+import { config } from "../config";
 
 /**
  * Client configuration type definition
@@ -28,7 +24,7 @@ export const isConnected = ref(false);
  */
 export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
 
-class Socketio {
+class SocketIO {
     private socket: Socket;
     private retryTimeout: number = 0;
     private localChanges = ref<LocalChangeDto[]>();
@@ -36,9 +32,9 @@ class Socketio {
     private docTypes: Array<any>;
 
     /**
-     * Create a new socketio instance
+     * Create a new SocketIO instance
      * @param apiUrl - Socket.io endpoint URL
-     * @param docTypes - Array of doctypes
+     * @param docTypes - Array of docTypes
      * @param token - Access token
      */
     constructor(apiUrl: string, docTypes: Array<any>, token?: string) {
@@ -46,9 +42,8 @@ class Socketio {
         this.docTypes = docTypes;
 
         this.socket.on("connect", () => {
-            isConnected.value = true;
             this.socket.emit("joinSocketGroups", { docTypes: this.docTypes });
-            this.processChangeReqLock = false; // reset process log on connection
+            this.processChangeReqLock = false; // reset process lock on connection
         });
 
         this.socket.on("disconnect", () => {
@@ -64,6 +59,7 @@ class Socketio {
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });
 
         // watch for local changes
@@ -148,25 +144,32 @@ class Socketio {
     }
 }
 
-let socket: Socketio;
+let socket: SocketIO;
 
 /**
- * Returns a singleton instance of the socketio client class. The api URL, token and CMS flag is only used when calling the function for the first time.
+ * Returns a singleton instance of the SocketIO client class.
  * @param options - Socket connection options
  */
-export function getSocket(options?: ApiConnectionOptions) {
+export function getSocket(
+    options: {
+        /**
+         * Force a reconnect to the server if the socket already exists
+         */
+        reconnect: boolean;
+    } = { reconnect: false },
+) {
     if (!socket) {
-        if (!options) {
-            throw new Error("Socket connection requires options object");
+        if (!config) {
+            throw new Error("Shared config object not initialized");
         }
-        if (!options.apiUrl) {
+        if (!config.apiUrl) {
             throw new Error("Socket connection requires an API URL");
         }
 
-        if (!options.docTypes) options.docTypes = [];
+        if (!config.docTypes) config.docTypes = [];
 
-        socket = new Socketio(options.apiUrl, options.docTypes, options.token);
-    } else if (options?.reconnect) socket.reconnect();
+        socket = new SocketIO(config.apiUrl, config.docTypes, config.token);
+    } else if (options.reconnect) socket.reconnect();
 
     return socket;
 }

@@ -12,12 +12,15 @@ import { computed, toRef } from "vue";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
+import { useI18n } from "vue-i18n";
 
 type Props = {
     tags: ContentDto[];
     selectedContent: ContentDto;
 };
 const props = defineProps<Props>();
+
+const { t } = useI18n();
 
 const isNotTopic = computed(() => props.selectedContent.parentTagType !== TagType.Topic);
 const contentIds = computed(() =>
@@ -52,9 +55,9 @@ const contentByTopic = contentByTag(filtered, toRef(props.tags));
     <IgnorePagePadding>
         <h1
             v-if="isNotTopic && contentByTopic.length"
-            class="px-4 text-xl text-zinc-800 dark:text-zinc-200"
+            class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200"
         >
-            Related
+            {{ t("content.related_title") }}
         </h1>
         <div class="mb-2 flex max-w-full flex-wrap">
             <div class="max-w-full" ref="scrollElement">

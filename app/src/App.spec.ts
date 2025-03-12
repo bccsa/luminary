@@ -10,6 +10,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
 import { mockEnglishContentDto } from "./tests/mockdata";
+import { theme } from "./globalConfig";
 
 const routeReplaceMock = vi.fn();
 const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}` });
@@ -39,79 +40,85 @@ describe("App", () => {
         vi.clearAllMocks();
     });
 
-    it("shows the 'offline' banner when offline and hides the banner when going online", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isLoading: ref(true),
-            isAuthenticated: ref(true),
-        });
+    describe("Notifications", () => {
+        it("shows the 'offline' banner when offline and hides the banner when going online", async () => {
+            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+                isLoading: ref(true),
+                isAuthenticated: ref(true),
+            });
 
-        const notificationStore = useNotificationStore();
-        isConnected.value = false;
+            const notificationStore = useNotificationStore();
+            isConnected.value = false;
 
-        mount(App, {
-            shallow: true,
-        });
+            mount(App, {
+                shallow: true,
+            });
 
-        await wait(4000);
+            await wait(4000);
 
-        await waitForExpect(() => {
-            expect(notificationStore.addNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    id: "offlineBanner",
-                    title: "You are offline",
-                    description:
-                        "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
-                }),
-            );
-        });
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        id: "offlineBanner",
+                        title: "You are offline",
+                        description:
+                            "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
+                    }),
+                );
+            });
 
-        isConnected.value = true;
+            isConnected.value = true;
 
-        await waitForExpect(() => {
-            expect(notificationStore.removeNotification).toHaveBeenCalledWith("offlineBanner");
-        });
-    }, 9000);
+            await waitForExpect(() => {
+                expect(notificationStore.removeNotification).toHaveBeenCalledWith("offlineBanner");
+            });
+        }, 9000);
 
-    it("only gets the token when authenticated", async () => {
-        const getAccessTokenSilently = vi.fn();
+        it("shows the banner when not authenticated", async () => {
+            vi.spyOn(isConnected, "value", "get").mockReturnValue(true);
 
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isLoading: ref(false),
-            isAuthenticated: ref(true),
-            getAccessTokenSilently,
-        });
+            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+                isLoading: ref(false),
+                isAuthenticated: ref(false),
+            });
 
-        mount(App, {
-            shallow: true,
-        });
+            const notificationStore = useNotificationStore();
 
-        await waitForExpect(() => {
-            expect(getAccessTokenSilently).toHaveBeenCalledOnce();
-        });
+            mount(App, {
+                shallow: true,
+            });
+
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        id: "accountBanner",
+                        title: "You are missing out!",
+                        description: "Click here to create an account or log in.",
+                    }),
+                );
+            }, 8000);
+        }, 9000);
     });
 
-    it("shows the banner when not authenticated", async () => {
-        vi.spyOn(isConnected, "value", "get").mockReturnValue(true);
+    describe("Theme config", () => {
+        it("applies the correct theme class on mount - dark mode", () => {
+            theme.value = "dark";
 
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
-            isLoading: ref(false),
-            isAuthenticated: ref(false),
+            mount(App, {
+                shallow: true,
+            });
+
+            expect(document.documentElement.classList.contains("dark")).toBe(true);
         });
 
-        const notificationStore = useNotificationStore();
+        it("applies the correct theme class on mount - light mode", () => {
+            theme.value = "light";
 
-        mount(App, {
-            shallow: true,
+            mount(App, {
+                shallow: true,
+            });
+
+            expect(document.documentElement.classList.contains("dark")).toBe(false);
         });
-
-        await waitForExpect(() => {
-            expect(notificationStore.addNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    id: "accountBanner",
-                    title: "You are missing out!",
-                    description: "Click here to create an account or log in.",
-                }),
-            );
-        }, 8000);
-    }, 9000);
+    });
 });

@@ -1,4 +1,11 @@
-import type { DocType, TagType, PublishStatus, PostType, RedirectType } from "../types";
+import type {
+    DocType,
+    TagType,
+    PublishStatus,
+    PostType,
+    RedirectType,
+    DeleteReason,
+} from "../types";
 
 export enum AckStatus {
     Accepted = "accepted",
@@ -28,6 +35,7 @@ export type BaseDocumentDto = {
     parentTagType?: TagType;
     parentTags?: Uuid[];
     parentPinned?: number;
+    deleteReq?: number;
 };
 
 export enum AclPermission {
@@ -45,6 +53,14 @@ export type GroupAclEntryDto = {
     permission: AclPermission[];
 };
 
+export type DeleteCmdDto = BaseDocumentDto & {
+    docId: Uuid;
+    docType: DocType;
+    deleteReason: DeleteReason;
+    memberOf?: Uuid[];
+    newMemberOf?: Uuid[];
+};
+
 export type ContentBaseDto = BaseDocumentDto & {
     memberOf: Uuid[];
 };
@@ -54,6 +70,7 @@ export type LanguageDto = ContentBaseDto & {
     languageCode: string;
     name: string;
     default?: number;
+    translations: Record<string, string>;
 };
 
 export type ContentDto = ContentBaseDto & {
@@ -136,7 +153,7 @@ export type ChangeReqAckDto = {
     id: number;
     ack: AckStatus;
     message?: string;
-    doc?: any;
+    docs?: any[];
 };
 
 export type LocalChangeDto = {
@@ -154,29 +171,4 @@ export type RedirectDto = ContentBaseDto & {
     redirectType: RedirectType;
     slug: string;
     toSlug?: string;
-};
-
-export type ApiConnectionOptions = {
-    /**
-     * Socket.io endpoint URL
-     */
-    apiUrl?: string;
-    /**
-     * Access token
-     */
-    token?: string;
-    /**
-     * Force a reconnect to the server if the socket already exists
-     */
-    reconnect?: boolean;
-    /**
-     * Array of DocTypes passed to the shared library, that the client need to sync down
-     */
-    docTypes?: Array<apiDocTypes>;
-};
-
-type apiDocTypes = {
-    type: DocType;
-    contentOnly: boolean;
-    syncPriority: number; // 10 is default, lower number is higher priority
 };

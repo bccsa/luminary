@@ -1,14 +1,13 @@
 import "./assets/main.css";
-
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-
-import { createAuth0 } from "@auth0/auth0-vue";
 import * as Sentry from "@sentry/vue";
-
 import App from "./App.vue";
 import router from "./router";
-import { initLuminaryShared } from "luminary-shared";
+import { DocType, getSocket, init } from "luminary-shared";
+import { apiUrl } from "@/globalConfig";
+import auth from "./auth";
+import { useNotificationStore } from "./stores/notification";
 
 const app = createApp(App);
 
@@ -27,31 +26,76 @@ if (import.meta.env.PROD) {
     });
 }
 
-// Startup
 async function Startup() {
-    await initLuminaryShared({
+    const oauth = await auth.setupAuth(app, router);
+    const token = await auth.getToken(oauth);
+
+    await init({
         cms: true,
         docsIndex:
-            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language]",
+            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug, title",
+        apiUrl,
+        token,
+        docTypes: [
+            {
+                type: DocType.Tag,
+                contentOnly: false,
+                syncPriority: 2,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Post,
+                contentOnly: false,
+                syncPriority: 2,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Redirect,
+                contentOnly: false,
+                syncPriority: 2,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Language,
+                contentOnly: false,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.Group,
+                contentOnly: false,
+                syncPriority: 1,
+                skipWaitForLanguageSync: true,
+            },
+        ],
+    }).catch((err) => {
+        console.error(err);
+        Sentry.captureException(err);
+    });
+
+    const socket = getSocket();
+
+    // Redirect to login if the API authentication fails
+    socket.on("apiAuthFailed", async () => {
+        console.error("API authentication failed, redirecting to login");
+        Sentry.captureMessage("API authentication failed, redirecting to login");
+        await auth.loginRedirect(oauth);
+    });
+
+    // Show notification if a change request was rejected
+    socket.on("changeRequestAck", (data: any) => {
+        if (data.ack == "rejected") {
+            useNotificationStore().addNotification({
+                title: "Saving changes to server failed.",
+                description: `Your recent request to save changes has failed. The changes have been reverted. Error message: ${data.message}`,
+                state: "error",
+                timer: 60000,
+            });
+        }
     });
 
     app.use(createPinia());
-
     app.use(router);
-
-    app.use(
-        createAuth0({
-            domain: import.meta.env.VITE_AUTH0_DOMAIN,
-            clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
-            authorizationParams: {
-                audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-                redirect_uri: window.location.origin,
-                scope: "openid profile email offline_access",
-            },
-            cacheLocation: "localstorage",
-            useRefreshTokens: true,
-        }),
-    );
     app.mount("#app");
 }
 

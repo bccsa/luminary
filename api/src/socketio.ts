@@ -7,7 +7,7 @@ import {
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
-import { AclPermission, AckStatus, Uuid } from "./enums";
+import { AclPermission, AckStatus, Uuid, DocType } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
@@ -224,6 +224,12 @@ export class Socketio implements OnGatewayInit {
                 socket.join(`${docType}-${group}`);
             }
         }
+
+        // Join deleted documents rooms
+        const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
+        for (const group of userAccessibleGroups) {
+            socket.join(`${DocType.DeleteCmd}-${group}`);
+        }
     }
 
     /**
@@ -279,9 +285,30 @@ export class Socketio implements OnGatewayInit {
         if (changeRequest.doc && status == AckStatus.Rejected) {
             await this.db.getDoc(changeRequest.doc._id).then((res) => {
                 if (res.docs.length > 0) {
-                    ack.doc = res.docs[0];
+                    ack.docs = [res.docs[0]];
                 }
             });
+
+            // Handle rejected Post / Tag requests
+            if (
+                changeRequest.doc.type == DocType.Post ||
+                (changeRequest.doc.type == DocType.Tag && changeRequest.doc.deleteReq)
+            ) {
+                // Get all content documents associated to the post/tag to which the user has view access
+                const res = await this.db.getContentByParentId(changeRequest.doc._id);
+                const contentDocs = res.docs.filter((doc) =>
+                    PermissionSystem.verifyAccess(
+                        doc.memberOf,
+                        changeRequest.doc.type,
+                        AclPermission.View,
+                        socket.data.memberOf,
+                        "any",
+                    ),
+                );
+                if (contentDocs.length > 0) {
+                    ack.docs.push(...contentDocs);
+                }
+            }
         }
 
         socket.emit("changeRequestAck", ack);

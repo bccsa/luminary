@@ -46,7 +46,7 @@ export async function validateChangeRequest(
         return validationResult;
     }
 
-    // Check included document existance and type validity
+    // Check included document existence and type validity
     if (!changeRequest.doc.type || !Object.values(DocType).includes(changeRequest.doc.type)) {
         return {
             validated: false,
@@ -56,12 +56,12 @@ export async function validateChangeRequest(
 
     if (changeRequest.doc.type == DocType.Redirect) {
         const currentDoc = changeRequest.doc as RedirectDto;
-        const slugIsUnque = await dbService.checkUniqueSlug(
+        const slugIsUnique = await dbService.checkUniqueSlug(
             currentDoc.slug,
             currentDoc._id,
             DocType.Redirect,
         );
-        if (!slugIsUnque) {
+        if (!slugIsUnique) {
             return {
                 validated: false,
                 error: `Submitted "${changeRequest.doc.type}" document validation failed:\nSlug already has a redirect`,
@@ -94,7 +94,7 @@ export async function validateChangeRequest(
 }
 
 async function dtoValidate(data: any, message: string): Promise<ValidationResult> {
-    // Try-catch is needed to handle nested validation errors (speficially for arrays?) which throws an exception instead of giving a meaningful validation result.
+    // Try-catch is needed to handle nested validation errors (specifically for arrays?) which throws an exception instead of giving a meaningful validation result.
     // TODO: Might be possible to work around the exception according to https://dev.to/avantar/validating-nested-objects-with-class-validator-in-nestjs-1gn8 (see comments) - but seems like they are just handling the error in any case.
     try {
         const changeReqValidation = await validate(data, {

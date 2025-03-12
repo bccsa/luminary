@@ -1,7 +1,21 @@
 import { initConfig, SharedConfig } from "./config";
 import { initDatabase } from "./db/database";
+import { getRest } from "./rest/RestApi";
+import { getSocket } from "./socket/socketio";
 
-export async function initLuminaryShared(config: SharedConfig) {
+/**
+ * Initialize the Luminary database
+ * @param config
+ */
+export async function init(config: SharedConfig) {
     initConfig(config);
-    await initDatabase(config);
+
+    // Initialize the IndexedDB database
+    await initDatabase();
+
+    // Initialize the SocketIO connection (initialized on first call)
+    getSocket();
+
+    // Initialize the REST API connection (initialized on first call) to start syncing
+    getRest();
 }

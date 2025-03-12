@@ -1,49 +1,16 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import { db, DocType, type LanguageDto, AclPermission, verifyAccess } from "luminary-shared";
 import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
-import { CheckCircleIcon, EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
-import CreateLanguageModal from "./CreateOrEditLanguageModal.vue";
-import { useNotificationStore } from "@/stores/notification";
+import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     languagesDoc: LanguageDto;
 };
 const props = defineProps<Props>();
 
-// Create a local copy of languagesDoc for editing
-const editableLanguageDoc = ref({ ...props.languagesDoc });
 const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
-
-// State for modal visibility
-const isModalVisible = ref(false);
-
-// Function to handle opening the modal for editing
-const openEditModal = () => {
-    isModalVisible.value = true;
-};
-
-// Function to handle closing the modal
-const closeModal = () => {
-    isModalVisible.value = false;
-};
-
-// Function to handle language update
-const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
-    editableLanguageDoc.value = {
-        ...updatedLanguage,
-        memberOf: [...updatedLanguage.memberOf], // Update the local state with the updated language by cloning deeply the array here as well
-    };
-    closeModal();
-
-    useNotificationStore().addNotification({
-        title: `${updatedLanguage.name} language updated`,
-        description: `The language has been updated successfully`,
-        state: "success",
-    });
-};
 </script>
 
 <template>
@@ -52,7 +19,14 @@ const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             <div class="flex gap-2">
                 {{ languagesDoc.name }}
-                <CheckCircleIcon v-if="languagesDoc.default" class="h-5 w-5" />
+            </div>
+        </td>
+
+        <!-- default language -->
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+            <div class="flex gap-2">
+                <!-- <CheckCircleIcon v-if="languagesDoc.default" class="h-5 w-5" /> -->
+                <LBadge v-if="languagesDoc.default" variant="success">Default</LBadge>
             </div>
         </td>
 
@@ -83,18 +57,9 @@ const handleLanguageUpdated = (updatedLanguage: LanguageDto) => {
                         ? PencilSquareIcon
                         : EyeIcon
                 "
-                @click="openEditModal"
+                @click="$router.push({ name: 'language', params: { id: languagesDoc._id } })"
                 class="flex justify-end"
             ></LButton>
         </td>
     </tr>
-
-    <!-- Modal for editing the language -->
-    <CreateLanguageModal
-        v-if="isModalVisible"
-        :isVisible="isModalVisible"
-        :language="languagesDoc"
-        @close="closeModal"
-        @updated="handleLanguageUpdated"
-    />
 </template>

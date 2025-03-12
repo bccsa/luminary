@@ -4,6 +4,8 @@ import {
     BaseDocumentDto,
     ChangeReqAckDto,
     ContentDto,
+    DeleteCmdDto,
+    DeleteReason,
     DocType,
     LocalChangeDto,
     PostType,
@@ -19,9 +21,8 @@ import { ref, type Ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
-import { accessMap, getAccessibleGroups } from "../permissions/permissions";
+import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
-import { SharedConfig } from "../config";
 import _ from "lodash";
 const dbName: string = "luminary-db";
 
@@ -40,6 +41,8 @@ export type SyncMap = {
     groups: Array<string>;
     contentOnly?: boolean;
     types: Array<string>;
+    languages: Array<string>;
+    skipWaitForLanguageSync?: boolean;
     id: string;
     syncPriority: number; // default 0, a higher number is a higher priority
 };
@@ -107,17 +110,19 @@ class Database extends Dexie {
      */
     constructor(dbVersion: number, docsIndex: string) {
         super(dbName);
+        this.requestIndexDbPersistent();
 
         const index: string = concatIndex(
             "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],[type+postType]",
             docsIndex,
-        ); // Concatinate and compact app specific indexed fields with shared library indexed fields
+        ); // Concatenate and compact app specific indexed fields with shared library indexed fields
         const dbIndex: dbIndex = {
             docs: index,
             localChanges: "++id, reqId, docId, status",
             queryCache: "id",
             luminaryInternals: "id",
         };
+
         const version: number = bumpDBVersion(
             (dbVersion >= 10 && dbVersion / 10) || 1,
             localStorage.getItem("dexie.dbIndex") || "{}",
@@ -125,23 +130,6 @@ class Database extends Dexie {
         );
 
         this.version(version).stores(dbIndex);
-
-        this.deleteExpired();
-
-        // Listen for changes to the access map and delete documents that the user no longer has access to
-        watch(
-            accessMap,
-            () => {
-                this.deleteRevoked();
-            },
-            { immediate: true },
-        );
-
-        watch(syncMap.value, () => {
-            this.setSyncMap();
-        });
-
-        this.requestIndexDbPersistent();
     }
 
     /**
@@ -245,10 +233,24 @@ class Database extends Dexie {
     }
 
     /**
-     * Bulk insert documents into the database
+     * Bulk insert documents into the database, and delete documents that are marked for deletion
      */
     bulkPut(docs: BaseDocumentDto[]) {
-        return this.docs.bulkPut(docs);
+        // Delete documents that are marked for deletion
+        const toDeleteIds = docs
+            .filter((doc) => {
+                if (doc.type !== DocType.DeleteCmd) return false;
+
+                return this.validateDeleteCommand(doc as DeleteCmdDto);
+            })
+            .map((doc) => (doc as DeleteCmdDto).docId);
+
+        if (toDeleteIds.length > 0) {
+            this.docs.bulkDelete(toDeleteIds);
+        }
+
+        // Insert all documents except delete commands
+        return this.docs.bulkPut(docs.filter((doc) => doc.type !== DocType.DeleteCmd));
     }
 
     /**
@@ -530,7 +532,7 @@ class Database extends Dexie {
     }
 
     /**
-     * Update or insert a document into the database and queue the change to be sent to the API
+     * Update or insert a document into the database and queue the change to be sent to the API. If the deleteReq flag is set, the document will be deleted from the local database and the document with deleteReq flag will be queued to be sent to the API.
      * @param doc - The document to upsert
      * @param overwiteLocalChanges - If true, the entry in the local changes table will be overwritten with the new change
      */
@@ -538,7 +540,19 @@ class Database extends Dexie {
         // Unwrap the (possibly) reactive object
         const raw = toRaw(doc);
 
-        await this.docs.put(raw, raw._id);
+        if (doc.deleteReq) {
+            // Delete the document from the local database. The document will be deleted from the API when the change is sent from the localChanges table
+            await this.docs.delete(raw._id);
+            overwiteLocalChanges = true;
+
+            // If the document is a post or tag, delete all the associated content documents
+            // Note: We do not need to send delete requests to the API, as the API will delete the content documents when the parent document is deleted
+            if (raw.type == DocType.Post || raw.type == DocType.Tag) {
+                await this.docs.where("parentId").equals(raw._id).delete();
+            }
+        } else {
+            await this.docs.put(raw, raw._id);
+        }
 
         if (overwiteLocalChanges) {
             // Delete the previous change from the localChanges table (if any)
@@ -619,9 +633,9 @@ class Database extends Dexie {
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto) {
         if (ack.ack == "rejected") {
-            if (ack.doc) {
-                // Replace our local copy with the provided database version
-                await this.docs.update(ack.doc._id, ack.doc);
+            if (ack.docs && Array.isArray(ack.docs)) {
+                // Replace our local copy(s) with the provided database version
+                await this.docs.bulkPut(ack.docs);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
                 const change = await this.localChanges.get(ack.id);
@@ -693,7 +707,7 @@ class Database extends Dexie {
      * Delete documents to which access has been revoked
      * @param options - changeDocs: If true, deletes change documents instead of regular documents
      */
-    private deleteRevoked() {
+    deleteRevoked() {
         const groupsPerDocType = getAccessibleGroups(AclPermission.View);
 
         Object.values(DocType)
@@ -720,12 +734,41 @@ class Database extends Dexie {
             });
     }
 
-    private async deleteExpired() {
+    /**
+     * Delete expired documents from the database for non-cms clients
+     * @returns
+     */
+    async deleteExpired() {
         if (config.cms) {
             return;
         }
 
         await this.docs.where("expiryDate").belowOrEqual(DateTime.now().toMillis()).delete();
+    }
+
+    /**
+     * Validates a delete command and returns true if the document referred to in the delete command should be deleted
+     */
+    validateDeleteCommand(cmd: DeleteCmdDto) {
+        if (cmd.deleteReason == DeleteReason.Deleted) {
+            return true;
+        }
+
+        if (cmd.deleteReason == DeleteReason.StatusChange) {
+            // Only delete the document if the client is not a CMS client
+            if (!config.cms) return true;
+        }
+
+        if (
+            cmd.deleteReason == DeleteReason.PermissionChange &&
+            // Only delete the document if the client does not have access to the updated MemberOf group
+            cmd.newMemberOf &&
+            !verifyAccess(cmd.newMemberOf, cmd.docType, AclPermission.View, "any")
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -744,9 +787,51 @@ class Database extends Dexie {
 
 export let db: Database;
 
-export async function initDatabase({ docsIndex }: SharedConfig) {
+export async function initDatabase() {
     const _v: number = await getDbVersion();
-    db = new Database(_v, docsIndex);
+    db = new Database(_v, config.docsIndex);
+
+    // Open the database and wait for it to be ready
+    await new Promise<void>((resolve) => {
+        if (db.isOpen()) {
+            resolve();
+            return;
+        }
+
+        db.on("ready", () => {
+            resolve();
+        });
+
+        if (!db.isOpen()) {
+            db.open();
+        }
+    });
+
+    db.on("blocked", () => {
+        console.error("Database blocked");
+    });
+
+    // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
+    setTimeout(() => {
+        db.deleteExpired();
+    }, 5000);
+
+    // Listen for changes to the access map and delete documents that the user no longer has access to
+    watch(
+        accessMap,
+        () => {
+            db.deleteRevoked();
+        },
+        { immediate: true },
+    );
+
+    watch(
+        syncMap,
+        () => {
+            db.setSyncMap();
+        },
+        { deep: true },
+    );
 }
 
 /**
@@ -763,11 +848,17 @@ export const getDbVersion = async () => {
             db.close();
             resolve(version);
         };
+        request.onblocked = () => {
+            console.error("Database blocked");
+        };
+        request.onerror = () => {
+            console.error("Database error");
+        };
     }) as unknown as Promise<number>;
 };
 
 /**
- * Concatinate Shared Library index with the external index, to avoid having duplicate indexes
+ * Concatenate Shared Library index with the external index, to avoid having duplicate indexes
  * @param index1 - Shared Library Index
  * @param index2 - External Index
  * @returns

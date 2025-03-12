@@ -5,8 +5,14 @@ import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { userPreferencesAsRef } from "@/globalConfig";
-import { mockEnglishContentDto } from "@/tests/mockdata";
+import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
 
 describe("PrivacyPolicyModal.vue", () => {
     beforeEach(async () => {
@@ -27,7 +33,7 @@ describe("PrivacyPolicyModal.vue", () => {
         });
 
         expect(wrapper.html()).toContain(
-            "Please accept our privacy policy for a fully featured app experience.",
+            "Please accept our privacy policy for a fully featured app experience",
         );
 
         expect(userPreferencesAsRef.value.privacyPolicy).toBe(undefined);
@@ -55,7 +61,7 @@ describe("PrivacyPolicyModal.vue", () => {
         });
 
         expect(wrapper.html()).toContain(
-            "You have previously declined the privacy policy. Please accept it for a fully featured app experience.",
+            "You have previously declined the privacy policy. Please accept it for a fully featured app experience",
         );
     });
 
@@ -79,7 +85,7 @@ describe("PrivacyPolicyModal.vue", () => {
             },
         });
 
-        expect(wrapper.html()).toContain("You have already accepted the privacy policy.");
+        expect(wrapper.html()).toContain("You have already accepted the privacy policy");
         expect(wrapper.find("button[name='accept']").exists()).toBe(false);
     });
 

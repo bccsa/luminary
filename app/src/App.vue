@@ -2,94 +2,19 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { computed, onBeforeMount, watch } from "vue";
-import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
-import * as Sentry from "@sentry/vue";
-import { isConnected, api, DocType } from "luminary-shared";
-import { apiUrl, initLanguage, userPreferencesAsRef } from "./globalConfig";
+import { computed, onErrorCaptured, watch } from "vue";
+import { isConnected } from "luminary-shared";
+import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import MobileMenu from "./components/navigation/MobileMenu.vue";
+import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 
-const { isAuthenticated, user, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
 const router = useRouter();
-
-initLanguage();
-
-const loginRedirect = async () => {
-    const usedConnection = localStorage.getItem("usedAuth0Connection");
-    const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");
-
-    // Try to login. If this fails (e.g. the user cancels the login), log the user out after the second attempt
-    if (retryCount < 2) {
-        localStorage.setItem("auth0AuthFailedRetryCount", (retryCount + 1).toString());
-        await loginWithRedirect({
-            authorizationParams: {
-                connection: usedConnection ? usedConnection : undefined,
-                redirect_uri: window.location.origin,
-            },
-        });
-        return;
-    }
-
-    localStorage.removeItem("auth0AuthFailedRetryCount");
-    localStorage.removeItem("usedAuth0Connection");
-    await logout({ logoutParams: { returnTo: window.location.origin } });
-};
-
-// Clear the auth0AuthFailedRetryCount if the user logs in successfully (if the app is not redirecting to the login page, we assume the user either logged out or the login was successful)
-setTimeout(() => {
-    localStorage.removeItem("auth0AuthFailedRetryCount");
-}, 10000);
-
-const getToken = async () => {
-    if (isAuthenticated.value) {
-        try {
-            return await getAccessTokenSilently();
-        } catch (err) {
-            Sentry.captureException(err);
-            await loginRedirect();
-        }
-    }
-};
-
-onBeforeMount(async () => {
-    await waitUntilAuth0IsLoaded();
-    const token = await getToken();
-
-    // Initialize the api connection
-    try {
-        const _api = api({
-            apiUrl,
-            token,
-            docTypes: [
-                { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
-                { type: DocType.Post, contentOnly: true, syncPriority: 2 },
-                { type: DocType.Language, contentOnly: false, syncPriority: 1 },
-            ],
-        });
-
-        // ask for updated bulk docs
-        const rest = _api.rest();
-        rest.clientDataReq();
-
-        const socket = _api.socket();
-
-        // handle API authentication failed messages
-        socket.on("apiAuthFailed", async () => {
-            console.error("API authentication failed, redirecting to login");
-            Sentry.captureMessage("API authentication failed, redirecting to login");
-
-            await loginRedirect();
-        });
-    } catch (err) {
-        console.error(err);
-        Sentry.captureException(err);
-    }
-});
+const { isAuthenticated, user } = useAuth0();
 
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
@@ -129,7 +54,7 @@ setTimeout(() => {
                     state: "warning",
                     type: "banner",
                     icon: ExclamationCircleIcon,
-                    link: { name: "login" },
+                    link: () => showLoginModal(),
                 });
             }
             if (!isConnected.value || isAuthenticated.value) {
@@ -153,6 +78,11 @@ const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
 
 const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
+});
+
+onErrorCaptured((err) => {
+    console.error(err);
+    Sentry.captureException(err);
 });
 </script>
 

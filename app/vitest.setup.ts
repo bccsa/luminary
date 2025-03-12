@@ -1,14 +1,30 @@
 import "fake-indexeddb/auto";
 import { RouterLinkStub, config } from "@vue/test-utils";
-import { beforeAll } from "vitest";
-import { initLuminaryShared } from "luminary-shared";
+import { beforeAll, vi } from "vitest";
+import { initConfig, initDatabase } from "luminary-shared";
 
 config.global.stubs["RouterLink"] = RouterLinkStub;
 
+window.matchMedia = vi.fn().mockImplementation((query) => {
+    return {
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    };
+});
+
 beforeAll(async () => {
-    await initLuminaryShared({
+    initConfig({
         cms: false,
         docsIndex:
-            "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
+            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
+        apiUrl: "http://localhost:12345",
     });
+
+    await initDatabase();
 });

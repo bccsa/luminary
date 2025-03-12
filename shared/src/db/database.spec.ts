@@ -16,6 +16,7 @@ import {
 import {
     AckStatus,
     AclPermission,
+    DeleteCmdDto,
     DocType,
     PostType,
     TagType,
@@ -23,17 +24,22 @@ import {
     type PostDto,
     type TagDto,
 } from "../types";
-import { db, getDbVersion } from "../db/database";
+import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
-import { initLuminaryShared } from "../luminary";
 import { DateTime } from "luxon";
+import { initConfig } from "../config";
+import { config } from "../config";
 
 describe("Database", async () => {
     beforeAll(async () => {
-        await initLuminaryShared({
+        initConfig({
             cms: true,
             docsIndex: "",
+            apiUrl: "http://localhost:12345",
         });
+
+        // Initialize the IndexedDB database
+        await initDatabase();
     });
 
     beforeEach(async () => {
@@ -226,7 +232,7 @@ describe("Database", async () => {
     it("can sort tags by the latest publish date of the content of the posts / tags tagged with the tag", async () => {
         // Category 1
         // Update the publish date of the English content to be 2
-        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 });
+        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 } as any);
 
         // Add a second post's content document
         await db.docs.bulkPut([
@@ -267,9 +273,9 @@ describe("Database", async () => {
         ]);
 
         // Test 1: the order should be Category 1, Category 2
-        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 });
-        await db.docs.update("post2-content", { publishDate: 2 });
-        await db.docs.update("post3-content", { publishDate: 1 });
+        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 } as any);
+        await db.docs.update("post2-content", { publishDate: 2 } as any);
+        await db.docs.update("post3-content", { publishDate: 1 } as any);
 
         const tags = await db.tagsWhereTagType(TagType.Category, {
             languageId: mockLanguageDtoEng._id,
@@ -279,9 +285,9 @@ describe("Database", async () => {
         expect(tags[0]._id).toBe(mockCategoryDto._id);
 
         // Test 2: the order should be Category 2, Category 1
-        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 });
-        await db.docs.update("post2-content", { publishDate: 1 });
-        await db.docs.update("post3-content", { publishDate: 2 });
+        await db.docs.update(mockEnglishContentDto._id, { publishDate: 0 } as any);
+        await db.docs.update("post2-content", { publishDate: 1 } as any);
+        await db.docs.update("post3-content", { publishDate: 2 } as any);
 
         const tags2 = await db.tagsWhereTagType(TagType.Category, {
             languageId: mockLanguageDtoEng._id,
@@ -397,7 +403,7 @@ describe("Database", async () => {
             publishDate: 0,
             tags: [mockCategoryDto._id],
             title: "Post 1",
-        });
+        } as any);
 
         // Add a second post's content document
         await db.docs.bulkPut([
@@ -582,7 +588,7 @@ describe("Database", async () => {
         await db.applyLocalChangeAck({
             id: localChange!.id!,
             ack: AckStatus.Rejected,
-            doc: ackDoc,
+            docs: [ackDoc],
         });
 
         // Check if the local change is removed
@@ -865,10 +871,12 @@ describe("Database", async () => {
     });
 
     it("deletes expired documents when not in cms-mode", async () => {
-        initLuminaryShared({
+        initConfig({
             cms: false,
             docsIndex: "parentId, language, expiryDate, [type+docType]",
+            apiUrl: "http://localhost:12345",
         });
+        await initDatabase();
 
         const now = DateTime.now();
         const expiredDate = now.minus({ days: 5 }).toMillis();
@@ -904,13 +912,143 @@ describe("Database", async () => {
 
     it("upgrade indexdb version by changing the docs index", async () => {
         const _v1 = await getDbVersion();
+
         // update db index schema
-        await initLuminaryShared({
+        initConfig({
             cms: false,
             docsIndex: "[type+docType+language]",
+            apiUrl: "http://localhost:12345",
         });
+        await initDatabase();
+
         const _v2 = await getDbVersion();
 
         expect(_v1).toBeLessThan(_v2);
+    });
+
+    describe("document deletion", () => {
+        it("can delete a document when receiving a delete request with reason 'deleted'", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "deleted",
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeUndefined();
+        });
+
+        it("can delete a document when receiving a delete request with reason 'statusChange' in non-CMS mode", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+            config.cms = false;
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "statusChange",
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeUndefined();
+        });
+
+        it("does not delete a document when receiving a delete request with reason 'statusChange' in CMS mode", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+            config.cms = true;
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "statusChange",
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeDefined();
+        });
+
+        it("deletes a document when receiving a delete request with reason 'permissionChange' and the document's group membership is not in the access map", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "permissionChange",
+                    newMemberOf: ["inaccessible-group"],
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeUndefined();
+        });
+
+        it("does not delete a document when receiving a delete request with reason 'permissionChange' and the document's group membership is in the access map", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+
+            const addedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedDoc).toBeDefined();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-1",
+                    type: DocType.DeleteCmd,
+                    docType: DocType.Post,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "permissionChange",
+                    newMemberOf: ["group-public-content"],
+                } as DeleteCmdDto,
+            ]);
+
+            const deletedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedDoc).toBeDefined();
+        });
+
+        it("can delete related content documents when a parent document is deleted locally through marking a document with deleteReq: 1", async () => {
+            await db.docs.bulkPut([mockPostDto, mockEnglishContentDto, mockFrenchContentDto]);
+
+            const addedDoc = await db.get<ContentDto>(mockPostDto._id);
+            expect(addedDoc).toBeDefined();
+
+            const addedContent1 = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(addedContent1).toBeDefined();
+
+            const addedContent2 = await db.get<ContentDto>(mockFrenchContentDto._id);
+            expect(addedContent2).toBeDefined();
+
+            await db.upsert({ ...mockPostDto, deleteReq: 1 });
+
+            const deletedDoc = await db.get<PostDto>(mockPostDto._id);
+            expect(deletedDoc).toBeUndefined();
+
+            const deletedContent1 = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(deletedContent1).toBeUndefined();
+
+            const deletedContent2 = await db.get<ContentDto>(mockFrenchContentDto._id);
+            expect(deletedContent2).toBeUndefined();
+        });
     });
 });

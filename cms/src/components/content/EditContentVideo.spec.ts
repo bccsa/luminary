@@ -9,7 +9,7 @@ import { ref } from "vue";
 import EditContentVideo from "./EditContentVideo.vue";
 import LInput from "../forms/LInput.vue";
 
-describe("EditContentPreview.vue", () => {
+describe("EditContentVideo.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 

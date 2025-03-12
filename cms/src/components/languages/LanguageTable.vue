@@ -7,7 +7,7 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 </script>
 
 <template>
-    <LCard class="rounded-t-none" padding="none">
+    <LCard padding="none">
         <div class="overflow-x-auto rounded-md">
             <div class="inline-block min-w-full align-middle">
                 <table class="min-w-full divide-y divide-zinc-200">
@@ -19,6 +19,14 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
                                 @click="false"
                             >
                                 <div class="flex items-center gap-2">Name</div>
+                            </th>
+
+                            <!-- default  -->
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                                @click="false"
+                            >
+                                <div class="flex items-center gap-2"></div>
                             </th>
 
                             <!-- status -->

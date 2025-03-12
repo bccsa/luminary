@@ -7,6 +7,9 @@ import LImage from "../images/LImage.vue";
 import { RouterLink } from "vue-router";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/solid";
 import { isPublished } from "@/util/isPublished";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const allTopics = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -59,7 +62,7 @@ const filteredTopics = computed(() => {
                     v-model="searchTerm"
                     name="input"
                     type="text"
-                    placeholder="Search..."
+                    :placeholder="t('topic.search_placeholder') + '...'"
                     class="w-full rounded-md border border-zinc-500 bg-inherit py-1 pl-8 pr-2"
                 />
             </div>
@@ -70,7 +73,7 @@ const filteredTopics = computed(() => {
             v-if="filteredTopics.length === 0 && searchTerm.trim()"
             class="text-center text-gray-500"
         >
-            No results found for "{{ searchTerm }}"
+            {{ t("topic.no_results_found") }} "{{ searchTerm }}"
         </div>
 
         <div class="space-y-2">

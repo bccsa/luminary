@@ -4,62 +4,26 @@ import {
     type ContentDto,
     type Uuid,
     type LanguageDto,
-    AclPermission,
-    DocType,
-    verifyAccess,
-    PublishStatus,
-    db,
     type ContentParentDto,
 } from "luminary-shared";
-import { computed, ref, watch, watchEffect } from "vue";
+import { ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import { sortByName } from "@/util/sortByName";
 import LanguageSelector from "./LanguageSelector.vue";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     languages: LanguageDto[];
     dirty: boolean;
-    parentPrev: ContentParentDto | undefined;
-    contentPrev: ContentDto[] | undefined;
+    existingParent: ContentParentDto | undefined;
+    existingContent: ContentDto[] | undefined;
     canEdit: boolean;
     canTranslate: boolean;
     canPublish: boolean;
+    untranslatedLanguages: LanguageDto[];
 };
-const props = defineProps<Props>();
-const parent = defineModel<ContentParentDto>("parent");
-const contentDocs = defineModel<ContentDto[]>("contentDocs");
-
-const untranslatedLanguages = computed(() => {
-    if (!contentDocs.value) {
-        return [];
-    }
-
-    return props.languages
-        .filter(
-            (l) =>
-                !contentDocs.value?.find((c) => c.language == l._id) &&
-                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
-        )
-        .sort(sortByName);
-});
-
-const createTranslation = (language: LanguageDto) => {
-    const newContent: ContentDto = {
-        _id: db.uuid(),
-        type: DocType.Content,
-        updatedTimeUtc: Date.now(),
-        memberOf: [],
-        parentId: parent.value?._id as Uuid,
-        parentType: parent.value?.docType as DocType.Post | DocType.Tag,
-        language: language._id,
-        status: PublishStatus.Draft,
-        title: `Translation for ${language.name}`,
-        slug: "",
-        parentTags: [],
-    };
-    contentDocs.value?.push(newContent);
-};
+defineProps<Props>();
+const editableParent = defineModel<ContentParentDto>("editableParent");
+const editableContent = defineModel<ContentDto[]>("editableContent");
 
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
@@ -76,7 +40,10 @@ const setOverallValidation = (id: Uuid, isValid: boolean) => {
     overallIsValid.value = overallValidations.value.every((v) => v.isValid);
 };
 
-const emit = defineEmits(["updateIsValid"]);
+const emit = defineEmits<{
+    (e: "updateIsValid", value: boolean): void;
+    (e: "createTranslation", language: LanguageDto): void;
+}>();
 
 watchEffect(() => {
     emit("updateIsValid", overallIsValid.value);
@@ -86,50 +53,37 @@ watchEffect(() => {
 const parentValidations = ref([] as Validation[]);
 const parentIsValid = ref(true);
 watch(
-    [parent, contentDocs],
-    ([newParent, newContentDocs]) => {
-        if (!newParent) return;
+    [editableParent, editableContent],
+    ([_editableParent, _editableContent]) => {
+        if (!_editableParent) return;
 
         validate(
             "At least one group membership is required",
             "groups",
             parentValidations.value,
-            newParent,
-            () => newParent.memberOf.length > 0,
+            _editableParent,
+            () => _editableParent.memberOf.length > 0,
         );
-
-        if (newContentDocs && newContentDocs.length > 0 && newContentDocs[0].status) {
-            const contentDocStatus = newContentDocs[0].status;
-            if (contentDocStatus !== PublishStatus.Draft) {
-                validate(
-                    "The default image must be set",
-                    "image",
-                    parentValidations.value,
-                    newParent,
-                    () =>
-                        newParent.imageData != undefined &&
-                        (newParent.imageData.fileCollections.length > 0 ||
-                            (Array.isArray(newParent.imageData.uploadData) &&
-                                newParent.imageData.uploadData?.length > 0)),
-                );
-            }
-        }
 
         validate(
             "At least one translation is required",
             "translations",
             parentValidations.value,
-            newParent,
-            () => newContentDocs != undefined && newContentDocs.length > 0,
+            _editableParent,
+            () =>
+                _editableContent != undefined &&
+                _editableContent.filter((c) => !c.deleteReq).length > 0,
         );
 
         parentIsValid.value = parentValidations.value.every((v) => v.isValid);
 
         // Update overall validation
-        let parentOverallValidation = overallValidations.value.find((v) => v.id == newParent._id);
+        let parentOverallValidation = overallValidations.value.find(
+            (v) => v.id == _editableParent._id,
+        );
         if (!parentOverallValidation) {
             parentOverallValidation = {
-                id: newParent._id,
+                id: _editableParent._id,
                 isValid: parentIsValid.value,
                 message: "",
             };
@@ -163,40 +117,37 @@ watch(
                     permission</span
                 >
             </div>
-            <div v-if="!parentIsValid" class="mb-2 rounded-md bg-zinc-50 p-4 shadow">
-                <span class="text-sm"
-                    >Errors were found in your {{ parent?.type }}'s settings:</span
-                >
-                <div class="mt-1 flex flex-col gap-0.5">
+            <div v-if="!parentIsValid">
+                <div class="mb-1 mt-1 flex flex-col gap-0.5">
                     <div
                         v-for="validation in parentValidations.filter((v) => !v.isValid)"
                         :key="validation.id"
                         class="-mb-[1px] flex items-center gap-1"
                     >
-                        <p class="flex items-center gap-1">
-                            <XCircleIcon class="h-[18px] text-red-400" />
+                        <div class="flex items-center gap-2">
+                            <XCircleIcon class="h-[18px] w-[18px] min-w-[18px] text-red-400" />
                             <span class="text-xs text-zinc-700">{{ validation.message }}</span>
-                        </p>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="flex flex-col gap-2">
                 <EditContentValidation
-                    v-for="content in contentDocs"
-                    :content="content"
+                    v-for="content in editableContent?.filter((c) => !c.deleteReq)"
+                    :editableContent="content"
                     :languages="languages"
                     :key="content._id"
                     @isValid="(val) => setOverallValidation(content._id, val)"
-                    :contentPrev="contentPrev?.find((c) => c._id == content._id)"
+                    :existingContent="existingContent?.find((c) => c._id == content._id)"
                 />
             </div>
             <div class="flex justify-center">
                 <LanguageSelector
                     v-if="untranslatedLanguages.length > 0"
                     :languages="untranslatedLanguages"
-                    :parent="parent"
-                    :content="contentDocs"
-                    @create-translation="createTranslation"
+                    :parent="editableParent"
+                    :content="editableContent"
+                    @create-translation="(language) => emit('createTranslation', language)"
                 />
             </div>
         </div>

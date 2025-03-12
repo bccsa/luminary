@@ -4,100 +4,14 @@ import { RouterView } from "vue-router";
 import SideBar from "@/components/navigation/SideBar.vue";
 import TopBar from "@/components/navigation/TopBar.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
-import { computed, onBeforeMount, ref } from "vue";
+import { computed, ref } from "vue";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
-import { appName, apiUrl } from "@/globalConfig";
+import { appName } from "@/globalConfig";
 import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
-import * as Sentry from "@sentry/vue";
 import router from "./router";
-import { DocType, api } from "luminary-shared";
-import { waitUntilAuth0IsLoaded } from "./util/waitUntilAuth0IsLoaded";
-import { useNotificationStore } from "./stores/notification";
 
-const { isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout } = useAuth0();
-
-const loginRedirect = async () => {
-    const usedConnection = localStorage.getItem("usedAuth0Connection");
-    const retryCount = parseInt(localStorage.getItem("auth0AuthFailedRetryCount") || "0");
-
-    // Try to login. If this fails (e.g. the user cancels the login), log the user out after the second attempt
-    if (retryCount < 2) {
-        localStorage.setItem("auth0AuthFailedRetryCount", (retryCount + 1).toString());
-        await loginWithRedirect({
-            authorizationParams: {
-                connection: usedConnection ? usedConnection : undefined,
-                redirect_uri: window.location.origin,
-            },
-        });
-        return;
-    }
-
-    localStorage.removeItem("auth0AuthFailedRetryCount");
-    localStorage.removeItem("usedAuth0Connection");
-    await logout({ logoutParams: { returnTo: window.location.origin } });
-};
-
-// Clear the auth0AuthFailedRetryCount if the user logs in successfully (if the app is not redirecting to the login page, we assume the user either logged out or the login was successful)
-setTimeout(() => {
-    localStorage.removeItem("auth0AuthFailedRetryCount");
-}, 10000);
-
-const getToken = async () => {
-    try {
-        return await getAccessTokenSilently();
-    } catch (err) {
-        Sentry.captureException(err);
-        await loginRedirect();
-    }
-};
-
-onBeforeMount(async () => {
-    await waitUntilAuth0IsLoaded();
-    const token = await getToken();
-
-    // Initialize the socket connection
-    try {
-        const _api = api({
-            apiUrl,
-            token,
-            docTypes: [
-                { type: DocType.Tag, contentOnly: false, syncPriority: 2 },
-                { type: DocType.Post, contentOnly: false, syncPriority: 2 },
-                { type: DocType.Redirect, contentOnly: false, syncPriority: 2 },
-                { type: DocType.Language, contentOnly: false, syncPriority: 1 },
-            ],
-        });
-
-        // ask for updated bulk docs
-        const rest = _api.rest();
-        rest.clientDataReq();
-
-        const socket = _api.socket();
-
-        // handle API authentication failed messages
-        socket.on("apiAuthFailed", async () => {
-            console.error("API authentication failed, redirecting to login");
-            Sentry.captureMessage("API authentication failed, redirecting to login");
-
-            await loginRedirect();
-        });
-
-        socket.on("changeRequestAck", (data: any) => {
-            if (data.ack == "rejected") {
-                useNotificationStore().addNotification({
-                    title: "Saving changes to server failed.",
-                    description: `Your recent request to save changes has failed. The changes have been reverted. Error message: ${data.message}`,
-                    state: "error",
-                    timer: 60000,
-                });
-            }
-        });
-    } catch (err) {
-        console.error(err);
-        Sentry.captureException(err);
-    }
-});
+const { isAuthenticated } = useAuth0();
 
 const sidebarOpen = ref(false);
 

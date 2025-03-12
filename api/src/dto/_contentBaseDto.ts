@@ -1,6 +1,6 @@
 import { IsArray } from "class-validator";
 import { _baseDto } from "./_baseDto";
-import { Uuid } from "src/enums";
+import { Uuid } from "../enums";
 import { Expose } from "class-transformer";
 
 /**

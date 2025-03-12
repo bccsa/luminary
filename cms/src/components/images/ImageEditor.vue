@@ -208,7 +208,7 @@ const handleDrop = (e: DragEvent) => {
                             :imageFileCollection="c"
                             @deleteFileCollection="removeFileCollection"
                             :key="c.aspectRatio"
-                            :disbaled="!disabled"
+                            :disabled="!disabled"
                         />
 
                         <!-- Display uploaded image data as thumbnails -->
@@ -217,7 +217,7 @@ const handleDrop = (e: DragEvent) => {
                             :imageUploadData="u"
                             @deleteUploadData="removeFileUploadData"
                             :key="u.filename"
-                            :disbaled="!disabled"
+                            :disabled="!disabled"
                         />
                     </div>
                 </div>

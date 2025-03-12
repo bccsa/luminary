@@ -20,13 +20,22 @@ import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@auth0/auth0-vue", () => ({
+    useAuth0: () => ({
+        isAuthenticated: ref(true),
+    }),
+}));
 vi.mock("vue-router");
 
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({
+        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+    }),
+}));
+
 describe("HomePage.vue", () => {
-    beforeAll(() => {
+    beforeAll(async () => {
         accessMap.value = viewAccessToAllContentMap;
-        initLanguage();
     });
 
     beforeEach(async () => {
@@ -35,7 +44,7 @@ describe("HomePage.vue", () => {
             isAuthenticated: ref(true),
         });
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
-        appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, mockLanguageDtoEng._id];
+        await initLanguage();
     });
 
     afterEach(async () => {
@@ -48,7 +57,7 @@ describe("HomePage.vue", () => {
         it("updates the category title and content when the language is changed", async () => {
             // Mock initial database setup with English content
             await db.docs.bulkPut([
-                mockCategoryContentDto,
+                { ...mockCategoryContentDto, parentPinned: 1 },
                 { ...mockEnglishContentDto, parentTags: [mockCategoryContentDto.parentId] },
                 {
                     ...mockCategoryContentDto,
@@ -56,6 +65,7 @@ describe("HomePage.vue", () => {
                     language: mockLanguageDtoFra._id,
                     title: "Catégorie 1",
                     summary: "Exemple de tag",
+                    parentPinned: 1,
                 },
                 { ...mockFrenchContentDto, title: "Poste 1" },
             ]);
@@ -114,6 +124,8 @@ describe("HomePage.vue", () => {
 
             const wrapper = mount(HomePage);
 
+            appLanguageIdsAsRef.value.unshift("lang-eng");
+
             await waitForExpect(() => {
                 const pinnedComponent = wrapper.findComponent(HomePagePinned);
                 expect(pinnedComponent.exists()).toBe(true);
@@ -121,25 +133,12 @@ describe("HomePage.vue", () => {
             });
         });
 
-        it("renders unpinned categories correctly", async () => {
-            await db.docs.bulkPut([
-                { ...mockCategoryContentDto, parentPinned: 0 },
-                { ...mockEnglishContentDto, parentTags: [mockCategoryContentDto.parentId] },
-            ]);
-
-            const wrapper = mount(HomePage);
-
-            await waitForExpect(() => {
-                const unpinnedComponent = wrapper.findComponent(HomePage);
-                expect(unpinnedComponent.exists()).toBe(true);
-                expect(wrapper.text()).toContain(mockCategoryContentDto.title);
-            });
-        });
-
         it("displays the newest content", async () => {
             await db.docs.bulkPut([mockEnglishContentDto]);
 
             const wrapper = mount(HomePage);
+
+            appLanguageIdsAsRef.value.unshift("lang-eng");
 
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain("Newest");

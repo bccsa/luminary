@@ -5,32 +5,43 @@ import {
     type LanguageDto,
     DocType,
     type TagDto,
+    isConnected,
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
-import { ExclamationCircleIcon, XCircleIcon, ArrowRightIcon } from "@heroicons/vue/16/solid";
+import {
+    ExclamationCircleIcon,
+    XCircleIcon,
+    ArrowRightIcon,
+    TrashIcon as TrashIconSolid,
+} from "@heroicons/vue/16/solid";
 import LBadge, { variants } from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
+import { clientAppUrl } from "@/globalConfig";
+import LButton from "../button/LButton.vue";
+import LDialog from "../common/LDialog.vue";
 
 type Props = {
     languages: LanguageDto[];
-    contentPrev?: ContentDto;
+    existingContent?: ContentDto;
 };
 const props = defineProps<Props>();
-const content = defineModel<ContentDto>("content");
+const editableContent = defineModel<ContentDto>("editableContent");
 const sortedLanguages = computed(() => {
     if (!props.languages) return [];
     return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
 });
 
+const showDeleteModal = ref(false);
 const usedLanguage = computed(() => {
-    if (!content.value || !sortedLanguages.value) return null;
-    return sortedLanguages.value.find((l) => content.value?.language == l._id);
+    if (!editableContent.value || !sortedLanguages.value) return null;
+    return sortedLanguages.value.find((l) => editableContent.value?.language == l._id);
 });
 
-const isContentDirty = computed(() => !_.isEqual(content.value, props.contentPrev));
+const isContentDirty = computed(() => !_.isEqual(editableContent.value, props.existingContent));
 
 const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
@@ -65,14 +76,16 @@ const statusBadge: ComputedRef<
 });
 
 const statusChanged = computed(
-    () => statusBadge.value(props.contentPrev).title != statusBadge.value(content.value).title,
+    () =>
+        statusBadge.value(props.existingContent).title !=
+        statusBadge.value(editableContent.value).title,
 );
 
 const validations = ref([] as Validation[]);
 
 const isValid = ref(true);
 watch(
-    content,
+    editableContent,
     (content) => {
         if (!content) return;
 
@@ -113,6 +126,22 @@ watch(
     },
     { immediate: true, deep: true },
 );
+
+const liveUrl = computed(() => {
+    if (!editableContent.value) return "";
+    const url = new URL(
+        editableContent.value.slug,
+        clientAppUrl.value ? clientAppUrl.value : "http://localhost",
+    );
+    return url.toString();
+});
+
+const ensureRedirect = () => window.open(liveUrl.value, "_blank");
+
+const deleteTranslation = () => {
+    if (!editableContent.value) return;
+    editableContent.value.deleteReq = 1;
+};
 </script>
 
 <template>
@@ -120,13 +149,14 @@ watch(
         :to="{
             name: 'edit',
             params: {
-                docType: content?.parentType,
+                docType: editableContent?.parentType,
                 tagType:
-                    content?.parentType == DocType.Tag
-                        ? (content as unknown as TagDto).tagType
+                    editableContent?.parentType == DocType.Tag
+                        ? (editableContent as unknown as TagDto).tagType
                         : undefined,
-                id: content?.parentId,
-                languageCode: languages.find((l) => l._id == content?.language)?.languageCode,
+                id: editableContent?.parentId,
+                languageCode: languages.find((l) => l._id == editableContent?.language)
+                    ?.languageCode,
             },
         }"
         v-slot="{ isActive }"
@@ -135,36 +165,59 @@ watch(
             :class="[
                 'rounded-md p-4',
                 {
-                    'bg-white  shadow': isActive,
-                    'border bg-zinc-50 hover:bg-stone-100': !isActive,
+                    'cursor-default bg-white shadow': isActive,
+                    'border bg-white/25 hover:bg-white/50': !isActive,
                 },
             ]"
         >
             <div class="flex flex-col">
                 <span class="flex items-center justify-between text-sm text-zinc-900">
-                    {{ usedLanguage?.name }}
-
+                    <div class="flex h-8 w-full items-center justify-start">
+                        {{ usedLanguage?.name }}
+                        <LButton
+                            v-if="
+                                isConnected &&
+                                editableContent &&
+                                editableContent.status == PublishStatus.Published &&
+                                editableContent.title
+                            "
+                            :icon="ArrowTopRightOnSquareIcon"
+                            iconRight
+                            class="-ml-2 font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
+                            variant="tertiary"
+                            is="a"
+                            @click="ensureRedirect"
+                            :href="liveUrl"
+                            target="_blank"
+                            title="View live version"
+                        ></LButton>
+                    </div>
                     <div class="flex items-center gap-1">
                         <template v-if="statusChanged">
                             <LBadge
                                 withIcon
-                                :variant="statusBadge(contentPrev).variant"
+                                :variant="statusBadge(existingContent).variant"
                                 class="opacity-70"
                             >
-                                {{ statusBadge(contentPrev).title }}
+                                {{ statusBadge(existingContent).title }}
                             </LBadge>
                             <ArrowRightIcon class="h-4 w-4 text-zinc-700" />
                         </template>
 
-                        <LBadge withIcon :variant="statusBadge(content).variant">
-                            {{ statusBadge(content).title }}
+                        <LBadge withIcon :variant="statusBadge(editableContent).variant">
+                            {{ statusBadge(editableContent).title }}
                         </LBadge>
+                    </div>
+                    <div data-test="translation-delete-button" @click="showDeleteModal = true">
+                        <TrashIconSolid
+                            class="ml-2 h-4 min-h-4 w-4 min-w-4 cursor-pointer text-slate-400 hover:text-red-500"
+                        />
                     </div>
                 </span>
             </div>
 
             <div v-if="!isValid || isContentDirty" class="mt-2 flex flex-col gap-0.5">
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-2">
                     <p>
                         <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
                     </p>
@@ -173,7 +226,7 @@ watch(
                 <div
                     v-for="validation in validations.filter((v) => !v.isValid)"
                     :key="validation.id"
-                    class="flex items-center gap-1"
+                    class="flex items-center gap-2"
                 >
                     <p>
                         <XCircleIcon class="h-4 w-4 text-red-400" />
@@ -183,4 +236,19 @@ watch(
             </div>
         </div>
     </RouterLink>
+    <LDialog
+        v-model:open="showDeleteModal"
+        :title="`Delete ${usedLanguage?.name}`"
+        :description="`Are you sure you want to delete this ${usedLanguage?.name}?`"
+        :primaryAction="
+            () => {
+                deleteTranslation();
+                showDeleteModal = false;
+            }
+        "
+        :secondaryAction="() => (showDeleteModal = false)"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="default"
+    ></LDialog>
 </template>

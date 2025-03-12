@@ -3,6 +3,7 @@ import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
 import { createTestingModule } from "./test/testingModule";
 import { socketioTestClient } from "./test/socketioTestClient";
+import { DbService } from "./db/db.service";
 
 jest.mock("./configuration", () => {
     const originalModule = jest.requireActual("./configuration");
@@ -29,9 +30,11 @@ describe("Socketio", () => {
     let server: Socketio;
     let client: Socket;
     let app: INestApplication;
+    let db: DbService;
 
     async function createNestApp(): Promise<INestApplication> {
-        const { testingModule } = await createTestingModule("socketio");
+        const { testingModule, dbService } = await createTestingModule("socketio");
+        db = dbService;
         return testingModule.createNestApplication();
     }
 
@@ -62,6 +65,9 @@ describe("Socketio", () => {
                     memberOf: ["group-languages"],
                     languageCode: "eng",
                     name: "English",
+                    translations: {
+                        stringTranslation: "String Translation",
+                    },
                 },
             };
 
@@ -114,9 +120,37 @@ describe("Socketio", () => {
             expect(res.ack.message).toContain("Invalid document type");
             expect(res.ack.ack).toBe("rejected");
 
-            expect(res.ack.doc._id).toBe("lang-eng");
-            expect(res.ack.doc.type).toBe("language");
-            expect(res.ack.doc.name).toBe("English");
+            const docs: any[] = res.ack.docs;
+            expect(docs[0]._id).toBe("lang-eng");
+            expect(docs[0].type).toBe("language");
+            expect(docs[0].name).toBe("English");
+        });
+
+        it("returns the post/tag document with associated content documents when a delete request is rejected", async () => {
+            // Update post-blog1 so that group-super-admins do not have access to it
+            const postDoc = { ...(await db.getDoc("post-blog1")).docs[0] };
+            await db.upsertDoc({ ...postDoc, memberOf: ["invalid-group"] });
+
+            const changeRequest = {
+                id: 43,
+                doc: { ...postDoc, deleteReq: 1 },
+            };
+
+            const res = await socketioTestClient({
+                cms: false,
+                version: Date.now() + 1000000,
+                changeRequest: changeRequest,
+            });
+
+            expect(res.ack.message).toBe("No 'Delete' access to document");
+            expect(res.ack.ack).toBe("rejected");
+            expect(res.ack.docs.length).toBe(3);
+
+            const docs: any[] = res.ack.docs;
+            expect(docs[0]._id).toBe("post-blog1");
+            expect(docs[0].type).toBe("post");
+            expect(docs[1]._id).toBe("content-blog1-eng");
+            expect(docs[2]._id).toBe("content-blog1-fra");
         });
     });
 });

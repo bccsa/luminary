@@ -2,6 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LBadge from "@/components/common/LBadge.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import EditContentParent from "@/components/content/EditContentParent.vue";
 import LanguageSelector from "@/components/content/LanguageSelector.vue";
 import { useNotificationStore } from "@/stores/notification";
@@ -20,13 +21,18 @@ import {
     type ContentParentDto,
     PostType,
 } from "luminary-shared";
-import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
+import {
+    DocumentIcon,
+    TagIcon,
+    FolderArrowDownIcon,
+    ArrowUturnLeftIcon,
+    TrashIcon,
+} from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentStatus from "@/components/content/EditContentStatus.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
-import EditContentPreview from "@/components/content/EditContentPreview.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
@@ -34,6 +40,7 @@ import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingM
 import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
+import { sortByName } from "@/util/sortByName";
 
 type Props = {
     id: Uuid;
@@ -52,7 +59,7 @@ const newDocument = props.id == "new";
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
-const parent = ref<ContentParentDto>({
+const editableParent = ref<ContentParentDto>({
     _id: parentId,
     type: props.docType,
     updatedTimeUtc: 0,
@@ -60,42 +67,61 @@ const parent = ref<ContentParentDto>({
     tags: [],
     publishDateVisible: true,
 });
-const isLoading = computed(() => parent.value == undefined);
-const parentPrev = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
-const contentDocs = ref<ContentDto[]>([]);
-const contentDocsPrev = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+const isLoading = computed(() => editableParent.value == undefined);
+const existingParent = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
+const editableContent = ref<ContentDto[]>([]);
+const existingContent = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+const showDeleteModal = ref(false);
+
+let icon = DocumentIcon;
+if (props.docType == DocType.Tag) {
+    icon = TagIcon;
+}
 
 if (newDocument) {
     // Set default tag properties if it is a new tag
     if (props.docType == DocType.Tag) {
-        (parent.value as TagDto).tagType = props.tagOrPostType as TagType;
-        (parent.value as TagDto).pinned = 0;
-        (parent.value as TagDto).publishDateVisible = false;
+        (editableParent.value as TagDto).tagType = props.tagOrPostType as TagType;
+        (editableParent.value as TagDto).pinned = 0;
+        (editableParent.value as TagDto).publishDateVisible = false;
     } else {
-        (parent.value as PostDto).postType = props.tagOrPostType as PostType;
-        (parent.value as PostDto).publishDateVisible = true;
+        (editableParent.value as PostDto).postType = props.tagOrPostType as PostType;
+        (editableParent.value as PostDto).publishDateVisible = true;
     }
 } else {
     // Get a copy of the parent document from IndexedDB, and host it as a local ref.
     db.get<PostDto | TagDto>(parentId).then((p) => {
-        parent.value = p;
-        parentPrev.value = _.cloneDeep(p);
+        editableParent.value = _.cloneDeep(p);
+        existingParent.value = _.cloneDeep(p);
     });
 
     // In the same way as the parent document, get a copy of the content documents
     db.whereParent(parentId, props.docType).then((doc) => {
-        contentDocs.value.push(...doc);
-        contentDocsPrev.value = _.cloneDeep(doc);
+        editableContent.value.push(...doc);
+        existingContent.value = _.cloneDeep(doc);
     });
 }
 
 // Languages and language selection
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
+const untranslatedLanguages = computed(() => {
+    if (!editableContent.value) {
+        return [];
+    }
+
+    return languages.value
+        .filter(
+            (l) =>
+                !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq) &&
+                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
+        )
+        .sort(sortByName);
+});
+
 let _selectedLanguageId = ref<Uuid | undefined>(undefined);
 const selectedLanguageId = computed({
     get() {
-        if (_selectedLanguageId.value) return _selectedLanguageId.value;
         if (!languages.value) return undefined;
         if (props.languageCode) {
             const preferred = languages.value.find((l) => l.languageCode == props.languageCode);
@@ -115,32 +141,54 @@ const selectedLanguage = computed(() => {
 
 // Content language selection
 const selectedContent = computed(() => {
-    if (contentDocs.value.length == 0) return undefined;
-    return contentDocs.value.find((c) => c.language == selectedLanguageId.value);
+    if (editableContent.value.length == 0) return undefined;
+    return editableContent.value.find(
+        (c) => c.language == selectedLanguageId.value && !c.deleteReq,
+    );
 });
 
 const createTranslation = (language: LanguageDto) => {
-    contentDocs.value.push({
+    const newContent: ContentDto = {
         _id: db.uuid(),
         type: DocType.Content,
         updatedTimeUtc: Date.now(),
         memberOf: [],
-        parentId: parent.value._id,
-        parentType: props.docType,
+        parentId: editableParent.value?._id as Uuid,
+        parentType: editableParent.value?.docType as DocType.Post | DocType.Tag,
         language: language._id,
         status: PublishStatus.Draft,
         title: `Translation for ${language.name}`,
         slug: "",
         parentTags: [],
-    });
+    };
+    editableContent.value?.push(newContent);
     selectedLanguageId.value = language._id;
+
+    router.replace({
+        name: "edit",
+        params: {
+            docType: editableParent.value?.docType,
+            tagType:
+                editableParent.value?.docType == DocType.Tag
+                    ? (editableParent.value as unknown as TagDto).tagType
+                    : undefined,
+            id: editableParent.value?._id,
+            languageCode: language.languageCode,
+        },
+    });
 };
 
 const canTranslate = computed(() => {
-    if (!parent.value || !selectedLanguage.value) return false;
+    if (!editableParent.value || !selectedLanguage.value) return false;
+
     if (
-        !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Translate) ||
-        !verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate)
+        editableParent.value.memberOf.length > 0 &&
+        (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate) ||
+            !verifyAccess(
+                selectedLanguage.value.memberOf,
+                DocType.Language,
+                AclPermission.Translate,
+            ))
     ) {
         return false;
     }
@@ -148,17 +196,17 @@ const canTranslate = computed(() => {
 });
 
 const canPublish = computed(() => {
-    if (!parent.value || !selectedLanguage.value) return false;
+    if (!editableParent.value || !selectedLanguage.value) return false;
 
     // Disable edit access if the user does not have publish permission
-    if (contentDocsPrev.value) {
-        const prevContentDoc = contentDocsPrev.value.find(
+    if (existingContent.value) {
+        const prevContentDoc = existingContent.value.find(
             (d) => d.language == selectedLanguageId.value,
         );
         if (
             prevContentDoc &&
             prevContentDoc.status == PublishStatus.Published &&
-            !verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)
+            !verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish)
         ) {
             return false;
         }
@@ -173,29 +221,42 @@ const canTranslateOrPublish = computed(() => {
 });
 
 const canEditParent = computed(() => {
-    if (parent.value) {
+    if (editableParent.value) {
         // Allow editing if the parent is not part of any group to allow the editor to set a group
-        if (parent.value.memberOf.length == 0) return true;
+        if (editableParent.value.memberOf.length == 0) return true;
 
-        return verifyAccess(parent.value.memberOf, props.docType, AclPermission.Edit, "all");
+        return verifyAccess(
+            editableParent.value.memberOf,
+            props.docType,
+            AclPermission.Edit,
+            "all",
+        );
     }
 
     return false;
 });
 
+const canDelete = computed(() => {
+    if (!editableParent.value) return false;
+    return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
+});
+
 // Dirty check and save
 const isDirty = computed(
     () =>
-        !_.isEqual({ ...parent.value, updatedBy: "" }, { ...parentPrev.value, updatedBy: "" }) ||
         !_.isEqual(
-            { ...contentDocs.value, updatedBy: "" },
-            { ...contentDocsPrev.value, updatedBy: "" },
+            { ...editableParent.value, updatedBy: "" },
+            { ...existingParent.value, updatedBy: "" },
+        ) ||
+        !_.isEqual(
+            { ...editableContent.value, updatedBy: "" },
+            { ...existingContent.value, updatedBy: "" },
         ),
 );
 
 const isValid = ref(true);
 
-const save = async () => {
+const saveChanges = async () => {
     if (!isValid.value) {
         addNotification({
             title: "Changes not saved",
@@ -205,7 +266,7 @@ const save = async () => {
         return;
     }
 
-    if (!verifyAccess(parent.value.memberOf, props.docType, AclPermission.Publish)) {
+    if (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish)) {
         addNotification({
             title: "Insufficient Permissions",
             description: "You do not have publish permission",
@@ -214,18 +275,7 @@ const save = async () => {
         return;
     }
 
-    // Save the parent document
-    await db.upsert(parent.value);
-
-    // Save the content documents that changed
-    const pList: Promise<any>[] = [];
-    contentDocs.value.forEach((c) => {
-        const prevContentDoc = contentDocsPrev.value?.find((d) => d._id == c._id);
-        if (_.isEqual(c, prevContentDoc)) return;
-        pList.push(db.upsert(c));
-    });
-
-    await Promise.all(pList);
+    await save();
 
     addNotification({
         title: `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
@@ -233,13 +283,45 @@ const save = async () => {
         state: "success",
     });
 
-    parentPrev.value = _.cloneDeep(parent.value);
-    contentDocsPrev.value = _.cloneDeep(contentDocs.value);
+    existingParent.value = _.cloneDeep(editableParent.value);
+    existingContent.value = _.cloneDeep(editableContent.value);
+};
+
+const save = async () => {
+    // Bypass saving if the parent document is new and is marked for deletion
+    if (!existingContent.value && editableParent.value.deleteReq) {
+        return;
+    }
+
+    // Save the parent document
+    await db.upsert(editableParent.value);
+
+    if (!editableParent.value.deleteReq) {
+        // Save the content documents that changed
+        const pList: Promise<any>[] = [];
+        editableContent.value.forEach((c) => {
+            const prevContentDoc = existingContent.value?.find((d) => d._id == c._id);
+
+            // Only save the document if it has changed
+            if (_.isEqual(c, prevContentDoc)) return;
+
+            // Do not save newly created documents that are marked for deletion
+            if (c.deleteReq && !prevContentDoc) return;
+
+            pList.push(db.upsert(c));
+        });
+
+        await Promise.all(pList);
+    }
 };
 
 const revertChanges = () => {
     // Restore the parent document to the previous version
-    if (_.isEqual(contentDocs.value, contentDocsPrev.value)) {
+    if (
+        _.isEqual(editableContent.value, existingContent.value) ||
+        editableContent.value.length < 1 ||
+        !existingContent.value
+    ) {
         addNotification({
             title: "No changes",
             description: `There were no changes to revert`,
@@ -247,15 +329,43 @@ const revertChanges = () => {
         });
         return;
     }
-    parent.value = _.cloneDeep(parentPrev.value!);
+    editableParent.value = _.cloneDeep(existingParent.value!);
 
     // Restore the content documents to the previous versions
-    contentDocs.value = _.cloneDeep(contentDocsPrev.value!);
+    editableContent.value = _.cloneDeep(existingContent.value!);
 
     addNotification({
         title: `${capitaliseFirstLetter(props.tagOrPostType)} reverted`,
         description: `The changes to the ${props.tagOrPostType} have been reverted`,
         state: "success",
+    });
+};
+
+const deleteParent = async () => {
+    if (!editableParent.value) return;
+
+    if (!canDelete.value) {
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You do not have delete permission",
+            state: "error",
+        });
+        return;
+    }
+
+    editableParent.value.deleteReq = 1;
+
+    save();
+
+    addNotification({
+        title: `${capitaliseFirstLetter(props.tagOrPostType)} deleted`,
+        description: `The ${props.tagOrPostType} was successfully deleted`,
+        state: "success",
+    });
+
+    router.push({
+        name: "overview",
+        params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
     });
 };
 
@@ -275,7 +385,7 @@ watch(selectedLanguage, () => {
 
 <template>
     <div
-        v-if="!newDocument && !parent?.updatedTimeUtc"
+        v-if="!newDocument && !editableParent?.updatedTimeUtc"
         class="relative flex h-screen items-center justify-center"
     >
         <div class="flex flex-col items-center gap-4">
@@ -284,17 +394,17 @@ watch(selectedLanguage, () => {
     </div>
     <BasePage
         :title="selectedContent ? selectedContent.title : `Edit ${props.tagOrPostType}`"
-        :icon="DocumentIcon"
+        :icon="icon"
         :loading="isLoading"
         :backLinkLocation="{ name: 'overview' }"
         :backLinkText="`${capitaliseFirstLetter(tagOrPostType)} overview`"
         :backLinkParams="{
             docType: docType,
             tagOrPostType: tagOrPostType,
-            parentId: parent._id,
+            parentId: editableParent._id,
             languageCode: languageCode,
         }"
-        v-if="parent"
+        v-if="editableParent"
     >
         <template #actions>
             <div class="flex gap-2">
@@ -306,28 +416,78 @@ watch(selectedLanguage, () => {
                         data-test="revert-changes-button"
                         variant="secondary"
                         title="Revert Changes"
+                        :icon="ArrowUturnLeftIcon"
+                        v-if="isDirty && !newDocument"
                     >
                         Revert
                     </LButton>
-                    <LButton type="button" @click="save" data-test="save-button" variant="primary">
+                    <LButton
+                        type="button"
+                        @click="saveChanges"
+                        data-test="save-button"
+                        variant="primary"
+                        :icon="FolderArrowDownIcon"
+                    >
                         Save
+                    </LButton>
+                    <LButton
+                        type="button"
+                        @click="showDeleteModal = true"
+                        data-test="delete-button"
+                        variant="secondary"
+                        context="danger"
+                        :icon="TrashIcon"
+                    >
+                        Delete
                     </LButton>
                 </div>
             </div>
         </template>
-        <div class="relative grid grid-cols-3 gap-8">
-            <div class="col-span-3 md:col-span-2">
+        <div class="relative grid min-h-screen grid-cols-3 gap-8">
+            <!-- Sidebar -->
+            <div
+                class="scrollbar col-span-3 h-screen overflow-y-auto md:col-span-1"
+                v-if="editableParent"
+            >
+                <div class="sticky top-0 space-y-6">
+                    <EditContentParentValidation
+                        :can-translate="canTranslate"
+                        :can-publish="canPublish"
+                        :can-edit="canEditParent"
+                        v-if="editableContent"
+                        v-model:editableParent="editableParent"
+                        v-model:editableContent="editableContent"
+                        :languages="languages"
+                        :untranslatedLanguages="untranslatedLanguages"
+                        :dirty="isDirty"
+                        :existingContent="existingContent"
+                        :existingParent="existingParent"
+                        @updateIsValid="(val) => (isValid = val)"
+                        @createTranslation="(language) => createTranslation(language)"
+                    />
+
+                    <EditContentParent
+                        v-if="editableParent"
+                        :docType="props.docType"
+                        :tagOrPostType="props.tagOrPostType"
+                        :language="selectedLanguage"
+                        v-model="editableParent"
+                        :disabled="!canEditParent"
+                    />
+                </div>
+            </div>
+            <div class="scrollbar col-span-3 h-screen overflow-y-auto md:col-span-2">
                 <EmptyState
                     v-if="!selectedContent"
-                    :icon="TagIcon"
-                    :title="`The content is not yet available in ${selectedLanguage?.name}`"
-                    :description="`Please select a language before starting editing
+                    :icon="icon"
+                    title=""
+                    :description="`Please select a language to start editing
                     `"
                     data-test="no-content"
                     ><LanguageSelector
-                        :parent="parent"
-                        :content="contentDocs"
-                        :languages="languages"
+                        :parent="editableParent"
+                        :content="editableContent"
+                        :languages="untranslatedLanguages"
                         v-model="selectedLanguageId"
                         @createTranslation="createTranslation"
                 /></EmptyState>
@@ -352,33 +512,33 @@ watch(selectedLanguage, () => {
                     />
                 </div>
             </div>
-            <!-- Sidebar -->
-            <div class="col-span-3 md:col-span-1" v-if="parent">
-                <div class="sticky top-20 space-y-6">
-                    <EditContentParentValidation
-                        :can-translate="canTranslate"
-                        :can-publish="canPublish"
-                        :can-edit="canEditParent"
-                        v-if="contentDocs"
-                        v-model:parent="parent"
-                        v-model:contentDocs="contentDocs"
-                        :languages="languages"
-                        :dirty="isDirty"
-                        :contentPrev="contentDocsPrev"
-                        :parentPrev="parentPrev"
-                        @updateIsValid="(val) => (isValid = val)"
-                    />
-                    <EditContentPreview v-if="selectedContent" :content="selectedContent" />
-                    <EditContentParent
-                        v-if="parent"
-                        :docType="props.docType"
-                        :language="selectedLanguage"
-                        v-model="parent"
-                        :disabled="!canEditParent"
-                    />
-                </div>
-            </div>
         </div>
     </BasePage>
-    <ConfirmBeforeLeavingModal :isDirty="isDirty" />
+    <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />
+    <LDialog
+        v-model:open="showDeleteModal"
+        :title="`Delete ${props.tagOrPostType} and all translations`"
+        :description="`Are you sure you want to delete this ${props.tagOrPostType} and all the translations? This action cannot be undone.`"
+        :primaryAction="
+            () => {
+                deleteParent();
+                showDeleteModal = false;
+            }
+        "
+        :secondaryAction="() => (showDeleteModal = false)"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="danger"
+    ></LDialog>
 </template>
+
+<style>
+.scrollbar::-webkit-scrollbar {
+    display: none; /* Hide scrollbar in Chrome, Safari */
+}
+
+.scrollbar {
+    -ms-overflow-style: none; /* Hide scrollbar in IE/Edge */
+    scrollbar-width: none; /* Hide scrollbar in Firefox */
+}
+</style>

@@ -1,6 +1,7 @@
-import { ApiConnectionOptions, DocType } from "../types";
+import { DocType } from "../types";
 import { Sync } from "./sync";
 import { HttpReq } from "./http";
+import { config } from "../config";
 
 export type ApiSearchQuery = {
     apiVersion?: string;
@@ -16,6 +17,13 @@ export type ApiSearchQuery = {
     languages?: Array<string>;
 };
 
+export type ApiDocTypes = {
+    type: DocType;
+    contentOnly: boolean;
+    syncPriority: number; // 10 is default, lower number is higher priority
+    skipWaitForLanguageSync?: boolean;
+};
+
 export type ChangeRequestQuery = {
     id: number;
     doc: any;
@@ -26,16 +34,31 @@ class RestApi {
     private _sync: Sync;
     private http: HttpReq<any>;
     /**
-     * Create a new docs instance
+     * Create a new REST API client instance
      * @param options - Options
      */
-    constructor(options: ApiConnectionOptions) {
-        this._sync = new Sync(options);
-        this.http = new HttpReq(options.apiUrl || "", options.token);
+    constructor() {
+        if (!config) {
+            throw new Error("The REST API connection requires options object");
+        }
+        if (!config.apiUrl) {
+            throw new Error("The REST API connection requires an API URL");
+        }
+        if (!config.docTypes || !config.docTypes[0]) {
+            throw new Error(
+                "The REST API connection requires an array of DocTypes that needs to be synced",
+            );
+        }
+
+        this._sync = new Sync();
+        this.http = new HttpReq(config.apiUrl || "", config.token);
     }
 
-    async clientDataReq() {
-        this._sync.clientDataReq();
+    /**
+     * Returns the REST API Client's sync instance
+     */
+    get sync() {
+        return this._sync;
     }
 
     async search(query: ApiSearchQuery) {
@@ -52,25 +75,19 @@ class RestApi {
 let rest: RestApi;
 
 /**
- * Returns a singleton instance of the restApi client class. The api URL, token and CMS flag is only used when calling the function for the first time.
+ * Returns a singleton instance of the REST client class. The api URL, token and CMS flag is only used when calling the function for the first time.
  * @param options - Socket connection options
  */
-export function getRest(options?: ApiConnectionOptions) {
-    if (rest) return rest;
+export function getRest(
+    options: {
+        /**
+         * If true, the singleton instance of the REST client will be reset
+         */
+        reset?: boolean;
+    } = { reset: false },
+): RestApi {
+    if (rest && !options.reset) return rest;
 
-    if (!options) {
-        throw new Error("Rest API connection requires options object");
-    }
-    if (!options.apiUrl) {
-        throw new Error("Rest API connection requires an API URL");
-    }
-    if (!options.docTypes || !options.docTypes[0]) {
-        throw new Error(
-            "Rest API connection requires an array of DocTypes that needs to be synced",
-        );
-    }
-
-    rest = new RestApi(options);
-
+    rest = new RestApi();
     return rest;
 }
