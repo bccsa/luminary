@@ -430,11 +430,10 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                 "
                 :icon="ArrowTopRightOnSquareIcon"
                 iconRight
-                class="font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
+                class="cursor-pointer font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
                 variant="tertiary"
                 is="a"
                 @click="ensureRedirect"
-                :href="liveUrl"
                 target="_blank"
                 title="View live version"
             />
