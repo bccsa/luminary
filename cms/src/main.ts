@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 import { DocType, getSocket, init } from "luminary-shared";
-import { apiUrl } from "@/globalConfig";
+import { apiUrl, initLanguage } from "@/globalConfig";
 import auth from "./auth";
 import { useNotificationStore } from "./stores/notification";
 
@@ -93,6 +93,8 @@ async function Startup() {
             });
         }
     });
+
+    initLanguage();
 
     app.use(createPinia());
     app.use(router);
