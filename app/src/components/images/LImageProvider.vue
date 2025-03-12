@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { connectionSpeed } from "@/globalConfig";
 import type { ImageDto } from "luminary-shared";
-import { computed, nextTick, onMounted, ref, watch, type Component, type Ref } from "vue";
+import { computed, ref } from "vue";
 
 type Props = {
     image?: ImageDto;
@@ -30,12 +31,6 @@ const sizes = {
     small: "w-20 max-w-20 min-w-20 md:w-24 md:max-w-24 md:min-w-24",
     thumbnail: "w-36 max-w-36 min-w-36 md:w-52 md:max-w-52 md:min-w-52",
     post: "w-full max-w-full",
-};
-
-const rounding = {
-    small: "rounded-md",
-    thumbnail: "rounded-lg",
-    post: "md:rounded-lg",
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -78,7 +73,7 @@ const srcset1 = computed(() => {
         .map((collection) => {
             return collection.imageFiles
                 .filter((imgFile) =>
-                    props.size == "post"
+                    connectionSpeed > 10
                         ? imgFile.width <= props.parentWidth
                         : imgFile.width <= 180,
                 )
@@ -114,8 +109,14 @@ const showImageElement2 = computed(
 </script>
 
 <template>
+    <!-- @vue-ignore 
+     Error:Type 'string | string[]' is not assignable to type 'string | undefined'.
+     Type 'string[]' is not assignable to type 'string' 
+     This element has a v-if directive and only if srcset 1 exists, which means it will
+     never be undefined when ':srcset="srcset1"' is called.
+    -->
     <img
-        v-if="showImageElement1 && srcset1"
+        v-if="srcset1 && showImageElement1"
         :srcset="srcset1"
         :class="[
             aspectRatiosCSS[aspectRatio],
@@ -128,7 +129,7 @@ const showImageElement2 = computed(
         @error="imageElement1Error = true"
     />
     <img
-        v-if="showImageElement2 && srcset2"
+        v-else-if="showImageElement2 && srcset2"
         src=""
         :srcset="srcset2"
         :class="[

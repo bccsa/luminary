@@ -38,7 +38,7 @@ const rounding = {
 };
 
 const parentRef = ref<HTMLElement | undefined>(undefined);
-const parentWidth = ref<number | undefined>(undefined);
+const parentWidth = ref<number>(0);
 
 onMounted(() => {
     parentWidth.value = parentRef.value?.clientWidth || 0;
