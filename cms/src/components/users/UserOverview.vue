@@ -18,7 +18,7 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission
                     variant="primary"
                     :icon="PlusIcon"
                     @click="$router.push({ name: 'user', params: { id: db.uuid() } })"
-                    name="createLanguageBtn"
+                    name="createUserBtn"
                 >
                     Create user
                 </LButton>
