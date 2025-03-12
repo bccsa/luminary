@@ -5,7 +5,12 @@ import UserRow from "./UserRow.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db } from "luminary-shared";
-import { fullAccessToAllContentMap, mockLanguageDtoEng, mockUserDto } from "@/tests/mockdata";
+import {
+    fullAccessToAllContentMap,
+    mockGroupDtoSuperAdmins,
+    mockLanguageDtoEng,
+    mockUserDto,
+} from "@/tests/mockdata";
 import { DateTime } from "luxon";
 
 describe("UserRow.vue", () => {
@@ -22,11 +27,15 @@ describe("UserRow.vue", () => {
     });
 
     it("should display the passed user", async () => {
+        await db.docs.bulkPut([mockGroupDtoSuperAdmins]);
+
         const wrapper = mount(UserRow, {
             props: {
                 usersDoc: mockUserDto,
             },
         });
+
+        await wrapper.vm.$nextTick();
 
         expect(wrapper.html()).toContain("John Doe");
         expect(wrapper.html()).toContain("john@doe.com");
