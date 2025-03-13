@@ -9,6 +9,7 @@ import {
     ArrowDownIcon,
     MagnifyingGlassIcon,
     TagIcon,
+    XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
@@ -34,6 +35,7 @@ import { Menu } from "@headlessui/vue";
 import LRadio from "../../forms/LRadio.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 import LChecklist from "@/components/forms/LChecklist.vue";
+import LTag from "../LTag.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -151,6 +153,24 @@ const tagContentDocs = useDexieLiveQueryWithDeps(
             .sortBy("title") as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },
 );
+
+const resetQueryOptions = () => {
+    queryOptions.value = {
+        languageId: queryOptions.value.languageId,
+        parentType: queryOptions.value.parentType,
+        tagOrPostType: queryOptions.value.tagOrPostType,
+        translationStatus: "all",
+        orderBy: "updatedTimeUtc",
+        orderDirection: "desc",
+        pageSize: 20,
+        pageIndex: 0,
+        tags: [],
+        search: "",
+        publishStatus: "all",
+    };
+
+    debouncedSearchTerm.value = "";
+};
 </script>
 
 <template>
@@ -183,7 +203,7 @@ const tagContentDocs = useDexieLiveQueryWithDeps(
                 </LButton>
             </div>
         </template>
-        <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow-lg">
+        <div class="flex w-full gap-1 bg-white p-2 shadow-lg">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
@@ -218,6 +238,7 @@ const tagContentDocs = useDexieLiveQueryWithDeps(
                         "
                         :icon="TagIcon"
                         v-model:selectedValues="queryOptions.tags"
+                        :is-content-overview="true"
                     />
 
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
@@ -285,10 +306,40 @@ const tagContentDocs = useDexieLiveQueryWithDeps(
                             >
                         </div>
                     </Menu>
+                    <LButton @click="resetQueryOptions" class="w-10">
+                        <XMarkIcon class="h-6 w-6" />
+                    </LButton>
                 </div>
             </div>
         </div>
-
+        <div
+            v-if="queryOptions.tags && queryOptions.tags?.length > 0"
+            class="w-full bg-white px-2 pb-2 shadow"
+        >
+            <ul class="flex w-full flex-wrap gap-2">
+                <TransitionGroup
+                    enter-active-class="transition duration-150 delay-75"
+                    enter-from-class="transform scale-90 opacity-0"
+                    enter-to-class="transform scale-100 opacity-100"
+                    leave-active-class="transition duration-100"
+                    leave-from-class="transform scale-100 opacity-100"
+                    leave-to-class="transform scale-90 opacity-0"
+                >
+                    <LTag
+                        v-for="(tag, i) in queryOptions.tags"
+                        :key="tag"
+                        @remove="
+                            () => {
+                                if (!queryOptions.tags) return;
+                                queryOptions.tags = queryOptions.tags.filter((v) => v != tag);
+                            }
+                        "
+                    >
+                        {{ tagContentDocs[i] === undefined ? tag : tagContentDocs[i].title }}
+                    </LTag>
+                </TransitionGroup>
+            </ul>
+        </div>
         <ContentTable
             v-if="cmsLanguageIdAsRef"
             :key="tableRefreshKey"

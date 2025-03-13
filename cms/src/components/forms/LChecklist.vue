@@ -16,9 +16,11 @@ type Props = {
     options: ChecklistOption[];
     disabled?: boolean;
     icon?: Component | Function;
+    isContentOverview?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
+    isContentOverview: false,
 });
 const selectedValues = defineModel<Array<string | number>>("selectedValues");
 
@@ -132,7 +134,7 @@ const onClick = (option: ChecklistOption) => {
     </Combobox>
 
     <!-- Selected options -->
-    <div class="mt-3 flex flex-wrap gap-3">
+    <div v-if="!isContentOverview" class="mt-3 flex flex-wrap gap-3">
         <TransitionGroup
             enter-active-class="transition duration-150 delay-75"
             enter-from-class="transform scale-90 opacity-0"
