@@ -19,6 +19,10 @@ import { computed, provide, ref, toRaw, watch } from "vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";
+import { ArrowUturnLeftIcon, FolderArrowDownIcon, TrashIcon } from "@heroicons/vue/24/solid";
+import LDialog from "../common/LDialog.vue";
+import { capitaliseFirstLetter } from "@/util/string";
+import router from "@/router";
 
 type Props = {
     id: Uuid;
@@ -32,6 +36,7 @@ provide("users", users);
 
 const props = defineProps<Props>();
 const isLocalChange = db.isLocalChangeAsRef(props.id);
+const { addNotification } = useNotificationStore();
 
 const getDbUsers = async () => {
     const _s = Object.fromEntries(users.value);
@@ -52,6 +57,7 @@ getDbUsers();
 const userData = users.value;
 const original = ref<UserDto | null>(null);
 const isDirty = ref(false);
+const showDeleteModal = ref(false);
 
 const editable = ref<UserDto>({
     _id: props.id,
@@ -73,7 +79,7 @@ watch(
     { immediate: true, deep: true },
 );
 
-// Check if the language is dirty (has unsaved changes)
+// Check if the user is dirty (has unsaved changes)
 watch(
     [editable, original],
     () => {
@@ -99,11 +105,43 @@ const canEditOrCreate = computed(() => {
     if (editable.value) {
         return verifyAccess(editable.value.memberOf, DocType.User, AclPermission.Edit, "all");
     }
-    return hasAnyPermission(DocType.Language, AclPermission.Edit);
+    return hasAnyPermission(DocType.User, AclPermission.Edit);
+});
+
+const canDelete = computed(() => {
+    if (!editable.value) return false;
+    return verifyAccess(editable.value.memberOf, DocType.User, AclPermission.Delete, "all");
 });
 
 const revertChanges = () => {
     editable.value = _.cloneDeep(original.value) as UserDto;
+};
+
+const deleteUser = async () => {
+    if (!editable.value) return;
+
+    if (!canDelete.value) {
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You do not have delete permission",
+            state: "error",
+        });
+        return;
+    }
+
+    editable.value.deleteReq = 1;
+
+    save();
+
+    addNotification({
+        title: `${capitaliseFirstLetter(editable.value.name)} deleted`,
+        description: `The user was successfully deleted`,
+        state: "success",
+    });
+
+    router.push({
+        name: "users",
+    });
 };
 const save = async () => {
     original.value = _.cloneDeep(editable.value);
@@ -140,6 +178,7 @@ const save = async () => {
                         variant="secondary"
                         v-if="isDirty && !isNew"
                         @click="revertChanges"
+                        :icon="ArrowUturnLeftIcon"
                         >Revert</LButton
                     >
                     <LButton
@@ -148,8 +187,25 @@ const save = async () => {
                         data-test="save-button"
                         variant="primary"
                         :disabled="!isDirty || !hasGroupsSelected"
+                        :icon="FolderArrowDownIcon"
                     >
                         Save
+                    </LButton>
+                    <LButton
+                        type="button"
+                        @click="
+                            () => {
+                                console.log('Delete button clicked');
+                                showDeleteModal = true;
+                            }
+                        "
+                        data-test="delete-button"
+                        variant="secondary"
+                        context="danger"
+                        :icon="TrashIcon"
+                        :disabled="!canDelete"
+                    >
+                        Delete
                     </LButton>
                 </div>
             </div>
@@ -183,4 +239,21 @@ const save = async () => {
             </LCard>
         </div>
     </BasePage>
+
+    <LDialog
+        v-model:open="showDeleteModal"
+        :title="`Delete ${editable.name}?`"
+        :description="`Are you sure you want to delete this user? This user will be no longer able to have access! This action cannot be undone.`"
+        :primaryAction="
+            () => {
+                showDeleteModal = false;
+                console.log('Delete user');
+                deleteUser();
+            }
+        "
+        :secondaryAction="() => (showDeleteModal = false)"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="danger"
+    ></LDialog>
 </template>

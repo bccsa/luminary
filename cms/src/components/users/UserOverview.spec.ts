@@ -9,7 +9,15 @@ import { mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
 import { accessMap, DocType, getRest, initConfig } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
-vi.mock("vue-router");
+vi.mock("vue-router", () => ({
+    useRouter: () => ({
+        push: vi.fn(),
+    }),
+}));
+
+const mockRouter = {
+    push: vi.fn(), // Mock Vue Router push
+};
 
 // ============================
 // Mock api
@@ -71,17 +79,26 @@ describe("UserOverview", () => {
         });
     });
 
-    it.skip("can create a new user", async () => {
-        const wrapper = mount(UserOverview);
+    it("can create a new user", async () => {
+        const wrapper = mount(UserOverview, {
+            global: {
+                mocks: {
+                    $router: mockRouter,
+                },
+            },
+        });
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("Create user");
         });
 
-        await wrapper.find('[data-test="createUserBtn"]').trigger("click");
+        await wrapper.find('[name="createUserBtn"]').trigger("click");
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("New user");
+            expect(mockRouter.push).toHaveBeenCalledWith({
+                name: "user",
+                params: { id: expect.any(String) },
+            });
         });
     });
 

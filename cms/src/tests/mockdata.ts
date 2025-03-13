@@ -716,6 +716,7 @@ export const mockGroupDtoSuperAdmins: GroupDto = {
                 AclPermission.Assign,
                 AclPermission.Translate,
                 AclPermission.Publish,
+                AclPermission.Delete,
             ],
         },
         {

@@ -8,9 +8,23 @@ import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import { mockGroupDtoSuperAdmins, mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
 import express from "express";
-import { nextTick } from "vue";
+import { nextTick, ref } from "vue";
 
-vi.mock("vue-router");
+// Mock the vue router
+const routeReplaceMock = vi.fn();
+const currentRouteMock = ref({ fullPath: `user/${mockUserDto._id}` });
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRouter: vi.fn().mockImplementation(() => ({
+            currentRoute: currentRouteMock,
+            replace: routeReplaceMock,
+        })),
+    };
+});
 
 // ============================
 // Mock api
@@ -148,5 +162,40 @@ describe("EditUser.vue", () => {
             expect(updatedUser.name).toBe(mockUserDto.name);
             expect(updatedUser.email).toBe(mockUserDto.email);
         });
+    });
+
+    it.skip("can delete a user", async () => {
+        const wrapper = mount(EditUser, {
+            props: {
+                id: mockUserDto._id,
+            },
+        });
+
+        // Wait for the editor to be loaded
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockUserDto.name);
+        });
+
+        let deleteButton;
+        await waitForExpect(async () => {
+            deleteButton = wrapper.find('[data-test="delete-button"]');
+            // console.log(deleteButton.attributes());
+            expect(deleteButton.exists()).toBe(true);
+        });
+        await deleteButton!.trigger("click"); // Click the delete button
+
+        let deleteModalButton;
+        await waitForExpect(async () => {
+            deleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
+            // console.log(wrapper.html());
+            expect(deleteModalButton.exists()).toBe(true);
+        });
+        await deleteModalButton!.trigger("click"); // Accept dialog
+
+        // await waitForExpect(async () => {
+        //     const deletedLanguage = await db.docs.where({ _id: mockUserDto._id }).toArray();
+
+        //     expect(deletedLanguage.length).toBe(0);
+        // });
     });
 });
