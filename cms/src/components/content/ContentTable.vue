@@ -16,7 +16,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
 
 <template>
     <LCard class="rounded-t-none" padding="none">
-        <div class="overflow-x-auto rounded-md">
+        <div class="overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
                 <table class="min-w-full divide-y divide-zinc-200">
                     <thead class="bg-zinc-50">
