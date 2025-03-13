@@ -10,6 +10,7 @@ import {
     MagnifyingGlassIcon,
     TagIcon,
     XMarkIcon,
+    ArrowUturnLeftIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
@@ -307,7 +308,7 @@ const resetQueryOptions = () => {
                         </div>
                     </Menu>
                     <LButton @click="resetQueryOptions" class="w-10">
-                        <XMarkIcon class="h-6 w-6" />
+                        <ArrowUturnLeftIcon class="h-4 w-4" />
                     </LButton>
                 </div>
             </div>
