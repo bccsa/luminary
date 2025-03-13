@@ -1,20 +1,21 @@
 <script setup lang="ts">
-// Image component with automatic aspect ratio selection and fallback image
-
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
+import ImageModal from "./ImageModal.vue";
 
 type Props = {
     image?: ImageDto;
     aspectRatio?: keyof typeof aspectRatios;
     size?: keyof typeof sizes;
     rounded?: boolean;
+    zoomable?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
     rounded: true,
+    zoomable: false,
 });
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
@@ -111,6 +112,20 @@ const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.va
 const showImageElement2 = computed(
     () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
 );
+
+const showPopup = ref(false);
+
+watch(showPopup, (newVal) => {
+    if (newVal) {
+        document.body.style.overflow = "hidden";
+        document.body.style.userSelect = "none";
+        document.body.style.touchAction = "none";
+    } else {
+        document.body.style.overflow = "";
+        document.body.style.userSelect = "";
+        document.body.style.touchAction = "";
+    }
+});
 </script>
 
 <template>
@@ -121,7 +136,9 @@ const showImageElement2 = computed(
                 aspectRatios[aspectRatio],
                 rounded ? rounding[size] : '',
                 'relative flex w-full flex-col items-center justify-center overflow-clip bg-cover bg-center object-cover shadow',
+                zoomable ? 'cursor-zoom-in' : '',
             ]"
+            @click="showPopup = true"
         >
             <img
                 v-if="showImageElement1"
@@ -136,6 +153,7 @@ const showImageElement2 = computed(
                 data-test="image-element1"
                 loading="lazy"
                 @error="imageElement1Error = true"
+                draggable="false"
             />
             <img
                 v-if="showImageElement2"
@@ -150,11 +168,29 @@ const showImageElement2 = computed(
                 data-test="image-element2"
                 loading="lazy"
                 @error="imageElement2Error = true"
+                draggable="false"
             />
             <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
                 <slot name="imageOverlay"></slot>
             </div>
+            <div v-if="image && zoomable && showPopup">
+                <ImageModal
+                    :image="image"
+                    :aspectRatio="aspectRatio"
+                    :size="size"
+                    rounded
+                    @close="showPopup = false"
+                />
+            </div>
         </div>
+        <!-- <ImageModal
+            v-if="image && zoomable && showPopup"
+            :image="image"
+            :aspectRatio="aspectRatio"
+            :size="size"
+            rounded
+            @close="showPopup = false"
+        /> -->
 
         <slot></slot>
     </div>
