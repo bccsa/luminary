@@ -204,7 +204,7 @@ const resetQueryOptions = () => {
                 </LButton>
             </div>
         </template>
-        <div class="flex w-full gap-1 bg-white p-2 shadow-lg">
+        <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
