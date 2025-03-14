@@ -11,6 +11,7 @@ import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
+import { initializeAuth } from "./globalConfig";
 
 export const app = createApp(App);
 
@@ -69,7 +70,12 @@ async function Startup() {
     app.use(createPinia());
     app.use(router);
     app.use(i18n);
-    app.mount("#app");
+
+    // Initialize Auth0 before mounting the app
+    initializeAuth().then(() => {
+        app.mount("#app");
+    });
+
     initAppTitle(i18n);
     initAnalytics();
 }
