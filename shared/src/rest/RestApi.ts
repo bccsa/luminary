@@ -15,6 +15,8 @@ export type ApiSearchQuery = {
     from?: number;
     to?: number;
     languages?: Array<string>;
+    userId?: string;
+    docId?: string;
 };
 
 export type ApiDocTypes = {

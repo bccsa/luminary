@@ -101,25 +101,31 @@ export const router = createRouter({
                     component: () => import("../components/redirects/RedirectOverview.vue"),
                 },
 
-                // {
-                //     path: "users",
-                //     name: "users",
-                //     redirect: { name: "users.index" },
-                //     children: [
-                //         {
-                //             path: "",
-                //             name: "users.index",
-                //             component: () => import("../pages/UsersPage.vue"),
-                //             meta: {
-                //                 title: "Users",
-                //                 canAccess: {
-                //                     docType: DocType.User,
-                //                     permission: AclPermission.View,
-                //                 },
-                //             },
-                //         },
-                //     ],
-                // },
+                {
+                    path: "users",
+                    name: "users",
+                    redirect: { name: "users.index" },
+                    children: [
+                        {
+                            path: "",
+                            name: "users.index",
+                            component: () => import("../components/users/UserOverview.vue"),
+                            meta: {
+                                title: "Users",
+                                canAccess: {
+                                    docType: DocType.User,
+                                    permission: AclPermission.View,
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    path: "users/:id",
+                    name: "user",
+                    component: () => import("../components/users/EditUser.vue"),
+                    props: true,
+                },
                 { path: "/:pathMatch(.*)*", name: "404", component: NotFoundPage },
             ],
         },
