@@ -55,7 +55,7 @@ const getDbUsers = async () => {
 getDbUsers();
 
 const userData = users.value;
-const original = ref<UserDto | null>(null);
+const original = ref<UserDto | null>();
 const isDirty = ref(false);
 const showDeleteModal = ref(false);
 
@@ -144,14 +144,23 @@ const deleteUser = async () => {
     });
 };
 const save = async () => {
+    // Bypass save if the user is new and marked for deletion
+    if (isNew.value && editable.value.deleteReq) {
+        return;
+    }
+
     original.value = _.cloneDeep(editable.value);
+    editable.value.updatedTimeUtc = Date.now();
+
     await db.upsert(editable.value);
 
-    useNotificationStore().addNotification({
-        title: "User saved",
-        description: "User saved successfully",
-        state: "success",
-    });
+    if (!editable.value.deleteReq) {
+        useNotificationStore().addNotification({
+            title: "User saved",
+            description: "User saved successfully",
+            state: "success",
+        });
+    }
 };
 </script>
 

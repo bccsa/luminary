@@ -164,7 +164,7 @@ describe("EditUser.vue", () => {
         });
     });
 
-    it.skip("can delete a user", async () => {
+    it("can delete a user", async () => {
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
@@ -179,7 +179,6 @@ describe("EditUser.vue", () => {
         let deleteButton;
         await waitForExpect(async () => {
             deleteButton = wrapper.find('[data-test="delete-button"]');
-            // console.log(deleteButton.attributes());
             expect(deleteButton.exists()).toBe(true);
         });
         await deleteButton!.trigger("click"); // Click the delete button
@@ -192,10 +191,10 @@ describe("EditUser.vue", () => {
         });
         await deleteModalButton!.trigger("click"); // Accept dialog
 
-        // await waitForExpect(async () => {
-        //     const deletedLanguage = await db.docs.where({ _id: mockUserDto._id }).toArray();
+        await waitForExpect(async () => {
+            const deletedLanguage = await db.docs.where({ _id: mockUserDto._id }).toArray();
 
-        //     expect(deletedLanguage.length).toBe(0);
-        // });
+            expect(deletedLanguage.length).toBe(0);
+        });
     });
 });
