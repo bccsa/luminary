@@ -82,6 +82,14 @@ watch(
     { deep: true },
 );
 
+watch(
+    [cmsLanguageIdAsRef],
+    () => {
+        queryOptions.value.languageId = cmsLanguageIdAsRef.value;
+    },
+    { immediate: true },
+);
+
 const tableRefreshKey = computed(() => JSON.stringify(queryOptions.value));
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
