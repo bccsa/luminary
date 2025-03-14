@@ -63,8 +63,9 @@ onClickOutside(checklist, () => {
 </script>
 
 <template>
-    <div class="relative" ref="checklist">
+    <div class="relative" ref="checklist" data-test="main-div">
         <input
+            data-test="input"
             type="text"
             v-model="query"
             @focus="openOptions = true"
@@ -79,24 +80,28 @@ onClickOutside(checklist, () => {
             <ChevronUpDownIcon class="h-5 w-5 text-zinc-400" aria-hidden="true" />
         </button>
 
-        <ul
-            v-if="openOptions && filtered.length > 0"
-            class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
-        >
-            <li
-                v-for="content in filtered"
-                :key="content.value"
-                @click="onClick(content)"
-                :class="[
-                    'cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-zinc-100',
-                    { 'bg-zinc-100': isSelected(content) },
-                    { 'text-zinc-900': !isSelected(content) },
-                    { 'text-zinc-500': isSelected(content) },
-                ]"
+        <div v-if="openOptions" class="relative">
+            <ul
+                v-if="filtered.length > 0"
+                data-test="options"
+                class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
             >
-                {{ content.label }}
-            </li>
-        </ul>
+                <li
+                    v-for="content in filtered"
+                    :key="content.value"
+                    data-test="option"
+                    @click="onClick(content)"
+                    :class="[
+                        'cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-zinc-100',
+                        { 'bg-zinc-100': isSelected(content) },
+                        { 'text-zinc-900': !isSelected(content) },
+                        { 'text-zinc-500': isSelected(content) },
+                    ]"
+                >
+                    {{ content.label }}
+                </li>
+            </ul>
+        </div>
     </div>
 
     <div v-if="!isContentOverview" class="mt-3 flex flex-wrap gap-3">
