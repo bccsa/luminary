@@ -45,6 +45,8 @@ export type SearchOptions = {
     contentOnly?: boolean;
     queryString?: string;
     languages?: string[];
+    userId?: Uuid;
+    docId?: Uuid;
 };
 
 /**
@@ -523,6 +525,14 @@ export class DbService extends EventEmitter {
                         $lte: options.to + this.syncTolerance,
                     },
                 });
+            }
+
+            if (options.userId) {
+                selectors.push({ userId: options.userId });
+            }
+
+            if (options.docId) {
+                selectors.push({ _id: options.docId });
             }
 
             const timeSelector = [];
