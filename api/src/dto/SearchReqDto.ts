@@ -64,4 +64,15 @@ export class SearchReqDto {
     @IsOptional()
     @Expose()
     languages?: Array<string>;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    userId?: string;
+
+    // add docId
+    @IsOptional()
+    @IsString()
+    @Expose()
+    docId?: string;
 }
