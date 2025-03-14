@@ -23,6 +23,7 @@ import { ArrowUturnLeftIcon, FolderArrowDownIcon, TrashIcon } from "@heroicons/v
 import LDialog from "../common/LDialog.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
+import LoadingSpinner from "../LoadingSpinner.vue";
 
 type Props = {
     id: Uuid;
@@ -165,6 +166,14 @@ const save = async () => {
 </script>
 
 <template>
+    <div
+        v-if="!isNew && !editable?.updatedTimeUtc"
+        class="relative flex h-screen items-center justify-center"
+    >
+        <div class="flex flex-col items-center gap-4">
+            <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
+        </div>
+    </div>
     <BasePage
         :title="editable?.name"
         :backLinkLocation="{ name: 'users' }"
