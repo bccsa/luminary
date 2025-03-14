@@ -541,6 +541,11 @@ export const mockGroupDtoPublicContent: GroupDto = {
             groupId: "group-public-editors",
             permission: [AclPermission.View, AclPermission.Assign],
         },
+        {
+            type: DocType.User,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Edit],
+        },
     ],
 };
 export const mockGroupDtoPublicUsers: GroupDto = {
@@ -735,6 +740,53 @@ export const mockGroupDtoSuperAdmins: GroupDto = {
 };
 
 export const superAdminAccessMap = {
+    "group-super-admins": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            delete: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+            delete: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            delete: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
+        user: {
+            view: true,
+            edit: true,
+            delete: true,
+        },
+    },
     "group-private-content": {
         post: {
             view: true,
@@ -778,7 +830,6 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
-            create: true,
             edit: true,
             delete: true,
         },
