@@ -5,11 +5,15 @@ import * as _ from "lodash";
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
 export const isDevMode = import.meta.env.DEV;
-export const connectionSpeed = (
-    (navigator as any).connection ||
-    (navigator as any).mozConnection ||
-    (navigator as any).webkitConnection
-).downlink;
+
+const isTestEnv = import.meta.env.MODE === "test";
+export const connectionSpeed = !isTestEnv
+    ? (
+          (navigator as any).connection ||
+          (navigator as any).mozConnection ||
+          (navigator as any).webkitConnection
+      ).downlink
+    : 10;
 
 /**
  * The list of CMS defined languages as Vue ref.
