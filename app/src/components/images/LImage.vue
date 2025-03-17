@@ -70,14 +70,14 @@ onMounted(() => {
                 :size="props.size"
             />
         </div>
-        <!-- <ImageModal
+        <ImageModal
             v-if="image && zoomable && showPopup"
             :image="image"
             :aspectRatio="aspectRatio"
             :size="size"
             rounded
             @close="showPopup = false"
-        /> -->
+        />
 
         <slot></slot>
     </div>
