@@ -2,7 +2,6 @@
 import { ref, onMounted, watch } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
-import { connectionSpeed } from "../../globalConfig";
 import LImageProvider from "./LImageProvider.vue";
 
 type Props = {
@@ -42,7 +41,6 @@ const parentWidth = ref<number>(0);
 
 onMounted(() => {
     parentWidth.value = parentRef.value?.clientWidth || 0;
-    // Watch for changes in the width if needed
     watch(
         () => parentRef.value?.clientWidth,
         (newWidth) => {
