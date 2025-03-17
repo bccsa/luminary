@@ -3,9 +3,13 @@
     <head>
         <meta charset="UTF-8" />
         <link id="favIcon" rel="icon" href="%VITE_LOGO_FAVICON%" />
+        <!-- <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1, user-scalable=0"
+        /> -->
         <meta
             name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+            content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1, user-scalable=1"
         />
 
         <title>Loading...</title>
@@ -19,26 +23,5 @@
     >
         <div id="app"></div>
         <script type="module" src="/src/main.ts"></script>
-
-        <!-- Disable Zoom with JS -->
-        <script>
-            // Disable zoom via keyboard (Ctrl + / Ctrl -)
-            window.addEventListener("keydown", (e) => {
-                if ((e.ctrlKey || e.metaKey) && (e.key === "=" || e.key === "-" || e.key === "0")) {
-                    e.preventDefault();
-                }
-            });
-
-            // Disable zoom via mouse wheel (Ctrl + scroll)
-            window.addEventListener(
-                "wheel",
-                (e) => {
-                    if (e.ctrlKey) {
-                        e.preventDefault();
-                    }
-                },
-                { passive: false },
-            );
-        </script>
     </body>
 </html>
