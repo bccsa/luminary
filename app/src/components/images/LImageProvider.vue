@@ -80,7 +80,8 @@ const srcset1 = computed(() => {
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
                 .join(", ");
-        });
+        })
+        .join(", ");
 });
 
 // Source set for the secondary image element (used if the primary image element fails to load)
