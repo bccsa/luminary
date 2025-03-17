@@ -21,7 +21,12 @@ const allTopics = useDexieLiveQueryWithDeps(
                 parentTagType: TagType.Topic,
             })
             .filter((c) => {
-                return isPublished(c as ContentDto, appLanguageIds);
+                const content = c as ContentDto;
+                return !!(
+                    isPublished(content, appLanguageIds) &&
+                    content.parentTaggedDocs &&
+                    content.parentTaggedDocs.length > 0
+                );
             })
 
             .toArray() as unknown as Promise<ContentDto[]>,
