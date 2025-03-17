@@ -109,7 +109,7 @@ const showImageElement2 = computed(
 </script>
 
 <template>
-    <!-- @vue-ignore 
+    <!-- @vue-expect-error
      Error:Type 'string | string[]' is not assignable to type 'string | undefined'.
      Type 'string[]' is not assignable to type 'string' 
      This element has a v-if directive and only if srcset 1 exists, which means it will
