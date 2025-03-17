@@ -113,6 +113,19 @@ const untranslatedLanguages = computed(() => {
         return [];
     }
 
+    console.info("Languages", languages.value);
+
+    console.info(
+        "Languages Filtered",
+        languages.value
+            .filter(
+                (l) =>
+                    !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq) &&
+                    verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
+            )
+            .sort(sortByName),
+    );
+
     return languages.value
         .filter(
             (l) =>
