@@ -11,7 +11,6 @@ import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
 import ContentTable from "../ContentTable.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import LSelect from "@/components/forms/LSelect.vue";
 
 vi.mock("@auth0/auth0-vue");
 
