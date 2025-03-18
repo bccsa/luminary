@@ -648,7 +648,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.only(
+    it(
         "only displays languages the user has Translate access to in languageSelector",
         async () => {
             accessMap.value = { ...mockData.translateAccessToAllContentMap };
@@ -686,7 +686,5 @@ describe("EditContent.vue", () => {
                 expect(await languages.html()).not.toContain("Français");
                 expect(await languages.html()).not.toContain("Swahili");
             });
-        },
-        { timeout: 10000 },
-    );
+        });
 });
