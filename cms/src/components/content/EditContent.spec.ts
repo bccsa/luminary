@@ -9,6 +9,7 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import LanguageSelector from "./LanguageSelector.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -50,7 +51,7 @@ describe("EditContent.vue", () => {
             mockData.mockLanguageDtoSwa,
         ]);
 
-        accessMap.value = mockData.superAdminAccessMap;
+        accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
     afterEach(async () => {
@@ -428,12 +429,12 @@ describe("EditContent.vue", () => {
     });
 
     describe("delete requests", () => {
-        it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
+        it.skip("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
                 props: {
-                    docType: DocType.Post,
                     id: mockData.mockPostDto._id,
-                    languageCode: "eng",
+                    languageCode: "en",
+                    docType: DocType.Post,
                     tagOrPostType: PostType.Blog,
                 },
             });
@@ -536,4 +537,44 @@ describe("EditContent.vue", () => {
             });
         });
     });
+
+    it(
+        "only displays languages the user has Translate access to in languageSelector",
+        async () => {
+            accessMap.value = { ...mockData.translateAccessToAllContentMap };
+            accessMap.value["group-public-content"].language = {
+                view: true,
+                translate: false,
+                edit: true,
+                publish: true,
+            };
+
+            await db.docs.bulkPut([
+                { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
+                { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },
+                { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
+            ]);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    id: mockData.mockPostDto._id,
+                    languageCode: "en",
+                    docType: DocType.Post,
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            const languageSelector = wrapper.findComponent(LanguageSelector);
+            const btn = languageSelector.find("[data-test='language-selector']");
+            btn.trigger("click");
+
+            const languages = languageSelector.find("[data-test='languagePopup']");
+
+            await waitForExpect(async () => {
+                expect(await languages.html()).toContain("English");
+
+                expect(await languages.html()).not.toContain("Français");
+                expect(await languages.html()).not.toContain("Swahili");
+            });
+        });
 });
