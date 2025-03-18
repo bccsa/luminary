@@ -45,7 +45,6 @@ export type SearchOptions = {
     contentOnly?: boolean;
     queryString?: string;
     languages?: string[];
-    userId?: Uuid;
     docId?: Uuid;
 };
 
