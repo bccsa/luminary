@@ -73,6 +73,12 @@ export type LanguageDto = ContentBaseDto & {
     translations: Record<string, string>;
 };
 
+export type UserDto = ContentBaseDto & {
+    type: DocType.User;
+    email: string;
+    name: string;
+};
+
 export type ContentDto = ContentBaseDto & {
     parentId: Uuid;
     language: Uuid;

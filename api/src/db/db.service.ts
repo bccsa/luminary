@@ -45,6 +45,7 @@ export type QueryDocsOptions = {
     contentOnly?: boolean;
     queryString?: string;
     languages?: string[];
+    docId?: Uuid;
 };
 
 /**
@@ -523,6 +524,10 @@ export class DbService extends EventEmitter {
                         $lte: options.to + this.syncTolerance,
                     },
                 });
+            }
+
+            if (options.docId) {
+                selectors.push({ _id: options.docId });
             }
 
             const timeSelector = [];
