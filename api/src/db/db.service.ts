@@ -526,10 +526,6 @@ export class DbService extends EventEmitter {
                 });
             }
 
-            if (options.userId) {
-                selectors.push({ userId: options.userId });
-            }
-
             if (options.docId) {
                 selectors.push({ _id: options.docId });
             }
