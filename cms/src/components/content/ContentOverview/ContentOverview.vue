@@ -9,7 +9,6 @@ import {
     ArrowDownIcon,
     MagnifyingGlassIcon,
     TagIcon,
-    XMarkIcon,
     ArrowUturnLeftIcon,
 } from "@heroicons/vue/24/outline";
 import {
