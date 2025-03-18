@@ -68,11 +68,5 @@ export class SearchReqDto {
     @IsOptional()
     @IsString()
     @Expose()
-    userId?: string;
-
-    // add docId
-    @IsOptional()
-    @IsString()
-    @Expose()
     docId?: string;
 }
