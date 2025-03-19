@@ -49,9 +49,11 @@ export class SearchService {
             DocType.Language,
         ]);
 
-        // Get accessible groups for delete command documents (all groups to which the user has view access to)
-        const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
-        userViewGroups[DocType.DeleteCmd] = userAccessibleGroups;
+        if (query.includeDeleteCmds) {
+            // Get accessible groups for delete command documents (all groups to which the user has view access to)
+            const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
+            userViewGroups[DocType.DeleteCmd] = userAccessibleGroups;
+        }
 
         if (Object.keys(userViewGroups).length < 1)
             throw new HttpException(
@@ -62,7 +64,7 @@ export class SearchService {
         const options: SearchOptions = {
             userAccess: userViewGroups,
             groups: query.groups,
-            types: [...query.types, DocType.DeleteCmd],
+            types: query.includeDeleteCmds ? [...query.types, DocType.DeleteCmd] : query.types,
             limit: query.limit,
             contentOnly: query.contentOnly,
             from: query.from,
