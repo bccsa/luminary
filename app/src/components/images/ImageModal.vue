@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+// Vue + Types imports
 import {
     ref,
     onMounted,
@@ -11,49 +12,55 @@ import {
 import LImage from "./LImage.vue";
 import type { ImageDto } from "luminary-shared";
 
+// Props definition
 type Props = {
     image: ImageDto;
     zoomable?: boolean;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
     size?: "small" | "thumbnail" | "post";
     rounded?: boolean;
-    alt?: string;
 };
 
+// Set default props
 const props = withDefaults(defineProps<Props>(), {
     zoomable: true,
     aspectRatio: "classic",
     size: "post",
 });
 
+// Emits
 const emit = defineEmits(["close"]);
+
+// References & states
 const container = ref<HTMLDivElement | null>(null);
+const scale = ref(1); // Zoom scale
+const translateX = ref(0); // Horizontal translation (panning)
+const translateY = ref(0); // Vertical translation (panning)
 
-const scale = ref(1);
-const translateX = ref(0);
-const translateY = ref(0);
+let isDragging = false; // Dragging state
+let dragStartX = 0,
+    dragStartY = 0; // Initial mouse/touch position
+let lastX = 0,
+    lastY = 0; // Last known translate position
 
-let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let lastX = 0;
-let lastY = 0;
+let minScale = 1; // Minimum zoom level
+const MAX_SCALE = 5; // Maximum zoom level
 
-let minScale = 1; // Dynamic minScale possible later
-const MAX_SCALE = 5;
-
+// Clamp helper to limit values between min and max
 function clamp(val: number, min: number, max: number) {
     return Math.min(Math.max(val, min), max);
 }
 
+// Handle Ctrl + mouse wheel zooming
 function handleWheel(e: WheelEvent) {
-    if (!e.ctrlKey) return; // Only zoom if CTRL is pressed
+    if (!e.ctrlKey) return; // Zoom only if Ctrl is pressed
     e.preventDefault();
     const delta = -e.deltaY * 0.002;
     const newScale = clamp(scale.value + delta, minScale, MAX_SCALE);
     scale.value = newScale;
 }
 
+// Handle mouse/touch down (start dragging)
 function handlePointerDown(e: PointerEvent) {
     isDragging = true;
     dragStartX = e.clientX;
@@ -62,21 +69,26 @@ function handlePointerDown(e: PointerEvent) {
     lastY = translateY.value;
 }
 
+// Handle mouse/touch move (panning logic)
 function handlePointerMove(e: PointerEvent) {
     if (!isDragging || !container.value) return;
+
     const dx = e.clientX - dragStartX;
     const dy = e.clientY - dragStartY;
+
     let newX = lastX + dx;
     let newY = lastY + dy;
 
-    // Clamp dragging based on scaled content size
+    // Calculate the scaled image size relative to container
     const containerRect = container.value.getBoundingClientRect();
     const scaledWidth = containerRect.width * scale.value;
     const scaledHeight = containerRect.height * scale.value;
 
+    // Calculate the max allowable pan distance
     const maxX = (scaledWidth - containerRect.width) / 2;
     const maxY = (scaledHeight - containerRect.height) / 2;
 
+    // Clamp the new X/Y to prevent dragging outside container
     newX = clamp(newX, -maxX, maxX);
     newY = clamp(newY, -maxY, maxY);
 
@@ -84,12 +96,15 @@ function handlePointerMove(e: PointerEvent) {
     translateY.value = newY;
 }
 
+// Stop dragging
 function handlePointerUp() {
     isDragging = false;
 }
 
-// Pinch-to-zoom handling
+// ----- Pinch-to-zoom for mobile / touch devices -----
 let pinchDistance = 0;
+
+// Compute the distance between two touches
 function getDistance(e: TouchEvent) {
     const [touch1, touch2] = e.touches;
     const dx = touch2.clientX - touch1.clientX;
@@ -97,12 +112,14 @@ function getDistance(e: TouchEvent) {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
+// Track initial pinch distance
 function handleTouchStart(e: TouchEvent) {
     if (e.touches.length === 2) {
         pinchDistance = getDistance(e);
     }
 }
 
+// Handle pinch zoom gesture
 function handleTouchMove(e: TouchEvent) {
     if (e.touches.length === 2) {
         const newDistance = getDistance(e);
@@ -113,34 +130,39 @@ function handleTouchMove(e: TouchEvent) {
     }
 }
 
+// Emit close event for the modal
 const closeModal = () => emit("close");
 
-// Reset zoom state when a new image is shown
+// Reset zoom and position when image changes
 watch(
     () => props.image,
     () => {
         scale.value = 1;
         translateX.value = 0;
         translateY.value = 0;
-        minScale = 1; // Can compute dynamically if needed
+        minScale = 1; // (Optional) Compute based on image/container
     },
     { immediate: true },
 );
 
+// Setup event listeners when mounted
 onMounted(() => {
     const el = container.value;
     if (!el) return;
 
-    // Wheel zoom ONLY with ctrl pressed
+    // Listen to Ctrl+wheel zooming
     el.addEventListener("wheel", handleWheel, { passive: false });
 
+    // Setup pointer and touch events
     el.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
+
     el.addEventListener("touchstart", handleTouchStart, { passive: false });
     el.addEventListener("touchmove", handleTouchMove, { passive: false });
 });
 
+// Cleanup event listeners
 onBeforeUnmount(() => {
     const el = container.value;
     if (!el) return;
@@ -155,26 +177,29 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+    <!-- Fullscreen modal overlay -->
     <div
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
+        <!-- Zoom and pan container -->
         <div
             ref="container"
             class="relative max-h-[1100px] max-w-[1300px] touch-none overflow-hidden rounded-lg bg-gray-900"
         >
+            <!-- Transform wrapper for zoom/translate -->
             <div
                 class="origin-center transition-transform duration-300 ease-out"
                 :style="{
                     transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
                 }"
             >
+                <!-- Actual image -->
                 <LImage
                     :image="image"
                     :aspectRatio="aspectRatio"
                     :size="size"
                     :rounded="rounded"
-                    :alt="alt"
                     class="pointer-events-none min-h-full min-w-full select-none object-contain"
                     draggable="false"
                 />
