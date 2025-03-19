@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
-import { type ImageDto } from "luminary-shared";
-import fallbackImg from "../../assets/fallbackImage.webp";
-import LImageProvider from "./LImageProvider.vue";
+// Image component with automatic aspect ratio selection and fallback image
+
+import { computed, onMounted, ref, watch } from "vue";
+import { type ImageDto, type Uuid } from "luminary-shared";
+import mainFallbackImg from "../../assets/fallbackImage.webp";
+import { _fallbackImages, fallbackImages } from "@/globalConfig";
 
 type Props = {
     image?: ImageDto;
-    aspectRatio?: keyof typeof aspectRatiosCSS;
+    contentParentId?: Uuid;
+    aspectRatio?: keyof typeof aspectRatios;
     size?: keyof typeof sizes;
     rounded?: boolean;
 };
@@ -53,7 +56,7 @@ onMounted(() => {
 <template>
     <div ref="parentRef" :class="sizes[size]">
         <div
-            :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
+            :style="{ 'background-image': 'url(' + fallbackImage + ')' }"
             :class="[
                 aspectRatiosCSS[aspectRatio],
                 rounded ? rounding[size] : '',
