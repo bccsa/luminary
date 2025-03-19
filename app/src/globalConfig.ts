@@ -321,10 +321,18 @@ export const showLoginModal = () => {
     loginModalVisible.value = true;
 };
 
-export const loadFallbackImages = async () => {
-    const folder = import.meta.env.VITE_FALLBACK_IMAGES_SRC; // Example: "/fallback_images"
-    const response = await fetch(folder);
-    const files = JSON.parse(await response.json()); // Your server should return a list of file names
+export const loadFallbackImages = () => {
+    // Can't use a dynamic path here, so had to resolve with a static path
+    const images = import.meta.glob("@/assets/fallbackImages/*.{png,jpg,jpeg}");
+    const fallbackImages: string[] = [];
 
-    return files.map((file) => `${folder}/${file}`);
+    for (const path in images) {
+        fallbackImages.push(path.replace("@/assets", "/src/assets"));
+    }
+
+    return fallbackImages;
 };
+
+export const fallbackImages = loadFallbackImages();
+
+console.info(fallbackImages);
