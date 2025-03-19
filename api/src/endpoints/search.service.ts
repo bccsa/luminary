@@ -1,5 +1,5 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
-import { DbQueryResult, DbService, QueryDocsOptions } from "../db/db.service";
+import { DbQueryResult, DbService, SearchOptions } from "../db/db.service";
 import { AclPermission, DocType } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
@@ -59,7 +59,7 @@ export class SearchService {
                 HttpStatus.FORBIDDEN,
             );
 
-        const options: QueryDocsOptions = {
+        const options: SearchOptions = {
             userAccess: userViewGroups,
             groups: query.groups,
             types: [...query.types, DocType.DeleteCmd],
@@ -73,7 +73,7 @@ export class SearchService {
 
         let _res = undefined;
         await this.db
-            .queryDocs(options)
+            .search(options)
             .then((res: DbQueryResult) => {
                 if (res.docs) {
                     _res = res;

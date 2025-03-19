@@ -326,7 +326,7 @@ describe("DbService", () => {
                 limit: 10,
             };
 
-            const res = await service.queryDocs(options);
+            const res = await service.search(options);
             expect(res.docs.length).toBe(10);
         });
 
@@ -357,11 +357,11 @@ describe("DbService", () => {
             };
 
             // retrieve current timestamps
-            const res = await service.queryDocs(options);
+            const res = await service.search(options);
             options.to = res.docs[10].updatedTimeUtc;
             options.from = res.docs[res.docs.length - 10].updatedTimeUtc;
 
-            const res2 = await service.queryDocs(options);
+            const res2 = await service.search(options);
             expect(res2.docs.length).toBeGreaterThan(0);
         });
 
@@ -390,10 +390,10 @@ describe("DbService", () => {
                 sort: [{ updatedTimeUtc: "asc" }],
             };
 
-            const res = await service.queryDocs(options);
+            const res = await service.search(options);
 
             options.sort = [{ updatedTimeUtc: "desc" }];
-            const res2 = await service.queryDocs(options);
+            const res2 = await service.search(options);
 
             expect(res.docs[9]?.updatedTimeUtc).toBeGreaterThan(res.docs[0]?.updatedTimeUtc);
             expect(res2.docs[0]?.updatedTimeUtc).toBeGreaterThan(res2.docs[9]?.updatedTimeUtc);
@@ -407,7 +407,7 @@ describe("DbService", () => {
                 groups: ["group-super-admins", "group-public-content", "group-private-content"],
             };
 
-            const res = await service.queryDocs(options);
+            const res = await service.search(options);
 
             expect(res.docs.length).toBeLessThan(1);
         });
@@ -434,7 +434,7 @@ describe("DbService", () => {
                 types: [DocType.Post, DocType.Tag, DocType.Language], // need to exclude group type, since it does not check the groups array for this
             };
 
-            const res = await service.queryDocs(options);
+            const res = await service.search(options);
 
             expect(res.docs.length).toBeGreaterThan(1);
         });
@@ -463,7 +463,7 @@ describe("DbService", () => {
                 groups: ["group-super-admins", "group-public-content", "group-private-content"],
             };
 
-            const res = await service.queryDocs(options);
+            const res = await service.search(options);
             const notContentDocs = res.docs.filter((d) => d.type !== DocType.Content);
 
             expect(notContentDocs.length).toBeLessThan(1);
@@ -494,7 +494,7 @@ describe("DbService", () => {
                 languages: ["lang-eng"],
             };
 
-            const res = await service.queryDocs(options);
+            const res = await service.search(options);
             const notEnglishDocs = res.docs.filter((d) => d.language !== "lang-eng");
 
             expect(res.docs.length).toBeGreaterThan(1);

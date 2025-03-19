@@ -33,7 +33,7 @@ export type GetDocsOptions = {
     contentOnly?: boolean;
 };
 
-export type QueryDocsOptions = {
+export type SearchOptions = {
     userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
     types: Array<DocType>;
     groups?: Array<string>;
@@ -488,11 +488,11 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Query DB for documents based on user access and query options
-     * @param {QueryDocsOptions} options - Query configuration object.
-     * @returns - Promise containing the query result
+     * Configurable database search function
+     * @param {SearchOptions} options - Search options.
+     * @returns - Promise containing a DbQueryResult object
      */
-    queryDocs(options: QueryDocsOptions): Promise<DbQueryResult> {
+    search(options: SearchOptions): Promise<DbQueryResult> {
         return new Promise(async (resolve, reject) => {
             /**
              * Calculate the list of group memberships. If a list of group memberships is passed, only include the group memberships requested (e.g. for incremental sync of newly added access). Else include all the user available group memberships.
