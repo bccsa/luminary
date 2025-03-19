@@ -320,3 +320,11 @@ export const loginModalVisible = ref(false);
 export const showLoginModal = () => {
     loginModalVisible.value = true;
 };
+
+export const loadFallbackImages = async () => {
+    const folder = import.meta.env.VITE_FALLBACK_IMAGES_SRC; // Example: "/fallback_images"
+    const response = await fetch(folder);
+    const files = JSON.parse(await response.json()); // Your server should return a list of file names
+
+    return files.map((file) => `${folder}/${file}`);
+};
