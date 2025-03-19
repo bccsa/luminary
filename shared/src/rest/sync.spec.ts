@@ -24,6 +24,8 @@ let mockApiCheckFor = (res: any) => {
 };
 let mockApiCheckForRes;
 
+const timeout = (val) => new Promise((resolve) => setTimeout(resolve, val));
+
 // ============================
 // Mock data
 // ============================
@@ -198,13 +200,13 @@ describe("rest", () => {
             };
             await sync.req(query);
 
-            await waitForExpect(() => {
-                expect(mockApiRequest).toBe(JSON.stringify(query));
-            });
+            // await waitForExpect(() => {
+            expect(mockApiRequest).toBe(JSON.stringify(query));
+            // });
         });
 
         it("can start sync", async () => {
-            syncMap.value.set("pos_group-super-admins", syncMapEntry);
+            syncMap.value.set("test-start-sync", syncMapEntry);
 
             mockApiCheckFor = (res) => {
                 if (_.isEqual(res.types, ["post"]) && _.isEqual(res.groups, ["group-super-admins"]))
@@ -215,12 +217,42 @@ describe("rest", () => {
 
             await waitForExpect(() => {
                 const req = mockApiCheckForRes;
-                expect(_.isEqual(req.types, ["post"])).toBeTruthy();
-                expect(_.isEqual(req.groups, ["group-super-admins"])).toBeTruthy();
+                expect(_.isEqual(req.types, ["post"])).toBe(true);
+                expect(_.isEqual(req.groups, ["group-super-admins"])).toBe(true);
+                expect(req.includeDeleteCmds).toBe(true);
             });
         });
 
-        // This test test the recursion of the clientDataReq, but acutely test much deeper, It also test mergeBlocks, insertBlocks, processQueue, calcMissingData,
+        it("will only request delete commands if it is not the initial sync", async () => {
+            mockApiCheckFor = (res) => {
+                if (_.isEqual(res.types, ["post"])) mockApiCheckForRes = res;
+            };
+
+            syncMap.value.clear();
+            sync.restart();
+
+            // Wait for the sync to restart and calculate the syncMap
+            await timeout(500);
+
+            await waitForExpect(() => {
+                const req = mockApiCheckForRes;
+                expect(req && req.includeDeleteCmds).toBeUndefined();
+            });
+
+            const _sm = Object.fromEntries(syncMap.value);
+            Object.values(_sm).forEach((e: any) => {
+                e.blocks.push({ blockStart: 100, blockEnd: 200 });
+            });
+
+            sync.restart();
+
+            await waitForExpect(() => {
+                const req = mockApiCheckForRes;
+                expect(req && req.includeDeleteCmds).toBe(true);
+            });
+        });
+
+        // This test tests the recursion of the sync, but actually test much deeper, It also tests mergeBlocks, insertBlocks, processQueue, calcMissingData,
         it("can query the api recursively", async () => {
             accessMap.value["group-recursive-test"] = {
                 post: { view: true, edit: true, delete: true, translate: true, publish: true },
