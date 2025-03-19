@@ -8,6 +8,7 @@ import {
     type Uuid,
     AclPermission,
     verifyAccess,
+    type GroupDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -29,6 +30,10 @@ const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
 // Get the tags
 const tagsContent = ref<ContentDto[]>([]);
 
+// Get the groups
+const groups = db.whereTypeAsRef(DocType.Group);
+const groupsContent = ref<GroupDto[]>([]);
+
 // Filter languages that the user has translate access to
 const accessibleLanguages = computed(() =>
     props.languages.filter((language) =>
@@ -40,6 +45,9 @@ watch(
     contentDocs,
     async () => {
         if (!contentDocs.value || contentDocs.value.length === 0) return;
+        groupsContent.value = contentDocs.value[0].memberOf.map((id) =>
+            groups.value.find((g) => g._id == id),
+        ) as GroupDto[];
 
         tagsContent.value = await db.whereParent(
             contentDocs.value[0].parentTags,
@@ -139,6 +147,20 @@ const translationStatus = computed(() => {
             <div class="flex max-w-xs flex-wrap gap-2">
                 <LBadge v-for="tag in tagsContent" :key="tag._id" type="default" class="text-lg">
                     {{ tag.title }}
+                </LBadge>
+            </div>
+        </td>
+
+        <!-- group memberships -->
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+            <div class="flex max-w-xs flex-wrap gap-2">
+                <LBadge
+                    v-for="group in groupsContent"
+                    :key="group._id"
+                    type="default"
+                    class="text-lg"
+                >
+                    {{ group.name }}
                 </LBadge>
             </div>
         </td>
