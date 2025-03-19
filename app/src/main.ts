@@ -72,8 +72,6 @@ async function Startup() {
     app.mount("#app");
     initAppTitle(i18n);
     initAnalytics();
-
-    console.info(await loadFallbackImages());
 }
 
 Startup();
