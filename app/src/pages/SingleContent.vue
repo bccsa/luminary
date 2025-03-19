@@ -12,7 +12,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
@@ -251,8 +251,6 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
-onBeforeMount(() => {});
-
 showContentQuickControls.value = true;
 onBeforeUnmount(() => {
     showContentQuickControls.value = false;
@@ -281,6 +279,7 @@ onBeforeUnmount(() => {
                         :image="content.parentImageData"
                         aspectRatio="video"
                         size="post"
+                        :zoomable="true"
                     />
                 </IgnorePagePadding>
 
