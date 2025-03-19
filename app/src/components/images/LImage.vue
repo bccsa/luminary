@@ -173,25 +173,18 @@ watch(showPopup, (newVal) => {
             <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
                 <slot name="imageOverlay"></slot>
             </div>
-            <div v-if="image && zoomable && showPopup">
-                <!-- <ImageModal
-                    :image="image"
-                    :aspectRatio="aspectRatio"
-                    :size="size"
-                    rounded
-                    @close="showPopup = false"
-                /> -->
-            </div>
         </div>
+
+        <slot></slot>
+    </div>
+    <div>
         <ImageModal
             v-if="image && zoomable && showPopup"
             :image="image"
             :aspectRatio="aspectRatio"
             :size="size"
-            rounded
+            :zoomable="zoomable"
             @close="showPopup = false"
         />
-
-        <slot></slot>
     </div>
 </template>
