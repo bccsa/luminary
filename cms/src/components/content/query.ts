@@ -19,6 +19,7 @@ export type ContentOverviewQueryOptions = {
     pageSize?: number;
     pageIndex?: number;
     tags?: Uuid[];
+    groups?: Uuid[];
     search?: string;
 };
 
