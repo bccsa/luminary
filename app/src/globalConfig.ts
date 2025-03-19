@@ -298,5 +298,4 @@ export const loadFallbackImages = () => {
 };
 
 export const fallbackImages = loadFallbackImages();
-
-console.info(fallbackImages);
+export const _fallbackImages = ref<any[]>([]);

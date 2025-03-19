@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
 
-import { computed, ref } from "vue";
-import { type ImageDto } from "luminary-shared";
-import fallbackImg from "../../assets/fallbackImage.webp";
+import { computed, onMounted, ref, watch } from "vue";
+import { type ImageDto, type Uuid } from "luminary-shared";
+import mainFallbackImg from "../../assets/fallbackImage.webp";
+import { _fallbackImages, fallbackImages } from "@/globalConfig";
 
 type Props = {
     image?: ImageDto;
+    contentParentId?: Uuid;
     aspectRatio?: keyof typeof aspectRatios;
     size?: keyof typeof sizes;
     rounded?: boolean;
@@ -111,12 +113,18 @@ const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.va
 const showImageElement2 = computed(
     () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
 );
+
+const fallbackImage = computed(() => {
+    // if (!props.contentParentId) return mainFallbackImg;
+    const randomIndex = Math.floor(Math.random() * fallbackImages.length);
+    return `../${fallbackImages[randomIndex]}`;
+});
 </script>
 
 <template>
     <div :class="sizes[size]">
         <div
-            :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
+            :style="{ 'background-image': 'url(' + fallbackImage + ')' }"
             :class="[
                 aspectRatios[aspectRatio],
                 rounded ? rounding[size] : '',
