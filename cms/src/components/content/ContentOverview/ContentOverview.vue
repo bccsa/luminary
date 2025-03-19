@@ -10,6 +10,7 @@ import {
     MagnifyingGlassIcon,
     TagIcon,
     ArrowUturnLeftIcon,
+    UserGroupIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
@@ -20,10 +21,15 @@ import {
     hasAnyPermission,
     type ContentDto,
     PostType,
+    useDexieLiveQuery,
+    type GroupDto,
+    syncMap,
+    accessMap,
+    verifyAccess,
     useDexieLiveQueryWithDeps,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -249,6 +255,20 @@ const resetQueryOptions = () => {
                         :is-content-overview="true"
                     />
 
+                    <LChecklist
+                        :options="
+                            groupsContent.map((group: GroupDto) => ({
+                                label: group.name,
+                                value: group._id,
+                                isChecked: false,
+                            }))
+                        "
+                        :searchable="true"
+                        :icon="UserGroupIcon"
+                        v-model="groupsSelected"
+                        @clear-selected-values="queryOptions.groups = []"
+                        placeholder="Search groups..."
+                    />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </LButton>
