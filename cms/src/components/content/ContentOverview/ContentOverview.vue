@@ -23,13 +23,10 @@ import {
     PostType,
     useDexieLiveQuery,
     type GroupDto,
-    syncMap,
-    accessMap,
-    verifyAccess,
     useDexieLiveQueryWithDeps,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -80,6 +77,7 @@ const queryOptions = ref<ContentOverviewQueryOptions>(
 watch(
     queryOptions,
     () => {
+        console.info(queryOptions.value.groups);
         sessionStorage.setItem(
             `queryOptions_${props.docType}_${props.tagOrPostType}`,
             JSON.stringify(queryOptions.value),
@@ -170,7 +168,7 @@ const tagContentDocs = useDexieLiveQueryWithDeps(
 );
 
 const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }) as unknown as Promise<GroupDto[]>,
+    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
     { initialValue: [] as GroupDto[] },
 );
 
@@ -261,7 +259,6 @@ const resetQueryOptions = () => {
                         v-model:selectedValues="queryOptions.tags"
                         :is-content-overview="true"
                     />
-                    {{ groups }}
                     <LChecklist
                         :options="
                             groups.map((group: GroupDto) => ({
@@ -269,11 +266,9 @@ const resetQueryOptions = () => {
                                 value: group._id,
                             }))
                         "
-                        :searchable="true"
                         :icon="UserGroupIcon"
-                        v-model="queryOptions.groups"
-                        @clear-selected-values="queryOptions.groups = []"
-                        placeholder="Search groups..."
+                        v-model:selected-values="queryOptions.groups"
+                        :is-content-overview="true"
                     />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
@@ -370,6 +365,34 @@ const resetQueryOptions = () => {
                         "
                     >
                         {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
+                    </LTag>
+                </TransitionGroup>
+            </ul>
+        </div>
+        <div
+            v-if="queryOptions.groups && queryOptions.groups?.length > 0"
+            class="w-full bg-white px-2 pb-2 shadow"
+        >
+            <ul class="flex w-full flex-wrap gap-2">
+                <TransitionGroup
+                    enter-active-class="transition duration-150 delay-75"
+                    enter-from-class="transform scale-90 opacity-0"
+                    enter-to-class="transform scale-100 opacity-100"
+                    leave-active-class="transition duration-100"
+                    leave-from-class="transform scale-100 opacity-100"
+                    leave-to-class="transform scale-90 opacity-0"
+                >
+                    <LTag
+                        v-for="group in queryOptions.groups"
+                        :key="group"
+                        @remove="
+                            () => {
+                                if (!queryOptions.groups) return;
+                                queryOptions.groups = queryOptions.groups.filter((v) => v != group);
+                            }
+                        "
+                    >
+                        {{ groups.find((g) => g._id == group)?.name }}
                     </LTag>
                 </TransitionGroup>
             </ul>
