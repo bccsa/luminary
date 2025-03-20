@@ -237,9 +237,9 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
         <LImage
             v-if="content.video || content.parentImageData"
             :image="content.parentImageData"
+            :content-parent-id="content.parentId"
             aspectRatio="video"
             size="post"
-            fallbackImg="/img/fallback.jpg"
         />
 
         <div class="video-player absolute bottom-0 left-0 right-0 top-0">

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
 
-import { computed, ref } from "vue";
-import { type ImageDto } from "luminary-shared";
-import fallbackImg from "../../assets/fallbackImage.webp";
+import { computed, onBeforeMount, ref } from "vue";
+import { type ImageDto, type Uuid } from "luminary-shared";
+import { fallbackImages, _fallbackImages } from "@/globalConfig";
+import Rand from "rand-seed";
 
 type Props = {
     image?: ImageDto;
+    contentParentId?: Uuid;
     aspectRatio?: keyof typeof aspectRatios;
     size?: keyof typeof sizes;
     rounded?: boolean;
@@ -104,6 +106,28 @@ const srcset2 = computed(() => {
         .join(", ");
 });
 
+const urlIdentifier = new Rand(props.contentParentId).next() * fallbackImages.length;
+const seed = Number(
+    String(new Rand(props.contentParentId).next() * fallbackImages.length).replace(".", ""),
+);
+
+onBeforeMount(() => {
+    if (_fallbackImages.value.find((src) => src.seed == props.contentParentId)) return;
+
+    const newImageSource = {
+        seed: seed,
+        url: fallbackImages[Math.floor(urlIdentifier)],
+    };
+
+    if (!_fallbackImages.value.some((img) => img.seed === newImageSource.seed)) {
+        _fallbackImages.value = [..._fallbackImages.value, newImageSource];
+    }
+});
+
+const fallbackImage = computed(() => {
+    return _fallbackImages.value.find((img) => img.seed == seed).url;
+});
+
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
@@ -116,7 +140,7 @@ const showImageElement2 = computed(
 <template>
     <div :class="sizes[size]">
         <div
-            :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
+            :style="{ 'background-image': 'url(' + fallbackImage + ')' }"
             :class="[
                 aspectRatios[aspectRatio],
                 rounded ? rounding[size] : '',
