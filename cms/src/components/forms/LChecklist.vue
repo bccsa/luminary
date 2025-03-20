@@ -64,13 +64,25 @@ onClickOutside(checklist, () => {
 
 <template>
     <div class="relative" ref="checklist" data-test="main-div">
+        <div v-if="icon" class="absolute inset-y-0 left-3 flex items-center">
+            <component
+                :is="icon"
+                :class="{
+                    'text-zinc-400': state == 'default' && !disabled,
+                    'text-zinc-300': state == 'default' && disabled,
+                    'text-red-400': state == 'error',
+                }"
+                class="h-5 w-5"
+            />
+        </div>
         <input
             data-test="input"
             type="text"
             v-model="query"
             @focus="openOptions = true"
             placeholder="Type to select..."
-            class="h-10 w-full rounded-md border-0 bg-white py-1.5 pl-3 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6"
+            class="h-10 w-full rounded-md border-0 bg-white py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6"
+            :class="icon ? 'pl-10' : 'pl-2'"
             :disabled="disabled"
         />
         <button

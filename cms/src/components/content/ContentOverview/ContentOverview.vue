@@ -334,7 +334,7 @@ const resetQueryOptions = () => {
                     leave-to-class="transform scale-90 opacity-0"
                 >
                     <LTag
-                        v-for="(tag, i) in queryOptions.tags"
+                        v-for="tag in queryOptions.tags"
                         :key="tag"
                         @remove="
                             () => {
@@ -343,7 +343,7 @@ const resetQueryOptions = () => {
                             }
                         "
                     >
-                        {{ tagContentDocs[i] === undefined ? tag : tagContentDocs[i].title }}
+                        {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
                     </LTag>
                 </TransitionGroup>
             </ul>
