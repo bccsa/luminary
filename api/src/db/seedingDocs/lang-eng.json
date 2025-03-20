@@ -25,6 +25,8 @@
         "settings.local_cache.title": "Local cache",
         "settings.local_cache.description": "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
         "settings.local_cache.button": "Delete local cache",
+        "settings.device_info.title": "Device info",
+        "settings.device_info.description": "Provide these details when contacting support",
         "home.title": "Home",
         "explore.title": "Explore",
         "watch.title": "Watch",
