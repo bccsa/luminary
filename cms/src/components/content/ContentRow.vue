@@ -153,7 +153,7 @@ const translationStatus = computed(() => {
 
         <!-- group memberships -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            <div class="flex max-w-xs flex-wrap gap-2">
+            <div v-if="groupsContent" class="flex max-w-xs flex-wrap gap-2">
                 <LBadge
                     v-for="group in groupsContent"
                     :key="group._id"
