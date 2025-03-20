@@ -1,9 +1,8 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
 
-import { computed, onBeforeMount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeMount, ref } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
-import mainFallbackImg from "../../assets/fallbackImage.webp";
 import { fallbackImages, _fallbackImages } from "@/globalConfig";
 import Rand from "rand-seed";
 
@@ -107,32 +106,26 @@ const srcset2 = computed(() => {
         .join(", ");
 });
 
-//As 'n image nog nie 'n  seed het nie, maak 'n nuwe seed
-//As daar klaar 'n seed is gebruik daai image met die parentId
+const urlIdentifier = new Rand(props.contentParentId).next() * fallbackImages.length;
+const seed = Number(
+    String(new Rand(props.contentParentId).next() * fallbackImages.length).replace(".", ""),
+);
 
 onBeforeMount(() => {
-    const seed = new Rand(props.contentParentId).next() * fallbackImages.length;
-
-    if (
-        _fallbackImages.value.find((src) => src.seed == props.contentParentId) ||
-        _fallbackImages.value.includes(seed)
-    )
-        return;
+    if (_fallbackImages.value.find((src) => src.seed == props.contentParentId)) return;
 
     const newImageSource = {
-        seed: Number(
-            String(new Rand(props.contentParentId).next() * fallbackImages.length).replace(".", ""),
-        ),
-        url: fallbackImages[Math.floor(seed)],
+        seed: seed,
+        url: fallbackImages[Math.floor(urlIdentifier)],
     };
 
-    _fallbackImages.value = [..._fallbackImages.value, newImageSource];
+    if (!_fallbackImages.value.some((img) => img.seed === newImageSource.seed)) {
+        _fallbackImages.value = [..._fallbackImages.value, newImageSource];
+    }
 });
 
 const fallbackImage = computed(() => {
-    // if (!props.contentParentId) return mainFallbackImg;
-    const randomIndex = Math.floor(Math.random() * fallbackImages.length);
-    return `../${fallbackImages[randomIndex]}`;
+    return _fallbackImages.value.find((img) => img.seed == seed).url;
 });
 
 const imageElement1Error = ref(false);

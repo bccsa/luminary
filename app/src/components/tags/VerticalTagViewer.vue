@@ -58,6 +58,7 @@ const tagged = useDexieLiveQueryWithDeps(
                         <div class="relative overflow-hidden rounded">
                             <LImage
                                 :image="content.parentImageData"
+                                :contentParentId="content.parentId"
                                 aspectRatio="video"
                                 size="small"
                             />
