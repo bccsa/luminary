@@ -105,6 +105,13 @@ export const initLanguage = () => {
                 if (!_languages || _languages.length == 0) return;
                 if (!appLanguageIdsAsRef.value) return;
 
+                appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) => {
+                    if (_languages.find((lang) => id == lang._id)) {
+                        return true;
+                    }
+                    return false;
+                });
+
                 // Check for the browser preferred language in the list of available content languages
                 const browserPreferredLanguageId = _languages.find((l) =>
                     navigator.languages.includes(l.languageCode),
