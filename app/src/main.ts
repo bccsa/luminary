@@ -7,7 +7,7 @@ import router from "./router";
 import auth from "./auth";
 import { DocType, getSocket, init } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
-import { appLanguageIdsAsRef, initLanguage, loadFallbackImages } from "./globalConfig";
+import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
