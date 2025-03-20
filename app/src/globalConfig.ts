@@ -7,13 +7,33 @@ export const apiUrl = import.meta.env.VITE_API_URL;
 export const isDevMode = import.meta.env.DEV;
 
 const isTestEnv = import.meta.env.MODE === "test";
-export const connectionSpeed = !isTestEnv
-    ? (
-          (navigator as any).connection ||
-          (navigator as any).mozConnection ||
-          (navigator as any).webkitConnection
-      ).downlink
-    : 10;
+
+/**
+ * Gets client's connection speed in Mbps.
+ */
+export const getConnectionSpeed = () => {
+    if (isTestEnv) return 10;
+
+    return (
+        (
+            (navigator as any).connection ||
+            (navigator as any).mozConnection ||
+            (navigator as any).webkitConnection
+        )?.downlink || 10
+    );
+};
+
+/**
+ * Get device information.
+ * @returns
+ */
+export const getDeviceInfo = () => {
+    return {
+        platform: (navigator as any).userAgentData?.platform || navigator.platform,
+        userAgent: navigator.userAgent,
+        connectionSpeed: getConnectionSpeed(),
+    };
+};
 
 /**
  * The list of CMS defined languages as Vue ref.

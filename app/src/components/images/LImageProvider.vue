@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { connectionSpeed } from "@/globalConfig";
-import type { ImageDto } from "luminary-shared";
+import { getConnectionSpeed } from "@/globalConfig";
+import {
+    isConnected,
+    type ImageDto,
+    type ImageFileCollectionDto,
+    type ImageFileDto,
+} from "luminary-shared";
 import { computed, ref } from "vue";
 
 type Props = {
@@ -43,6 +48,43 @@ const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
 let closestAspectRatio = 0;
 
+const connectionSpeed = getConnectionSpeed();
+const isDesktop = window.innerWidth >= 768;
+
+const calcImageLoadingTime = (imageFile: ImageFileDto) => {
+    // This calculation is using data from https://developers.google.com/speed/webp/docs/webp_study calculated to an average size per pixel for webp images comparable to JPEG Q=75 images.
+    const sizePerPixel = 0.0000000368804; // 9.9 KB / (512 x 512 pixels) = 0.00966797 MB / 262144 pixels = 3.68804E-08 MB per pixel
+    const imageFileSize = imageFile.width * imageFile.height * sizePerPixel;
+    return imageFileSize / (connectionSpeed / 8); // Convert connection speed from Mbps to MBps
+};
+
+// Filter out images that would take more than 1 second to load on mobile devices or that are bigger than the parent element width plus 50%
+const filteredFileCollections = computed(() => {
+    const res: Array<ImageFileCollectionDto> = [];
+    if (!props.image?.fileCollections) return res;
+
+    props.image.fileCollections.forEach((collection) => {
+        const images = collection.imageFiles.filter(
+            (imgFile) =>
+                !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
+                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
+                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
+        );
+
+        // add the smallest image from collection.imageFiles to images if images is empty
+        if (images.length == 0) {
+            images.push(collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b)));
+        }
+
+        res.push({
+            ...collection,
+            imageFiles: images,
+        });
+    });
+
+    return res;
+});
+
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
     if (props.image?.uploadData && props.image.uploadData.length > 0) {
@@ -53,9 +95,9 @@ const srcset1 = computed(() => {
         );
     }
 
-    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
+    if (!filteredFileCollections.value.length) return "";
 
-    const aspectRatios = props.image.fileCollections
+    const aspectRatios = filteredFileCollections.value
         .map((collection) => collection.aspectRatio)
         .reduce((acc, cur) => {
             if (!acc.includes(cur)) acc.push(cur);
@@ -68,15 +110,10 @@ const srcset1 = computed(() => {
         return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
     }, aspectRatios[0]);
 
-    return props.image.fileCollections
+    return filteredFileCollections.value
         .filter((collection) => collection.aspectRatio == closestAspectRatio)
         .map((collection) => {
             return collection.imageFiles
-                .filter((imgFile) =>
-                    connectionSpeed > 10
-                        ? imgFile.width <= props.parentWidth
-                        : imgFile.width <= 180,
-                )
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
                 .join(", ");
