@@ -22,6 +22,7 @@ describe("Content query", () => {
             expiryDate: Date.now() + 100000,
             status: "draft",
             parentTags: ["tag1"],
+            memberOf: ["group-private-content"],
         } as ContentDto;
         const doc1Fra = {
             ...mockData.mockFrenchContentDto,
@@ -56,6 +57,7 @@ describe("Content query", () => {
             expiryDate: 2, // expired
             status: "published",
             parentTags: ["tag2"],
+            memberOf: ["group-public-editors"],
         } as ContentDto;
         const doc2Fra = {
             ...mockData.mockFrenchContentDto,
@@ -84,6 +86,9 @@ describe("Content query", () => {
             doc2Fra,
             tag1,
             tag2,
+            mockData.mockGroupDtoPrivateContent,
+            mockData.mockGroupDtoPublicEditors,
+            mockData.mockGroupDtoPublicUsers,
             langEng,
             langFra,
             langSwa,
@@ -296,6 +301,31 @@ describe("Content query", () => {
 
             expect(res2.value).toHaveLength(1);
             expect(res2.value[0].parentTags.includes("tag1")).toBe(true);
+        });
+    });
+
+    it("can filter by group", async () => {
+        const res1 = contentOverviewQueryAsRef({
+            languageId: "lang-eng",
+            parentType: DocType.Post,
+            groups: ["group-private-content", "group-public-editors"],
+            tagOrPostType: PostType.Blog,
+        });
+
+        const res2 = contentOverviewQueryAsRef({
+            languageId: "lang-eng",
+            parentType: DocType.Post,
+            groups: ["group-private-content"],
+            tagOrPostType: PostType.Blog,
+        });
+
+        await waitForExpect(() => {
+            expect(res1.value).toHaveLength(2);
+            expect(res1.value.some((d) => d._id == "doc1Eng")).toBe(true);
+            expect(res1.value.some((d) => d._id == "doc2Eng")).toBe(true);
+
+            expect(res2.value).toHaveLength(1);
+            expect(res2.value[0].memberOf.includes("group-private-content")).toBe(true);
         });
     });
 
