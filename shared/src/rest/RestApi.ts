@@ -1,5 +1,5 @@
 import { DocType } from "../types";
-import { Sync } from "./sync";
+import { Sync, syncActive } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
 
@@ -15,6 +15,7 @@ export type ApiSearchQuery = {
     from?: number;
     to?: number;
     languages?: Array<string>;
+    includeDeleteCmds?: boolean;
 };
 
 export type ApiDocTypes = {
@@ -29,6 +30,8 @@ export type ChangeRequestQuery = {
     doc: any;
     apiVersion?: string;
 };
+
+export { syncActive };
 
 class RestApi {
     private _sync: Sync;

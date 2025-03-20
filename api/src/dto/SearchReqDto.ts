@@ -64,4 +64,9 @@ export class SearchReqDto {
     @IsOptional()
     @Expose()
     languages?: Array<string>;
+
+    @IsOptional()
+    @IsBoolean()
+    @Expose()
+    includeDeleteCmds?: boolean;
 }

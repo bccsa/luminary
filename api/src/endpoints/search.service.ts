@@ -1,5 +1,5 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
-import { DbQueryResult, DbService, QueryDocsOptions } from "../db/db.service";
+import { DbQueryResult, DbService, SearchOptions } from "../db/db.service";
 import { AclPermission, DocType } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
@@ -49,9 +49,11 @@ export class SearchService {
             DocType.Language,
         ]);
 
-        // Get accessible groups for delete command documents (all groups to which the user has view access to)
-        const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
-        userViewGroups[DocType.DeleteCmd] = userAccessibleGroups;
+        if (query.includeDeleteCmds) {
+            // Get accessible groups for delete command documents (all groups to which the user has view access to)
+            const userAccessibleGroups = [...new Set(Object.values(userViewGroups).flat())];
+            userViewGroups[DocType.DeleteCmd] = userAccessibleGroups;
+        }
 
         if (Object.keys(userViewGroups).length < 1)
             throw new HttpException(
@@ -59,10 +61,10 @@ export class SearchService {
                 HttpStatus.FORBIDDEN,
             );
 
-        const options: QueryDocsOptions = {
+        const options: SearchOptions = {
             userAccess: userViewGroups,
             groups: query.groups,
-            types: [...query.types, DocType.DeleteCmd],
+            types: query.includeDeleteCmds ? [...query.types, DocType.DeleteCmd] : query.types,
             limit: query.limit,
             contentOnly: query.contentOnly,
             from: query.from,
@@ -73,7 +75,7 @@ export class SearchService {
 
         let _res = undefined;
         await this.db
-            .queryDocs(options)
+            .search(options)
             .then((res: DbQueryResult) => {
                 if (res.docs) {
                     _res = res;

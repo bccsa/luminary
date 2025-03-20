@@ -12,7 +12,11 @@ type MissingGap = {
     gapEnd: number;
 };
 
-const syncLock = ref(false);
+/**
+ * Vue Ref indicating if sync with the API is active
+ */
+export const syncActive = ref(false);
+
 const syncRestartCounter = ref(0);
 let cancelSync = false;
 
@@ -69,9 +73,9 @@ export class Sync {
      */
     async cancel() {
         return new Promise<void>((resolve) => {
-            if (syncLock.value) {
+            if (syncActive.value) {
                 watch(
-                    syncLock,
+                    syncActive,
                     (value) => {
                         if (!value) resolve();
                     },
@@ -93,9 +97,8 @@ export class Sync {
     }
 
     async start() {
-        if (syncLock.value) return;
-        syncLock.value = true;
-
+        if (syncActive.value) return;
+        syncActive.value = true;
         await this.calcSyncMap();
 
         const _sm = Object.fromEntries(syncMap.value);
@@ -122,9 +125,12 @@ export class Sync {
 
             query.from = newest?.blockStart || 0;
 
+            // Only request delete commands if this is not an initial sync
+            if (!(query.from == 0 && query.to == undefined)) query.includeDeleteCmds = true;
+
             await this.req(query, v.id);
         }
-        syncLock.value = false;
+        syncActive.value = false;
         cancelSync = false;
     }
 
@@ -134,7 +140,7 @@ export class Sync {
      * @param id   - id of the syncMap entry
      */
     async req(query: ApiSearchQuery, id: string): Promise<any> {
-        if (!isConnected.value) return;
+        if (!isConnected.value || cancelSync) return;
 
         const data = await getRest().search(query);
         if (data && data.docs.length > 0) await db.bulkPut(data.docs);
