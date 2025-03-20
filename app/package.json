@@ -30,6 +30,7 @@
         "luminary-shared": "file:../shared",
         "luxon": "^3.4.4",
         "pinia": "^2.1.7",
+        "rand-seed": "^2.1.7",
         "tailwind-scrollbar-hide": "^1.1.7",
         "video.js": "^8.10.0",
         "videojs-mobile-ui": "^1.1.1",

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
 
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeMount, onMounted, ref, watch } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
 import mainFallbackImg from "../../assets/fallbackImage.webp";
-import { _fallbackImages, fallbackImages } from "@/globalConfig";
+import { fallbackImages, _fallbackImages } from "@/globalConfig";
 
 type Props = {
     image?: ImageDto;
