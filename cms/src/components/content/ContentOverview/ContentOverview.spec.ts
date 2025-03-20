@@ -2,14 +2,15 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import ContentOverview from "@/components/content/ContentOverview.vue";
+import ContentOverview from "./ContentOverview.vue";
 import { db, accessMap, DocType, type ContentDto, PostType } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
-import ContentTable from "./ContentTable.vue";
+import ContentTable from "../ContentTable.vue";
+import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 vi.mock("@auth0/auth0-vue");
 
@@ -36,6 +37,8 @@ describe("ContentOverview.vue", () => {
         setActivePinia(createTestingPinia());
 
         accessMap.value = mockData.fullAccessToAllContentMap;
+
+        cmsLanguageIdAsRef.value = "lang-eng";
     });
 
     afterEach(async () => {
@@ -161,7 +164,12 @@ describe("ContentOverview.vue", () => {
             },
         ];
 
-        await db.docs.bulkPut(docs);
+        await db.docs.bulkPut([
+            ...docs,
+            mockData.mockLanguageDtoEng,
+            mockData.mockLanguageDtoFra,
+            mockData.mockLanguageDtoSwa,
+        ]);
 
         const wrapper = mount(ContentOverview, {
             global: {
@@ -173,28 +181,24 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        await wrapper.vm.$nextTick();
-
         await waitForExpect(async () => {
             //@ts-ignore as this code is valid
             wrapper.vm.selectedLanguage = "lang-eng";
 
             const contentTable = await wrapper.findComponent(ContentTable);
 
-            await wrapper.vm.$nextTick();
-
             const contentRows = await contentTable.findAll('[data-test="content-row"]');
             expect(contentRows.length).toBe(3);
 
             //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-fra";
+            cmsLanguageIdAsRef.value = "lang-fra";
             const updatedFrenchContentRows = await contentTable.findAll(
                 '[data-test="content-row"]',
             );
             expect(updatedFrenchContentRows.length).toBe(3);
 
             //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-swa";
+            cmsLanguageIdAsRef.value = "lang-swa";
             const updatedSwahiliContentRows = await contentTable.findAll(
                 '[data-test="content-row"]',
             );
@@ -401,28 +405,6 @@ describe("ContentOverview.vue", () => {
 
             await filterInputSelects[1].setValue("draft");
             expect(contentTable.props("queryOptions").publishStatus).toBe("draft");
-        });
-    });
-
-    it("should handle language switching correctly", async () => {
-        const wrapper = mount(ContentOverview, {
-            global: {
-                plugins: [createTestingPinia()],
-            },
-            props: {
-                docType: DocType.Post,
-                tagOrPostType: PostType.Blog,
-            },
-        });
-
-        await waitForExpect(async () => {
-            const languageSelect = wrapper.findComponent({ name: "LSelect" });
-
-            // Switch to French
-            await languageSelect.vm.$emit("update:modelValue", mockData.mockFrenchContentDto._id);
-
-            // Mocked French content should be displayed
-            expect(wrapper.html().includes(mockData.mockFrenchContentDto.title)).toBeTruthy();
         });
     });
 });

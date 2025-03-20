@@ -1,172 +1,142 @@
 <script setup lang="ts">
-import { ref, watch, type Component, type StyleValue } from "vue";
-import { ChevronDownIcon, XMarkIcon } from "@heroicons/vue/20/solid";
-import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
+import { computed, ref, watch, type Component } from "vue";
+import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
+import LTag from "@/components/content/LTag.vue";
 import { onClickOutside } from "@vueuse/core";
 
-type Option = { label: string; value: string; isChecked: boolean; disabled?: boolean };
+type ChecklistOption = { label: string; value: string | number };
 
 type Props = {
-    options: Option[];
-    searchable?: boolean;
-    state?: keyof typeof states;
-    placeholder?: string;
+    options: ChecklistOption[];
     disabled?: boolean;
-    required?: boolean;
     icon?: Component | Function;
+    isContentOverview?: boolean;
 };
-
 const props = withDefaults(defineProps<Props>(), {
-    searchable: false,
-    placeholder: "Select Options",
     disabled: false,
-    required: false,
-    state: "default",
+    isContentOverview: false,
 });
-
-const states = {
-    default: "text-zinc-900 ring-zinc-300 focus:ring-zinc-950",
-    error: "text-red-900 bg-red-50 ring-red-300 focus:ring-red-500",
-};
-
-const givenOptions = ref(props.options);
-const selectedValues = defineModel<Option[]>("modelValue", { default: () => [] });
-
-const toggleOption = (option: Option) => {
-    const index = selectedValues.value.findIndex((v) => v.value === option.value);
-
-    if (index > -1) {
-        // Remove option if already selected
-        selectedValues.value.splice(index, 1);
-    } else {
-        // Add option if not selected
-        selectedValues.value.push(option);
-    }
-
-    props.options.forEach((opt) => {
-        opt.isChecked = selectedValues.value.some((v) => v.value === opt.value);
-    });
-};
-
-const isOptionSelected = (option: Option) => {
-    return selectedValues.value.some((v) => v.value === option.value);
-};
-
+const selectedValues = defineModel<Array<string | number>>("selectedValues");
+const openOptions = ref(false);
 const query = ref("");
 
-const showOptions = ref(false);
+const filtered = computed(() =>
+    query.value === ""
+        ? props.options
+        : props.options.filter((o) => {
+              return o.label.toLowerCase().includes(query.value.toLowerCase());
+          }),
+);
 
-const optionsAsRef = ref(undefined);
-onClickOutside(optionsAsRef, () => (showOptions.value = false));
+const selectedOptions = ref<ChecklistOption[]>([]);
+watch(
+    [selectedValues, props],
+    () => {
+        if (!selectedValues.value) return;
+        selectedOptions.value = props.options.filter((t) =>
+            selectedValues.value?.some((s) => s == t.value),
+        );
+    },
+    { deep: true },
+);
 
-watch(query, () => {
-    givenOptions.value = props.options.filter((option) =>
-        option.label.toLowerCase().includes(query.value.toLowerCase().trim()),
-    );
-});
-
-const emit = defineEmits(["clear-selected-values"]);
-
-const clearSelectedValues = () => {
-    selectedValues.value = [];
-    emit("clear-selected-values");
+const isSelected = (option: ChecklistOption) => {
+    return selectedValues.value?.some((t) => t == option.value);
 };
 
-const { attrsWithoutStyles } = useAttrsWithoutStyles();
+const onSelected = (option: ChecklistOption) => {
+    if (!option || !selectedValues.value) return;
+    if (!selectedValues.value.some((s) => s == option.value)) {
+        selectedValues.value = [...selectedValues.value, option.value];
+    }
+};
+
+const onClick = (option: ChecklistOption) => {
+    onSelected(option);
+};
+
+const checklist = ref<HTMLElement | undefined>(undefined);
+
+onClickOutside(checklist, () => {
+    openOptions.value = false;
+});
 </script>
 
 <template>
-    <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <div
-            class="group relative h-full w-64 cursor-default rounded-md border-0 py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 hover:bg-zinc-50 focus:ring-2 focus:ring-zinc-950 sm:text-sm"
-            @focus="showOptions = true"
-            @blur="showOptions = false"
-            tabindex="0"
-            :disabled="state === 'error'"
-            v-bind="attrsWithoutStyles"
-        >
-            <div
-                class="h-full"
-                @click="showOptions = true"
-                :disabled="state === 'error'"
-                data-test="main-div"
-            >
-                <div class="absolute inset-y-0 left-0 flex h-full items-center pl-3">
-                    <component
-                        v-if="props.icon"
-                        :is="props.icon"
-                        :class="{
-                            'text-zinc-400': props.state === 'default' && !props.disabled,
-                            'text-zinc-300': props.state === 'default' && props.disabled,
-                            'text-red-400': props.state === 'error',
-                        }"
-                        class="h-5 w-5 bg-inherit sm:text-sm"
-                    />
-                </div>
-
-                <input
-                    v-if="searchable"
-                    :placeholder="props.placeholder"
-                    class="h-full w-full border-0 bg-inherit p-0 text-sm focus:ring-0 group-hover:bg-zinc-50"
-                    v-model="query"
-                    @input="
-                        givenOptions = props.options.filter((option) =>
-                            option.label.toLowerCase().includes(query.toLowerCase()),
-                        )
-                    "
-                    tabindex="-8"
-                    :disabled="props.state === 'error'"
-                />
-
-                <span v-if="!searchable" class="flex-1">{{ placeholder }}</span>
-                <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                    <XMarkIcon
-                        @click="clearSelectedValues"
-                        v-if="selectedValues.length > 0"
-                        class="h-5 w-5 cursor-pointer text-zinc-700"
-                        aria-hidden="true"
-                    />
-                    <ChevronDownIcon class="h-5 w-5 text-zinc-700" aria-hidden="true" />
-                </div>
-            </div>
-
-            <transition
-                enter-active-class="transition duration-100 ease-out"
-                enter-from-class="transform scale-95 opacity-0"
-                enter-to-class="transform scale-100 opacity-100"
-                leave-active-class="transition duration-75 ease-out"
-                leave-from-class="transform scale-100 opacity-100"
-                leave-to-class="transform scale-95 opacity-0"
-            >
-                <div
-                    ref="optionsAsRef"
-                    :disabled="state === 'error'"
-                    v-if="showOptions"
-                    class="absolute left-0 z-10 mt-2 max-h-48 w-64 overflow-auto rounded-md bg-white px-1 py-2 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
-                    data-test="options-div"
-                >
-                    <div
-                        v-for="option in givenOptions"
-                        :key="option.value"
-                        @click.stop="toggleOption(option)"
-                        class="flex cursor-default select-none items-center rounded-md px-2 py-1 hover:bg-zinc-100"
-                    >
-                        <input
-                            type="checkbox"
-                            :id="option.value"
-                            :class="{
-                                'text-zinc-900': props.state === 'default' && !props.disabled,
-                                'text-zinc-300': props.state === 'default' && props.disabled,
-                                'text-red-400': props.state === 'error',
-                            }"
-                            :checked="isOptionSelected(option)"
-                            class="mr-1 rounded-lg"
-                            readonly
-                        />
-                        <span class="block whitespace-pre-wrap">{{ option.label }}</span>
-                    </div>
-                </div>
-            </transition>
+    <div class="relative" ref="checklist" data-test="main-div">
+        <div v-if="icon" class="absolute inset-y-0 left-3 flex items-center">
+            <component
+                :is="icon"
+                :class="{
+                    'text-zinc-400': !disabled,
+                    'text-zinc-300': disabled,
+                }"
+                class="h-5 w-5"
+            />
         </div>
+        <input
+            data-test="input"
+            type="text"
+            v-model="query"
+            @focus="openOptions = true"
+            placeholder="Type to select..."
+            class="h-10 w-full rounded-md border-0 bg-white py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6"
+            :class="icon ? 'pl-10' : 'pl-2'"
+            :disabled="disabled"
+        />
+        <button
+            class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
+            @click="openOptions = !openOptions"
+        >
+            <ChevronUpDownIcon class="h-5 w-5 text-zinc-400" aria-hidden="true" />
+        </button>
+
+        <div v-if="openOptions" class="relative">
+            <ul
+                v-if="filtered.length > 0"
+                data-test="options"
+                class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+            >
+                <li
+                    v-for="content in filtered"
+                    :key="content.value"
+                    data-test="option"
+                    @click="onClick(content)"
+                    :class="[
+                        'cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-zinc-100',
+                        { 'bg-zinc-100': isSelected(content) },
+                        { 'text-zinc-900': !isSelected(content) },
+                        { 'text-zinc-500': isSelected(content) },
+                    ]"
+                >
+                    {{ content.label }}
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div v-if="!isContentOverview" class="mt-3 flex flex-wrap gap-3">
+        <TransitionGroup
+            enter-active-class="transition duration-150 delay-75"
+            enter-from-class="transform scale-90 opacity-0"
+            enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-100"
+            leave-from-class="transform scale-100 opacity-100"
+            leave-to-class="transform scale-90 opacity-0"
+        >
+            <LTag
+                v-for="option in selectedOptions"
+                :key="option.value"
+                @remove="
+                    () => {
+                        if (!selectedValues) return;
+                        selectedValues = selectedValues.filter((v) => v != option.value);
+                    }
+                "
+                :disabled="disabled"
+            >
+                {{ options.find((o) => o.value == option.value)?.label }}
+            </LTag>
+        </TransitionGroup>
     </div>
 </template>
