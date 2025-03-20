@@ -68,9 +68,8 @@ onClickOutside(checklist, () => {
             <component
                 :is="icon"
                 :class="{
-                    'text-zinc-400': state == 'default' && !disabled,
-                    'text-zinc-300': state == 'default' && disabled,
-                    'text-red-400': state == 'error',
+                    'text-zinc-400': !disabled,
+                    'text-zinc-300': disabled,
                 }"
                 class="h-5 w-5"
             />
