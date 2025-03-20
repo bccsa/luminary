@@ -22,6 +22,11 @@ describe("ContentOverview.vue", () => {
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
             mockData.mockLanguageDtoSwa,
+            mockData.mockGroupDtoPrivateContent,
+            mockData.mockGroupDtoPublicContent,
+            mockData.mockGroupDtoPublicEditors,
+            mockData.mockGroupDtoPublicUsers,
+            mockData.mockGroupDtoSuperAdmins,
         ]);
     });
 
@@ -66,7 +71,7 @@ describe("ContentOverview.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
         });
-    }, 10000);
+    });
 
     it("should show edit button with correct router link and icon", async () => {
         const wrapper = mount(ContentOverview, {
