@@ -5,6 +5,10 @@ import { processChangeRequest } from "./processChangeRequest";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { S3Service } from "../s3/s3.service";
 import waitForExpect from "wait-for-expect";
+import { DocType } from "../enums";
+import { changeRequest_content, changeRequest_post } from "../test/changeRequestDocuments";
+import { ChangeReqDto } from "../dto/ChangeReqDto";
+import { PostDto } from "../dto/PostDto";
 
 describe("processChangeRequest", () => {
     let db: DbService;
@@ -74,6 +78,238 @@ describe("processChangeRequest", () => {
         await waitForExpect(() => {
             expect(processResult.message).toBe("Document is identical to the one in the database");
             expect(processResult.changes).toBeUndefined();
+        });
+    });
+    it("can validate a unique slug for a content document that does not exists", async () => {
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "post-blog1";
+        changeRequest.doc._id = "test-slug-1";
+        changeRequest.doc.slug = "this-is-a-test-slug";
+
+        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        const dbDoc = await db.getDoc(changeRequest.doc._id);
+
+        expect(res.ok).toBe(true);
+        expect(dbDoc.docs[0].slug).toBe("this-is-a-test-slug");
+    });
+
+    it("can validate a unique slug for a content document that exists", async () => {
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "post-blog1";
+        changeRequest.doc._id = "test-slug-1";
+        changeRequest.doc.slug = "this-is-a-test-slug";
+
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3); // ensure that the slug is already in use
+        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        const dbDoc = await db.getDoc(changeRequest.doc._id);
+
+        expect(res.ok).toBe(true);
+        expect(dbDoc.docs[0].slug).toBe("this-is-a-test-slug");
+    });
+
+    it("can rectify a non-unique slug by appending a random number to the end of the slug", async () => {
+        // ensure that the slug is already in use
+        const changeRequest1 = changeRequest_content();
+        changeRequest1.doc.parentId = "post-blog1";
+        changeRequest1.doc._id = "test-slug-1";
+        changeRequest1.doc.slug = "this-is-a-test-slug";
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
+
+        // Create a new change request with the same slug
+        const changeRequest2 = changeRequest_content();
+        changeRequest2.doc.parentId = "post-blog1";
+        changeRequest2.doc._id = "test-slug-2";
+        changeRequest2.doc.slug = "this-is-a-test-slug";
+
+        const res = await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3);
+        const dbDoc = await db.getDoc(changeRequest2.doc._id);
+
+        expect(res.ok).toBe(true);
+        expect(dbDoc.docs[0].slug).toMatch(/this-is-a-test-slug-[0-9](0-9)*/);
+    });
+
+    it("can automatically rectify a non-valid slug", async () => {
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "post-blog1";
+        changeRequest.doc._id = "test-slug-1";
+        changeRequest.doc.slug = 'Invalid Slug! 123 無效的 Bør ikke være tilladt "#$%&/()=?`';
+
+        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        const dbDoc = await db.getDoc(changeRequest.doc._id);
+
+        expect(res.ok).toBe(true);
+        expect(dbDoc.docs[0].slug).toBe("invalid-slug-123-wu-xiao-de-bor-ikke-vaere-tilladt");
+    });
+
+    it("can set essential properties from a parent document to a content document on content document submission", async () => {
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "post-blog1";
+        changeRequest.doc._id = "test-essential-properties";
+        changeRequest.doc.memberOf = undefined;
+        changeRequest.doc.parentTags = undefined;
+
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        const dbDoc = await db.getDoc(changeRequest.doc._id);
+
+        expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
+        expect(dbDoc.docs[0].parentTags).toEqual(["tag-category1", "tag-topicA"]);
+    });
+
+    it("can set essential properties from a parent document to a content document on post / tag document submission", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 86,
+            doc: {
+                _id: "post-blog1",
+                type: "post",
+                memberOf: ["group-public-content", "group-private-content"],
+                image: "test1234.jpg",
+                tags: ["tag1", "tag2"],
+                publishDateVisible: true,
+                postType: "blog",
+            } as PostDto,
+        };
+
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+
+        const res = await db.getContentByParentId(changeRequest.doc._id);
+        const docsCount = res.docs.length;
+        expect(docsCount).toBeGreaterThan(0);
+
+        expect(
+            res.docs.map(
+                (doc) =>
+                    doc.memberOf.some((m) => m == "group-public-content") &&
+                    doc.memberOf.some((m) => m == "group-private-content"),
+            ).length,
+        ).toBe(docsCount);
+
+        expect(res.docs.map((doc) => doc.image == "test1234.jpg").length).toBe(docsCount);
+
+        expect(
+            res.docs.map(
+                (doc) =>
+                    doc.parentTags.some((m) => m == "tag1") &&
+                    doc.parentTags.some((m) => m == "tag2"),
+            ).length,
+        ).toBe(docsCount);
+    });
+
+    it("accepts a change request for a post with postType 'blog'", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 87,
+            doc: {
+                _id: "post-blog2",
+                type: "post",
+                memberOf: ["group-public-content"],
+                image: "test-blog-image.jpg",
+                tags: [],
+                publishDateVisible: true,
+                postType: "blog",
+            } as PostDto,
+        };
+
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        expect(processResult.ok).toBe(true);
+    });
+
+    it("accepts a change request for a post with postType 'page'", async () => {
+        const changeRequest: ChangeReqDto = {
+            id: 88,
+            doc: {
+                _id: "post-page1",
+                type: "post",
+                memberOf: ["group-public-content"],
+                image: "test-page-image.jpg",
+                tags: [],
+                publishDateVisible: false,
+                postType: "page",
+            } as PostDto,
+        };
+
+        const processResult = await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+        );
+
+        expect(processResult.ok).toBe(true);
+    });
+
+    it("can store the id's of tagged documents to the taggedDocs / parentTaggedDocs property of the tag document and it's content documents", async () => {
+        // Ensure that the test doc is in it's original state
+        await processChangeRequest("", changeRequest_post(), ["group-super-admins"], db, s3);
+
+        const changeRequest = changeRequest_post();
+        changeRequest.doc.tags = ["tag-category2", "tag-topicA"]; // This will remove tag-category1 from the tag and add tag-category2
+
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+
+        const category1 = await db.getDoc("tag-category1");
+        const category2 = await db.getDoc("tag-category2");
+        const category1Content = await db.getContentByParentId("tag-category1");
+        const category2Content = await db.getContentByParentId("tag-category2");
+
+        expect(category1.docs[0].taggedDocs.some((t) => t == changeRequest.doc._id)).toBe(false);
+        expect(category2.docs[0].taggedDocs.some((t) => t == changeRequest.doc._id)).toBe(true);
+        expect(
+            category1Content.docs.filter((d) =>
+                d.parentTaggedDocs.some((t) => t == changeRequest.doc._id),
+            ).length,
+        ).toBe(0);
+        expect(
+            category2Content.docs.filter((d) =>
+                d.parentTaggedDocs.some((t) => t == changeRequest.doc._id),
+            ).length,
+        ).toBe(category2Content.docs.length);
+    });
+
+    it("changes all other language documents default flag to 0 if new default language is selected", async () => {
+        const changeRequest1 = {
+            id: 89,
+            doc: {
+                _id: "language-en",
+                type: "language",
+                memberOf: ["group-languages"],
+                languageCode: "en",
+                name: "English",
+                default: 1,
+                //Translations field needed here to fix a error in github actions
+                translations: [""],
+            },
+        };
+
+        const changeRequest2 = {
+            id: 90,
+            doc: {
+                _id: "lang-fra",
+                type: "language",
+                memberOf: ["group-languages"],
+                languageCode: "fra",
+                name: "French",
+                default: 1,
+                //Translations field needed here to fix a error in github actions
+                translations: [""],
+            },
+        };
+
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
+        await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3);
+
+        const languages = await db.getDocsByType(DocType.Language);
+
+        languages.docs.forEach((language) => {
+            if (language._id === "lang-fra") {
+                expect(language.default).toBe(1);
+            }
         });
     });
 });
