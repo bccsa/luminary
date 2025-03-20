@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
 
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeMount, onMounted, ref, watch } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
 import mainFallbackImg from "../../assets/fallbackImage.webp";
-import { _fallbackImages, fallbackImages } from "@/globalConfig";
+import { fallbackImages, _fallbackImages } from "@/globalConfig";
+import Rand from "rand-seed";
 
 type Props = {
     image?: ImageDto;
@@ -106,6 +107,34 @@ const srcset2 = computed(() => {
         .join(", ");
 });
 
+//As 'n image nog nie 'n  seed het nie, maak 'n nuwe seed
+//As daar klaar 'n seed is gebruik daai image met die parentId
+
+onBeforeMount(() => {
+    const seed = new Rand(props.contentParentId).next() * fallbackImages.length;
+
+    if (
+        _fallbackImages.value.find((src) => src.seed == props.contentParentId) ||
+        _fallbackImages.value.includes(seed)
+    )
+        return;
+
+    const newImageSource = {
+        seed: Number(
+            String(new Rand(props.contentParentId).next() * fallbackImages.length).replace(".", ""),
+        ),
+        url: fallbackImages[Math.floor(seed)],
+    };
+
+    _fallbackImages.value = [..._fallbackImages.value, newImageSource];
+});
+
+const fallbackImage = computed(() => {
+    // if (!props.contentParentId) return mainFallbackImg;
+    const randomIndex = Math.floor(Math.random() * fallbackImages.length);
+    return `../${fallbackImages[randomIndex]}`;
+});
+
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
@@ -113,12 +142,6 @@ const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.va
 const showImageElement2 = computed(
     () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
 );
-
-const fallbackImage = computed(() => {
-    // if (!props.contentParentId) return mainFallbackImg;
-    const randomIndex = Math.floor(Math.random() * fallbackImages.length);
-    return `../${fallbackImages[randomIndex]}`;
-});
 </script>
 
 <template>
