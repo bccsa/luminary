@@ -71,6 +71,7 @@ const queryOptions = ref<ContentOverviewQueryOptions>(
               pageSize: 20,
               pageIndex: 0,
               tags: [],
+              groups: [],
               search: "",
               publishStatus: "all",
           },
@@ -168,6 +169,11 @@ const tagContentDocs = useDexieLiveQueryWithDeps(
     { initialValue: [] as ContentDto[] },
 );
 
+const groups = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Group }) as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
+
 const resetQueryOptions = () => {
     queryOptions.value = {
         languageId: queryOptions.value.languageId,
@@ -179,6 +185,7 @@ const resetQueryOptions = () => {
         pageSize: 20,
         pageIndex: 0,
         tags: [],
+        groups: [],
         search: "",
         publishStatus: "all",
     };
@@ -254,18 +261,17 @@ const resetQueryOptions = () => {
                         v-model:selectedValues="queryOptions.tags"
                         :is-content-overview="true"
                     />
-
+                    {{ groups }}
                     <LChecklist
                         :options="
-                            groupsContent.map((group: GroupDto) => ({
+                            groups.map((group: GroupDto) => ({
                                 label: group.name,
                                 value: group._id,
-                                isChecked: false,
                             }))
                         "
                         :searchable="true"
                         :icon="UserGroupIcon"
-                        v-model="groupsSelected"
+                        v-model="queryOptions.groups"
                         @clear-selected-values="queryOptions.groups = []"
                         placeholder="Search groups..."
                     />
