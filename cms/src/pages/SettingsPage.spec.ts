@@ -7,11 +7,17 @@ import { useNotificationStore } from "@/stores/notification";
 import { db, isConnected } from "luminary-shared";
 
 const requestDataMock = vi.hoisted(() => vi.fn());
+const restartMock = vi.fn();
 
 vi.mock("luminary-shared", () => ({
     db: {
         purge: vi.fn(),
     },
+    getRest: vi.fn(() => ({
+        sync: {
+            restart: restartMock,
+        },
+    })),
     getSocket: vi.fn(() => ({
         requestData: requestDataMock,
     })),
@@ -30,7 +36,7 @@ describe("purgeLocalDatabase", () => {
         vi.clearAllMocks();
     });
 
-    it.skip("purges the local database when connected", async () => {
+    it("purges the local database when connected", async () => {
         const notificationStore = useNotificationStore();
         const wrapper = mount(SettingsPage);
 
@@ -47,7 +53,8 @@ describe("purgeLocalDatabase", () => {
         await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
 
         expect(db.purge).toHaveBeenCalledOnce();
-        // TODO: Check if getRest().sync.restart have been called
+        expect(restartMock).toHaveBeenCalledOnce();
+
         expect(notificationStore.addNotification).toHaveBeenCalledWith(
             expect.objectContaining({ state: "success" }),
         );
