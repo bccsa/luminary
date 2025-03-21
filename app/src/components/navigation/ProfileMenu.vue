@@ -24,6 +24,7 @@ import { useI18n } from "vue-i18n";
 import LoginModal from "@/components/navigation/LoginModal.vue";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
+import LDialog from "../common/LDialog.vue";
 
 const { user, logout, isAuthenticated } = useAuth0();
 const router = useRouter();
@@ -31,6 +32,8 @@ const router = useRouter();
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showPrivacyPolicyModal = ref(false);
+const showLogoutDialog = ref(false);
+
 const { t } = useI18n();
 
 type NavigationItems = {
@@ -73,6 +76,22 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
     ];
 });
 
+const confirmLogout = async () => {
+    if (!isConnected.value) {
+        showLogoutDialog.value = false;
+
+        useNotificationStore().addNotification({
+            id: "no-internet-connection-logout",
+            title: t("profile_menu.logout.offline_notification_title"),
+            description: t("profile_menu.logout.offline_notification"),
+            type: "toast",
+            state: "error",
+        } as Notification);
+    }
+    localStorage.removeItem("usedAuth0Connection");
+    await logout({ logoutParams: { returnTo: window.location.origin } });
+};
+
 const userNavigation = computed(() => {
     if (isAuthenticated.value) {
         return [
@@ -81,10 +100,9 @@ const userNavigation = computed(() => {
             {
                 name: t("profile_menu.logout"),
                 icon: ArrowRightEndOnRectangleIcon,
-                action: async () => {
+                action: () => {
                     if (isConnected.value) {
-                        localStorage.removeItem("usedAuth0Connection");
-                        await logout({ logoutParams: { returnTo: window.location.origin } });
+                        showLogoutDialog.value = true;
                         return;
                     }
                     useNotificationStore().addNotification({
@@ -202,5 +220,14 @@ const userNavigation = computed(() => {
         <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
         <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
         <LoginModal />
+        <LDialog
+            v-model:open="showLogoutDialog"
+            :title="t('logout.modal.title')"
+            :description="t('logout.modal.description')"
+            :primaryAction="confirmLogout"
+            :primaryButtonText="t('logout.modal.button_logout')"
+            :secondaryAction="() => (showLogoutDialog = false)"
+            :secondaryButtonText="t('logout.modal.button_cancel')"
+        />
     </div>
 </template>
