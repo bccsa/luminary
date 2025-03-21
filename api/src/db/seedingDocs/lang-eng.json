@@ -75,6 +75,10 @@
         "bookmarks.notification.title": "Bookmark added",
         "bookmarks.notification.description": "This content has been added to your bookmarks. You can find the bookmarks page from the profile menu.",
         "language.modal.title": "Select Language",
-        "language.modal.close": "Close"
+        "language.modal.close": "Close",
+        "logout.modal.title": "Logout",
+        "logout.modal.description": "Are you sure you want to log out?",
+        "logout.modal.button_cancel": "Cancel",
+        "logout.modal.button_logout": "Logout"
     }
 }
