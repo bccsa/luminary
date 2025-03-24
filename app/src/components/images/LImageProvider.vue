@@ -160,6 +160,7 @@ const showImageElement2 = computed(
         data-test="image-element1"
         loading="lazy"
         @error="imageElement1Error = true"
+        draggable="false"
     />
     <img
         v-else-if="showImageElement2 && srcset2"
@@ -174,5 +175,6 @@ const showImageElement2 = computed(
         data-test="image-element2"
         loading="lazy"
         @error="imageElement2Error = true"
+        draggable="false"
     />
 </template>
