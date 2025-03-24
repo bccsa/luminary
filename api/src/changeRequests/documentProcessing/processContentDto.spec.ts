@@ -8,7 +8,7 @@ import { S3Service } from "../../s3/s3.service";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { PostDto } from "../../dto/PostDto";
 import { PublishStatus } from "../../enums";
-import { TagDto } from "src/dto/TagDto";
+import { TagDto } from "../../dto/TagDto";
 
 describe("processContentDto", () => {
     let db: DbService;
