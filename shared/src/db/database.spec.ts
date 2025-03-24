@@ -158,6 +158,17 @@ describe("Database", async () => {
         });
     });
 
+    it("cant insert a document if localChangesOnly is true", async () => {
+        const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
+        await db.upsert({ doc: mockPostDto, localChangesOnly: true });
+
+        await waitForExpect(() => {
+            const post = db.getAsRef<PostDto>(mockPostDto._id);
+            expect(post.value).toBe(undefined);
+            expect(isLocalChange.value).toBe(true);
+        });
+    });
+
     it("can get tags by tag type with only the (required) languageId set", async () => {
         const tags = await db.tagsWhereTagType(TagType.Category, {
             languageId: mockLanguageDtoEng._id,
