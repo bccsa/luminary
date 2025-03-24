@@ -25,6 +25,8 @@
         "settings.local_cache.title": "Cache local",
         "settings.local_cache.description": "La plupart des données sont enregistrées localement sur votre appareil. Si vous rencontrez des problèmes, essayez de supprimer toutes les données locales. En fonction de la quantité de données disponibles sur le serveur, cela peut prendre un certain temps avant que toutes les données soient à nouveau disponibles.",
         "settings.local_cache.button": "Supprimer le cache local",
+        "settings.device_info.title": "Informations sur l'appareil",
+        "settings.device_info.description": "Fournissez ces détails lors de la prise de contact avec le support",
         "home.title": "Accueil",
         "explore.title": "Explore",
         "watch.title": "Regarde",
