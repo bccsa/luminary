@@ -77,7 +77,6 @@ const queryOptions = ref<ContentOverviewQueryOptions>(
 watch(
     queryOptions,
     () => {
-        console.info(queryOptions.value.groups);
         sessionStorage.setItem(
             `queryOptions_${props.docType}_${props.tagOrPostType}`,
             JSON.stringify(queryOptions.value),

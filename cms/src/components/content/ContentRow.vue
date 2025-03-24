@@ -9,6 +9,7 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
+    useDexieLiveQueryWithDeps,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -31,8 +32,16 @@ const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
 const tagsContent = ref<ContentDto[]>([]);
 
 // Get the groups
-const groups = db.whereTypeAsRef(DocType.Group);
-const groupsContent = ref<GroupDto[]>([]);
+const groups = useDexieLiveQueryWithDeps(
+    props,
+    (_props: Props) =>
+        db.docs
+            .where("_id")
+            .anyOf(_props.contentDoc.memberOf)
+            .filter((g) => g.type == DocType.Group)
+            .toArray() as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
 
 // Filter languages that the user has translate access to
 const accessibleLanguages = computed(() =>
@@ -45,9 +54,6 @@ watch(
     contentDocs,
     async () => {
         if (!contentDocs.value || contentDocs.value.length === 0) return;
-        groupsContent.value = contentDocs.value[0].memberOf.map((id) =>
-            groups.value.find((g) => g._id == id),
-        ) as GroupDto[];
 
         tagsContent.value = await db.whereParent(
             contentDocs.value[0].parentTags,
@@ -157,13 +163,8 @@ const translationStatus = computed(() => {
                 <!-- @vue-ignore in tests "_id" is undefined for no
                  apparent reason, ignoring till another solution is 
                  found -->
-                <LBadge
-                    v-for="group in groupsContent"
-                    :key="group._id"
-                    type="default"
-                    class="text-lg"
-                >
-                    {{ group.name }}
+                <LBadge v-for="g in groups" :key="g._id" type="default" class="text-lg">
+                    {{ g.name }}
                 </LBadge>
             </div>
         </td>
