@@ -153,7 +153,7 @@ const save = async () => {
     original.value = _.cloneDeep(editable.value);
     editable.value.updatedTimeUtc = Date.now();
 
-    await db.upsert(editable.value);
+    await db.upsert({ doc: editable.value, localChangesOnly: true });
 
     if (!editable.value.deleteReq) {
         useNotificationStore().addNotification({

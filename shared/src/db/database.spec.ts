@@ -151,7 +151,7 @@ describe("Database", async () => {
 
     it("can detect if a local change is queued for a given document ID", async () => {
         const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
-        await db.upsert(mockPostDto);
+        await db.upsert({ doc: mockPostDto });
 
         await waitForExpect(() => {
             expect(isLocalChange.value).toBe(true);
@@ -519,7 +519,7 @@ describe("Database", async () => {
     });
 
     it("can upsert a document into the database and queue the change to be sent to the API", async () => {
-        await db.upsert(mockPostDto);
+        await db.upsert({ doc: mockPostDto });
         const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
 
         // Check if the local change is queued
@@ -540,13 +540,13 @@ describe("Database", async () => {
 
     it("can overwrite a local (offline) change request with a new one", async () => {
         // Queue a local change
-        await db.upsert(mockPostDto);
+        await db.upsert({ doc: mockPostDto });
         const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).toArray();
         expect(localChange.length).toBe(1);
 
         // Queue a new local change
         const newPost = { ...mockPostDto, title: "New Title" };
-        await db.upsert(newPost, true);
+        await db.upsert({ doc: newPost, overwiteLocalChanges: true });
         const newLocalChange = await db.localChanges
             .where("docId")
             .equals(mockPostDto._id)
@@ -559,7 +559,7 @@ describe("Database", async () => {
 
     it("can apply a successful change request acknowledgement", async () => {
         // Queue a local change
-        await db.upsert(mockPostDto);
+        await db.upsert({ doc: mockPostDto });
         const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).first();
         expect(localChange).toBeDefined();
 
@@ -576,7 +576,7 @@ describe("Database", async () => {
 
     it("can apply a failed change request acknowledgement with a document", async () => {
         // Queue a local change
-        await db.upsert(mockEnglishContentDto);
+        await db.upsert({ doc: mockEnglishContentDto });
         const localChange = await db.localChanges
             .where("docId")
             .equals(mockEnglishContentDto._id)
@@ -605,7 +605,7 @@ describe("Database", async () => {
 
     it("can apply a failed change request acknowledgement without a document", async () => {
         // Queue a local change
-        await db.upsert(mockEnglishContentDto);
+        await db.upsert({ doc: mockEnglishContentDto });
         const localChange = await db.localChanges
             .where("docId")
             .equals(mockEnglishContentDto._id)
@@ -632,7 +632,7 @@ describe("Database", async () => {
 
     it("can purge the local database", async () => {
         // Queue a local change and check if it exists in the docs and localChanges tables
-        await db.upsert(mockPostDto);
+        await db.upsert({ doc: mockPostDto });
         const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).first();
         const doc = await db.get<PostDto>(mockPostDto._id);
         expect(localChange).toBeDefined();
@@ -1039,7 +1039,7 @@ describe("Database", async () => {
             const addedContent2 = await db.get<ContentDto>(mockFrenchContentDto._id);
             expect(addedContent2).toBeDefined();
 
-            await db.upsert({ ...mockPostDto, deleteReq: 1 });
+            await db.upsert({ doc: { ...mockPostDto, deleteReq: 1 } });
 
             const deletedDoc = await db.get<PostDto>(mockPostDto._id);
             expect(deletedDoc).toBeUndefined();

@@ -97,6 +97,24 @@ export type QueryOptions = {
     languageId?: Uuid;
 };
 
+/**
+ * Upsert Options
+ */
+export type UpsertOptions<T> = {
+    /**
+     * The document to upsert
+     */
+    doc: T;
+    /**
+     * If true, the entry in the local changes table will be overwritten with the new change
+     */
+    overwiteLocalChanges?: boolean;
+    /**
+     * Only update the local changes database (used for sending changes to the API), and do not update the docs table
+     */
+    localChangesOnly?: boolean;
+};
+
 class Database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
@@ -533,28 +551,29 @@ class Database extends Dexie {
 
     /**
      * Update or insert a document into the database and queue the change to be sent to the API. If the deleteReq flag is set, the document will be deleted from the local database and the document with deleteReq flag will be queued to be sent to the API.
-     * @param doc - The document to upsert
-     * @param overwiteLocalChanges - If true, the entry in the local changes table will be overwritten with the new change
+     * @param options {UpsertOptions} - The options to upsert a document
      */
-    async upsert<T extends BaseDocumentDto>(doc: T, overwiteLocalChanges = false) {
+    async upsert<T extends BaseDocumentDto>(options: UpsertOptions<T>) {
         // Unwrap the (possibly) reactive object
-        const raw = toRaw(doc);
+        const raw = toRaw(options.doc);
 
-        if (doc.deleteReq) {
-            // Delete the document from the local database. The document will be deleted from the API when the change is sent from the localChanges table
-            await this.docs.delete(raw._id);
-            overwiteLocalChanges = true;
+        if (!options.localChangesOnly) {
+            if (options.doc.deleteReq) {
+                // Delete the document from the local database. The document will be deleted from the API when the change is sent from the localChanges table
+                await this.docs.delete(raw._id);
+                options.overwiteLocalChanges = true;
 
-            // If the document is a post or tag, delete all the associated content documents
-            // Note: We do not need to send delete requests to the API, as the API will delete the content documents when the parent document is deleted
-            if (raw.type == DocType.Post || raw.type == DocType.Tag) {
-                await this.docs.where("parentId").equals(raw._id).delete();
+                // If the document is a post or tag, delete all the associated content documents
+                // Note: We do not need to send delete requests to the API, as the API will delete the content documents when the parent document is deleted
+                if (raw.type == DocType.Post || raw.type == DocType.Tag) {
+                    await this.docs.where("parentId").equals(raw._id).delete();
+                }
+            } else {
+                await this.docs.put(raw, raw._id);
             }
-        } else {
-            await this.docs.put(raw, raw._id);
         }
 
-        if (overwiteLocalChanges) {
+        if (options.overwiteLocalChanges) {
             // Delete the previous change from the localChanges table (if any)
             await this.localChanges.where({ docId: raw._id }).delete();
         }
