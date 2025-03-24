@@ -3,9 +3,10 @@ import { ref, onMounted, watch } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
 import LImageProvider from "./LImageProvider.vue";
+import ImageModal from "./ImageModal.vue";
 
 type Props = {
-    image?: ImageDto;
+    image: ImageDto;
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
@@ -40,6 +41,7 @@ const rounding = {
 
 const parentRef = ref<HTMLElement | undefined>(undefined);
 const parentWidth = ref<number>(0);
+const showPopup = ref<boolean>(false);
 
 onMounted(() => {
     parentWidth.value = parentRef.value?.clientWidth || 0;
@@ -53,7 +55,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div ref="parentRef" :class="sizes[size]">
+    <div ref="parentRef" :class="sizes[size]" @click="showPopup = true">
         <div
             :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
@@ -76,14 +78,13 @@ onMounted(() => {
 
         <slot></slot>
     </div>
-    <div>
-        <ImageModal
-            v-if="image && zoomable && showPopup"
-            :image="image"
-            :aspectRatio="aspectRatio"
-            :size="size"
-            :zoomable="zoomable"
-            @close="showPopup = false"
-        />
-    </div>
+
+    <ImageModal
+        v-if="image && zoomable && showPopup"
+        :image="props.image"
+        :aspectRatio="props.aspectRatio"
+        :size="props.size"
+        :zoomable="props.zoomable"
+        @close="showPopup = false"
+    />
 </template>
