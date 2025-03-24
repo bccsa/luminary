@@ -29,10 +29,13 @@ const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
-        // @ts-expect-error
+        //@ts-ignore
         ...actual,
         useRouter: vi.fn().mockImplementation(() => ({
-            currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
+            currentRoute: ref({
+                name: "content", // ✅ Ensure name is "content"
+                params: { slug: mockEnglishContentDto.slug },
+            }),
             replace: routeReplaceMock,
             back: vi.fn(),
         })),
@@ -311,11 +314,10 @@ describe("SingleContent", () => {
         });
 
         const notificationStore = useNotificationStore();
+        // simulate language change
+        appLanguageIdsAsRef.value.unshift("lang-test");
 
         await waitForExpect(() => {
-            // simulate language change
-            appLanguageIdsAsRef.value.unshift("lang-test");
-
             expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });
