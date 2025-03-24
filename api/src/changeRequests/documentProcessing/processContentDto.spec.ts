@@ -8,6 +8,7 @@ import { S3Service } from "../../s3/s3.service";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { PostDto } from "../../dto/PostDto";
 import { PublishStatus } from "../../enums";
+import { TagDto } from "src/dto/TagDto";
 
 describe("processContentDto", () => {
     let db: DbService;
@@ -81,18 +82,54 @@ describe("processContentDto", () => {
         expect(dbDoc.docs[0].slug).toBe("invalid-slug-123-wu-xiao-de-bor-ikke-vaere-tilladt");
     });
 
-    it("can set essential properties from a parent document to a content document on content document submission", async () => {
+    it("can set essential properties from a parent post document to a content document on content document submission", async () => {
         const changeRequest = changeRequest_content();
         changeRequest.doc.parentId = "post-blog1";
-        changeRequest.doc._id = "test-essential-properties";
+        changeRequest.doc._id = "test-essential-post-properties";
         changeRequest.doc.memberOf = undefined;
-        changeRequest.doc.parentTags = undefined;
+        delete changeRequest.doc.parentTags;
+        delete changeRequest.doc.parentPostType;
+        delete changeRequest.doc.parentPublishDateVisible;
 
         await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
         expect(dbDoc.docs[0].parentTags).toEqual(["tag-category1", "tag-topicA"]);
+        expect(dbDoc.docs[0].parentPostType).toEqual("blog");
+        expect(dbDoc.docs[0].parentPublishDateVisible).toEqual(true);
+    });
+
+    it("can set essential properties from a parent tag document to a content document on content document submission", async () => {
+        await db.upsertDoc({
+            _id: "test-tag-category1",
+            type: "tag",
+            memberOf: ["group-public-content"],
+            tags: ["tag-topicA"],
+            tagType: "topic",
+            pinned: 1,
+            publishDateVisible: true,
+            taggedDocs: ["test-tagged-doc"],
+        } as TagDto);
+
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "test-tag-category1";
+        changeRequest.doc._id = "test-essential-tag-properties";
+        delete changeRequest.doc.parentTags;
+        delete changeRequest.doc.parentTagType;
+        delete changeRequest.doc.parentPinned;
+        delete changeRequest.doc.parentPublishDateVisible;
+        delete changeRequest.doc.parentTaggedDocs;
+
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
+        const dbDoc = await db.getDoc(changeRequest.doc._id);
+
+        expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
+        expect(dbDoc.docs[0].parentTags).toEqual(["tag-topicA"]);
+        expect(dbDoc.docs[0].parentTagType).toEqual("topic");
+        expect(dbDoc.docs[0].parentPinned).toEqual(1);
+        expect(dbDoc.docs[0].parentPublishDateVisible).toEqual(true);
+        expect(dbDoc.docs[0].parentTaggedDocs).toEqual(["test-tagged-doc"]);
     });
 
     it("can set essential properties from a parent document to a content document on post / tag document submission", async () => {

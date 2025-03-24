@@ -30,6 +30,7 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
         if (parentDoc.type == DocType.Tag) {
             doc.parentTagType = (parentDoc as TagDto).tagType;
             doc.parentPinned = (parentDoc as TagDto).pinned;
+            doc.parentTaggedDocs = (parentDoc as TagDto).taggedDocs;
         }
         doc.parentPublishDateVisible = parentDoc.publishDateVisible;
     }
