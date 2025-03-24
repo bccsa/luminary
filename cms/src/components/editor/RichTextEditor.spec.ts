@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import RichTextEditor from "./RichTextEditor.vue";
 import waitForExpect from "wait-for-expect";
-import { EditorContent } from "@tiptap/vue-3";
 
 describe("RichTextEditor", () => {
     it("mounts with content", async () => {
