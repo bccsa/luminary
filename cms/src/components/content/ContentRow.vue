@@ -29,7 +29,19 @@ const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentT
 const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
 
 // Get the tags
-const tagsContent = ref<ContentDto[]>([]);
+// const tagsContent = ref<ContentDto[]>([]);
+const tagsContent = useDexieLiveQueryWithDeps(
+    props,
+    (_props: Props) =>
+        db.docs
+            .where("parentId")
+            .anyOf(_props.contentDoc.parentTags)
+            .filter((t) => {
+                return true;
+            })
+            .toArray() as unknown as Promise<ContentDto[]>,
+    { initialValue: [] as ContentDto[] },
+);
 
 // Get the groups
 const groups = useDexieLiveQueryWithDeps(
@@ -50,19 +62,19 @@ const accessibleLanguages = computed(() =>
     ),
 );
 
-watch(
-    contentDocs,
-    async () => {
-        if (!contentDocs.value || contentDocs.value.length === 0) return;
+// watch(
+//     contentDocs,
+//     async () => {
+//         if (!contentDocs.value || contentDocs.value.length === 0) return;
 
-        tagsContent.value = await db.whereParent(
-            contentDocs.value[0].parentTags,
-            DocType.Tag,
-            props.languageId,
-        );
-    },
-    { immediate: true },
-);
+//         tagsContent.value = await db.whereParent(
+//             contentDocs.value[0].parentTags,
+//             DocType.Tag,
+//             props.languageId,
+//         );
+//     },
+//     { immediate: true },
+// );
 
 // Determine the status of the translation
 const translationStatus = computed(() => {
