@@ -70,6 +70,7 @@ export class SearchReqDto {
     @Expose()
     includeDeleteCmds?: boolean;
 
+    @IsOptional()
     @IsString()
     @Expose()
     docId?: string;

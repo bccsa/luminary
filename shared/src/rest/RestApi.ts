@@ -16,7 +16,6 @@ export type ApiSearchQuery = {
     to?: number;
     languages?: Array<string>;
     includeDeleteCmds?: boolean;
-    userId?: string;
     docId?: string;
 };
 
