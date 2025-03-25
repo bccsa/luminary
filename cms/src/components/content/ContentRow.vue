@@ -17,6 +17,7 @@ import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import LButton from "../button/LButton.vue";
 import { DateTime } from "luxon";
+import { cms_defaultLanguage } from "@/globalConfig";
 
 type Props = {
     contentDoc: ContentDto;
@@ -37,6 +38,13 @@ const tagsContent = useDexieLiveQueryWithDeps(
             .where("parentId")
             .anyOf(_props.contentDoc.parentTags)
             .filter((t) => {
+                if (t.docType !== DocType.Tag) return false;
+                if (
+                    props.languageId !== t.language ||
+                    props.languageId !== cms_defaultLanguage.value._id
+                )
+                    return false;
+
                 return true;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
