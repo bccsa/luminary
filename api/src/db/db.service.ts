@@ -526,10 +526,6 @@ export class DbService extends EventEmitter {
                 });
             }
 
-            if (options.docId) {
-                selectors.push({ _id: options.docId });
-            }
-
             const timeSelector = [];
             if (selectors.length > 0) {
                 timeSelector.push({
@@ -537,11 +533,13 @@ export class DbService extends EventEmitter {
                 });
             }
 
+            const docIdSelector = options.docId ? [{ _id: options.docId }] : [];
+
             const languageSelector =
                 options.languages?.length > 0 ? [{ language: { $in: options.languages } }] : [];
 
             const docQuery = {
-                selector: { $and: [...timeSelector] },
+                selector: { $and: [...timeSelector, ...docIdSelector] },
                 limit: options.limit || Number.MAX_SAFE_INTEGER,
                 sort: options.sort || [{ updatedTimeUtc: "desc" }],
             };
