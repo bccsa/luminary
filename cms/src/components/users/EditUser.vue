@@ -34,7 +34,7 @@ const usersQuery: ApiSearchQuery = {
     types: [DocType.User],
     docId: props.id,
 };
-const user = ref<Map<string, UserDto>>(new Map());
+const user = ref<UserDto>();
 provide("users", user);
 
 const isLocalChange = db.isLocalChangeAsRef(props.id);
@@ -43,12 +43,11 @@ const { addNotification } = useNotificationStore();
 const getUser = async () => {
     const _q = await getRest().search(usersQuery);
     if (_q) {
-        user.value.set(_q._id, _q);
+        user.value = _q.docs[0];
     }
 };
 getUser();
 
-const userData = user.value;
 const original = ref<UserDto | null>();
 const isDirty = ref(false);
 const showDeleteModal = ref(false);
@@ -63,7 +62,7 @@ const editable = ref<UserDto>({
 });
 
 watch(
-    () => userData.get(props.id),
+    () => user.value,
     (user) => {
         if (user) {
             original.value = _.cloneDeep(user); // Update the original object
