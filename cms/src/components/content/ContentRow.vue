@@ -11,13 +11,13 @@ import {
     type GroupDto,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed } from "vue";
 import LBadge from "../common/LBadge.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import LButton from "../button/LButton.vue";
 import { DateTime } from "luxon";
-import { cms_defaultLanguage } from "@/globalConfig";
+import { cmsDefaultLanguage, cmsLanguageIdAsRef } from "@/globalConfig";
 
 type Props = {
     contentDoc: ContentDto;
@@ -30,7 +30,6 @@ const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentT
 const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
 
 // Get the tags
-// const tagsContent = ref<ContentDto[]>([]);
 const tagsContent = useDexieLiveQueryWithDeps(
     props,
     (_props: Props) =>
@@ -38,14 +37,12 @@ const tagsContent = useDexieLiveQueryWithDeps(
             .where("parentId")
             .anyOf(_props.contentDoc.parentTags)
             .filter((t) => {
-                if (t.docType !== DocType.Tag) return false;
                 if (
-                    props.languageId !== t.language ||
-                    props.languageId !== cms_defaultLanguage.value._id
+                    t.language === cmsLanguageIdAsRef.value ||
+                    t.language === cmsDefaultLanguage.value
                 )
-                    return false;
-
-                return true;
+                    return true;
+                return false;
             })
             .toArray() as unknown as Promise<ContentDto[]>,
     { initialValue: [] as ContentDto[] },
@@ -69,20 +66,6 @@ const accessibleLanguages = computed(() =>
         verifyAccess(language.memberOf, DocType.Language, AclPermission.Translate),
     ),
 );
-
-// watch(
-//     contentDocs,
-//     async () => {
-//         if (!contentDocs.value || contentDocs.value.length === 0) return;
-
-//         tagsContent.value = await db.whereParent(
-//             contentDocs.value[0].parentTags,
-//             DocType.Tag,
-//             props.languageId,
-//         );
-//     },
-//     { immediate: true },
-// );
 
 // Determine the status of the translation
 const translationStatus = computed(() => {
