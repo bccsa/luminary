@@ -27,11 +27,11 @@ const setLanguage = (id: string) => {
         :is-visible="isVisible"
         @close="emit('close')"
     >
-        <div class="divide-y divide-zinc-200 dark:divide-slate-600">
+        <div class="divide-y divide-zinc-200">
             <button
                 v-for="language in languages"
                 :key="language._id"
-                class="flex w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex w-full cursor-pointer items-center p-3 hover:bg-zinc-200"
                 @click="setLanguage(language._id)"
                 data-test="switch-language-button"
             >

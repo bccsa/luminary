@@ -108,19 +108,19 @@ onMounted(() => {
                     <button
                         :class="[
                             active ? 'bg-zinc-50' : '',
-                            'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 dark:text-white dark:hover:bg-slate-600 ',
+                            'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 ',
                         ]"
                         @click="item.action"
                     >
                         <component
                             :is="item.icon"
-                            class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                            class="h-5 w-5 flex-shrink-0 text-zinc-500"
                             aria-hidden="true"
                         />
                         <div class="flex flex-col text-nowrap leading-none">
                             {{ item.name }}
                             <span
-                                class="text-[12px] text-zinc-500 dark:text-white"
+                                class="text-[12px] text-zinc-500"
                                 v-if="item.name == 'Language'"
                                 >{{ languageToDisplay }}</span
                             >
