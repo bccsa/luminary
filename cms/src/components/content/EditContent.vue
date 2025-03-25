@@ -20,6 +20,7 @@ import {
     verifyAccess,
     type ContentParentDto,
     PostType,
+    isConnected,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -41,6 +42,8 @@ import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
+import { clientAppUrl } from "@/globalConfig";
 
 type Props = {
     id: Uuid;
@@ -143,6 +146,13 @@ const selectedLanguage = computed(() => {
 const selectedContent = computed(() => {
     if (editableContent.value.length == 0) return undefined;
     return editableContent.value.find(
+        (c) => c.language == selectedLanguageId.value && !c.deleteReq,
+    );
+});
+
+const selectedContent_Existing = computed(() => {
+    if (existingContent.value?.length == 0) return undefined;
+    return existingContent.value?.find(
         (c) => c.language == selectedLanguageId.value && !c.deleteReq,
     );
 });
@@ -381,6 +391,17 @@ watch(selectedLanguage, () => {
         );
     }
 });
+
+const liveUrl = computed(() => {
+    if (!selectedContent.value) return "";
+    const url = new URL(
+        selectedContent.value.slug,
+        clientAppUrl.value ? clientAppUrl.value : "http://localhost",
+    );
+    return url.toString();
+});
+
+const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 </script>
 
 <template>
@@ -405,7 +426,24 @@ watch(selectedLanguage, () => {
             languageCode: languageCode,
         }"
         v-if="editableParent"
+        class="relative"
     >
+        <template #postTitleSlot>
+            <LButton
+                v-if="
+                    isConnected &&
+                    selectedContent_Existing &&
+                    selectedContent_Existing.status == PublishStatus.Published
+                "
+                :icon="ArrowTopRightOnSquareIcon"
+                iconRight
+                class="cursor-pointer font-extralight text-zinc-600/[55%]"
+                variant="tertiary"
+                @click="ensureRedirect"
+                target="_blank"
+                title="View live version"
+            ></LButton>
+        </template>
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>

@@ -50,6 +50,7 @@ withDefaults(defineProps<Props>(), {
                 <h1 class="flex items-center gap-2 text-lg font-semibold leading-7">
                     <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
                     {{ title }}
+                    <slot name="postTitleSlot"></slot>
                 </h1>
 
                 <div v-if="$slots.actions">
