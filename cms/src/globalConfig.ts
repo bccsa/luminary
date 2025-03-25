@@ -1,6 +1,6 @@
 import { ref, watch } from "vue";
 import { db, DocType, useDexieLiveQuery, type LanguageDto } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -12,23 +12,27 @@ export const isDevMode = import.meta.env.DEV;
  * The preferred CMS language ID as Vue ref.
  */
 export const cmsLanguageIdAsRef = ref(localStorage.getItem("cms_selectedLanguage") || "");
-const defaultLanguageAsQuery = useDexieLiveQuery(
-    () =>
-        db.docs
-            .where("type")
-            .equals(DocType.Language)
-            .filter((l) => {
-                const language = l as LanguageDto;
-                if (!language.default) return false;
-                return true;
-            })
-            .toArray() as unknown as Promise<LanguageDto[]>,
-);
-export const cms_defaultLanguage = computed(() =>
-    defaultLanguageAsQuery.value
-        ? (defaultLanguageAsQuery.value[0] as LanguageDto)
-        : ({} as LanguageDto),
-);
+
+export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
+
+export async function initLanguage() {
+    const defaultLanguageQueryAsRef = useDexieLiveQuery(
+        async () =>
+            (await db.docs
+                .where({ type: DocType.Language })
+                .filter((l) => {
+                    const language = l as LanguageDto;
+                    return language.default === 1;
+                })
+                .toArray()) as unknown as Promise<LanguageDto[]>,
+    );
+
+    watch(defaultLanguageQueryAsRef, () => {
+        cmsDefaultLanguage.value = defaultLanguageQueryAsRef.value
+            ? defaultLanguageQueryAsRef.value[0]
+            : undefined;
+    });
+}
 
 watch(cmsLanguageIdAsRef, (newVal) => {
     localStorage.setItem("cms_selectedLanguage", newVal);
