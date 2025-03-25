@@ -28,34 +28,27 @@ import LoadingSpinner from "../LoadingSpinner.vue";
 type Props = {
     id: Uuid;
 };
+const props = defineProps<Props>();
 
 const usersQuery: ApiSearchQuery = {
     types: [DocType.User],
+    docId: props.id,
 };
-const users = ref<Map<string, UserDto>>(new Map());
-provide("users", users);
+const user = ref<Map<string, UserDto>>(new Map());
+provide("users", user);
 
-const props = defineProps<Props>();
 const isLocalChange = db.isLocalChangeAsRef(props.id);
 const { addNotification } = useNotificationStore();
 
-const getDbUsers = async () => {
-    const _s = Object.fromEntries(users.value);
-    const latest = Object.values(_s).reduce((acc, curr) => {
-        return curr.updatedTimeUtc > acc ? curr.updatedTimeUtc : acc;
-    }, 0);
-
-    latest ? (usersQuery.from = latest) : delete usersQuery.from;
+const getUser = async () => {
     const _q = await getRest().search(usersQuery);
-    _q &&
-        _q.docs &&
-        _q.docs.forEach((d: UserDto) => {
-            users.value.set(d._id, d);
-        });
+    if (_q) {
+        user.value.set(_q._id, _q);
+    }
 };
-getDbUsers();
+getUser();
 
-const userData = users.value;
+const userData = user.value;
 const original = ref<UserDto | null>();
 const isDirty = ref(false);
 const showDeleteModal = ref(false);
@@ -213,7 +206,6 @@ const save = async () => {
                         type="button"
                         @click="
                             () => {
-                                console.log('Delete button clicked');
                                 showDeleteModal = true;
                             }
                         "
@@ -265,7 +257,6 @@ const save = async () => {
         :primaryAction="
             () => {
                 showDeleteModal = false;
-                console.log('Delete user');
                 deleteUser();
             }
         "

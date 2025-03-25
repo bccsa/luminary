@@ -68,6 +68,13 @@ class RestApi {
 
     async search(query: ApiSearchQuery) {
         query.apiVersion = "0.0.0";
+
+        if (query.docId) {
+            return (await this.http.get("search", query)).docs.find(
+                (d: any) => d._id === query.docId,
+            );
+        }
+
         return await this.http.get("search", query);
     }
 

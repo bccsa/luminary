@@ -115,12 +115,15 @@ describe("EditUser.vue", () => {
         // @ts-expect-error
         wrapper.vm.editable.email = "updated@user.com";
 
+        // @ts-expect-error
+        wrapper.vm.editable.memberOf = ["group-super-admins"];
+
         await nextTick(); // Ensure Vue updates the UI before proceeding
 
         await saveButton.trigger("click");
 
         await waitForExpect(async () => {
-            const updatedUser = (await db.docs.get({ _id: mockUserDto._id })) as UserDto;
+            const updatedUser = await db.get<UserDto>(mockUserDto._id);
 
             expect(updatedUser.name).toBe("Updated User Name");
             expect(updatedUser.email).toBe("updated@user.com");
