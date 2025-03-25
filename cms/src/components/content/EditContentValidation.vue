@@ -5,7 +5,6 @@ import {
     type LanguageDto,
     DocType,
     type TagDto,
-    isConnected,
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
@@ -19,9 +18,6 @@ import LBadge, { variants } from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
-import { clientAppUrl } from "@/globalConfig";
-import LButton from "../button/LButton.vue";
 import LDialog from "../common/LDialog.vue";
 
 type Props = {
