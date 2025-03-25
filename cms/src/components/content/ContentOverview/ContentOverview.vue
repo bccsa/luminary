@@ -16,12 +16,12 @@ import {
     AclPermission,
     DocType,
     TagType,
-    type LanguageDto,
     type Uuid,
     hasAnyPermission,
     type ContentDto,
     PostType,
     useDexieLiveQueryWithDeps,
+    type LanguageDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";

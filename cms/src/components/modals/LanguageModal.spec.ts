@@ -1,11 +1,10 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import LanguageModal from "./LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
-import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
-import { createI18n } from "vue-i18n";
+import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -13,18 +12,7 @@ global.ResizeObserver = class FakeResizeObserver {
     disconnect() {}
 };
 
-const i18n = createI18n({
-    locale: "en",
-    messages: {
-        en: { "language.modal.title": "Select Language" },
-    },
-});
-
 describe("LanguageModal.vue", () => {
-    beforeAll(async () => {
-        initLanguage();
-    });
-
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
     });
@@ -37,48 +25,70 @@ describe("LanguageModal.vue", () => {
     it("renders correctly when visible", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
-            global: {
-                plugins: [i18n],
-            },
         });
 
-        expect(wrapper.find("h2").text()).toBe("Select Language");
+        expect(wrapper.find("h2").text()).toBe("Select preferred content language");
     });
 
     it("does not render when isVisible is false", () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: false },
-            global: {
-                plugins: [i18n],
-            },
         });
 
         expect(wrapper.find("h2").exists()).toBe(false);
     });
 
-    it("stores the selected language", async () => {
+    it("emits close event on language click and stores the selected language", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
-            global: {
-                plugins: [i18n],
-            },
         });
 
         //@ts-expect-error -- valid code
         wrapper.vm.languages = await db.docs.toArray();
 
-        const languageButtons = await wrapper.findAll('[data-test="add-language-button"]');
+        const languageButtons = await wrapper.findAll('[data-test="switch-language-button"]');
+
+        await languageButtons[1].trigger("click");
+
+        expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoFra._id);
+
+        expect(wrapper.emitted()).toHaveProperty("close");
+    });
+
+
+    it("should switch languages correctly", async () => {
+        const wrapper = mount(LanguageModal, {
+            props: { isVisible: true }
+        });
+
+        //@ts-expect-error -- valid code
+        wrapper.vm.languages = await db.docs.toArray();
+
+        const modal = await wrapper.find("[name='lModal-languages']");
+
+        expect(modal.exists()).toBe(true);
+
+        const languageButtons = await wrapper.findAll('[data-test="switch-language-button"]');
+        expect(languageButtons.length).toBe(3);
+
+        await languageButtons[1].trigger("click");
+
+        expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoFra._id);
+
         await languageButtons[0].trigger("click");
 
-        expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+        expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoEng._id);
+
+        await languageButtons[2].trigger("click");
+
+        expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoSwa._id);
+
     });
+        
 
     it("emits the close event on close button click", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
-            global: {
-                plugins: [i18n],
-            },
         });
 
         await wrapper.findComponent({ name: "LButton" }).trigger("click");

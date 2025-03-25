@@ -272,6 +272,7 @@ export const mockLanguageDtoEng: LanguageDto = {
     memberOf: ["group-languages"],
     languageCode: "eng",
     name: "English",
+    default: 1,
     translations: {
         "menu.home": "Home",
         "menu.explore": "Explore",

@@ -58,10 +58,14 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
+        await wrapper.vm.$nextTick();
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
+        await waitForExpect(async () => {
+            expect(await wrapper.html()).toContain(mockData.mockEnglishContentDto.title);
         });
-    }, 10000);
+    });
 
     it("should show edit button with correct router link and icon", async () => {
         const wrapper = mount(ContentOverview, {
@@ -73,6 +77,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(() => {
             const editButton = wrapper.find('[data-test="edit-button"]');
@@ -103,6 +110,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(() => {
             const viewButton = wrapper.find('[data-test="edit-button"]');
@@ -183,7 +193,7 @@ describe("ContentOverview.vue", () => {
 
         await waitForExpect(async () => {
             //@ts-ignore as this code is valid
-            wrapper.vm.selectedLanguage = "lang-eng";
+            wrapper.vm.cmsLanguageIdAsRef = "lang-eng";
 
             const contentTable = await wrapper.findComponent(ContentTable);
 
@@ -217,6 +227,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(() => {
             const searchInput = wrapper.find('[data-test="search-input"]');
             expect(searchInput.exists()).toBe(true);
@@ -233,6 +246,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const searchInput = wrapper.find('[data-test="search-input"]');
 
@@ -255,6 +271,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         await waitForExpect(async () => {
             const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
@@ -286,6 +305,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
         await sortToggleBtn.trigger("click");
@@ -338,6 +360,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(() => {
             const createButton = wrapper.find('[data-test="create-button"]');
             expect(createButton.text()).toBe("Create post");
@@ -363,6 +388,9 @@ describe("ContentOverview.vue", () => {
             },
         });
 
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
         await waitForExpect(async () => {
             const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
             expect(filterInputSelects.length).toBe(2);
@@ -379,6 +407,9 @@ describe("ContentOverview.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
 
         const filterInputSelects = wrapper.findAll('[data-test="filter-select"]');
 

@@ -5,11 +5,16 @@ import * as auth0 from "@auth0/auth0-vue";
 import { setActivePinia, createPinia } from "pinia";
 
 const routePushMock = vi.hoisted(() => vi.fn());
-vi.mock("vue-router", () => ({
-    useRouter: vi.fn().mockImplementation(() => ({
-        push: routePushMock,
-    })),
-}));
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as object),
+        useRouter: vi.fn().mockImplementation(() => ({
+            push: routePushMock,
+        })),
+    };
+});
 
 vi.mock("@auth0/auth0-vue");
 
@@ -42,7 +47,7 @@ describe("ProfileMenu", () => {
 
         const wrapper = mount(ProfileMenu);
         await wrapper.find("button").trigger("click");
-        await wrapper.findAll("button")[2].trigger("click");
+        await wrapper.findAll("button")[3].trigger("click");
 
         expect(logout).toHaveBeenCalled();
     });

@@ -1,27 +1,74 @@
 <script setup lang="ts">
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { ChevronDownIcon, UserIcon } from "@heroicons/vue/20/solid";
+import {
+    ArrowLeftEndOnRectangleIcon,
+    ChevronDownIcon,
+    Cog6ToothIcon,
+    LanguageIcon,
+    UserIcon,
+} from "@heroicons/vue/20/solid";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { isDevMode } from "@/globalConfig";
+import { cmsLanguageIdAsRef, isDevMode } from "@/globalConfig";
 import { useRouter } from "vue-router";
+import { onMounted, ref, watch } from "vue";
+import LanguageModal from "../modals/LanguageModal.vue";
+import type { LanguageDto } from "luminary-shared";
+import { db, DocType } from "luminary-shared";
+import { PlayIcon } from "@heroicons/vue/16/solid";
 
 const { user, logout } = useAuth0();
 const router = useRouter();
 
-const userNavigation: {
-    name: string;
-    action: Function;
-}[] = [
-    { name: "Settings", action: () => router.push({ name: "settings" }) },
+const showLanguageModal = ref(false);
+
+const userNavigation = [
+    { name: "Settings", action: () => router.push({ name: "settings" }), icon: Cog6ToothIcon },
+    {
+        name: "Language",
+        language: cmsLanguageIdAsRef.value,
+        action: () => (showLanguageModal.value = true),
+        icon: LanguageIcon,
+    },
     {
         name: "Sign out",
-        action: () => logout({ logoutParams: { returnTo: window.location.origin } }),
+
+        icon: ArrowLeftEndOnRectangleIcon,
+        action: () =>
+            logout({
+                logoutParams: { returnTo: window.location.origin },
+            }),
     },
 ];
 
+const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languageToDisplay = ref("");
+
 if (isDevMode) {
-    userNavigation.push({ name: "Sandbox", action: () => router.push({ name: "sandbox" }) });
+    userNavigation.push({
+        name: "Sandbox",
+        action: () => router.push({ name: "sandbox" }),
+        icon: PlayIcon,
+    });
 }
+
+onMounted(() => {
+    // Update languageToDisplay when languages or cmsLanguageIdAsRef changes
+    watch(
+        [languages, cmsLanguageIdAsRef],
+        ([newLanguages, langId]) => {
+            if (newLanguages.length > 0) {
+                const matchedLanguage = newLanguages.find((l) => l._id == langId);
+                languageToDisplay.value = matchedLanguage?.name ?? "Default Language";
+
+                // Set cmsLanguageIdAsRef if it's not already defined
+                if (!langId) {
+                    cmsLanguageIdAsRef.value = newLanguages[0]._id;
+                }
+            }
+        },
+        { immediate: true },
+    );
+});
 </script>
 
 <template>
@@ -61,14 +108,27 @@ if (isDevMode) {
                     <button
                         :class="[
                             active ? 'bg-zinc-50' : '',
-                            'block w-full cursor-pointer px-3 py-1 text-left text-sm leading-6 text-zinc-900 ',
+                            'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 ',
                         ]"
                         @click="item.action"
                     >
-                        {{ item.name }}
+                        <component
+                            :is="item.icon"
+                            class="h-5 w-5 flex-shrink-0 text-zinc-500"
+                            aria-hidden="true"
+                        />
+                        <div class="flex flex-col text-nowrap leading-none">
+                            {{ item.name }}
+                            <span
+                                class="text-[12px] text-zinc-500"
+                                v-if="item.name == 'Language'"
+                                >{{ languageToDisplay }}</span
+                            >
+                        </div>
                     </button>
                 </MenuItem>
             </MenuItems>
         </transition>
     </Menu>
+    <LanguageModal :is-visible="showLanguageModal" @close="showLanguageModal = false" />
 </template>
