@@ -21,6 +21,7 @@ import {
     type ContentDto,
     PostType,
     useDexieLiveQueryWithDeps,
+    type LanguageDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
