@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { computed, onErrorCaptured, watch } from "vue";
+import { computed, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
@@ -84,6 +84,10 @@ onErrorCaptured((err) => {
     console.error(err);
     Sentry.captureException(err);
 });
+
+onMounted(() => {
+    document.querySelector("main")?.focus(); // Focus to enable keyboard scrolling
+});
 </script>
 
 <template>
@@ -91,7 +95,10 @@ onErrorCaptured((err) => {
         <TopBar class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50" />
         <NotificationBannerManager />
 
-        <main class="flex-1 overflow-y-scroll px-4 py-4 dark:bg-slate-900">
+        <main
+            class="flex-1 overflow-y-scroll px-4 py-4 scrollbar-hide focus:outline-none dark:bg-slate-900"
+            tabindex="0"
+        >
             <RouterView v-slot="{ Component }">
                 <KeepAlive include="HomePage,ExplorePage">
                     <component :is="Component" :key="routeKey" />
