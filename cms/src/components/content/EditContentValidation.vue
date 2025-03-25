@@ -5,7 +5,6 @@ import {
     type LanguageDto,
     DocType,
     type TagDto,
-    isConnected,
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
@@ -19,9 +18,6 @@ import LBadge, { variants } from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
-import { clientAppUrl } from "@/globalConfig";
-import LButton from "../button/LButton.vue";
 import LDialog from "../common/LDialog.vue";
 
 type Props = {
@@ -127,17 +123,6 @@ watch(
     { immediate: true, deep: true },
 );
 
-const liveUrl = computed(() => {
-    if (!editableContent.value) return "";
-    const url = new URL(
-        editableContent.value.slug,
-        clientAppUrl.value ? clientAppUrl.value : "http://localhost",
-    );
-    return url.toString();
-});
-
-const ensureRedirect = () => window.open(liveUrl.value, "_blank");
-
 const deleteTranslation = () => {
     if (!editableContent.value) return;
     editableContent.value.deleteReq = 1;
@@ -174,23 +159,6 @@ const deleteTranslation = () => {
                 <span class="flex items-center justify-between text-sm text-zinc-900">
                     <div class="flex h-8 w-full items-center justify-start">
                         {{ usedLanguage?.name }}
-                        <LButton
-                            v-if="
-                                isConnected &&
-                                editableContent &&
-                                editableContent.status == PublishStatus.Published &&
-                                editableContent.title
-                            "
-                            :icon="ArrowTopRightOnSquareIcon"
-                            iconRight
-                            class="-ml-2 font-extralight text-zinc-600/[55%] hover:bg-transparent active:bg-transparent"
-                            variant="tertiary"
-                            is="a"
-                            @click="ensureRedirect"
-                            :href="liveUrl"
-                            target="_blank"
-                            title="View live version"
-                        ></LButton>
                     </div>
                     <div class="flex items-center gap-1">
                         <template v-if="statusChanged">
