@@ -314,7 +314,7 @@ describe("SingleContent", () => {
         });
 
         const notificationStore = useNotificationStore();
-        // simulate language change
+
         appLanguageIdsAsRef.value.unshift("lang-test");
 
         await waitForExpect(() => {
