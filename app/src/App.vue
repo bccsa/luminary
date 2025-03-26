@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { computed, onErrorCaptured, onMounted, watch } from "vue";
+import { computed, nextTick, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
@@ -85,9 +85,15 @@ onErrorCaptured((err) => {
     Sentry.captureException(err);
 });
 
-onMounted(() => {
-    document.querySelector("main")?.focus(); // Focus to enable keyboard scrolling
-});
+// Watch for route changes and handle focus reset
+watch(
+    () => router.currentRoute,
+    async () => {
+        // wait the document to be ready before trying to focus
+        await nextTick();
+        document.querySelector("main")?.focus(); // Focus on main after routing
+    },
+);
 </script>
 
 <template>
