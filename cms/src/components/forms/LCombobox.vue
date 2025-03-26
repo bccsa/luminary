@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type StyleValue } from "vue";
+import { computed, ref, watch, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
@@ -19,6 +19,7 @@ type Props = {
     label?: string;
     disabled?: boolean;
     options: ComboboxOption[];
+    showSelectedInDropdown?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -26,9 +27,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions");
 
-const inputElement = ref();
+const inputElement = ref<HTMLElement>();
 const comboboxElement = ref();
-const dropdown = ref();
+const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
 
 const optionsList = computed(() =>
@@ -37,20 +38,33 @@ const optionsList = computed(() =>
         label: o.label,
         value: o.value,
         selected: selectedOptions.value?.includes(o.id),
+        highlighted: false,
     })),
 );
 
 const query = ref("");
 const filtered = computed(() =>
-    optionsList.value.filter((o) => o.label.toLowerCase().includes(query.value.toLowerCase())),
+    optionsList.value.filter((o) => {
+        if (!props.showSelectedInDropdown && o.selected) return false;
+        return o.label.toLowerCase().includes(query.value.toLowerCase());
+    }),
 );
 
 const handleChevronBtnClick = () => {
+    if (!inputElement.value) return;
     inputElement.value.focus();
     showDropdown.value = !showDropdown.value;
 };
 
 onClickOutside(comboboxElement, () => (showDropdown.value = false));
+
+const highlightedIndex = ref(-1);
+
+watch(showDropdown, () => {
+    if (!showDropdown.value) {
+        highlightedIndex.value = -1;
+    }
+});
 </script>
 
 <template>
@@ -69,6 +83,50 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
                 class="w-full"
                 placeholder="Type to select..."
                 name="option-search"
+                @keydown.enter="
+                    () => {
+                        // Add the highlighted option to the selected options on enter
+                        if (highlightedIndex >= 0) {
+                            selectedOptions?.push(filtered[highlightedIndex].id);
+                            query = '';
+                            showDropdown = false;
+                            return;
+                        }
+
+                        // If no option is highlighted, add the first option to the selected options
+                        if (filtered.length > 0) {
+                            selectedOptions?.push(filtered[0].id);
+                            query = '';
+                            showDropdown = false;
+                        }
+                    }
+                "
+                autocomplete="off"
+                @keydown.escape="
+                    () => {
+                        query = '';
+                        showDropdown = false;
+                    }
+                "
+                @keydown.down="
+                    () => {
+                        if (!showDropdown) showDropdown = true;
+                        if (highlightedIndex < filtered.length - 1) highlightedIndex++;
+                        dropdown?.children[highlightedIndex].scrollIntoView({
+                            block: 'nearest',
+                            behavior: 'smooth',
+                        });
+                    }
+                "
+                @keydown.up="
+                    () => {
+                        if (highlightedIndex > 0) highlightedIndex--;
+                        dropdown?.children[highlightedIndex].scrollIntoView({
+                            block: 'nearest',
+                            behavior: 'smooth',
+                        });
+                    }
+                "
             />
             <button @click="handleChevronBtnClick" name="options-open-btn">
                 <ChevronUpDownIcon
@@ -88,7 +146,7 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
                 v-for="option in filtered"
                 :key="option.id"
                 :disabled="option.selected"
-                class="list-none text-sm hover:bg-zinc-100"
+                class="w-full list-none text-sm hover:bg-zinc-100"
                 :class="[
                     'relative cursor-default select-none py-2 pl-3 pr-9',
                     {
@@ -96,6 +154,9 @@ onClickOutside(comboboxElement, () => (showDropdown.value = false));
                     },
                     {
                         'text-zinc-300 hover:bg-white': option.selected,
+                    },
+                    {
+                        'bg-zinc-100': highlightedIndex === filtered.indexOf(option),
                     },
                 ]"
                 @click="

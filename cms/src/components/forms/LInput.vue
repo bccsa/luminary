@@ -26,6 +26,7 @@ type Props = {
     leftAddOn?: string;
     rightAddOn?: string;
     inputType?: "input" | "textarea";
+    autocomplete?: "on" | "off";
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -153,6 +154,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
                 :rows="inputType === 'textarea' ? '1' : undefined"
+                :autocomplete="autocomplete && inputType == 'input' ? autocomplete : 'on'"
             />
 
             <span

@@ -65,6 +65,7 @@ const filteredGroups = computed(() =>
             :options="groupList"
             label="Group Membership"
             :selectedOptions="groups"
+            :showSelectedInDropdown="false"
         />
 
         <Transition
