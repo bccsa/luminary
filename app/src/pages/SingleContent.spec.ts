@@ -33,7 +33,7 @@ vi.mock("vue-router", async (importOriginal) => {
         ...actual,
         useRouter: vi.fn().mockImplementation(() => ({
             currentRoute: ref({
-                name: "content", // ✅ Ensure name is "content"
+                name: "content", 
                 params: { slug: mockEnglishContentDto.slug },
             }),
             replace: routeReplaceMock,
