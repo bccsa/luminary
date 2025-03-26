@@ -10,6 +10,7 @@ import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { isConnected } from "luminary-shared";
 import { useI18n } from "vue-i18n";
+import { useNotificationStore } from "@/stores/notification";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -103,6 +104,52 @@ describe("ProfileMenu", () => {
         await profileMenuButtons[6].trigger("click");
         await waitForExpect(() => {
             expect(logout).toHaveBeenCalled();
+        });
+    });
+
+    it("displays correct notification when logging in when offline", async () => {
+        const login = vi.fn();
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+            login,
+        });
+
+        const wrapper = mount(ProfileMenu);
+
+        const notificationStore = useNotificationStore();
+
+        isConnected.value = false;
+
+        await wrapper.find("button").trigger("click");
+        const profileMenuButtons = wrapper.findAll("button");
+
+        await profileMenuButtons[6].trigger("click");
+        await waitForExpect(() => {
+            expect(login).not.toHaveBeenCalled();
+            expect(notificationStore.addNotification).toHaveBeenCalled();
+        });
+    });
+
+    it("displays correct notification when logging out when offline", async () => {
+        const logout = vi.fn();
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(true),
+            logout,
+        });
+
+        const wrapper = mount(ProfileMenu);
+
+        const notificationStore = useNotificationStore();
+
+        isConnected.value = false;
+
+        await wrapper.find("button").trigger("click");
+        const profileMenuButtons = wrapper.findAll("button");
+
+        await profileMenuButtons[6].trigger("click");
+        await waitForExpect(() => {
+            expect(logout).not.toHaveBeenCalled();
+            expect(notificationStore.addNotification).toHaveBeenCalled();
         });
     });
 });
