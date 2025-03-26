@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
     appLanguageAsRef,
     appLanguageIdsAsRef,
-    initLanguage,
     setMediaProgress,
     getMediaProgress,
     removeMediaProgress,
@@ -22,7 +21,6 @@ describe("globalConfig.ts", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await initLanguage();
     });
 
     afterEach(async () => {
