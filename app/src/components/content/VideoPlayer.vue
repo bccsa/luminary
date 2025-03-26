@@ -97,6 +97,9 @@ onMounted(() => {
                 forward: 10,
                 backward: 10,
             },
+            volumeControl: {
+                vertical: false,
+            },
         },
     };
 

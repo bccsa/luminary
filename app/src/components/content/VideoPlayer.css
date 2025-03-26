@@ -132,3 +132,7 @@
     @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
 }
+
+.video-player .vjs-volume-control {
+    @apply hidden md:block; /* Hidden on mobile (sm) and shown on medium (md) and up */
+}
