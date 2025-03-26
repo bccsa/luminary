@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { mount } from "@vue/test-utils";
+import { DOMWrapper, mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from "vitest";
 import EditUser from "./EditUser.vue";
 import { createTestingPinia } from "@pinia/testing";
@@ -109,21 +109,28 @@ describe("EditUser.vue", () => {
 
         await nextTick(); // Ensure Vue updates the UI before proceeding
 
-        // @ts-expect-error
-        wrapper.vm.editable.name = "Updated User Name";
+        const userNameInput = wrapper.find(
+            '[data-test="userName"]',
+        ) as DOMWrapper<HTMLInputElement>;
+        userNameInput.setValue("Updated User Name");
+
+        const userEmailInput = wrapper.find(
+            '[data-test="userEmail"]',
+        ) as DOMWrapper<HTMLInputElement>;
+        userEmailInput.setValue("updated@user.com");
 
         // @ts-expect-error
-        wrapper.vm.editable.email = "updated@user.com";
-
-        // @ts-expect-error
-        wrapper.vm.editable.memberOf = ["group-super-admins"];
+        // wrapper.vm.editable.memberOf = ["group-super-admins"];
 
         await nextTick(); // Ensure Vue updates the UI before proceeding
 
         await saveButton.trigger("click");
 
         await waitForExpect(async () => {
-            const updatedUser = await db.get<UserDto>(mockUserDto._id);
+            const localChangesTable = await db.localChanges.toArray();
+
+            const updatedUser = localChangesTable.find((c) => c.doc!._id === mockUserDto._id)!
+                .doc as UserDto;
 
             expect(updatedUser.name).toBe("Updated User Name");
             expect(updatedUser.email).toBe("updated@user.com");

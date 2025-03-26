@@ -228,6 +228,7 @@ const save = async () => {
                     class="mb-4 w-full"
                     placeholder="Enter user name"
                     :disabled="!canEditOrCreate"
+                    data-test="userName"
                 />
 
                 <LInput
@@ -237,12 +238,13 @@ const save = async () => {
                     class="mb-4 w-full"
                     placeholder="Enter email"
                     :disabled="!canEditOrCreate"
+                    data-test="userEmail"
                 />
 
                 <GroupSelector
                     v-model:groups="editable.memberOf"
                     :docType="DocType.User"
-                    data-test="group-selector"
+                    data-test="groupSelector"
                     :disabled="!canEditOrCreate"
                 />
             </LCard>
