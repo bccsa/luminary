@@ -90,15 +90,21 @@ onMounted(() => {
         enableSmoothSeeking: true,
         playbackRates: [0.5, 0.7, 1, 1.5],
         controlBar: {
-            muteToggle: false,
-            volumePanel: false,
-            remainingTimeDisplay: false,
+            children: [
+                "playToggle",
+                "progressControl",
+                "liveDisplay",
+                "fullscreenToggle",
+                "pictureInPictureToggle",
+                "playbackRateMenuButton",
+                "volumePanel",
+                "skipBackwardButton",
+                "skipForward",
+                "skipBackward",
+            ],
             skipButtons: {
                 forward: 10,
                 backward: 10,
-            },
-            volumeControl: {
-                vertical: false,
             },
         },
     };
