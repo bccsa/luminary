@@ -96,14 +96,14 @@ const hasGroupsSelected = computed(() => editable.value && editable.value.member
 
 const canEditOrCreate = computed(() => {
     if (editable.value) {
-        return verifyAccess(editable.value.memberOf, DocType.User, AclPermission.Edit, "all");
+        return verifyAccess(editable.value.memberOf, DocType.User, AclPermission.Edit, "any");
     }
     return hasAnyPermission(DocType.User, AclPermission.Edit);
 });
 
 const canDelete = computed(() => {
     if (!editable.value) return false;
-    return verifyAccess(editable.value.memberOf, DocType.User, AclPermission.Delete, "all");
+    return verifyAccess(editable.value.memberOf, DocType.User, AclPermission.Delete, "any");
 });
 
 const revertChanges = () => {

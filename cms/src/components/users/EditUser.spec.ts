@@ -123,6 +123,14 @@ describe("EditUser.vue", () => {
         ) as DOMWrapper<HTMLInputElement>;
         userEmailInput.setValue("updated@user.com");
 
+        const groupSelector = wrapper.find('[data-test="groupSelector"]');
+        const input = groupSelector.find('input[name="option-search"]');
+
+        await input.setValue("Public Editors");
+        await input.trigger("keydown.enter");
+
+        console.log(saveButton.attributes());
+
         await nextTick(); // Ensure Vue updates the UI before proceeding
 
         await saveButton.trigger("click");
@@ -135,7 +143,6 @@ describe("EditUser.vue", () => {
 
             expect(updatedUser.name).toBe("Updated User Name");
             expect(updatedUser.email).toBe("updated@user.com");
-            console.log(updatedUser);
         });
     });
 
