@@ -6,7 +6,12 @@ import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db, DocType, getRest, initConfig, type UserDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
-import { mockGroupDtoSuperAdmins, mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
+import {
+    mockGroupDtoPublicEditors,
+    mockGroupDtoSuperAdmins,
+    mockUserDto,
+    superAdminAccessMap,
+} from "@/tests/mockdata";
 import express from "express";
 import { nextTick, ref } from "vue";
 
@@ -67,7 +72,7 @@ describe("EditUser.vue", () => {
     });
 
     beforeEach(async () => {
-        await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockUserDto]);
+        await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockUserDto, mockGroupDtoPublicEditors]);
         await nextTick();
         setActivePinia(createTestingPinia());
     });
@@ -107,8 +112,6 @@ describe("EditUser.vue", () => {
 
         const saveButton = wrapper.find('[data-test="save-button"]');
 
-        await nextTick(); // Ensure Vue updates the UI before proceeding
-
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
         ) as DOMWrapper<HTMLInputElement>;
@@ -119,21 +122,27 @@ describe("EditUser.vue", () => {
         ) as DOMWrapper<HTMLInputElement>;
         userEmailInput.setValue("updated@user.com");
 
-        // @ts-expect-error
-        // wrapper.vm.editable.memberOf = ["group-super-admins"];
+        const groupSelector = wrapper.find(
+            '[data-test="groupSelector"]',
+        ) as DOMWrapper<HTMLDivElement>;
 
-        await nextTick(); // Ensure Vue updates the UI before proceeding
+        groupSelector.find('[name="option-search"]').trigger("click");
+        const options = wrapper.find("[data-test='options']");
+        await options.findAll("li")[0].trigger("click");
 
         await saveButton.trigger("click");
+
+        await nextTick(); // Ensure Vue updates the UI before proceeding
 
         await waitForExpect(async () => {
             const localChangesTable = await db.localChanges.toArray();
 
-            const updatedUser = localChangesTable.find((c) => c.doc!._id === mockUserDto._id)!
-                .doc as UserDto;
+            const updatedUser = localChangesTable.find((c) => c.doc?._id === mockUserDto._id)
+                ?.doc as UserDto;
 
             expect(updatedUser.name).toBe("Updated User Name");
             expect(updatedUser.email).toBe("updated@user.com");
+            expect(updatedUser.memberOf).toContain(mockGroupDtoPublicEditors._id);
         });
     });
 
@@ -151,27 +160,18 @@ describe("EditUser.vue", () => {
 
         const saveButton = wrapper.find('[data-test="save-button"]');
 
-        await nextTick(); // Ensure Vue updates the UI before proceeding
+        const userNameInput = wrapper.find(
+            '[data-test="userName"]',
+        ) as DOMWrapper<HTMLInputElement>;
+        userNameInput.setValue("Updated User Name");
 
-        // @ts-expect-error
-        wrapper.vm.editable.name = "Updated User Name";
+        const userEmailInput = wrapper.find(
+            '[data-test="userEmail"]',
+        ) as DOMWrapper<HTMLInputElement>;
+        userEmailInput.setValue("updated@user.com");
 
-        // @ts-expect-error
-        wrapper.vm.editable.email = "updated@user.com";
-
-        // @ts-expect-error
-        wrapper.vm.editable.memberOf = [];
-
-        await nextTick(); // Ensure Vue updates the UI before proceeding
-
-        await saveButton.trigger("click");
-
-        await waitForExpect(async () => {
-            const updatedUser = (await db.docs.get({ _id: mockUserDto._id })) as UserDto;
-
-            expect(updatedUser.name).toBe(mockUserDto.name);
-            expect(updatedUser.email).toBe(mockUserDto.email);
-        });
+        expect(saveButton.attributes("disabled")).toBeDefined();
+        expect(wrapper.html()).toContain("No group selected");
     });
 
     it("can delete a user", async () => {
@@ -196,7 +196,6 @@ describe("EditUser.vue", () => {
         let deleteModalButton;
         await waitForExpect(async () => {
             deleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
-            // console.log(wrapper.html());
             expect(deleteModalButton.exists()).toBe(true);
         });
         await deleteModalButton!.trigger("click"); // Accept dialog
