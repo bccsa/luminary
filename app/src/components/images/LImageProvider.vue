@@ -73,6 +73,7 @@ const filteredFileCollections = computed(() => {
 
         // add the smallest image from collection.imageFiles to images if images is empty
         if (images.length == 0) {
+            if (collection.imageFiles.length == 0) return;
             images.push(collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b)));
         }
 
