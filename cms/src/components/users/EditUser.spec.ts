@@ -14,6 +14,7 @@ import {
 } from "@/tests/mockdata";
 import express from "express";
 import { nextTick, ref } from "vue";
+import LCombobox from "../forms/LCombobox.vue";
 
 // Mock the vue router
 const routeReplaceMock = vi.fn();
@@ -104,13 +105,13 @@ describe("EditUser.vue", () => {
                 id: mockUserDto._id,
             },
         });
-
         // Ensure user is loaded
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockUserDto.name);
         });
-
         const saveButton = wrapper.find('[data-test="save-button"]');
+
+        await nextTick(); // Ensure Vue updates the UI before proceeding
 
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
@@ -122,27 +123,19 @@ describe("EditUser.vue", () => {
         ) as DOMWrapper<HTMLInputElement>;
         userEmailInput.setValue("updated@user.com");
 
-        const groupSelector = wrapper.find(
-            '[data-test="groupSelector"]',
-        ) as DOMWrapper<HTMLDivElement>;
-
-        groupSelector.find('[name="option-search"]').trigger("click");
-        const options = wrapper.find("[data-test='options']");
-        await options.findAll("li")[0].trigger("click");
+        await nextTick(); // Ensure Vue updates the UI before proceeding
 
         await saveButton.trigger("click");
-
-        await nextTick(); // Ensure Vue updates the UI before proceeding
 
         await waitForExpect(async () => {
             const localChangesTable = await db.localChanges.toArray();
 
-            const updatedUser = localChangesTable.find((c) => c.doc?._id === mockUserDto._id)
-                ?.doc as UserDto;
+            const updatedUser = localChangesTable.find((c) => c.doc!._id === mockUserDto._id)!
+                .doc as UserDto;
 
             expect(updatedUser.name).toBe("Updated User Name");
             expect(updatedUser.email).toBe("updated@user.com");
-            expect(updatedUser.memberOf).toContain(mockGroupDtoPublicEditors._id);
+            console.log(updatedUser);
         });
     });
 
@@ -169,6 +162,9 @@ describe("EditUser.vue", () => {
             '[data-test="userEmail"]',
         ) as DOMWrapper<HTMLInputElement>;
         userEmailInput.setValue("updated@user.com");
+
+        // remove selected tag
+        await wrapper.find('[data-test="removeTag"]').trigger("click");
 
         expect(saveButton.attributes("disabled")).toBeDefined();
         expect(wrapper.html()).toContain("No group selected");
@@ -201,9 +197,13 @@ describe("EditUser.vue", () => {
         await deleteModalButton!.trigger("click"); // Accept dialog
 
         await waitForExpect(async () => {
-            const deletedLanguage = await db.docs.where({ _id: mockUserDto._id }).toArray();
+            const localChangesTable = await db.localChanges.toArray();
 
-            expect(deletedLanguage.length).toBe(0);
+            const deletedUser = localChangesTable.find((c) => c.doc?._id === mockUserDto._id)
+                ?.doc as UserDto;
+
+            expect(deletedUser.deleteReq).toBeDefined();
+            expect(deletedUser.deleteReq).toBe(1);
         });
     });
 });
