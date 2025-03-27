@@ -24,7 +24,6 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission
                 </LButton>
             </div>
         </template>
-
         <UserTable />
     </BasePage>
 </template>

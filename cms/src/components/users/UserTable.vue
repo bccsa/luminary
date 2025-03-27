@@ -3,6 +3,7 @@ import { DocType, getRest, type ApiSearchQuery, type UserDto } from "luminary-sh
 import LCard from "../common/LCard.vue";
 import UserRow from "../users/UserRow.vue";
 import { computed, provide, ref, watch } from "vue";
+import LoadingSpinner from "../LoadingSpinner.vue";
 
 const usersQuery: ApiSearchQuery = {
     types: [DocType.User],
@@ -10,6 +11,8 @@ const usersQuery: ApiSearchQuery = {
 
 const users = ref<Map<string, UserDto>>(new Map());
 provide("users", users);
+
+const isLoading = ref(true);
 
 const getDbUsers = async () => {
     const _s = Object.fromEntries(users.value);
@@ -19,11 +22,13 @@ const getDbUsers = async () => {
 
     latest ? (usersQuery.from = latest) : delete usersQuery.from;
     const _q = await getRest().search(usersQuery);
-    _q &&
-        _q.docs &&
+    if (_q && _q.docs && _q.docs.length) {
         _q.docs.forEach((d: UserDto) => {
             users.value.set(d._id, d);
         });
+
+        isLoading.value = false;
+    }
 };
 getDbUsers();
 
@@ -107,6 +112,10 @@ watch(
                         <UserRow v-for="user in combinedUsers" :key="user._id" :usersDoc="user" />
                     </tbody>
                 </table>
+                <div class="flex h-32 w-full items-center justify-center gap-2" v-if="isLoading">
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
+                    <p class="text-sm text-zinc-500">Loading...</p>
+                </div>
             </div>
         </div>
     </LCard>

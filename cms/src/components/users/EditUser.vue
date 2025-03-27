@@ -15,7 +15,7 @@ import {
     type UserDto,
     type Uuid,
 } from "luminary-shared";
-import { computed, provide, ref, toRaw, watch } from "vue";
+import { computed, provide, ref, toRaw, watch, watchEffect } from "vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";
@@ -23,7 +23,6 @@ import { ArrowUturnLeftIcon, FolderArrowDownIcon, TrashIcon } from "@heroicons/v
 import LDialog from "../common/LDialog.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
-import LoadingSpinner from "../LoadingSpinner.vue";
 
 type Props = {
     id: Uuid;
@@ -40,15 +39,17 @@ provide("users", user);
 const isLocalChange = db.isLocalChangeAsRef(props.id);
 const { addNotification } = useNotificationStore();
 
+const isLoading = ref(true);
 const getUser = async () => {
     const _q = await getRest().search(usersQuery);
-    if (_q) {
+    if (_q && _q.docs && _q.docs.length) {
         user.value = _q.docs[0];
+        isLoading.value = false;
     }
 };
 getUser();
 
-const original = ref<UserDto | null>();
+const original = ref<UserDto | undefined>();
 const isDirty = ref(false);
 const showDeleteModal = ref(false);
 
@@ -66,10 +67,10 @@ watch(
     (user) => {
         if (user) {
             original.value = _.cloneDeep(user); // Update the original object
-            Object.assign(editable.value, user); // Instead of overwriting, update fields reactively
+            editable.value = user;
         }
     },
-    { immediate: true, deep: true },
+    { immediate: true },
 );
 
 // Check if the user is dirty (has unsaved changes)
@@ -158,16 +159,8 @@ const save = async () => {
 </script>
 
 <template>
-    <div
-        v-if="!isNew && !editable?.updatedTimeUtc"
-        class="relative flex h-screen items-center justify-center"
-    >
-        <div class="flex flex-col items-center gap-4">
-            <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
-        </div>
-    </div>
     <BasePage
-        :title="editable?.name"
+        :title="isLoading ? '' : editable?.name"
         :backLinkLocation="{ name: 'users' }"
         :backLinkText="`Users overview`"
         :backLinkParams="{
@@ -176,7 +169,7 @@ const save = async () => {
         class="mb-16"
     >
         <template #actions>
-            <div class="flex gap-2">
+            <div v-if="!isLoading" class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
                 <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
                     >No groups selected</LBadge
@@ -219,7 +212,8 @@ const save = async () => {
                 </div>
             </div>
         </template>
-        <div class="space-y-2">
+        <span v-if="isLoading">Loading...</span>
+        <div v-else class="space-y-2">
             <LCard class="rounded-lg bg-white shadow-lg">
                 <LInput
                     label="Name"

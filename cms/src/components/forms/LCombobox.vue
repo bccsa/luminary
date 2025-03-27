@@ -25,7 +25,7 @@ type Props = {
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
-const selectedOptions = defineModel<Array<string | number>>("selectedOptions");
+const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 
 const inputElement = ref<HTMLElement>();
 const comboboxElement = ref();
@@ -87,7 +87,7 @@ watch(showDropdown, () => {
                     () => {
                         // Add the highlighted option to the selected options on enter
                         if (highlightedIndex >= 0) {
-                            selectedOptions?.push(filtered[highlightedIndex].id);
+                            selectedOptions.push(filtered[highlightedIndex].id);
                             query = '';
                             showDropdown = false;
                             return;
@@ -95,7 +95,7 @@ watch(showDropdown, () => {
 
                         // If no option is highlighted, add the first option to the selected options
                         if (filtered.length > 0) {
-                            selectedOptions?.push(filtered[0].id);
+                            selectedOptions.push(filtered[0].id);
                             query = '';
                             showDropdown = false;
                         }
@@ -162,7 +162,7 @@ watch(showDropdown, () => {
                 @click="
                     () => {
                         if (!option.selected) {
-                            selectedOptions?.push(option.id);
+                            selectedOptions.push(option.id);
                         }
                         query = '';
                         showDropdown = false;
@@ -178,7 +178,7 @@ watch(showDropdown, () => {
             <LTag
                 v-for="option in optionsList.filter((o) => o.selected)"
                 :key="option.id"
-                @remove="() => selectedOptions?.splice(selectedOptions?.indexOf(option.id), 1)"
+                @remove="() => selectedOptions.splice(selectedOptions?.indexOf(option.id), 1)"
                 :disabled="disabled"
             >
                 {{ option.label }}

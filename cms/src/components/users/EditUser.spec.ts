@@ -14,7 +14,6 @@ import {
 } from "@/tests/mockdata";
 import express from "express";
 import { nextTick, ref } from "vue";
-import LCombobox from "../forms/LCombobox.vue";
 
 // Mock the vue router
 const routeReplaceMock = vi.fn();
@@ -36,7 +35,7 @@ vi.mock("vue-router", async (importOriginal) => {
 // Mock api
 // ============================
 const app = express();
-const port = 12348;
+const port = 1234;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 let mockApiRequest: string;
@@ -45,7 +44,7 @@ app.get("/search", (req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.end(
         JSON.stringify({
-            docs: [mockUserDto, mockGroupDtoSuperAdmins],
+            docs: [mockUserDto],
         }),
     );
 });
@@ -73,7 +72,7 @@ describe("EditUser.vue", () => {
     });
 
     beforeEach(async () => {
-        await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockUserDto, mockGroupDtoPublicEditors]);
+        await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockGroupDtoPublicEditors]);
         await nextTick();
         setActivePinia(createTestingPinia());
     });
@@ -91,11 +90,16 @@ describe("EditUser.vue", () => {
             },
         });
 
-        const currentLanguage = wrapper.findAll("input");
+        // Wait for component to load data from api
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockUserDto.name);
+        });
+
+        const currentUser = wrapper.findAll("input");
 
         await waitForExpect(async () => {
-            expect(currentLanguage[0].element.value).toBe(mockUserDto.name);
-            expect(currentLanguage[1].element.value).toBe(mockUserDto.email);
+            expect(currentUser[0].element.value).toBe(mockUserDto.name);
+            expect(currentUser[1].element.value).toBe(mockUserDto.email);
         });
     });
 
@@ -105,23 +109,23 @@ describe("EditUser.vue", () => {
                 id: mockUserDto._id,
             },
         });
+
         // Ensure user is loaded
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockUserDto.name);
         });
-        const saveButton = wrapper.find('[data-test="save-button"]');
 
-        await nextTick(); // Ensure Vue updates the UI before proceeding
+        const saveButton = wrapper.find('[data-test="save-button"]');
 
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
         ) as DOMWrapper<HTMLInputElement>;
-        userNameInput.setValue("Updated User Name");
+        await userNameInput.setValue("Updated User Name");
 
         const userEmailInput = wrapper.find(
             '[data-test="userEmail"]',
         ) as DOMWrapper<HTMLInputElement>;
-        userEmailInput.setValue("updated@user.com");
+        await userEmailInput.setValue("updated@user.com");
 
         const groupSelector = wrapper.find('[data-test="groupSelector"]');
         const input = groupSelector.find('input[name="option-search"]');
@@ -129,9 +133,7 @@ describe("EditUser.vue", () => {
         await input.setValue("Public Editors");
         await input.trigger("keydown.enter");
 
-        console.log(saveButton.attributes());
-
-        await nextTick(); // Ensure Vue updates the UI before proceeding
+        expect(saveButton.attributes("disabled")).toBeUndefined(); // Ensure that the save button is enabled
 
         await saveButton.trigger("click");
 
@@ -143,10 +145,11 @@ describe("EditUser.vue", () => {
 
             expect(updatedUser.name).toBe("Updated User Name");
             expect(updatedUser.email).toBe("updated@user.com");
+            expect(updatedUser.memberOf.includes(mockGroupDtoPublicEditors._id)).toBe(true);
         });
     });
 
-    it("cant update the user if no group is selected", async () => {
+    it("can not update the user if no group is selected", async () => {
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
@@ -163,18 +166,19 @@ describe("EditUser.vue", () => {
         const userNameInput = wrapper.find(
             '[data-test="userName"]',
         ) as DOMWrapper<HTMLInputElement>;
-        userNameInput.setValue("Updated User Name");
+        await userNameInput.setValue("Updated User Name");
 
         const userEmailInput = wrapper.find(
             '[data-test="userEmail"]',
         ) as DOMWrapper<HTMLInputElement>;
-        userEmailInput.setValue("updated@user.com");
+        await userEmailInput.setValue("updated@user.com");
 
-        // remove selected tag
-        await wrapper.find('[data-test="removeTag"]').trigger("click");
+        expect(saveButton.attributes("disabled")).toBeUndefined(); // Ensure that the save button is enabled
 
-        expect(saveButton.attributes("disabled")).toBeDefined();
-        expect(wrapper.html()).toContain("No group selected");
+        const groupSelector = wrapper.find('[data-test="groupSelector"]');
+        await groupSelector.find('[data-test="removeTag"]').trigger("click");
+
+        expect(saveButton.attributes("disabled")).toBeDefined(); // Ensure that the save button is disabled
     });
 
     it("can delete a user", async () => {
