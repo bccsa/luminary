@@ -14,6 +14,7 @@ import {
     type RedirectDto,
     RedirectType,
     type AccessMap,
+    type UserDto,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -425,6 +426,15 @@ export const mockLanguageDtoSwa: LanguageDto = {
     },
 };
 
+export const mockUserDto: UserDto = {
+    _id: "user-1",
+    type: DocType.User,
+    email: "john@doe.com",
+    name: "John Doe",
+    updatedTimeUtc: 1704114000000,
+    memberOf: ["group-super-admins"],
+};
+
 export const mockLocalChange1: LocalChangeDto = {
     id: 42,
     doc: mockPostDto,
@@ -530,6 +540,11 @@ export const mockGroupDtoPublicContent: GroupDto = {
             type: DocType.Group,
             groupId: "group-public-editors",
             permission: [AclPermission.View, AclPermission.Assign],
+        },
+        {
+            type: DocType.User,
+            groupId: "group-public-editors",
+            permission: [AclPermission.View, AclPermission.Edit],
         },
     ],
 };
@@ -707,6 +722,7 @@ export const mockGroupDtoSuperAdmins: GroupDto = {
                 AclPermission.Assign,
                 AclPermission.Translate,
                 AclPermission.Publish,
+                AclPermission.Delete,
             ],
         },
         {
@@ -724,6 +740,53 @@ export const mockGroupDtoSuperAdmins: GroupDto = {
 };
 
 export const superAdminAccessMap = {
+    "group-super-admins": {
+        post: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            delete: true,
+        },
+        tag: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+            delete: true,
+        },
+        language: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            delete: true,
+        },
+        group: {
+            view: true,
+            create: true,
+            edit: true,
+            translate: true,
+            publish: true,
+            assign: true,
+            delete: true,
+        },
+        redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
+        user: {
+            view: true,
+            edit: true,
+            delete: true,
+        },
+    },
     "group-private-content": {
         post: {
             view: true,
@@ -765,6 +828,11 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        user: {
+            view: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-content": {
         post: {
@@ -802,6 +870,12 @@ export const superAdminAccessMap = {
             delete: true,
         },
         redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
+        user: {
             view: true,
             create: true,
             edit: true,
@@ -849,6 +923,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        user: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-editors": {
         post: {
@@ -886,6 +966,12 @@ export const superAdminAccessMap = {
             delete: true,
         },
         redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
+        user: {
             view: true,
             create: true,
             edit: true,
@@ -933,6 +1019,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        user: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-public-users": {
         post: {
@@ -975,6 +1067,12 @@ export const superAdminAccessMap = {
             edit: true,
             delete: true,
         },
+        user: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
     },
     "group-languages": {
         post: {
@@ -1011,6 +1109,12 @@ export const superAdminAccessMap = {
             delete: true,
         },
         redirect: {
+            view: true,
+            create: true,
+            edit: true,
+            delete: true,
+        },
+        user: {
             view: true,
             create: true,
             edit: true,

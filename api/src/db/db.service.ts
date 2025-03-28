@@ -45,6 +45,7 @@ export type SearchOptions = {
     contentOnly?: boolean;
     queryString?: string;
     languages?: string[];
+    docId?: Uuid;
 };
 
 /**
@@ -532,11 +533,13 @@ export class DbService extends EventEmitter {
                 });
             }
 
+            const docIdSelector = options.docId ? [{ _id: options.docId }] : [];
+
             const languageSelector =
                 options.languages?.length > 0 ? [{ language: { $in: options.languages } }] : [];
 
             const docQuery = {
-                selector: { $and: [...timeSelector] },
+                selector: { $and: [...timeSelector, ...docIdSelector] },
                 limit: options.limit || Number.MAX_SAFE_INTEGER,
                 sort: options.sort || [{ updatedTimeUtc: "desc" }],
             };

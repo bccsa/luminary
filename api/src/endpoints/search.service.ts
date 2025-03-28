@@ -71,6 +71,7 @@ export class SearchService {
             to: query.to,
             sort: query.sort,
             languages: query.languages,
+            docId: query.docId,
         };
 
         let _res = undefined;

@@ -304,7 +304,7 @@ const save = async () => {
     }
 
     // Save the parent document
-    await db.upsert(editableParent.value);
+    await db.upsert({ doc: editableParent.value });
 
     if (!editableParent.value.deleteReq) {
         // Save the content documents that changed
@@ -318,7 +318,7 @@ const save = async () => {
             // Do not save newly created documents that are marked for deletion
             if (c.deleteReq && !prevContentDoc) return;
 
-            pList.push(db.upsert(c));
+            pList.push(db.upsert({ doc: c }));
         });
 
         await Promise.all(pList);

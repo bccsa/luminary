@@ -16,6 +16,7 @@ export type ApiSearchQuery = {
     to?: number;
     languages?: Array<string>;
     includeDeleteCmds?: boolean;
+    docId?: string;
 };
 
 export type ApiDocTypes = {
@@ -66,6 +67,7 @@ class RestApi {
 
     async search(query: ApiSearchQuery) {
         query.apiVersion = "0.0.0";
+
         return await this.http.get("search", query);
     }
 

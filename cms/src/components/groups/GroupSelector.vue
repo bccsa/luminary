@@ -18,7 +18,7 @@ type Props = {
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
 });
-const groups = defineModel<Uuid[]>("groups");
+const groups = defineModel<Uuid[]>("groups", { required: true });
 
 const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
 
@@ -65,6 +65,7 @@ const filteredGroups = computed(() =>
             :options="groupList"
             label="Group Membership"
             :selectedOptions="groups"
+            :showSelectedInDropdown="false"
         />
 
         <Transition

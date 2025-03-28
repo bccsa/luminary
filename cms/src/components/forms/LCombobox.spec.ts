@@ -64,6 +64,7 @@ describe("LCombobox", () => {
             props: {
                 options: [{ id: 0, label: "Test Label", value: "test-value" }],
                 docType: DocType.Post,
+                selectedOptions: [],
             },
         });
 

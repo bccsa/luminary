@@ -74,7 +74,7 @@ const save = async () => {
     // Bypass save if a new redirect is being deleted
     if (!(isNew.value && editable.value.deleteReq)) {
         editable.value.updatedTimeUtc = Date.now();
-        await db.upsert(editable.value);
+        await db.upsert({ doc: editable.value });
     }
 
     if (!editable.value.deleteReq) {
