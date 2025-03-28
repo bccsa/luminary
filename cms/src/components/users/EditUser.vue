@@ -15,7 +15,7 @@ import {
     type UserDto,
     type Uuid,
 } from "luminary-shared";
-import { computed, provide, ref, toRaw, watch, watchEffect } from "vue";
+import { computed, provide, ref, toRaw, watch } from "vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";

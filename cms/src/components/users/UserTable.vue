@@ -3,7 +3,6 @@ import { DocType, getRest, type ApiSearchQuery, type UserDto } from "luminary-sh
 import LCard from "../common/LCard.vue";
 import UserRow from "../users/UserRow.vue";
 import { computed, provide, ref, watch } from "vue";
-import LoadingSpinner from "../LoadingSpinner.vue";
 
 const usersQuery: ApiSearchQuery = {
     types: [DocType.User],
