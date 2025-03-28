@@ -75,6 +75,10 @@
         "bookmarks.notification.title": "Signet ajouté",
         "bookmarks.notification.description": "Ce contenu a été ajouté aux signets. Vous pouvez trouver la page des signets dans le menu du profil.",
         "language.modal.title": "Sélectionner la langue",
-        "language.modal.close": "Fermer"
+        "language.modal.close": "Fermer",
+        "logout.modal.title": "Déconnexion",
+        "logout.modal.description": "Êtes-vous sûr de vouloir vous déconnecter ?",
+        "logout.modal.button_cancel": "Annuler",
+        "logout.modal.button_logout": "Déconnexion"
     }
 }
