@@ -29,6 +29,7 @@ const openContent = () => {
             <!-- Image Wrapper (Ensures Play Icon Stays on the Image) -->
             <div class="relative">
                 <LImage
+                    v-if="content.parentImageData"
                     :image="content.parentImageData"
                     :aspectRatio="aspectRatio"
                     size="thumbnail"
