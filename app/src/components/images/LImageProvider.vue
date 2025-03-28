@@ -9,7 +9,7 @@ import {
 import { computed, ref } from "vue";
 
 type Props = {
-    image?: ImageDto;
+    image: ImageDto;
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;

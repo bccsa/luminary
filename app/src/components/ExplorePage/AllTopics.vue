@@ -101,6 +101,7 @@ const filteredTopics = computed(() => {
                         </p>
                     </div>
                     <LImage
+                        v-if="content.parentImageData"
                         :image="content.parentImageData"
                         aspectRatio="classic"
                         size="small"
