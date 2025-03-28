@@ -34,5 +34,9 @@ describe("LDialog", () => {
         });
 
         expect(wrapper.exists()).toBe(true);
+        expect(wrapper.text()).toContain("Are you sure?");
+        expect(wrapper.text()).toContain("I wouldn't do that if I were you.");
+        expect(wrapper.text()).toContain("I still will");
+        expect(wrapper.text()).toContain("Ok then");
     });
 });
