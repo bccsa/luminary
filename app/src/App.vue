@@ -2,7 +2,7 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import TopBar from "@/components/navigation/TopBar.vue";
-import { computed, nextTick, onErrorCaptured, watch } from "vue";
+import { computed, nextTick, onErrorCaptured, ref, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
@@ -15,6 +15,7 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 const { isAuthenticated, user } = useAuth0();
+const main = ref<HTMLElement | undefined>(undefined);
 
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
@@ -85,16 +86,12 @@ onErrorCaptured((err) => {
     Sentry.captureException(err);
 });
 
-// Watch for route changes and handle focus reset
-watch(
-    () => router.currentRoute,
-    async () => {
-        // wait the document to be ready before trying to focus
-        await nextTick();
-        document.querySelector("main")?.focus(); // Focus on main after routing
-    },
-    { deep: true },
-);
+// Focus main content when arrow up or down is pressed to keep scrolling working even when focus was shifted to the top bar
+document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        if (main.value) main.value.focus();
+    }
+});
 </script>
 
 <template>
@@ -105,6 +102,7 @@ watch(
         <main
             class="flex-1 overflow-y-scroll px-4 py-4 scrollbar-hide focus:outline-none dark:bg-slate-900"
             tabindex="0"
+            ref="main"
         >
             <RouterView v-slot="{ Component }">
                 <KeepAlive include="HomePage,ExplorePage">
