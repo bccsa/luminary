@@ -23,6 +23,8 @@ import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
+import LImage from "@/components/images/LImage.vue";
+import ImageModal from "@/components/images/ImageModal.vue";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -403,6 +405,30 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             expect(wrapper.text()).not.toContain(mockEnglishContentDto.author);
+        });
+    });
+
+    it("can zoom the image when clicking on the image", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            const image = wrapper.findComponent(LImage);
+            expect(image.exists()).toBe(true);
+
+            image.trigger("click");
+
+            // expect ImageModal to be opened
+            expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
+
+            // expect ImageModal to have the correct image source and correct props
+            const imageModal = wrapper.findComponent(ImageModal);
+            expect(imageModal.props("image")).toBe(mockEnglishContentDto.parentImageData);
+            expect(imageModal.props("aspectRatio")).toBe("video");
+            expect(imageModal.props("size")).toBe("post");
         });
     });
 
