@@ -101,7 +101,6 @@ document.addEventListener("keydown", (e) => {
 
         <main
             class="flex-1 overflow-y-scroll px-4 py-4 scrollbar-hide focus:outline-none dark:bg-slate-900"
-            tabindex="0"
             ref="main"
         >
             <RouterView v-slot="{ Component }">
