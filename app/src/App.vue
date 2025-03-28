@@ -93,6 +93,7 @@ watch(
         await nextTick();
         document.querySelector("main")?.focus(); // Focus on main after routing
     },
+    { deep: true },
 );
 </script>
 
