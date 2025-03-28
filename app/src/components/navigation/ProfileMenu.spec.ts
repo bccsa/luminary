@@ -106,7 +106,6 @@ describe("ProfileMenu", () => {
         // accept on the dialog
         await wrapper.find("[data-test='modal-primary-button']").trigger("click");
 
-        // console.log(wrapper.html());
         await waitForExpect(() => {
             expect(logout).toHaveBeenCalled();
         });
