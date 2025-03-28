@@ -36,6 +36,26 @@ const showLogoutDialog = ref(false);
 
 const { t } = useI18n();
 
+const showOfflineNotification = () => {
+    useNotificationStore().addNotification({
+        id: "no-internet-connection-logout",
+        title: t("profile_menu.logout.offline_notification_title"),
+        description: t("profile_menu.logout.offline_notification"),
+        type: "toast",
+        state: "error",
+    } as Notification);
+};
+
+const confirmLogout = async () => {
+    if (!isConnected.value) {
+        showLogoutDialog.value = false;
+        showOfflineNotification();
+        return;
+    }
+    localStorage.removeItem("usedAuth0Connection");
+    await logout({ logoutParams: { returnTo: window.location.origin } });
+};
+
 type NavigationItems = {
     name: string;
     language?: string;
@@ -76,22 +96,6 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
     ];
 });
 
-const confirmLogout = async () => {
-    if (!isConnected.value) {
-        showLogoutDialog.value = false;
-
-        useNotificationStore().addNotification({
-            id: "no-internet-connection-logout",
-            title: t("profile_menu.logout.offline_notification_title"),
-            description: t("profile_menu.logout.offline_notification"),
-            type: "toast",
-            state: "error",
-        } as Notification);
-    }
-    localStorage.removeItem("usedAuth0Connection");
-    await logout({ logoutParams: { returnTo: window.location.origin } });
-};
-
 const userNavigation = computed(() => {
     if (isAuthenticated.value) {
         return [
@@ -105,13 +109,7 @@ const userNavigation = computed(() => {
                         showLogoutDialog.value = true;
                         return;
                     }
-                    useNotificationStore().addNotification({
-                        id: "no-internet-connection-logout",
-                        title: t("profile_menu.logout.offline_notification_title"),
-                        description: t("profile_menu.logout.offline_notification"),
-                        type: "toast",
-                        state: "error",
-                    } as Notification);
+                    showOfflineNotification();
                 },
             },
         ];
