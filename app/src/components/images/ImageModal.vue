@@ -14,14 +14,12 @@ import type { ImageDto } from "luminary-shared";
 
 type Props = {
     image: ImageDto;
-    zoomable?: boolean;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
     size?: "small" | "thumbnail" | "post";
     rounded?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
-    zoomable: true,
     aspectRatio: "classic",
     size: "post",
 });
@@ -40,7 +38,7 @@ function clamp(val: number, min: number, max: number) {
 }
 
 function handleWheel(e: WheelEvent) {
-    if (!props.zoomable) return;
+    if (!props.image) return;
     if (!e.ctrlKey) return;
     e.preventDefault();
     const delta = -e.deltaY * 0.002;
@@ -61,7 +59,7 @@ watch(
 );
 
 // Smooth progressive pinch
-if (props.zoomable) {
+if (props.image) {
     usePinch(
         ({ delta: [d] }) => {
             scale.value = clamp(scale.value * (1 + d * 0.1), MIN_SCALE, MAX_SCALE);
@@ -94,7 +92,7 @@ if (props.zoomable) {
 
 onMounted(() => {
     const el = container.value;
-    if (!el || !props.zoomable) return;
+    if (!el || !props.image) return;
     el.addEventListener("wheel", handleWheel, { passive: false });
 });
 

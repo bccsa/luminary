@@ -39,6 +39,7 @@ import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
+import ImageModal from "@/components/images/ImageModal.vue";
 
 const router = useRouter();
 
@@ -49,6 +50,7 @@ const props = defineProps<Props>();
 
 const { t } = useI18n();
 const showCategoryModal = ref(false);
+const zoomable = ref(false);
 
 const docsBySlug = useDexieLiveQuery(
     () => db.docs.where("slug").equals(props.slug).toArray() as unknown as Promise<ContentDto[]>,
@@ -268,7 +270,7 @@ onBeforeUnmount(() => {
                         :image="content.parentImageData"
                         aspectRatio="video"
                         size="post"
-                        :zoomable="true"
+                        @click="zoomable = true"
                     />
                 </IgnorePagePadding>
 
@@ -384,4 +386,12 @@ onBeforeUnmount(() => {
             </div>
         </div>
     </LModal>
+
+    <ImageModal
+        v-if="content.parentImageData && zoomable"
+        :image="content.parentImageData"
+        aspectRatio="video"
+        size="post"
+        @close="zoomable = false"
+    />
 </template>

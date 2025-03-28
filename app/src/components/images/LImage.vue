@@ -3,20 +3,17 @@ import { ref, onMounted, watch } from "vue";
 import { type ImageDto } from "luminary-shared";
 import fallbackImg from "../../assets/fallbackImage.webp";
 import LImageProvider from "./LImageProvider.vue";
-import ImageModal from "./ImageModal.vue";
 
 type Props = {
     image: ImageDto;
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
-    zoomable?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
     rounded: true,
-    zoomable: false,
 });
 
 const aspectRatiosCSS = {
@@ -78,13 +75,4 @@ onMounted(() => {
 
         <slot></slot>
     </div>
-
-    <ImageModal
-        v-if="image && zoomable && showPopup"
-        :image="props.image"
-        :aspectRatio="props.aspectRatio"
-        :size="props.size"
-        :zoomable="props.zoomable"
-        @close="showPopup = false"
-    />
 </template>
