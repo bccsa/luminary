@@ -22,6 +22,11 @@ describe("ContentOverview.vue", () => {
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
             mockData.mockLanguageDtoSwa,
+            mockData.mockGroupDtoPrivateContent,
+            mockData.mockGroupDtoPublicContent,
+            mockData.mockGroupDtoPublicEditors,
+            mockData.mockGroupDtoPublicUsers,
+            mockData.mockGroupDtoSuperAdmins,
         ]);
     });
 
@@ -32,6 +37,11 @@ describe("ContentOverview.vue", () => {
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
             mockData.mockLanguageDtoSwa,
+            mockData.mockGroupDtoPrivateContent,
+            mockData.mockGroupDtoPublicContent,
+            mockData.mockGroupDtoPublicEditors,
+            mockData.mockGroupDtoPublicUsers,
+            mockData.mockGroupDtoSuperAdmins,
         ]);
 
         setActivePinia(createTestingPinia());
