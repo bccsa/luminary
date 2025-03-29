@@ -4,6 +4,7 @@ import { computed, onBeforeMount, onMounted, ref, watch } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
 import { _fallbackImages, fallbackImages } from "@/globalConfig";
 import Rand from "rand-seed";
+import LImageProvider from "./LImageProvider.vue";
 
 type Props = {
     image?: ImageDto;
