@@ -16,10 +16,9 @@ import {
     mockTopicDto,
     mockRedirectDto,
 } from "@/tests/mockdata";
-import { db, DocType, type ContentDto } from "luminary-shared";
+import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
-import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
