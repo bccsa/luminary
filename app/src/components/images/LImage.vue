@@ -1,15 +1,14 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
-
 import { computed, onBeforeMount, onMounted, ref, watch } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
-import mainFallbackImg from "../../assets/fallbackImage.webp";
-import { fallbackImages, _fallbackImages } from "@/globalConfig";
+import { _fallbackImages, fallbackImages } from "@/globalConfig";
+import Rand from "rand-seed";
 
 type Props = {
     image?: ImageDto;
     contentParentId?: Uuid;
-    aspectRatio?: keyof typeof aspectRatios;
+    aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
 };
@@ -42,6 +41,19 @@ const rounding = {
 const parentRef = ref<HTMLElement | undefined>(undefined);
 const parentWidth = ref<number>(0);
 
+const fallbackImageSeed = new Rand(props.contentParentId).next();
+
+onBeforeMount(() => {
+    if (!_fallbackImages.value.includes({ seed: fallbackImageSeed })) {
+        const randomIndex = Math.floor(Math.random() * fallbackImages.length);
+        const randomUrl = fallbackImages[randomIndex];
+        _fallbackImages.value = [
+            ..._fallbackImages.value,
+            { url: randomUrl, seed: fallbackImageSeed },
+        ];
+    }
+});
+
 onMounted(() => {
     parentWidth.value = parentRef.value?.clientWidth || 0;
     watch(
@@ -50,6 +62,10 @@ onMounted(() => {
             parentWidth.value = newWidth || 0;
         },
     );
+});
+
+const fallbackImage = computed(() => {
+    return _fallbackImages.value.find((img) => img.seed == fallbackImageSeed).url;
 });
 </script>
 

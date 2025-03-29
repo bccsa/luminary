@@ -321,9 +321,9 @@ export const showLoginModal = () => {
     loginModalVisible.value = true;
 };
 
-const loadFallbackImages = () => {
+const loadFallbackImages = async () => {
     // Can't use a dynamic path here, so had to resolve with a static path
-    const images = import.meta.glob("@/assets/fallbackImages/*.{png,jpg,jpeg}");
+    const images = import.meta.glob("@/assets/fallbackImages/*.{png,jpg,jpeg,webp}");
     const fallbackImages: string[] = [];
 
     for (const path in images) {
@@ -333,7 +333,7 @@ const loadFallbackImages = () => {
     return fallbackImages;
 };
 
-export const fallbackImages = loadFallbackImages();
+export const fallbackImages = await loadFallbackImages();
 export const _fallbackImages = ref<any[]>(
     JSON.parse(localStorage.getItem("_fallback_images") || "[]"),
 );
