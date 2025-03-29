@@ -203,20 +203,6 @@ watch(
             if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
                 // Check if the preferred translation is published
                 router.replace({ name: "content", params: { slug: preferred.slug } });
-            } else {
-                if (!appLanguagesPreferredAsRef.value[0]?.name) return;
-                //Only display notification when directly navigating to a slug
-                if (router.currentRoute.value.name == "content") {
-                    useNotificationStore().addNotification({
-                        id: "translation-not-published",
-                        title: t("notification.content_not_available.title"),
-                        description: t("notification.content_not_available.description", {
-                            language: appLanguagesPreferredAsRef.value[0].name,
-                        }),
-                        state: "error",
-                        type: "toast",
-                    });
-                }
             }
             return;
         }

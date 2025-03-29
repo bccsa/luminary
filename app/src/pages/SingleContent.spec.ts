@@ -33,7 +33,7 @@ vi.mock("vue-router", async (importOriginal) => {
         ...actual,
         useRouter: vi.fn().mockImplementation(() => ({
             currentRoute: ref({
-                name: "content", 
+                name: "content",
                 params: { slug: mockEnglishContentDto.slug },
             }),
             replace: routeReplaceMock,
@@ -291,35 +291,6 @@ describe("SingleContent", () => {
                 name: "content",
                 params: { slug: mockFrenchContentDto.slug },
             });
-        });
-    });
-
-    it("shows a notification when the language is not available", async () => {
-        const testLanguage = {
-            _id: "lang-test",
-            type: DocType.Language,
-            updatedTimeUtc: 1704114000000,
-            memberOf: ["group-languages"],
-            languageCode: "tst",
-            name: "Test",
-            default: 0,
-        };
-
-        await db.docs.put(testLanguage);
-
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        const notificationStore = useNotificationStore();
-
-        appLanguageIdsAsRef.value.unshift("lang-test");
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
-            expect(notificationStore.addNotification).toHaveBeenCalled();
         });
     });
 
