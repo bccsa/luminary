@@ -102,6 +102,7 @@ const filteredTopics = computed(() => {
                     </div>
                     <LImage
                         :image="content.parentImageData"
+                        :contentParentId="content.parentId"
                         aspectRatio="classic"
                         size="small"
                         class="flex items-center"
