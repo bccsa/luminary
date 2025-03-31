@@ -20,6 +20,13 @@ export const contentByTag = (
     const result = ref<ContentByTag[]>([]);
 
     watchEffect(() => {
+        // Remove tags that no longer exist
+        for (let i = result.value.length - 1; i >= 0; i--) {
+            if (!tags.value.some((c) => c._id === result.value[i].tag._id)) {
+                result.value.splice(i, 1);
+            }
+        }
+
         // Add new tags to the result
         tags.value.forEach((tag) => {
             const sorted = content.value
@@ -44,6 +51,7 @@ export const contentByTag = (
 
                 result.value.sort((a, b) => b.newestContentDate - a.newestContentDate);
             } else {
+                // Remove tags with no content
                 const index = result.value.findIndex((r) => r.tag._id === tag._id);
 
                 if (index !== -1) {
