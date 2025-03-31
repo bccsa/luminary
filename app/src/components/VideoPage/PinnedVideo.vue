@@ -14,7 +14,6 @@ import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
-import IgnorePagePadding from "../IgnorePagePadding.vue";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,

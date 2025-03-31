@@ -6,7 +6,6 @@ import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import { isPublished } from "@/util/isPublished";
 import { useI18n } from "vue-i18n";
-import IgnorePagePadding from "../IgnorePagePadding.vue";
 
 const { t } = useI18n();
 
