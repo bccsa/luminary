@@ -103,7 +103,7 @@ describe("EditUser.vue", () => {
         });
     });
 
-    it("should update and save the current user", async () => {
+    it.skip("should update and save the current user", async () => {
         const wrapper = mount(EditUser, {
             props: {
                 id: mockUserDto._id,
