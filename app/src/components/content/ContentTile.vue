@@ -4,16 +4,17 @@ import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import LImage from "../images/LImage.vue";
 import { PlayIcon } from "@heroicons/vue/24/solid";
-import { PlayIcon as PlayIconOutline } from "@heroicons/vue/24/outline";
 
 type Props = {
     content: ContentDto;
     showPublishDate?: boolean;
     aspectRatio?: typeof LImage.aspectRatios;
+    titlePosition?: "bottom" | "center";
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
     aspectRatio: "video",
+    titlePosition: "bottom",
 });
 
 const router = useRouter();
@@ -34,7 +35,7 @@ const openContent = () => {
                     size="thumbnail"
                 >
                     <template #default>
-                        <div class="w-full">
+                        <div class="w-full" v-if="titlePosition === 'bottom'">
                             <h3 class="mt-1 truncate text-sm text-zinc-800 dark:text-slate-50">
                                 {{ content.title }}
                             </h3>
@@ -53,20 +54,33 @@ const openContent = () => {
                         </div>
                     </template>
                     <template #imageOverlay>
-                        <!-- Play Icon (Only if content has a video) -->
-                        <div
-                            v-if="content.video"
-                            class="absolute inset-0 flex items-center justify-center rounded-lg"
-                        >
-                            <PlayIcon class="relative h-8 w-8 text-white lg:h-12 lg:w-12" />
+                        <!-- Play Icon (Only if content has a video and titlePosition is not center) -->
+                        <div v-if="titlePosition !== 'center'">
+                            <div
+                                v-if="content.video"
+                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                            >
+                                <PlayIcon
+                                    class="relative h-8 w-8 text-black blur-sm lg:h-12 lg:w-12"
+                                />
+                            </div>
+                            <div
+                                v-if="content.video"
+                                class="absolute inset-0 flex items-center justify-center rounded-lg"
+                            >
+                                <PlayIcon class="relative h-8 w-8 text-white lg:h-12 lg:w-12" />
+                            </div>
                         </div>
                         <div
-                            v-if="content.video"
-                            class="absolute inset-0 flex items-center justify-center rounded-lg"
+                            v-else
+                            class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm"
                         >
-                            <PlayIconOutline
-                                class="relative z-20 h-8 w-8 stroke-1 text-zinc-600 dark:text-slate-600 lg:h-12 lg:w-12"
-                            />
+                            <p class="absolute m-2 text-pretty text-center text-black blur-sm">
+                                {{ content.title }}
+                            </p>
+                            <p class="absolute m-2 text-pretty text-center text-white">
+                                {{ content.title }}
+                            </p>
                         </div>
                     </template>
                 </LImage>

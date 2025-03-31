@@ -70,6 +70,7 @@ const topicsByCategory = contentByTag(topics, categories);
         :contentDocs="c.content"
         :title="c.tag.title"
         aspectRatio="classic"
+        contentTitlePosition="center"
         :summary="c.tag.summary"
         class="pb-1"
         :class="index == 0 ? 'pt-4' : 'pt-2'"

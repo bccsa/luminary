@@ -84,6 +84,9 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCatego
         :summary="c.tag.summary"
         :showPublishDate="false"
         class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
-        :class="index == 0 ? 'pt-4' : 'pt-2'"
+        :class="[
+            index == 0 ? 'pt-4' : 'pt-2',
+            index == pinnedContentByCategory.length - 1 ? 'pb-3' : '',
+        ]"
     />
 </template>

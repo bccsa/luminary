@@ -82,10 +82,14 @@ const topicsByCategory = contentByTag(topics, categories);
             :contentDocs="c.content"
             :title="c.tag.title"
             aspectRatio="classic"
+            contentTitlePosition="center"
             :summary="c.tag.summary"
             :showPublishDate="false"
             class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
-            :class="index == 0 ? 'pt-4' : 'pt-2'"
+            :class="[
+                index == 0 ? 'pt-4' : 'pt-2',
+                index == topicsByCategory.length - 1 ? 'pb-4' : '',
+            ]"
         />
     </div>
 </template>
