@@ -73,7 +73,7 @@ const openContent = () => {
                         </div>
                         <div
                             v-else
-                            class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm"
+                            class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm font-semibold"
                         >
                             <p class="absolute m-2 text-pretty text-center text-black blur-sm">
                                 {{ content.title }}
