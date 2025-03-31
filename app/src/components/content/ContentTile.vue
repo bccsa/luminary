@@ -78,7 +78,9 @@ const openContent = () => {
                             <p class="absolute m-2 text-pretty text-center text-black blur-sm">
                                 {{ content.title }}
                             </p>
-                            <p class="absolute m-2 text-pretty text-center text-white">
+                            <p
+                                class="absolute m-2 text-pretty text-center text-white dark:text-slate-200"
+                            >
                                 {{ content.title }}
                             </p>
                         </div>
