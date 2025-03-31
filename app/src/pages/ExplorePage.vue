@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import AllTopics from "@/components/ExplorePage/AllTopics.vue";
-import ExplorePinnedTopics from "@/components/ExplorePage/ExplorePinnedTopics.vue";
+import UnpinnedTopics from "@/components/ExplorePage/UnpinnedTopics.vue";
+import PinnedTopics from "@/components/ExplorePage/PinnedTopics.vue";
+import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 </script>
 
 <template>
-    <Suspense>
-        <ExplorePinnedTopics />
-    </Suspense>
-    <Suspense>
-        <AllTopics />
-    </Suspense>
+    <IgnorePagePadding ignoreTop>
+        <Suspense>
+            <PinnedTopics />
+        </Suspense>
+        <Suspense>
+            <UnpinnedTopics />
+        </Suspense>
+    </IgnorePagePadding>
 </template>

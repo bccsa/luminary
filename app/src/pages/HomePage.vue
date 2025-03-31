@@ -52,12 +52,12 @@ setTimeout(() => {
             </div>
         </div>
     </div>
-    <IgnorePagePadding v-else class="mb-4">
-        <Suspense>
-            <HomePageNewest />
-        </Suspense>
+    <IgnorePagePadding ignoreTop>
         <Suspense>
             <HomePagePinned />
+        </Suspense>
+        <Suspense>
+            <HomePageNewest />
         </Suspense>
     </IgnorePagePadding>
 </template>
