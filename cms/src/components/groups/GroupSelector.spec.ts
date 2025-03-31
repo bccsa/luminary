@@ -10,7 +10,7 @@ import {
 } from "@/tests/mockdata";
 
 import GroupSelector from "./GroupSelector.vue";
-import LTag from "../content/LTag.vue";
+import LTag from "../common/LTagHandler/LTag.vue";
 import { accessMap, db, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import LCombobox from "../forms/LCombobox.vue";

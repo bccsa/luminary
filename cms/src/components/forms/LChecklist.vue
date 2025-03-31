@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, type Component } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
-import LTag from "@/components/content/LTag.vue";
+import LTag from "@/components/common/LTagHandler/LTag.vue";
 import { onClickOutside } from "@vueuse/core";
 
 type ChecklistOption = { label: string; value: string | number };
