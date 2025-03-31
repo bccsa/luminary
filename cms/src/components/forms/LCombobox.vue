@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch, type StyleValue } from "vue";
+import { computed, ref, watch, type Component, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
-import LTag from "../content/LTag.vue";
+import LTag from "../common/LTagHandler/LTag.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import FormLabel from "./FormLabel.vue";
-import LInput from "./LInput.vue";
 import { onClickOutside } from "@vueuse/core";
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
@@ -23,17 +22,21 @@ type Props = {
     options: ComboboxOption[];
     showSelectedInDropdown?: boolean;
     selectedLabels?: ComboboxOption[];
+    isContentOverview?: boolean;
+    icon?: Component | Function;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
     showSelectedInDropdown: true,
+    isContentOverview: false,
 });
 
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 
 const inputElement = ref<HTMLElement>();
-const comboboxElement = ref();
+const comboboxParent = ref<HTMLElement>();
+const comboboxContainer = ref<HTMLElement>();
 const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
 
@@ -53,13 +56,9 @@ const filtered = computed(() =>
     }),
 );
 
-const handleChevronBtnClick = () => {
-    if (!inputElement.value) return;
-    inputElement.value.focus();
-    showDropdown.value = !showDropdown.value;
-};
-
-onClickOutside(comboboxElement, () => (showDropdown.value = false));
+onClickOutside(comboboxParent, () => {
+    showDropdown.value = false;
+});
 
 const highlightedIndex = ref(-1);
 
@@ -73,43 +72,61 @@ const selectedLabels = computed(() => {
     if (props.selectedLabels) return props.selectedLabels;
     return optionsList.value.filter((o) => o.selected);
 });
+const toggleDropdown = () => {
+    showDropdown.value = !showDropdown.value;
+};
 </script>
 
 <template>
     <div
-        ref="comboboxElement"
+        ref="comboboxParent"
         class="relative"
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
     >
         <FormLabel v-if="label"> {{ label }} </FormLabel>
-        <div class="relative mt-2 flex w-full rounded-md" v-bind="attrsWithoutStyles">
-            <LInput
-                @click="showDropdown = !showDropdown"
+
+        <div
+            class="flex h-10 w-full justify-between gap-2 rounded-md border-[1px] border-zinc-300 pl-3 pr-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+            tabindex="0"
+            v-bind="attrsWithoutStyles"
+            @click="showDropdown = !showDropdown"
+        >
+            <div v-if="icon" class="z-10 flex items-center">
+                <component
+                    :is="icon"
+                    :class="{
+                        'text-zinc-400': !disabled,
+                        'text-zinc-300': disabled,
+                    }"
+                    class="h-5 w-5"
+                />
+            </div>
+            <input
+                @click.stop="toggleDropdown"
                 v-model="query"
                 ref="inputElement"
-                class="w-full"
+                class="z-0 h-10 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
                 placeholder="Type to select..."
                 name="option-search"
+                autocomplete="off"
                 @keydown.enter="
                     () => {
-                        // Add the highlighted option to the selected options on enter
-                        if (highlightedIndex >= 0) {
-                            selectedOptions.push(filtered[highlightedIndex].id);
-                            query = '';
-                            showDropdown = false;
-                            return;
-                        }
-
-                        // If no option is highlighted, add the first option to the selected options
-                        if (filtered.length > 0) {
-                            selectedOptions.push(filtered[0].id);
-                            query = '';
-                            showDropdown = false;
+                        if (showDropdown) {
+                            if (highlightedIndex > -1) {
+                                selectedOptions.push(filtered[highlightedIndex].id);
+                                query = '';
+                                showDropdown = false;
+                                return;
+                            }
+                            if (filtered.length > 0) {
+                                selectedOptions.push(filtered[0].id);
+                                query = '';
+                                showDropdown = false;
+                            }
                         }
                     }
                 "
-                autocomplete="off"
                 @keydown.escape="
                     () => {
                         query = '';
@@ -136,10 +153,8 @@ const selectedLabels = computed(() => {
                     }
                 "
             />
-            <button @click="handleChevronBtnClick" name="options-open-btn">
-                <ChevronUpDownIcon
-                    class="absolute right-2 top-2 h-5 w-5 text-zinc-400 hover:cursor-pointer"
-                />
+            <button @click.stop="toggleDropdown" name="options-open-btn">
+                <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
             </button>
         </div>
 
@@ -178,7 +193,7 @@ const selectedLabels = computed(() => {
                 </span>
             </li>
         </div>
-        <div class="mt-3 flex flex-wrap gap-3">
+        <div v-if="!isContentOverview" class="mt-3 flex flex-wrap gap-3">
             <LTag
                 v-for="option in selectedLabels"
                 :key="option.id"

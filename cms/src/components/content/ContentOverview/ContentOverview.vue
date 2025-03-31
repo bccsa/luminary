@@ -27,18 +27,18 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
-import ContentTable from "@/components/content/ContentTable.vue";
+import ContentTable from "@/components/content/ContentOverview/ContentTable.vue";
 import LSelect from "../../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import { debouncedWatch, onClickOutside } from "@vueuse/core";
-import type { ContentOverviewQueryOptions } from "../query";
+import type { ContentOverviewQueryOptions } from "../utils/query";
 import LInput from "../../forms/LInput.vue";
 import { Menu } from "@headlessui/vue";
 import LRadio from "../../forms/LRadio.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import LChecklist from "@/components/forms/LChecklist.vue";
-import LTag from "../LTag.vue";
+import LTag from "../../common/LTagHandler/LTag.vue";
+import LCombobox from "@/components/forms/LCombobox.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -247,27 +247,33 @@ const resetQueryOptions = () => {
                         :options="filterByStatusOptions"
                         :icon="CloudArrowUpIcon"
                     />
-                    <LChecklist
+
+                    <LCombobox
                         :options="
                             tagContentDocs.map((tag) => ({
+                                id: tag.parentId,
                                 label: tag.title,
                                 value: tag.parentId,
                             }))
                         "
                         :icon="TagIcon"
-                        v-model:selectedValues="queryOptions.tags"
+                        :show-selected-in-dropdown="false"
+                        :selected-options="queryOptions.tags as string[]"
                         :is-content-overview="true"
                     />
-                    <LChecklist
+
+                    <LCombobox
                         :options="
                             groups.map((group: GroupDto) => ({
+                                id: group._id,
                                 label: group.name,
                                 value: group._id,
                             }))
                         "
-                        :icon="UserGroupIcon"
-                        v-model:selected-values="queryOptions.groups"
+                        :selected-options="queryOptions.groups as string[]"
+                        :show-selected-in-dropdown="false"
                         :is-content-overview="true"
+                        :icon="UserGroupIcon"
                     />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
@@ -355,6 +361,7 @@ const resetQueryOptions = () => {
                 >
                     <LTag
                         v-for="tag in queryOptions.tags"
+                        :icon="TagIcon"
                         :key="tag"
                         @remove="
                             () => {
@@ -382,6 +389,7 @@ const resetQueryOptions = () => {
                     leave-to-class="transform scale-90 opacity-0"
                 >
                     <LTag
+                        :icon="UserGroupIcon"
                         v-for="group in queryOptions.groups"
                         :key="group"
                         @remove="
