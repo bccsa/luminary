@@ -54,7 +54,7 @@ const contentByTopic = contentByTag(filtered, toRef(props.tags));
 <template>
     <IgnorePagePadding>
         <h1
-            v-if="isNotTopic && contentByTopic.length"
+            v-if="isNotTopic && contentByTopic.tagged.value.length"
             class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200"
         >
             {{ t("content.related_title") }}
@@ -62,7 +62,7 @@ const contentByTopic = contentByTag(filtered, toRef(props.tags));
         <div class="mb-2 flex max-w-full flex-wrap">
             <div class="max-w-full" ref="scrollElement">
                 <HorizontalContentTileCollection
-                    v-for="topic in contentByTopic"
+                    v-for="topic in contentByTopic.tagged.value"
                     :key="topic.tag._id"
                     :contentDocs="topic.content"
                     :title="topic.tag.title"

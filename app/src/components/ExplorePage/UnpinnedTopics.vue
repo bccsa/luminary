@@ -6,6 +6,9 @@ import { useDexieLiveQueryWithDeps } from "luminary-shared";
 import { isPublished } from "@/util/isPublished";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const topics = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -60,12 +63,12 @@ watch(categories, async (value) => {
     db.setQueryCache<ContentDto[]>("explorepage_unpinnedCategories", value);
 });
 
-const topicsByCategory = contentByTag(topics, categories);
+const topicsByCategory = contentByTag(topics, categories, { includeUntagged: true });
 </script>
 
 <template>
     <HorizontalContentTileCollection
-        v-for="(c, index) in topicsByCategory"
+        v-for="(c, index) in topicsByCategory.tagged.value"
         :key="c.tag._id"
         :contentDocs="c.content"
         :title="c.tag.title"
@@ -74,5 +77,13 @@ const topicsByCategory = contentByTag(topics, categories);
         :summary="c.tag.summary"
         class="pb-1"
         :class="index == 0 ? 'pt-4' : 'pt-2'"
+    />
+    <HorizontalContentTileCollection
+        v-if="topicsByCategory.untagged.value.length"
+        :contentDocs="topicsByCategory.untagged.value"
+        :title="t('explore.other')"
+        aspectRatio="classic"
+        contentTitlePosition="center"
+        class="pb-1 pt-2"
     />
 </template>

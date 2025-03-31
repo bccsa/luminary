@@ -102,7 +102,7 @@ const unpinnedNewestContentByCategory = contentByTag(newest100Content, categorie
 <template>
     <IgnorePagePadding>
         <HorizontalContentTileCollection
-            v-for="c in unpinnedNewestContentByCategory"
+            v-for="c in unpinnedNewestContentByCategory.tagged.value"
             :key="c.tag._id"
             :contentDocs="c.content"
             :title="c.tag.title"

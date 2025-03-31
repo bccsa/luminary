@@ -77,7 +77,7 @@ const topicsByCategory = contentByTag(topics, categories);
 <template>
     <div>
         <HorizontalContentTileCollection
-            v-for="(c, index) in topicsByCategory"
+            v-for="(c, index) in topicsByCategory.tagged.value"
             :key="c.tag._id"
             :contentDocs="c.content"
             :title="c.tag.title"
@@ -88,7 +88,7 @@ const topicsByCategory = contentByTag(topics, categories);
             class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
             :class="[
                 index == 0 ? 'pt-4' : 'pt-2',
-                index == topicsByCategory.length - 1 ? 'pb-4' : '',
+                index == topicsByCategory.tagged.value.length - 1 ? 'pb-4' : '',
             ]"
         />
     </div>
