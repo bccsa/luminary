@@ -57,7 +57,7 @@ onMounted(() => {
             :class="[
                 aspectRatiosCSS[aspectRatio],
                 rounded ? rounding[size] : '',
-                'w-full overflow-clip bg-cover bg-center object-cover shadow',
+                'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
             <LImageProvider
@@ -67,6 +67,9 @@ onMounted(() => {
                 :rounded="props.rounded"
                 :size="props.size"
             />
+            <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
+                <slot name="imageOverlay"></slot>
+            </div>
         </div>
 
         <slot></slot>
