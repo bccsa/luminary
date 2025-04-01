@@ -21,7 +21,6 @@ import {
     type ContentParentDto,
     PostType,
     isConnected,
-    useDexieLiveQuery,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -44,7 +43,7 @@ import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
-import { clientAppUrl } from "@/globalConfig";
+import { clientAppUrl, cmsLanguagesAsRef, translatableLanguagesAsRef } from "@/globalConfig";
 
 type Props = {
     id: Uuid;
@@ -106,38 +105,25 @@ if (newDocument) {
     });
 }
 
-// Languages and language selection
-const languages = useDexieLiveQuery(
-    () =>
-        db.docs.where("type").equals(DocType.Language).toArray() as unknown as Promise<
-            LanguageDto[]
-        >,
-    { initialValue: [] as LanguageDto[] },
-);
-
 const untranslatedLanguages = computed(() => {
-    if (!editableContent.value) {
-        return [];
-    }
+    if (!editableContent.value) return [];
 
-    return languages.value
-        .filter(
-            (l) =>
-                !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq) &&
-                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
-        )
+    return translatableLanguagesAsRef.value
+        .filter((l) => !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq))
         .sort(sortByName);
 });
 
 let _selectedLanguageId = ref<Uuid | undefined>(undefined);
 const selectedLanguageId = computed({
     get() {
-        if (!languages.value) return undefined;
+        if (!cmsLanguagesAsRef.value) return undefined;
         if (props.languageCode) {
-            const preferred = languages.value.find((l) => l.languageCode == props.languageCode);
+            const preferred = cmsLanguagesAsRef.value.find(
+                (l) => l.languageCode == props.languageCode,
+            );
             if (preferred) return preferred._id;
         }
-        if (languages.value.length > 0) return languages.value[0]._id;
+        if (cmsLanguagesAsRef.value.length > 0) return cmsLanguagesAsRef.value[0]._id;
         return undefined;
     },
     set(val) {
@@ -146,7 +132,7 @@ const selectedLanguageId = computed({
 });
 
 const selectedLanguage = computed(() => {
-    return languages.value.find((l) => l._id == selectedLanguageId.value);
+    return cmsLanguagesAsRef.value.find((l) => l._id == selectedLanguageId.value);
 });
 
 // Content language selection
@@ -498,7 +484,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                         v-if="editableContent"
                         v-model:editableParent="editableParent"
                         v-model:editableContent="editableContent"
-                        :languages="languages"
+                        :languages="cmsLanguagesAsRef"
                         :untranslatedLanguages="untranslatedLanguages"
                         :dirty="isDirty"
                         :existingContent="existingContent"
