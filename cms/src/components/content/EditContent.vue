@@ -553,7 +553,7 @@ const duplicate = async () => {
                         :existingContent="existingContent"
                         :existingParent="existingParent"
                         @updateIsValid="(val) => (isValid = val)"
-                        @createTranslation="(language) => createTranslation(language)"
+                        @create-translation="(language) => createTranslation(language)"
                     />
 
                     <EditContentParent
@@ -579,8 +579,8 @@ const duplicate = async () => {
                         :parent="editableParent"
                         :content="editableContent"
                         :languages="untranslatedLanguages"
-                        v-model="selectedLanguageId"
-                        @createTranslation="createTranslation"
+                        v-model:show-languages="selectedLanguageId"
+                        @create-translation="createTranslation"
                 /></EmptyState>
 
                 <div v-else class="space-y-6">
