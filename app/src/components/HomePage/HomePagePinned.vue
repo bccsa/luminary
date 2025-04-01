@@ -72,12 +72,16 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCatego
 
 <template>
     <HorizontalContentTileCollection
-        v-for="c in pinnedContentByCategory"
+        v-for="(c, index) in pinnedContentByCategory.tagged.value"
         :key="c.tag._id"
         :contentDocs="c.content"
         :title="c.tag.title"
         :summary="c.tag.summary"
         :showPublishDate="false"
-        class="bg-yellow-500/10 pb-1 pt-2 dark:bg-yellow-500/5"
+        class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
+        :class="[
+            index == 0 ? 'pt-4' : 'pt-2',
+            index == pinnedContentByCategory.tagged.value.length - 1 ? 'pb-3' : '',
+        ]"
     />
 </template>

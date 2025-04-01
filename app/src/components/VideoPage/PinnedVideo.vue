@@ -14,7 +14,6 @@ import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
-import IgnorePagePadding from "../IgnorePagePadding.vue";
 
 const pinnedCategories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -77,15 +76,17 @@ const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCatego
 </script>
 
 <template>
-    <IgnorePagePadding ignoreTop>
-        <HorizontalContentTileCollection
-            v-for="c in pinnedContentByCategory"
-            :key="c.tag._id"
-            :contentDocs="c.content"
-            :title="c.tag.title"
-            :summary="c.tag.summary"
-            :showPublishDate="false"
-            class="bg-yellow-500/10 pt-4 dark:bg-yellow-500/5"
-        />
-    </IgnorePagePadding>
+    <HorizontalContentTileCollection
+        v-for="(c, index) in pinnedContentByCategory.tagged.value"
+        :key="c.tag._id"
+        :contentDocs="c.content"
+        :title="c.tag.title"
+        :summary="c.tag.summary"
+        :showPublishDate="false"
+        class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
+        :class="[
+            index == 0 ? 'pt-4' : 'pt-2',
+            index == pinnedContentByCategory.tagged.value.length - 1 ? 'pb-3' : '',
+        ]"
+    />
 </template>

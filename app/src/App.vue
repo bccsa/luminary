@@ -104,7 +104,7 @@ document.addEventListener("keydown", (e) => {
             ref="main"
         >
             <RouterView v-slot="{ Component }">
-                <KeepAlive include="HomePage,ExplorePage">
+                <KeepAlive include="HomePage,ExplorePage,VideoPage">
                     <component :is="Component" :key="routeKey" />
                 </KeepAlive>
             </RouterView>

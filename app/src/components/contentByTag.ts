@@ -16,14 +16,18 @@ export type ContentByTag = {
 export const contentByTag = (
     content: Ref<ContentDto[]>,
     tags: Ref<ContentDto[]>,
-): Ref<ContentByTag[]> => {
-    const result = ref<ContentByTag[]>([]);
+    options: { includeUntagged?: boolean } = {},
+) => {
+    const result = {
+        tagged: ref<ContentByTag[]>([]),
+        untagged: ref<ContentDto[]>([]),
+    };
 
     watchEffect(() => {
         // Remove tags that no longer exist
-        for (let i = result.value.length - 1; i >= 0; i--) {
-            if (!tags.value.some((c) => c._id === result.value[i].tag._id)) {
-                result.value.splice(i, 1);
+        for (let i = result.tagged.value.length - 1; i >= 0; i--) {
+            if (!tags.value.some((c) => c._id === result.tagged.value[i].tag._id)) {
+                result.tagged.value.splice(i, 1);
             }
         }
 
@@ -34,24 +38,38 @@ export const contentByTag = (
                 .sort((a, b) => (a.publishDate ?? 0) - (b.publishDate ?? 0));
 
             if (sorted.length) {
-                const index = result.value.findIndex((r) => r.tag._id === tag._id);
+                const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
 
                 if (index !== -1) {
-                    Object.assign(result.value[index], {
+                    Object.assign(result.tagged.value[index], {
                         newestContentDate: sorted[sorted.length - 1].publishDate || 0,
                         content: sorted,
                     });
                 } else {
-                    result.value.push({
+                    result.tagged.value.push({
                         tag,
                         newestContentDate: sorted[sorted.length - 1].publishDate || 0,
                         content: sorted,
                     });
                 }
 
-                result.value.sort((a, b) => b.newestContentDate - a.newestContentDate);
+                result.tagged.value.sort((a, b) => b.newestContentDate - a.newestContentDate);
+            } else {
+                // Remove tags with no content
+                const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
+
+                if (index !== -1) {
+                    result.tagged.value.splice(index, 1);
+                }
             }
         });
+
+        // get untagged content
+        if (options.includeUntagged) {
+            result.untagged.value = content.value.filter(
+                (c) => !c.parentTags.some((t) => tags.value.some((tag) => tag.parentId === t)),
+            );
+        }
     });
 
     return result;

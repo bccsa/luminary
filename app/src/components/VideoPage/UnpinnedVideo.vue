@@ -13,7 +13,6 @@ import { appLanguageIdsAsRef } from "@/globalConfig";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { isPublished } from "@/util/isPublished";
-import IgnorePagePadding from "../IgnorePagePadding.vue";
 
 const newest100Content = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
@@ -100,14 +99,13 @@ const unpinnedNewestContentByCategory = contentByTag(newest100Content, categorie
 </script>
 
 <template>
-    <IgnorePagePadding>
-        <HorizontalContentTileCollection
-            v-for="c in unpinnedNewestContentByCategory"
-            :key="c.tag._id"
-            :contentDocs="c.content"
-            :title="c.tag.title"
-            :summary="c.tag.summary"
-            class="pb-1 pt-2"
-        />
-    </IgnorePagePadding>
+    <HorizontalContentTileCollection
+        v-for="(c, index) in unpinnedNewestContentByCategory.tagged.value"
+        :key="c.tag._id"
+        :contentDocs="c.content"
+        :title="c.tag.title"
+        :summary="c.tag.summary"
+        class="pb-1"
+        :class="index == 0 ? 'pt-4' : 'pt-2'"
+    />
 </template>

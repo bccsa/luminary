@@ -3,6 +3,7 @@ import { watch } from "vue";
 import {
     type ContentDto,
     DocType,
+    PublishStatus,
     TagType,
     type Uuid,
     db,
@@ -10,11 +11,10 @@ import {
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import IgnorePagePadding from "../IgnorePagePadding.vue";
 import { contentByTag } from "../contentByTag";
 import { isPublished } from "@/util/isPublished";
 
-const pinnedTopics = useDexieLiveQueryWithDeps(
+const categories = useDexieLiveQueryWithDeps(
     appLanguageIdsAsRef,
     (appLanguageIds: Uuid[]) =>
         db.docs
@@ -23,27 +23,27 @@ const pinnedTopics = useDexieLiveQueryWithDeps(
                 parentPinned: 1, // 1 = true
             })
             .filter((c) => {
-                const content = c as ContentDto;
-                if (content.parentTagType && content.parentTagType !== TagType.Category)
-                    return false;
-
-                return isPublished(content, appLanguageIds);
+                if (c.parentTagType !== TagType.Category) return false;
+                return isPublished(c as ContentDto, appLanguageIds);
             })
             .toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: await db.getQueryCache<ContentDto[]>("explore_pinnedTopics") },
+    {
+        initialValue: await db.getQueryCache<ContentDto[]>("explore_pinnedCategories"),
+        deep: true,
+    },
 );
 
-watch(pinnedTopics, async (value) => {
-    db.setQueryCache<ContentDto[]>("explore_pinnedTopics", value);
+watch(categories, async (value) => {
+    db.setQueryCache<ContentDto[]>("explore_pinnedCategories", value);
 });
 
-const pinnedTopicContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, pinnedTopics],
+const topics = useDexieLiveQueryWithDeps(
+    [appLanguageIdsAsRef, categories],
     ([appLanguageIds, pinnedTopics]: [Uuid[], ContentDto[]]) =>
         db.docs
             .where({
                 type: DocType.Content,
-                status: "published",
+                status: PublishStatus.Published,
             })
             .filter((c) => {
                 const content = c as ContentDto;
@@ -53,7 +53,11 @@ const pinnedTopicContent = useDexieLiveQueryWithDeps(
                 if (content.parentTagType && content.parentTagType !== TagType.Topic) return false;
 
                 for (const tagId of content.parentTags) {
-                    if (pinnedTopics.some((p) => p.parentId == tagId)) return true;
+                    if (
+                        pinnedTopics.some((p) => p.parentId == tagId) &&
+                        isPublished(content, appLanguageIds)
+                    )
+                        return true;
                 }
 
                 return false;
@@ -62,27 +66,28 @@ const pinnedTopicContent = useDexieLiveQueryWithDeps(
     { initialValue: await db.getQueryCache<ContentDto[]>("explorepage_pinnedTopics"), deep: true },
 );
 
-watch(pinnedTopicContent, async (value) => {
+watch(topics, async (value) => {
     db.setQueryCache<ContentDto[]>("explorepage_pinnedTopics", value);
 });
 
 // sort pinned content by category
-const pinnedContentByTopic = contentByTag(pinnedTopicContent, pinnedTopics);
+const topicsByCategory = contentByTag(topics, categories);
 </script>
 
 <template>
-    <div class="-my-6">
-        <IgnorePagePadding>
-            <HorizontalContentTileCollection
-                v-for="c in pinnedContentByTopic"
-                :key="c.tag._id"
-                :contentDocs="c.content"
-                :title="c.tag.title"
-                aspectRatio="classic"
-                :summary="c.tag.summary"
-                :showPublishDate="false"
-                class="pb-3 pt-4"
-            />
-        </IgnorePagePadding>
-    </div>
+    <HorizontalContentTileCollection
+        v-for="(c, index) in topicsByCategory.tagged.value"
+        :key="c.tag._id"
+        :contentDocs="c.content"
+        :title="c.tag.title"
+        aspectRatio="classic"
+        contentTitlePosition="center"
+        :summary="c.tag.summary"
+        :showPublishDate="false"
+        class="bg-yellow-500/10 pb-1 dark:bg-yellow-500/5"
+        :class="[
+            index == 0 ? 'pt-4' : 'pt-2',
+            index == topicsByCategory.tagged.value.length - 1 ? 'pb-4' : '',
+        ]"
+    />
 </template>
