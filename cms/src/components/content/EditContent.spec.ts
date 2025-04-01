@@ -186,6 +186,9 @@ describe("EditContent.vue", () => {
     });
 
     it("only displays languages the user has Translate access to in languageSelector", async () => {
+        await db.docs.clear();
+        await db.docs.bulkPut([mockData.mockPostDto, mockData.mockEnglishContentDto]);
+
         accessMap.value = { ...mockData.translateAccessToAllContentMap };
         accessMap.value["group-public-content"].language = {
             view: true,
