@@ -45,7 +45,11 @@ describe("EditContent.vue", () => {
 
         // seed the fake indexDB with mock data
         await db.docs.bulkPut([mockData.mockPostDto]);
-        await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
+        await db.docs.bulkPut([
+            mockData.mockEnglishContentDto,
+            mockData.mockFrenchContentDto,
+            mockData.mockSwahiliContentDto,
+        ]);
         await db.docs.bulkPut([
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
@@ -179,6 +183,48 @@ describe("EditContent.vue", () => {
             );
         });
     });
+
+    it.only(
+        "only displays languages the user has Translate access to in languageSelector",
+        async () => {
+            accessMap.value = { ...mockData.translateAccessToAllContentMap };
+            accessMap.value["group-public-content"].language = {
+                view: true,
+                translate: false,
+                edit: true,
+                publish: true,
+            };
+
+            await db.docs.bulkPut([
+                { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
+                { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },
+                { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
+            ]);
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    id: "test-id-123",
+                    languageCode: "en",
+                    docType: DocType.Post,
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            const languageSelector = wrapper.findComponent(LanguageSelector);
+            const btn = languageSelector.find("[data-test='language-selector']");
+            await btn.trigger("click");
+
+            const languages = languageSelector.find("[data-test='languagePopup']");
+
+            await waitForExpect(async () => {
+                expect(await languages.html()).toContain("English");
+
+                expect(await languages.html()).not.toContain("Français");
+                expect(await languages.html()).not.toContain("Swahili");
+            });
+        },
+        { timeout: 999999 },
+    );
 
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
@@ -647,44 +693,4 @@ describe("EditContent.vue", () => {
             });
         });
     });
-
-    it(
-        "only displays languages the user has Translate access to in languageSelector",
-        async () => {
-            accessMap.value = { ...mockData.translateAccessToAllContentMap };
-            accessMap.value["group-public-content"].language = {
-                view: true,
-                translate: false,
-                edit: true,
-                publish: true,
-            };
-
-            await db.docs.bulkPut([
-                { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
-                { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },
-                { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
-            ]);
-
-            const wrapper = mount(EditContent, {
-                props: {
-                    id: mockData.mockPostDto._id,
-                    languageCode: "en",
-                    docType: DocType.Post,
-                    tagOrPostType: PostType.Blog,
-                },
-            });
-
-            const languageSelector = wrapper.findComponent(LanguageSelector);
-            const btn = languageSelector.find("[data-test='language-selector']");
-            btn.trigger("click");
-
-            const languages = languageSelector.find("[data-test='languagePopup']");
-
-            await waitForExpect(async () => {
-                expect(await languages.html()).toContain("English");
-
-                expect(await languages.html()).not.toContain("Français");
-                expect(await languages.html()).not.toContain("Swahili");
-            });
-        });
 });

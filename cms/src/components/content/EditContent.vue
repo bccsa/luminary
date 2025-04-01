@@ -21,6 +21,7 @@ import {
     type ContentParentDto,
     PostType,
     isConnected,
+    useDexieLiveQuery,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -106,25 +107,18 @@ if (newDocument) {
 }
 
 // Languages and language selection
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languages = useDexieLiveQuery(
+    () =>
+        db.docs.where("type").equals(DocType.Language).toArray() as unknown as Promise<
+            LanguageDto[]
+        >,
+    { initialValue: [] as LanguageDto[] },
+);
 
 const untranslatedLanguages = computed(() => {
     if (!editableContent.value) {
         return [];
     }
-
-    console.info("Languages", languages.value);
-
-    console.info(
-        "Languages Filtered",
-        languages.value
-            .filter(
-                (l) =>
-                    !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq) &&
-                    verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
-            )
-            .sort(sortByName),
-    );
 
     return languages.value
         .filter(
