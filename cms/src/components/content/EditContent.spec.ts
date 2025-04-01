@@ -11,6 +11,7 @@ import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
 import LanguageSelector from "./LanguageSelector.vue";
+import { initLanguage } from "@/globalConfig";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -184,47 +185,43 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.only(
-        "only displays languages the user has Translate access to in languageSelector",
-        async () => {
-            accessMap.value = { ...mockData.translateAccessToAllContentMap };
-            accessMap.value["group-public-content"].language = {
-                view: true,
-                translate: false,
-                edit: true,
-                publish: true,
-            };
+    it("only displays languages the user has Translate access to in languageSelector", async () => {
+        accessMap.value = { ...mockData.translateAccessToAllContentMap };
+        accessMap.value["group-public-content"].language = {
+            view: true,
+            translate: false,
+            edit: true,
+            publish: true,
+        };
 
-            await db.docs.bulkPut([
-                { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
-                { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },
-                { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
-            ]);
+        await db.docs.bulkPut([
+            { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
+            { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },
+            { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
+        ]);
 
-            const wrapper = mount(EditContent, {
-                props: {
-                    id: "test-id-123",
-                    languageCode: "en",
-                    docType: DocType.Post,
-                    tagOrPostType: PostType.Blog,
-                },
-            });
+        const wrapper = mount(EditContent, {
+            props: {
+                id: "test-id-123",
+                languageCode: "en",
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+            },
+        });
 
-            const languageSelector = wrapper.findComponent(LanguageSelector);
-            const btn = languageSelector.find("[data-test='language-selector']");
-            await btn.trigger("click");
+        const languageSelector = wrapper.findComponent(LanguageSelector);
+        const btn = languageSelector.find("[data-test='language-selector']");
+        await btn.trigger("click");
 
-            const languages = languageSelector.find("[data-test='languagePopup']");
+        const languages = languageSelector.find("[data-test='languagePopup']");
 
-            await waitForExpect(async () => {
-                expect(await languages.html()).toContain("English");
+        await waitForExpect(async () => {
+            expect(await languages.html()).toContain("English");
 
-                expect(await languages.html()).not.toContain("Français");
-                expect(await languages.html()).not.toContain("Swahili");
-            });
-        },
-        { timeout: 999999 },
-    );
+            expect(await languages.html()).not.toContain("Français");
+            expect(await languages.html()).not.toContain("Swahili");
+        });
+    });
 
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {

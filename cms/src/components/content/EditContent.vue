@@ -21,7 +21,6 @@ import {
     type ContentParentDto,
     PostType,
     isConnected,
-    useDexieLiveQuery,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -45,6 +44,7 @@ import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
+import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 
 type Props = {
     id: Uuid;
@@ -106,38 +106,23 @@ if (newDocument) {
     });
 }
 
-// Languages and language selection
-const languages = useDexieLiveQuery(
-    () =>
-        db.docs.where("type").equals(DocType.Language).toArray() as unknown as Promise<
-            LanguageDto[]
-        >,
-    { initialValue: [] as LanguageDto[] },
-);
-
 const untranslatedLanguages = computed(() => {
-    if (!editableContent.value) {
-        return [];
-    }
+    if (!editableContent.value) return [];
 
-    return languages.value
-        .filter(
-            (l) =>
-                !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq) &&
-                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
-        )
+    return translatableLanguagesAsRef.value
+        .filter((l) => !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq))
         .sort(sortByName);
 });
 
 let _selectedLanguageId = ref<Uuid | undefined>(undefined);
 const selectedLanguageId = computed({
     get() {
-        if (!languages.value) return undefined;
+        if (!cmsLanguages.value) return undefined;
         if (props.languageCode) {
-            const preferred = languages.value.find((l) => l.languageCode == props.languageCode);
+            const preferred = cmsLanguages.value.find((l) => l.languageCode == props.languageCode);
             if (preferred) return preferred._id;
         }
-        if (languages.value.length > 0) return languages.value[0]._id;
+        if (cmsLanguages.value.length > 0) return cmsLanguages.value[0]._id;
         return undefined;
     },
     set(val) {
@@ -146,7 +131,7 @@ const selectedLanguageId = computed({
 });
 
 const selectedLanguage = computed(() => {
-    return languages.value.find((l) => l._id == selectedLanguageId.value);
+    return cmsLanguages.value.find((l) => l._id == selectedLanguageId.value);
 });
 
 // Content language selection
@@ -561,7 +546,7 @@ const duplicate = async () => {
                         v-if="editableContent"
                         v-model:editableParent="editableParent"
                         v-model:editableContent="editableContent"
-                        :languages="languages"
+                        :languages="cmsLanguages"
                         :untranslatedLanguages="untranslatedLanguages"
                         :dirty="isDirty"
                         :existingContent="existingContent"

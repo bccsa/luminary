@@ -1,5 +1,12 @@
 import _ from "lodash";
-import { db, DocType, useDexieLiveQuery, type LanguageDto } from "luminary-shared";
+import {
+    AclPermission,
+    db,
+    DocType,
+    useDexieLiveQuery,
+    verifyAccess,
+    type LanguageDto,
+} from "luminary-shared";
 import { ref, toRaw, watch } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
@@ -27,8 +34,10 @@ export const cmsLanguages = ref<LanguageDto[]>([]);
 export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
 
 /**
- * Initialize the language settings.
+ * Array of languages to which the CMS user have translate access to
  */
+export const translatableLanguagesAsRef = ref<LanguageDto[]>([]);
+
 export async function initLanguage() {
     if (cmsLanguageIdAsRef.value) return;
 
@@ -54,26 +63,23 @@ export async function initLanguage() {
     }
 
     const _cmsLanguages = useDexieLiveQuery(
-        async () =>
-            (await db.docs.where("type").equals(DocType.Language).toArray()) as unknown as Promise<
-                LanguageDto[]
-            >,
-        { initialValue: [] },
+        () =>
+            db.docs.where("type").equals("language").toArray() as unknown as Promise<LanguageDto[]>,
+        { initialValue: [] as LanguageDto[] },
     );
+    watch(_cmsLanguages, (languages) => {
+        cmsLanguages.value.slice(0, cmsLanguages.value.length);
+        cmsLanguages.value.push(...languages);
 
-    watch(
-        _cmsLanguages,
-        (newVal) => {
-            cmsLanguages.value.slice(0, cmsLanguages.value.length);
-            cmsLanguages.value.push(...newVal);
+        const defaultLang = languages.find((l) => l.default === 1);
 
-            const defaultLang = newVal.find((l) => l.default === 1);
+        translatableLanguagesAsRef.value = languages.filter((lang) =>
+            verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
+        );
 
-            // Prevent updating the value if the language is the same
-            if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
+        // Prevent updating the value if the language is the same
+        if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
 
-            cmsDefaultLanguage.value = defaultLang;
-        },
-        { deep: true },
-    );
+        cmsDefaultLanguage.value = defaultLang;
+    });
 }
