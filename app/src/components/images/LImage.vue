@@ -1,9 +1,8 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
-import { computed, onBeforeMount, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
 import { fallbackImages } from "@/globalConfig";
-import Rand from "rand-seed";
 import LImageProvider from "./LImageProvider.vue";
 
 type Props = {
@@ -53,10 +52,12 @@ onMounted(() => {
 });
 
 const fallbackImage = computed(() => {
-    return "";
+    const currentFallbackImage = fallbackImages.value.find(
+        (img) => img.id == props.contentParentId,
+    );
+    if (!currentFallbackImage) return;
+    return currentFallbackImage.url;
 });
-
-// console.info(fallbackImage.value);
 </script>
 
 <template>

@@ -63,6 +63,7 @@ async function Startup() {
     });
 
     await initLanguage();
+    await initFallbackImages();
 
     const i18n = await initI18n();
     await loadPlugins();
@@ -73,9 +74,7 @@ async function Startup() {
     app.mount("#app");
     initAppTitle(i18n);
     initAnalytics();
-    // await initFallbackImages();
 }
-
 Startup();
 
 if (import.meta.env.DEV == true) {

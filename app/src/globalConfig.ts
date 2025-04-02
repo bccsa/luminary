@@ -6,9 +6,8 @@ import {
     type LanguageDto,
     type Uuid,
 } from "luminary-shared";
-import { computed, ref, toRaw, watch } from "vue";
+import { computed, ref, toRaw, watch, watchEffect } from "vue";
 import * as _ from "lodash";
-import Rand from "rand-seed";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -339,42 +338,27 @@ const loadFallbackImageUrls = async () => {
 export const fallbackImages = ref<any[]>([]);
 
 export const initFallbackImages = async () => {
-    const _fallbackImages = localStorage.getItem("_fallback_images");
-    if (_fallbackImages) {
-        fallbackImages.value = JSON.parse(_fallbackImages);
-        return;
-    }
-
-    const parentDocs = useDexieLiveQuery(
-        async () =>
-            (await db.docs
-                .where("type")
-                .equals(DocType.Post)
-                .or("type")
-                .equals(DocType.Tag)
-                .toArray()) as unknown as Promise<ContentParentDto[]>,
-        { initialValue: [] as ContentParentDto[] },
-    );
-
-    console.info("Parent Documents", parentDocs.value);
+    const _fallbackImages: any[] = JSON.parse(localStorage.getItem("_fallback_images") || "[]");
 
     const urls = await loadFallbackImageUrls();
 
-    console.info("urls", urls);
+    const parentDocs = await useDexieLiveQuery(
+        () =>
+            db.docs
+                .where("type")
+                .anyOf([DocType.Post, DocType.Tag])
+                .toArray() as unknown as Promise<ContentParentDto[]>,
+        { initialValue: [] as ContentParentDto[] },
+    );
 
-    watch(parentDocs, () => {
+    watchEffect(() => {
         parentDocs.value.forEach((doc) => {
-            const seed = new Rand(doc._id).next();
-            if (fallbackImages.value.includes({ seed: seed })) return;
-            const randomIndex = Math.floor(Math.random() * fallbackImages.value.length);
-            const randomUrl = urls[randomIndex];
-            fallbackImages.value = [
-                ...fallbackImages.value,
-                { id: doc._id, url: randomUrl, seed: seed },
-            ];
+            if (_fallbackImages.includes({ id: doc._id })) return;
+            const randomUrl = urls[Math.floor(Math.random() * urls.length)];
+            fallbackImages.value = [...fallbackImages.value, { id: doc._id, url: randomUrl }];
         });
     });
 };
-watch(fallbackImages, () =>
-    localStorage.setItem("_fallback_images", JSON.stringify(fallbackImages.value)),
-);
+watch(fallbackImages, () => {
+    localStorage.setItem("_fallback_images", JSON.stringify(fallbackImages.value));
+});
