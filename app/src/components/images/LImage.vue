@@ -2,7 +2,7 @@
 // Image component with automatic aspect ratio selection and fallback image
 import { computed, onBeforeMount, onMounted, ref, watch } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
-import { _fallbackImages, fallbackImages } from "@/globalConfig";
+import { fallbackImages } from "@/globalConfig";
 import Rand from "rand-seed";
 import LImageProvider from "./LImageProvider.vue";
 
@@ -42,19 +42,6 @@ const rounding = {
 const parentRef = ref<HTMLElement | undefined>(undefined);
 const parentWidth = ref<number>(0);
 
-const fallbackImageSeed = new Rand(props.contentParentId).next();
-
-onBeforeMount(() => {
-    if (!_fallbackImages.value.includes({ seed: fallbackImageSeed })) {
-        const randomIndex = Math.floor(Math.random() * fallbackImages.length);
-        const randomUrl = fallbackImages[randomIndex];
-        _fallbackImages.value = [
-            ..._fallbackImages.value,
-            { url: randomUrl, seed: fallbackImageSeed },
-        ];
-    }
-});
-
 onMounted(() => {
     parentWidth.value = parentRef.value?.clientWidth || 0;
     watch(
@@ -66,8 +53,10 @@ onMounted(() => {
 });
 
 const fallbackImage = computed(() => {
-    return _fallbackImages.value.find((img) => img.seed == fallbackImageSeed).url;
+    return "";
 });
+
+// console.info(fallbackImage.value);
 </script>
 
 <template>
