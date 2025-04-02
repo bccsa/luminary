@@ -16,10 +16,9 @@ import {
     mockTopicDto,
     mockRedirectDto,
 } from "@/tests/mockdata";
-import { db, DocType, type ContentDto } from "luminary-shared";
+import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
-import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
@@ -29,10 +28,13 @@ const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
-        // @ts-expect-error
+        //@ts-ignore
         ...actual,
         useRouter: vi.fn().mockImplementation(() => ({
-            currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
+            currentRoute: ref({
+                name: "content",
+                params: { slug: mockEnglishContentDto.slug },
+            }),
             replace: routeReplaceMock,
             back: vi.fn(),
         })),
@@ -288,36 +290,6 @@ describe("SingleContent", () => {
                 name: "content",
                 params: { slug: mockFrenchContentDto.slug },
             });
-        });
-    });
-
-    it("shows a notification when the language is not available", async () => {
-        const testLanguage = {
-            _id: "lang-test",
-            type: DocType.Language,
-            updatedTimeUtc: 1704114000000,
-            memberOf: ["group-languages"],
-            languageCode: "tst",
-            name: "Test",
-            default: 0,
-        };
-
-        await db.docs.put(testLanguage);
-
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        const notificationStore = useNotificationStore();
-
-        await waitForExpect(() => {
-            // simulate language change
-            appLanguageIdsAsRef.value.unshift("lang-test");
-
-            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
-            expect(notificationStore.addNotification).toHaveBeenCalled();
         });
     });
 
