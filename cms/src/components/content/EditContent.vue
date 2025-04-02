@@ -276,10 +276,36 @@ const saveChanges = async () => {
         return;
     }
 
-    if (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish)) {
+    // Check if user has translate access to both the parent and the selected language
+    const hasTranslateAccess =
+        verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate) &&
+        selectedLanguage.value &&
+        verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate);
+
+    // Check if content is currently published
+    const prevContentDoc = existingContent.value?.find(
+        (d) => d.language === selectedLanguageId.value,
+    );
+    const isPublished = prevContentDoc?.status === PublishStatus.Published;
+
+    // If editing a published doc, require publish permission
+    if (
+        isPublished &&
+        !verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish)
+    ) {
         addNotification({
             title: "Insufficient Permissions",
-            description: "You do not have publish permission",
+            description: "You cannot modify a published document without publish access.",
+            state: "error",
+        });
+        return;
+    }
+
+    // If no translate access at all, disallow saving
+    if (!hasTranslateAccess) {
+        addNotification({
+            title: "Insufficient Permissions",
+            description: "You need translate access to save this content.",
             state: "error",
         });
         return;
