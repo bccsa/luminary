@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { type LanguageDto, DocType, db } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
-import LCard from "../common/LCard.vue";
-import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "./query";
+import LCard from "../../common/LCard.vue";
+import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "../utils/query";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
@@ -46,6 +46,13 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                                 class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
                             >
                                 Tags
+                            </th>
+
+                            <!-- group memberships -->
+                            <th
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                            >
+                                Group Memberships
                             </th>
 
                             <!-- publish date -->
@@ -92,9 +99,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                     v-if="contentDocs.length < 1"
                 >
                     <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
-                    <p class="text-sm text-zinc-500">
-                        No content found with the matched filter.
-                    </p>
+                    <p class="text-sm text-zinc-500">No content found with the matched filter.</p>
                 </div>
             </div>
         </div>

@@ -12,7 +12,7 @@ import { mount } from "@vue/test-utils";
 import LCombobox from "./LCombobox.vue";
 import waitForExpect from "wait-for-expect";
 import LInput from "./LInput.vue";
-import LTag from "../content/LTag.vue";
+import LTag from "../common/LTagHandler/LTag.vue";
 import { ref } from "vue";
 
 describe("LCombobox", () => {
@@ -42,11 +42,12 @@ describe("LCombobox", () => {
                 options: [{ id: 0, label: "Test Label", value: "test-value" }],
                 selectedOptions: selected.value,
                 docType: DocType.Post,
+                isContentOverview: false,
             },
         });
 
-        await wrapper.findComponent(LInput).setValue("Test Label");
-        await wrapper.findComponent(LInput).trigger("change");
+        await wrapper.find("input").setValue("Test Label");
+        await wrapper.find("input").trigger("change");
 
         await wrapper.find('[name="options-open-btn"]').trigger("click");
 

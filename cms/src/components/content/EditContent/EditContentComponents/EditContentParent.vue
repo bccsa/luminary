@@ -10,12 +10,12 @@ import {
     PostType,
 } from "luminary-shared";
 import { computed } from "vue";
-import TagSelector from "./TagSelector.vue";
-import GroupSelector from "../groups/GroupSelector.vue";
+import TagSelector from "../../Selectors/TagSelector.vue";
+import GroupSelector from "../../../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
-import ImageEditor from "../images/ImageEditor.vue";
+import ImageEditor from "../../../images/ImageEditor.vue";
 
 type Props = {
     docType: DocType;

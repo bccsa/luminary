@@ -10,6 +10,7 @@ import {
     MagnifyingGlassIcon,
     TagIcon,
     ArrowUturnLeftIcon,
+    UserGroupIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
@@ -20,22 +21,24 @@ import {
     hasAnyPermission,
     type ContentDto,
     PostType,
+    useDexieLiveQuery,
+    type GroupDto,
     useDexieLiveQueryWithDeps,
     type LanguageDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
-import ContentTable from "@/components/content/ContentTable.vue";
+import ContentTable from "@/components/content/ContentOverview/ContentTable.vue";
 import LSelect from "../../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import { debouncedWatch, onClickOutside } from "@vueuse/core";
-import type { ContentOverviewQueryOptions } from "../query";
+import type { ContentOverviewQueryOptions } from "../utils/query";
 import LInput from "../../forms/LInput.vue";
 import { Menu } from "@headlessui/vue";
 import LRadio from "../../forms/LRadio.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import LChecklist from "@/components/forms/LChecklist.vue";
-import LTag from "../LTag.vue";
+import LTag from "../../common/LTagHandler/LTag.vue";
+import LCombobox from "@/components/forms/LCombobox.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -65,6 +68,7 @@ const queryOptions = ref<ContentOverviewQueryOptions>(
               pageSize: 20,
               pageIndex: 0,
               tags: [],
+              groups: [],
               search: "",
               publishStatus: "all",
           },
@@ -162,6 +166,11 @@ const tagContentDocs = useDexieLiveQueryWithDeps(
     { initialValue: [] as ContentDto[] },
 );
 
+const groups = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
+
 const resetQueryOptions = () => {
     queryOptions.value = {
         languageId: queryOptions.value.languageId,
@@ -173,6 +182,7 @@ const resetQueryOptions = () => {
         pageSize: 20,
         pageIndex: 0,
         tags: [],
+        groups: [],
         search: "",
         publishStatus: "all",
     };
@@ -237,18 +247,34 @@ const resetQueryOptions = () => {
                         :options="filterByStatusOptions"
                         :icon="CloudArrowUpIcon"
                     />
-                    <LChecklist
+
+                    <LCombobox
                         :options="
                             tagContentDocs.map((tag) => ({
+                                id: tag.parentId,
                                 label: tag.title,
                                 value: tag.parentId,
                             }))
                         "
                         :icon="TagIcon"
-                        v-model:selectedValues="queryOptions.tags"
+                        :show-selected-in-dropdown="false"
+                        :selected-options="queryOptions.tags as string[]"
                         :is-content-overview="true"
                     />
 
+                    <LCombobox
+                        :options="
+                            groups.map((group: GroupDto) => ({
+                                id: group._id,
+                                label: group.name,
+                                value: group._id,
+                            }))
+                        "
+                        :selected-options="queryOptions.groups as string[]"
+                        :show-selected-in-dropdown="false"
+                        :is-content-overview="true"
+                        :icon="UserGroupIcon"
+                    />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </LButton>
@@ -335,6 +361,7 @@ const resetQueryOptions = () => {
                 >
                     <LTag
                         v-for="tag in queryOptions.tags"
+                        :icon="TagIcon"
                         :key="tag"
                         @remove="
                             () => {
@@ -344,6 +371,35 @@ const resetQueryOptions = () => {
                         "
                     >
                         {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
+                    </LTag>
+                </TransitionGroup>
+            </ul>
+        </div>
+        <div
+            v-if="queryOptions.groups && queryOptions.groups?.length > 0"
+            class="w-full bg-white px-2 pb-2 shadow"
+        >
+            <ul class="flex w-full flex-wrap gap-2">
+                <TransitionGroup
+                    enter-active-class="transition duration-150 delay-75"
+                    enter-from-class="transform scale-90 opacity-0"
+                    enter-to-class="transform scale-100 opacity-100"
+                    leave-active-class="transition duration-100"
+                    leave-from-class="transform scale-100 opacity-100"
+                    leave-to-class="transform scale-90 opacity-0"
+                >
+                    <LTag
+                        :icon="UserGroupIcon"
+                        v-for="group in queryOptions.groups"
+                        :key="group"
+                        @remove="
+                            () => {
+                                if (!queryOptions.groups) return;
+                                queryOptions.groups = queryOptions.groups.filter((v) => v != group);
+                            }
+                        "
+                    >
+                        {{ groups.find((g) => g._id == group)?.name }}
                     </LTag>
                 </TransitionGroup>
             </ul>

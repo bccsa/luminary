@@ -7,7 +7,7 @@ import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { ref } from "vue";
 import EditContentVideo from "./EditContentVideo.vue";
-import LInput from "../forms/LInput.vue";
+import LInput from "../../../forms/LInput.vue";
 
 describe("EditContentVideo.vue", () => {
     beforeAll(async () => {

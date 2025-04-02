@@ -7,8 +7,8 @@ import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
 import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
-import EditContentBasic from "./EditContentBasic.vue";
-import EditContentParent from "./EditContentParent.vue";
+import EditContentBasic from "../EditContent/EditContentComponents/EditContentBasic.vue";
+import EditContentParent from "../EditContent/EditContentComponents/EditContentParent.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

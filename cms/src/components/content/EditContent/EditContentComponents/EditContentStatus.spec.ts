@@ -8,7 +8,7 @@ import { ref } from "vue";
 import EditContentStatus from "./EditContentStatus.vue";
 import { DateTime } from "luxon";
 import { db, accessMap, type ContentDto, PublishStatus } from "luminary-shared";
-import LTextToggle from "../forms/LTextToggle.vue";
+import LTextToggle from "../../../forms/LTextToggle.vue";
 
 describe("EditContentStatus.vue", () => {
     beforeAll(async () => {

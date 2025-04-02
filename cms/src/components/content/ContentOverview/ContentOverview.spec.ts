@@ -9,7 +9,7 @@ import { setActivePinia } from "pinia";
 import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
-import ContentTable from "../ContentTable.vue";
+import ContentTable from "./ContentTable.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 vi.mock("@auth0/auth0-vue");
@@ -22,6 +22,11 @@ describe("ContentOverview.vue", () => {
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
             mockData.mockLanguageDtoSwa,
+            mockData.mockGroupDtoPrivateContent,
+            mockData.mockGroupDtoPublicContent,
+            mockData.mockGroupDtoPublicEditors,
+            mockData.mockGroupDtoPublicUsers,
+            mockData.mockGroupDtoSuperAdmins,
         ]);
     });
 
@@ -32,6 +37,11 @@ describe("ContentOverview.vue", () => {
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
             mockData.mockLanguageDtoSwa,
+            mockData.mockGroupDtoPrivateContent,
+            mockData.mockGroupDtoPublicContent,
+            mockData.mockGroupDtoPublicEditors,
+            mockData.mockGroupDtoPublicUsers,
+            mockData.mockGroupDtoSuperAdmins,
         ]);
 
         setActivePinia(createTestingPinia());

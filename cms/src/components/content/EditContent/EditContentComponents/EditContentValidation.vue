@@ -7,18 +7,18 @@ import {
     type TagDto,
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
-import { validate, type Validation } from "./ContentValidator";
+import { validate, type Validation } from "../../utils/ContentValidator";
 import {
     ExclamationCircleIcon,
     XCircleIcon,
     ArrowRightIcon,
     TrashIcon as TrashIconSolid,
 } from "@heroicons/vue/16/solid";
-import LBadge, { variants } from "../common/LBadge.vue";
+import LBadge, { variants } from "../../../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
-import LDialog from "../common/LDialog.vue";
+import LDialog from "../../../common/LDialog.vue";
 
 type Props = {
     languages: LanguageDto[];

@@ -7,8 +7,8 @@ import {
     type ContentParentDto,
 } from "luminary-shared";
 import { ref, watch, watchEffect } from "vue";
-import { validate, type Validation } from "./ContentValidator";
-import LanguageSelector from "./LanguageSelector.vue";
+import { validate, type Validation } from "../../utils/ContentValidator";
+import LanguageSelector from "../../Selectors/LanguageSelector.vue";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
