@@ -7,11 +7,13 @@ import {
     withDefaults,
     defineProps,
     defineEmits,
+    nextTick,
 } from "vue";
 import LImage from "./LImage.vue";
 import { usePinch, useDrag } from "@vueuse/gesture";
 import type { ImageDto } from "luminary-shared";
 
+// Props definition
 type Props = {
     image: ImageDto;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
@@ -25,71 +27,122 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits(["close"]);
+
+// Refs for DOM and transformations
 const container = ref<HTMLDivElement | null>(null);
+const scale = ref(1); // current zoom level
+const translateX = ref(0); // horizontal drag offset
+const translateY = ref(0); // vertical drag offset
 
-const scale = ref(1);
-const translateX = ref(0);
-const translateY = ref(0);
-const MAX_SCALE = 5;
+// Clamp limits
+const MAX_SCALE = 3;
 const MIN_SCALE = 1;
+const PADDING = 50; // image can't go more than 50px offscreen
 
+// Lock states to prevent drag+pinch at same time
+const isPinching = ref(false);
+const isDragging = ref(false);
+
+// Clamp helper
 function clamp(val: number, min: number, max: number) {
     return Math.min(Math.max(val, min), max);
 }
 
-function handleWheel(e: WheelEvent) {
-    if (!props.image) return;
-    if (!e.ctrlKey) return;
-    e.preventDefault();
-    const delta = -e.deltaY * 0.002;
-    scale.value = clamp(scale.value + delta, MIN_SCALE, MAX_SCALE);
+// Clamp translation so image edge doesn't go past viewport by more than PADDING
+function clampTranslation() {
+    const el = container.value;
+    if (!el || scale.value <= 1) return;
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    const containerWidth = el.offsetWidth;
+    const containerHeight = el.offsetHeight;
+
+    const scaledWidth = containerWidth * scale.value;
+    const scaledHeight = containerHeight * scale.value;
+
+    // Max allowed translation so the scaled image doesn't go offscreen more than PADDING
+
+    const maxTranslateX = Math.max((scaledWidth - viewportWidth) / 2 + PADDING, 0);
+    const maxTranslateY = Math.max((scaledHeight - viewportHeight) / 2 + PADDING, 0);
+
+    translateX.value = clamp(translateX.value, -maxTranslateX, maxTranslateX);
+    translateY.value = clamp(translateY.value, -maxTranslateY, maxTranslateY);
 }
 
+// Handle zoom via mouse wheel + ctrl
+function handleWheel(e: WheelEvent) {
+    if (!props.image || !e.ctrlKey) return;
+    e.preventDefault();
+
+    const delta = -e.deltaY * 0.002;
+    scale.value = clamp(scale.value + delta, MIN_SCALE, MAX_SCALE);
+
+    clampTranslation();
+}
+
+// Emit close on backdrop click
 const closeModal = () => emit("close");
 
-// Reset on image change
+// Reset zoom/translation on new image
 watch(
     () => props.image,
     () => {
         scale.value = 1;
         translateX.value = 0;
         translateY.value = 0;
+        nextTick(() => clampTranslation());
     },
     { immediate: true },
 );
 
-// Smooth progressive pinch
+// Handle pinch zoom (touch)
+// Only active if not currently dragging
 if (props.image) {
     usePinch(
-        ({ delta: [d] }) => {
-            scale.value = clamp(scale.value * (1 + d * 0.1), MIN_SCALE, MAX_SCALE);
+        ({ delta: [d], last }) => {
+            if (isDragging.value) return;
+
+            isPinching.value = !last;
+
+            const next = scale.value * (1 + d * 0.1);
+            scale.value = clamp(next, MIN_SCALE, MAX_SCALE);
+            clampTranslation();
         },
         {
             domTarget: container,
             eventOptions: { passive: false },
-            pointer: { touch: true }, // support touch
+            pointer: { touch: true },
         },
     );
 
-    // Drag ONLY when zoomed in
+    // Handle drag translation
+    // Only active when zoomed AND not pinching
     useDrag(
-        ({ offset: [x, y] }) => {
-            if (scale.value > 1) {
-                translateX.value = x;
-                translateY.value = y;
-            } else {
+        ({ offset: [x, y], last }) => {
+            if (scale.value <= 1 || isPinching.value) {
                 translateX.value = 0;
                 translateY.value = 0;
+                return;
             }
+
+            isDragging.value = !last;
+
+            translateX.value = x;
+            translateY.value = y;
+
+            clampTranslation(); // always re-validate limits
         },
         {
             domTarget: container,
-            eventOptions: { passive: true },
-            pointer: { touch: true }, // support touch drag
+            eventOptions: { passive: false }, // must be false to prevent touch scroll issues
+            pointer: { touch: true },
         },
     );
 }
 
+// Add/remove mouse wheel zoom on mount/unmount
 onMounted(() => {
     const el = container.value;
     if (!el || !props.image) return;
