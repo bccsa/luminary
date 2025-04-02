@@ -66,7 +66,7 @@ onMounted(() => {
                         data-test="backButton"
                     >
                         <ChevronLeftIcon
-                            class="h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
+                            class="h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50 -ml-2"
                             @click="router.back()"
                         />
                     </div>
