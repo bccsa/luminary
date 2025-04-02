@@ -1,6 +1,14 @@
-import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
+import {
+    db,
+    DocType,
+    useDexieLiveQuery,
+    type ContentParentDto,
+    type LanguageDto,
+    type Uuid,
+} from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
 import * as _ from "lodash";
+import Rand from "rand-seed";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
