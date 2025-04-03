@@ -41,8 +41,7 @@ export class SearchService {
 
         if (query.slug) {
             const queryKeys = Object.keys(query);
-            const allowedKeys = ["slug", "apiVersion"];
-            const invalidKeys = queryKeys.filter((key) => !allowedKeys.includes(key));
+            const invalidKeys = queryKeys.filter((key) => !["slug", "apiVersion"].includes(key));
 
             if (invalidKeys.length > 0) {
                 throw new HttpException(
@@ -52,9 +51,6 @@ export class SearchService {
                     HttpStatus.BAD_REQUEST,
                 );
             }
-
-            // Set types for slug queries
-            query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
         }
 
         // Get user accessible groups
