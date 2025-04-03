@@ -82,6 +82,7 @@ if (props.docType == DocType.Tag) {
 }
 
 if (newDocument) {
+    console.log("New Doc!");
     // Set default tag properties if it is a new tag
     if (props.docType == DocType.Tag) {
         (editableParent.value as TagDto).tagType = props.tagOrPostType as TagType;
@@ -92,17 +93,22 @@ if (newDocument) {
         (editableParent.value as PostDto).publishDateVisible = true;
     }
 } else {
+    console.log("Old doc!");
     // Get a copy of the parent document from IndexedDB, and host it as a local ref.
     db.get<PostDto | TagDto>(parentId).then((p) => {
         editableParent.value = _.cloneDeep(p);
         existingParent.value = _.cloneDeep(p);
     });
 
+    console.info(editableParent.value);
+
     // In the same way as the parent document, get a copy of the content documents
     db.whereParent(parentId, props.docType).then((doc) => {
         editableContent.value.push(...doc);
         existingContent.value = _.cloneDeep(doc);
     });
+
+    console.info(editableContent.value);
 }
 
 // Languages and language selection
@@ -128,6 +134,7 @@ const selectedLanguageId = computed({
         if (!languages.value) return undefined;
         if (props.languageCode) {
             const preferred = languages.value.find((l) => l.languageCode == props.languageCode);
+            console.info(preferred);
             if (preferred) return preferred._id;
         }
         if (languages.value.length > 0) return languages.value[0]._id;
