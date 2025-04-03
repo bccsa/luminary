@@ -31,36 +31,20 @@ setTimeout(() => {
 </script>
 
 <template>
-    <BasePage>
-        <div v-if="!hasPosts" class="text-zinc-800 dark:text-slate-100">
-            <div v-if="isAuthenticated">
-                <p>
-                    You don't have access to any content. If you believe this is an error, send your
-                    contact person a message.
-                </p>
-            </div>
-            <div v-else>
-                <div v-if="noContentMessageDelay">
-                    <p>There is currently no content available.</p>
-
-                    <p class="mt-1">
-                        Please
-                        <span
-                            class="cursor-pointer text-yellow-600 underline hover:text-yellow-500"
-                            @click="loginWithRedirect()"
-                            >log in </span
-                        >if you have an account.
-                    </p>
-                </div>
-            </div>
+    <div v-if="!hasPosts" class="text-zinc-800 dark:text-slate-100">
+        <div v-if="isAuthenticated">
+            <p>
+                You don't have access to any content. If you believe this is an error, send your
+                contact person a message.
+            </p>
         </div>
-        <IgnorePagePadding ignoreTop>
-            <Suspense>
-                <HomePagePinned />
-            </Suspense>
-            <Suspense>
-                <HomePageNewest />
-            </Suspense>
-        </IgnorePagePadding>
-    </BasePage>
+    </div>
+    <IgnorePagePadding ignoreTop>
+        <Suspense>
+            <HomePagePinned />
+        </Suspense>
+        <Suspense>
+            <HomePageNewest />
+        </Suspense>
+    </IgnorePagePadding>
 </template>
