@@ -9,6 +9,8 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import RichTextEditor from "../editor/RichTextEditor.vue";
+import EditContentText from "./EditContentText.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -425,6 +427,36 @@ describe("EditContent.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(true);
         });
+    });
+
+    it.only("correctly updates text field in indexedDB from rich text editor", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await wrapper.find("#headlessui-menu-button-v-10").trigger("click");
+        // expect(languageSelector.exists()).toBe(true);
+
+        // .find("button").trigger("click");
+
+        // console.info(await db.docs.toArray());
+
+        // console.info(wrapper.html());
+
+        const editContentText = wrapper.findComponent(EditContentText);
+
+        expect(editContentText.exists()).toBe(true);
+
+        // await .find('[data-test="addText"]').trigger("click");
+
+        const textEditor = wrapper.findComponent(RichTextEditor);
+
+        expect(textEditor.exists()).toBe(true);
     });
 
     describe("delete requests", () => {
