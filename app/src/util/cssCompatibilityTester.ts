@@ -17,11 +17,11 @@ async function checkCSSCompatibility() {
         postcss([
             doiuse({
                 browsers: [
-                    "chrome >= 96",
-                    "firefox >= 94",
-                    "edge >= 96",
-                    "opera >= 81",
-                    "safari >= 15",
+                    "chrome >= 109",
+                    "firefox >= 109",
+                    "edge >= 109",
+                    "opera >= 95",
+                    "safari >= 16.3",
                     "> 1%",
                 ],
                 onFeatureUsage: (usageInfo: any) => {
