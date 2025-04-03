@@ -37,20 +37,6 @@ setTimeout(() => {
                 contact person a message.
             </p>
         </div>
-        <div v-else>
-            <div v-if="noContentMessageDelay">
-                <p>There is currently no content available.</p>
-
-                <p class="mt-1">
-                    Please
-                    <span
-                        class="cursor-pointer text-yellow-600 underline hover:text-yellow-500"
-                        @click="loginModalVisible = true"
-                        >log in </span
-                    >if you have an account.
-                </p>
-            </div>
-        </div>
     </div>
     <IgnorePagePadding ignoreTop>
         <Suspense>
