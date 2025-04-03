@@ -47,6 +47,56 @@ describe("Search service", () => {
         expect(res.docs.length).toBe(10);
     });
 
+    it("throws an error if neither slug nor types are provided in the request", async () => {
+        const req: SearchReqDto = {
+            apiVersion: "0.0.0",
+            limit: 10,
+            types: [],
+        };
+
+        await expect(searchService.processReq(req, "")).rejects.toThrow(
+            "Missing required parameters: slug or types",
+        );
+
+        const req2: SearchReqDto = {
+            apiVersion: "0.0.0",
+            limit: 10,
+            slug: "",
+        };
+
+        await expect(searchService.processReq(req2, "")).rejects.toThrow(
+            "Missing required parameters: slug or types",
+        );
+
+        const req3: SearchReqDto = {
+            apiVersion: "0.0.0",
+            limit: 10,
+        };
+        await expect(searchService.processReq(req3, "")).rejects.toThrow(
+            "Missing required parameters: slug or types",
+        );
+
+        const req4: SearchReqDto = {
+            apiVersion: "0.0.0",
+            limit: 10,
+            types: [DocType.Post],
+        };
+        await expect(searchService.processReq(req4, "")).resolves.toBeDefined();
+    });
+
+    it("throws an error if invalid parameters are provided with slug", async () => {
+        const req: SearchReqDto = {
+            apiVersion: "0.0.0",
+            slug: "test-slug",
+            limit: 10,
+            types: [DocType.Post],
+        };
+
+        await expect(searchService.processReq(req, "")).rejects.toThrow(
+            "Invalid parameters: A 'slug' search request is invalid when used together with limit, types",
+        );
+    });
+
     it("can include delete commands in the query result", async () => {
         await service.insertDoc({
             _id: "test-delete",

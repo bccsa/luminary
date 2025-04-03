@@ -500,6 +500,47 @@ describe("DbService", () => {
             expect(res.docs.length).toBeGreaterThan(1);
             expect(notEnglishDocs.length).toBeLessThan(1);
         });
+
+        it("can retrieve documents by their slug", async () => {
+            const userAccess = new Map<DocType, Uuid[]>();
+            userAccess[DocType.Post] = [
+                "group-super-admins",
+                "group-public-content",
+                "group-private-content",
+            ];
+            userAccess[DocType.Tag] = [
+                "group-super-admins",
+                "group-public-content",
+                "group-private-content",
+            ];
+            userAccess[DocType.Group] = [
+                "group-super-admins",
+                "group-public-content",
+                "group-private-content",
+            ];
+            const options = {
+                userAccess: userAccess,
+                slug: "blog1-eng",
+            } as SearchOptions;
+
+            const res = await service.search(options);
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].slug).toBe("blog1-eng");
+        });
+
+        it("can retrieve redirects by their slug", async () => {
+            const userAccess = new Map<DocType, Uuid[]>();
+            userAccess[DocType.Redirect] = ["group-public-content"];
+            const options = {
+                userAccess: userAccess,
+                slug: "post1-eng",
+            } as SearchOptions;
+
+            const res = await service.search(options);
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].slug).toBe("post1-eng");
+            expect(res.docs[0].type).toBe(DocType.Redirect);
+        });
     });
 
     describe("delete", () => {

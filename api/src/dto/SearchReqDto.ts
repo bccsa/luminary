@@ -32,12 +32,12 @@ export class SearchReqDto {
     @Expose()
     groups?: Array<string>;
 
+    @IsOptional()
     @IsNotEmpty()
     @IsArray()
     @Expose()
-    types: Array<DocType>;
+    types?: Array<DocType>;
 
-    @IsNotEmpty()
     @IsBoolean()
     @IsOptional()
     @Expose()
@@ -48,13 +48,11 @@ export class SearchReqDto {
     @Expose()
     queryString?: string;
 
-    @IsNotEmpty()
     @IsNumber()
     @IsOptional()
     @Expose()
     from?: number;
 
-    @IsNotEmpty()
     @IsNumber()
     @IsOptional()
     @Expose()
@@ -75,4 +73,9 @@ export class SearchReqDto {
     @IsString()
     @Expose()
     docId?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    slug?: string;
 }

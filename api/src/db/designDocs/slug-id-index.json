@@ -1,0 +1,21 @@
+{
+    "_id": "_design/slug-id-index",
+    "language": "query",
+    "views": {
+        "slug-id-index": {
+            "map": {
+                "fields": {
+                    "slug": "asc",
+                    "_id": "asc"
+                },
+                "partial_filter_selector": {}
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["slug", "_id"]
+                }
+            }
+        }
+    }
+}
