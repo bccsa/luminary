@@ -13,7 +13,6 @@ import {
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
-import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
