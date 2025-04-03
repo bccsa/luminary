@@ -15,6 +15,7 @@ import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { ContentDto } from "../dto/ContentDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
+import { RedirectDto } from "src/dto/RedirectDto";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -35,7 +36,7 @@ export type GetDocsOptions = {
 
 export type SearchOptions = {
     userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
-    types: Array<DocType>;
+    types?: Array<DocType>;
     groups?: Array<string>;
     from?: number;
     to?: number;
@@ -46,6 +47,7 @@ export type SearchOptions = {
     queryString?: string;
     languages?: string[];
     docId?: Uuid;
+    slug?: string;
 };
 
 /**
@@ -489,11 +491,33 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * Execute a database find query
+     * @param query - Database query to be executed
+     * @returns - Promise containing the query result
+     */
+    async executeFindQuery(query: nano.MangoQuery): Promise<DbQueryResult> {
+        const res = await this.db.find(query);
+
+        // calculate the start and end of the block, used to pass back to the client for pagination
+        const { blockStart, blockEnd } = this.calcBlockStartEnd(res.docs);
+
+        return {
+            docs: res.docs,
+            warnings: res.warnings,
+            blockStart: blockStart,
+            blockEnd: blockEnd,
+        };
+    }
+
+    /**
      * Configurable database search function
      * @param {SearchOptions} options - Search options.
      * @returns - Promise containing a DbQueryResult object
      */
     search(options: SearchOptions): Promise<DbQueryResult> {
+        if (options.slug) return this.searchBySlug(options);
+
+        // TODO: move queries to separate functions similar to searchBySlug
         return new Promise(async (resolve, reject) => {
             /**
              * Calculate the list of group memberships. If a list of group memberships is passed, only include the group memberships requested (e.g. for incremental sync of newly added access). Else include all the user available group memberships.
@@ -587,24 +611,50 @@ export class DbService extends EventEmitter {
                 });
             docQuery.selector["$and"].push({ $or });
 
-            try {
-                const res = await this.db.find(docQuery);
-
-                const docs = res.docs;
-                const warnings = res.warnings;
-                // calculate the start and end of the block, used to pass back to the client for pagination
-                const { blockStart, blockEnd } = this.calcBlockStartEnd(docs);
-
-                resolve({
-                    docs,
-                    warnings: warnings,
-                    blockStart: blockStart,
-                    blockEnd: blockEnd,
-                });
-            } catch (err) {
-                reject(err);
-            }
+            this.executeFindQuery(docQuery)
+                .then((res) => resolve(res))
+                .catch((err) => reject(err));
         });
+    }
+
+    /**
+     * Perform a database search by slug
+     * @param options {SearchOptions} - Search options.
+     * @returns - Promise containing a DbQueryResult object
+     */
+    async searchBySlug(options: SearchOptions): Promise<DbQueryResult> {
+        const docQuery = {
+            selector: { slug: options.slug },
+            limit: Number.MAX_SAFE_INTEGER,
+        } as nano.MangoQuery;
+
+        const res = await this.executeFindQuery(docQuery);
+
+        // validate the result against the user access
+        res.docs = res.docs.filter((doc: ContentDto | RedirectDto) => {
+            if (
+                doc.type == DocType.Content &&
+                options.userAccess[(doc as ContentDto).parentType] &&
+                doc.memberOf.some((m: string) =>
+                    (options.userAccess[(doc as ContentDto).parentType] as string[]).includes(m),
+                )
+            ) {
+                return true;
+            }
+
+            if (
+                doc.type == DocType.Redirect &&
+                options.userAccess[doc.type] &&
+                doc.memberOf.some((m: string) =>
+                    (options.userAccess[doc.type] as string[]).includes(m),
+                )
+            ) {
+                return true;
+            }
+            return false;
+        });
+
+        return res;
     }
 
     /**
