@@ -10,6 +10,8 @@ import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
+import RichTextEditor from "../editor/RichTextEditor.vue";
+import EditContentText from "./EditContentText.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -448,6 +450,7 @@ describe("EditContent.vue", () => {
             status: PublishStatus.Draft,
         } as ContentDto);
 
+    it.only("correctly updates text field in indexedDB from rich text editor", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -481,6 +484,24 @@ describe("EditContent.vue", () => {
             const saved = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
             expect(saved?.title).toBe("Translated Title");
         });
+        await wrapper.find("#headlessui-menu-button-v-10").trigger("click");
+        // expect(languageSelector.exists()).toBe(true);
+
+        // .find("button").trigger("click");
+
+        // console.info(await db.docs.toArray());
+
+        // console.info(wrapper.html());
+
+        const editContentText = wrapper.findComponent(EditContentText);
+
+        expect(editContentText.exists()).toBe(true);
+
+        // await .find('[data-test="addText"]').trigger("click");
+
+        const textEditor = wrapper.findComponent(RichTextEditor);
+
+        expect(textEditor.exists()).toBe(true);
     });
 
     describe("delete requests", () => {
