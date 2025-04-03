@@ -29,13 +29,9 @@ const editor = useEditor({
     content: editorText.value,
     extensions: [
         StarterKit.configure({
-            heading: {
-                levels: [2, 3, 4, 5, 6],
-            },
+            heading: { levels: [2, 3, 4, 5, 6] },
         }),
-        Link.configure({
-            openOnClick: false,
-        }),
+        Link.configure({ openOnClick: false }),
     ],
     editable: (() => !disabled.value as boolean | undefined)(),
     editorProps: {
@@ -48,30 +44,37 @@ const editor = useEditor({
 
             const html = clipboardData.getData("text/html");
             if (html) {
-                // Downgrade headings by 1 level (h1 → h2, h2 → h3, ..., h5 → h6)
-                const downgradedHtml = html
-                    .replace(/<h([1-5])([^>]*)>/gi, (_, level, attrs) => {
-                        const newLevel = parseInt(level) + 1;
-                        return `<h${newLevel}${attrs}>`;
-                    })
-                    .replace(/<\/h([1-5])>/gi, (_, level) => {
-                        const newLevel = parseInt(level) + 1;
-                        return `</h${newLevel}>`;
-                    });
+                let cleanedHtml = html;
+                if (html.match(/<h([1])([^>]*)>/gi)) {
+                    cleanedHtml = html
+                        .replace(/<h([1-5])([^>]*)>/gi, (match, level, attrs) => {
+                            const newLevel = parseInt(level) + 1;
+                            return `<h${newLevel}${attrs}>`;
+                        })
+                        .replace(/<\/h([1-5])>/gi, (match, level) => {
+                            const newLevel = parseInt(level) + 1;
+                            return `</h${newLevel}>`;
+                        });
+                }
 
-                // Paste manually using commands
-                editor.value?.commands.insertContent(downgradedHtml);
-                return true; // Prevent default paste behavior
+                cleanedHtml = cleanedHtml.replace(/\r\n/gi, "");
+
+                editor.value?.commands.insertContent(cleanedHtml);
+                return true;
             }
 
             return false;
         },
     },
-    onUpdate: ({ editor }) => (text.value = JSON.stringify(editor.getJSON())),
+    onUpdate: ({ editor }) => {
+        const raw = editor.getJSON();
+        // const cleaned = removeEmptyLineBreaks(raw);
+        text.value = JSON.stringify(raw);
+    },
 });
 
 watch(disabled, () => {
-    editor.value?.setEditable(disabled.value ? false : true);
+    editor.value?.setEditable(!disabled.value);
 });
 </script>
 
@@ -113,7 +116,7 @@ watch(disabled, () => {
                     <StrikethroughIcon class="h-5 w-5" />
                 </button>
             </div>
-            <!-- New heading buttons group -->
+
             <div class="flex pb-2">
                 <button
                     :class="[
@@ -160,6 +163,7 @@ watch(disabled, () => {
                     H5
                 </button>
             </div>
+
             <div class="flex pb-2">
                 <button
                     :class="[
