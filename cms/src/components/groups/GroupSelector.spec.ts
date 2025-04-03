@@ -175,4 +175,26 @@ describe("GroupSelector", () => {
             expect(wrapper.text()).not.toContain("Public Editors");
         });
     });
+
+    it("disables tag remove button when group is not removable", async () => {
+        // Remove edit and assign access to the group
+        // @ts-ignore
+        accessMap.value[mockGroupDtoPublicUsers._id].post.edit = false;
+        // @ts-ignore
+        accessMap.value[mockGroupDtoPublicUsers._id].group.assign = false;
+
+        const wrapper = mount(GroupSelector, {
+            props: {
+                groups: [mockGroupDtoPublicUsers._id],
+                docType: DocType.Post,
+            },
+        });
+
+        await waitForExpect(() => {
+            const tag = wrapper.findComponent(LTag);
+            expect(tag.props().disabled).toBe(true);
+
+            console.log(tag.props());
+        });
+    });
 });

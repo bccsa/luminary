@@ -76,4 +76,72 @@ describe("LCombobox", () => {
             expect(wrapper.text()).toContain("Test Label");
         });
     });
+
+    it("renders a tag as disabled when isRemovable is false", async () => {
+        const selected = ref(["id-1"]);
+
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [{ id: "id-1", label: "Unremovable", value: "id-1" }],
+                selectedOptions: selected.value,
+                selectedLabels: [
+                    {
+                        id: "id-1",
+                        label: "Unremovable",
+                        value: "id-1",
+                        isRemovable: false,
+                    },
+                ],
+            },
+        });
+
+        const tag = wrapper.findComponent(LTag);
+        expect(tag.props("disabled")).toBe(true);
+    });
+
+    it("removes tag on click when removable", async () => {
+        const selected = ref(["id-1"]);
+
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [{ id: "id-1", label: "Removable", value: "id-1" }],
+                selectedOptions: selected.value,
+                "onUpdate:selectedOptions": (e: any) => (selected.value = e),
+                selectedLabels: [
+                    {
+                        id: "id-1",
+                        label: "Removable",
+                        value: "id-1",
+                        isRemovable: true,
+                    },
+                ],
+            },
+        });
+
+        await wrapper.findComponent(LTag).find("button").trigger("click");
+
+        await waitForExpect(() => {
+            expect(selected.value).not.toContain("id-1");
+        });
+    });
+
+    it("renders fallback label when group is not viewable", () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [],
+                selectedOptions: ["hidden-uuid"],
+                selectedLabels: [
+                    {
+                        id: "hidden-uuid",
+                        label: "hidden-uuid",
+                        value: "hidden-uuid",
+                        isVisible: false,
+                        isRemovable: false,
+                    },
+                ],
+            },
+        });
+
+        expect(wrapper.text()).toContain("hidden-uuid");
+    });
 });

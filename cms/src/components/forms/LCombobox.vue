@@ -13,6 +13,8 @@ export type ComboboxOption = {
     id: string | number;
     label: string;
     value: any;
+    isVisible?: boolean;
+    isRemovable?: boolean;
 };
 
 type Props = {
@@ -20,11 +22,14 @@ type Props = {
     disabled?: boolean;
     options: ComboboxOption[];
     showSelectedInDropdown?: boolean;
+    selectedLabels?: ComboboxOption[];
 };
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
+    showSelectedInDropdown: true,
 });
+
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 
 const inputElement = ref<HTMLElement>();
@@ -34,9 +39,7 @@ const showDropdown = ref(false);
 
 const optionsList = computed(() =>
     props.options.map((o) => ({
-        id: o.id,
-        label: o.label,
-        value: o.value,
+        ...o,
         selected: selectedOptions.value?.includes(o.id),
         highlighted: false,
     })),
@@ -64,6 +67,11 @@ watch(showDropdown, () => {
     if (!showDropdown.value) {
         highlightedIndex.value = -1;
     }
+});
+
+const selectedLabels = computed(() => {
+    if (props.selectedLabels) return props.selectedLabels;
+    return optionsList.value.filter((o) => o.selected);
 });
 </script>
 
@@ -151,11 +159,7 @@ watch(showDropdown, () => {
                     'relative cursor-default select-none py-2 pl-3 pr-9',
                     {
                         'bg-white text-black hover:bg-zinc-100': !option.selected,
-                    },
-                    {
                         'text-zinc-300 hover:bg-white': option.selected,
-                    },
-                    {
                         'bg-zinc-100': highlightedIndex === filtered.indexOf(option),
                     },
                 ]"
@@ -176,10 +180,16 @@ watch(showDropdown, () => {
         </div>
         <div class="mt-3 flex flex-wrap gap-3">
             <LTag
-                v-for="option in optionsList.filter((o) => o.selected)"
+                v-for="option in selectedLabels"
                 :key="option.id"
-                @remove="() => selectedOptions.splice(selectedOptions?.indexOf(option.id), 1)"
-                :disabled="disabled"
+                @remove="
+                    () => {
+                        if (option.isRemovable !== false) {
+                            selectedOptions.splice(selectedOptions?.indexOf(option.id), 1);
+                        }
+                    }
+                "
+                :disabled="disabled || option.isRemovable === false"
             >
                 {{ option.label }}
             </LTag>
