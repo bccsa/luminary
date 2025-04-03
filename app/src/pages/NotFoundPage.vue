@@ -21,7 +21,9 @@ const { isAuthenticated, loginWithRedirect } = useAuth0();
                 }}
             </p>
             <div v-if="isAuthenticated" class="mt-10 flex items-center justify-center gap-x-6">
-                <RouterLink to="/" class="text-yellow-700 underline"> Back to home </RouterLink>
+                <RouterLink to="/" class="border-b-[1px] border-yellow-700 text-yellow-700">
+                    Back to home
+                </RouterLink>
             </div>
             <div v-else class="mt-10 flex items-center justify-center gap-x-1">
                 Please click
