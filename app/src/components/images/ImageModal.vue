@@ -146,6 +146,17 @@ if (props.image) {
 onMounted(() => {
     const el = container.value;
     if (!el || !props.image) return;
+
+    const isMobile = window.innerWidth < 768;
+
+    // zoomed image when opened on mobile
+    if (isMobile) {
+        scale.value = 1.5;
+        translateX.value = 0;
+        translateY.value = 0;
+    }
+
+    // Add wheel event listener for zooming
     el.addEventListener("wheel", handleWheel, { passive: false });
 });
 
