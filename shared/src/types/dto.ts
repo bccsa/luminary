@@ -178,3 +178,17 @@ export type RedirectDto = ContentBaseDto & {
     slug: string;
     toSlug?: string;
 };
+
+/**
+ * This type is an exact copy of the API's DbQueryResult, which is passed to the client when querying the Search API endpoint
+ */
+export type ApiQueryResult<T> = {
+    docs: Array<T>;
+    warnings?: Array<string>;
+    version?: number;
+    blockStart?: number;
+    blockEnd?: number;
+    group?: string;
+    type?: DocType;
+    contentOnly?: boolean;
+};

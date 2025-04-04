@@ -84,12 +84,22 @@ class SocketIO {
 
     /**
      * Adds the listener function as an event listener for ev.
-     * @param ev — Name of the event
-     * @param listener — Callback function
+     * @param event — Name of the event
+     * @param callback — Callback function
      */
     public on(event: string, callback: (...args: any[]) => void) {
         // Expose socket events
         this.socket.on(event, callback);
+    }
+
+    /**
+     * Removes the listener function as an event listener for ev.
+     * @param event - Name of the event
+     * @param callback - Callback function
+     */
+    public off(event: string, callback: (...args: any[]) => void) {
+        // Expose socket events
+        this.socket.off(event, callback);
     }
 
     /**
