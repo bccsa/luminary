@@ -227,7 +227,11 @@ const canPublish = computed(() => {
 
 // Access control
 const canTranslateOrPublish = computed(() => {
-    return canTranslate.value && canPublish.value;
+    if (!selectedContent.value) return false;
+    if (!canTranslate.value) return false;
+    if (!canPublish.value && selectedContent.value.status == PublishStatus.Draft) return true;
+    if (canPublish.value) return true;
+    return false;
 });
 
 const canEditParent = computed(() => {
@@ -276,12 +280,6 @@ const saveChanges = async () => {
         return;
     }
 
-    // Check if user has translate access to both the parent and the selected language
-    const hasTranslateAccess =
-        verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate) &&
-        selectedLanguage.value &&
-        verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate);
-
     // Check if content is currently published
     const prevContentDoc = existingContent.value?.find(
         (d) => d.language === selectedLanguageId.value,
@@ -302,7 +300,7 @@ const saveChanges = async () => {
     }
 
     // If no translate access at all, disallow saving
-    if (!hasTranslateAccess) {
+    if (!canTranslate.value) {
         addNotification({
             title: "Insufficient Permissions",
             description: "You need translate access to save this content.",
@@ -560,6 +558,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                     <EditContentStatus
                         v-model:content="selectedContent"
                         :disabled="!canTranslateOrPublish"
+                        :disablePublish="!canPublish"
                     />
                     <EditContentBasic
                         v-model:content="selectedContent"
