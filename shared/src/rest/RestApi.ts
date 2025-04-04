@@ -9,7 +9,7 @@ export type ApiSearchQuery = {
     offset?: number;
     sort?: "desc" | "asc";
     groups?: Array<string>;
-    types: Array<DocType>;
+    types?: Array<DocType>;
     contentOnly?: boolean;
     queryString?: string;
     from?: number;
@@ -68,7 +68,7 @@ class RestApi {
     async search(query: ApiSearchQuery) {
         query.apiVersion = "0.0.0";
 
-        return await this.http.get("search", query);
+        return await this.http.get("search", query); //TODO: Add type: ApiQueryResult<T>
     }
 
     async changeRequest(query: ChangeRequestQuery) {

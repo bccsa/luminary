@@ -1,0 +1,171 @@
+import { Ref, ref, watch } from "vue";
+import { ApiSearchQuery, getRest } from "../../rest/RestApi";
+import { getSocket } from "../../socket/socketio";
+import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../../types";
+import { db } from "../../db/database";
+
+export type ApiLiveQueryOptions<T> = {
+    initialValue?: T;
+};
+
+/**
+ * ApiLiveQuery is a wrapper around the REST API and socket.io to provide a live query
+ * functionality. It allows you to subscribe to a query and get live updates when the data
+ * changes. It uses Vue's reactivity system to provide a reactive API.
+ * @param query The query to subscribe to. It should be a valid ApiSearchQuery object.
+ * @param options Options for the live query. It can contain an initial value for the data.
+ * @returns A Vue ref that contains the data from the query. The data will be updated
+ * automatically when the data changes in the database.
+ */
+export class ApiLiveQuery<T extends BaseDocumentDto> {
+    private dataAsRef: Ref<Array<T> | undefined>;
+    private socketOnCallback: ((data: ApiQueryResult<T>) => void) | undefined = undefined;
+
+    /**
+     * Get the live query data as a Vue ref
+     */
+    public asRef(): Ref<Array<T> | undefined> {
+        return this.dataAsRef;
+    }
+
+    constructor(query: Ref<ApiSearchQuery>, options: ApiLiveQueryOptions<Array<T>>) {
+        // Validate the query
+        if (query.value.groups) {
+            throw new Error("groups are not supported in ApiLiveQuery");
+        }
+
+        if (query.value.queryString) {
+            throw new Error("queryString is not implemented yet");
+        }
+
+        this.dataAsRef = ref<Array<T> | undefined>(options.initialValue) as Ref<
+            Array<T> | undefined
+        >;
+
+        // Fetch initial data from the REST API and subscribe to live updates
+        watch(
+            query,
+            () => {
+                this.stopLiveQuery();
+
+                getRest()
+                    .search(query.value)
+                    .then((result) => {
+                        this.dataAsRef.value = result.docs as Array<T>;
+                    })
+                    .catch((error) => {
+                        console.error("Error fetching data from API:", error);
+                    });
+
+                // Listen for updates from the socket
+                this.socketOnCallback = (data) =>
+                    applySocketData<T>(data, this.dataAsRef, query.value);
+                getSocket().on("data", this.socketOnCallback);
+            },
+            { immediate: true },
+        );
+    }
+
+    /**
+     * Stop listening for live updates from the API
+     */
+    stopLiveQuery() {
+        // Stop listening for updates from the socket
+        if (this.socketOnCallback) getSocket().off("data", this.socketOnCallback);
+        this.socketOnCallback = undefined;
+    }
+}
+
+/**
+ * Apply an array of items to an array by _id. If the item already exists in the array, it will be updated.
+ */
+function updateArray<T extends BaseDocumentDto>(array: Array<T>, items: Array<T>) {
+    items.forEach((item) => {
+        const index = array.findIndex((i) => i._id === item._id);
+        if (index !== -1) {
+            array[index] = item;
+        } else {
+            array.push(item);
+        }
+    });
+}
+
+/**
+ * Apply the data from the socket to the destination array after filtering it based on the query.
+ */
+export function applySocketData<T extends BaseDocumentDto>(
+    data: ApiQueryResult<T>,
+    destination: Ref<Array<T> | undefined>,
+    query: ApiSearchQuery,
+) {
+    // Delete documents that are marked for deletion
+    const toDeleteIds = (data.docs as unknown as Array<DeleteCmdDto>)
+        .filter((doc) => {
+            if (doc.type !== DocType.DeleteCmd) return false;
+
+            return db.validateDeleteCommand(doc);
+        })
+        .map((doc) => doc.docId);
+
+    destination.value = destination.value?.filter(
+        (doc) => !toDeleteIds.includes(doc._id),
+    ) as Array<T>;
+
+    // Filter out delete commands from the result
+    let docs = data.docs.filter((doc) => doc.type !== DocType.DeleteCmd);
+
+    // Filter on document type
+    if (query.types && query.types.length > 0) {
+        if (query.contentOnly && query.types.includes(DocType.Post || DocType.Tag)) {
+            docs = docs.filter(
+                (doc) =>
+                    doc.type === DocType.Content &&
+                    doc.parentType &&
+                    query.types?.includes(doc.parentType),
+            );
+        } else {
+            docs = docs.filter(
+                (doc) =>
+                    query.types?.includes(doc.type) ||
+                    (doc.type === DocType.Content &&
+                        doc.parentType &&
+                        query.types?.includes(doc.parentType)),
+            );
+        }
+    }
+
+    // Filter on language
+    if (query.languages && query.languages.length > 0) {
+        docs = docs.filter(
+            (doc) =>
+                doc.type !== DocType.Content ||
+                query.languages?.includes((doc as unknown as ContentDto).language),
+        );
+    }
+
+    if (query.from) docs = docs.filter((doc) => doc.updatedTimeUtc >= query.from!);
+    if (query.to) docs = docs.filter((doc) => doc.updatedTimeUtc <= query.to!);
+    if (query.docId) docs = docs.filter((doc) => doc._id === query.docId);
+
+    // If limit or offset is set, only update already existing documents
+    if (query.limit || query.offset) {
+        docs = docs.filter((doc) => destination.value?.some((d) => d._id === doc._id));
+    }
+
+    // Update the ref
+    if (docs.length && !destination.value) {
+        destination.value = docs;
+    } else {
+        updateArray(destination.value, docs);
+    }
+
+    // Sorting
+    destination.value.sort((a, b) => {
+        if (query.sort === "asc") {
+            return a.updatedTimeUtc - b.updatedTimeUtc;
+        } else {
+            // Default to descending order
+            return b.updatedTimeUtc - a.updatedTimeUtc;
+        }
+    });
+}
