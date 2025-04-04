@@ -5,7 +5,7 @@ import fallbackImg from "../../assets/fallbackImage.webp";
 import LImageProvider from "./LImageProvider.vue";
 
 type Props = {
-    image: ImageDto;
+    image?: ImageDto;
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;

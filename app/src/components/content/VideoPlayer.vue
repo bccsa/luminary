@@ -245,8 +245,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
 <template>
     <div class="relative bg-transparent md:rounded-lg">
         <LImage
-            v-if="(content && content.video) || content.parentImageData"
-            :image="content.parentImageData || { fileCollections: [] }"
+            :image="content.parentImageData"
             aspectRatio="video"
             size="post"
             fallbackImg="/img/fallback.jpg"
