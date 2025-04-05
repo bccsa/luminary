@@ -2,7 +2,7 @@ import {
     db,
     DocType,
     useDexieLiveQuery,
-    type ContentParentDto,
+    type ContentDto,
     type LanguageDto,
     type Uuid,
 } from "luminary-shared";
@@ -342,20 +342,38 @@ export const initFallbackImages = async () => {
 
     const urls = await loadFallbackImageUrls();
 
-    const parentDocs = await useDexieLiveQuery(
+    const contentDocs = await useDexieLiveQuery(
         () =>
             db.docs
-                .where("type")
+                .where("parentType")
                 .anyOf([DocType.Post, DocType.Tag])
-                .toArray() as unknown as Promise<ContentParentDto[]>,
-        { initialValue: [] as ContentParentDto[] },
+                .toArray() as unknown as Promise<ContentDto[]>,
+        { initialValue: [] as ContentDto[] },
     );
 
     watchEffect(() => {
-        parentDocs.value.forEach((doc) => {
-            if (_fallbackImages.includes({ id: doc._id })) return;
+        // Group content docs by parentID
+        const docsByParent = new Map<string, Array<(typeof contentDocs.value)[0]>>();
+
+        contentDocs.value.forEach((doc) => {
+            if (!docsByParent.has(doc.parentId)) {
+                docsByParent.set(doc.parentId, []);
+            }
+            const docs = docsByParent.get(doc.parentId);
+            if (docs) docs.push(doc);
+        });
+
+        // Pick one random doc per parentID and assign a random URL
+        docsByParent.forEach((docs) => {
+            const randomDoc = docs[Math.floor(Math.random() * docs.length)];
+
+            if (_fallbackImages.find((img) => img.id === randomDoc._id)) return;
+
             const randomUrl = urls[Math.floor(Math.random() * urls.length)];
-            fallbackImages.value = [...fallbackImages.value, { id: doc._id, url: randomUrl }];
+            fallbackImages.value = [
+                ...fallbackImages.value,
+                { id: randomDoc.parentId, url: randomUrl },
+            ];
         });
     });
 };
