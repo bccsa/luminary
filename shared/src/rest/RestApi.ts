@@ -7,7 +7,7 @@ export type ApiSearchQuery = {
     apiVersion?: string;
     limit?: number;
     offset?: number;
-    sort?: "desc" | "asc";
+    sort?: Array<{ [key: string]: "asc" | "desc" }>;
     groups?: Array<string>;
     types?: Array<DocType>;
     contentOnly?: boolean;

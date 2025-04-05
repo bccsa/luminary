@@ -160,12 +160,35 @@ export function applySocketData<T extends BaseDocumentDto>(
     }
 
     // Sorting
-    destination.value.sort((a, b) => {
-        if (query.sort === "asc") {
-            return a.updatedTimeUtc - b.updatedTimeUtc;
-        } else {
-            // Default to descending order
+    if (!query.sort || !query.sort.length) {
+        // Default to updatedTimeUtc descending order if no sort is provided
+        destination.value.sort((a, b) => {
             return b.updatedTimeUtc - a.updatedTimeUtc;
-        }
+        });
+
+        return;
+    }
+
+    query.sort.forEach((sort) => {
+        const key = Object.keys(sort)[0];
+        const order = sort[key];
+
+        if (!destination.value) return;
+        destination.value.sort((a, b) => {
+            const _a = a as any;
+            const _b = b as any;
+
+            if (!_a[key] || !_b[key]) return 0; // Skip if key is not present
+
+            if (order === "asc") {
+                if (_a[key] < _b[key]) return -1;
+                if (_a[key] > _b[key]) return 1;
+            } else {
+                if (_a[key] < _b[key]) return 1;
+                if (_a[key] > _b[key]) return -1;
+            }
+
+            return 0;
+        });
     });
 }

@@ -257,7 +257,7 @@ describe("ApiLiveQuery", () => {
                 ],
             };
 
-            const query = { sort: "asc" } as ApiSearchQuery;
+            const query = { sort: [{ updatedTimeUtc: "asc" }] } as ApiSearchQuery;
 
             applySocketData(data, destination, query);
 
