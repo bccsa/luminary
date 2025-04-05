@@ -6,7 +6,7 @@ import {
     verifyAccess,
     type LanguageDto,
 } from "luminary-shared";
-import { ref, watch } from "vue";
+import { ref, watch, watchEffect } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -33,7 +33,7 @@ export const cmsLanguagesAsRef = ref<LanguageDto[]>([]);
 export const translatableLanguagesAsRef = ref<LanguageDto[]>([]);
 
 export async function initLanguage() {
-    if (cmsLanguageIdAsRef.value) return;
+    if (cmsLanguageIdAsRef.value && cmsLanguagesAsRef.value.length > 1) return;
 
     const languages = (await db.docs.where("type").equals("language").toArray()) as LanguageDto[];
     const browserPreferredLanguage = navigator.languages[0];
