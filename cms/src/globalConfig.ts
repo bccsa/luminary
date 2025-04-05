@@ -48,7 +48,7 @@ export const cmsLanguagesAsRef = ref<LanguageDto[]>([]);
 export const translatableLanguagesAsRef = ref<LanguageDto[]>([]);
 
 export async function initLanguage() {
-    if (cmsLanguageIdAsRef.value) return;
+    if (cmsLanguageIdAsRef.value && cmsLanguagesAsRef.value.length > 1) return;
 
     const languages: LanguageDto[] = (await db.docs
         .where({ type: DocType.Language })
