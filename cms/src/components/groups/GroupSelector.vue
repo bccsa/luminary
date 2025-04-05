@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// Import necessary utilities and types from Vue and shared libraries
 import { computed } from "vue";
 import {
     db,
