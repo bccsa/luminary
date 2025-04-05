@@ -43,7 +43,7 @@ import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
-import { clientAppUrl } from "@/globalConfig";
+import { clientAppUrl, cmsLanguagesAsRef, translatableLanguagesAsRef } from "@/globalConfig";
 
 type Props = {
     id: Uuid;
@@ -105,32 +105,25 @@ if (newDocument) {
     });
 }
 
-// Languages and language selection
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-
 const untranslatedLanguages = computed(() => {
-    if (!editableContent.value) {
-        return [];
-    }
+    if (!editableContent.value) return [];
 
-    return languages.value
-        .filter(
-            (l) =>
-                !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq) &&
-                verifyAccess(l.memberOf, DocType.Language, AclPermission.Translate),
-        )
+    return translatableLanguagesAsRef.value
+        .filter((l) => !editableContent.value?.find((c) => c.language == l._id && !c.deleteReq))
         .sort(sortByName);
 });
 
 let _selectedLanguageId = ref<Uuid | undefined>(undefined);
 const selectedLanguageId = computed({
     get() {
-        if (!languages.value) return undefined;
+        if (!cmsLanguagesAsRef.value) return undefined;
         if (props.languageCode) {
-            const preferred = languages.value.find((l) => l.languageCode == props.languageCode);
+            const preferred = cmsLanguagesAsRef.value.find(
+                (l) => l.languageCode == props.languageCode,
+            );
             if (preferred) return preferred._id;
         }
-        if (languages.value.length > 0) return languages.value[0]._id;
+        if (cmsLanguagesAsRef.value.length > 0) return cmsLanguagesAsRef.value[0]._id;
         return undefined;
     },
     set(val) {
@@ -139,7 +132,7 @@ const selectedLanguageId = computed({
 });
 
 const selectedLanguage = computed(() => {
-    return languages.value.find((l) => l._id == selectedLanguageId.value);
+    return cmsLanguagesAsRef.value.find((l) => l._id == selectedLanguageId.value);
 });
 
 // Content language selection
@@ -495,13 +488,13 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                         v-if="editableContent"
                         v-model:editableParent="editableParent"
                         v-model:editableContent="editableContent"
-                        :languages="languages"
+                        :languages="cmsLanguagesAsRef"
                         :untranslatedLanguages="untranslatedLanguages"
                         :dirty="isDirty"
                         :existingContent="existingContent"
                         :existingParent="existingParent"
                         @updateIsValid="(val) => (isValid = val)"
-                        @createTranslation="(language) => createTranslation(language)"
+                        @create-translation="(language) => createTranslation(language)"
                     />
 
                     <EditContentParent
@@ -522,12 +515,13 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                     :description="`Please select a language to start editing
                     `"
                     data-test="no-content"
+                    class="flex flex-col items-center"
                     ><LanguageSelector
                         :parent="editableParent"
                         :content="editableContent"
                         :languages="untranslatedLanguages"
-                        v-model="selectedLanguageId"
-                        @createTranslation="createTranslation"
+                        v-model:show-selector="selectedLanguageId"
+                        @create-translation="createTranslation"
                 /></EmptyState>
 
                 <div v-else class="space-y-6">
