@@ -41,8 +41,8 @@ async function Startup() {
         token,
         appLanguageIdsAsRef,
         docTypes: [
-            { type: DocType.Tag, contentOnly: false, syncPriority: 2 },
-            { type: DocType.Post, contentOnly: false, syncPriority: 2 },
+            { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
+            { type: DocType.Post, contentOnly: true, syncPriority: 2 },
             {
                 type: DocType.Language,
                 contentOnly: false,
