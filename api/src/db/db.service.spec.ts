@@ -1,4 +1,4 @@
-import { DbService, DbQueryResult } from "./db.service";
+import { DbService, DbQueryResult, SearchOptions } from "./db.service";
 import { randomUUID } from "crypto";
 import { DeleteReason, DocType, PostType, Uuid } from "../enums";
 import { createTestingModule } from "../test/testingModule";
@@ -388,7 +388,7 @@ describe("DbService", () => {
                 groups: ["group-super-admins", "group-public-content", "group-private-content"],
                 limit: 10,
                 sort: [{ updatedTimeUtc: "asc" }],
-            };
+            } as SearchOptions;
 
             const res = await service.search(options);
 

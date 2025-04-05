@@ -40,7 +40,7 @@ export type SearchOptions = {
     from?: number;
     to?: number;
     limit?: number;
-    sort?: "asc" | "desc"; // default sort is by updatedTimeUtc descending
+    sort?: Array<{ [key: string]: "asc" | "desc" }>;
     offset?: number;
     contentOnly?: boolean;
     queryString?: string;
