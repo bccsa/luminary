@@ -94,7 +94,7 @@ async function Startup() {
         }
     });
 
-    initLanguage();
+    await initLanguage();
 
     app.use(createPinia());
     app.use(router);

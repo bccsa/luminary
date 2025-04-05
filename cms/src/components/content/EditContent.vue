@@ -520,7 +520,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                         :parent="editableParent"
                         :content="editableContent"
                         :languages="untranslatedLanguages"
-                        v-model:show-languages="selectedLanguageId"
+                        v-model:show-selector="selectedLanguageId"
                         @create-translation="createTranslation"
                 /></EmptyState>
 
