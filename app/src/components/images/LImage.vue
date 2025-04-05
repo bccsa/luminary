@@ -38,6 +38,7 @@ const rounding = {
 
 const parentRef = ref<HTMLElement | undefined>(undefined);
 const parentWidth = ref<number>(0);
+const showPopup = ref<boolean>(false);
 
 onMounted(() => {
     parentWidth.value = parentRef.value?.clientWidth || 0;
@@ -51,7 +52,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div ref="parentRef" :class="sizes[size]">
+    <div ref="parentRef" :class="sizes[size]" @click="showPopup = true">
         <div
             :style="{ 'background-image': 'url(' + fallbackImg + ')' }"
             :class="[
