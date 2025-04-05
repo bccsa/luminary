@@ -31,6 +31,7 @@ const openContent = () => {
             <div class="relative">
                 <LImage
                     :image="content.parentImageData"
+                    :content-parent-id="content.parentId"
                     :aspectRatio="aspectRatio"
                     size="thumbnail"
                 >

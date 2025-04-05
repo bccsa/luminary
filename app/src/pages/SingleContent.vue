@@ -267,6 +267,7 @@ onBeforeUnmount(() => {
                     <VideoPlayer v-if="content.video" :content="content" />
                     <LImage
                         v-else-if="content.parentImageData"
+                        :content-parent-id="content.parentId"
                         :image="content.parentImageData"
                         aspectRatio="video"
                         size="post"

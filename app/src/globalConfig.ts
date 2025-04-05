@@ -1,5 +1,12 @@
-import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
-import { computed, ref, toRaw, watch } from "vue";
+import {
+    db,
+    DocType,
+    useDexieLiveQuery,
+    type ContentDto,
+    type LanguageDto,
+    type Uuid,
+} from "luminary-shared";
+import { computed, ref, toRaw, watch, watchEffect } from "vue";
 import * as _ from "lodash";
 
 export const appName = import.meta.env.VITE_APP_NAME;
@@ -320,3 +327,61 @@ export const loginModalVisible = ref(false);
 export const showLoginModal = () => {
     loginModalVisible.value = true;
 };
+
+const loadFallbackImageUrls = async () => {
+    // Can't use a dynamic path here, so had to resolve with a static path
+    const images = import.meta.glob("@/assets/fallbackImages/*.{png,jpg,jpeg,webp}");
+    const fallbackImages: string[] = [];
+
+    for (const path in images) {
+        fallbackImages.push(path.replace("@/assets", "/src/assets"));
+    }
+
+    return fallbackImages;
+};
+
+export const fallbackImages = ref<any[]>([]);
+
+export const initFallbackImages = async () => {
+    const _fallbackImages: any[] = JSON.parse(localStorage.getItem("_fallback_images") || "[]");
+
+    const urls = await loadFallbackImageUrls();
+
+    const contentDocs = await useDexieLiveQuery(
+        () =>
+            db.docs
+                .where("parentType")
+                .anyOf([DocType.Post, DocType.Tag])
+                .toArray() as unknown as Promise<ContentDto[]>,
+        { initialValue: [] as ContentDto[] },
+    );
+
+    watchEffect(() => {
+        // Group content docs by parentID
+        const docsByParent = new Map<string, Array<(typeof contentDocs.value)[0]>>();
+
+        contentDocs.value.forEach((doc) => {
+            if (!docsByParent.has(doc.parentId)) {
+                docsByParent.set(doc.parentId, []);
+            }
+            const docs = docsByParent.get(doc.parentId);
+            if (docs) docs.push(doc);
+        });
+
+        // Pick one random doc per parentID and assign a random URL
+        docsByParent.forEach((docs) => {
+            const randomDoc = docs[Math.floor(Math.random() * docs.length)];
+
+            if (_fallbackImages.find((img) => img.id === randomDoc._id)) return;
+
+            const randomUrl = urls[Math.floor(Math.random() * urls.length)];
+            fallbackImages.value = [
+                ...fallbackImages.value,
+                { id: randomDoc.parentId, url: randomUrl },
+            ];
+        });
+    });
+};
+watch(fallbackImages, () => {
+    localStorage.setItem("_fallback_images", JSON.stringify(fallbackImages.value));
+});
