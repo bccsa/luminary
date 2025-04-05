@@ -30,6 +30,7 @@ describe("EditContentStatus.vue", () => {
             props: {
                 disabled: false,
                 content: content.value,
+                disablePublish: false,
             },
         });
 
@@ -150,6 +151,7 @@ describe("EditContentStatus.vue", () => {
             props: {
                 disabled: false,
                 content: content.value,
+                disablePublish: false,
             },
         });
 
@@ -172,6 +174,30 @@ describe("EditContentStatus.vue", () => {
         expect(content.value.status).toBe(PublishStatus.Draft);
     });
 
+    it("can't switch between draft and published status if disablePublish is true", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Draft,
+        });
+        const wrapper = mount(EditContentStatus, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: true,
+            },
+        });
+
+        // Find the publish status toggle
+        const textToggleWrapper = wrapper.find("[data-test='text-toggle']");
+        const publishedButton = textToggleWrapper.find("[data-test='text-toggle-right-value']");
+
+        // Initially, the content status should be Draft
+        expect(content.value.status).toBe(PublishStatus.Draft);
+
+        // Check if the publish button is disabled
+        expect(publishedButton.attributes("disabled")).toBeDefined();
+    });
+
     it("correctly sets the publish status toggle from the prop", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
@@ -181,6 +207,7 @@ describe("EditContentStatus.vue", () => {
             props: {
                 disabled: false,
                 content: content.value,
+                disablePublish: false,
             },
         });
 
@@ -199,6 +226,7 @@ describe("EditContentStatus.vue", () => {
             props: {
                 disabled: false,
                 content: content.value,
+                disablePublish: false,
             },
         });
 
@@ -220,6 +248,7 @@ describe("EditContentStatus.vue", () => {
             props: {
                 disabled: false,
                 content: content.value,
+                disablePublish: false,
             },
         });
 

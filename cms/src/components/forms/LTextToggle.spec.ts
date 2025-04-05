@@ -11,6 +11,7 @@ describe("LTextToggle", () => {
                 rightValue: "published",
                 leftLabel: "Draft",
                 rightLabel: "Published",
+                disabledPublish: false,
             },
         });
 
