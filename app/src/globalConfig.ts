@@ -2,7 +2,7 @@ import {
     db,
     DocType,
     useDexieLiveQuery,
-    type ContentParentDto,
+    type ContentDto,
     type LanguageDto,
     type Uuid,
 } from "luminary-shared";
