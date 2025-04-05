@@ -578,7 +578,7 @@ const duplicate = async () => {
                         :parent="editableParent"
                         :content="editableContent"
                         :languages="untranslatedLanguages"
-                        v-model:show-languages="selectedLanguageId"
+                        v-model:show-selector="selectedLanguageId"
                         @create-translation="createTranslation"
                 /></EmptyState>
 

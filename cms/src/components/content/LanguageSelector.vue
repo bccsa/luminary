@@ -16,19 +16,19 @@ defineProps<Props>();
 
 const emit = defineEmits(["createTranslation"]);
 
-const showLanguages = defineModel("showLanguages");
+const showSelector = defineModel("showSelector");
 
 const languagePopup = ref();
 
 onClickOutside(languagePopup, () => {
-    showLanguages.value = false;
+    showSelector.value = false;
 });
 </script>
 
 <template>
     <div>
         <button
-            @click="showLanguages = !showLanguages"
+            @click="showSelector = !showSelector"
             data-test="language-selector"
             class="flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-200 hover:shadow-sm"
         >
@@ -47,7 +47,7 @@ onClickOutside(languagePopup, () => {
             leave-to-class="transform opacity-0 scale-95"
         >
             <ul
-                v-if="showLanguages"
+                v-if="showSelector"
                 class="absolute z-10 w-56 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:-right-28 sm:left-auto sm:origin-top-right"
             >
                 <div class="py-1">
@@ -56,7 +56,7 @@ onClickOutside(languagePopup, () => {
                             @click="
                                 () => {
                                     emit('createTranslation', language);
-                                    showLanguages = false;
+                                    showSelector = false;
                                 }
                             "
                             class="text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
