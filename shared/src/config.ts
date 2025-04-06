@@ -1,6 +1,6 @@
 import { Ref } from "vue";
 import { Uuid } from "./types";
-import { ApiDocTypes } from "./rest/RestApi";
+import { ApiDocType } from "./rest/RestApi";
 
 /**
  * Shared configuration object
@@ -25,7 +25,7 @@ export type SharedConfig = {
     /**
      * Array of DocTypes passed to the shared library, that the client need to sync down
      */
-    docTypes?: Array<ApiDocTypes>;
+    docTypes?: Array<ApiDocType>;
     /**
      * Array of language IDs of languages to be included in sync
      */

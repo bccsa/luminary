@@ -1,10 +1,10 @@
 import { io, Socket } from "socket.io-client";
 import { ref, watch } from "vue";
-import { ApiDataResponseDto, ChangeReqAckDto, LocalChangeDto } from "../types";
+import { ApiDataResponseDto, ChangeReqAckDto, DocType, LocalChangeDto } from "../types";
 import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
-import { config } from "../config";
+import { config, SharedConfig } from "../config";
 
 /**
  * Client configuration type definition
@@ -29,20 +29,18 @@ class SocketIO {
     private retryTimeout: number = 0;
     private localChanges = ref<LocalChangeDto[]>();
     private processChangeReqLock: boolean = false;
-    private docTypes: Array<any>;
 
     /**
      * Create a new SocketIO instance
-     * @param apiUrl - Socket.io endpoint URL
-     * @param docTypes - Array of docTypes
-     * @param token - Access token
+     * @param {SharedConfig} config - Configuration object
      */
-    constructor(apiUrl: string, docTypes: Array<any>, token?: string) {
-        this.socket = io(apiUrl, token ? { auth: { token } } : undefined);
-        this.docTypes = docTypes;
+    constructor(config: SharedConfig) {
+        const token = config.token;
+        this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
 
         this.socket.on("connect", () => {
-            this.socket.emit("joinSocketGroups", { docTypes: this.docTypes });
+            // TODO: need to rethink this
+            this.socket.emit("joinSocketGroups", { docTypes: config.docTypes });
             this.processChangeReqLock = false; // reset process lock on connection
         });
 
@@ -51,7 +49,29 @@ class SocketIO {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
-            await db.bulkPut(data.docs);
+            // Filter out the data that is not in the requested docTypes array or language IDs array
+            const filtered = data.docs.filter((doc) => {
+                if (doc.type === DocType.DeleteCmd) return true; // Always include delete commands
+                return config.docTypes?.some((docType) => {
+                    if (!docType.contentOnly && docType.type === doc.type) return true;
+                    if (doc.type == DocType.Content && doc.parentType === docType.type) {
+                        // Include content documents for all languages if no language filter is set
+                        if (
+                            !config.appLanguageIdsAsRef ||
+                            !config.appLanguageIdsAsRef.value ||
+                            !config.appLanguageIdsAsRef.value.length
+                        )
+                            return true;
+
+                        // Filter content documents by language if a language filter is set
+                        if (doc.language && config.appLanguageIdsAsRef.value.includes(doc.language))
+                            return true;
+                    }
+                    return false;
+                });
+            });
+
+            await db.bulkPut(filtered);
         });
 
         this.socket.on("changeRequestAck", this.handleAck.bind(this));
@@ -176,9 +196,7 @@ export function getSocket(
             throw new Error("Socket connection requires an API URL");
         }
 
-        if (!config.docTypes) config.docTypes = [];
-
-        socket = new SocketIO(config.apiUrl, config.docTypes, config.token);
+        socket = new SocketIO(config);
     } else if (options.reconnect) socket.reconnect();
 
     return socket;

@@ -19,7 +19,7 @@ export type ApiSearchQuery = {
     docId?: string;
 };
 
-export type ApiDocTypes = {
+export type ApiDocType = {
     type: DocType;
     contentOnly: boolean;
     syncPriority: number; // 10 is default, lower number is higher priority

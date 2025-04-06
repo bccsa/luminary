@@ -6,16 +6,9 @@ import { Server } from "socket.io";
 import { db, initDatabase } from "../db/database";
 import { AckStatus, ChangeReqDto, DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
-import { initConfig } from "../config";
-
-vi.mock("../config/config", () => ({
-    config: {
-        apiUrl: "http://localhost:12345",
-        isCms: true,
-        maxUploadFileSize: 1234,
-        setMaxUploadFileSize: vi.fn(),
-    },
-}));
+import { config, initConfig } from "../config";
+import { ref } from "vue";
+import { ApiDocType } from "../rest/RestApi";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -27,6 +20,7 @@ describe("socketio", () => {
             cms: true,
             docsIndex: "parentId, language, [type+docType]",
             apiUrl: "http://localhost:12345",
+            appLanguageIdsAsRef: ref([]),
         });
 
         // Initialize the IndexedDB database
@@ -37,10 +31,13 @@ describe("socketio", () => {
         socket.disconnect();
     });
 
-    afterEach(() => {
+    afterEach(async () => {
         vi.clearAllMocks();
         getSocket().disconnect();
         socketServer.removeAllListeners();
+
+        await db.docs.clear();
+        await db.localChanges.clear();
     });
 
     afterAll(async () => {
@@ -247,6 +244,93 @@ describe("socketio", () => {
         await waitForExpect(() => {
             expect(accessMap.value).toEqual(clientConfig.accessMap);
             expect(maxUploadFileSize.value).toEqual(clientConfig.maxUploadFileSize);
+        });
+    });
+
+    describe("socket.io data event filtering", () => {
+        it("filters data based on docTypes and language IDs", async () => {
+            const mockData = {
+                docs: [
+                    { type: DocType.Post, _id: "doc1" },
+                    {
+                        type: DocType.Content,
+                        _id: "doc2",
+                        parentType: DocType.Post,
+                        language: "en",
+                    },
+                    {
+                        type: DocType.Content,
+                        _id: "doc3",
+                        parentType: DocType.Post,
+                        language: "fr",
+                    },
+                    { type: DocType.DeleteCmd, _id: "doc4" },
+                    { type: DocType.Group, _id: "doc5" },
+                ],
+            };
+
+            const mockDocTypes: ApiDocType[] = [
+                { type: DocType.Post, contentOnly: false, syncPriority: 1 },
+            ];
+
+            config.appLanguageIdsAsRef!.value = ["en"];
+            config.docTypes = mockDocTypes;
+
+            socketServer.on("connection", (socket) => {
+                socket.emit("data", mockData);
+            });
+
+            getSocket({ reconnect: true });
+
+            await waitForExpect(async () => {
+                const docs = await db.docs.toArray();
+                expect(docs.length).toEqual(2);
+                expect(docs[0].type).toEqual(DocType.Post);
+                expect(docs[1].type).toEqual(DocType.Content);
+                expect(docs[1].language).toEqual("en");
+                // The delete command is not added to the database as it is removed in the db.bulkPut function
+            });
+        });
+
+        it("includes all content documents if no language filter is set", async () => {
+            const mockData = {
+                docs: [
+                    { type: DocType.Post, _id: "doc1" },
+                    {
+                        type: DocType.Content,
+                        _id: "doc2",
+                        parentType: DocType.Post,
+                        language: "en",
+                    },
+                    {
+                        type: DocType.Content,
+                        _id: "doc3",
+                        parentType: DocType.Post,
+                        language: "fr",
+                    },
+                ],
+            };
+
+            const mockDocTypes = [{ type: DocType.Post, contentOnly: false } as ApiDocType];
+
+            config.appLanguageIdsAsRef!.value = [];
+            config.docTypes = mockDocTypes;
+
+            socketServer.on("connection", (socket) => {
+                socket.emit("data", mockData);
+            });
+
+            getSocket({ reconnect: true });
+
+            await waitForExpect(async () => {
+                const docs = await db.docs.toArray();
+                expect(docs.length).toEqual(3);
+                expect(docs[0].type).toEqual(DocType.Post);
+                expect(docs[1].type).toEqual(DocType.Content);
+                expect(docs[1].language).toEqual("en");
+                expect(docs[2].type).toEqual(DocType.Content);
+                expect(docs[2].language).toEqual("fr");
+            });
         });
     });
 });
