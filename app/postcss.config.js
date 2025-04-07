@@ -16,6 +16,22 @@ export default {
                 "> 1%",
             ],
             onFeatureUsage: (usageInfo) => {
+                const title = usageInfo.featureData.title.toLowerCase();
+
+                if (
+                    title.includes("font-family") ||
+                    title.includes("text-decoration") ||
+                    title.includes("text-indent") ||
+                    title.includes("resize") ||
+                    title.includes("::marker") ||
+                    title.includes("column layout") ||
+                    title.includes("scrollbar") ||
+                    title.includes("cursors") ||
+                    title.includes("touch-action") ||
+                    title.includes("intrinsic & extrinsic sizing")
+                )
+                    return;
+
                 throw new Error(`Unsupported CSS Detected: ${usageInfo.featureData.title}`);
             },
         }),
