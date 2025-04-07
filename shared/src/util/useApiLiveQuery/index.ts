@@ -116,7 +116,10 @@ export function applySocketData<T extends BaseDocumentDto>(
 
     // Filter on document type
     if (query.types && query.types.length > 0) {
-        if (query.contentOnly && query.types.includes(DocType.Post || DocType.Tag)) {
+        if (
+            query.contentOnly &&
+            (query.types.includes(DocType.Post) || query.types.includes(DocType.Tag))
+        ) {
             docs = docs.filter(
                 (doc) =>
                     doc.type === DocType.Content &&
