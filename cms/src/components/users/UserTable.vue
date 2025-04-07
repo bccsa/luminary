@@ -3,13 +3,13 @@ import { DocType, type ApiSearchQuery, type UserDto, ApiLiveQuery } from "lumina
 import LCard from "../common/LCard.vue";
 import UserRow from "../users/UserRow.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 const usersQuery = ref<ApiSearchQuery>({
     types: [DocType.User],
 });
 
-const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery, {}); // TODO: make options optional
+const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery);
 const users = apiLiveQuery.asRef();
 
 const newUsers = ref<UserDto[]>([]);
@@ -35,6 +35,10 @@ watch(
     },
     { deep: true },
 );
+
+onBeforeUnmount(() => {
+    apiLiveQuery.stopLiveQuery();
+});
 </script>
 
 <template>
