@@ -8,7 +8,7 @@ import { AckStatus, ChangeReqDto, DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { config, initConfig } from "../config";
 import { ref } from "vue";
-import { ApiDocType } from "../rest/RestApi";
+import { ApiSyncQuery } from "../rest/RestApi";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -269,7 +269,7 @@ describe("socketio", () => {
                 ],
             };
 
-            const mockDocTypes: ApiDocType[] = [
+            const mockDocTypes: ApiSyncQuery[] = [
                 { type: DocType.Post, contentOnly: false, syncPriority: 1 },
             ];
 
@@ -311,7 +311,7 @@ describe("socketio", () => {
                 ],
             };
 
-            const mockDocTypes = [{ type: DocType.Post, contentOnly: false } as ApiDocType];
+            const mockDocTypes = [{ type: DocType.Post, contentOnly: false } as ApiSyncQuery];
 
             config.appLanguageIdsAsRef!.value = [];
             config.syncList = mockDocTypes;
