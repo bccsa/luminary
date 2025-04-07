@@ -38,7 +38,7 @@ import { Menu } from "@headlessui/vue";
 import LRadio from "../../forms/LRadio.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 import LTag from "../../common/LTagHandler/LTag.vue";
-import LCombobox from "@/components/forms/LCombobox.vue";
+import LCombobox from "../../../components/forms/LCombobox.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
