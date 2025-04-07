@@ -46,11 +46,14 @@ watch(groups, (newGroups) => {
         </td>
 
         <!-- memberof -->
-        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
-            <LBadge class="flex flex-wrap">
-                {{
-                    usersDoc.memberOf.map((g) => group.find((gr) => gr._id === g)?.name).join(" - ")
-                }}
+        <td
+            class="whitespace-wrap flex flex-wrap gap-1 py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6"
+        >
+            <LBadge
+                v-for="g in usersDoc.memberOf.map((g) => group.find((gr) => gr._id === g)?.name)"
+                :key="g"
+            >
+                {{ g }}
             </LBadge>
         </td>
 
