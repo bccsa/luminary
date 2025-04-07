@@ -28,7 +28,7 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
         return this.dataAsRef;
     }
 
-    constructor(query: Ref<ApiSearchQuery>, options: ApiLiveQueryOptions<Array<T>>) {
+    constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<Array<T>>) {
         // Validate the query
         if (query.value.groups) {
             throw new Error("groups are not supported in ApiLiveQuery");
@@ -38,7 +38,7 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
             throw new Error("queryString is not implemented yet");
         }
 
-        this.dataAsRef = ref<Array<T> | undefined>(options.initialValue) as Ref<
+        this.dataAsRef = ref<Array<T> | undefined>(options?.initialValue) as Ref<
             Array<T> | undefined
         >;
 
