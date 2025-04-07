@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import MobileMenu from "./navigation/MobileMenu.vue";
 
@@ -10,10 +10,18 @@ defineProps<{
 const main = ref<HTMLElement | undefined>(undefined);
 
 // Focus main content when arrow up or down is pressed to keep scrolling working even when focus was shifted to the top bar
-document.addEventListener("keydown", (e) => {
+const handleArrowKeyFocus = (e: KeyboardEvent) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         if (main.value) main.value.focus();
     }
+};
+
+onMounted(() => {
+    document.addEventListener("keydown", handleArrowKeyFocus);
+});
+
+onUnmounted(() => {
+    document.removeEventListener("keydown", handleArrowKeyFocus);
 });
 </script>
 
