@@ -27,7 +27,7 @@ export default {
                     title.includes("column layout") ||
                     title.includes("scrollbar") ||
                     title.includes("cursors") ||
-                    title.includes("touch-action") ||
+                    title.includes("touch-action") || // TODO:: Look at touch-action support
                     title.includes("intrinsic & extrinsic sizing")
                 )
                     return;
