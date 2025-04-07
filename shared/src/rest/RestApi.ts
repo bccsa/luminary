@@ -25,9 +25,22 @@ export type ApiSearchQuery = {
  */
 export type ApiSyncQuery = {
     type: DocType;
+    /**
+     * If true, only include content documents for the specified (Post / Tag) document type for syncing.
+     */
     contentOnly?: boolean;
-    syncPriority: number; // 10 is default, lower number is higher priority
-    // TODO: Rename to something more meaningful
+    /**
+     * If true, the query is used for syncing. If false, the query is used for live updates only.
+     */
+    sync?: boolean; // true if the query is used for syncing
+    /**
+     * 10 is default, lower number is higher priority
+     */
+    syncPriority?: number;
+    /**
+     * When true, sync immediately and do not want for the language sync to finish
+     * TODO: Rename to something more meaningful
+     */
     skipWaitForLanguageSync?: boolean;
 };
 

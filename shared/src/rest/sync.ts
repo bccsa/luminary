@@ -375,6 +375,8 @@ export class Sync {
         // create new syncMap
         let _sm = Object.fromEntries(syncMap.value);
         for (const entry of syncPriorityContentOnly || []) {
+            if (!entry.syncPriority) entry.syncPriority = 10;
+
             const _id = this.syncMapEntryKey(entry.syncPriority, entry.contentOnly || false);
             if (
                 !Object.values(_sm).find(
