@@ -51,9 +51,10 @@ class SocketIO {
             // Filter out the data that is not in the requested docTypes array or language IDs array
             const filtered = data.docs.filter((doc) => {
                 if (doc.type === DocType.DeleteCmd) return true; // Always include delete commands
-                return config.syncList?.some((docType) => {
-                    if (!docType.contentOnly && docType.type === doc.type) return true;
-                    if (doc.type == DocType.Content && doc.parentType === docType.type) {
+                return config.syncList?.some((entry) => {
+                    if (!entry.sync) return false; // Do not save documents to indexedDB that should not be synced
+                    if (!entry.contentOnly && entry.type === doc.type) return true;
+                    if (doc.type == DocType.Content && doc.parentType === entry.type) {
                         // Include content documents for all languages if no language filter is set
                         if (
                             !config.appLanguageIdsAsRef ||

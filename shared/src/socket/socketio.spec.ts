@@ -266,11 +266,13 @@ describe("socketio", () => {
                     },
                     { type: DocType.DeleteCmd, _id: "doc4" },
                     { type: DocType.Group, _id: "doc5" },
+                    { type: DocType.User, _id: "doc6" },
                 ],
             };
 
             const mockDocTypes: ApiSyncQuery[] = [
-                { type: DocType.Post, contentOnly: false, syncPriority: 1 },
+                { type: DocType.Post, contentOnly: false, syncPriority: 1, sync: true },
+                { type: DocType.User, sync: false },
             ];
 
             config.appLanguageIdsAsRef!.value = ["en"];
@@ -311,7 +313,9 @@ describe("socketio", () => {
                 ],
             };
 
-            const mockDocTypes = [{ type: DocType.Post, contentOnly: false } as ApiSyncQuery];
+            const mockDocTypes = [
+                { type: DocType.Post, contentOnly: false, sync: true } as ApiSyncQuery,
+            ];
 
             config.appLanguageIdsAsRef!.value = [];
             config.syncList = mockDocTypes;
