@@ -110,7 +110,7 @@ const clearExpiryDate = () => {
                 rightLabel="Publishable"
                 :rightValue="PublishStatus.Published"
                 :disabled="disabled"
-                :disabledPublish="disablePublish"
+                :disablePublish="disablePublish"
             />
             <div class="text-xs text-zinc-700">
                 {{

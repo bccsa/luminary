@@ -5,12 +5,12 @@ type Props = {
     leftValue: string;
     rightLabel: string;
     rightValue: string;
-    disabledPublish: boolean;
+    disablePublish: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
-    disabledPublish: false,
+    disablePublish: false,
 });
 
 const modelValue = defineModel<string>();
@@ -36,7 +36,7 @@ const updateValue = (newValue: string) => {
                 { 'text-zinc-700 ': !disabled && modelValue != leftValue },
             ]"
             @click="updateValue(leftValue)"
-            :disabled="disabledPublish"
+            :disabled="disablePublish"
             data-test="text-toggle-left-value"
         >
             {{ leftLabel }}
@@ -50,7 +50,7 @@ const updateValue = (newValue: string) => {
                 { 'text-zinc-700 ': !disabled && modelValue != leftValue },
             ]"
             @click="updateValue(rightValue)"
-            :disabled="disabledPublish"
+            :disabled="disablePublish"
             data-test="text-toggle-right-value"
         >
             {{ rightLabel }}
