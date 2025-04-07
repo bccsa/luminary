@@ -11,7 +11,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { mount } from "@vue/test-utils";
 import LCombobox from "./LCombobox.vue";
 import waitForExpect from "wait-for-expect";
-import LInput from "./LInput.vue";
 import LTag from "../common/LTagHandler/LTag.vue";
 import { ref } from "vue";
 

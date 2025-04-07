@@ -22,21 +22,20 @@ type Props = {
     options: ComboboxOption[];
     showSelectedInDropdown?: boolean;
     selectedLabels?: ComboboxOption[];
-    isContentOverview?: boolean;
+    showSelectedLabels?: boolean;
     icon?: Component | Function;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
     showSelectedInDropdown: true,
-    isContentOverview: false,
+    showSelectedLabels: false,
 });
 
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
 
 const inputElement = ref<HTMLElement>();
 const comboboxParent = ref<HTMLElement>();
-const comboboxContainer = ref<HTMLElement>();
 const dropdown = ref<HTMLElement>();
 const showDropdown = ref(false);
 
@@ -113,12 +112,14 @@ const toggleDropdown = () => {
                 @keydown.enter="
                     () => {
                         if (showDropdown) {
+                            // Add the highlighted option to the selected options on enter
                             if (highlightedIndex > -1) {
                                 selectedOptions.push(filtered[highlightedIndex].id);
                                 query = '';
                                 showDropdown = false;
                                 return;
                             }
+                            // If no option is highlighted, add the first option to the selected options
                             if (filtered.length > 0) {
                                 selectedOptions.push(filtered[0].id);
                                 query = '';
@@ -193,7 +194,7 @@ const toggleDropdown = () => {
                 </span>
             </li>
         </div>
-        <div v-if="!isContentOverview" class="mt-3 flex flex-wrap gap-3">
+        <div v-if="!showSelectedLabels" class="mt-3 flex flex-wrap gap-3">
             <LTag
                 v-for="option in selectedLabels"
                 :key="option.id"

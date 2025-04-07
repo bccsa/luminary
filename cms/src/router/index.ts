@@ -54,7 +54,7 @@ export const router = createRouter({
                 {
                     path: ":docType/edit/:tagOrPostType/:id/:languageCode?",
                     name: "edit",
-                    component: () => import("../components/content/EditContent/EditContent.vue"),
+                    component: () => import("../components/content/EditContent.vue"),
                     props: true,
                 },
                 // Generic content document overview route

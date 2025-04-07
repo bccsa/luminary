@@ -259,7 +259,7 @@ const resetQueryOptions = () => {
                         :icon="TagIcon"
                         :show-selected-in-dropdown="false"
                         :selected-options="queryOptions.tags as string[]"
-                        :is-content-overview="true"
+                        :showSelectedLabels="true"
                     />
 
                     <LCombobox
@@ -272,7 +272,7 @@ const resetQueryOptions = () => {
                         "
                         :selected-options="queryOptions.groups as string[]"
                         :show-selected-in-dropdown="false"
-                        :is-content-overview="true"
+                        :showSelectedLabels="true"
                         :icon="UserGroupIcon"
                     />
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
