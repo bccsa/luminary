@@ -27,12 +27,12 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
-import ContentTable from "@/components/content/ContentOverview/ContentTable.vue";
+import ContentTable from "@/components/content/ContentTable.vue";
 import LSelect from "../../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import { debouncedWatch, onClickOutside } from "@vueuse/core";
-import type { ContentOverviewQueryOptions } from "../utils/query";
+import type { ContentOverviewQueryOptions } from "../query";
 import LInput from "../../forms/LInput.vue";
 import { Menu } from "@headlessui/vue";
 import LRadio from "../../forms/LRadio.vue";
