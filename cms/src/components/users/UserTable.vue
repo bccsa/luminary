@@ -1,53 +1,33 @@
 <script setup lang="ts">
-import { DocType, getRest, type ApiSearchQuery, type UserDto } from "luminary-shared";
+import { DocType, type ApiSearchQuery, type UserDto, ApiLiveQuery } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import UserRow from "../users/UserRow.vue";
-import { computed, provide, ref, watch } from "vue";
+import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import { computed, ref, watch } from "vue";
 
-const usersQuery: ApiSearchQuery = {
+const usersQuery = ref<ApiSearchQuery>({
     types: [DocType.User],
-};
+});
 
-const users = ref<Map<string, UserDto>>(new Map());
-provide("users", users);
-
-const isLoading = ref(true);
-
-const getDbUsers = async () => {
-    const _s = Object.fromEntries(users.value);
-    const latest = Object.values(_s).reduce((acc, curr) => {
-        return curr.updatedTimeUtc > acc ? curr.updatedTimeUtc : acc;
-    }, 0);
-
-    latest ? (usersQuery.from = latest) : delete usersQuery.from;
-    const _q = await getRest().search(usersQuery);
-    if (_q && _q.docs && _q.docs.length) {
-        _q.docs.forEach((d: UserDto) => {
-            users.value.set(d._id, d);
-        });
-
-        isLoading.value = false;
-    }
-};
-getDbUsers();
-
-// poll api every 5 seconds for updates
-setInterval(getDbUsers, 5000);
+const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery, {}); // TODO: make options optional
+const users = apiLiveQuery.asRef();
 
 const newUsers = ref<UserDto[]>([]);
 
 const combinedUsers = computed(() => {
-    const _s = Object.fromEntries(users.value);
-    return newUsers.value.concat(Object.values(_s));
+    if (users.value && users.value.length && newUsers.value)
+        return newUsers.value.concat(users.value);
+    if (newUsers.value) return newUsers.value;
+    return [];
 });
 
-// Remove saved new users from newUsers
+// Remove duplicates from newUsers
 watch(
     [newUsers, users],
     async () => {
-        const _s = Object.fromEntries(users.value);
+        if (!users.value || !newUsers.value) return;
         const duplicates = newUsers.value.filter((u) =>
-            Object.values(_s).some((dbG) => dbG._id === u._id),
+            users.value?.some((user) => user._id === u._id),
         );
         for (const duplicate of duplicates) {
             newUsers.value.splice(newUsers.value.indexOf(duplicate), 1);
@@ -111,7 +91,7 @@ watch(
                         <UserRow v-for="user in combinedUsers" :key="user._id" :usersDoc="user" />
                     </tbody>
                 </table>
-                <div class="flex h-32 w-full items-center justify-center gap-2" v-if="isLoading">
+                <div class="flex h-32 w-full items-center justify-center gap-2" v-if="!users">
                     <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
                     <p class="text-sm text-zinc-500">Loading...</p>
                 </div>
