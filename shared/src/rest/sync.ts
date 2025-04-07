@@ -362,15 +362,17 @@ export class Sync {
         const groups: Array<string> = Object.keys(accessMap.value);
         await db.getSyncMap();
 
-        const syncPriorityContentOnly = config.syncList?.filter(
-            (value, index, self) =>
-                index ===
-                self.findIndex(
-                    (t) =>
-                        t.syncPriority === value.syncPriority &&
-                        t.contentOnly === value.contentOnly,
-                ),
-        );
+        const syncPriorityContentOnly = config.syncList
+            ?.filter((s) => s.sync == true)
+            .filter(
+                (value, index, self) =>
+                    index ===
+                    self.findIndex(
+                        (t) =>
+                            t.syncPriority === value.syncPriority &&
+                            t.contentOnly === value.contentOnly,
+                    ),
+            );
 
         // create new syncMap
         let _sm = Object.fromEntries(syncMap.value);

@@ -36,8 +36,9 @@ export let config: SharedConfig;
 
 export function initConfig(newConfig: SharedConfig) {
     // set default values
-    newConfig.syncList?.forEach((sync) => {
-        if (!sync.contentOnly) sync.contentOnly = false;
+    newConfig.syncList?.forEach((s) => {
+        if (!s.contentOnly) s.contentOnly = false;
+        if (s.sync == undefined) s.sync = true;
     });
 
     config = newConfig;

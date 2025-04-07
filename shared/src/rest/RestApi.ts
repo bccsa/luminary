@@ -31,6 +31,7 @@ export type ApiSyncQuery = {
     contentOnly?: boolean;
     /**
      * If true, the query is used for syncing. If false, the query is used for live updates only.
+     * @default true
      */
     sync?: boolean; // true if the query is used for syncing
     /**
