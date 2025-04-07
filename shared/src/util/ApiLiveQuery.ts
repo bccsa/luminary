@@ -1,8 +1,8 @@
 import { Ref, ref, watch } from "vue";
-import { ApiSearchQuery, getRest } from "../../rest/RestApi";
-import { getSocket } from "../../socket/socketio";
-import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../../types";
-import { db } from "../../db/database";
+import { ApiSearchQuery, getRest } from "../rest/RestApi";
+import { getSocket } from "../socket/socketio";
+import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../types";
+import { db } from "../db/database";
 
 export type ApiLiveQueryOptions<T> = {
     initialValue?: T;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { ref } from "vue";
-import { ApiLiveQuery, applySocketData } from "./useApiLiveQuery/index";
+import { ApiLiveQuery, applySocketData } from "./ApiLiveQuery";
 import { ApiSearchQuery, getRest } from "../rest/RestApi";
 import { getSocket } from "../socket/socketio";
 import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../types";

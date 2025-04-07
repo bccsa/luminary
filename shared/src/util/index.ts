@@ -1,3 +1,3 @@
 export * from "./asyncArray";
 export * from "./useDexieLiveQuery";
-export { ApiLiveQuery } from "./useApiLiveQuery";
+export { ApiLiveQuery } from "./ApiLiveQuery";
