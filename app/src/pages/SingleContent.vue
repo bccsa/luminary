@@ -12,7 +12,10 @@ import {
     type Uuid,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
+import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
@@ -22,7 +25,8 @@ import {
     appLanguageIdsAsRef,
     appName,
     appLanguagePreferredIdAsRef,
-    showContentQuickControls,
+    isDarkTheme,
+    theme,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -30,14 +34,14 @@ import RelatedContent from "../components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import Link from "@tiptap/extension-link";
 import LImage from "@/components/images/LImage.vue";
-import { BookmarkIcon as BookmarkIconSolid, TagIcon } from "@heroicons/vue/24/solid";
-import { BookmarkIcon as BookmarkIconOutline } from "@heroicons/vue/24/outline";
+
 import { userPreferencesAsRef } from "@/globalConfig";
 import { isPublished } from "@/util/isPublished";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
+import BasePage from "@/components/BasePage.vue";
 
 const router = useRouter();
 
@@ -238,132 +242,145 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
-
-onBeforeMount(() => {});
-
-showContentQuickControls.value = true;
-onBeforeUnmount(() => {
-    showContentQuickControls.value = false;
-});
 </script>
 
 <template>
-    
+    <BasePage :showBackButton="true">
+        <template #quickControls v-if="!is404">
+            <div class="text-zinc-400 dark:text-slate-300" data-test="themeButton">
+                <SunIcon class="h-6 w-6" v-if="isDarkTheme" @click="theme = 'light'" />
+                <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
+            </div>
+        </template>
 
-    <NotFoundPage v-if="is404" />
-    <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
-        <div class="flex flex-grow justify-center">
-            <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
-                <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
-                    <VideoPlayer v-if="content.video" :content="content" />
-                    <LImage
-                        v-else-if="content.parentImageData"
-                        :image="content.parentImageData"
-                        aspectRatio="video"
-                        size="post"
-                    />
-                </IgnorePagePadding>
-
-                <div class="flex w-full flex-col items-center">
-                    <div class="mt-3 flex flex-col gap-3">
-                        <h1
-                            class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
-                        >
-                            {{ content.title }}
-                        </h1>
-                        <div
-                            v-if="content.author"
-                            class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
-                        >
-                            By {{ content.author }}
-                        </div>
-
-                        <div
-                            class="-mt-2 text-center text-xs text-zinc-500 dark:text-slate-300"
-                            v-if="content.publishDate && content.parentPublishDateVisible"
-                        >
-                            {{
-                                content.publishDate
-                                    ? db
-                                          .toDateTime(content.publishDate)
-                                          .toLocaleString(DateTime.DATETIME_MED)
-                                    : ""
-                            }}
-                        </div>
-
-                        <div class="items-center">
-                            <div class="flex justify-center">
-                                <div @click="toggleBookmark" data-test="bookmark">
-                                    <!-- :class=["border border-transparent border-r-zinc-600 pr-1"] -->
-                                    <component
-                                        v-if="
-                                            !(
-                                                content.parentPostType &&
-                                                content.parentPostType == PostType.Page
-                                            )
-                                        "
-                                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                                        class="h-6 w-6 cursor-pointer"
-                                        :class="{
-                                            'text-yellow-500': isBookmarked,
-                                        }"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div
-                            class="text-center text-sm text-zinc-800 dark:text-slate-200"
-                            v-if="content.summary"
-                        >
-                            {{ content.summary }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Category tag buttons -->
-                <div
-                    class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
-                    v-if="categoryTags.length"
-                >
-                    <span
-                        v-for="tag in categoryTags"
-                        :key="tag._id"
-                        @click="
-                            selectedCategoryId = tag.parentId;
-                            showCategoryModal = true;
-                        "
-                        class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
-                    >
-                        <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" /><span
-                            class="line-clamp-1"
-                            >{{ tag.title }}</span
-                        >
-                    </span>
-                </div>
-
-                <div
-                    v-if="content.text"
-                    v-html="text"
-                    class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
-                    :class="{ 'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0 }"
-                ></div>
-            </article>
+        <div class="absolute hidden lg:block">
+            <div
+                @click="router.back()"
+                class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
+            >
+                <ArrowLeftIcon class="h-4 w-4" />
+                Back
+            </div>
         </div>
 
-        <RelatedContent
-            v-if="content && tags.length"
-            :selectedContent="content"
-            :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
-        />
+        <NotFoundPage v-if="is404" />
 
-        <!-- Sticky Copyright -->
-        <IgnorePagePadding :ignoreBottom="true">
-            <div class="sticky bottom-0">
-                <CopyrightBanner />
+        <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
+            <div class="flex flex-grow justify-center">
+                <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
+                    <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
+                        <VideoPlayer v-if="content.video" :content="content" />
+                        <LImage
+                            v-else-if="content.parentImageData"
+                            :image="content.parentImageData"
+                            aspectRatio="video"
+                            size="post"
+                        />
+                    </IgnorePagePadding>
+
+                    <div class="flex w-full flex-col items-center">
+                        <div class="mt-3 flex flex-col gap-3">
+                            <h1
+                                class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
+                            >
+                                {{ content.title }}
+                            </h1>
+                            <div
+                                v-if="content.author"
+                                class="-mt-3 text-center text-xs text-zinc-500 dark:text-slate-300"
+                            >
+                                By {{ content.author }}
+                            </div>
+
+                            <div
+                                class="-mt-2 text-center text-xs text-zinc-500 dark:text-slate-300"
+                                v-if="content.publishDate && content.parentPublishDateVisible"
+                            >
+                                {{
+                                    content.publishDate
+                                        ? db
+                                              .toDateTime(content.publishDate)
+                                              .toLocaleString(DateTime.DATETIME_MED)
+                                        : ""
+                                }}
+                            </div>
+
+                            <div class="items-center">
+                                <div class="flex justify-center">
+                                    <div @click="toggleBookmark" data-test="bookmark">
+                                        <!-- :class=["border border-transparent border-r-zinc-600 pr-1"] -->
+                                        <component
+                                            v-if="
+                                                !(
+                                                    content.parentPostType &&
+                                                    content.parentPostType == PostType.Page
+                                                )
+                                            "
+                                            :is="
+                                                isBookmarked
+                                                    ? BookmarkIconSolid
+                                                    : BookmarkIconOutline
+                                            "
+                                            class="h-6 w-6 cursor-pointer"
+                                            :class="{
+                                                'text-yellow-500': isBookmarked,
+                                            }"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                class="text-center text-sm text-zinc-800 dark:text-slate-200"
+                                v-if="content.summary"
+                            >
+                                {{ content.summary }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category tag buttons -->
+                    <div
+                        class="mt-3 flex flex-wrap justify-center gap-1 border-t-2 border-yellow-500/25 pt-4 text-sm font-medium text-zinc-800 dark:text-slate-200"
+                        v-if="categoryTags.length"
+                    >
+                        <span
+                            v-for="tag in categoryTags"
+                            :key="tag._id"
+                            @click="
+                                selectedCategoryId = tag.parentId;
+                                showCategoryModal = true;
+                            "
+                            class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
+                        >
+                            <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" /><span
+                                class="line-clamp-1"
+                                >{{ tag.title }}</span
+                            >
+                        </span>
+                    </div>
+
+                    <div
+                        v-if="content.text"
+                        v-html="text"
+                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                        :class="{
+                            'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
+                        }"
+                    ></div>
+                </article>
             </div>
-        </IgnorePagePadding>
-    </div>
+
+            <RelatedContent
+                v-if="content && tags.length"
+                :selectedContent="content"
+                :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
+            />
+        </div>
+        <template #footer>
+            <CopyrightBanner />
+        </template>
+    </BasePage>
 
     <LModal
         :isVisible="showCategoryModal"

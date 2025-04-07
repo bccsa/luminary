@@ -405,4 +405,21 @@ describe("SingleContent", () => {
             expect(wrapper.text()).not.toContain(mockEnglishContentDto.author);
         });
     });
+
+    it("shows the theme button", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        // Wait until content is loaded (article is rendered)
+        await waitForExpect(() => {
+            expect(wrapper.find("article").exists()).toBe(true);
+        });
+
+        // Now the quick controls slot should be rendered
+        const quickControls = wrapper.find('[data-test="themeButton"]');
+        expect(quickControls.exists()).toBe(true);
+    });
 });
