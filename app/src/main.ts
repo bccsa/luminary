@@ -40,12 +40,11 @@ async function Startup() {
         apiUrl,
         token,
         appLanguageIdsAsRef,
-        docTypes: [
+        syncList: [
             { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
             { type: DocType.Post, contentOnly: true, syncPriority: 2 },
             {
                 type: DocType.Language,
-                contentOnly: false,
                 syncPriority: 1,
                 skipWaitForLanguageSync: true,
             },

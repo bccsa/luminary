@@ -136,7 +136,7 @@ describe("rest", () => {
             docsIndex: "parentId, language, [type+docType]",
             apiUrl: "http://127.0.0.1:" + port,
             appLanguageIdsAsRef: ref(["lang-eng"]),
-            docTypes: [
+            syncList: [
                 {
                     type: DocType.Post,
                     contentOnly: true,
@@ -384,7 +384,7 @@ describe("rest", () => {
 
         it("can remove a type entry from the syncMap when the app's docTypes has changed", async () => {
             await sync.calcSyncMap();
-            config.docTypes = [
+            config.syncList = [
                 {
                     type: DocType.Post,
                     contentOnly: true,
@@ -440,7 +440,7 @@ describe("rest", () => {
             expect(_post9).toBeDefined();
             expect(_otherPost).toBe(undefined);
 
-            config.docTypes = [
+            config.syncList = [
                 { type: DocType.Post, contentOnly: true, syncPriority: 10 },
                 { type: DocType.Post, contentOnly: false, syncPriority: 10 },
                 { type: DocType.Group, contentOnly: false, syncPriority: 10 },

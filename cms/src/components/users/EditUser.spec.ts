@@ -61,7 +61,7 @@ describe("EditUser.vue", () => {
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,
-            docTypes: [
+            syncList: [
                 { type: DocType.User, contentOnly: true, syncPriority: 10 },
                 { type: DocType.Group, contentOnly: true, syncPriority: 10 },
             ],

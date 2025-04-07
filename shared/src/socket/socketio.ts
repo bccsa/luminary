@@ -39,8 +39,7 @@ class SocketIO {
         this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
 
         this.socket.on("connect", () => {
-            // TODO: need to rethink this
-            this.socket.emit("joinSocketGroups", { docTypes: config.docTypes });
+            this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
             this.processChangeReqLock = false; // reset process lock on connection
         });
 
@@ -52,7 +51,7 @@ class SocketIO {
             // Filter out the data that is not in the requested docTypes array or language IDs array
             const filtered = data.docs.filter((doc) => {
                 if (doc.type === DocType.DeleteCmd) return true; // Always include delete commands
-                return config.docTypes?.some((docType) => {
+                return config.syncList?.some((docType) => {
                     if (!docType.contentOnly && docType.type === doc.type) return true;
                     if (doc.type == DocType.Content && doc.parentType === docType.type) {
                         // Include content documents for all languages if no language filter is set

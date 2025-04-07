@@ -362,7 +362,7 @@ export class Sync {
         const groups: Array<string> = Object.keys(accessMap.value);
         await db.getSyncMap();
 
-        const syncPriorityContentOnly = config.docTypes?.filter(
+        const syncPriorityContentOnly = config.syncList?.filter(
             (value, index, self) =>
                 index ===
                 self.findIndex(
@@ -390,7 +390,7 @@ export class Sync {
                     syncMap.value.set(_id, {
                         id: _id,
                         types:
-                            config.docTypes
+                            config.syncList
                                 ?.filter(
                                     (d) =>
                                         d.syncPriority == entry.syncPriority &&
@@ -419,7 +419,7 @@ export class Sync {
         // check if types has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            const types = config.docTypes
+            const types = config.syncList
                 ?.filter((d) => k.syncPriority == d.syncPriority && k.contentOnly == d.contentOnly)
                 .map((d) => d.type);
             this.compareEntires(_sm, k, types || [], "types");

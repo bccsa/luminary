@@ -19,10 +19,15 @@ export type ApiSearchQuery = {
     docId?: string;
 };
 
-export type ApiDocType = {
+/**
+ * API Sync query object. This is used to construct Search API queries for syncing data from the server,
+ * but is also passed to the Socket.io connection to filter the data that is sent to the client.
+ */
+export type ApiSyncQuery = {
     type: DocType;
-    contentOnly: boolean;
+    contentOnly?: boolean;
     syncPriority: number; // 10 is default, lower number is higher priority
+    // TODO: Rename to something more meaningful
     skipWaitForLanguageSync?: boolean;
 };
 
@@ -48,7 +53,7 @@ class RestApi {
         if (!config.apiUrl) {
             throw new Error("The REST API connection requires an API URL");
         }
-        if (!config.docTypes || !config.docTypes[0]) {
+        if (!config.syncList || !config.syncList[0]) {
             throw new Error(
                 "The REST API connection requires an array of DocTypes that needs to be synced",
             );

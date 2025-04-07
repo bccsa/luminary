@@ -274,7 +274,7 @@ describe("socketio", () => {
             ];
 
             config.appLanguageIdsAsRef!.value = ["en"];
-            config.docTypes = mockDocTypes;
+            config.syncList = mockDocTypes;
 
             socketServer.on("connection", (socket) => {
                 socket.emit("data", mockData);
@@ -314,7 +314,7 @@ describe("socketio", () => {
             const mockDocTypes = [{ type: DocType.Post, contentOnly: false } as ApiDocType];
 
             config.appLanguageIdsAsRef!.value = [];
-            config.docTypes = mockDocTypes;
+            config.syncList = mockDocTypes;
 
             socketServer.on("connection", (socket) => {
                 socket.emit("data", mockData);
