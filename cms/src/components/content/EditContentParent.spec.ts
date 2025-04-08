@@ -23,7 +23,7 @@ describe("EditContentParent.vue", () => {
             props: {
                 docType: DocType.Tag,
                 tagOrPostType: TagType.Category,
-                modelValue: parent.value,
+                parent: parent.value,
                 disabled: false,
             },
         });
@@ -44,7 +44,7 @@ describe("EditContentParent.vue", () => {
             props: {
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
-                modelValue: parent.value,
+                parent: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
             },
@@ -62,6 +62,7 @@ describe("EditContentParent.vue", () => {
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Tag,
+                parent: parent.value,
                 tagOrPostType: TagType.Category,
                 modelValue: parent.value,
                 disabled: false,
@@ -77,6 +78,7 @@ describe("EditContentParent.vue", () => {
             props: {
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
+                parent: parent.value,
                 modelValue: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
