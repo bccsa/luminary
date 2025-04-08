@@ -322,7 +322,8 @@ const save = async () => {
 const revertChanges = () => {
     // Restore the parent document to the previous version
     if (
-        _.isEqual(editableContent.value, existingContent.value) ||
+        (_.isEqual(editableContent.value, existingContent.value) &&
+            _.isEqual(editableParent.value, existingParent.value)) ||
         editableContent.value.length < 1 ||
         !existingContent.value
     ) {
@@ -484,6 +485,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
             >
                 <div class="sticky top-0 space-y-6">
                     <EditContentParentValidation
+                        :tag-or-post-type="props.tagOrPostType"
                         :can-translate="canTranslate"
                         :can-publish="canPublish"
                         :can-edit="canEditParent"
@@ -504,7 +506,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                         :docType="props.docType"
                         :tagOrPostType="props.tagOrPostType"
                         :language="selectedLanguage"
-                        v-model="editableParent"
+                        v-model:parent="editableParent"
                         :disabled="!canEditParent"
                     />
                 </div>

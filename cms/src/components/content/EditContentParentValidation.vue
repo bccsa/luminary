@@ -5,11 +5,14 @@ import {
     type Uuid,
     type LanguageDto,
     type ContentParentDto,
+    TagType,
+    PostType,
 } from "luminary-shared";
 import { ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import LanguageSelector from "./LanguageSelector.vue";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import _ from "lodash";
 
 type Props = {
     languages: LanguageDto[];
@@ -20,6 +23,7 @@ type Props = {
     canTranslate: boolean;
     canPublish: boolean;
     untranslatedLanguages: LanguageDto[];
+    tagOrPostType: TagType | PostType;
 };
 defineProps<Props>();
 const editableParent = defineModel<ContentParentDto>("editableParent");
@@ -100,6 +104,17 @@ watch(
 <template>
     <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
+            <div
+                v-if="editableParent && !_.isEqual(editableParent, existingParent)"
+                class="flex items-center gap-2"
+            >
+                <p>
+                    <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                </p>
+                <p class="text-xs text-zinc-700">
+                    Unsaved changes to {{ tagOrPostType }}'s settings.
+                </p>
+            </div>
             <div
                 v-if="!(canTranslate || canPublish) || !canEdit"
                 class="mb-1 rounded-md bg-zinc-50 p-4 shadow"

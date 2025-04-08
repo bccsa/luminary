@@ -24,7 +24,7 @@ type Props = {
     disabled: boolean;
 };
 defineProps<Props>();
-const parent = defineModel<ContentParentDto>();
+const parent = defineModel<ContentParentDto>("parent");
 
 // Convert the pinned property to a boolean for the toggle
 const pinned = computed({
