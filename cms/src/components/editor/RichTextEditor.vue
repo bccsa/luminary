@@ -57,7 +57,16 @@ const editor = useEditor({
                         });
                 }
 
-                cleanedHtml = cleanedHtml.replace(/\r\n/gi, "");
+                cleanedHtml = cleanedHtml
+                    .replace(/\r\n/gi, "")
+                    .replace(/<span[^>]*>/gi, "") // strip <span> tags
+                    .replace(/<\/span>/gi, "")
+                    .replace(/<o:p>\s*<\/o:p>/g, "") // empty <o:p> from Word
+                    .replace(/<o:p>.*?<\/o:p>/g, "&nbsp;") // non-empty <o:p>
+                    .replace(/\u00A0/g, " ") // non-breaking spaces to normal spaces
+                    .replace(/&nbsp;/g, " ") // HTML non-breaking spaces
+                    .replace(/\s+/g, " ") // remove multiple consecutive spaces
+                    .replace(/\r\n|\n|\r/g, ""); // strip newline characters;
 
                 editor.value?.commands.insertContent(cleanedHtml);
                 return true;
