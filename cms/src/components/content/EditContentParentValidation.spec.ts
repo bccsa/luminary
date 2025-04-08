@@ -6,6 +6,7 @@ import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
 import waitForExpect from "wait-for-expect";
+import { PostType } from "luminary-shared";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -32,6 +33,7 @@ describe("EditContentParentValidation.vue", () => {
     it("displays parent validation errors correctly when neccesary", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
+                tagOrPostType: PostType.Blog,
                 languages: [
                     mockData.mockLanguageDtoEng,
                     mockData.mockLanguageDtoFra,
@@ -63,6 +65,7 @@ describe("EditContentParentValidation.vue", () => {
     it("displays permission message to user", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
+                tagOrPostType: PostType.Blog,
                 languages: [
                     mockData.mockLanguageDtoEng,
                     mockData.mockLanguageDtoFra,
@@ -99,6 +102,7 @@ describe("EditContentParentValidation.vue", () => {
         async () => {
             const wrapper = mount(EditContentParentValidation, {
                 props: {
+                    tagOrPostType: PostType.Blog,
                     languages: [
                         mockData.mockLanguageDtoEng,
                         mockData.mockLanguageDtoFra,
@@ -129,6 +133,7 @@ describe("EditContentParentValidation.vue", () => {
     it("fails validation if no groups are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
+                tagOrPostType: PostType.Blog,
                 languages: [
                     mockData.mockLanguageDtoEng,
                     mockData.mockLanguageDtoFra,
@@ -154,6 +159,7 @@ describe("EditContentParentValidation.vue", () => {
     it("fails validation if no translations are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
+                tagOrPostType: PostType.Blog,
                 languages: [
                     mockData.mockLanguageDtoEng,
                     mockData.mockLanguageDtoFra,
@@ -179,6 +185,7 @@ describe("EditContentParentValidation.vue", () => {
     it("does not display the offline change warning when there are no local changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
+                tagOrPostType: PostType.Blog,
                 languages: [
                     mockData.mockLanguageDtoEng,
                     mockData.mockLanguageDtoFra,
@@ -204,6 +211,7 @@ describe("EditContentParentValidation.vue", () => {
     it("displays unsaved changes warning when there are changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
+                tagOrPostType: PostType.Blog,
                 languages: [
                     mockData.mockLanguageDtoEng,
                     mockData.mockLanguageDtoFra,
@@ -229,6 +237,7 @@ describe("EditContentParentValidation.vue", () => {
     it("doesn't display warning when there are no changes", async () => {
         const wrapper = mount(EditContentParentValidation, {
             props: {
+                tagOrPostType: PostType.Blog,
                 languages: [
                     mockData.mockLanguageDtoEng,
                     mockData.mockLanguageDtoFra,
