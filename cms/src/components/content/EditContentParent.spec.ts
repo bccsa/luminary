@@ -32,7 +32,7 @@ describe("EditContentParent.vue", () => {
         const toggle = wrapper.findComponent({ name: "LToggle" });
         expect(toggle.exists()).toBe(true);
 
-        expect(toggle.props("parent")).toBe(true);
+        expect(toggle.props("modelValue")).toBe(true);
     });
 
     it("test the show publishDate toggle", async () => {
@@ -54,7 +54,7 @@ describe("EditContentParent.vue", () => {
         const toggle = wrapper.findComponent({ name: "LToggle" });
         expect(toggle.exists()).toBe(true);
 
-        expect(toggle.props("parent")).toBe(false);
+        expect(toggle.props("modelValue")).toBe(false);
     });
 
     it("can display an image thumbnail", async () => {
