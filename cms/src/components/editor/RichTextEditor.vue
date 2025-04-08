@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
-import { computed, toRefs, watch } from "vue";
+import { computed, ref, toRefs, watch } from "vue";
 import BoldIcon from "./icons/BoldIcon.vue";
 import ItalicIcon from "./icons/ItalicIcon.vue";
 import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
 import Link from "@tiptap/extension-link";
+import LModal from "../modals/LModal.vue";
+import LInput from "../forms/LInput.vue";
+import LButton from "../button/LButton.vue";
+import { LinkSlashIcon, LinkIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     disabled: boolean;
@@ -15,6 +19,9 @@ type Props = {
 const props = defineProps<Props>();
 const { disabled } = toRefs(props);
 const text = defineModel<string>("text");
+
+const showModal = ref(false);
+const url = ref("");
 
 const editorText = computed(() => {
     if (!text.value) return "";
@@ -68,10 +75,39 @@ const editor = useEditor({
     },
     onUpdate: ({ editor }) => {
         const raw = editor.getJSON();
-        // const cleaned = removeEmptyLineBreaks(raw);
         text.value = JSON.stringify(raw);
     },
 });
+
+const hasTextSelected = computed(() => {
+    const state = editor.value?.state;
+    return state ? !state.selection.empty : false;
+});
+
+const hasLinkSelected = computed(() => {
+    const attrs = editor.value?.getAttributes("link");
+    return !!attrs?.href;
+});
+
+function openLinkModal() {
+    if (!editor.value) return;
+    const attrs = editor?.value.getAttributes("link");
+    url.value = attrs?.href || "";
+    showModal.value = true;
+}
+
+function addLink() {
+    if (!url.value || !editor.value) return;
+
+    const chain = editor.value.chain().focus();
+    if (hasLinkSelected.value) chain.extendMarkRange("link");
+    chain.setLink({ href: url.value }).run();
+    showModal.value = false;
+}
+
+function removeLink() {
+    editor.value?.chain().focus().unsetLink().run();
+}
 
 watch(disabled, () => {
     editor.value?.setEditable(!disabled.value);
@@ -80,7 +116,7 @@ watch(disabled, () => {
 
 <template>
     <div class="-mx-4 px-4">
-        <div class="flex gap-4" v-if="!disabled">
+        <div class="flex flex-wrap gap-4" v-if="!disabled">
             <div class="flex pb-2">
                 <button
                     :class="[
@@ -188,9 +224,60 @@ watch(disabled, () => {
                     <NumberedListIcon class="h-5 w-5" />
                 </button>
             </div>
+            <div class="flex pb-2">
+                <button
+                    :class="[
+                        'rounded-l-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200 active:bg-zinc-300',
+                        { 'bg-zinc-300': editor?.isActive('link') },
+                    ]"
+                    @click="openLinkModal"
+                    :disabled="!hasTextSelected"
+                    title="Add/Edit Link"
+                    type="button"
+                >
+                    <LinkIcon class="h-5 w-5" />
+                </button>
+                <button
+                    class="rounded-r-md bg-zinc-100 px-2 py-1 hover:bg-zinc-200 active:bg-zinc-300"
+                    @click="removeLink"
+                    :disabled="!hasLinkSelected"
+                    title="Remove Link"
+                    type="button"
+                >
+                    <LinkSlashIcon class="h-5 w-5" />
+                </button>
+            </div>
         </div>
         <EditorContent :editor="editor" />
     </div>
+    <LModal :isVisible="showModal" heading="Add Link" @click.self="showModal = false">
+        <LInput
+            v-model="url"
+            label="URL"
+            name="url"
+            placeholder="https://example.com"
+            type="text"
+            class="mb-4"
+            :disabled="disabled"
+        />
+
+        <template #footer>
+            <div class="flex justify-end gap-2">
+                <LButton
+                    v-model="url"
+                    :disabled="!url"
+                    @click="addLink"
+                    variant="primary"
+                    class="w-20"
+                    type="button"
+                    >Ok</LButton
+                >
+                <LButton @click="showModal = false" class="w-20" variant="secondary" type="button"
+                    >Cancel</LButton
+                >
+            </div>
+        </template>
+    </LModal>
 </template>
 
 <style>
