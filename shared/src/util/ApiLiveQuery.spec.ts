@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { ApiLiveQuery, applySocketData } from "./ApiLiveQuery";
 import { ApiSearchQuery, getRest } from "../rest/RestApi";
-import { getSocket } from "../socket/socketio";
+import { getSocket, isConnected } from "../socket/socketio";
 import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../types";
 import waitForExpect from "wait-for-expect";
 import { db } from "../db/database";
+import { beforeEach } from "node:test";
 
 vi.mock("../rest/RestApi", () => {
     return {
@@ -23,6 +24,7 @@ const mockSocket = {
 vi.mock("../socket/socketio", () => {
     return {
         getSocket: vi.fn(() => mockSocket),
+        isConnected: ref(true),
     };
 });
 
@@ -54,6 +56,7 @@ describe("ApiLiveQuery", () => {
     });
 
     it("fetches initial data from the REST API", async () => {
+        isConnected.value = true;
         const query = ref({ types: [DocType.Post] });
         const mockDocs = [{ _id: "1", type: DocType.Post }];
 
@@ -66,7 +69,8 @@ describe("ApiLiveQuery", () => {
         await waitForExpect(() => {
             expect(getRest().search).toHaveBeenCalledWith(query.value);
         });
-        expect(liveQuery.asRef().value).toEqual(mockDocs);
+        expect(liveQuery.toArrayAsRef().value).toEqual(mockDocs);
+        expect(liveQuery.toRef().value).toEqual(mockDocs[0]);
     });
 
     it("subscribes to socket updates", async () => {
@@ -112,7 +116,7 @@ describe("ApiLiveQuery", () => {
         const liveQuery = new ApiLiveQuery(query, { initialValue });
 
         await waitForExpect(() => {
-            expect(liveQuery.asRef().value).toEqual(initialValue);
+            expect(liveQuery.toArrayAsRef().value).toEqual(initialValue);
         });
     });
 
@@ -129,7 +133,7 @@ describe("ApiLiveQuery", () => {
         const liveQuery = new ApiLiveQuery(query, {});
 
         await waitForExpect(() => {
-            expect(liveQuery.asRef().value).toEqual(mockDocs1);
+            expect(liveQuery.toArrayAsRef().value).toEqual(mockDocs1);
         });
 
         vi.mocked(getRest).mockReturnValue({
@@ -139,7 +143,32 @@ describe("ApiLiveQuery", () => {
         query.value = { types: [DocType.Tag] }; // Update the query to trigger a new search
 
         await waitForExpect(() => {
-            expect(liveQuery.asRef().value).toEqual(mockDocs2);
+            expect(liveQuery.toArrayAsRef().value).toEqual(mockDocs2);
+        });
+    });
+
+    it("re-queries the API when the connection is restored", async () => {
+        // This test might not be fully testing the reconnection logic
+        const query = ref({ types: [DocType.Post] });
+        const mockDocs = [{ _id: "1", type: DocType.Post }];
+
+        vi.mocked(getRest).mockReturnValue({
+            search: vi.fn().mockResolvedValue({ docs: mockDocs }),
+        } as any);
+
+        isConnected.value = false; // Simulate disconnection
+
+        const liveQuery = new ApiLiveQuery(query, {});
+
+        await nextTick();
+        expect(getRest().search).not.toHaveBeenCalled();
+
+        isConnected.value = true; // Simulate reconnection
+        await nextTick();
+
+        await waitForExpect(() => {
+            expect(getRest().search).toHaveBeenCalledWith(query.value);
+            expect(liveQuery.toArrayAsRef().value).toEqual(mockDocs);
         });
     });
 

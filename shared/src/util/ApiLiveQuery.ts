@@ -1,6 +1,6 @@
-import { Ref, ref, watch } from "vue";
+import { computed, Ref, ref, watch } from "vue";
 import { ApiSearchQuery, getRest } from "../rest/RestApi";
-import { getSocket } from "../socket/socketio";
+import { getSocket, isConnected } from "../socket/socketio";
 import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../types";
 import { db } from "../db/database";
 
@@ -20,12 +20,23 @@ export type ApiLiveQueryOptions<T> = {
 export class ApiLiveQuery<T extends BaseDocumentDto> {
     private dataAsRef: Ref<Array<T> | undefined>;
     private socketOnCallback: ((data: ApiQueryResult<T>) => void) | undefined = undefined;
+    private unwatch;
 
     /**
-     * Get the live query data as a Vue ref
+     * Get the live query data as a Vue ref array
      */
-    public asRef(): Ref<Array<T> | undefined> {
+    public toArrayAsRef() {
         return this.dataAsRef;
+    }
+
+    /**
+     * Get the live query data as a Vue ref object. If multiple items are available, only the first one is returned.
+     */
+    public toRef() {
+        return computed(() => {
+            if (!this.dataAsRef.value || !this.dataAsRef.value.length) return undefined;
+            return this.dataAsRef.value[0];
+        });
     }
 
     constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<Array<T>>) {
@@ -43,10 +54,11 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
         >;
 
         // Fetch initial data from the REST API and subscribe to live updates
-        watch(
-            query,
+        this.unwatch = watch(
+            [query, isConnected],
             () => {
                 this.stopLiveQuery();
+                if (!isConnected.value) return;
 
                 getRest()
                     .search(query.value)
@@ -73,6 +85,7 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
         // Stop listening for updates from the socket
         if (this.socketOnCallback) getSocket().off("data", this.socketOnCallback);
         this.socketOnCallback = undefined;
+        if (this.unwatch) this.unwatch();
     }
 }
 
