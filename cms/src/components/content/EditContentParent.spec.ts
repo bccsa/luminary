@@ -64,7 +64,6 @@ describe("EditContentParent.vue", () => {
                 docType: DocType.Tag,
                 parent: parent.value,
                 tagOrPostType: TagType.Category,
-                modelValue: parent.value,
                 disabled: false,
             },
         });
@@ -79,7 +78,6 @@ describe("EditContentParent.vue", () => {
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
                 parent: parent.value,
-                modelValue: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
             },
