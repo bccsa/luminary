@@ -4,12 +4,17 @@ import ContentRow from "./ContentRow.vue";
 import LCard from "../common/LCard.vue";
 import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "./query";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import LPaginator from "../common/LPaginator.vue";
 
 type Props = {
     queryOptions: ContentOverviewQueryOptions;
     groups: GroupDto[];
 };
 const props = defineProps<Props>();
+
+const pageIndex = defineModel<number>("pageIndex", {
+    required: true,
+});
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
@@ -98,6 +103,9 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                         />
                     </tbody>
                 </table>
+                <div class="flex h-14 w-full items-center justify-center border-t p-4">
+                    <LPaginator :size="queryOptions.pageSize" v-model:index="pageIndex" />
+                </div>
                 <div
                     class="flex h-32 w-full items-center justify-center gap-2"
                     v-if="contentDocs.length < 1"
