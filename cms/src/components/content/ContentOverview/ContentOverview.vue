@@ -185,7 +185,7 @@ const resetQueryOptions = () => {
         orderBy: "updatedTimeUtc",
         orderDirection: "desc",
         pageSize: 20,
-        pageIndex: 0,
+        pageIndex: 1,
         tags: [],
         groups: [],
         search: "",
@@ -399,6 +399,7 @@ const groups = useDexieLiveQuery(
         </div>
         <ContentTable
             v-if="cmsLanguageIdAsRef"
+            v-model:page-index="queryOptions.pageIndex as number"
             :key="tableRefreshKey"
             :groups="groups"
             :queryOptions="queryOptions"
