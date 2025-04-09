@@ -16,7 +16,7 @@ import {
     type UserDto,
     type Uuid,
 } from "luminary-shared";
-import { computed, provide, ref, toRaw, watch } from "vue";
+import { computed, ref, toRaw, watch } from "vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";
@@ -39,23 +39,8 @@ const apiLiveQuery = new ApiLiveQuery<UserDto>(userQuery);
 const original = apiLiveQuery.toRef();
 const isLoading = apiLiveQuery.isLoadingAsRef();
 
-// const user = ref<UserDto>();
-// provide("users", user);
-
 const isLocalChange = db.isLocalChangeAsRef(props.id);
 const { addNotification } = useNotificationStore();
-
-// const isLoading = ref(true);
-// const getUser = async () => {
-//     const _q = await getRest().search(usersQuery);
-//     if (_q && _q.docs && _q.docs.length) {
-//         user.value = _q.docs[0];
-//         isLoading.value = false;
-//     }
-// };
-// getUser();
-
-// const original = ref<UserDto | undefined>();
 
 const showDeleteModal = ref(false);
 
@@ -147,9 +132,9 @@ const save = async () => {
         return;
     }
 
-    // original.value = _.cloneDeep(editable.value);
     editable.value.updatedTimeUtc = Date.now();
 
+    // TODO: Use API to save the user
     await db.upsert({ doc: editable.value, localChangesOnly: true });
 
     if (!editable.value.deleteReq) {
