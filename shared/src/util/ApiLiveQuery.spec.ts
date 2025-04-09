@@ -6,7 +6,6 @@ import { getSocket, isConnected } from "../socket/socketio";
 import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../types";
 import waitForExpect from "wait-for-expect";
 import { db } from "../db/database";
-import { beforeEach } from "node:test";
 
 vi.mock("../rest/RestApi", () => {
     return {
