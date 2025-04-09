@@ -8,13 +8,14 @@ import {
     AclPermission,
     ApiLiveQuery,
     DocType,
-    db,
     isConnected,
     hasAnyPermission,
     verifyAccess,
     type ApiSearchQuery,
     type UserDto,
     type Uuid,
+    getRest,
+    AckStatus,
 } from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
 import GroupSelector from "../groups/GroupSelector.vue";
@@ -39,7 +40,6 @@ const apiLiveQuery = new ApiLiveQuery<UserDto>(userQuery);
 const original = apiLiveQuery.toRef();
 const isLoading = apiLiveQuery.isLoadingAsRef();
 
-const isLocalChange = db.isLocalChangeAsRef(props.id);
 const { addNotification } = useNotificationStore();
 
 const showDeleteModal = ref(false);
@@ -114,7 +114,7 @@ const deleteUser = async () => {
 
     editable.value.deleteReq = 1;
 
-    save();
+    await save();
 
     addNotification({
         title: `${capitaliseFirstLetter(editable.value.name)} deleted`,
@@ -122,26 +122,31 @@ const deleteUser = async () => {
         state: "success",
     });
 
-    router.push({
-        name: "users",
-    });
+    router.push("/users");
 };
+
 const save = async () => {
     // Bypass save if the user is new and marked for deletion
     if (isNew.value && editable.value.deleteReq) {
         return;
     }
 
-    editable.value.updatedTimeUtc = Date.now();
-
-    // TODO: Use API to save the user
-    await db.upsert({ doc: editable.value, localChangesOnly: true });
+    const res = await getRest().changeRequest({
+        id: 1, // Not used for direct API change request calls.
+        doc: editable.value,
+    });
 
     if (!editable.value.deleteReq) {
         useNotificationStore().addNotification({
-            title: "User saved",
-            description: "User saved successfully",
-            state: "success",
+            title:
+                res && res.ack == AckStatus.Accepted
+                    ? `${editable.value.name} saved`
+                    : "Error saving changes",
+            description:
+                res && res.ack == AckStatus.Accepted
+                    ? ""
+                    : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
+            state: res && res.ack == AckStatus.Accepted ? "success" : "error",
         });
     }
 };
@@ -159,7 +164,6 @@ const save = async () => {
     >
         <template #actions>
             <div v-if="!isLoading && isConnected" class="flex gap-2">
-                <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
                 <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
                     >No groups selected</LBadge
                 >
@@ -238,7 +242,7 @@ const save = async () => {
     <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete ${editable.name}?`"
-        :description="`Are you sure you want to delete this user? This user will be no longer able to have access! This action cannot be undone.`"
+        :description="`Are you sure you want to delete this user? This action cannot be undone.`"
         :primaryAction="
             () => {
                 showDeleteModal = false;
