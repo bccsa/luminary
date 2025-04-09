@@ -49,28 +49,25 @@ const editor = useEditor({
             const clipboardData = event.clipboardData;
             if (!clipboardData) return false;
 
-            const html = clipboardData.getData("text/html");
-            if (html) {
-                let cleanedHtml = html;
-                if (html.match(/<h([1])([^>]*)>/gi)) {
-                    cleanedHtml = html
-                        .replace(/<h([1-5])([^>]*)>/gi, (match, level, attrs) => {
-                            const newLevel = parseInt(level) + 1;
-                            return `<h${newLevel}${attrs}>`;
-                        })
-                        .replace(/<\/h([1-5])>/gi, (match, level) => {
-                            const newLevel = parseInt(level) + 1;
-                            return `</h${newLevel}>`;
-                        });
-                }
+            let html = clipboardData.getData("text/html");
+            if (!html) return false;
 
-                cleanedHtml = cleanedHtml.replace(/\r\n/gi, "");
-
-                editor.value?.commands.insertContent(cleanedHtml);
-                return true;
-            }
-
-            return false;
+            // Clean heading tags
+            html = html
+                .replace(/>\s+</g, "><") // Remove spaces between tags
+                .replace(/<br\s*\/?>/gi, "") // Remove standalone <br>
+                .replace(/<p>\s*<\/p>/gi, "") // Remove empty paragraphs
+                .replace(/&nbsp;/gi, " ")
+                .replace(/<h([1-5])([^>]*)>/gi, (match, level, attrs) => {
+                    const newLevel = Math.min(parseInt(level) + 1, 6);
+                    return `<h${newLevel}${attrs}>`;
+                })
+                .replace(/<\/h([1-5])>/gi, (match, level) => {
+                    const newLevel = Math.min(parseInt(level) + 1, 6);
+                    return `</h${newLevel}>`;
+                });
+            editor.value?.commands.insertContent(html);
+            return true;
         },
     },
     onUpdate: ({ editor }) => {
