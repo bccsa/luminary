@@ -6,7 +6,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import express from "express";
 import { mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
-import { accessMap, DocType, getRest, initConfig } from "luminary-shared";
+import { accessMap, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router", () => ({
@@ -62,6 +62,7 @@ describe("UserOverview", () => {
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+        isConnected.value = true; // Simulate a connected state
     });
 
     afterEach(() => {
