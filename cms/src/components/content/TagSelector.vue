@@ -170,7 +170,7 @@ const onTagClick = (tagContent: ContentDto) => {
                                 ]"
                             >
                                 <span class="block truncate" data-test="tag-selector">
-                                    {{ content.title }}
+                                    {{ content.title || content.parentId }}
                                 </span>
                             </li>
                         </ComboboxOption>
@@ -201,7 +201,7 @@ const onTagClick = (tagContent: ContentDto) => {
                     "
                     :disabled="disabled"
                 >
-                    {{ tagsContent.find((tc) => tc.parentId == tag._id)?.title }}
+                    {{ tagsContent.find((tc) => tc.parentId == tag._id)?.title || tag._id }}
                 </LTag>
             </TransitionGroup>
         </div>
