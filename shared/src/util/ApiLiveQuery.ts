@@ -21,6 +21,7 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
     private dataAsRef: Ref<Array<T> | undefined>;
     private socketOnCallback: ((data: ApiQueryResult<T>) => void) | undefined = undefined;
     private unwatch;
+    private isLoading = ref(true);
 
     /**
      * Get the live query data as a Vue ref array
@@ -37,6 +38,13 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
             if (!this.dataAsRef.value || !this.dataAsRef.value.length) return undefined;
             return this.dataAsRef.value[0];
         });
+    }
+
+    /**
+     * A Vue ref that indicates if the live query is loading data. It will be true when the data is being fetched from the API.
+     */
+    public isLoadingAsRef() {
+        return this.isLoading;
     }
 
     constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<Array<T>>) {
@@ -57,8 +65,14 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
         this.unwatch = watch(
             [query, isConnected],
             () => {
-                this.stopLiveQuery();
-                if (!isConnected.value) return;
+                this.unsubscribeLiveData();
+
+                if (!isConnected.value) {
+                    this.isLoading.value = false;
+                    return;
+                }
+
+                this.isLoading.value = true;
 
                 getRest()
                     .search(query.value)
@@ -67,6 +81,9 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
                     })
                     .catch((error) => {
                         console.error("Error fetching data from API:", error);
+                    })
+                    .finally(() => {
+                        this.isLoading.value = false;
                     });
 
                 // Listen for updates from the socket
@@ -74,18 +91,24 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
                     applySocketData<T>(data, this.dataAsRef, query.value);
                 getSocket().on("data", this.socketOnCallback);
             },
-            { immediate: true },
+            { immediate: true, deep: true },
         );
     }
 
     /**
-     * Stop listening for live updates from the API
+     * Stop listening for live updates from the API. After stopLiveQuery is called, the data will not be updated anymore.
      */
     stopLiveQuery() {
-        // Stop listening for updates from the socket
+        this.unsubscribeLiveData();
+        if (this.unwatch) this.unwatch();
+    }
+
+    /**
+     * Stop listening for live updates
+     */
+    private unsubscribeLiveData() {
         if (this.socketOnCallback) getSocket().off("data", this.socketOnCallback);
         this.socketOnCallback = undefined;
-        if (this.unwatch) this.unwatch();
     }
 }
 

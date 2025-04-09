@@ -6,9 +6,10 @@ import LCard from "../common/LCard.vue";
 import LInput from "../forms/LInput.vue";
 import {
     AclPermission,
+    ApiLiveQuery,
     DocType,
     db,
-    getRest,
+    isConnected,
     hasAnyPermission,
     verifyAccess,
     type ApiSearchQuery,
@@ -29,28 +30,33 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const usersQuery: ApiSearchQuery = {
+const userQuery = ref<ApiSearchQuery>({
     types: [DocType.User],
     docId: props.id,
-};
-const user = ref<UserDto>();
-provide("users", user);
+});
+
+const apiLiveQuery = new ApiLiveQuery<UserDto>(userQuery);
+const original = apiLiveQuery.toRef();
+const isLoading = apiLiveQuery.isLoadingAsRef();
+
+// const user = ref<UserDto>();
+// provide("users", user);
 
 const isLocalChange = db.isLocalChangeAsRef(props.id);
 const { addNotification } = useNotificationStore();
 
-const isLoading = ref(true);
-const getUser = async () => {
-    const _q = await getRest().search(usersQuery);
-    if (_q && _q.docs && _q.docs.length) {
-        user.value = _q.docs[0];
-        isLoading.value = false;
-    }
-};
-getUser();
+// const isLoading = ref(true);
+// const getUser = async () => {
+//     const _q = await getRest().search(usersQuery);
+//     if (_q && _q.docs && _q.docs.length) {
+//         user.value = _q.docs[0];
+//         isLoading.value = false;
+//     }
+// };
+// getUser();
 
-const original = ref<UserDto | undefined>();
-const isDirty = ref(false);
+// const original = ref<UserDto | undefined>();
+
 const showDeleteModal = ref(false);
 
 const editable = ref<UserDto>({
@@ -62,18 +68,16 @@ const editable = ref<UserDto>({
     name: "New user",
 });
 
-watch(
-    () => user.value,
-    (user) => {
-        if (user) {
-            original.value = _.cloneDeep(user); // Update the original object
-            editable.value = user;
-        }
-    },
-    { immediate: true },
-);
+// Clone the original user when it's loaded into the editable object
+const originalLoadedHandler = watch(original, () => {
+    if (!original.value) return;
+    editable.value = _.cloneDeep(original.value);
+
+    originalLoadedHandler();
+});
 
 // Check if the user is dirty (has unsaved changes)
+const isDirty = ref(false);
 watch(
     [editable, original],
     () => {
@@ -143,7 +147,7 @@ const save = async () => {
         return;
     }
 
-    original.value = _.cloneDeep(editable.value);
+    // original.value = _.cloneDeep(editable.value);
     editable.value.updatedTimeUtc = Date.now();
 
     await db.upsert({ doc: editable.value, localChangesOnly: true });
@@ -160,7 +164,7 @@ const save = async () => {
 
 <template>
     <BasePage
-        :title="isLoading ? '' : editable?.name"
+        :title="isLoading || !isConnected ? '' : editable?.name"
         :backLinkLocation="{ name: 'users' }"
         :backLinkText="`Users overview`"
         :backLinkParams="{
@@ -169,7 +173,7 @@ const save = async () => {
         class="mb-16"
     >
         <template #actions>
-            <div v-if="!isLoading" class="flex gap-2">
+            <div v-if="!isLoading && isConnected" class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
                 <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
                     >No groups selected</LBadge
@@ -213,6 +217,7 @@ const save = async () => {
             </div>
         </template>
         <span v-if="isLoading">Loading...</span>
+        <span v-else-if="!isConnected">Offline...</span>
         <div v-else class="space-y-2">
             <LCard class="rounded-lg bg-white shadow-lg">
                 <LInput

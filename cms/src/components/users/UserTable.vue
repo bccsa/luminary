@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { DocType, type ApiSearchQuery, type UserDto, ApiLiveQuery } from "luminary-shared";
+import {
+    DocType,
+    type ApiSearchQuery,
+    type UserDto,
+    ApiLiveQuery,
+    isConnected,
+} from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import UserRow from "../users/UserRow.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
@@ -10,7 +16,8 @@ const usersQuery = ref<ApiSearchQuery>({
 });
 
 const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery);
-const users = apiLiveQuery.asRef();
+const users = apiLiveQuery.toArrayAsRef();
+const isLoading = apiLiveQuery.isLoadingAsRef();
 
 const newUsers = ref<UserDto[]>([]);
 
@@ -46,7 +53,7 @@ onBeforeUnmount(() => {
         <div class="overflow-x-auto rounded-md">
             <div class="inline-block min-w-full align-middle">
                 <table class="min-w-full divide-y divide-zinc-200">
-                    <thead class="bg-zinc-50">
+                    <thead class="bg-zinc-50" v-if="!isLoading && isConnected">
                         <tr>
                             <!-- name -->
                             <th
@@ -58,7 +65,7 @@ onBeforeUnmount(() => {
 
                             <!-- email  -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
                                 @click="false"
                             >
                                 <div class="flex items-center gap-2">Email</div>
@@ -66,7 +73,7 @@ onBeforeUnmount(() => {
 
                             <!-- memberOf -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
                                 @click="false"
                             >
                                 Member of
@@ -91,13 +98,20 @@ onBeforeUnmount(() => {
                             ></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 bg-white">
+                    <tbody
+                        class="divide-y divide-zinc-200 bg-white"
+                        v-if="isConnected && !isLoading"
+                    >
                         <UserRow v-for="user in combinedUsers" :key="user._id" :usersDoc="user" />
                     </tbody>
                 </table>
-                <div class="flex h-32 w-full items-center justify-center gap-2" v-if="!users">
+                <div class="flex h-32 w-full items-center justify-center gap-2" v-if="isLoading">
                     <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
                     <p class="text-sm text-zinc-500">Loading...</p>
+                </div>
+                <div class="flex h-32 w-full items-center justify-center gap-2" v-if="!isConnected">
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
+                    <p class="text-sm text-zinc-500">Offline</p>
                 </div>
             </div>
         </div>

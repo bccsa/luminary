@@ -38,7 +38,7 @@ watch(groups, (newGroups) => {
         </td>
 
         <!-- email -->
-        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
             <div class="flex gap-2">
                 <!-- <LBadge v-if="usersDoc.default" variant="success">Default</LBadge> -->
                 {{ usersDoc.email }}
@@ -46,19 +46,23 @@ watch(groups, (newGroups) => {
         </td>
 
         <!-- memberof -->
-        <td
-            class="whitespace-wrap flex flex-wrap gap-1 py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6"
-        >
-            <LBadge
-                v-for="g in usersDoc.memberOf.map((g) => group.find((gr) => gr._id === g)?.name)"
-                :key="g"
-            >
-                {{ g }}
-            </LBadge>
+        <td class="py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+            <div class="flex max-w-xs flex-wrap gap-2">
+                <LBadge
+                    v-for="g in usersDoc.memberOf.map(
+                        (g) => group.find((gr) => gr._id === g)?.name,
+                    )"
+                    :key="g"
+                    type="default"
+                    class="text-lg"
+                >
+                    {{ g }}
+                </LBadge>
+            </div>
         </td>
 
         <!-- isLocalChanges -->
-        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChanges" variant="warning">Offline changes</LBadge>
             </div>
