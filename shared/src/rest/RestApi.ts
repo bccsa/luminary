@@ -17,6 +17,7 @@ export type ApiSearchQuery = {
     languages?: Array<string>;
     includeDeleteCmds?: boolean;
     docId?: string;
+    slug?: string;
 };
 
 /**
