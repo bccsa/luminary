@@ -5,7 +5,6 @@ import LanguageModal from "./LanguageModal.vue";
 import { db } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import { nextTick } from "vue";
 
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
@@ -50,8 +49,6 @@ describe("LanguageModal.vue", () => {
         const languageButtons = wrapper.findAll('[data-test="switch-language-button"]');
 
         await languageButtons[1].trigger("click");
-
-        await wrapper.vm.$nextTick();
 
         expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoFra._id);
     });
