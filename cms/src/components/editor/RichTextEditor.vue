@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
-import { computed, ref, toRefs, watch } from "vue";
+import { computed, nextTick, ref, toRefs, watch } from "vue";
 import BoldIcon from "./icons/BoldIcon.vue";
 import ItalicIcon from "./icons/ItalicIcon.vue";
 import StrikethroughIcon from "./icons/StrikethroughIcon.vue";
@@ -108,6 +108,16 @@ function removeLink() {
 
 watch(disabled, () => {
     editor.value?.setEditable(!disabled.value);
+});
+
+// Focus the link editor modal when it opens
+// TODO: This is a workaround and should probably be implemented in the LModal component
+const urlInput = ref<InstanceType<typeof LInput> | undefined>(undefined);
+watch(showModal, async () => {
+    if (!showModal.value) return;
+
+    await nextTick();
+    urlInput.value?.focus();
 });
 </script>
 
@@ -247,8 +257,14 @@ watch(disabled, () => {
         </div>
         <EditorContent :editor="editor" />
     </div>
-    <LModal :isVisible="showModal" heading="Add Link" @click.self="showModal = false">
+    <LModal
+        :isVisible="showModal"
+        heading="Add Link"
+        @keydown.esc="showModal = false"
+        @keydown.enter="addLink"
+    >
         <LInput
+            ref="urlInput"
             v-model="url"
             label="URL"
             name="url"
