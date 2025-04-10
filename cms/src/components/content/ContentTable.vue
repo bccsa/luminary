@@ -96,7 +96,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                     <LPaginator
                         :size="queryOptions.pageSize"
                         v-model:index="pageIndex"
-                        variant="extended"
+                        variant="simple"
                     />
                 </div>
                 <div
