@@ -44,7 +44,8 @@ watch(tags, async () => {
         // Filter tags based on access before proceeding, and exclude the the tag itself (if parent is a tag)
         if (
             tag._id != parent.value?._id &&
-            verifyAccess(tag.memberOf, DocType.Tag, AclPermission.Assign, "any")
+            (verifyAccess(tag.memberOf, DocType.Tag, AclPermission.Assign, "any") ||
+                parent.value?.tags.includes(tag._id))
         ) {
             pList.push(
                 // We are getting the content as non-reactive, meaning that if someone else would change
@@ -86,6 +87,11 @@ watchDeep([parent, tags], () => {
     selectedTagsByType.value = tags.value.filter((t) => parent.value?.tags.includes(t._id));
 });
 
+const canAssign = computed(() => {
+    if (!parent.value) return false;
+    return verifyAccess(parent.value.memberOf, DocType.Tag, AclPermission.Assign, "any");
+});
+
 const isTagSelected = computed(() => {
     return (tagId: string) => {
         return parent.value?.tags.some((t) => t == tagId);
@@ -102,7 +108,7 @@ const onTagSelected = (tagContent: ContentDto) => {
     }
 };
 
-/* This function was implemented for the @click on the "li" 
+/* This function was implemented for the @click on the "li"
    that was triggered in the test but didn't trigger the "update:modelValue"
    in the headlessUI combobox. So the "parent.tags" remained *[]*
    This method ensures that "update:modelValue" is triggered. */
@@ -195,11 +201,11 @@ const onTagClick = (tagContent: ContentDto) => {
                     :key="tag._id"
                     @remove="
                         () => {
-                            if (!parent) return;
+                            if (!parent || !canAssign) return;
                             parent.tags = parent.tags.filter((t) => t != tag._id);
                         }
                     "
-                    :disabled="disabled"
+                    :disabled="disabled || !canAssign"
                 >
                     {{ tagsContent.find((tc) => tc.parentId == tag._id)?.title || tag._id }}
                 </LTag>
