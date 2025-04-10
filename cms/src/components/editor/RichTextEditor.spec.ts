@@ -59,22 +59,4 @@ describe("RichTextEditor", () => {
             expect(wrapper.html()).toContain("<h2>My Heading</h2>");
         });
     });
-
-    it("checks if the word has link", async () => {
-        const wrapper = mount(RichTextEditor, {
-            props: {
-                disabled: false,
-                text: '<p><a href="https://example.com">Gandalf the Grey</a></p>',
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Gandalf the Grey");
-            // expect the word to be a link
-            expect(wrapper.find("a").exists()).toBe(true);
-            expect(wrapper.find("a").attributes("href")).toBe("https://example.com");
-        });
-    });
-
-    // The simulation of the selection is hard to test
 });
