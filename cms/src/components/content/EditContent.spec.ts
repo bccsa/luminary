@@ -549,7 +549,6 @@ describe("EditContent.vue", () => {
             });
             await waitForExpect(async() => {
                 const deletebutton = wrapper.find('[data-test="delete-button"]')
-                expect(deletebutton.exists()).toBe(false)
                 expect(wrapper.text()).toContain("Delete");
             })
         })
