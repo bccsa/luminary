@@ -62,7 +62,7 @@ const queryOptions = ref<ContentOverviewQueryOptions>(
               translationStatus: "all",
               orderBy: "updatedTimeUtc",
               orderDirection: "desc",
-              pageSize: 1,
+              pageSize: 20,
               pageIndex: 0,
               tags: [],
               search: "",
