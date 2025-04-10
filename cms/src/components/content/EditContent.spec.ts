@@ -11,7 +11,6 @@ import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
 import LanguageSelector from "./LanguageSelector.vue";
-import { initLanguage } from "@/globalConfig";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -586,7 +585,7 @@ describe("EditContent.vue", () => {
     });
 
     describe("delete requests", () => {
-        it.skip("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
+        it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
                 props: {
                     id: mockData.mockPostDto._id,
