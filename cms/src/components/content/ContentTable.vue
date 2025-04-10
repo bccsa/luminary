@@ -104,7 +104,11 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                     </tbody>
                 </table>
                 <div class="flex h-14 w-full items-center justify-center border-t p-4">
-                    <LPaginator :size="queryOptions.pageSize" v-model:index="pageIndex" />
+                    <LPaginator
+                        :size="queryOptions.pageSize"
+                        v-model:index="pageIndex"
+                        variant="extended"
+                    />
                 </div>
                 <div
                     class="flex h-32 w-full items-center justify-center gap-2"
