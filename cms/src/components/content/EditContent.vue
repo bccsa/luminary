@@ -190,49 +190,19 @@ const createTranslation = (language: LanguageDto) => {
 
 const canTranslate = computed(() => {
     if (!editableParent.value || !selectedLanguage.value) return false;
-
-    if (
-        editableParent.value.memberOf.length > 0 &&
-        (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate) ||
-            !verifyAccess(
-                selectedLanguage.value.memberOf,
-                DocType.Language,
-                AclPermission.Translate,
-            ))
-    ) {
+    if (!canPublish.value && selectedContent.value?.status == PublishStatus.Published) return false;
+    if (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate))
         return false;
-    }
+    if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
+        return false;
     return true;
 });
 
-const canPublish = computed(() => {
-    if (!editableParent.value || !selectedLanguage.value) return false;
-
-    // Disable edit access if the user does not have publish permission
-    if (existingContent.value) {
-        const prevContentDoc = existingContent.value.find(
-            (d) => d.language == selectedLanguageId.value,
-        );
-        if (
-            prevContentDoc &&
-            prevContentDoc.status == PublishStatus.Published &&
-            !verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Publish)
-        ) {
-            return false;
-        }
-    }
-
-    return true;
-});
-
-// Access control
-const canTranslateOrPublish = computed(() => {
-    if (!selectedContent.value) return false;
-    if (!canTranslate.value) return false;
-    if (!canPublish.value && selectedContent.value.status == PublishStatus.Draft) return true;
-    if (canPublish.value) return true;
-    return false;
-});
+const canPublish = computed(
+    () =>
+        verifyAccess(editableParent.value?.memberOf || [], props.docType, AclPermission.Publish) ||
+        false,
+);
 
 const canEditParent = computed(() => {
     if (editableParent.value) {
@@ -429,6 +399,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 </script>
 
 <template>
+    <div>{{ canPublish }}</div>
     <div
         v-if="!newDocument && !editableParent?.updatedTimeUtc"
         class="relative flex h-screen items-center justify-center"
@@ -557,22 +528,13 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                 <div v-else class="space-y-6">
                     <EditContentStatus
                         v-model:content="selectedContent"
-                        :disabled="!canTranslateOrPublish"
+                        :disabled="!canTranslate"
                         :disablePublish="!canPublish"
                     />
-                    <EditContentBasic
-                        v-model:content="selectedContent"
-                        :disabled="!canTranslateOrPublish"
-                    />
+                    <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
 
-                    <EditContentText
-                        v-model:content="selectedContent"
-                        :disabled="!canTranslateOrPublish"
-                    />
-                    <EditContentVideo
-                        v-model:content="selectedContent"
-                        :disabled="!canTranslateOrPublish"
-                    />
+                    <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
+                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>
             </div>
         </div>

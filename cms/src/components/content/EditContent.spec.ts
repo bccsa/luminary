@@ -9,6 +9,7 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import LTextToggle from "../forms/LTextToggle.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -460,6 +461,11 @@ describe("EditContent.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true);
         });
+
+        // Check that the publish button is disabled
+        const publishButton = wrapper.findComponent(LTextToggle);
+        expect(publishButton.exists()).toBe(true);
+        expect(publishButton.props().disabled).toBe(true);
 
         // Update title to make the content dirty
         const titleInput = wrapper.find('input[name="title"]');
