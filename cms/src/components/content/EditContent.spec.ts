@@ -429,7 +429,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.only("correctly updates text field in indexedDB from rich text editor", async () => {
+    it("correctly updates text field in indexedDB from rich text editor", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -439,24 +439,30 @@ describe("EditContent.vue", () => {
             },
         });
 
-        await wrapper.find("#headlessui-menu-button-v-10").trigger("click");
-        // expect(languageSelector.exists()).toBe(true);
+        await waitForExpect(async () => {
+            const editContentText = wrapper.findComponent(EditContentText);
 
-        // .find("button").trigger("click");
-
-        // console.info(await db.docs.toArray());
-
-        // console.info(wrapper.html());
-
-        const editContentText = wrapper.findComponent(EditContentText);
-
-        expect(editContentText.exists()).toBe(true);
-
-        // await .find('[data-test="addText"]').trigger("click");
+            expect(editContentText.exists()).toBe(true);
+        });
 
         const textEditor = wrapper.findComponent(RichTextEditor);
 
         expect(textEditor.exists()).toBe(true);
+        //@ts-ignore -valid
+        textEditor.vm.text = "New Content";
+
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+
+            expect(res.length).toBe(2);
+            console.log(res[1]);
+            expect(res[1].doc).toMatchObject({
+                ...mockData.mockEnglishContentDto,
+                text: "New Content",
+            });
+        });
     });
 
     describe("delete requests", () => {
