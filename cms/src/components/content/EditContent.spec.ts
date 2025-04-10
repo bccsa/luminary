@@ -505,7 +505,6 @@ describe("EditContent.vue", () => {
             const res = await db.localChanges.toArray();
 
             expect(res.length).toBe(2);
-            console.log(res[1]);
             expect(res[1].doc).toMatchObject({
                 ...mockData.mockEnglishContentDto,
                 text: "New Content",
