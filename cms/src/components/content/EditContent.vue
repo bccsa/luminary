@@ -248,7 +248,7 @@ const canEditParent = computed(() => {
 
 const canDelete = computed(() => {
     if (!editableParent.value) return false;
-    return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
+     return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
 });
 
 // Dirty check and save
@@ -469,6 +469,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                         Save
                     </LButton>
                     <LButton
+                    v-if="canDelete"
                         type="button"
                         @click="showDeleteModal = true"
                         data-test="delete-button"
