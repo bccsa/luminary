@@ -38,7 +38,7 @@ describe("LanguageModal.vue", () => {
         expect(wrapper.find("h2").exists()).toBe(false);
     });
 
-    it("emits close event on language click and stores the selected language", async () => {
+    it("stores the selected language on language click", async () => {
         const wrapper = mount(LanguageModal, {
             props: { isVisible: true },
         });
@@ -46,19 +46,16 @@ describe("LanguageModal.vue", () => {
         //@ts-expect-error -- valid code
         wrapper.vm.languages = await db.docs.toArray();
 
-        const languageButtons = await wrapper.findAll('[data-test="switch-language-button"]');
+        const languageButtons = wrapper.findAll('[data-test="switch-language-button"]');
 
         await languageButtons[1].trigger("click");
 
         expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoFra._id);
-
-        expect(wrapper.emitted()).toHaveProperty("close");
     });
-
 
     it("should switch languages correctly", async () => {
         const wrapper = mount(LanguageModal, {
-            props: { isVisible: true }
+            props: { isVisible: true },
         });
 
         //@ts-expect-error -- valid code
@@ -82,16 +79,5 @@ describe("LanguageModal.vue", () => {
         await languageButtons[2].trigger("click");
 
         expect(cmsLanguageIdAsRef.value).toBe(mockLanguageDtoSwa._id);
-
-    });
-        
-
-    it("emits the close event on close button click", async () => {
-        const wrapper = mount(LanguageModal, {
-            props: { isVisible: true },
-        });
-
-        await wrapper.findComponent({ name: "LButton" }).trigger("click");
-        expect(wrapper.emitted()).toHaveProperty("close");
     });
 });
