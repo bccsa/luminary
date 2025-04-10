@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
-import TopBar from "@/components/navigation/TopBar.vue";
-import { computed, onErrorCaptured, ref, watch } from "vue";
+import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
 import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
 import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
-import MobileMenu from "./components/navigation/MobileMenu.vue";
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
 const { isAuthenticated, user } = useAuth0();
-const main = ref<HTMLElement | undefined>(undefined);
 
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
@@ -85,34 +82,16 @@ onErrorCaptured((err) => {
     console.error(err);
     Sentry.captureException(err);
 });
-
-// Focus main content when arrow up or down is pressed to keep scrolling working even when focus was shifted to the top bar
-document.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-        if (main.value) main.value.focus();
-    }
-});
 </script>
 
 <template>
-    <div class="absolute bottom-0 left-0 right-0 top-0 flex flex-col">
-        <TopBar class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50" />
-        <NotificationBannerManager />
+    <NotificationBannerManager />
 
-        <main
-            class="flex-1 overflow-y-scroll px-4 py-4 scrollbar-hide focus:outline-none dark:bg-slate-900"
-            ref="main"
-        >
-            <RouterView v-slot="{ Component }">
-                <KeepAlive include="HomePage,ExplorePage,VideoPage">
-                    <component :is="Component" :key="routeKey" />
-                </KeepAlive>
-            </RouterView>
-        </main>
-        <MobileMenu
-            class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
-        />
-    </div>
+    <RouterView v-slot="{ Component }">
+        <KeepAlive include="HomePage,ExplorePage,VideoPage">
+            <component :is="Component" :key="routeKey" />
+        </KeepAlive>
+    </RouterView>
 
     <Teleport to="body">
         <NotificationToastManager />

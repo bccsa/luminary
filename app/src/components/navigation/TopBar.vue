@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { ChevronLeftIcon, SunIcon } from "@heroicons/vue/24/solid";
-import { MoonIcon } from "@heroicons/vue/24/outline";
+import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
 import ProfileMenu from "./ProfileMenu.vue";
 import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
-import { isDarkTheme, showContentQuickControls, theme } from "@/globalConfig";
+
+type Props = {
+    showBackButton?: boolean;
+};
+
+withDefaults(defineProps<Props>(), {
+    showBackButton: false,
+});
 
 const router = useRouter();
 const LOGO = import.meta.env.VITE_LOGO;
@@ -43,7 +49,7 @@ onMounted(() => {
     }
 
     watch(
-        [showContentQuickControls, logoWidth],
+        [logoWidth],
         async () => {
             await nextTick();
             updateScreenSize();
@@ -62,7 +68,7 @@ onMounted(() => {
                 <div class="flex flex-1 items-center">
                     <div
                         class="mr-4 border-r border-zinc-400 pr-4"
-                        v-if="showContentQuickControls"
+                        v-if="showBackButton"
                         data-test="backButton"
                     >
                         <ChevronLeftIcon
@@ -84,13 +90,8 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div class="ml-2 mr-6" v-if="showContentQuickControls" data-test="quickControls">
-                    <div class="flex cursor-pointer items-center">
-                        <div class="text-zinc-400 dark:text-slate-300">
-                            <SunIcon class="h-6 w-6" v-if="isDarkTheme" @click="theme = 'light'" />
-                            <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
-                        </div>
-                    </div>
+                <div class="ml-2 mr-5 flex cursor-pointer items-center gap-4">
+                    <slot name="quickControls" />
                 </div>
                 <ProfileMenu />
             </div>
