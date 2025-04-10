@@ -214,7 +214,7 @@ const canEditParent = computed(() => {
 
 const canDelete = computed(() => {
     if (!editableParent.value) return false;
-    return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
+     return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
 });
 
 // Dirty check and save
@@ -512,13 +512,6 @@ const showLanguageSelector = ref(false);
                     >
                         Save
                     </LButton>
-                    <LButton
-                        :icon="DocumentDuplicateIcon"
-                        title="Duplicate"
-                        data-test="duplicate-btn"
-                        @click="isDirty ? (showDuplicateModal = true) : duplicate()"
-                        >Duplicate</LButton
-                    >
                     <LButton
                         :icon="DocumentDuplicateIcon"
                         title="Duplicate"
