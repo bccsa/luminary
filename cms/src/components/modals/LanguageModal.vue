@@ -5,18 +5,12 @@ import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 import LModal from "./LModal.vue";
 
-type Props = {
-    isVisible: boolean;
-};
-defineProps<Props>();
-
+const isVisible = defineModel<boolean>("isVisible");
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-
-const emit = defineEmits(["close"]);
 
 const setLanguage = (id: string) => {
     cmsLanguageIdAsRef.value = id;
-    emit("close");
+    isVisible.value = false;
 };
 </script>
 
@@ -24,8 +18,7 @@ const setLanguage = (id: string) => {
     <LModal
         name="lModal-languages"
         heading="Select preferred content language"
-        :is-visible="isVisible"
-        @close="emit('close')"
+        v-model:is-visible="isVisible"
     >
         <div class="divide-y divide-zinc-200">
             <button
@@ -49,7 +42,7 @@ const setLanguage = (id: string) => {
                 size="lg"
                 rounding="less"
                 class="w-full"
-                @click="emit('close')"
+                @click="isVisible = false"
             >
                 Close
             </LButton>

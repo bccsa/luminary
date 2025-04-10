@@ -114,10 +114,13 @@ watch(disabled, () => {
 // TODO: This is a workaround and should probably be implemented in the LModal component
 const urlInput = ref<InstanceType<typeof LInput> | undefined>(undefined);
 watch(showModal, async () => {
-    if (!showModal.value) return;
+    if (showModal.value) {
+        await nextTick();
+        urlInput.value?.focus();
+        return;
+    }
 
-    await nextTick();
-    urlInput.value?.focus();
+    editor.value?.commands.focus();
 });
 </script>
 
@@ -258,7 +261,7 @@ watch(showModal, async () => {
         <EditorContent :editor="editor" />
     </div>
     <LModal
-        :isVisible="showModal"
+        v-model:isVisible="showModal"
         heading="Add Link"
         @keydown.esc="showModal = false"
         @keydown.enter="addLink"

@@ -130,5 +130,5 @@ onMounted(() => {
             </MenuItems>
         </transition>
     </Menu>
-    <LanguageModal :is-visible="showLanguageModal" @close="showLanguageModal = false" />
+    <LanguageModal v-model:is-visible="showLanguageModal" />
 </template>
