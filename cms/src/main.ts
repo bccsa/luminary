@@ -36,36 +36,35 @@ async function Startup() {
             "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug, title, [type+parentType+language]",
         apiUrl,
         token,
-        docTypes: [
+        syncList: [
             {
                 type: DocType.Tag,
-                contentOnly: false,
                 syncPriority: 2,
                 skipWaitForLanguageSync: true,
             },
             {
                 type: DocType.Post,
-                contentOnly: false,
                 syncPriority: 2,
                 skipWaitForLanguageSync: true,
             },
             {
                 type: DocType.Redirect,
-                contentOnly: false,
                 syncPriority: 2,
                 skipWaitForLanguageSync: true,
             },
             {
                 type: DocType.Language,
-                contentOnly: false,
                 syncPriority: 1,
                 skipWaitForLanguageSync: true,
             },
             {
                 type: DocType.Group,
-                contentOnly: false,
                 syncPriority: 1,
                 skipWaitForLanguageSync: true,
+            },
+            {
+                type: DocType.User,
+                sync: false,
             },
         ],
     }).catch((err) => {

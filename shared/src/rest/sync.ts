@@ -362,19 +362,23 @@ export class Sync {
         const groups: Array<string> = Object.keys(accessMap.value);
         await db.getSyncMap();
 
-        const syncPriorityContentOnly = config.docTypes?.filter(
-            (value, index, self) =>
-                index ===
-                self.findIndex(
-                    (t) =>
-                        t.syncPriority === value.syncPriority &&
-                        t.contentOnly === value.contentOnly,
-                ),
-        );
+        const syncPriorityContentOnly = config.syncList
+            ?.filter((s) => s.sync == true)
+            .filter(
+                (value, index, self) =>
+                    index ===
+                    self.findIndex(
+                        (t) =>
+                            t.syncPriority === value.syncPriority &&
+                            t.contentOnly === value.contentOnly,
+                    ),
+            );
 
         // create new syncMap
         let _sm = Object.fromEntries(syncMap.value);
         for (const entry of syncPriorityContentOnly || []) {
+            if (!entry.syncPriority) entry.syncPriority = 10;
+
             const _id = this.syncMapEntryKey(entry.syncPriority, entry.contentOnly || false);
             if (
                 !Object.values(_sm).find(
@@ -390,7 +394,7 @@ export class Sync {
                     syncMap.value.set(_id, {
                         id: _id,
                         types:
-                            config.docTypes
+                            config.syncList
                                 ?.filter(
                                     (d) =>
                                         d.syncPriority == entry.syncPriority &&
@@ -419,7 +423,7 @@ export class Sync {
         // check if types has been updated
         _sm = Object.fromEntries(syncMap.value);
         for (const k of Object.values(_sm)) {
-            const types = config.docTypes
+            const types = config.syncList
                 ?.filter((d) => k.syncPriority == d.syncPriority && k.contentOnly == d.contentOnly)
                 .map((d) => d.type);
             this.compareEntires(_sm, k, types || [], "types");

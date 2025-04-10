@@ -136,27 +136,31 @@ describe("rest", () => {
             docsIndex: "parentId, language, [type+docType]",
             apiUrl: "http://127.0.0.1:" + port,
             appLanguageIdsAsRef: ref(["lang-eng"]),
-            docTypes: [
+            syncList: [
                 {
                     type: DocType.Post,
                     contentOnly: true,
                     syncPriority: 10,
+                    sync: true,
                 },
                 {
                     type: DocType.Post,
                     contentOnly: false,
                     syncPriority: 10,
+                    sync: true,
                 },
                 {
                     type: DocType.Group,
                     contentOnly: false,
                     syncPriority: 10,
+                    sync: true,
                 },
                 {
                     type: DocType.Language,
                     contentOnly: false,
                     syncPriority: 9,
                     skipWaitForLanguageSync: true,
+                    sync: true,
                 },
             ],
         });
@@ -382,44 +386,50 @@ describe("rest", () => {
             expect(_post2).toBe(undefined);
         });
 
-        it("can remove a type entry from the syncMap when the app's docTypes has changed", async () => {
+        it("can remove a type entry from the syncMap when the app's syncList has changed", async () => {
             await sync.calcSyncMap();
-            config.docTypes = [
+            config.syncList = [
                 {
                     type: DocType.Post,
                     contentOnly: true,
                     syncPriority: 10,
                     skipWaitForLanguageSync: true,
+                    sync: true,
                 },
                 {
                     type: DocType.Post,
                     contentOnly: false,
                     syncPriority: 10,
                     skipWaitForLanguageSync: true,
+                    sync: true,
                 },
                 {
                     type: DocType.Group,
                     contentOnly: false,
                     syncPriority: 10,
                     skipWaitForLanguageSync: true,
+                    sync: true,
                 },
                 {
                     type: DocType.Tag,
                     contentOnly: true,
                     syncPriority: 9,
                     skipWaitForLanguageSync: true,
+                    sync: true,
                 },
                 {
                     type: DocType.Language,
                     contentOnly: false,
                     syncPriority: 9,
                     skipWaitForLanguageSync: true,
+                    sync: true,
                 },
                 {
                     type: DocType.Tag,
                     contentOnly: false,
                     syncPriority: 10,
                     skipWaitForLanguageSync: true,
+                    sync: true,
                 },
             ];
             await sync.calcSyncMap();
@@ -440,15 +450,16 @@ describe("rest", () => {
             expect(_post9).toBeDefined();
             expect(_otherPost).toBe(undefined);
 
-            config.docTypes = [
-                { type: DocType.Post, contentOnly: true, syncPriority: 10 },
-                { type: DocType.Post, contentOnly: false, syncPriority: 10 },
-                { type: DocType.Group, contentOnly: false, syncPriority: 10 },
+            config.syncList = [
+                { type: DocType.Post, contentOnly: true, syncPriority: 10, sync: true },
+                { type: DocType.Post, contentOnly: false, syncPriority: 10, sync: true },
+                { type: DocType.Group, contentOnly: false, syncPriority: 10, sync: true },
                 {
                     type: DocType.Language,
                     contentOnly: false,
                     syncPriority: 9,
                     skipWaitForLanguageSync: true,
+                    sync: true,
                 },
             ];
 

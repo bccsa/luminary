@@ -6,7 +6,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import express from "express";
 import { mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
-import { accessMap, DocType, getRest, initConfig } from "luminary-shared";
+import { accessMap, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router", () => ({
@@ -53,7 +53,7 @@ describe("UserOverview", () => {
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,
-            docTypes: [{ type: DocType.User, contentOnly: true, syncPriority: 10 }],
+            syncList: [{ type: DocType.User, contentOnly: true, syncPriority: 10 }],
         });
 
         // Reset the rest api client to use the new config
@@ -62,6 +62,7 @@ describe("UserOverview", () => {
 
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+        isConnected.value = true; // Simulate a connected state
     });
 
     afterEach(() => {

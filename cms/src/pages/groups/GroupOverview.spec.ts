@@ -51,7 +51,7 @@ describe("GroupOverview", () => {
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,
-            docTypes: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
+            syncList: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
         });
 
         // Reset the rest api client to use the new config

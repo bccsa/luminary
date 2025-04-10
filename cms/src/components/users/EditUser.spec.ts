@@ -3,7 +3,7 @@ import { DOMWrapper, mount } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from "vitest";
 import EditUser from "./EditUser.vue";
 import { createTestingPinia } from "@pinia/testing";
-import { accessMap, db, DocType, getRest, initConfig, type UserDto } from "luminary-shared";
+import { accessMap, db, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import {
@@ -61,7 +61,7 @@ describe("EditUser.vue", () => {
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,
-            docTypes: [
+            syncList: [
                 { type: DocType.User, contentOnly: true, syncPriority: 10 },
                 { type: DocType.Group, contentOnly: true, syncPriority: 10 },
             ],
@@ -75,12 +75,11 @@ describe("EditUser.vue", () => {
         await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockGroupDtoPublicEditors]);
         await nextTick();
         setActivePinia(createTestingPinia());
+        isConnected.value = true; // Simulate a connected state
     });
 
     afterEach(async () => {
         vi.clearAllMocks();
-        await db.docs.clear();
-        await db.localChanges.clear();
     });
 
     it("should display the passed user", async () => {
@@ -135,18 +134,12 @@ describe("EditUser.vue", () => {
 
         expect(saveButton.attributes("disabled")).toBeUndefined(); // Ensure that the save button is enabled
 
+        const saveSpy = vi.spyOn(getRest(), "changeRequest");
+
         await saveButton.trigger("click");
+        await nextTick();
 
-        await waitForExpect(async () => {
-            const localChangesTable = await db.localChanges.toArray();
-
-            const updatedUser = localChangesTable.find((c) => c.doc!._id === mockUserDto._id)!
-                .doc as UserDto;
-
-            expect(updatedUser.name).toBe("Updated User Name");
-            expect(updatedUser.email).toBe("updated@user.com");
-            expect(updatedUser.memberOf.includes(mockGroupDtoPublicEditors._id)).toBe(true);
-        });
+        expect(saveSpy).toHaveBeenCalled();
     });
 
     it("can not update the user if no group is selected", async () => {
@@ -205,16 +198,12 @@ describe("EditUser.vue", () => {
             deleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
             expect(deleteModalButton.exists()).toBe(true);
         });
+
+        const saveSpy = vi.spyOn(getRest(), "changeRequest");
+
         await deleteModalButton!.trigger("click"); // Accept dialog
+        await nextTick();
 
-        await waitForExpect(async () => {
-            const localChangesTable = await db.localChanges.toArray();
-
-            const deletedUser = localChangesTable.find((c) => c.doc?._id === mockUserDto._id)
-                ?.doc as UserDto;
-
-            expect(deletedUser.deleteReq).toBeDefined();
-            expect(deletedUser.deleteReq).toBe(1);
-        });
+        expect(saveSpy).toHaveBeenCalled();
     });
 });

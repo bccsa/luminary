@@ -6,16 +6,18 @@ import LCard from "../common/LCard.vue";
 import LInput from "../forms/LInput.vue";
 import {
     AclPermission,
+    ApiLiveQuery,
     DocType,
-    db,
-    getRest,
+    isConnected,
     hasAnyPermission,
     verifyAccess,
     type ApiSearchQuery,
     type UserDto,
     type Uuid,
+    getRest,
+    AckStatus,
 } from "luminary-shared";
-import { computed, provide, ref, toRaw, watch } from "vue";
+import { computed, ref, toRaw, watch } from "vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";
@@ -29,28 +31,17 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const usersQuery: ApiSearchQuery = {
+const userQuery = ref<ApiSearchQuery>({
     types: [DocType.User],
     docId: props.id,
-};
-const user = ref<UserDto>();
-provide("users", user);
+});
 
-const isLocalChange = db.isLocalChangeAsRef(props.id);
+const apiLiveQuery = new ApiLiveQuery<UserDto>(userQuery);
+const original = apiLiveQuery.toRef();
+const isLoading = apiLiveQuery.isLoadingAsRef();
+
 const { addNotification } = useNotificationStore();
 
-const isLoading = ref(true);
-const getUser = async () => {
-    const _q = await getRest().search(usersQuery);
-    if (_q && _q.docs && _q.docs.length) {
-        user.value = _q.docs[0];
-        isLoading.value = false;
-    }
-};
-getUser();
-
-const original = ref<UserDto | undefined>();
-const isDirty = ref(false);
 const showDeleteModal = ref(false);
 
 const editable = ref<UserDto>({
@@ -62,18 +53,16 @@ const editable = ref<UserDto>({
     name: "New user",
 });
 
-watch(
-    () => user.value,
-    (user) => {
-        if (user) {
-            original.value = _.cloneDeep(user); // Update the original object
-            editable.value = user;
-        }
-    },
-    { immediate: true },
-);
+// Clone the original user when it's loaded into the editable object
+const originalLoadedHandler = watch(original, () => {
+    if (!original.value) return;
+    editable.value = _.cloneDeep(original.value);
+
+    originalLoadedHandler();
+});
 
 // Check if the user is dirty (has unsaved changes)
+const isDirty = ref(false);
 watch(
     [editable, original],
     () => {
@@ -125,7 +114,7 @@ const deleteUser = async () => {
 
     editable.value.deleteReq = 1;
 
-    save();
+    await save();
 
     addNotification({
         title: `${capitaliseFirstLetter(editable.value.name)} deleted`,
@@ -133,26 +122,31 @@ const deleteUser = async () => {
         state: "success",
     });
 
-    router.push({
-        name: "users",
-    });
+    router.push("/users");
 };
+
 const save = async () => {
     // Bypass save if the user is new and marked for deletion
     if (isNew.value && editable.value.deleteReq) {
         return;
     }
 
-    original.value = _.cloneDeep(editable.value);
-    editable.value.updatedTimeUtc = Date.now();
-
-    await db.upsert({ doc: editable.value, localChangesOnly: true });
+    const res = await getRest().changeRequest({
+        id: 1, // Not used for direct API change request calls.
+        doc: editable.value,
+    });
 
     if (!editable.value.deleteReq) {
         useNotificationStore().addNotification({
-            title: "User saved",
-            description: "User saved successfully",
-            state: "success",
+            title:
+                res && res.ack == AckStatus.Accepted
+                    ? `${editable.value.name} saved`
+                    : "Error saving changes",
+            description:
+                res && res.ack == AckStatus.Accepted
+                    ? ""
+                    : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
+            state: res && res.ack == AckStatus.Accepted ? "success" : "error",
         });
     }
 };
@@ -160,7 +154,7 @@ const save = async () => {
 
 <template>
     <BasePage
-        :title="isLoading ? '' : editable?.name"
+        :title="isLoading || !isConnected ? '' : editable?.name"
         :backLinkLocation="{ name: 'users' }"
         :backLinkText="`Users overview`"
         :backLinkParams="{
@@ -169,8 +163,7 @@ const save = async () => {
         class="mb-16"
     >
         <template #actions>
-            <div v-if="!isLoading" class="flex gap-2">
-                <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
+            <div v-if="!isLoading && isConnected" class="flex gap-2">
                 <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
                     >No groups selected</LBadge
                 >
@@ -213,6 +206,7 @@ const save = async () => {
             </div>
         </template>
         <span v-if="isLoading">Loading...</span>
+        <span v-else-if="!isConnected">Offline...</span>
         <div v-else class="space-y-2">
             <LCard class="rounded-lg bg-white shadow-lg">
                 <LInput
@@ -248,7 +242,7 @@ const save = async () => {
     <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete ${editable.name}?`"
-        :description="`Are you sure you want to delete this user? This user will be no longer able to have access! This action cannot be undone.`"
+        :description="`Are you sure you want to delete this user? This action cannot be undone.`"
         :primaryAction="
             () => {
                 showDeleteModal = false;

@@ -1,6 +1,7 @@
 import { Expose } from "class-transformer";
 import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, IsArray } from "class-validator";
 import { DocType } from "../enums";
+import { IsSortOptions } from "../validation/IsSortOptions";
 
 /**
  * Api Request structure for APP / CMS requesting documents from the api
@@ -22,9 +23,9 @@ export class SearchReqDto {
     offset?: number;
 
     @IsOptional()
-    @IsString()
     @Expose()
-    sort?: "desc" | "asc";
+    @IsSortOptions()
+    sort?: Array<{ [key: string]: "desc" | "asc" }>;
 
     @IsOptional()
     @IsArray()

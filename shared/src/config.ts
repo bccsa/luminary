@@ -1,6 +1,6 @@
 import { Ref } from "vue";
 import { Uuid } from "./types";
-import { ApiDocTypes } from "./rest/RestApi";
+import { ApiSyncQuery } from "./rest/RestApi";
 
 /**
  * Shared configuration object
@@ -23,9 +23,9 @@ export type SharedConfig = {
      */
     token?: string;
     /**
-     * Array of DocTypes passed to the shared library, that the client need to sync down
+     * Array of API Sync queries passed to the shared library, that the client needs to sync down
      */
-    docTypes?: Array<ApiDocTypes>;
+    syncList?: Array<ApiSyncQuery>;
     /**
      * Array of language IDs of languages to be included in sync
      */
@@ -35,5 +35,11 @@ export type SharedConfig = {
 export let config: SharedConfig;
 
 export function initConfig(newConfig: SharedConfig) {
+    // set default values
+    newConfig.syncList?.forEach((s) => {
+        if (!s.contentOnly) s.contentOnly = false;
+        if (s.sync == undefined) s.sync = true;
+    });
+
     config = newConfig;
 }
