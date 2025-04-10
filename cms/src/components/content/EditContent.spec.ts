@@ -9,6 +9,8 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import RichTextEditor from "../editor/RichTextEditor.vue";
+import EditContentText from "./EditContentText.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -424,6 +426,41 @@ describe("EditContent.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(true);
+        });
+    });
+
+    it("correctly updates text field in indexedDB from rich text editor", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            const editContentText = wrapper.findComponent(EditContentText);
+
+            expect(editContentText.exists()).toBe(true);
+        });
+
+        const textEditor = wrapper.findComponent(RichTextEditor);
+
+        expect(textEditor.exists()).toBe(true);
+        //@ts-ignore -valid
+        textEditor.vm.text = "New Content";
+
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+
+            expect(res.length).toBe(2);
+            expect(res[1].doc).toMatchObject({
+                ...mockData.mockEnglishContentDto,
+                text: "New Content",
+            });
         });
     });
 
