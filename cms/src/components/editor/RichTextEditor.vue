@@ -52,12 +52,12 @@ const editor = useEditor({
             let html = clipboardData.getData("text/html");
             if (!html) return false;
 
-            // Clean heading tags
             html = html
                 .replace(/>\s+</g, "><") // Remove spaces between tags
                 .replace(/<br\s*\/?>/gi, "") // Remove standalone <br>
                 .replace(/<p>\s*<\/p>/gi, "") // Remove empty paragraphs
-                .replace(/&nbsp;/gi, " ")
+                .replace(/&nbsp;/gi, " ") // Clean non breaking spaces
+                // Clean heading tags
                 .replace(/<h([1-5])([^>]*)>/gi, (match, level, attrs) => {
                     const newLevel = Math.min(parseInt(level) + 1, 6);
                     return `<h${newLevel}${attrs}>`;
