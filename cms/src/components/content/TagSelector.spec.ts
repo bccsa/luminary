@@ -9,6 +9,7 @@ import * as mockData from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { Combobox } from "@headlessui/vue";
 import { reactive } from "vue";
+import LTag from "./LTag.vue";
 
 describe("TagSelector.vue", () => {
     beforeEach(async () => {
@@ -173,6 +174,35 @@ describe("TagSelector.vue", () => {
         // Wait for the list to be loaded
         await waitForExpect(async () => {
             expect(wrapper.text()).toContain("tag-with-no-view-access");
+        });
+    });
+
+    it("disables remove for if the user doesn't have assign access", async () => {
+        delete accessMap.value["group-public-content"].tag?.assign;
+
+        const parent = reactive({
+            ...mockData.mockCategoryDto,
+            memberOf: ["group-public-content"],
+            tags: ["tag-category2"],
+        });
+
+        const wrapper = mount(TagSelector, {
+            props: {
+                tagType: TagType.Category,
+                language: mockData.mockLanguageDtoEng,
+                parent: parent,
+            },
+        });
+
+        // Wait for the list to be loaded
+        await waitForExpect(async () => {
+            // 1. Expect the tag title to be displayed correctly
+            expect(wrapper.text()).toContain("Category 2");
+
+            // 2. Expect the LTag component to be disabled
+            const tagComponent = wrapper.findComponent(LTag);
+            expect(tagComponent.exists()).toBe(true);
+            expect(tagComponent.props("disabled")).toBe(true);
         });
     });
 });
