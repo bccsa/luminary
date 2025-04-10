@@ -34,6 +34,7 @@ const updateValue = (newValue: string) => {
                 { 'text-zinc-700 ': !disabled && modelValue != leftValue },
             ]"
             @click="updateValue(leftValue)"
+            :disabled="disabled"
             data-test="text-toggle-left-value"
         >
             {{ leftLabel }}
@@ -47,6 +48,7 @@ const updateValue = (newValue: string) => {
                 { 'text-zinc-700 ': !disabled && modelValue != leftValue },
             ]"
             @click="updateValue(rightValue)"
+            :disabled="disabled"
             data-test="text-toggle-right-value"
         >
             {{ rightLabel }}

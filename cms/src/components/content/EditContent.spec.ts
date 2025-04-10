@@ -1,7 +1,7 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, type ContentDto, accessMap, PostType } from "luminary-shared";
+import { db, DocType, type ContentDto, accessMap, PostType, PublishStatus } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -9,6 +9,7 @@ import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
+import LTextToggle from "../forms/LTextToggle.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -424,6 +425,61 @@ describe("EditContent.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(true);
+        });
+    });
+
+    it("should save changes in draft mode with translate access on language and post/tag, without needing publish access", async () => {
+        accessMap.value = { ...mockData.translateAccessToAllContentMap };
+        accessMap.value["group-public-content"].post = {
+            view: true,
+            translate: true,
+            edit: true,
+            publish: false,
+        };
+        accessMap.value["group-languages"].language = {
+            view: true,
+            translate: true,
+            edit: false,
+        };
+
+        // Set content status to Draft (not Published)
+        await db.docs.put({
+            ...mockData.mockEnglishContentDto,
+            status: PublishStatus.Draft,
+        } as ContentDto);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        // Wait for data load
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+
+        // Check that the publish button is disabled
+        const publishButton = wrapper.findComponent(LTextToggle);
+        expect(publishButton.exists()).toBe(true);
+        expect(publishButton.props().disabled).toBe(true);
+
+        // Update title to make the content dirty
+        const titleInput = wrapper.find('input[name="title"]');
+        await titleInput.setValue("Translated Title");
+
+        // Save
+        const saveButton = wrapper.find('[data-test="save-button"]');
+        expect(saveButton.exists()).toBe(true);
+        await saveButton.trigger("click");
+
+        // Check if content is saved
+        await waitForExpect(async () => {
+            const saved = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
+            expect(saved?.title).toBe("Translated Title");
         });
     });
 

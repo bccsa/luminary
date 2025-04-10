@@ -10,6 +10,7 @@ import { BackspaceIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     disabled: boolean;
+    disablePublish: boolean;
 };
 defineProps<Props>();
 const content = defineModel<ContentDto>("content");
@@ -108,7 +109,7 @@ const clearExpiryDate = () => {
                 :leftValue="PublishStatus.Draft"
                 rightLabel="Publishable"
                 :rightValue="PublishStatus.Published"
-                :disabled="disabled"
+                :disabled="disabled || disablePublish"
             />
             <div class="text-xs text-zinc-700">
                 {{
