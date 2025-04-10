@@ -91,7 +91,7 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
                     applySocketData<T>(data, this.dataAsRef, query.value);
                 getSocket().on("data", this.socketOnCallback);
             },
-            { immediate: true, deep: true },
+            { immediate: true },
         );
     }
 
