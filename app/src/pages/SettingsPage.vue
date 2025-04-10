@@ -36,7 +36,7 @@ const deleteLocalData = async () => {
 </script>
 
 <template>
-    <BasePage>
+    <BasePage showBackButton>
         <div class="space-y-4">
             <h1 class="text-xl font-medium">{{ t("profile_menu.settings") }}</h1>
 
