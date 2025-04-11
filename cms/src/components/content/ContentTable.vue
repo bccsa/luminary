@@ -103,13 +103,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                         />
                     </tbody>
                 </table>
-                <div class="flex h-14 w-full items-center justify-center border-t p-4">
-                    <LPaginator
-                        :size="queryOptions.pageSize"
-                        v-model:index="pageIndex"
-                        variant="simple"
-                    />
-                </div>
+
                 <div
                     class="flex h-32 w-full items-center justify-center gap-2"
                     v-if="contentDocs.length < 1"
@@ -120,4 +114,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
             </div>
         </div>
     </LCard>
+    <div class="mt-1 flex h-14 w-full items-center justify-center p-4">
+        <LPaginator :size="queryOptions.pageSize" v-model:index="pageIndex" variant="extended" />
+    </div>
 </template>

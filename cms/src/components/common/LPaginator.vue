@@ -62,6 +62,7 @@ const indexUp = () => {
 <template>
     <div class="flex items-center gap-1">
         <LButton
+            class="h-10 w-16"
             :disabled="disabled"
             :variant="btnVariant"
             :icon="ArrowLeftIcon"
@@ -75,12 +76,14 @@ const indexUp = () => {
             v-else-if="variant == 'extended'"
             v-for="i in visiblePages"
             :key="`index-${i}`"
-            :class="i == index ? 'font-bold text-yellow-500' : 'h-6 w-6'"
+            class="h-10 w-10"
+            :class="i == index ? ' bg-zinc-900 font-bold text-zinc-50 hover:bg-zinc-900/80' : ''"
             @click="index = i"
         >
             {{ i }}
         </LButton>
         <LButton
+            class="h-10 w-16"
             :disabled="disabled"
             :variant="btnVariant"
             :icon="ArrowRightIcon"
