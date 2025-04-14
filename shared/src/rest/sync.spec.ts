@@ -4,7 +4,7 @@ import { db, initDatabase, SyncMap, syncMap } from "../db/database";
 import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { getRest } from "./RestApi";
-import { Sync, syncActive, syncRestartCounter } from "./sync";
+import { Sync, syncActive } from "./sync";
 import express from "express";
 import { ApiSearchQuery } from "./RestApi";
 import waitForExpect from "wait-for-expect";
