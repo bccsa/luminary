@@ -4,7 +4,7 @@ import { db, initDatabase, SyncMap, syncMap } from "../db/database";
 import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { getRest } from "./RestApi";
-import { Sync } from "./sync";
+import { Sync, syncActive, syncRestartCounter } from "./sync";
 import express from "express";
 import { ApiSearchQuery } from "./RestApi";
 import waitForExpect from "wait-for-expect";
@@ -330,6 +330,16 @@ describe("rest", () => {
                 );
                 expect(remainingDocs.includes(mockFrenchContentDto)).toBe(false);
             });
+        });
+
+        it("triggers sync when a language is added to the passed appLanguageIdsAsRef array config property", async () => {
+            syncActive.value = false;
+
+            waitForExpect(() => expect(syncActive.value).toBe(false));
+
+            config.appLanguageIdsAsRef?.value.push("lang-fra");
+
+            waitForExpect(() => expect(syncActive.value).toBe(true));
         });
     });
 
