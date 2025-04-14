@@ -42,11 +42,7 @@ watch(tags, async () => {
     const pList: any[] = [];
     tags.value.forEach((tag) => {
         // Filter tags based on access before proceeding, and exclude the the tag itself (if parent is a tag)
-        if (
-            tag._id != parent.value?._id &&
-            (verifyAccess(tag.memberOf, DocType.Tag, AclPermission.Assign, "any") ||
-                parent.value?.tags.includes(tag._id))
-        ) {
+        if (tag._id != parent.value?._id) {
             pList.push(
                 // We are getting the content as non-reactive, meaning that if someone else would change
                 // the content of an existing tag, it will not automatically update in the tag selector.
@@ -83,8 +79,10 @@ const filteredTagsContent = computed(() =>
 const selectedTagsByType = ref<TagDto[]>([]);
 watchDeep([parent, tags], () => {
     if (!parent.value) return;
-    // The tags list is already filtered by the tagType
-    selectedTagsByType.value = tags.value.filter((t) => parent.value?.tags.includes(t._id));
+    // The tags list is already filtered by the tagType - show the id if the tag is not found in the list
+    selectedTagsByType.value = parent.value.tags.map((tagId) => {
+        return tags.value.find((t) => t._id === tagId) || ({ _id: tagId } as TagDto);
+    });
 });
 
 const canAssign = computed(() => {
@@ -201,13 +199,13 @@ const onTagClick = (tagContent: ContentDto) => {
                     :key="tag._id"
                     @remove="
                         () => {
-                            if (!parent || !canAssign) return;
+                            if (!parent) return;
                             parent.tags = parent.tags.filter((t) => t != tag._id);
                         }
                     "
                     :disabled="disabled || !canAssign"
                 >
-                    {{ tagsContent.find((tc) => tc.parentId == tag._id)?.title || tag._id }}
+                    {{ tagsContent.find((tc) => tc.parentId == tag._id)?.title ?? tag._id }}
                 </LTag>
             </TransitionGroup>
         </div>
