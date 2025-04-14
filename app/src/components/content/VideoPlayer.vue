@@ -91,6 +91,7 @@ onMounted(() => {
         playbackRates: [0.5, 0.7, 1, 1.5],
         controlBar: {
             children: [
+                "audioTrackButton",
                 "playToggle",
                 "progressControl",
                 "liveDisplay",
