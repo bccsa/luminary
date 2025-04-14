@@ -4,8 +4,6 @@ import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { showLoginModal, userPreferencesAsRef } from "./globalConfig";
-import NotificationToastManager from "./components/notifications/NotificationToastManager.vue";
-import NotificationBannerManager from "./components/notifications/NotificationBannerManager.vue";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
@@ -85,15 +83,9 @@ onErrorCaptured((err) => {
 </script>
 
 <template>
-    <NotificationBannerManager />
-
     <RouterView v-slot="{ Component }">
         <KeepAlive include="HomePage,ExplorePage,VideoPage">
             <component :is="Component" :key="routeKey" />
         </KeepAlive>
     </RouterView>
-
-    <Teleport to="body">
-        <NotificationToastManager />
-    </Teleport>
 </template>

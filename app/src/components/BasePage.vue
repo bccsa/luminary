@@ -2,6 +2,8 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import MobileMenu from "./navigation/MobileMenu.vue";
+import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
+import NotificationToastManager from "./notifications/NotificationToastManager.vue";
 
 defineProps<{
     showBackButton?: boolean;
@@ -33,7 +35,10 @@ onUnmounted(() => {
         >
             <template #quickControls><slot name="quickControls" /></template>
         </TopBar>
-
+        <NotificationBannerManager />
+        <Teleport to="body">
+            <NotificationToastManager />
+        </Teleport>
         <main
             class="flex-1 overflow-y-scroll px-4 py-4 scrollbar-hide focus:outline-none dark:bg-slate-900"
             ref="main"
