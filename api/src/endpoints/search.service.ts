@@ -72,6 +72,7 @@ export class SearchService {
             sort: query.sort,
             languages: query.languages,
             docId: query.docId,
+            parentId: query.parentId,
         };
 
         let _res = undefined;

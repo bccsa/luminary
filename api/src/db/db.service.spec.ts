@@ -399,6 +399,37 @@ describe("DbService", () => {
             expect(res2.docs[0]?.updatedTimeUtc).toBeGreaterThan(res2.docs[9]?.updatedTimeUtc);
         });
 
+        it("can search documents by the parentId", async () => {
+            const userAccess = new Map<DocType, Uuid[]>();
+            userAccess[DocType.Post] = [
+                "group-super-admins",
+                "group-public-content",
+                "group-private-content",
+            ];
+            userAccess[DocType.Tag] = [
+                "group-super-admins",
+                "group-public-content",
+                "group-private-content",
+            ];
+            userAccess[DocType.Group] = [
+                "group-super-admins",
+                "group-public-content",
+                "group-private-content",
+            ];
+            const options = {
+                userAccess: userAccess,
+                types: [DocType.Post, DocType.Tag, DocType.Language, DocType.Group],
+                parentId: "post-blog1",
+            };
+            const res = await service.search(options);
+
+            expect(res.docs.length).toBe(2);
+            expect(res.docs[0].parentId).toBe("post-blog1");
+            expect(res.docs[1].parentId).toBe("post-blog1");
+            expect(res.docs[0].type).toBe(DocType.Content);
+            expect(res.docs[1].type).toBe(DocType.Content);
+        });
+
         it("returns no data if user has no access (queryDocs)", async () => {
             const userAccess = new Map<DocType, Uuid[]>();
             const options = {
