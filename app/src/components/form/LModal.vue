@@ -4,7 +4,6 @@ import App from "@/App.vue";
 type Props = {
     heading: string;
     withBackground?: boolean;
-    size?: "default" | "small" | "medium" | "large" | "xlarge";
 };
 const props = withDefaults(defineProps<Props>(), {
     withBackground: true,
@@ -14,14 +13,6 @@ const props = withDefaults(defineProps<Props>(), {
 const isVisible = defineModel<boolean>("isVisible");
 const isTestEnviroment = import.meta.env.MODE === "test";
 const emit = defineEmits(["close"]);
-
-const sizeClasses = {
-    default: "max-w-md",
-    small: "max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl",
-    medium: "max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl",
-    large: "max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl",
-    xlarge: "max-w-2xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl",
-};
 </script>
 
 <template>
@@ -37,7 +28,6 @@ const sizeClasses = {
             <div
                 class="max-h-screen w-full rounded-lg"
                 :class="[
-                    sizeClasses[props.size],
                     props.withBackground !== false
                         ? 'bg-white/90 p-5 shadow-xl dark:bg-slate-700/85'
                         : '',
