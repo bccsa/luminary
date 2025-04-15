@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { authGuard } from "@auth0/auth0-vue";
 import { nextTick } from "vue";
-import { appName } from "@/globalConfig";
-import Dashboard from "@/pages/DashboardPage.vue";
-import NotFoundPage from "@/pages/NotFoundPage.vue";
+import { appName } from "../globalConfig";
+import Dashboard from "../pages/DashboardPage.vue";
+import NotFoundPage from "../pages/NotFoundPage.vue";
 import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
-import { useNotificationStore } from "@/stores/notification";
+import { useNotificationStore } from "../stores/notification";
 
 declare module "vue-router" {
     interface RouteMeta {
@@ -61,7 +61,8 @@ export const router = createRouter({
                 {
                     path: ":docType/overview/:tagOrPostType/:languageCode?",
                     name: "overview",
-                    component: () => import("../components/content/ContentOverview/ContentOverview.vue"),
+                    component: () =>
+                        import("../components/content/ContentOverview/ContentOverview.vue"),
                     props: true,
                 },
                 {
