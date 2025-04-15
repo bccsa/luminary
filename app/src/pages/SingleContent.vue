@@ -53,7 +53,7 @@ const props = defineProps<Props>();
 
 const { t } = useI18n();
 const showCategoryModal = ref(false);
-const zoomable = ref(false);
+const enableZoom = ref(false);
 
 const docsBySlug = useDexieLiveQuery(
     () => db.docs.where("slug").equals(props.slug).toArray() as unknown as Promise<ContentDto[]>,
@@ -244,11 +244,6 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
-
-showContentQuickControls.value = true;
-onBeforeUnmount(() => {
-    showContentQuickControls.value = false;
-});
 </script>
 
 <template>
@@ -282,7 +277,7 @@ onBeforeUnmount(() => {
                             :image="content.parentImageData"
                             aspectRatio="video"
                             size="post"
-                            @click="zoomable = true"
+                            @click="enableZoom = true"
                         />
                     </IgnorePagePadding>
 
@@ -403,10 +398,11 @@ onBeforeUnmount(() => {
     </LModal>
 
     <ImageModal
-        v-if="content.parentImageData && zoomable"
+        v-if="content.parentImageData && enableZoom"
         :image="content.parentImageData"
         aspectRatio="video"
         size="post"
-        @close="zoomable = false"
+        @close="enableZoom = false"
+        @keydown.esc="enableZoom = false"
     />
 </template>
