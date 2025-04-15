@@ -8,6 +8,7 @@ import {
     useDexieLiveQuery,
     useDexieLiveQueryWithDeps,
     type ContentDto,
+    type LanguageDto,
     type RedirectDto,
     type Uuid,
 } from "luminary-shared";
@@ -21,7 +22,6 @@ import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import {
-    appLanguagesPreferredAsRef,
     appLanguageIdsAsRef,
     appName,
     appLanguagePreferredIdAsRef,
@@ -42,6 +42,8 @@ import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
+import { ListboxOption, ListboxButton, Listbox, ListboxOptions } from "@headlessui/vue";
+import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 
 const router = useRouter();
 
@@ -96,10 +98,25 @@ const tags = useDexieLiveQueryWithDeps(
 
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
+const siblingContents = ref<ContentDto[]>([]);
+const languages = ref<LanguageDto[]>([]);
+const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
 
 // Redirect to the correct page if this is a redirect
 watch(docsBySlug, async () => {
     if (!docsBySlug.value) return;
+
+    //   fetch all the content that have the same parentId as the current content from indexDb
+    siblingContents.value = await db.whereParent(docsBySlug.value[0].parentId);
+
+    // for each item in availableTranslations in content, get the content from indexDb
+    languages.value = await Promise.all(
+        content.value.availableTranslations?.map(async (lang) => {
+            const language = await db.get<LanguageDto>(lang);
+            const isInContentsOfParent = siblingContents.value.some((c) => c.language === lang);
+            return language && isInContentsOfParent ? language : null;
+        }) || [],
+    ).then((languages) => languages.filter((lang): lang is LanguageDto => lang !== null));
 
     const redirect = docsBySlug.value.find(
         (d) => d.type === DocType.Redirect,
@@ -115,6 +132,38 @@ watch(docsBySlug, async () => {
         return;
     }
 });
+
+watch(
+    selectedLanguageId,
+    async () => {
+        if (!selectedLanguageId.value) return;
+
+        const preferred = siblingContents.value.find((c) => c.language == selectedLanguageId.value);
+
+        if (preferred) {
+            // Check if the preferred translation is published
+            router.replace({ name: "content", params: { slug: preferred.slug } });
+        }
+    },
+    { immediate: true },
+);
+
+watch(content, () => {
+    selectedLanguageId.value = content.value.language;
+});
+
+// Change language
+const onLanguageSelect = (languageId: Uuid) => {
+    selectedLanguageId.value = languageId;
+
+    const preferred = siblingContents.value.find(
+        (c) => c.language == languageId && isPublished(c, appLanguageIdsAsRef.value),
+    );
+
+    if (preferred) {
+        router.replace({ name: "content", params: { slug: preferred.slug } });
+    }
+};
 
 // Todo: Create a isLoading ref in Luminary shared to determine if the content is still loading (waiting for data to stream from the API) before showing a 404 error.
 // As a temporary solution we are using a timer to allow the app to load the content
@@ -187,32 +236,6 @@ watch([content, is404], () => {
     metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
 });
 
-watch(
-    [appLanguagesPreferredAsRef, content],
-    async () => {
-        if (!content.value) return;
-        if (!content.value.language) return;
-        if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
-            return;
-        if (
-            appLanguagesPreferredAsRef.value[0]._id &&
-            appLanguagesPreferredAsRef.value[0]._id !== content.value.language
-        ) {
-            const contentDocs = await db.whereParent(content.value.parentId);
-            const preferred = contentDocs.find(
-                (c) => c.language == appLanguagesPreferredAsRef.value[0]?._id,
-            );
-
-            if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
-                // Check if the preferred translation is published
-                router.replace({ name: "content", params: { slug: preferred.slug } });
-            }
-            return;
-        }
-    },
-    { deep: true },
-);
-
 const text = computed(() => {
     if (!content.value || !content.value.text) {
         return "";
@@ -247,6 +270,57 @@ const selectedCategory = computed(() => {
 <template>
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
+            <!-- add a dropdown list to show the availables languages -->
+            <div class="relative">
+                <!-- Replace your current language dropdown template with this: -->
+                <Listbox v-model="selectedLanguageId" @update:modelValue="onLanguageSelect">
+                    <div class="relative mt-1 w-auto">
+                        <ListboxButton>
+                            <span class="block truncate">
+                                <span class="hidden sm:inline">
+                                    {{
+                                        languages.find((lang) => lang._id === selectedLanguageId)
+                                            ?.name
+                                    }}
+                                </span>
+                                <span class="inline sm:hidden">
+                                    {{
+                                        languages
+                                            .find((lang) => lang._id === selectedLanguageId)
+                                            ?.languageCode.toUpperCase()
+                                    }}
+                                </span>
+                            </span>
+                        </ListboxButton>
+
+                        <Transition
+                            enter="transition ease-out duration-100"
+                            enter-from="opacity-0 scale-95"
+                            enter-to="opacity-100 scale-100"
+                            leave="transition ease-in duration-75"
+                            leave-from="opacity-100 scale-100"
+                            leave-to="opacity-0 scale-95"
+                        >
+                            <ListboxOptions
+                                class="max-h-auto absolute right-0 z-10 mt-1 w-auto overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-900"
+                            >
+                                <ListboxOption
+                                    v-for="language in languages"
+                                    :key="language._id"
+                                    :value="language._id"
+                                    class="flex cursor-pointer select-none px-4 py-2 text-zinc-800 hover:bg-yellow-100 dark:text-slate-200 dark:hover:bg-yellow-500/25"
+                                >
+                                    {{ language.name }}
+                                    <CheckCircleIcon
+                                        v-if="selectedLanguageId === language._id"
+                                        class="h-5 w-5 text-yellow-500"
+                                    />
+                                </ListboxOption>
+                            </ListboxOptions>
+                        </Transition>
+                    </div>
+                </Listbox>
+            </div>
             <div class="text-zinc-400 dark:text-slate-300" data-test="themeButton">
                 <SunIcon class="h-6 w-6" v-if="isDarkTheme" @click="theme = 'light'" />
                 <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
