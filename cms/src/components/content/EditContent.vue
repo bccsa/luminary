@@ -399,7 +399,6 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 </script>
 
 <template>
-    <div>{{ canPublish }}</div>
     <div
         v-if="!newDocument && !editableParent?.updatedTimeUtc"
         class="relative flex h-screen items-center justify-center"
