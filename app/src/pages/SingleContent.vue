@@ -41,6 +41,7 @@ import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
+import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 
 const router = useRouter();
@@ -52,6 +53,7 @@ const props = defineProps<Props>();
 
 const { t } = useI18n();
 const showCategoryModal = ref(false);
+const enableZoom = ref(false);
 
 const docsBySlug = useDexieLiveQuery(
     () => db.docs.where("slug").equals(props.slug).toArray() as unknown as Promise<ContentDto[]>,
@@ -275,6 +277,7 @@ const selectedCategory = computed(() => {
                             :image="content.parentImageData"
                             aspectRatio="video"
                             size="post"
+                            @click="enableZoom = true"
                         />
                     </IgnorePagePadding>
 
@@ -393,4 +396,13 @@ const selectedCategory = computed(() => {
             </div>
         </div>
     </LModal>
+
+    <ImageModal
+        v-if="content.parentImageData && enableZoom"
+        :image="content.parentImageData"
+        aspectRatio="video"
+        size="post"
+        @close="enableZoom = false"
+        @keydown.esc="enableZoom = false"
+    />
 </template>
