@@ -25,7 +25,6 @@ import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import {
-    appLanguagesPreferredAsRef,
     appLanguageIdsAsRef,
     appName,
     appLanguagePreferredIdAsRef,
@@ -139,15 +138,15 @@ const unwatch = watch([idbContent, isConnected], () => {
             return;
         }
 
+        // if(apiContent.value?.language != appLanguagePreferredIdAsRef.value) {
+        //     // if the content is not in the preferred language, feetch the same content in the preferred language. If available, display the notification to inform the user that the content is available in the preferred language
+        //     const preferredLanguageContent = apiLiveQuery.toArrayAsRef();
+        // }
+
         // If the content is not a redirect, set it to the content ref
         content.value = apiContent.value as ContentDto;
     });
 });
-// const content = computed(() => {
-//     if (!docsBySlug.value.length) return defaultContent;
-//     if (docsBySlug.value[0].type != DocType.Content) return defaultContent;
-//     return docsBySlug.value[0] as ContentDto;
-// });
 
 const tags = useDexieLiveQueryWithDeps(
     [content, appLanguageIdsAsRef],
@@ -166,28 +165,6 @@ const tags = useDexieLiveQueryWithDeps(
 
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
-
-// // Redirect to the correct page if this is a redirect
-// watch(docsBySlug, async () => {
-//     if (!docsBySlug.value) return;
-
-//     const redirect = docsBySlug.value.find(
-//         (d) => d.type === DocType.Redirect,
-//     ) as unknown as RedirectDto;
-
-//     if (redirect) {
-//         if (redirect.toSlug) {
-//             router.replace({ name: "content", params: { slug: redirect.toSlug } });
-//             return;
-//         }
-
-//         router.replace("/");
-//         return;
-//     }
-// });
-
-// Todo: Create a isLoading ref in Luminary shared to determine if the content is still loading (waiting for data to stream from the API) before showing a 404 error.
-// As a temporary solution we are using a timer to allow the app to load the content
 
 // If connected, we are waiting for data to load from the API, unless found in IndexedDB
 const isLoading = ref(isConnected.value);
@@ -254,32 +231,6 @@ watch([content, is404], () => {
     // Update the content attribute
     metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
 });
-
-// watch(
-//     [appLanguagesPreferredAsRef, content],
-//     async () => {
-//         if (!content.value) return;
-//         if (!content.value.language) return;
-//         if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
-//             return;
-//         if (
-//             appLanguagesPreferredAsRef.value[0]._id &&
-//             appLanguagesPreferredAsRef.value[0]._id !== content.value.language
-//         ) {
-//             const contentDocs = await db.whereParent(content.value.parentId);
-//             const preferred = contentDocs.find(
-//                 (c) => c.language == appLanguagesPreferredAsRef.value[0]?._id,
-//             );
-
-//             if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
-//                 // Check if the preferred translation is published
-//                 router.replace({ name: "content", params: { slug: preferred.slug } });
-//             }
-//             return;
-//         }
-//     },
-//     { deep: true },
-// );
 
 const text = computed(() => {
     if (!content.value || !content.value.text) {
