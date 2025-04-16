@@ -138,11 +138,6 @@ const unwatch = watch([idbContent, isConnected], () => {
             return;
         }
 
-        // if(apiContent.value?.language != appLanguagePreferredIdAsRef.value) {
-        //     // if the content is not in the preferred language, feetch the same content in the preferred language. If available, display the notification to inform the user that the content is available in the preferred language
-        //     const preferredLanguageContent = apiLiveQuery.toArrayAsRef();
-        // }
-
         // If the content is not a redirect, set it to the content ref
         content.value = apiContent.value as ContentDto;
     });
