@@ -51,6 +51,9 @@ export class SearchService {
                     HttpStatus.BAD_REQUEST,
                 );
             }
+
+            // slug queries do not provide the document type, so we need to set it to the types that have slugs
+            query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
         }
 
         // decode and validate JWT

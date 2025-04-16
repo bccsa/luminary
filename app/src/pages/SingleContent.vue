@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import {
+    ApiLiveQuery,
+    type ApiSearchQuery,
     DocType,
     PostType,
     PublishStatus,
     TagType,
     db,
+    isConnected,
     useDexieLiveQuery,
     useDexieLiveQueryWithDeps,
+    type BaseDocumentDto,
     type ContentDto,
     type RedirectDto,
     type Uuid,
@@ -55,11 +59,6 @@ const { t } = useI18n();
 const showCategoryModal = ref(false);
 const enableZoom = ref(false);
 
-const docsBySlug = useDexieLiveQuery(
-    () => db.docs.where("slug").equals(props.slug).toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: Array<ContentDto>() },
-);
-
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
     _id: "",
@@ -75,11 +74,80 @@ const defaultContent: ContentDto = {
     parentTags: [],
 };
 
-const content = computed(() => {
-    if (!docsBySlug.value.length) return defaultContent;
-    if (docsBySlug.value[0].type != DocType.Content) return defaultContent;
-    return docsBySlug.value[0] as ContentDto;
+const content = ref<ContentDto | undefined>(defaultContent);
+
+const idbContent = useDexieLiveQuery(
+    () =>
+        db.docs
+            .where("slug")
+            .equals(props.slug)
+            .toArray()
+            .then((docs) => {
+                if (!docs?.length) return;
+
+                // Check if the document is a redirect, and redirect to the new slug
+                const redirect = docs.find(
+                    (d) => d.type === DocType.Redirect,
+                ) as unknown as RedirectDto;
+                if (redirect) {
+                    if (redirect.toSlug) {
+                        router.replace({ name: "content", params: { slug: redirect.toSlug } });
+                        return;
+                    }
+                    router.replace("/");
+                    return;
+                }
+
+                return docs[0];
+            }) as unknown as Promise<ContentDto | undefined>,
+    { initialValue: defaultContent },
+);
+
+const unwatch = watch([idbContent, isConnected], () => {
+    if (idbContent.value) {
+        content.value = idbContent.value;
+        return;
+    }
+
+    // If not connected, we don't want to fetch from the API, and as no content is found in IndexedDB, we clear the content
+    if (!isConnected.value) {
+        content.value = undefined;
+        return;
+    }
+
+    // Stop the watcher on the IndexedDB content and start a new one on the API content
+    unwatch();
+
+    const query = ref<ApiSearchQuery>({
+        slug: props.slug,
+    });
+
+    const apiLiveQuery = new ApiLiveQuery(query, {
+        initialValue: [defaultContent] as BaseDocumentDto[],
+    });
+    const apiContent = apiLiveQuery.toRef();
+
+    watch(apiContent, () => {
+        // Check if the returned content is a redirect, and redirect to the new slug
+        if (apiContent.value?.type == DocType.Redirect) {
+            const redirect = apiContent.value as unknown as RedirectDto;
+            if (redirect.toSlug) {
+                router.replace({ name: "content", params: { slug: redirect.toSlug } });
+                return;
+            }
+            router.replace("/");
+            return;
+        }
+
+        // If the content is not a redirect, set it to the content ref
+        content.value = apiContent.value as ContentDto;
+    });
 });
+// const content = computed(() => {
+//     if (!docsBySlug.value.length) return defaultContent;
+//     if (docsBySlug.value[0].type != DocType.Content) return defaultContent;
+//     return docsBySlug.value[0] as ContentDto;
+// });
 
 const tags = useDexieLiveQueryWithDeps(
     [content, appLanguageIdsAsRef],
@@ -99,42 +167,34 @@ const tags = useDexieLiveQueryWithDeps(
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
-// Redirect to the correct page if this is a redirect
-watch(docsBySlug, async () => {
-    if (!docsBySlug.value) return;
+// // Redirect to the correct page if this is a redirect
+// watch(docsBySlug, async () => {
+//     if (!docsBySlug.value) return;
 
-    const redirect = docsBySlug.value.find(
-        (d) => d.type === DocType.Redirect,
-    ) as unknown as RedirectDto;
+//     const redirect = docsBySlug.value.find(
+//         (d) => d.type === DocType.Redirect,
+//     ) as unknown as RedirectDto;
 
-    if (redirect) {
-        if (redirect.toSlug) {
-            router.replace({ name: "content", params: { slug: redirect.toSlug } });
-            return;
-        }
+//     if (redirect) {
+//         if (redirect.toSlug) {
+//             router.replace({ name: "content", params: { slug: redirect.toSlug } });
+//             return;
+//         }
 
-        router.replace("/");
-        return;
-    }
-});
+//         router.replace("/");
+//         return;
+//     }
+// });
 
 // Todo: Create a isLoading ref in Luminary shared to determine if the content is still loading (waiting for data to stream from the API) before showing a 404 error.
 // As a temporary solution we are using a timer to allow the app to load the content
-const isLoading = ref(true);
-setTimeout(() => {
-    isLoading.value = false;
-}, 1000);
+
+// If connected, we are waiting for data to load from the API, unless found in IndexedDB
+const isLoading = ref(isConnected.value);
 
 const is404 = computed(() => {
-    if (
-        !isLoading.value &&
-        (!docsBySlug.value.length || docsBySlug.value[0].type != DocType.Content)
-    )
-        return true; // if the content is not avaiable, it's a 404
-    if (content.value.status != "published") return true; // if the content is not published, it's a 404
-    if (content.value.publishDate && content.value.publishDate > Date.now()) return true; // if the content is scheduled for the future, it's a 404
-    if (content.value.expiryDate && content.value.expiryDate < Date.now()) return true; // if the content is expired, it's a 404
-    return false;
+    if (isLoading.value) return false; // Bypass 404 check if still loading
+    return !isPublished(content.value, content.value ? [content.value.language] : []); // if the content is not published, it's a 404
 });
 
 // Function to toggle bookmark for the current content
@@ -146,10 +206,12 @@ const toggleBookmark = () => {
     if (isBookmarked.value) {
         // Remove from bookmarks
         userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
-            (bookmark) => bookmark.id != content.value.parentId,
+            (bookmark) => bookmark.id != content.value?.parentId,
         );
     } else {
         // Add to bookmarks
+        if (!content.value) return;
+
         userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
         useNotificationStore().addNotification({
             id: "bookmark-added",
@@ -165,15 +227,19 @@ const toggleBookmark = () => {
 // Check if the current content is bookmarked
 const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some(
-        (bookmark) => bookmark.id == content.value.parentId,
+        (bookmark) => bookmark.id == content.value?.parentId,
     );
 });
 
 // Set document title and meta tags
 watch([content, is404], () => {
+    if (content.value) {
+        isLoading.value = false; // Content is loaded
+    }
+
     document.title = is404.value
         ? `Page not found - ${appName}`
-        : `${content.value.seoTitle ? content.value.seoTitle : content.value.title} - ${appName}`;
+        : `${content.value?.seoTitle ? content.value.seoTitle : content.value?.title} - ${appName}`;
 
     if (is404.value) return;
 
@@ -186,34 +252,34 @@ watch([content, is404], () => {
         document.head.appendChild(metaTag);
     }
     // Update the content attribute
-    metaTag.setAttribute("content", content.value.seoString || content.value.summary || "");
+    metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
 });
 
-watch(
-    [appLanguagesPreferredAsRef, content],
-    async () => {
-        if (!content.value) return;
-        if (!content.value.language) return;
-        if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
-            return;
-        if (
-            appLanguagesPreferredAsRef.value[0]._id &&
-            appLanguagesPreferredAsRef.value[0]._id !== content.value.language
-        ) {
-            const contentDocs = await db.whereParent(content.value.parentId);
-            const preferred = contentDocs.find(
-                (c) => c.language == appLanguagesPreferredAsRef.value[0]?._id,
-            );
+// watch(
+//     [appLanguagesPreferredAsRef, content],
+//     async () => {
+//         if (!content.value) return;
+//         if (!content.value.language) return;
+//         if (!appLanguagesPreferredAsRef.value || appLanguagesPreferredAsRef.value?.length < 1)
+//             return;
+//         if (
+//             appLanguagesPreferredAsRef.value[0]._id &&
+//             appLanguagesPreferredAsRef.value[0]._id !== content.value.language
+//         ) {
+//             const contentDocs = await db.whereParent(content.value.parentId);
+//             const preferred = contentDocs.find(
+//                 (c) => c.language == appLanguagesPreferredAsRef.value[0]?._id,
+//             );
 
-            if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
-                // Check if the preferred translation is published
-                router.replace({ name: "content", params: { slug: preferred.slug } });
-            }
-            return;
-        }
-    },
-    { deep: true },
-);
+//             if (preferred && isPublished(preferred, appLanguageIdsAsRef.value)) {
+//                 // Check if the preferred translation is published
+//                 router.replace({ name: "content", params: { slug: preferred.slug } });
+//             }
+//             return;
+//         }
+//     },
+//     { deep: true },
+// );
 
 const text = computed(() => {
     if (!content.value || !content.value.text) {
@@ -398,7 +464,7 @@ const selectedCategory = computed(() => {
     </LModal>
 
     <ImageModal
-        v-if="content.parentImageData && enableZoom"
+        v-if="content?.parentImageData && enableZoom"
         :image="content.parentImageData"
         aspectRatio="video"
         size="post"

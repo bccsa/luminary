@@ -654,6 +654,22 @@ export class DbService extends EventEmitter {
             return false;
         });
 
+        // sort the result by updatedTimeUtc in descending order
+        res.docs.sort((a: ContentDto | RedirectDto, b: ContentDto | RedirectDto) => {
+            return b.updatedTimeUtc - a.updatedTimeUtc;
+        });
+
+        // Check if a redirect document is found, and return the first match. Else, return the first content document.
+        const redirects = res.docs.filter(
+            (doc: ContentDto | RedirectDto) => doc.type == DocType.Redirect,
+        ) as RedirectDto[];
+
+        if (redirects.length > 0) {
+            res.docs = [redirects[0]];
+        } else {
+            res.docs = [res.docs[0]];
+        }
+
         return res;
     }
 
