@@ -754,30 +754,6 @@ class Database extends Dexie {
     }
 
     /**
-     * Delete expired documents from the database for non-cms clients
-     * @returns
-     */
-    async deleteExpired() {
-        if (config.cms) {
-            return;
-        }
-
-        await this.docs.where("expiryDate").belowOrEqual(DateTime.now().toMillis()).delete();
-    }
-
-    /**
-     * Delete drafted documents from the database for non-cms clients
-     * @returns
-     */
-    async deleteDrafted() {
-        if (config.cms) {
-            return;
-        }
-
-        await this.docs.where("status").equals(PublishStatus.Draft).delete();
-    }
-
-    /**
      * Validates a delete command and returns true if the document referred to in the delete command should be deleted
      */
     validateDeleteCommand(cmd: DeleteCmdDto) {
@@ -841,12 +817,6 @@ export async function initDatabase() {
     db.on("blocked", () => {
         console.error("Database blocked");
     });
-
-    // Wait a little to give the app time to load before deleting expired and drafted content to help speed up the initial app loading time
-    setTimeout(() => {
-        // db.deleteExpired();
-        // db.deleteDrafted();
-    }, 5000);
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
     watch(
