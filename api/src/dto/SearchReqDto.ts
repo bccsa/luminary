@@ -78,4 +78,9 @@ export class SearchReqDto {
     @IsString()
     @Expose()
     slug?: string;
+
+    @IsOptional()
+    @Expose()
+    @IsString({ each: true })
+    parentId?: string | Array<string>;
 }
