@@ -240,6 +240,24 @@ describe("ApiLiveQuery", () => {
             ]);
         });
 
+        it("filters documents by parentId", () => {
+            const destination = ref<BaseDocumentDto[]>([]);
+            const data: ApiQueryResult<BaseDocumentDto> = {
+                docs: [
+                    { _id: "1", type: DocType.Content, parentId: "parent1" } as ContentDto,
+                    { _id: "2", type: DocType.Content, parentId: "parent2" } as ContentDto,
+                ],
+            };
+            const query = { parentId: "parent1" };
+
+            applySocketData(data, destination, query);
+
+            expect(destination.value.length).toBe(1);
+            expect(destination.value).toEqual([
+                { _id: "1", type: DocType.Content, parentId: "parent1" },
+            ]);
+        });
+
         it("filters documents by date range", () => {
             const destination = ref<BaseDocumentDto[]>([]);
 

@@ -75,4 +75,9 @@ export class SearchReqDto {
     @IsString()
     @Expose()
     docId?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    parentId?: string;
 }

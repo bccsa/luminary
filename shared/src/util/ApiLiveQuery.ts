@@ -185,6 +185,7 @@ export function applySocketData<T extends BaseDocumentDto>(
     if (query.from) docs = docs.filter((doc) => doc.updatedTimeUtc >= query.from!);
     if (query.to) docs = docs.filter((doc) => doc.updatedTimeUtc <= query.to!);
     if (query.docId) docs = docs.filter((doc) => doc._id === query.docId);
+    if (query.parentId) docs = docs.filter((doc) => doc.parentId === query.parentId);
 
     // If limit or offset is set, only update already existing documents
     if (query.limit || query.offset) {
