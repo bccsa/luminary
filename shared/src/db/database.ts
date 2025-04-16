@@ -844,8 +844,8 @@ export async function initDatabase() {
 
     // Wait a little to give the app time to load before deleting expired and drafted content to help speed up the initial app loading time
     setTimeout(() => {
-        db.deleteExpired();
-        db.deleteDrafted();
+        // db.deleteExpired();
+        // db.deleteDrafted();
     }, 5000);
 
     // Listen for changes to the access map and delete documents that the user no longer has access to
