@@ -82,5 +82,5 @@ export class SearchReqDto {
     @IsOptional()
     @Expose()
     @IsString({ each: true })
-    parentId?: string | Array<string>;
+    parentId?: string;
 }
