@@ -18,7 +18,7 @@ export type ApiSearchQuery = {
     includeDeleteCmds?: boolean;
     docId?: string;
     slug?: string;
-    parentId?: string | string[];
+    parentId?: string;
 };
 
 /**
