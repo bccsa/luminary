@@ -24,7 +24,6 @@ const props = withDefaults(defineProps<PaginatorProps>(), {
 });
 
 const indexes = Array.from({ length: props.size }, (_, i) => i + 1);
-console.info("Pagination Component indexes:", indexes);
 
 const visiblePages = computed(() => {
     const total = props.size;
