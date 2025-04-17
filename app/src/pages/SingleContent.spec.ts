@@ -391,6 +391,8 @@ describe("SingleContent", () => {
             const image = wrapper.findComponent(LImage);
             expect(image.exists()).toBe(true);
 
+            expect(wrapper.findComponent(ImageModal).exists()).toBe(false);
+
             image.trigger("click");
 
             // expect ImageModal to be opened
