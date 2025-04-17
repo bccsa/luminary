@@ -258,7 +258,6 @@ class Database extends Dexie {
         const toDeleteIds = docs
             .filter((doc) => {
                 if (doc.type !== DocType.DeleteCmd) return false;
-
                 return this.validateDeleteCommand(doc as DeleteCmdDto);
             })
             .map((doc) => (doc as DeleteCmdDto).docId);

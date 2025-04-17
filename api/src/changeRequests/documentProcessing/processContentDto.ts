@@ -42,11 +42,11 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
 
     // If this content doc is published, add its language to the list of available translations
     if (doc.status == PublishStatus.Published) uniqueLanguages.add(doc.language);
-    // else if (doc.status == PublishStatus.Draft || doc.status == PublishStatus.Expired) {
-    //     // If the content doc is a draft or expired, remove its language from the list of available translations
-    //     uniqueLanguages.delete(doc.language);
-    //     db.insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc });
-    // }
+    else if (doc.status == PublishStatus.Draft || doc.status == PublishStatus.Expired) {
+        // If the content doc is a draft or expired, remove its language from the list of available translations
+        uniqueLanguages.delete(doc.language);
+        db.insertDeleteCmd({ reason: DeleteReason.StatusChange, doc: doc });
+    }
 
     // Remove the current document's language from the list of available translations if the document is being deleted
     if (doc.deleteReq) uniqueLanguages.delete(doc.language);
