@@ -198,12 +198,6 @@ export function applySocketData<T extends BaseDocumentDto>(
             return typedDoc.slug === query.slug;
         });
     }
-    if (query.parentId) {
-        docs = docs.filter((doc) => {
-            const typedDoc = doc as unknown as ContentDto;
-            return typedDoc.parentId === query.parentId;
-        });
-    }
 
     // If limit or offset is set, only update already existing documents
     if (query.limit || query.offset) {
