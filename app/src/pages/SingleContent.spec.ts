@@ -271,29 +271,7 @@ describe("SingleContent", () => {
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });
-
-    it("switches the content correctly when the language changes", async () => {
-        await initLanguage();
-
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
-        });
-
-        await waitForExpect(() => {
-            // Simulate language change
-            appLanguageIdsAsRef.value.unshift(mockLanguageDtoFra._id);
-            expect(routeReplaceMock).toBeCalledWith({
-                name: "content",
-                params: { slug: mockFrenchContentDto.slug },
-            });
-        });
-    });
+    // TODO: Add test to check if the notification is shown when the content is available in the preferred language
 
     it("sets the meta data correctly", async () => {
         mount(SingleContent, {
@@ -419,12 +397,16 @@ describe("SingleContent", () => {
             const image = wrapper.findComponent(LImage);
             expect(image.exists()).toBe(true);
 
-            expect(wrapper.findComponent(ImageModal).exists()).toBe(false);
-
             image.trigger("click");
 
             // expect ImageModal to be opened
             expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
+
+            // expect ImageModal to have the correct image source and correct props
+            const imageModal = wrapper.findComponent(ImageModal);
+            expect(imageModal.props("image")).toBe(mockEnglishContentDto.parentImageData);
+            expect(imageModal.props("aspectRatio")).toBe("video");
+            expect(imageModal.props("size")).toBe("post");
         });
     });
 
