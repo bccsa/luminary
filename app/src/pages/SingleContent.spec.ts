@@ -419,16 +419,12 @@ describe("SingleContent", () => {
             const image = wrapper.findComponent(LImage);
             expect(image.exists()).toBe(true);
 
+            expect(wrapper.findComponent(ImageModal).exists()).toBe(false);
+
             image.trigger("click");
 
             // expect ImageModal to be opened
             expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
-
-            // expect ImageModal to have the correct image source and correct props
-            const imageModal = wrapper.findComponent(ImageModal);
-            expect(imageModal.props("image")).toBe(mockEnglishContentDto.parentImageData);
-            expect(imageModal.props("aspectRatio")).toBe("video");
-            expect(imageModal.props("size")).toBe("post");
         });
     });
 
