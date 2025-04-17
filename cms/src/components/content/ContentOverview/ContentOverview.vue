@@ -171,7 +171,7 @@ const resetQueryOptions = () => {
         orderBy: "updatedTimeUtc",
         orderDirection: "desc",
         pageSize: 20,
-        pageIndex: 0,
+        pageIndex: 1,
         tags: [],
         search: "",
         publishStatus: "all",
@@ -350,6 +350,7 @@ const resetQueryOptions = () => {
         </div>
         <ContentTable
             v-if="cmsLanguageIdAsRef"
+            v-model:page-index="queryOptions.pageIndex as number"
             :key="tableRefreshKey"
             :queryOptions="queryOptions"
             data-test="content-table"
