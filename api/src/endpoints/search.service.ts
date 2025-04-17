@@ -39,21 +39,21 @@ export class SearchService {
             );
         }
 
-        if (query.slug || query.parentId) {
+        if (query.slug) {
             const queryKeys = Object.keys(query);
-            const allowedKeys = query.slug ? ["slug", "apiVersion"] : ["parentId", "apiVersion"];
+            const allowedKeys = ["slug", "apiVersion"];
             const invalidKeys = queryKeys.filter((key) => !allowedKeys.includes(key));
 
             if (invalidKeys.length > 0) {
                 throw new HttpException(
-                    `Invalid parameters: A '${
-                        query.slug ? "slug" : "parentId"
-                    }' search request is invalid when used together with ${invalidKeys.join(", ")}`,
+                    `Invalid parameters: A 'slug' search request is invalid when used together with ${invalidKeys.join(
+                        ", ",
+                    )}`,
                     HttpStatus.BAD_REQUEST,
                 );
             }
 
-            // Set types for slug or parentId queries
+            // Set types for slug queries
             query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
         }
 
@@ -88,7 +88,6 @@ export class SearchService {
             languages: query.languages,
             docId: query.docId,
             slug: query.slug,
-            parentId: query.parentId,
         };
 
         let _res = undefined;
