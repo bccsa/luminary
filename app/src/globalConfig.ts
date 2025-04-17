@@ -6,8 +6,9 @@ import {
     type LanguageDto,
     type Uuid,
 } from "luminary-shared";
-import { computed, ref, toRaw, watch, watchEffect } from "vue";
+import { computed, ref, shallowRef, toRaw, watch, watchEffect } from "vue";
 import * as _ from "lodash";
+import Rand from "rand-seed";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -343,11 +344,9 @@ const loadFallbackImageUrls = async () => {
 export const fallbackImages = ref<any[]>([]);
 
 export const initFallbackImages = async () => {
-    const _fallbackImages: any[] = JSON.parse(localStorage.getItem("_fallback_images") || "[]");
-
     const urls = await loadFallbackImageUrls();
 
-    const contentDocs = await useDexieLiveQuery(
+    const contentDocs = useDexieLiveQuery(
         () =>
             db.docs
                 .where("parentType")
@@ -356,32 +355,27 @@ export const initFallbackImages = async () => {
         { initialValue: [] as ContentDto[] },
     );
 
-    watchEffect(() => {
-        // Group content docs by parentID
-        const docsByParent = new Map<string, Array<(typeof contentDocs.value)[0]>>();
+    const processedParentDocs = new Set<string>();
 
-        contentDocs.value.forEach((doc) => {
-            if (!docsByParent.has(doc.parentId)) {
-                docsByParent.set(doc.parentId, []);
-            }
-            const docs = docsByParent.get(doc.parentId);
-            if (docs) docs.push(doc);
-        });
+    watch(
+        () => contentDocs.value,
+        (docs) => {
+            docs.forEach((doc) => {
+                if (processedParentDocs.has(doc.parentId)) return;
 
-        // Pick one random doc per parentID and assign a random URL
-        docsByParent.forEach((docs) => {
-            const randomDoc = docs[Math.floor(Math.random() * docs.length)];
+                const seed = new Rand(doc.parentId).next();
 
-            if (_fallbackImages.find((img) => img.id === randomDoc._id)) return;
+                const randomUrl = urls[Math.floor(seed * urls.length)];
 
-            const randomUrl = urls[Math.floor(Math.random() * urls.length)];
-            fallbackImages.value = [
-                ...fallbackImages.value,
-                { id: randomDoc.parentId, url: randomUrl },
-            ];
-        });
-    });
+                if (fallbackImages.value.find((img) => img.id === doc.parentId)) return;
+
+                fallbackImages.value = [
+                    ...fallbackImages.value,
+                    { id: doc.parentId, url: randomUrl },
+                ];
+
+                processedParentDocs.add(doc.parentId);
+            });
+        },
+    );
 };
-watch(fallbackImages, () => {
-    localStorage.setItem("_fallback_images", JSON.stringify(fallbackImages.value));
-});
