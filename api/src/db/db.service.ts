@@ -48,7 +48,6 @@ export type SearchOptions = {
     languages?: string[];
     docId?: Uuid;
     slug?: string;
-    parentId?: Uuid;
 };
 
 /**
@@ -517,7 +516,6 @@ export class DbService extends EventEmitter {
      */
     search(options: SearchOptions): Promise<DbQueryResult> {
         if (options.slug) return this.searchBySlug(options);
-        if (options.parentId) return this.getContentByParentId(options.parentId);
 
         // TODO: move queries to separate functions similar to searchBySlug
         return new Promise(async (resolve, reject) => {
