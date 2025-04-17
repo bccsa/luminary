@@ -6,7 +6,7 @@ import {
     type LanguageDto,
     type Uuid,
 } from "luminary-shared";
-import { computed, ref, shallowRef, toRaw, watch, watchEffect } from "vue";
+import { computed, ref, toRaw, watch } from "vue";
 import * as _ from "lodash";
 import Rand from "rand-seed";
 
