@@ -42,7 +42,7 @@ import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
+import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
 
 type Props = {
@@ -397,6 +397,44 @@ const liveUrl = computed(() => {
 });
 
 const ensureRedirect = () => window.open(liveUrl.value, "_blank");
+
+const duplicate = async () => {
+    if (!editableParent.value) return;
+
+    const newParent = _.cloneDeep(editableParent.value);
+    newParent._id = db.uuid();
+    newParent.updatedTimeUtc = Date.now();
+
+    db.upsert({ doc: newParent });
+
+    // Duplicate all content documents and make them unique
+    const pList: Promise<any>[] = [];
+    editableContent.value.forEach((c) => {
+        const newContent = _.cloneDeep(c);
+
+        newContent._id = db.uuid();
+        newContent.updatedTimeUtc = Date.now();
+        newContent.title += " (Duplicate)";
+        newContent.slug += "-duplicate";
+        newContent.parentId = newParent._id;
+        newContent.status = PublishStatus.Draft;
+
+        pList.push(db.upsert({ doc: newContent }));
+    });
+
+    await Promise.all(pList);
+
+    await router.replace({
+        name: "edit",
+        params: {
+            docType: props.docType,
+            tagType: props.docType === DocType.Tag ? props.tagOrPostType : undefined,
+            id: newParent._id,
+            languageCode: selectedLanguage.value?.languageCode,
+        },
+    });
+    router.go(0);
+};
 </script>
 
 <template>
@@ -422,6 +460,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
         }"
         v-if="editableParent"
         class="relative"
+        :key="editableParent._id"
     >
         <template #postTitleSlot>
             <LButton
@@ -463,6 +502,13 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                     >
                         Save
                     </LButton>
+                    <LButton
+                        :icon="DocumentDuplicateIcon"
+                        title="Duplicate"
+                        data-test="duplicate-btn"
+                        @click="duplicate"
+                        >Duplicate</LButton
+                    >
                     <LButton
                         type="button"
                         @click="showDeleteModal = true"
