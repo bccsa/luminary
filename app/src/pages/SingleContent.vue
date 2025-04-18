@@ -148,7 +148,7 @@ const tags = useDexieLiveQueryWithDeps(
     ([content, appLanguageIds]: [ContentDto, Uuid[]]) =>
         db.docs
             .where("parentId")
-            .anyOf(content.parentTags.concat([content.parentId])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
+            .anyOf((content?.parentTags || []).concat([content?.parentId || ""])) // Include this document's parent ID to show content tagged with this document's parent (if a TagDto).
             .filter((t) => {
                 const tag = t as ContentDto;
                 if (tag.parentType != DocType.Tag) return false;
@@ -163,10 +163,17 @@ const selectedCategoryId = ref<Uuid | undefined>();
 
 // If connected, we are waiting for data to load from the API, unless found in IndexedDB
 const isLoading = ref(isConnected.value);
+const is404 = ref(false);
 
-const is404 = computed(() => {
-    if (isLoading.value) return false; // Bypass 404 check if still loading
-    return !isPublished(content.value, content.value ? [content.value.language] : []); // if the content is not published, it's a 404
+const check404 = () => {
+    if (isLoading.value) return false; // Don't show 404 during loading
+    return (
+        !content.value || !isPublished(content.value, content.value ? [content.value.language] : [])
+    );
+};
+
+watch(content, () => {
+    is404.value = check404();
 });
 
 // Function to toggle bookmark for the current content
