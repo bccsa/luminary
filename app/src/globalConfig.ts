@@ -37,16 +37,6 @@ export const getDeviceInfo = () => {
 };
 
 /**
- * The token for requests to the API.
- */
-export const token = ref<string | undefined>();
-
-export async function initializeAuth() {
-    const oauth = await auth.setupAuth(app, router); // Ensure Auth0 is set up first
-    token.value = await auth.getToken(oauth);
-}
-
-/**
  * The list of CMS defined languages as Vue ref.
  */
 export const cmsLanguages = ref<LanguageDto[]>([]);
