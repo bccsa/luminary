@@ -1,9 +1,6 @@
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
 import * as _ from "lodash";
-import auth from "./auth";
-import { app } from "./main";
-import router from "./router";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -37,16 +34,6 @@ export const getDeviceInfo = () => {
         connectionSpeed: getConnectionSpeed(),
     };
 };
-
-/**
- * The token for requests to the API.
- */
-export const token = ref<string | undefined>();
-
-export async function initializeAuth() {
-    const oauth = await auth.setupAuth(app, router); // Ensure Auth0 is set up first
-    token.value = await auth.getToken(oauth);
-}
 
 /**
  * The list of CMS defined languages as Vue ref.
