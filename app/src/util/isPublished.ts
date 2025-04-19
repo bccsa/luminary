@@ -7,11 +7,11 @@ import { firstLanguageSupported } from "./firstSupportedLanguage";
  * @param languageIds - The language ids to check against
  * @returns
  */
-export function isPublished(content: ContentDto, languageIds: Uuid[]): boolean {
+export function isPublished(content: ContentDto | undefined, languageIds: Uuid[]): boolean {
+    if (!content) return false;
     if (!content.availableTranslations) return false;
     const firstSupportedLang = firstLanguageSupported(languageIds, content.availableTranslations);
 
-    if (!content) return false;
     if (!content.publishDate) return false;
     if (content.publishDate > Date.now()) return false;
     if (content.status !== "published") return false;

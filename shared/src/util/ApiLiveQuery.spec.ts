@@ -3,7 +3,14 @@ import { nextTick, ref } from "vue";
 import { ApiLiveQuery, applySocketData } from "./ApiLiveQuery";
 import { ApiSearchQuery, getRest } from "../rest/RestApi";
 import { getSocket, isConnected } from "../socket/socketio";
-import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../types";
+import {
+    ApiQueryResult,
+    BaseDocumentDto,
+    ContentDto,
+    DeleteCmdDto,
+    DocType,
+    RedirectDto,
+} from "../types";
 import waitForExpect from "wait-for-expect";
 import { db } from "../db/database";
 
@@ -256,6 +263,40 @@ describe("ApiLiveQuery", () => {
 
             expect(destination.value).toEqual([
                 { _id: "2", type: DocType.Post, updatedTimeUtc: 2000 },
+            ]);
+        });
+
+        it("filters documents by docId", () => {
+            const destination = ref<BaseDocumentDto[]>([]);
+            const data: ApiQueryResult<BaseDocumentDto> = {
+                docs: [
+                    { _id: "1", type: DocType.Post } as BaseDocumentDto,
+                    { _id: "2", type: DocType.Tag } as BaseDocumentDto,
+                ],
+            };
+            const query = { docId: "1" };
+
+            applySocketData(data, destination, query);
+
+            expect(destination.value).toEqual([{ _id: "1", type: DocType.Post }]);
+        });
+
+        it("filters documents by slug", () => {
+            const destination = ref<ContentDto[] | RedirectDto[]>([]);
+            const data: ApiQueryResult<BaseDocumentDto> = {
+                docs: [
+                    { _id: "1", type: DocType.Post, slug: "test" } as ContentDto,
+                    { _id: "2", type: DocType.Tag, slug: "test" } as RedirectDto,
+                    { _id: "3", type: DocType.Tag, slug: "test-tag" } as ContentDto,
+                ],
+            };
+            const query = { slug: "test" };
+
+            applySocketData(data, destination, query);
+
+            expect(destination.value).toEqual([
+                { _id: "1", type: DocType.Post, slug: "test" },
+                { _id: "2", type: DocType.Tag, slug: "test" },
             ]);
         });
 
