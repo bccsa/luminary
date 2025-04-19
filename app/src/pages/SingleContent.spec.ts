@@ -18,7 +18,7 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, userPreferencesAsRef } from "@/globalConfig";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
@@ -43,12 +43,6 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 vi.mock("@auth0/auth0-vue");
-
-vi.mock("vue-i18n", () => ({
-    useI18n: () => ({
-        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
-    }),
-}));
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -404,7 +398,7 @@ describe("SingleContent", () => {
 
             // expect ImageModal to have the correct image source and correct props
             const imageModal = wrapper.findComponent(ImageModal);
-            expect(imageModal.props("image")).toBe(mockEnglishContentDto.parentImageData);
+            expect(imageModal.props("image")).toEqual(mockEnglishContentDto.parentImageData);
             expect(imageModal.props("aspectRatio")).toBe("video");
             expect(imageModal.props("size")).toBe("post");
         });
