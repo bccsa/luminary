@@ -99,6 +99,7 @@ export class SearchService {
             languages: query.languages,
             docId: query.docId,
             slug: query.slug,
+            parentId: query.parentId,
         };
 
         let _res = undefined;
