@@ -22,6 +22,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Create environment file in API
+        run: cp .env.test.example .env.test
+        working-directory: api
+
+      - name: Start CouchDB
+        run: |
+          ./scripts/start-couchdb-in-ci.sh
+          curl -X PUT http://admin:password@127.0.0.1:5984/${{ env.DB_DATABASE }}
+        working-directory: api
+
+      - name: Start MinIO
+        run: |
+          ./scripts/start-minio-in-ci.sh
+        working-directory: api
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -30,6 +45,14 @@ jobs:
           cache-dependency-path: |
             shared/package-lock.json
             app/package-lock.json
+
+      - name: Install dependencies in API
+        run: npm ci
+        working-directory: api
+
+      - name: Run the API
+        run: npm run start
+        working-directory: api
 
       - name: Install and build shared
         run: npm ci && npm run build
