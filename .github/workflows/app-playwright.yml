@@ -6,6 +6,7 @@ on:
     paths:
       - app/**
       - shared/**
+      - api/**
       - .github/workflows/playwright.yml
   push:
     branches: [main, master]
