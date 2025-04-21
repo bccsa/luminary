@@ -6,7 +6,7 @@ import {
     verifyAccess,
     type LanguageDto,
 } from "luminary-shared";
-import { ref, watch, watchEffect } from "vue";
+import { ref, watch } from "vue";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
