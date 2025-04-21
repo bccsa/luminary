@@ -23,6 +23,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Create environment file in API
+        run: cp .env.example .env
+        working-directory: api
+
       - name: Start CouchDB
         run: |
           ./scripts/start-couchdb-in-ci.sh
@@ -42,10 +46,6 @@ jobs:
           cache-dependency-path: |
             shared/package-lock.json
             app/package-lock.json
-
-      - name: Create environment file in API
-        run: cp .env.example .env
-        working-directory: api
 
       - name: Install dependencies in API
         run: npm ci
