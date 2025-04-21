@@ -30,7 +30,7 @@ jobs:
       - name: Start CouchDB
         run: |
           ./scripts/start-couchdb-in-ci.sh
-          curl -X PUT http://admin:password@127.0.0.1:5984/${{ env.DB_DATABASE }}
+          curl -X PUT http://admin:password@127.0.0.1:5984/luminary-local
         working-directory: api
 
       - name: Start MinIO
