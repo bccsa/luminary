@@ -44,7 +44,7 @@ jobs:
             app/package-lock.json
 
       - name: Create environment file in API
-        run: cp .env.test.example .env.test
+        run: cp .env.example .env
         working-directory: api
 
       - name: Install dependencies in API
