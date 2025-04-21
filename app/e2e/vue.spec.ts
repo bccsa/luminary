@@ -5,12 +5,19 @@ import { test, expect } from "@playwright/test";
 
 test("syncs correct document types", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
 
     const result = await page.evaluate(() => {
         return new Promise((resolve, reject) => {
+            //The timeout makes debugging easier if something silently breaks
+            const timeout = setTimeout(() => reject("Timeout in evaluate"), 5000);
+
             const dbRequest = indexedDB.open("luminary-db");
 
-            dbRequest.onerror = () => reject("Error opening database");
+            dbRequest.onerror = () => {
+                clearTimeout(timeout);
+                reject("Error opening database");
+            };
 
             dbRequest.onsuccess = () => {
                 const db = dbRequest.result;
@@ -19,8 +26,14 @@ test("syncs correct document types", async ({ page }) => {
                 const store = transaction.objectStore("docs");
 
                 const allDocsRequest = store.getAll();
-                allDocsRequest.onerror = () => reject("Failed to read object store");
-                allDocsRequest.onsuccess = () => resolve(allDocsRequest.result);
+                allDocsRequest.onerror = () => {
+                    clearTimeout(timeout);
+                    reject("Failed to read object store");
+                };
+                allDocsRequest.onsuccess = () => {
+                    clearTimeout(timeout);
+                    resolve(allDocsRequest.result);
+                };
             };
         }) as unknown as Promise<any>;
     });
@@ -28,5 +41,7 @@ test("syncs correct document types", async ({ page }) => {
 
     const expectedDocTypes = ["redirect", "tag", "post", "language"];
 
-    expect(docTypes).toContain(expectedDocTypes);
+    for (const expected of expectedDocTypes) {
+        expect(docTypes).toContain(expected);
+    }
 });
