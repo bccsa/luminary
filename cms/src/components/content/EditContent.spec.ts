@@ -11,6 +11,7 @@ import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
 import LanguageSelector from "./LanguageSelector.vue";
+import { initLanguage } from "@/globalConfig";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -57,6 +58,7 @@ describe("EditContent.vue", () => {
         ]);
 
         accessMap.value = mockData.superAdminAccessMap;
+        initLanguage();
     });
 
     afterEach(async () => {
