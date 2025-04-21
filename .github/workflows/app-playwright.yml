@@ -1,27 +1,48 @@
 name: Playwright Tests
+
 on:
-  push:
-    branches: [main, master]
   pull_request:
     branches: [main, master]
+    paths:
+      - app/**
+      - shared/**
+      - .github/workflows/playwright.yml
+  push:
+    branches: [main, master]
+
+env:
+  CI: true
+
 jobs:
-  test:
-    timeout-minutes: 60
+  playwright:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: lts/*
-      - name: Install dependencies
-        run: npm ci
+          node-version-file: app/.node-version
+          cache: "npm"
+          cache-dependency-path: |
+            shared/package-lock.json
+            app/package-lock.json
+
+      - name: Install and build shared
+        run: npm ci && npm run build
+        working-directory: shared
+
+      - name: Install app dependencies
+        run: npm ci --install-links
+        working-directory: app
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
-      - name: Run Playwright tests
-        run: npx playwright test
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
+        working-directory: app
+
+      - name: Run Playwright E2E tests
+        working-directory: app
+        run: npx playwright test --reporter=list
