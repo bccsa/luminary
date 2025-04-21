@@ -64,32 +64,32 @@ export default defineConfig({
         },
 
         /* Test against mobile viewports. */
-        // {
-        //   name: 'Mobile Chrome',
-        //   use: {
-        //     ...devices['Pixel 5'],
-        //   },
-        // },
-        // {
-        //   name: 'Mobile Safari',
-        //   use: {
-        //     ...devices['iPhone 12'],
-        //   },
-        // },
+        {
+            name: "Mobile Chrome",
+            use: {
+                ...devices["Pixel 5"],
+            },
+        },
+        {
+            name: "Mobile Safari",
+            use: {
+                ...devices["iPhone 12"],
+            },
+        },
 
         /* Test against branded browsers. */
-        // {
-        //   name: 'Microsoft Edge',
-        //   use: {
-        //     channel: 'msedge',
-        //   },
-        // },
-        // {
-        //   name: 'Google Chrome',
-        //   use: {
-        //     channel: 'chrome',
-        //   },
-        // },
+        {
+            name: "Microsoft Edge",
+            use: {
+                channel: "msedge",
+            },
+        },
+        {
+            name: "Google Chrome",
+            use: {
+                channel: "chrome",
+            },
+        },
     ],
 
     /* Folder for test artifacts such as screenshots, videos, traces, etc. */
@@ -102,7 +102,7 @@ export default defineConfig({
          * Use the preview server on CI for more realistic testing.
          * Playwright will re-use the local server if there is already a dev-server running.
          */
-        command: process.env.CI ? "vite preview --port 5173" : "vite dev",
+        command: "vite preview --port 5173",
         port: 5173,
         reuseExistingServer: !process.env.CI,
     },
