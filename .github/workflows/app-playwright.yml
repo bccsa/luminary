@@ -50,6 +50,10 @@ jobs:
         run: npm ci
         working-directory: api
 
+      - name: Seed the API with Default Data
+        run: npm run seed
+        working-directory: api
+
       - name: Run the API
         run: npm run start
         working-directory: api
