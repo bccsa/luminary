@@ -64,3 +64,53 @@ test("it syncs correct document types to the app(non-cms) client", async ({ cont
 
     expect(types).toEqual(expect.arrayContaining(["language", "redirect", "content"]));
 });
+
+test("it does not sync drafted or expired docs to the app(non-cms) client", async ({ context }) => {
+    const page = await context.newPage();
+    await page.goto("/");
+    await page.reload({ waitUntil: "networkidle" });
+
+    //Give extra time to ensure the page has loaded
+    await page.waitForTimeout(3000);
+
+    expect(await page.title()).toContain("Home");
+
+    const result = await page.evaluate(async () => {
+        return new Promise((resolve, reject) => {
+            //Ensure that the browser supports indexedDB.databases() as it is not supported in all browsers
+            if ("databases" in indexedDB) {
+                const dbRequest = indexedDB.open("luminary-db");
+                dbRequest.onerror = (event) => {
+                    console.error("Error opening database", event);
+                    reject("Error opening database");
+                };
+                dbRequest.onsuccess = () => {
+                    const db = dbRequest.result;
+                    const transaction = db.transaction("docs", "readonly");
+                    const objectStore = transaction.objectStore("docs");
+
+                    const request = objectStore.getAll();
+
+                    request.onerror = (event) => {
+                        console.error("Error getting all documents", event);
+                        reject("Error getting all documents");
+                    };
+
+                    request.onsuccess = () => {
+                        const documents = request.result;
+                        resolve(documents);
+                    };
+                };
+            } else {
+                console.error("indexedDB.databases() not supported");
+                reject("indexedDB.databases() not supported");
+            }
+        }) as unknown as Promise<any[]>;
+    });
+    expect(result).toBeDefined();
+
+    const types = [...new Set(result.map((doc: any) => doc.status))];
+
+    expect(types).not.toEqual(expect.arrayContaining(["draft", "expired"]));
+    expect(types).toEqual(expect.arrayContaining(["published"]));
+});
