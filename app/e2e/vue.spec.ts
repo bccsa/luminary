@@ -21,6 +21,7 @@ test("it syncs correct document types to the app(non-cms) client", async ({ cont
     await page.goto("/");
     await page.reload({ waitUntil: "networkidle" });
 
+    //Give extra time to ensure the page has loaded
     await page.waitForTimeout(3000);
 
     expect(await page.title()).toContain("Home");
