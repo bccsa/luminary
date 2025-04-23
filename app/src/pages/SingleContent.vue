@@ -351,7 +351,7 @@ setTimeout(() => {
                     useNotificationStore().addNotification({
                         id: "content-available",
                         title: "Content available",
-                        description: `This content is available in ${languageName}. Click here to view it.`,
+                        description: `This content is also available in ${languageName}. Click here to view it.`,
                         state: "info",
                         type: "banner",
                         timeout: 5000,
@@ -417,13 +417,13 @@ const onLanguageSelect = (languageId: Uuid) => {
                     <div class="relative mt-1 w-auto">
                         <ListboxButton>
                             <span class="block truncate">
-                                <span class="hidden sm:inline">
+                                <span class="hidden text-zinc-400 dark:text-slate-300 sm:inline">
                                     {{
                                         languages.find((lang) => lang._id === selectedLanguageId)
                                             ?.name
                                     }}
                                 </span>
-                                <span class="inline sm:hidden">
+                                <span class="inline text-zinc-400 dark:text-slate-300 sm:hidden">
                                     {{
                                         languages
                                             .find((lang) => lang._id === selectedLanguageId)
