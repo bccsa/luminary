@@ -10,7 +10,6 @@ import {
     mockLanguageDtoFra,
     mockLanguageDtoSwa,
     mockPostDto,
-    mockSwahiliContentDto,
 } from "../tests/mockdata";
 
 import {
@@ -26,7 +25,6 @@ import {
 } from "../types";
 import { db, getDbVersion, initDatabase } from "../db/database";
 import { accessMap } from "../permissions/permissions";
-import { DateTime } from "luxon";
 import { initConfig } from "../config";
 import { config } from "../config";
 
