@@ -26,7 +26,7 @@ const emit = defineEmits(["close"]);
         ></div>
         <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">
             <div
-                class="max-h-screen w-full rounded-lg"
+                class="max-h-screen w-full max-w-md rounded-lg"
                 :class="[
                     props.withBackground !== false
                         ? 'bg-white/90 p-5 shadow-xl dark:bg-slate-700/85'
