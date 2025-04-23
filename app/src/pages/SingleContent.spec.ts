@@ -18,13 +18,15 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, appName, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
+import { useNotificationStore } from "@/stores/notification";
+import { Listbox } from "@headlessui/vue";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -419,5 +421,55 @@ describe("SingleContent", () => {
         // Now the quick controls slot should be rendered
         const quickControls = wrapper.find('[data-test="themeButton"]');
         expect(quickControls.exists()).toBe(true);
+    });
+
+    it("switchs the language of content when clicking on the language button", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        const listBox = wrapper.findComponent(Listbox);
+        expect(listBox.exists()).toBe(true);
+
+        await listBox.setValue("lang-fra");
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+        });
+    });
+
+    it("shows the notification when the content is available in the preferred language", async () => {
+        await initLanguage();
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        // const notificationStore = useNotificationStore();
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        await waitForExpect(() => {
+            appLanguageIdsAsRef.value = ["lang-fra"];
+            expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "content-available",
+                    title: "Content available",
+                    description: `This content is available in Français. Click here to view it.`,
+                    state: "info",
+                    type: "banner",
+                    timeout: 5000,
+                }),
+            );
+        });
     });
 });
