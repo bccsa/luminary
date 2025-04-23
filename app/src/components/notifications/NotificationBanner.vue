@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, type FunctionalComponent } from "vue";
-import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/outline";
+import {
+    CheckCircleIcon,
+    ExclamationTriangleIcon,
+    InformationCircleIcon,
+} from "@heroicons/vue/24/outline";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
 import { type Notification, useNotificationStore } from "@/stores/notification";
 import { RouterLink, useRouter } from "vue-router";
@@ -28,8 +32,10 @@ if (props.notification.icon) {
             break;
         case "error":
         case "info":
+            icon.value = InformationCircleIcon;
+            break;
         case "warning":
-            icon.value = ExclamationCircleIcon;
+            icon.value = ExclamationTriangleIcon;
             break;
     }
 }
