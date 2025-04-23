@@ -564,7 +564,7 @@ export class DbService extends EventEmitter {
                         $and: [
                             { type: { $in: [DocType.Content] } },
                             { memberOf: { $in: groups } },
-                            { status: { $nin: [PublishStatus.Draft, PublishStatus.Published] } },
+                            { status: { $nin: [PublishStatus.Draft, PublishStatus.Expired] } },
                             { parentType: docType },
                             ...languageSelector,
                         ],
