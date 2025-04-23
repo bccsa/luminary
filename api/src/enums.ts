@@ -71,7 +71,6 @@ export enum AckStatus {
 export enum PublishStatus {
     Published = "published",
     Draft = "draft",
-    Expired = "expired",
 }
 
 /**

@@ -39,7 +39,10 @@ class SocketIO {
         this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
 
         this.socket.on("connect", () => {
-            this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
+            this.socket.emit("joinSocketGroups", {
+                isCmsClient: config.cms,
+                docTypes: config.syncList,
+            });
             this.processChangeReqLock = false; // reset process lock on connection
         });
 
@@ -48,6 +51,7 @@ class SocketIO {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
+            console.info("Received data from socket", data);
             // Filter out the data that is not in the requested docTypes array or language IDs array
             const filtered = data.docs.filter((doc) => {
                 if (doc.type === DocType.DeleteCmd) return true; // Always include delete commands
@@ -67,6 +71,7 @@ class SocketIO {
                         if (doc.language && config.appLanguageIdsAsRef.value.includes(doc.language))
                             return true;
                     }
+
                     return false;
                 });
             });

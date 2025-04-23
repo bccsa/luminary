@@ -33,6 +33,7 @@ export type S3Config = {
 
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
+    isCmsClient?: boolean;
 };
 
 export default () =>
