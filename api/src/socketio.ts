@@ -7,7 +7,7 @@ import {
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
-import { AclPermission, AckStatus, Uuid, DocType } from "./enums";
+import { AclPermission, AckStatus, Uuid, DocType, PublishStatus } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
@@ -26,6 +26,7 @@ import { Logger } from "winston";
  */
 type ClientDataReq = {
     docTypes: Array<any>;
+    isCmsClient: boolean;
 };
 
 /**
@@ -115,6 +116,14 @@ export class Socketio implements OnGatewayInit {
                 return;
             }
 
+            if (
+                update.type == DocType.Content &&
+                !this.config.socketIo.isCmsClient &&
+                update.status != PublishStatus.Published
+            ) {
+                return;
+            }
+
             // We are using a socket.io room per document type per group. Change documents are broadcasted to the document-group rooms of the documents they reference.
             // Content documents are broadcasted to their parent document-group rooms.
             let refDoc = update;
@@ -131,6 +140,7 @@ export class Socketio implements OnGatewayInit {
                     );
                     return;
                 }
+
                 refDoc = res.docs[0];
             }
 
@@ -210,6 +220,8 @@ export class Socketio implements OnGatewayInit {
         reqData.docTypes.forEach((docType) => {
             if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
         });
+
+        this.config.socketIo.isCmsClient = reqData.isCmsClient;
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(

@@ -22,7 +22,7 @@ beforeAll(async () => {
     initConfig({
         cms: false,
         docsIndex:
-            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
+            "type, parentId, slug, language, docType, redirect, publishDate, expiryDate, status, [type+parentTagType+status], [type+parentPinned], [type+status], [type+docType]",
         apiUrl: "http://localhost:12345",
     });
 

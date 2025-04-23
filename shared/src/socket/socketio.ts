@@ -39,7 +39,10 @@ class SocketIO {
         this.socket = io(config.apiUrl, token ? { auth: { token } } : undefined);
 
         this.socket.on("connect", () => {
-            this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
+            this.socket.emit("joinSocketGroups", {
+                isCmsClient: config.cms,
+                docTypes: config.syncList,
+            });
             this.processChangeReqLock = false; // reset process lock on connection
         });
 
@@ -67,6 +70,7 @@ class SocketIO {
                         if (doc.language && config.appLanguageIdsAsRef.value.includes(doc.language))
                             return true;
                     }
+
                     return false;
                 });
             });
