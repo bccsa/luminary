@@ -322,7 +322,7 @@ const selectedCategory = computed(() => {
 
 setTimeout(() => {
     watch(
-        [selectedLanguageId, content],
+        [selectedLanguageId, content, appLanguagePreferredIdAsRef],
         async () => {
             if (!selectedLanguageId.value) return;
             if (!content.value) return;
@@ -336,7 +336,6 @@ setTimeout(() => {
                 router.replace({ name: "content", params: { slug: preferred.slug } });
             }
 
-            // if (content.value) {
             if (content.value && content.value.language !== appLanguagePreferredIdAsRef.value) {
                 const preferredContent = availableTranslations.value.find(
                     (c) => c.language == appLanguagePreferredIdAsRef.value,
@@ -411,7 +410,7 @@ const onLanguageSelect = (languageId: Uuid) => {
 <template>
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
-            <div class="relative">
+            <div class="relative" v-if="availableTranslations.length > 1">
                 <!-- Replace your current language dropdown template with this: -->
                 <Listbox v-model="selectedLanguageId" @update:model-value="onLanguageSelect">
                     <div class="relative mt-1 w-auto">
