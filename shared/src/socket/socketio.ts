@@ -51,7 +51,6 @@ class SocketIO {
         });
 
         this.socket.on("data", async (data: ApiDataResponseDto) => {
-            console.info("Received data from socket", data);
             // Filter out the data that is not in the requested docTypes array or language IDs array
             const filtered = data.docs.filter((doc) => {
                 if (doc.type === DocType.DeleteCmd) return true; // Always include delete commands

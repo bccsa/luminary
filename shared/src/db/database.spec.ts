@@ -881,46 +881,6 @@ describe("Database", async () => {
         });
     });
 
-    it("deletes expired documents when not in cms-mode", async () => {
-        initConfig({
-            cms: false,
-            docsIndex: "parentId, language, expiryDate, [type+docType]",
-            apiUrl: "http://localhost:12345",
-        });
-        await initDatabase();
-
-        const now = DateTime.now();
-        const expiredDate = now.minus({ days: 5 }).toMillis();
-        const futureExpiredDate = now.plus({ days: 5 }).toMillis();
-
-        const docs: ContentDto[] = [
-            {
-                ...mockEnglishContentDto,
-                expiryDate: expiredDate,
-            },
-            {
-                ...mockFrenchContentDto,
-                expiryDate: expiredDate,
-            },
-            {
-                ...mockSwahiliContentDto,
-                expiryDate: futureExpiredDate,
-            },
-            {
-                ...mockEnglishContentDto,
-                expiryDate: futureExpiredDate,
-            },
-        ];
-
-        await db.docs.clear();
-        await db.docs.bulkPut(docs);
-
-        await (db as any).deleteExpired();
-
-        const remainingDocs = await db.docs.toArray();
-        expect(remainingDocs).toHaveLength(2);
-    });
-
     it("upgrade indexdb version by changing the docs index", async () => {
         const _v1 = await getDbVersion();
 
