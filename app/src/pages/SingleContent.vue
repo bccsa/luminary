@@ -175,6 +175,7 @@ watch([content, isConnected], async () => {
 
         watch([contentResults, apiLanguage], () => {
             availableTranslations.value = contentResults.value as ContentDto[];
+            if (contentResults.value && contentResults.value.length == 1) return;
             if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
                 languages.value = (apiLanguage.value as LanguageDto[]).filter((lang) =>
                     availableTranslations.value.some(
@@ -190,6 +191,7 @@ watch([content, isConnected], async () => {
             db.docs.where("type").equals(DocType.Language).toArray(),
         ]);
 
+        if (translations.length == 1) return;
         availableTranslations.value = translations as ContentDto[];
 
         // Filter languages based on available translations
@@ -410,7 +412,7 @@ const onLanguageSelect = (languageId: Uuid) => {
 <template>
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
-            <div class="relative" v-if="availableTranslations.length > 1">
+            <div class="relative">
                 <!-- Replace your current language dropdown template with this: -->
                 <Listbox v-model="selectedLanguageId" @update:model-value="onLanguageSelect">
                     <div class="relative mt-1 w-auto">
