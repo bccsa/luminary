@@ -14,6 +14,7 @@ import {
     type ContentDto,
     type RedirectDto,
     type Uuid,
+    type LanguageDto,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
@@ -46,6 +47,8 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
+import { ListboxOption, ListboxButton, Listbox, ListboxOptions } from "@headlessui/vue";
+import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 
 const router = useRouter();
 
@@ -57,6 +60,9 @@ const props = defineProps<Props>();
 const { t } = useI18n();
 const showCategoryModal = ref(false);
 const enableZoom = ref(false);
+const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
+const availableTranslations = ref<ContentDto[]>([]);
+const languages = ref<LanguageDto[]>([]);
 
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
@@ -127,6 +133,10 @@ const unwatch = watch([idbContent, isConnected], () => {
     const apiContent = apiLiveQuery.toRef();
 
     watch(apiContent, () => {
+        if (!apiContent.value) {
+            content.value = undefined;
+            return;
+        }
         // Check if the returned content is a redirect, and redirect to the new slug
         if (apiContent.value?.type == DocType.Redirect) {
             const redirect = apiContent.value as unknown as RedirectDto;
@@ -141,6 +151,52 @@ const unwatch = watch([idbContent, isConnected], () => {
         // If the content is not a redirect, set it to the content ref
         content.value = apiContent.value as ContentDto;
     });
+});
+
+watch([content, isConnected], async () => {
+    if (!content.value) return;
+
+    if (isConnected.value) {
+        // Load from API via live queries
+        const languageQuery = ref<ApiSearchQuery>({
+            types: [DocType.Language],
+        });
+
+        const contentQuery = ref<ApiSearchQuery>({
+            types: [DocType.Content],
+            parentId: content.value.parentId,
+        });
+
+        const contentLiveQuery = new ApiLiveQuery(contentQuery);
+        const apiLanguageLiveQuery = new ApiLiveQuery(languageQuery);
+
+        const contentResults = contentLiveQuery.toArrayAsRef();
+        const apiLanguage = apiLanguageLiveQuery.toArrayAsRef();
+
+        watch([contentResults, apiLanguage], () => {
+            availableTranslations.value = contentResults.value as ContentDto[];
+            if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
+                languages.value = (apiLanguage.value as LanguageDto[]).filter((lang) =>
+                    availableTranslations.value.some(
+                        (translation) => translation.language === lang._id,
+                    ),
+                );
+            }
+        });
+    } else {
+        // Load from IndexedDB
+        const [translations, langs] = await Promise.all([
+            db.docs.where("parentId").equals(content.value.parentId).toArray(),
+            db.docs.where("type").equals(DocType.Language).toArray(),
+        ]);
+
+        availableTranslations.value = translations as ContentDto[];
+
+        // Filter languages based on available translations
+        languages.value = (langs as LanguageDto[]).filter((lang) =>
+            availableTranslations.value.some((translation) => translation.language === lang._id),
+        );
+    }
 });
 
 const tags = useDexieLiveQueryWithDeps(
@@ -263,11 +319,148 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
+
+setTimeout(() => {
+    watch(
+        [selectedLanguageId, content],
+        async () => {
+            if (!selectedLanguageId.value) return;
+            if (!content.value) return;
+
+            const preferred = availableTranslations.value.find(
+                (c) => c.language == selectedLanguageId.value,
+            );
+
+            if (preferred) {
+                // Check if the preferred translation is published
+                router.replace({ name: "content", params: { slug: preferred.slug } });
+            }
+
+            // if (content.value) {
+            if (content.value && content.value.language !== appLanguagePreferredIdAsRef.value) {
+                const preferredContent = availableTranslations.value.find(
+                    (c) => c.language == appLanguagePreferredIdAsRef.value,
+                );
+
+                const languageName =
+                    languages.value.find((l) => l._id === preferredContent?.language)?.name ??
+                    preferredContent?.language;
+
+                // check if it is already in the preferred language and in the SingleContent page
+                if (preferredContent && router.currentRoute.value.name == "content") {
+                    useNotificationStore().addNotification({
+                        id: "content-available",
+                        title: "Content available",
+                        description: `This content is available in ${languageName}. Click here to view it.`,
+                        state: "info",
+                        type: "banner",
+                        timeout: 5000,
+                        closable: true,
+                        link: {
+                            name: "content",
+                            params: { slug: preferredContent.slug },
+                        },
+                        openLink: true,
+                    });
+                }
+            }
+
+            const removeNotificationIfNeeded = () => {
+                if (
+                    (content.value &&
+                        content.value.language == appLanguagePreferredIdAsRef.value) ||
+                    router.currentRoute.value.name !== "content"
+                ) {
+                    // Remove the notification if the content is already in the preferred language
+                    // or if the user navigates away from the "content" page
+                    useNotificationStore().removeNotification("content-available");
+                }
+            };
+
+            // Initial check to remove the notification if conditions are met
+            removeNotificationIfNeeded();
+
+            // Watch for route changes to remove the notification if the user navigates away
+            watch(
+                () => router.currentRoute.value.name,
+                () => {
+                    removeNotificationIfNeeded();
+                },
+            );
+        },
+        { immediate: true, deep: true },
+    );
+}, 1000);
+
+watch(content, () => {
+    selectedLanguageId.value = content.value?.language;
+});
+
+// Change language
+const onLanguageSelect = (languageId: Uuid) => {
+    selectedLanguageId.value = languageId;
+    const preferred = availableTranslations.value.find(
+        (c) => c.language == languageId && isPublished(c, appLanguageIdsAsRef.value),
+    );
+    if (preferred) {
+        router.replace({ name: "content", params: { slug: preferred.slug } });
+    }
+};
 </script>
 
 <template>
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
+            <div class="relative">
+                <!-- Replace your current language dropdown template with this: -->
+                <Listbox v-model="selectedLanguageId" @update:model-value="onLanguageSelect">
+                    <div class="relative mt-1 w-auto">
+                        <ListboxButton>
+                            <span class="block truncate">
+                                <span class="hidden sm:inline">
+                                    {{
+                                        languages.find((lang) => lang._id === selectedLanguageId)
+                                            ?.name
+                                    }}
+                                </span>
+                                <span class="inline sm:hidden">
+                                    {{
+                                        languages
+                                            .find((lang) => lang._id === selectedLanguageId)
+                                            ?.languageCode.toUpperCase()
+                                    }}
+                                </span>
+                            </span>
+                        </ListboxButton>
+
+                        <Transition
+                            enter="transition ease-out duration-100"
+                            enter-from="opacity-0 scale-95"
+                            enter-to="opacity-100 scale-100"
+                            leave="transition ease-in duration-75"
+                            leave-from="opacity-100 scale-100"
+                            leave-to="opacity-0 scale-95"
+                        >
+                            <ListboxOptions
+                                class="max-h-auto absolute right-0 z-10 mt-1 w-auto overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
+                            >
+                                <ListboxOption
+                                    v-for="language in languages"
+                                    :key="language._id"
+                                    :value="language._id"
+                                    class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                                >
+                                    {{ language.name }}
+                                    <CheckCircleIcon
+                                        v-if="selectedLanguageId === language._id"
+                                        class="h-5 w-5 text-yellow-500"
+                                    />
+                                </ListboxOption>
+                            </ListboxOptions>
+                        </Transition>
+                    </div>
+                </Listbox>
+            </div>
             <div class="text-zinc-400 dark:text-slate-300" data-test="themeButton">
                 <SunIcon class="h-6 w-6" v-if="isDarkTheme" @click="theme = 'light'" />
                 <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
