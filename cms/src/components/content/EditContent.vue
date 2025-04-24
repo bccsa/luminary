@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import BasePage from "../../components/BasePage.vue";
-import LButton from "../../components/button/LButton.vue";
-import LBadge from "../../components/common/LBadge.vue";
-import LDialog from "../../components/common/LDialog.vue";
-import EditContentParent from "./EditContentParent.vue";
-import LanguageSelector from "./LanguageSelector.vue";
-import { useNotificationStore } from "../../stores/notification";
+import BasePage from "@/components/BasePage.vue";
+import LButton from "@/components/button/LButton.vue";
+import LBadge from "@/components/common/LBadge.vue";
+import LDialog from "@/components/common/LDialog.vue";
+import EditContentParent from "@/components/content/EditContentParent.vue";
+import LanguageSelector from "@/components/content/LanguageSelector.vue";
+import { useNotificationStore } from "@/stores/notification";
 import {
     db,
     AclPermission,
@@ -30,20 +30,20 @@ import {
     TrashIcon,
 } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
-import EditContentStatus from "./EditContentStatus.vue";
-import EditContentBasic from "./EditContentBasic.vue";
-import EditContentText from "./EditContentText.vue";
-import EditContentVideo from "./EditContentVideo.vue";
+import EditContentStatus from "@/components/content/EditContentStatus.vue";
+import EditContentBasic from "@/components/content/EditContentBasic.vue";
+import EditContentText from "@/components/content/EditContentText.vue";
+import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentParentValidation from "./EditContentParentValidation.vue";
-import EmptyState from "../../components/EmptyState.vue";
-import LoadingSpinner from "../../components/LoadingSpinner.vue";
-import ConfirmBeforeLeavingModal from "../../components/modals/ConfirmBeforeLeavingModal.vue";
+import EmptyState from "@/components/EmptyState.vue";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import * as _ from "lodash";
 import router from "@/router";
-import { capitaliseFirstLetter } from "../../util/string";
-import { sortByName } from "../../util/sortByName";
+import { capitaliseFirstLetter } from "@/util/string";
+import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
-import { clientAppUrl } from "../../globalConfig";
+import { clientAppUrl } from "@/globalConfig";
 
 type Props = {
     id: Uuid;
