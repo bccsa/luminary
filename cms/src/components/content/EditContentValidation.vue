@@ -5,6 +5,8 @@ import {
     type LanguageDto,
     DocType,
     type TagDto,
+    verifyAccess,
+    AclPermission,
 } from "luminary-shared";
 import { computed, ref, watch, type ComputedRef } from "vue";
 import { validate, type Validation } from "./ContentValidator";
@@ -20,9 +22,11 @@ import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
 import LDialog from "../common/LDialog.vue";
 
+
 type Props = {
     languages: LanguageDto[];
     existingContent?: ContentDto;
+
 };
 const props = defineProps<Props>();
 const editableContent = defineModel<ContentDto>("editableContent");
@@ -32,6 +36,12 @@ const sortedLanguages = computed(() => {
 });
 
 const showDeleteModal = ref(false);
+
+const canDeleteLang = computed(() => {
+    if (!editableContent.value) return false;
+    return verifyAccess(editableContent.value.memberOf, DocType.Language, AclPermission.Delete, "all");
+});
+
 const usedLanguage = computed(() => {
     if (!editableContent.value || !sortedLanguages.value) return null;
     return sortedLanguages.value.find((l) => editableContent.value?.language == l._id);
@@ -176,7 +186,7 @@ const deleteTranslation = () => {
                             {{ statusBadge(editableContent).title }}
                         </LBadge>
                     </div>
-                    <div data-test="translation-delete-button" @click="showDeleteModal = true">
+                    <div data-test="translation-delete-button" @click="showDeleteModal = true" v-if="canDeleteLang">
                         <TrashIconSolid
                             class="ml-2 h-4 min-h-4 w-4 min-w-4 cursor-pointer text-slate-400 hover:text-red-500"
                         />
