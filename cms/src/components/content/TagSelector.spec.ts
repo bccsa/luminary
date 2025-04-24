@@ -149,34 +149,6 @@ describe("TagSelector.vue", () => {
         expect(wrapper.text()).not.toContain("Category 1");
     });
 
-    // it("shows Uuid if the user doesn't view access", async () => {
-    //     const mockCategory = {
-    //         ...mockData.mockCategoryDto,
-    //         _id: "tag-with-no-view-access",
-    //         memberOf: [],
-    //     };
-    //     await db.docs.bulkPut([mockCategory]);
-
-    //     const parent = reactive({
-    //         ...mockData.mockPostDto,
-    //         tags: ["tag-with-no-view-access"],
-    //         memberOf: [],
-    //     });
-
-    //     const wrapper = mount(TagSelector, {
-    //         props: {
-    //             tagType: TagType.Category,
-    //             language: mockData.mockLanguageDtoEng,
-    //             parent: parent,
-    //         },
-    //     });
-
-    //     // Wait for the list to be loaded
-    //     await waitForExpect(async () => {
-    //         expect(wrapper.text()).toContain("tag-with-no-view-access");
-    //     });
-    // });
-
     it("disables remove for if the user doesn't have assign access", async () => {
         delete accessMap.value["group-public-content"].tag?.assign;
 
