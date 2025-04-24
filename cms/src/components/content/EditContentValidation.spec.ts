@@ -160,7 +160,7 @@ describe("EditContentValidation.vue", () => {
             });
         });
 
-        it.only("Check whether the delete translation button has user access or not", async () => {
+        it("Check whether the delete translation button has user access or not", async () => {
                 const wrapper = mount(EditContentValidation, {
                     props: {
                         languages: [mockData.mockLanguageDtoEng],
