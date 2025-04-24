@@ -20,7 +20,7 @@ import {
     verifyAccess,
     type ContentParentDto,
 } from "luminary-shared";
-import LTag from "../common/LTagHandler/LTag.vue";
+import LTag from "@/components/common/LTagHandler/LTag.vue";
 import { watchDeep } from "@vueuse/core";
 
 type Props = {

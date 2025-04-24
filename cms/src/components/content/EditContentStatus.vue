@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import LInput from "../forms/LInput.vue";
-import LButton from "../button/LButton.vue";
-import LCard from "../common/LCard.vue";
-import LTextToggle from "../forms/LTextToggle.vue";
+import LInput from "@/components/forms/LInput.vue";
+import LButton from "@/components/button/LButton.vue";
+import LCard from "@/components/common/LCard.vue";
+import LTextToggle from "@/components/forms/LTextToggle.vue";
 import { PublishStatus, type ContentDto, db } from "luminary-shared";
 import { computed, ref } from "vue";
 import { DateTime } from "luxon";

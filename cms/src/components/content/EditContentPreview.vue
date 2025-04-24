@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import LButton from "../../components/button/LButton.vue";
-import LCard from "../../components/common/LCard.vue";
+import LButton from "@/components/button/LButton.vue";
+import LCard from "@/components/common/LCard.vue";
 import { EyeIcon, ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
 import { PublishStatus, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
-import { clientAppUrl } from "../../globalConfig";
+import { clientAppUrl } from "@/globalConfig";
 
 type Props = {
     content: ContentDto;

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import LButton from "../button/LButton.vue";
-import LCard from "../common/LCard.vue";
+import LButton from "@/components/button/LButton.vue";
+import LCard from "@/components/common/LCard.vue";
 import { DocumentTextIcon } from "@heroicons/vue/20/solid";
 import { type ContentDto } from "luminary-shared";
-import RichTextEditor from "../editor/RichTextEditor.vue";
+import RichTextEditor from "@/components/editor/RichTextEditor.vue";
 
 const EMPTY_TEXT = '{"type":"doc","content":[{"type":"paragraph"}]}';
 

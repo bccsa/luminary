@@ -9,11 +9,11 @@ import {
     superAdminAccessMap,
 } from "@/tests/mockdata";
 
-import GroupSelector from "./GroupSelector.vue";
-import LTag from "../common/LTagHandler/LTag.vue";
+import GroupSelector from "@/components/groups/GroupSelector.vue";
+import LTag from "@/components/common/LTagHandler/LTag.vue";
 import { accessMap, db, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import LCombobox from "../forms/LCombobox.vue";
+import LCombobox from "@/components/forms/LCombobox.vue";
 
 describe("GroupSelector", () => {
     // Need to set the access map before starting the tests. When moving this to beforeAll, it fails for some or other reason.

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, type Component, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
-import LTag from "../common/LTagHandler/LTag.vue";
+import LTag from "@/components/common/LTagHandler/LTag.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
-import FormLabel from "./FormLabel.vue";
+import FormLabel from "@/components/forms/FormLabel.vue";
 import { onClickOutside } from "@vueuse/core";
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();

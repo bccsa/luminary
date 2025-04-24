@@ -4,8 +4,8 @@ import { PencilIcon } from "@heroicons/vue/16/solid";
 import { PublishStatus, type ContentDto } from "luminary-shared";
 import { nextTick, ref, watch } from "vue";
 import { Slug } from "@/util/slug";
-import LCard from "../../components/common/LCard.vue";
-import LTabs from "../../components/common/LTabs.vue";
+import LCard from "@/components/common/LCard.vue";
+import LTabs from "@/components/common/LTabs.vue";
 
 type Props = {
     disabled: boolean;
