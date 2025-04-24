@@ -12,7 +12,7 @@ import {
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
 import { getPreferredContentLanguage } from "@/util/getPreferredContentLanguage";
-import LCombobox, { type ComboboxOption } from "../forms/LCombobox.vue";
+import LCombobox, { type ComboboxOption } from "@/components/forms/LCombobox.vue";
 
 type Props = {
     tagType: TagType;
@@ -37,7 +37,6 @@ const tags = useDexieLiveQueryWithDeps(
             .where({ type: DocType.Content, parentTagType: props.tagType })
             .filter((doc) => {
                 // Check if the content is in the selected / default / first available language
-                // return true;
                 return (
                     getPreferredContentLanguage(
                         (doc as ContentDto).availableTranslations || [],
@@ -51,8 +50,10 @@ const tags = useDexieLiveQueryWithDeps(
 );
 
 const assignable = computed(() =>
-    tags.value.filter((tag) =>
-        verifyAccess(tag.memberOf, DocType.Tag, AclPermission.Assign, "any"),
+    tags.value.filter(
+        (tag) =>
+            verifyAccess(tag.memberOf, DocType.Tag, AclPermission.Assign, "any") &&
+            tag.parentId !== parent.value?._id,
     ),
 );
 

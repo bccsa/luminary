@@ -178,7 +178,7 @@ const selectedLabels = computed(() => {
                 </span>
             </li>
         </div>
-        <div class="mt-3 flex flex-wrap gap-3">
+        <div class="mt-3 flex flex-wrap gap-3" data-test="selected-labels">
             <LTag
                 v-for="option in selectedLabels"
                 :key="option.id"
