@@ -23,6 +23,7 @@ import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
 import LDialog from "../common/LDialog.vue";
 
+
 type Props = {
     languages: LanguageDto[];
     existingContent?: ContentDto;
