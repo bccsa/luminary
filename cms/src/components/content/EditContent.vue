@@ -214,7 +214,7 @@ const canEditParent = computed(() => {
 
 const canDelete = computed(() => {
     if (!editableParent.value) return false;
-     return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
+    return verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Delete, "all");
 });
 
 // Dirty check and save
