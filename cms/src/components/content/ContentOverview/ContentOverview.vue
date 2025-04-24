@@ -28,17 +28,17 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
-import LSelect from "../../forms/LSelect.vue";
+import LSelect from "@/components/forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import { debouncedWatch, onClickOutside } from "@vueuse/core";
-import type { ContentOverviewQueryOptions } from "../query";
-import LInput from "../../forms/LInput.vue";
+import type { ContentOverviewQueryOptions } from "@/components/content/query";
+import LInput from "@/components/forms/LInput.vue";
 import { Menu } from "@headlessui/vue";
-import LRadio from "../../forms/LRadio.vue";
+import LRadio from "@/components/forms/LRadio.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import LTag from "../../common/LTagHandler/LTag.vue";
-import LCombobox from "../../../components/forms/LCombobox.vue";
+import LTag from "@/components/common/LTagHandler/LTag.vue";
+import LCombobox from "@/components/forms/LCombobox.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
