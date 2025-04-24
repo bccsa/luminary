@@ -9,7 +9,7 @@ beforeAll(async () => {
     initConfig({
         cms: true,
         docsIndex:
-            "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
+            "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned, [type+parentTagType], [type+parentType+language]",
         apiUrl: "http://localhost:12345",
     });
 
