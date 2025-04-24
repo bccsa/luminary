@@ -169,7 +169,13 @@ describe("EditUser.vue", () => {
         expect(saveButton.attributes("disabled")).toBeUndefined(); // Ensure that the save button is enabled
 
         const groupSelector = wrapper.find('[data-test="groupSelector"]');
-        await groupSelector.find('[data-test="removeTag"]').trigger("click");
+
+        let removeBtn;
+        await waitForExpect(() => {
+            removeBtn = groupSelector.find('[data-test="removeTag"]');
+            expect(removeBtn.exists()).toBe(true);
+        });
+        await removeBtn!.trigger("click");
 
         expect(saveButton.attributes("disabled")).toBeDefined(); // Ensure that the save button is disabled
     });
