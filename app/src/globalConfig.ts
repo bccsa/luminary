@@ -307,11 +307,3 @@ watch(
     },
     { immediate: true },
 );
-
-export const loginModalVisible = ref(false);
-/**
- * Show the login modal
- */
-export const showLoginModal = () => {
-    loginModalVisible.value = true;
-};
