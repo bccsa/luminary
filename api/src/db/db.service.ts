@@ -15,7 +15,7 @@ import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { ContentDto } from "../dto/ContentDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
-import { RedirectDto } from "src/dto/RedirectDto";
+import { RedirectDto } from "../dto/RedirectDto";
 
 /**
  * @typedef {Object} - getDocsOptions
