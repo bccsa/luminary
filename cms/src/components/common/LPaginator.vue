@@ -23,8 +23,6 @@ const props = withDefaults(defineProps<PaginatorProps>(), {
     variant: "simple",
 });
 
-const indexes = Array.from({ length: props.size }, (_, i) => i + 1);
-
 const visiblePages = computed(() => {
     const total = props.size;
     const current = index;

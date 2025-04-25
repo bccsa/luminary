@@ -115,6 +115,6 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
         </div>
     </LCard>
     <div class="mt-1 flex h-14 w-full items-center justify-center p-4">
-        <LPaginator :size="queryOptions.pageSize" v-model:index="pageIndex" variant="extended" />
+        <LPaginator :size="queryOptions.pageSize" v-model:index="pageIndex" variant="extended   " />
     </div>
 </template>
