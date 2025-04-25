@@ -1,0 +1,22 @@
+{
+    "_id": "_design/email-type-id-index",
+    "language": "query",
+    "views": {
+        "email-type-id-index": {
+            "map": {
+                "fields": {
+                    "email": "asc",
+                    "type": "asc",
+                    "_id": "asc"
+                },
+                "partial_filter_selector": {}
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["email", "type", "_id"]
+                }
+            }
+        }
+    }
+}

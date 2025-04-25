@@ -153,7 +153,7 @@ export class Socketio implements OnGatewayInit {
      * Connection event handler
      * @param socket
      */
-    connection(socket: ClientSocket) {
+    async connection(socket: ClientSocket) {
         let jwt: string | JWT.JwtPayload;
         if (socket.handshake.auth && socket.handshake.auth.token) {
             try {
@@ -172,9 +172,20 @@ export class Socketio implements OnGatewayInit {
             }
         }
 
-        // Get group access
+        // Get automatically assigned group access
         const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
         socket.data.memberOf = permissions.groups;
+
+        // Get user assigned group access
+        if (jwt && (jwt as JWT.JwtPayload).email) {
+            const userDoc = await this.db.getUserByEmail((jwt as JWT.JwtPayload).email);
+            if (userDoc && userDoc.docs.length > 0) {
+                socket.data.userId = userDoc.docs[0]._id;
+                socket.data.memberOf = [
+                    ...new Set([...socket.data.memberOf, ...userDoc.docs[0].memberOf]),
+                ];
+            }
+        }
 
         // Get user ID
         if (permissions.userId) {
@@ -182,8 +193,6 @@ export class Socketio implements OnGatewayInit {
             socket.data.userId = permissions.userId;
             return;
         }
-
-        // TODO: Get or create user ID in database
     }
 
     /**

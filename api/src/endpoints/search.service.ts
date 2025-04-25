@@ -1,6 +1,6 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbQueryResult, DbService, SearchOptions } from "../db/db.service";
-import { AclPermission, DocType } from "../enums";
+import { AclPermission, DocType, Uuid } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -64,10 +64,23 @@ export class SearchService {
             this.logger,
         );
 
-        // Get group access
+        // Get user assigned group access
+        const userMemberOf: Uuid[] = [];
+        if (jwt && (jwt as JWT.JwtPayload).email) {
+            const userDoc = await this.db.getUserByEmail((jwt as JWT.JwtPayload).email);
+            if (userDoc && userDoc.docs.length > 0) {
+                userMemberOf.push(userDoc.docs[0].groups);
+            }
+        }
+
+        // Get automatically assigned group access from JWT
         this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
         const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
-        const accessMap: AccessMap = PermissionSystem.getAccessMap(permissions.groups);
+
+        // Retrieve the users's access map
+        const accessMap: AccessMap = PermissionSystem.getAccessMap([
+            ...new Set([...permissions.groups, ...userMemberOf]),
+        ]);
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(accessMap, AclPermission.View, [

@@ -9,6 +9,8 @@ export type PermissionMap = {
 export type jwtPermissions = {
     groups: Array<Uuid>;
     userId?: Uuid;
+    email?: string;
+    name?: string;
 };
 
 /**

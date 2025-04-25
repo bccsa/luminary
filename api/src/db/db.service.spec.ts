@@ -91,6 +91,12 @@ describe("DbService", () => {
             expect(res.docs.every((d) => d.type === DocType.Content)).toBe(true);
             expect(res.docs.every((d) => d.language === "lang-eng")).toBe(true);
         });
+
+        it("can get a user document by email", async () => {
+            const res = await service.getUserByEmail("editor1@users.test");
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].type === DocType.User).toBe(true);
+        });
     });
 
     describe("upsert", () => {

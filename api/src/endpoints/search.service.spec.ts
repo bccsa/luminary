@@ -3,7 +3,7 @@ import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { DeleteReason, DocType } from "../enums";
 import { SearchReqDto } from "../dto/SearchReqDto";
-import { DeleteCmdDto } from "src/dto/DeleteCmdDto";
+import { DeleteCmdDto } from "../dto/DeleteCmdDto";
 
 jest.mock("../configuration", () => {
     const originalModule = jest.requireActual("../configuration");
