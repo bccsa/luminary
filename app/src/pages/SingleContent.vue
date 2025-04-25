@@ -31,6 +31,7 @@ import {
     appLanguagePreferredIdAsRef,
     isDarkTheme,
     theme,
+    appLanguageAsRef,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -342,17 +343,14 @@ setTimeout(() => {
                 const preferredContent = availableTranslations.value.find(
                     (c) => c.language == appLanguagePreferredIdAsRef.value,
                 );
-
-                const languageName =
-                    languages.value.find((l) => l._id === preferredContent?.language)?.name ??
-                    preferredContent?.language;
+                // TODO: add translations in seedings docs for this notification
 
                 // check if it is already in the preferred language and in the SingleContent page
                 if (preferredContent && router.currentRoute.value.name == "content") {
                     useNotificationStore().addNotification({
                         id: "content-available",
                         title: "Content available",
-                        description: `This content is also available in ${languageName}. Click here to view it.`,
+                        description: `This content is also available in ${appLanguageAsRef.value.name}. Click here to view it.`,
                         state: "info",
                         type: "banner",
                         timeout: 5000,
