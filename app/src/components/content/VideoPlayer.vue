@@ -81,9 +81,9 @@ onMounted(() => {
         html5: {
             vhs: {
                 overrideNative: true,
-                enableLowInitialPlaylist: true,
-                maxPlaylistRetries: 10,
-                bandwidth: 5000000,
+                enableLowInitialPlaylist: true, // Retries failed playlist fetches, which could prevent stalls if the audio playlist (.aac) fails to load.
+                maxPlaylistRetries: 10, // Retries failed playlist fetches, which could prevent stalls if the audio playlist (.aac) fails to load.
+                bandwidth: 5000000, // Set a high bandwidth limit to prevent stalls on low bandwidth connections
             },
             nativeAudioTracks: videojs.browser.IS_SAFARI,
             nativeVideoTracks: videojs.browser.IS_SAFARI,
@@ -114,9 +114,6 @@ onMounted(() => {
     };
 
     player = videojs(playerElement.value!, options);
-
-    // enable debug logging
-    videojs.log.level("debug");
 
     // emit event with player on mount
     const playerEvent = new CustomEvent("vjsPlayer", { detail: player });
@@ -185,21 +182,21 @@ onMounted(() => {
         }
     });
 
-    // // // Log HLS playlist fetches
-    // player.on("loadmetadata", () => {
-    //     const hls = (player as any).hls;
-    //     if (hls) {
-    //         hls.on("playlist", () => {
-    //             // Log the fetched playlist
-    //             console.log("Playlist fetched:", hls.playlists.master);
-    //         });
+    // Listen for the "loadedmetadata" event to ensure metadata is available
+    player.on("loadedmetadata", () => {
+        const vhs = (player as any).vhs; // Access the VHS (Video.js HTTP Live Streaming) plugin
+        if (vhs) {
+            // Listen for the "playlist" event, which is triggered when an HLS playlist is fetched
+            vhs.on("playlist", () => {
+                console.log("HLS playlist fetched:", vhs.playlists.master); // Log the fetched HLS playlist
+            });
 
-    //         // Handle VHS errors
-    //         hls.on("error", (error: any) => {
-    //             console.error("VHS error:", error);
-    //         });
-    //     }
-    // });
+            // Listen for the "error" event to handle any VHS-related errors
+            vhs.on("error", (err: any) => {
+                console.error("VHS error:", err); // Log the error details
+            });
+        }
+    });
 
     // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
     player.on(["mousemove", "click"], autoHidePlayerControls);
