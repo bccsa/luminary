@@ -31,6 +31,32 @@ export class SearchService {
      * @returns
      */
     async processReq(query: SearchReqDto, token: string): Promise<DbQueryResult> {
+        // Validate request
+        if (!query.slug && (!query.types || query.types.length < 1)) {
+            throw new HttpException(
+                "Missing required parameters: slug or types",
+                HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        if (query.slug) {
+            const queryKeys = Object.keys(query);
+            const allowedKeys = ["slug", "apiVersion"];
+            const invalidKeys = queryKeys.filter((key) => !allowedKeys.includes(key));
+
+            if (invalidKeys.length > 0) {
+                throw new HttpException(
+                    `Invalid parameters: A 'slug' search request is invalid when used together with ${invalidKeys.join(
+                        ", ",
+                    )}`,
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            // Set types for slug queries
+            query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
+        }
+
         // decode and validate JWT
         const jwt: string | JWT.JwtPayload = validateJWT(
             token,
@@ -72,6 +98,7 @@ export class SearchService {
             sort: query.sort,
             languages: query.languages,
             docId: query.docId,
+            slug: query.slug,
         };
 
         let _res = undefined;

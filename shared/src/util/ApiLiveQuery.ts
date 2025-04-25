@@ -1,7 +1,14 @@
 import { computed, Ref, ref, watch } from "vue";
 import { ApiSearchQuery, getRest } from "../rest/RestApi";
 import { getSocket, isConnected } from "../socket/socketio";
-import { ApiQueryResult, BaseDocumentDto, ContentDto, DeleteCmdDto, DocType } from "../types";
+import {
+    ApiQueryResult,
+    BaseDocumentDto,
+    ContentDto,
+    DeleteCmdDto,
+    DocType,
+    RedirectDto,
+} from "../types";
 import { db } from "../db/database";
 
 export type ApiLiveQueryOptions<T> = {
@@ -185,6 +192,12 @@ export function applySocketData<T extends BaseDocumentDto>(
     if (query.from) docs = docs.filter((doc) => doc.updatedTimeUtc >= query.from!);
     if (query.to) docs = docs.filter((doc) => doc.updatedTimeUtc <= query.to!);
     if (query.docId) docs = docs.filter((doc) => doc._id === query.docId);
+    if (query.slug) {
+        docs = docs.filter((doc) => {
+            const typedDoc = doc as unknown as RedirectDto | ContentDto;
+            return typedDoc.slug === query.slug;
+        });
+    }
 
     // If limit or offset is set, only update already existing documents
     if (query.limit || query.offset) {

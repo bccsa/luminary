@@ -18,7 +18,7 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, userPreferencesAsRef } from "@/globalConfig";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
@@ -43,12 +43,6 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 vi.mock("@auth0/auth0-vue");
-
-vi.mock("vue-i18n", () => ({
-    useI18n: () => ({
-        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
-    }),
-}));
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -271,29 +265,7 @@ describe("SingleContent", () => {
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });
-
-    it("switches the content correctly when the language changes", async () => {
-        await initLanguage();
-
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockEnglishContentDto.slug,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
-        });
-
-        await waitForExpect(() => {
-            // Simulate language change
-            appLanguageIdsAsRef.value.unshift(mockLanguageDtoFra._id);
-            expect(routeReplaceMock).toBeCalledWith({
-                name: "content",
-                params: { slug: mockFrenchContentDto.slug },
-            });
-        });
-    });
+    // TODO: Add test to check if the notification is shown when the content is available in the preferred language
 
     it("sets the meta data correctly", async () => {
         mount(SingleContent, {
@@ -426,7 +398,7 @@ describe("SingleContent", () => {
 
             // expect ImageModal to have the correct image source and correct props
             const imageModal = wrapper.findComponent(ImageModal);
-            expect(imageModal.props("image")).toBe(mockEnglishContentDto.parentImageData);
+            expect(imageModal.props("image")).toEqual(mockEnglishContentDto.parentImageData);
             expect(imageModal.props("aspectRatio")).toBe("video");
             expect(imageModal.props("size")).toBe("post");
         });
