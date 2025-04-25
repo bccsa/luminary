@@ -81,6 +81,9 @@ onMounted(() => {
         html5: {
             vhs: {
                 overrideNative: true,
+                enableLowInitialPlaylist: true,
+                maxPlaylistRetries: 10,
+                bandwidth: 5000000,
             },
             nativeAudioTracks: videojs.browser.IS_SAFARI,
             nativeVideoTracks: videojs.browser.IS_SAFARI,
@@ -112,6 +115,9 @@ onMounted(() => {
 
     player = videojs(playerElement.value!, options);
 
+    // enable debug logging
+    videojs.log.level("debug");
+
     // emit event with player on mount
     const playerEvent = new CustomEvent("vjsPlayer", { detail: player });
     window.dispatchEvent(playerEvent);
@@ -138,10 +144,62 @@ onMounted(() => {
         setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
     });
 
+    // Stabilize audio tracks on fullscreen
+    player.on("fullscreenchange", () => {
+        if (player.isFullscreen()) {
+            const currentLanguage = appLanguagesPreferredAsRef.value[0].languageCode || null;
+            setAudioTrackLanguage(currentLanguage);
+            const currentTime = player.currentTime() || 0;
+            player.currentTime(currentTime + 0.001);
+        }
+    });
+
+    // Handle the "waiting" event, which occurs when the player is buffering
+    player.on("waiting", () => {
+        const currentTime = player.currentTime() || 0; // Get the current playback time
+        setTimeout(() => {
+            // Check if the player is still stalled after 2 seconds
+            if (player.currentTime() === currentTime && !player.paused()) {
+                console.warn("Player stalled, attempting to refresh buffer");
+
+                // Slightly adjust the current time to refresh the buffer
+                player.currentTime(currentTime + 0.001);
+
+                // Reapply the preferred audio track language
+                setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+            }
+        }, 2000);
+    });
+
     // Reapply audio track when tracks are updated
     player.on("audioTracks", () => {
-        setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+        // retrieve the audio tracks from the player instance
+        const audioTracks = (player as any).audioTracks();
+        if (!audioTracks || audioTracks.length === 0) {
+            console.warn("No audio tracks available. attempting to relaod source");
+
+            // reload the video source
+            player.src({ type: "application/x-mpegURL", src: props.content.video });
+        } else {
+            setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+        }
     });
+
+    // // // Log HLS playlist fetches
+    // player.on("loadmetadata", () => {
+    //     const hls = (player as any).hls;
+    //     if (hls) {
+    //         hls.on("playlist", () => {
+    //             // Log the fetched playlist
+    //             console.log("Playlist fetched:", hls.playlists.master);
+    //         });
+
+    //         // Handle VHS errors
+    //         hls.on("error", (error: any) => {
+    //             console.error("VHS error:", error);
+    //         });
+    //     }
+    // });
 
     // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
     player.on(["mousemove", "click"], autoHidePlayerControls);
