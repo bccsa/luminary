@@ -95,7 +95,7 @@ const selectedLabels = computed(() => {
                     () => {
                         // Add the highlighted option to the selected options on enter
                         if (highlightedIndex >= 0) {
-                            selectedOptions.push(filtered[highlightedIndex].id);
+                            selectedOptions.push(filtered[highlightedIndex].value);
                             query = '';
                             showDropdown = false;
                             return;
@@ -103,7 +103,7 @@ const selectedLabels = computed(() => {
 
                         // If no option is highlighted, add the first option to the selected options
                         if (filtered.length > 0) {
-                            selectedOptions.push(filtered[0].id);
+                            selectedOptions.push(filtered[0].value);
                             query = '';
                             showDropdown = false;
                         }
@@ -166,7 +166,7 @@ const selectedLabels = computed(() => {
                 @click="
                     () => {
                         if (!option.selected) {
-                            selectedOptions.push(option.id);
+                            selectedOptions.push(option.value);
                         }
                         query = '';
                         showDropdown = false;
@@ -178,14 +178,14 @@ const selectedLabels = computed(() => {
                 </span>
             </li>
         </div>
-        <div class="mt-3 flex flex-wrap gap-3">
+        <div class="mt-3 flex flex-wrap gap-3" data-test="selected-labels">
             <LTag
                 v-for="option in selectedLabels"
                 :key="option.id"
                 @remove="
                     () => {
                         if (option.isRemovable !== false) {
-                            selectedOptions.splice(selectedOptions?.indexOf(option.id), 1);
+                            selectedOptions.splice(selectedOptions?.indexOf(option.value), 1);
                         }
                     }
                 "

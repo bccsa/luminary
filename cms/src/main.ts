@@ -33,7 +33,7 @@ async function Startup() {
     await init({
         cms: true,
         docsIndex:
-            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug, title, [type+parentType+language]",
+            "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug, title, [type+parentType+language], [type+parentTagType]",
         apiUrl,
         token,
         syncList: [

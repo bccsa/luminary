@@ -207,8 +207,9 @@ export const mockCategoryContentDto: ContentDto = {
     type: DocType.Content,
     parentId: "tag-category1",
     parentType: DocType.Tag,
+    parentTagType: TagType.Category,
     updatedTimeUtc: 1704114000000,
-    memberOf: [],
+    memberOf: ["group-public-content"],
     parentTags: [],
     language: "lang-eng",
     status: PublishStatus.Published,
@@ -232,6 +233,7 @@ export const mockCategoryContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: false,
+    availableTranslations: ["lang-eng"],
 };
 
 export const mockTopicContentDto: ContentDto = {
@@ -239,8 +241,9 @@ export const mockTopicContentDto: ContentDto = {
     type: DocType.Content,
     parentId: "tag-topicA",
     parentType: DocType.Tag,
+    parentTagType: TagType.Topic,
     updatedTimeUtc: 1704114000000,
-    memberOf: [],
+    memberOf: ["group-public-content"],
     parentTags: [],
     language: "lang-eng",
     status: PublishStatus.Published,
@@ -264,6 +267,7 @@ export const mockTopicContentDto: ContentDto = {
         ],
     } as ImageDto,
     parentPublishDateVisible: false,
+    availableTranslations: ["lang-eng"],
 };
 
 export const mockLanguageDtoEng: LanguageDto = {

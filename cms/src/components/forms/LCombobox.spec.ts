@@ -9,9 +9,8 @@ import {
 import { accessMap, db, DocType } from "luminary-shared";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import LCombobox from "./LCombobox.vue";
+import LCombobox, { type ComboboxOption } from "./LCombobox.vue";
 import waitForExpect from "wait-for-expect";
-import LInput from "./LInput.vue";
 import LTag from "../content/LTag.vue";
 import { ref } from "vue";
 
@@ -36,21 +35,19 @@ describe("LCombobox", () => {
     });
 
     it("displays selected options", async () => {
-        const selected = ref([]);
+        // Selected option labels are controlled externally, so we only need to pass the selected values
+        const options = ref([]);
+        const selectedLabels = ref([
+            { id: 0, label: "Test Label", value: "test-value" } as ComboboxOption,
+        ]);
+
         const wrapper = mount(LCombobox, {
             props: {
-                options: [{ id: 0, label: "Test Label", value: "test-value" }],
-                selectedOptions: selected.value,
-                docType: DocType.Post,
+                options: selectedLabels.value,
+                selectedOptions: options.value, // used to inform the parent of the selected options, but not used to display the labels directly, so we can pass an empty array
+                selectedLabels: selectedLabels.value,
             },
         });
-
-        await wrapper.findComponent(LInput).setValue("Test Label");
-        await wrapper.findComponent(LInput).trigger("change");
-
-        await wrapper.find('[name="options-open-btn"]').trigger("click");
-
-        await wrapper.find("[name='list-item']").trigger("click");
 
         const lTag = wrapper.findComponent(LTag);
 
