@@ -599,6 +599,37 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("should generate a redirect if a slug has been changed", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
+            await wrapper.find('[data-test="editSlugButton"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
+
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        const res = await db.docs.where("type").equals(DocType.Redirect).toArray();
+
+        expect(res.length).toBe(1);
+        expect(res[0].type).toBe(DocType.Redirect);
+    });
+
+    // Check if the redirect is created in localChanges
+
     describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
