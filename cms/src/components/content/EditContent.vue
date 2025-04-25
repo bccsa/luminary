@@ -21,6 +21,8 @@ import {
     type ContentParentDto,
     PostType,
     isConnected,
+    type RedirectDto,
+    RedirectType,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -247,6 +249,32 @@ const saveChanges = async () => {
         (d) => d.language === selectedLanguageId.value,
     );
     const isPublished = prevContentDoc?.status === PublishStatus.Published;
+
+    if (
+        selectedContent.value &&
+        selectedContent_Existing.value &&
+        !_.isEqual(selectedContent.value.slug, selectedContent_Existing.value?.slug)
+    ) {
+        console.log("Existing content slug", selectedContent_Existing.value.slug);
+        console.log("Selected content slug", selectedContent.value.slug);
+        const newRedirect: RedirectDto = {
+            _id: db.uuid(),
+            type: DocType.Redirect,
+            updatedTimeUtc: Date.now(),
+            memberOf: _.cloneDeep(selectedContent.value.memberOf),
+            slug: selectedContent_Existing.value.slug,
+            redirectType: RedirectType.Temporary,
+            toSlug: selectedContent_Existing.value.slug,
+        };
+
+        addNotification({
+            title: "Redirect created",
+            description: `A redirect was created from ${selectedContent_Existing.value.slug} to ${selectedContent.value.slug}`,
+            state: "info",
+        });
+
+        await db.upsert({ doc: newRedirect });
+    }
 
     // If editing a published doc, require publish permission
     if (
