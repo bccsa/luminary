@@ -4,34 +4,29 @@ import { ChangeRequestService } from "./changeRequest.service";
 import { AckStatus } from "../enums";
 import { changeRequest_post } from "../test/changeRequestDocuments";
 
-jest.mock("../configuration", () => {
-    const originalModule = jest.requireActual("../configuration");
-    const origConfig = originalModule.default();
-
-    return {
-        default: () => ({
-            ...origConfig,
-            permissionMap: `{
-                "jwt": {
-                    "groups": {
-                        "group-super-admins": "() => true"
-                    },
-                    "userId": {
-                        "user-super-admin": "() => true"
-                    }
-                }
-            }`,
-        }),
-    };
-});
-
 describe("ChangeRequest service", () => {
+    const oldEnv = process.env;
     let service: DbService;
     let changeRequestService: ChangeRequestService;
 
     beforeAll(async () => {
+        process.env = { ...oldEnv }; // Make a copy of the old environment variables
+
+        process.env.JWT_MAPPINGS = `{
+            "groups": {
+                "group-super-admins": "() => true"
+            },
+            "userId": "() => 'user-super-admin'",
+            "email": "() => 'test@123.com'",
+            "name": "() => 'Test User'"
+        }`;
+
         service = (await createTestingModule("changereq-service")).dbService;
         changeRequestService = new ChangeRequestService(undefined, service, undefined);
+    });
+
+    afterAll(async () => {
+        process.env = oldEnv; // Restore the original environment variables
     });
 
     it("can query the api endpoint", async () => {

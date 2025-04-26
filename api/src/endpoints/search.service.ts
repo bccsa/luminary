@@ -1,13 +1,11 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbQueryResult, DbService, SearchOptions } from "../db/db.service";
-import { AclPermission, DocType, Uuid } from "../enums";
+import { AclPermission, DocType } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { getJwtPermission, parsePermissionMap } from "../jwt/jwtPermissionMap";
-import * as JWT from "jsonwebtoken";
+import { processJwt } from "../jwt/processJwt";
 import configuration, { Configuration } from "../configuration";
-import { validateJWT } from "../validation/jwt";
 import { SearchReqDto } from "../dto/SearchReqDto";
 
 @Injectable()
@@ -57,30 +55,10 @@ export class SearchService {
             query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
         }
 
-        // decode and validate JWT
-        const jwt: string | JWT.JwtPayload = validateJWT(
-            token,
-            this.config.auth.jwtSecret,
-            this.logger,
-        );
-
-        // Get user assigned group access
-        const userMemberOf: Uuid[] = [];
-        if (jwt && (jwt as JWT.JwtPayload).email) {
-            const userDoc = await this.db.getUserByEmail((jwt as JWT.JwtPayload).email);
-            if (userDoc && userDoc.docs.length > 0) {
-                userMemberOf.push(userDoc.docs[0].groups);
-            }
-        }
-
-        // Get automatically assigned group access from JWT
-        this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
-        const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
+        const userDetails = processJwt(token, this.logger);
 
         // Retrieve the users's access map
-        const accessMap: AccessMap = PermissionSystem.getAccessMap([
-            ...new Set([...permissions.groups, ...userMemberOf]),
-        ]);
+        const accessMap: AccessMap = PermissionSystem.getAccessMap(userDetails.groups);
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(accessMap, AclPermission.View, [
@@ -123,7 +101,7 @@ export class SearchService {
                 }
             })
             .catch((err) => {
-                this.logger.error(`Error getting data for client: ${permissions.userId}`, err);
+                this.logger.error(`Error getting data for client: ${userDetails.userId}`, err);
             });
         return _res;
     }

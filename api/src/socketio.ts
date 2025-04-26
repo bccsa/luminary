@@ -7,16 +7,15 @@ import {
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
-import { AclPermission, AckStatus, Uuid, DocType } from "./enums";
+import { AclPermission, AckStatus, DocType } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { processChangeRequest } from "./changeRequests/processChangeRequest";
 import { AccessMap } from "./permissions/permissions.service";
-import * as JWT from "jsonwebtoken";
 import configuration, { Configuration } from "./configuration";
-import { PermissionMap, getJwtPermission, parsePermissionMap } from "./jwt/jwtPermissionMap";
+import { JwtUserDetails, processJwt } from "./jwt/processJwt";
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -72,8 +71,7 @@ interface InterServerEvents {}
  * Socket.io client socket.data type definition
  */
 interface SocketData {
-    userId: Uuid;
-    memberOf: Array<Uuid>;
+    userDetails: JwtUserDetails;
 }
 
 type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>;
@@ -86,7 +84,6 @@ type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketD
 })
 @Injectable()
 export class Socketio implements OnGatewayInit {
-    permissionMap: PermissionMap;
     config: Configuration;
 
     constructor(
@@ -101,9 +98,6 @@ export class Socketio implements OnGatewayInit {
 
         // Create config object with environmental variables
         this.config = configuration();
-
-        // Parse permission map
-        this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
 
         // Subscribe to database changes and broadcast change to all group rooms to which the document belongs
         this.db.on("update", async (update: any) => {
@@ -154,45 +148,19 @@ export class Socketio implements OnGatewayInit {
      * @param socket
      */
     async connection(socket: ClientSocket) {
-        let jwt: string | JWT.JwtPayload;
-        if (socket.handshake.auth && socket.handshake.auth.token) {
-            try {
-                jwt = JWT.verify(socket.handshake.auth.token, this.config.auth.jwtSecret);
-            } catch (err) {
-                this.logger.error(`Error verifying JWT`, err);
-            }
-
-            if (!jwt) {
-                // Assume that the user's token is expired.
-                // Prompt the user to re-authenticate when an invalid token is provided.
-                socket.emit("apiAuthFailed");
-                // Disconnect the client to prevent further communication.
-                socket.disconnect(true);
-                return;
-            }
-        }
-
         // Get automatically assigned group access
-        const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
-        socket.data.memberOf = permissions.groups;
+        const userDetails = processJwt(socket.handshake.auth.token, this.logger);
 
-        // Get user assigned group access
-        if (jwt && (jwt as JWT.JwtPayload).email) {
-            const userDoc = await this.db.getUserByEmail((jwt as JWT.JwtPayload).email);
-            if (userDoc && userDoc.docs.length > 0) {
-                socket.data.userId = userDoc.docs[0]._id;
-                socket.data.memberOf = [
-                    ...new Set([...socket.data.memberOf, ...userDoc.docs[0].memberOf]),
-                ];
-            }
-        }
-
-        // Get user ID
-        if (permissions.userId) {
-            // Public or JWT assigned user ID.
-            socket.data.userId = permissions.userId;
+        if (socket.handshake.auth.token && !userDetails.jwtPayload) {
+            // Assume that the user's token is expired.
+            // Prompt the user to re-authenticate when an invalid token is provided.
+            socket.emit("apiAuthFailed");
+            // Disconnect the client to prevent further communication.
+            socket.disconnect(true);
             return;
         }
+
+        socket.data.userDetails = userDetails;
     }
 
     /**
@@ -207,7 +175,7 @@ export class Socketio implements OnGatewayInit {
     ) {
         // Send client configuration data
         // Get access map and send to client
-        const accessMap = PermissionSystem.getAccessMap(socket.data.memberOf);
+        const accessMap = PermissionSystem.getAccessMap(socket.data.userDetails.groups);
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             accessMap: accessMap,
@@ -253,17 +221,17 @@ export class Socketio implements OnGatewayInit {
     ) {
         // Process change request
         await processChangeRequest(
-            socket.data.userId,
+            socket.data.userDetails.userId || "",
             changeRequest,
-            socket.data.memberOf,
+            socket.data.userDetails.groups,
             this.db,
             this.s3,
         )
-            .then(() => {
-                this.emitAck(socket, AckStatus.Accepted, changeRequest);
+            .then(async () => {
+                await this.emitAck(socket, AckStatus.Accepted, changeRequest);
             })
-            .catch((err) => {
-                this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
+            .catch(async (err) => {
+                await this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
             });
     }
 
@@ -310,7 +278,7 @@ export class Socketio implements OnGatewayInit {
                         doc.memberOf,
                         changeRequest.doc.type,
                         AclPermission.View,
-                        socket.data.memberOf,
+                        socket.data.userDetails.groups,
                         "any",
                     ),
                 );

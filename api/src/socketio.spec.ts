@@ -27,6 +27,7 @@ jest.mock("./configuration", () => {
 });
 
 describe("Socketio", () => {
+    const oldEnv = process.env;
     let server: Socketio;
     let client: Socket;
     let app: INestApplication;
@@ -39,6 +40,17 @@ describe("Socketio", () => {
     }
 
     beforeAll(async () => {
+        process.env = { ...oldEnv }; // Make a copy of the old environment variables
+
+        process.env.JWT_MAPPINGS = `{
+            "groups": {
+                "group-super-admins": "() => true"
+            },
+            "userId": "() => 'user-super-admin'",
+            "email": "() => 'test@123.com'",
+            "name": "() => 'Test User'"
+        }`;
+
         app = await createNestApp();
         await app.listen(process.env.PORT);
 
@@ -49,6 +61,8 @@ describe("Socketio", () => {
     afterAll(async () => {
         client.off();
         await app.close();
+
+        process.env = oldEnv; // Restore the original environment variables
     });
 
     it("can be instantiated", () => {
