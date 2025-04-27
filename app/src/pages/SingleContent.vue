@@ -323,81 +323,75 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
-setTimeout(() => {
-    watch(
-        [selectedLanguageId, content, appLanguagePreferredIdAsRef],
-        async () => {
-            if (!selectedLanguageId.value) return;
-            if (!content.value) return;
-
-            const preferred = availableTranslations.value.find(
-                (c) => c.language == selectedLanguageId.value,
-            );
-
-            if (preferred) {
-                // Check if the preferred translation is published
-                router.replace({ name: "content", params: { slug: preferred.slug } });
-            }
-
-            if (content.value && content.value.language !== appLanguagePreferredIdAsRef.value) {
-                const preferredContent = availableTranslations.value.find(
-                    (c) => c.language == appLanguagePreferredIdAsRef.value,
-                );
-                // TODO: add translations in seedings docs for this notification
-
-                // check if it is already in the preferred language and in the SingleContent page
-                if (preferredContent && router.currentRoute.value.name == "content") {
-                    useNotificationStore().addNotification({
-                        id: "content-available",
-                        title: "Content available",
-                        description: `This content is also available in ${appLanguageAsRef.value?.name}. Click here to view it.`,
-                        state: "info",
-                        type: "banner",
-                        timeout: 5000,
-                        closable: true,
-                        link: {
-                            name: "content",
-                            params: { slug: preferredContent.slug },
-                        },
-                        openLink: true,
-                    });
-                }
-            }
-
-            const removeNotificationIfNeeded = () => {
-                if (
-                    (content.value &&
-                        content.value.language == appLanguagePreferredIdAsRef.value) ||
-                    router.currentRoute.value.name !== "content"
-                ) {
-                    // Remove the notification if the content is already in the preferred language
-                    // or if the user navigates away from the "content" page
-                    useNotificationStore().removeNotification("content-available");
-                }
-            };
-
-            // Initial check to remove the notification if conditions are met
-            removeNotificationIfNeeded();
-
-            // Watch for route changes to remove the notification if the user navigates away
-            watch(
-                () => router.currentRoute.value.name,
-                () => {
-                    removeNotificationIfNeeded();
-                },
-            );
-        },
-        { immediate: true, deep: true },
-    );
-}, 1000);
-
 watch(content, () => {
     selectedLanguageId.value = content.value?.language;
 });
 
+watch(
+    [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
+    async () => {
+        if (!selectedLanguageId.value || !content.value) return;
+
+        const preferred = availableTranslations.value.find(
+            (c) => c.language == selectedLanguageId.value,
+        );
+
+        if (preferred) {
+            // Check if the preferred translation is published
+            router.replace({ name: "content", params: { slug: preferred.slug } });
+        }
+
+        if (content.value && content.value.language !== appLanguagePreferredIdAsRef.value) {
+            const preferredContent = availableTranslations.value.find(
+                (c) => c.language == appLanguagePreferredIdAsRef.value,
+            );
+            // TODO: add translations in seedings docs for this notification
+
+            // check if it is already in the preferred language and in the SingleContent page
+            if (preferredContent) {
+                useNotificationStore().addNotification({
+                    id: "content-available",
+                    title: "Content available",
+                    description: `This content is also available in ${appLanguageAsRef.value?.name}. Click here to view it.`,
+                    state: "info",
+                    type: "banner",
+                    timeout: 5000,
+                    closable: true,
+                    link: {
+                        name: "content",
+                        params: { slug: preferredContent.slug },
+                    },
+                    openLink: true,
+                });
+            }
+        }
+
+        const removeNotificationIfNeeded = () => {
+            if (content.value && content.value.language == appLanguagePreferredIdAsRef.value) {
+                // Remove the notification if the content is already in the preferred language
+                // or if the user navigates away from the "content" page
+                useNotificationStore().removeNotification("content-available");
+            }
+        };
+
+        // Initial check to remove the notification if conditions are met
+        removeNotificationIfNeeded();
+
+        // Watch for route changes to remove the notification if the user navigates away
+        watch(
+            () => router.currentRoute.value.name,
+            () => {
+                removeNotificationIfNeeded();
+            },
+        );
+    },
+    { immediate: true, deep: true },
+);
+
 // Change language
 const onLanguageSelect = (languageId: Uuid) => {
     selectedLanguageId.value = languageId;
+
     const preferred = availableTranslations.value.find(
         (c) => c.language == languageId && isPublished(c, appLanguageIdsAsRef.value),
     );
