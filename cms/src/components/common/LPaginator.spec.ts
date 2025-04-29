@@ -13,8 +13,8 @@ describe("LPaginator", () => {
                 index: index.value,
                 pageSize: pageSize.value,
                 amountOfDocs: 100,
-                "onUpdate:index": (val) => (index.value = val),
-                "onUpdate:pageSize": (val) => (pageSize.value = val),
+                "onUpdate:index": (val: number) => (index.value = val),
+                "onUpdate:pageSize": (val: number) => (pageSize.value = val),
             },
         });
 
@@ -32,8 +32,8 @@ describe("LPaginator", () => {
                 index: index.value,
                 pageSize: pageSize.value,
                 amountOfDocs: 100,
-                "onUpdate:index": (val) => (index.value = val),
-                "onUpdate:pageSize": (val) => (pageSize.value = val),
+                "onUpdate:index": (val: number) => (index.value = val),
+                "onUpdate:pageSize": (val: number) => (pageSize.value = val),
             },
         });
 
