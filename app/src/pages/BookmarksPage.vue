@@ -6,6 +6,7 @@ import { computed } from "vue";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
 import { isPublished } from "@/util/isPublished";
 import { useI18n } from "vue-i18n";
+import BasePage from "@/components/BasePage.vue";
 
 const { t } = useI18n();
 
@@ -41,7 +42,8 @@ const sorted = computed(
 </script>
 
 <template>
-    <div>
+    <BasePage >
+        <div>
         <h1 class="mb-4 text-xl font-medium text-zinc-700 dark:text-slate-100">
             {{ t("bookmarks.title") }}
         </h1>
@@ -57,4 +59,5 @@ const sorted = computed(
             {{ t("bookmarks.empty_page") }} "<BookmarkIcon class="inline h-5 w-5" />"
         </div>
     </div>
+    </BasePage>
 </template>
