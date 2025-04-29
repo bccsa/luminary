@@ -1,62 +1,62 @@
 name: "Build & Deploy API to staging"
 
 on:
-    push:
-        branches: [main]
-        paths:
-            - api/**
-            - .github/workflows/api-deploy-staging.yml
-    workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - api/**
+      - .github/workflows/api-deploy-staging.yml
+  workflow_dispatch:
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
-    CI: true
+  CI: true
 
 jobs:
-    test:
-        uses: ./.github/workflows/api-unit-tests.yml
+  test:
+    uses: ./.github/workflows/api-unit-tests.yml
 
-    deploy:
-        needs: test
-        runs-on: [self-hosted, ac]
-        environment: api-staging
+  deploy:
+    needs: test
+    runs-on: [self-hosted, ac]
+    environment: api-staging
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Create .env file
-              # To support multiline secrets, we need to use echo and escape the secrets
-              run: |
-                  touch .env
-                  echo PORT=${{ vars.DOCKER_PORT }} >> .env
-                  echo "JWT_SECRET='$( echo '${{ secrets.JWT_SECRET }}' )'" >> .env
-                  echo "DB_CONNECTION_STRING='$( echo '${{ secrets.DB_CONNECTION_STRING }}' )'" >> .env
-                  echo "DB_DATABASE='$( echo '${{ secrets.DB_DATABASE }}' )'" >> .env
-                  echo "PERMISSION_MAP='$( echo '${{ secrets.PERMISSION_MAP }}' )'" >> .env
-                  echo "S3_ENDPOINT='$( echo '${{ secrets.S3_ENDPOINT }}' )'" >> .env
-                  echo "S3_PORT='$( echo '${{ secrets.S3_PORT }}' )'" >> .env
-                  echo "S3_USE_SSL='$( echo '${{ secrets.S3_USE_SSL }}' )'" >> .env
-                  echo "S3_ACCESS_KEY='$( echo '${{ secrets.S3_ACCESS_KEY }}' )'" >> .env
-                  echo "S3_SECRET_KEY='$( echo '${{ secrets.S3_SECRET_KEY }}' )'" >> .env
-                  echo "S3_IMG_BUCKET='$( echo '${{ secrets.S3_IMG_BUCKET }}' )'" >> .env
-                  echo "CORS_ORIGIN='$( echo '${{ vars.CORS_ORIGIN }}' )'" >> .env
+      - name: Create .env file
+        # To support multiline secrets, we need to use echo and escape the secrets
+        run: |
+          touch .env
+          echo PORT=${{ vars.DOCKER_PORT }} >> .env
+          echo "JWT_SECRET='$( echo '${{ secrets.JWT_SECRET }}' )'" >> .env
+          echo "DB_CONNECTION_STRING='$( echo '${{ secrets.DB_CONNECTION_STRING }}' )'" >> .env
+          echo "DB_DATABASE='$( echo '${{ secrets.DB_DATABASE }}' )'" >> .env
+          echo "S3_ENDPOINT='$( echo '${{ secrets.S3_ENDPOINT }}' )'" >> .env
+          echo "S3_PORT='$( echo '${{ secrets.S3_PORT }}' )'" >> .env
+          echo "S3_USE_SSL='$( echo '${{ secrets.S3_USE_SSL }}' )'" >> .env
+          echo "S3_ACCESS_KEY='$( echo '${{ secrets.S3_ACCESS_KEY }}' )'" >> .env
+          echo "S3_SECRET_KEY='$( echo '${{ secrets.S3_SECRET_KEY }}' )'" >> .env
+          echo "S3_IMG_BUCKET='$( echo '${{ secrets.S3_IMG_BUCKET }}' )'" >> .env
+          echo "CORS_ORIGIN='$( echo '${{ vars.CORS_ORIGIN }}' )'" >> .env
+          echo "PERMISSION_MAP='$( echo '${{ vars.JWT_MAPPINGS }}' )'" >> .env
 
-              working-directory: api
+        working-directory: api
 
-            - name: Build Docker container
-              run: docker build . -t ${{ vars.DOCKER_IMAGE }}
-              working-directory: api
+      - name: Build Docker container
+        run: docker build . -t ${{ vars.DOCKER_IMAGE }}
+        working-directory: api
 
-            - name: Stop and remove old Docker container
-              run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
+      - name: Stop and remove old Docker container
+        run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
 
-            - name: Run Docker container
-              run: >
-                  docker run -d -p "${{ vars.DOCKER_PORT }}":"${{ vars.DOCKER_PORT }}" 
-                  --restart unless-stopped 
-                  --name=${{ vars.DOCKER_CONTAINER }}
-                  ${{ vars.DOCKER_IMAGE }}
+      - name: Run Docker container
+        run: >
+          docker run -d -p "${{ vars.DOCKER_PORT }}":"${{ vars.DOCKER_PORT }}" 
+          --restart unless-stopped 
+          --name=${{ vars.DOCKER_CONTAINER }}
+          ${{ vars.DOCKER_IMAGE }}

@@ -28,7 +28,7 @@ export class ChangeRequestService {
     }
 
     async changeRequest(changeRequest: ChangeReqDto, token: string): Promise<ChangeReqAckDto> {
-        const userDetails = processJwt(token, this.logger);
+        const userDetails = await processJwt(token, this.db, this.logger);
 
         // Process change request
         return await processChangeRequest(

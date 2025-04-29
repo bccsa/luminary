@@ -97,6 +97,12 @@ describe("DbService", () => {
             expect(res.docs.length).toBe(1);
             expect(res.docs[0].type === DocType.User).toBe(true);
         });
+
+        it("can get a user document by userId", async () => {
+            const res = await service.getUserById("editor1");
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].type === DocType.User).toBe(true);
+        });
     });
 
     describe("upsert", () => {

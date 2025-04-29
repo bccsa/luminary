@@ -1,8 +1,12 @@
 import { Logger } from "winston";
 import { Uuid } from "../enums";
 import * as JWT from "jsonwebtoken";
+import { DbService } from "../db/db.service";
+import { UserDto } from "../dto/UserDto";
+import configuration from "../configuration";
+import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 
-export type PermissionMap = Map<string, Map<string, (jwt) => void> | ((jwt) => void)>;
+export type JwtMap = Map<string, Map<string, (jwt) => void> | ((jwt) => void)>;
 
 export type JwtUserDetails = {
     groups: Array<Uuid>;
@@ -10,16 +14,17 @@ export type JwtUserDetails = {
     email?: string;
     name?: string;
     jwtPayload?: JWT.JwtPayload;
+    accessMap?: AccessMap;
 };
 
-let permissionMap: PermissionMap;
+let jwtMap: JwtMap;
 
 /**
  * Parse the permission map from the JWT_MAPPINGS environmental variable to an object
  * @param permissionMap - Configuration instance
  * @returns - Parsed permissions map
  */
-export function parseJwtMap(permissionMap: string, logger?: Logger): PermissionMap {
+export function parseJwtMap(permissionMap: string, logger?: Logger): JwtMap {
     // Parse permission map
     try {
         const map = JSON.parse(permissionMap);
@@ -35,11 +40,19 @@ export function parseJwtMap(permissionMap: string, logger?: Logger): PermissionM
         if (map.email) map.email = eval(map.email);
         if (map.name) map.name = eval(map.name);
 
-        return map as PermissionMap;
+        return map as JwtMap;
     } catch (err) {
         logger?.error(`Unable to parse permission map`, err);
         return new Map();
     }
+}
+
+/**
+ * Clear the JWT map. This is useful for testing purposes to ensure that the JWT map is reloaded
+ * @returns - void
+ */
+export function clearJwtMap() {
+    jwtMap = undefined;
 }
 
 /**
@@ -48,15 +61,24 @@ export function parseJwtMap(permissionMap: string, logger?: Logger): PermissionM
  * @param logger - Logger instance
  * @returns - Array with JWT verified groups
  */
-export function processJwt(jwt: string, logger?: Logger): JwtUserDetails {
-    // Load the permission map if not already loaded
-    if (!permissionMap) {
-        const permissionMapEnv = process.env.JWT_MAPPINGS;
-        if (!permissionMapEnv) {
+export async function processJwt(
+    jwt: string,
+    db: DbService,
+    logger?: Logger,
+): Promise<JwtUserDetails> {
+    const groupSet = new Set<Uuid>();
+    let userId: string;
+    let email: string;
+    let name: string;
+
+    // Load the JWT mappings if not already loaded
+    if (!jwtMap) {
+        const jwtMapEnv = configuration().auth.jwtMappings;
+        if (!jwtMapEnv) {
             logger?.error(`PERMISSION_MAP environment variable is not set`);
             return { groups: [] };
         }
-        permissionMap = parseJwtMap(permissionMapEnv, logger);
+        jwtMap = parseJwtMap(jwtMapEnv, logger);
     }
 
     // Verify the JWT token
@@ -67,41 +89,65 @@ export function processJwt(jwt: string, logger?: Logger): JwtUserDetails {
         logger?.error(`Unable to verify JWT`, err);
     }
 
+    // Get JWT mapped groups and user details
     try {
-        const groups = new Array<Uuid>();
-        let userId: string;
-        let email: string;
-        let name: string;
-
-        if (permissionMap["groups"]) {
-            Object.keys(permissionMap["groups"]).forEach((groupId) => {
-                if (permissionMap["groups"][groupId](jwtPayload)) groups.push(groupId);
+        if (jwtMap["groups"]) {
+            Object.keys(jwtMap["groups"]).forEach((groupId) => {
+                if (jwtMap["groups"][groupId](jwtPayload)) groupSet.add(groupId);
             });
         }
 
-        if (permissionMap["userId"]) {
-            userId = permissionMap["userId"](jwtPayload);
+        if (jwtMap["userId"]) {
+            userId = jwtMap["userId"](jwtPayload);
         }
 
-        if (permissionMap["email"]) {
-            email = permissionMap["email"](jwtPayload);
+        if (jwtMap["email"]) {
+            email = jwtMap["email"](jwtPayload);
         }
 
-        if (permissionMap["name"]) {
-            name = permissionMap["name"](jwtPayload);
+        if (jwtMap["name"]) {
+            name = jwtMap["name"](jwtPayload);
         }
-
-        return { groups, userId, email, name, jwtPayload };
     } catch (err) {
-        logger?.error(`Unable to get JWT permissions`, err);
+        logger?.error(`Unable to get JWT mappings`, err);
         return { groups: [] };
     }
-}
 
-// const userMemberOf: Uuid[] = [];
-//         if (jwt && (jwt as JWT.JwtPayload).email) {
-//             const userDoc = await this.db.getUserByEmail((jwt as JWT.JwtPayload).email);
-//             if (userDoc && userDoc.docs.length > 0) {
-//                 userMemberOf.push(userDoc.docs[0].groups);
-//             }
-//         }
+    let userDoc: UserDto;
+
+    // If userId is set, get the user details from the database using the userId
+    if (userId) {
+        const d = await db.getUserById(userId);
+        if (d && d.docs.length > 0) {
+            userDoc = d.docs[0] as UserDto;
+        }
+    }
+
+    // Get assigned user groups from the database using the email as unique identifier if userId is not set
+    if (!userId && email) {
+        const d = await db.getUserByEmail(email);
+        if (d && d.docs.length > 0) {
+            userDoc = d.docs[0] as UserDto;
+        }
+    }
+
+    // Update user details in the database (if changed) if userId is set
+    if (userDoc && userId) {
+        const updatedUserDoc = { ...userDoc, email, name };
+        if (updatedUserDoc.name !== userDoc.name || updatedUserDoc.email !== userDoc.email) {
+            await db.upsertDoc(updatedUserDoc);
+        }
+    }
+
+    userDoc?.memberOf?.forEach((groupId) => {
+        groupSet.add(groupId);
+    });
+
+    const groups = [...groupSet];
+    const accessMap = PermissionSystem.getAccessMap(groups);
+
+    if (!userId) userId = email || "";
+    userId = userId.toString();
+
+    return { groups, userId, email, name, jwtPayload, accessMap };
+}

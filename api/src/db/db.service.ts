@@ -848,6 +848,37 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * Get a user document by userId
+     * @param userId
+     * @returns
+     */
+    async getUserById(userId: string): Promise<DbQueryResult> {
+        return new Promise((resolve, reject) => {
+            const query = {
+                selector: {
+                    $and: [
+                        {
+                            type: DocType.User,
+                        },
+                        {
+                            userId: userId,
+                        },
+                    ],
+                },
+                limit: 1,
+            };
+            this.db
+                .find(query)
+                .then((res) => {
+                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        });
+    }
+
+    /**
      * Check if a slug is unique
      * @param slug - Slug to be checked
      * @param documentId - ID of the document to be excluded from the check

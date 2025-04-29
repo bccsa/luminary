@@ -5,27 +5,6 @@ import { createTestingModule } from "./test/testingModule";
 import { socketioTestClient } from "./test/socketioTestClient";
 import { DbService } from "./db/db.service";
 
-jest.mock("./configuration", () => {
-    const originalModule = jest.requireActual("./configuration");
-    const origConfig = originalModule.default();
-
-    return {
-        default: () => ({
-            ...origConfig,
-            permissionMap: `{
-                "jwt": {
-                    "groups": {
-                        "group-super-admins": "() => true"
-                    },
-                    "userId": {
-                        "user-super-admin": "() => true"
-                    }
-                }
-            }`,
-        }),
-    };
-});
-
 describe("Socketio", () => {
     const oldEnv = process.env;
     let server: Socketio;

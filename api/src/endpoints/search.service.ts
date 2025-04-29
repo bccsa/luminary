@@ -1,7 +1,7 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbQueryResult, DbService, SearchOptions } from "../db/db.service";
 import { AclPermission, DocType } from "../enums";
-import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
+import { PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 import { processJwt } from "../jwt/processJwt";
@@ -55,16 +55,14 @@ export class SearchService {
             query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
         }
 
-        const userDetails = processJwt(token, this.logger);
-
-        // Retrieve the users's access map
-        const accessMap: AccessMap = PermissionSystem.getAccessMap(userDetails.groups);
+        const userDetails = await processJwt(token, this.db, this.logger);
 
         // Get user accessible groups
-        const userViewGroups = PermissionSystem.accessMapToGroups(accessMap, AclPermission.View, [
-            ...query.types,
-            DocType.Language,
-        ]);
+        const userViewGroups = PermissionSystem.accessMapToGroups(
+            userDetails.accessMap,
+            AclPermission.View,
+            [...query.types, DocType.Language],
+        );
 
         if (query.includeDeleteCmds) {
             // Get accessible groups for delete command documents (all groups to which the user has view access to)

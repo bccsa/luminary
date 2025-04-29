@@ -94,7 +94,23 @@ export class Socketio implements OnGatewayInit {
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
-        server.on("connection", (socket) => this.connection(socket));
+        // Handle authentication
+        server.use(async (socket, next) => {
+            // Get automatically assigned group access
+            const userDetails = await processJwt(socket.handshake.auth.token, this.db, this.logger);
+
+            if (socket.handshake.auth.token && !userDetails.jwtPayload) {
+                // Assume that the user's token is expired.
+                // Prompt the user to re-authenticate when an invalid token is provided.
+                socket.emit("apiAuthFailed");
+                // Disconnect the client to prevent further communication.
+                socket.disconnect(true);
+                return;
+            }
+
+            socket.data.userDetails = userDetails;
+            next();
+        });
 
         // Create config object with environmental variables
         this.config = configuration();
@@ -141,26 +157,6 @@ export class Socketio implements OnGatewayInit {
                     version: update.updatedTimeUtc ? update.updatedTimeUtc : undefined,
                 });
         });
-    }
-
-    /**
-     * Connection event handler
-     * @param socket
-     */
-    async connection(socket: ClientSocket) {
-        // Get automatically assigned group access
-        const userDetails = processJwt(socket.handshake.auth.token, this.logger);
-
-        if (socket.handshake.auth.token && !userDetails.jwtPayload) {
-            // Assume that the user's token is expired.
-            // Prompt the user to re-authenticate when an invalid token is provided.
-            socket.emit("apiAuthFailed");
-            // Disconnect the client to prevent further communication.
-            socket.disconnect(true);
-            return;
-        }
-
-        socket.data.userDetails = userDetails;
     }
 
     /**

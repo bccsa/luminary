@@ -1,0 +1,22 @@
+{
+    "_id": "_design/userId-type-id-index",
+    "language": "query",
+    "views": {
+        "userId-type-id-index": {
+            "map": {
+                "fields": {
+                    "userId": "asc",
+                    "type": "asc",
+                    "_id": "asc"
+                },
+                "partial_filter_selector": {}
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["userId", "type", "_id"]
+                }
+            }
+        }
+    }
+}
