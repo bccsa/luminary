@@ -4,10 +4,8 @@ import { DbService } from "../db/db.service";
 import { AckStatus, AclPermission, DocType, Uuid } from "../enums";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { getJwtPermission, parsePermissionMap } from "../jwt/jwtPermissionMap";
-import * as JWT from "jsonwebtoken";
+import { processJwt } from "../jwt/processJwt";
 import configuration, { Configuration } from "../configuration";
-import { validateJWT } from "../validation/jwt";
 import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { S3Service } from "../s3/s3.service";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
@@ -30,22 +28,13 @@ export class ChangeRequestService {
     }
 
     async changeRequest(changeRequest: ChangeReqDto, token: string): Promise<ChangeReqAckDto> {
-        // decode and validate JWT
-        const jwt: string | JWT.JwtPayload = validateJWT(
-            token,
-            this.config.auth.jwtSecret,
-            this.logger,
-        );
-
-        // Get group access
-        this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
-        const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
+        const userDetails = await processJwt(token, this.db, this.logger);
 
         // Process change request
         return await processChangeRequest(
-            permissions.userId,
+            userDetails.userId,
             changeRequest,
-            permissions.groups,
+            userDetails.groups,
             this.db,
             this.s3,
         )
@@ -53,14 +42,14 @@ export class ChangeRequestService {
                 return await this.upsertDocAck(
                     changeRequest,
                     AckStatus.Accepted,
-                    permissions.groups,
+                    userDetails.groups,
                 );
             })
             .catch(async (err) => {
                 return await this.upsertDocAck(
                     changeRequest,
                     AckStatus.Rejected,
-                    permissions.groups,
+                    userDetails.groups,
                     err.message,
                 );
             });
