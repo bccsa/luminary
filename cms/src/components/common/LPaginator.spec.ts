@@ -25,7 +25,7 @@ describe("LPaginator", () => {
         expect(index.value).toBe(1);
     });
     it("correctly decreases the index", async () => {
-        const index = ref(0);
+        const index = ref(4);
         const pageSize = ref(20);
         const wrapper = mount(LPaginator, {
             props: {
@@ -40,6 +40,6 @@ describe("LPaginator", () => {
         const buttons = wrapper.findAllComponents(LButton);
         await buttons[0].trigger("click");
 
-        expect(wrapper.vm.index).toBe(3);
+        expect(index.value).toBe(3);
     });
 });
