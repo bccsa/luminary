@@ -17,7 +17,6 @@ const index = defineModel<number>("index", {
 });
 
 const props = withDefaults(defineProps<PaginatorProps>(), {
-    indexPage: 5,
     disabled: false,
     size: 0,
     btnVariant: "secondary",
@@ -28,7 +27,7 @@ const pageSize = defineModel<number>("pageSize", {
     required: true,
 });
 
-const visiblePages = computed(() => {
+const pages = computed(() => {
     if (!props.amountOfDocs) return [];
     const amountOfPages = Math.ceil(props.amountOfDocs / pageSize.value);
     const current = index;
@@ -58,7 +57,9 @@ const indexDown = () => {
 };
 
 const indexUp = () => {
+    console.log(" undefined");
     if (props.amountOfDocs == undefined) return;
+    console.log("Not undefined");
     const maxIndex = Math.ceil(props.amountOfDocs / pageSize.value) - 1;
     if (index.value < maxIndex) index.value += 1;
 };
@@ -78,11 +79,12 @@ const indexUp = () => {
                 @keydown.left="indexDown"
             />
             <span v-if="variant == 'simple'" class="text-sm text-zinc-600">
-                Page <strong>{{ index + 1 }}</strong> of <strong>{{ amountOfDocs }}</strong>
+                Page <strong>{{ index + 1 }}</strong> of
+                <strong>{{ pages.length + 1 }}</strong>
             </span>
             <LButton
                 v-else-if="variant == 'extended'"
-                v-for="i in visiblePages"
+                v-for="i in pages"
                 :key="`index-${i}`"
                 class="h-10 w-10 text-zinc-900"
                 :class="
