@@ -29,6 +29,8 @@ export class SearchService {
      * @returns
      */
     async processReq(query: SearchReqDto, token: string): Promise<DbQueryResult> {
+        const userDetails = await processJwt(token, this.db, this.logger);
+
         // Validate request
         if (!query.slug && (!query.types || query.types.length < 1)) {
             throw new HttpException(
@@ -54,8 +56,6 @@ export class SearchService {
             // Set types for slug queries
             query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
         }
-
-        const userDetails = await processJwt(token, this.db, this.logger);
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
