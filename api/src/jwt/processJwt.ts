@@ -75,7 +75,7 @@ export async function processJwt(
     if (!jwtMap) {
         const jwtMapEnv = configuration().auth.jwtMappings;
         if (!jwtMapEnv) {
-            logger?.error(`PERMISSION_MAP environment variable is not set`);
+            logger?.error(`JWT_MAPPING environment variable is not set`);
             return { groups: [] };
         }
         jwtMap = parseJwtMap(jwtMapEnv, logger);
