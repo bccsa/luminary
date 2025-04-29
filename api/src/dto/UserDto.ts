@@ -22,5 +22,5 @@ export class UserDto extends _contentBaseDto {
     @IsOptional()
     @IsString()
     @Expose()
-    userId: string;
+    userId?: string;
 }
