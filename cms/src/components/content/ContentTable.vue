@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { type GroupDto, type LanguageDto, DocType, db } from "luminary-shared";
+import { type ContentDto, type GroupDto, type LanguageDto, DocType, db } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
 import LCard from "../common/LCard.vue";
-import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "./query";
+import { contentOverviewQuery, type ContentOverviewQueryOptions } from "./query";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import LPaginator from "../common/LPaginator.vue";
 
@@ -18,7 +18,8 @@ const pageIndex = defineModel<number>("pageIndex", {
 
 const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
-const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
+const contentDocs = contentOverviewQuery(props.queryOptions);
+const contentDocsTotal = contentOverviewQuery({ ...props.queryOptions, count: true });
 </script>
 
 <template>
@@ -90,13 +91,13 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                     <tbody class="divide-y divide-zinc-200 bg-white">
                         <!-- Decided to rather use upper-level groups from props so the query doesn't have to rerun for each row to reduce load -->
                         <ContentRow
-                            v-for="contentDoc in contentDocs"
+                            v-for="contentDoc in contentDocs?.docs"
                             data-test="content-row"
                             :key="contentDoc._id"
                             :groups="
-                                groups.filter((group) => contentDoc.memberOf.includes(group._id))
+                                groups.filter((group) => contentDoc.memberOf?.includes(group._id))
                             "
-                            :contentDoc="contentDoc"
+                            :contentDoc="contentDoc as ContentDto"
                             :parentType="queryOptions.parentType"
                             :languageId="queryOptions.languageId"
                             :languages="languages"
@@ -106,7 +107,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
 
                 <div
                     class="flex h-32 w-full items-center justify-center gap-2"
-                    v-if="contentDocs.length < 1"
+                    v-if="(contentDocs?.docs && contentDocs?.docs.length < 1) || !contentDocs?.docs"
                 >
                     <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
                     <p class="text-sm text-zinc-500">No content found with the matched filter.</p>
@@ -115,6 +116,11 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
         </div>
     </LCard>
     <div class="mt-1 flex h-14 w-full items-center justify-center p-4">
-        <LPaginator :size="queryOptions.pageSize" v-model:index="pageIndex" variant="extended   " />
+        <LPaginator
+            :amountOfDocs="contentDocsTotal?.count"
+            v-model:index="pageIndex"
+            v-model:page-size="queryOptions.pageSize as number"
+            variant="extended"
+        />
     </div>
 </template>
