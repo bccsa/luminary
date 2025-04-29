@@ -11,7 +11,7 @@ import { useId } from "@/util/useId";
 import FormLabel from "./FormLabel.vue";
 import FormMessage from "./FormMessage.vue";
 
-type Option = { label: string; value: string; disabled?: boolean };
+type Option = { label: string; value: string | number; disabled?: boolean };
 
 type Props = {
     options: Option[];
