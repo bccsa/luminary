@@ -5,7 +5,7 @@ import LButton from "../button/LButton.vue";
 import { ref } from "vue";
 
 describe("LPaginator", () => {
-    it.only("correctly increases the index", async () => {
+    it("correctly increases the index", async () => {
         const index = ref(0);
         const pageSize = ref(20);
         const wrapper = mount(LPaginator, {
