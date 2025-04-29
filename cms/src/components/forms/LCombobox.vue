@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, type StyleValue } from "vue";
+import { computed, ref, watch, type Component, type StyleValue } from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
@@ -23,6 +23,7 @@ type Props = {
     options: ComboboxOption[];
     showSelectedInDropdown?: boolean;
     selectedLabels?: ComboboxOption[];
+    icon?: Component | Function;
 };
 
 const props = withDefaults(defineProps<Props>(), {
