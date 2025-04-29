@@ -169,12 +169,10 @@ export class Socketio implements OnGatewayInit {
         @MessageBody() reqData: ClientDataReq,
         @ConnectedSocket() socket: ClientSocket,
     ) {
-        // Send client configuration data
-        // Get access map and send to client
-        const accessMap = PermissionSystem.getAccessMap(socket.data.userDetails.groups);
+        // Send client configuration data and access map
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
-            accessMap: accessMap,
+            accessMap: socket.data.userDetails.accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
 
@@ -186,7 +184,7 @@ export class Socketio implements OnGatewayInit {
 
         // Get user accessible groups
         const userViewGroups = PermissionSystem.accessMapToGroups(
-            accessMap,
+            socket.data.userDetails.accessMap,
             AclPermission.View,
             docTypes,
         );
