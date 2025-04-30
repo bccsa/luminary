@@ -226,7 +226,70 @@ describe("LCombobox", () => {
         });
     });
 
-    it("highlights correctly when navigating with down arrow key", async () => {});
+    it("highlights correctly when navigating with down arrow key", async () => {
+        // Mock scrollIntoView to prevent errors
+        Element.prototype.scrollIntoView = vi.fn();
 
-    it("highlights correctly when navigating with up arrow key", async () => {});
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: [],
+            },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+
+        await wrapper.vm.$nextTick();
+
+        const searchElement = wrapper.find("[name='option-search']");
+
+        await searchElement.trigger("keydown.down");
+
+        await waitForExpect(() => {
+            expect(wrapper.findAll("[name='list-item']")[0].classes()).toContain("bg-zinc-100");
+        });
+    });
+
+    it("highlights correctly when navigating with up arrow key", async () => {
+        // Mock scrollIntoView to prevent errors
+        Element.prototype.scrollIntoView = vi.fn();
+
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: [],
+            },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+
+        await wrapper.vm.$nextTick();
+
+        const searchElement = wrapper.find("[name='option-search']");
+
+        await searchElement.trigger("keydown.down");
+
+        await searchElement.trigger("keydown.down");
+
+        await waitForExpect(() => {
+            expect(wrapper.findAll("[name='list-item']")[1].classes()).toContain("bg-zinc-100");
+        });
+
+        await searchElement.trigger("keydown.up");
+
+        await waitForExpect(() => {
+            expect(wrapper.findAll("[name='list-item']")[0].classes()).toContain("bg-zinc-100");
+            expect(wrapper.findAll("[name='list-item']")[1].classes()).not.toContain("bg-zinc-100");
+        });
+    });
 });
