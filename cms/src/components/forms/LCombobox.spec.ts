@@ -194,7 +194,7 @@ describe("LCombobox", () => {
         });
     });
 
-    it.only("closes the dropdown when escape is pressed", async () => {
+    it("closes the dropdown when escape is pressed", async () => {
         const wrapper = mount(LCombobox, {
             props: {
                 options: [
@@ -206,7 +206,6 @@ describe("LCombobox", () => {
                 selectedOptions: [],
             },
         });
-
         await wrapper.find("[name='options-open-btn']").trigger("click");
 
         await wrapper.vm.$nextTick();
@@ -218,13 +217,12 @@ describe("LCombobox", () => {
         await waitForExpect(() => {
             expect(options.exists()).toBe(true);
         });
-
-        await searchElement.trigger("keydown.esc");
+        await searchElement.trigger("keydown.escape");
 
         await wrapper.vm.$nextTick();
 
-        await waitForExpect(() => {
-            expect(options.exists()).toBe(false);
+        await waitForExpect(async () => {
+            expect(wrapper.find("[data-test='options']").exists()).toBe(false);
         });
     });
 
