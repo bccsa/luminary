@@ -169,6 +169,7 @@ const toggleDropdown = () => {
             class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
             data-test="options"
         >
+            <!-- Add "highlighted" in classes for testing enviroment -->
             <li
                 name="list-item"
                 v-for="option in filtered"
