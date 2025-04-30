@@ -234,7 +234,7 @@ const groups = useDexieLiveQuery(
                 :full-height="true"
             />
 
-            <div class="">
+            <div>
                 <div class="relative flex gap-1">
                     <LSelect
                         data-test="filter-select"
@@ -271,7 +271,7 @@ const groups = useDexieLiveQuery(
                         "
                         v-model:selected-options="queryOptions.groups as string[]"
                         :show-selected-in-dropdown="false"
-                        :showSelectedLabels="true"
+                        :showSelectedLabels="false"
                         :icon="UserGroupIcon"
                     />
 
