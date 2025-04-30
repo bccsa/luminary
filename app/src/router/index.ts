@@ -6,6 +6,7 @@ import SingleContent from "@/pages/SingleContent.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
 import BookmarksPage from "@/pages/BookmarksPage.vue";
 import VideoPage from "@/pages/VideoPage.vue";
+import { db, DocType, useDexieLiveQuery, type RedirectDto } from "luminary-shared";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -79,6 +80,25 @@ const router = createRouter({
             },
         },
     ],
+});
+
+router.beforeEach(async (to) => {
+    const currentSlug = to.params.slug;
+
+    if (!currentSlug) return true;
+
+    const dbRedirects = (await db.docs
+        .where("type")
+        .equals(DocType.Redirect)
+        .toArray()) as RedirectDto[];
+
+    const isRedirect = dbRedirects.find((redirect) => redirect.slug === currentSlug);
+
+    if (isRedirect) {
+        return `/${isRedirect.toSlug}`;
+    }
+
+    return true;
 });
 
 export default router;
