@@ -87,6 +87,7 @@ router.beforeEach(async (to) => {
 
     if (!currentSlug) return true;
 
+    //useDexieLiveQuery is not working in this case as this file is outside the boundaries of reactivity, so we need to use the db directly
     const dbRedirects = (await db.docs
         .where("type")
         .equals(DocType.Redirect)
