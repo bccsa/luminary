@@ -232,6 +232,21 @@ const isDirty = computed(
 
 const isValid = ref(true);
 
+const saveBtnText = ref("Save");
+
+const refreshParent = () => {
+    saveBtnText.value = "Saving";
+    // Use a timeout to wait for the API to process the new data, and then refresh the parent document
+    // This prevents things like the image from reprocessing in the API
+    setTimeout(() => {
+        db.get<PostDto | TagDto>(editableParent.value._id).then((p) => {
+            editableParent.value = _.cloneDeep(p);
+            existingParent.value = _.cloneDeep(p);
+        });
+        saveBtnText.value = "Save";
+    }, 1000);
+};
+
 const saveChanges = async () => {
     if (!isValid.value) {
         addNotification({
@@ -281,6 +296,8 @@ const saveChanges = async () => {
 
     existingParent.value = _.cloneDeep(editableParent.value);
     existingContent.value = _.cloneDeep(editableContent.value);
+
+    refreshParent();
 };
 
 const save = async () => {
@@ -510,7 +527,7 @@ const showLanguageSelector = ref(false);
                         variant="primary"
                         :icon="FolderArrowDownIcon"
                     >
-                        Save
+                        {{ saveBtnText }}
                     </LButton>
                     <LButton
                         :icon="DocumentDuplicateIcon"
