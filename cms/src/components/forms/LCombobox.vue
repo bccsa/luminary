@@ -55,6 +55,8 @@ const filtered = computed(() =>
     }),
 );
 
+watch(filtered, () => console.log("Filtered options: ", filtered.value));
+
 onClickOutside(comboboxParent, () => {
     showDropdown.value = false;
 });
@@ -69,7 +71,7 @@ watch(showDropdown, () => {
 
 const selectedLabels = computed(() => {
     if (props.selectedLabels) return props.selectedLabels;
-    return optionsList.value.filter((o) => o.selected);
+    return optionsList.value.filter((o) => selectedOptions.value?.includes(o.id));
 });
 
 const toggleDropdown = () => {
@@ -116,6 +118,7 @@ const toggleDropdown = () => {
                 @keydown.enter="
                     () => {
                         if (showDropdown) {
+                            console.log('Enter pressed');
                             // Add the highlighted option to the selected options on enter
                             if (highlightedIndex > -1) {
                                 selectedOptions.push(filtered[highlightedIndex].id);
@@ -126,6 +129,7 @@ const toggleDropdown = () => {
                             // If no option is highlighted, add the first option to the selected options
                             if (filtered.length > 0) {
                                 selectedOptions.push(filtered[0].id);
+                                console.info('Selected option:', filtered[0]);
                                 query = '';
                                 showDropdown = false;
                             }
@@ -198,7 +202,11 @@ const toggleDropdown = () => {
                 </span>
             </li>
         </div>
-        <div v-if="showSelectedLabels" class="mt-3 flex flex-wrap gap-3">
+        <div
+            data-test="selected-labels"
+            v-if="showSelectedLabels"
+            class="mt-3 flex flex-wrap gap-3"
+        >
             <LTag
                 v-for="option in selectedLabels"
                 :key="option.id"
