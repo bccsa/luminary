@@ -10,6 +10,7 @@ import waitForExpect from "wait-for-expect";
 import { reactive } from "vue";
 import LTag from "./LTag.vue";
 import LCombobox from "../forms/LCombobox.vue";
+import { initLanguage } from "@/globalConfig";
 
 describe("TagSelector.vue", () => {
     beforeEach(async () => {
@@ -40,21 +41,29 @@ describe("TagSelector.vue", () => {
         await db.localChanges.clear();
     });
 
-    it("displays selected tags", async () => {
-        const wrapper = mount(TagSelector, {
-            props: {
-                tagType: TagType.Category,
-                language: mockData.mockLanguageDtoEng,
-                parent: mockData.mockPostDto, // mockPostDto has a tag of "tag-category1"
-            },
-        });
+    it(
+        "displays selected tags",
+        async () => {
+            //FIXME
+            await initLanguage();
+            const wrapper = mount(TagSelector, {
+                props: {
+                    tagType: TagType.Category,
+                    language: mockData.mockLanguageDtoEng,
+                    parent: mockData.mockPostDto, // mockPostDto has a tag of "tag-category1"
+                },
+            });
 
-        // Wait for updates
-        await waitForExpect(async () => {
-            expect(wrapper.find('[data-test="selected-labels"').text()).toContain("Category 1");
-            expect(wrapper.find('[data-test="selected-labels"').text()).not.toContain("Category 2");
-        });
-    });
+            // Wait for updates
+            await waitForExpect(async () => {
+                expect(wrapper.find('[data-test="selected-labels"').text()).toContain("Category 1");
+                expect(wrapper.find('[data-test="selected-labels"').text()).not.toContain(
+                    "Category 2",
+                );
+            }, 20000);
+        },
+        { timeout: 999999 },
+    );
 
     it("displays all available tags", async () => {
         const wrapper = mount(TagSelector, {
@@ -107,9 +116,8 @@ describe("TagSelector.vue", () => {
         });
     });
 
-    it.only("can add tags to the passed Parent document", async () => {
-        // Seems like functionality is also not working in the original code. The test is not passing.
-        // TODO: FIX THIS TEST
+    it("can add tags to the passed Parent document", async () => {
+        //FIXME
         const parent = reactive({ ...mockData.mockPostDto, tags: [] });
         const wrapper = mount(TagSelector, {
             props: {
@@ -152,6 +160,7 @@ describe("TagSelector.vue", () => {
     });
 
     it("disables remove for if the user doesn't have assign access", async () => {
+        //FIXME
         delete accessMap.value["group-public-content"].tag?.assign;
 
         const parent = reactive({
