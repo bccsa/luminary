@@ -98,8 +98,8 @@ const selectedOptions = computed(
             :label="label"
             :disabled="disabled"
             :options="assignableOptions"
-            v-model:selectedOptions="parent.tags"
-            :selectedLabels="selectedOptions"
+            v-model:selected-options="parent.tags"
+            :show-selected-labels="true"
         />
 
         <!-- Message when no tags are selected -->
