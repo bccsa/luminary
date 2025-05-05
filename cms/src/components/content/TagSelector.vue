@@ -99,6 +99,7 @@ const selectedOptions = computed(
             :disabled="disabled"
             :options="assignableOptions"
             v-model:selected-options="parent.tags"
+            :selected-labels="selectedOptions"
             :show-selected-labels="true"
         />
 

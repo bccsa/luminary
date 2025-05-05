@@ -42,7 +42,7 @@ const showDropdown = ref(false);
 const optionsList = computed(() =>
     props.options.map((o) => ({
         ...o,
-        selected: selectedOptions.value?.includes(o.id),
+        selected: selectedOptions.value?.includes(o.value),
         highlighted: false,
     })),
 );
@@ -54,8 +54,6 @@ const filtered = computed(() =>
         return o.label.toLowerCase().includes(query.value.toLowerCase());
     }),
 );
-
-watch(filtered, () => console.log("Filtered options: ", filtered.value));
 
 onClickOutside(comboboxParent, () => {
     showDropdown.value = false;
@@ -83,6 +81,7 @@ const toggleDropdown = () => {
 </script>
 
 <template>
+    {{ selectedOptions }}
     <div
         ref="comboboxParent"
         class="relative"
@@ -118,10 +117,9 @@ const toggleDropdown = () => {
                 @keydown.enter="
                     () => {
                         if (showDropdown) {
-                            console.log('Enter pressed');
                             // Add the highlighted option to the selected options on enter
                             if (highlightedIndex > -1) {
-                                selectedOptions.push(filtered[highlightedIndex].id);
+                                selectedOptions.push(filtered[highlightedIndex].value);
                                 query = '';
                                 showDropdown = false;
                                 return;
@@ -189,8 +187,8 @@ const toggleDropdown = () => {
                 ]"
                 @click="
                     () => {
-                        if (!option.selected) {
-                            selectedOptions.push(option.id);
+                        if (option.selected !== true) {
+                            selectedOptions.push(option.value);
                         }
                         query = '';
                         showDropdown = false;
