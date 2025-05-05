@@ -249,16 +249,18 @@ const groups = useDexieLiveQuery(
                         :icon="CloudArrowUpIcon"
                     />
 
-                    <LChecklist
+                    <LCombobox
                         :options="
                             tagContentDocs.map((tag) => ({
+                                id: tag.parentId,
                                 label: tag.title,
                                 value: tag.parentId,
                             }))
                         "
+                        v-model:selected-options="queryOptions.tags as string[]"
+                        :show-selected-in-dropdown="false"
+                        :showSelectedLabels="false"
                         :icon="TagIcon"
-                        v-model:selectedValues="queryOptions.tags"
-                        :is-content-overview="true"
                     />
 
                     <LCombobox
