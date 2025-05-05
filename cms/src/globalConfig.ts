@@ -31,21 +31,6 @@ export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
  */
 export async function initLanguage() {
     if (cmsLanguageIdAsRef.value) return;
-
-    const languages = (await db.docs.where("type").equals("language").toArray()) as LanguageDto[];
-    const browserPreferredLanguage = navigator.languages[0];
-
-    if (languages.some((lang) => lang.languageCode == browserPreferredLanguage)) {
-        const preferredLang = languages.find(
-            (lang) => lang.languageCode === browserPreferredLanguage,
-        );
-        const defaultLang = languages.find((lang) => lang.default === 1);
-
-        cmsLanguageIdAsRef.value = preferredLang?._id || defaultLang?._id || "";
-    } else {
-        cmsLanguageIdAsRef.value = languages.filter((lang) => lang.default === 1)[0]._id;
-    }
-
     const _cmsLanguages = useDexieLiveQuery(
         async () =>
             (await db.docs.where("type").equals(DocType.Language).toArray()) as unknown as Promise<
@@ -53,6 +38,18 @@ export async function initLanguage() {
             >,
         { initialValue: [] },
     );
+
+    const browserPreferredLanguage = _cmsLanguages.value.find(
+        (lang) => navigator.languages[0] == lang.languageCode,
+    );
+
+    if (browserPreferredLanguage) {
+        cmsLanguageIdAsRef.value = browserPreferredLanguage?._id;
+    } else {
+        const defaultLang = _cmsLanguages.value.find((lang) => lang.default === 1);
+        if (defaultLang) cmsLanguageIdAsRef.value = defaultLang._id;
+    }
+
     watch(
         _cmsLanguages,
         (newVal) => {
