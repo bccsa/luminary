@@ -75,7 +75,7 @@ class SocketIO {
             await db.bulkPut(filtered);
         });
 
-        this.socket.on("changeRequestAck", this.handleAck.bind(this));
+        // this.socket.on("changeRequestAck", this.handleAck.bind(this));
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
