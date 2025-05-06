@@ -10,6 +10,7 @@ const test = base.extend({
     context: async ({}, use) => {
         const context = await chromium.launchPersistentContext("", {
             headless: true,
+            locale: "en",
         });
         await use(context);
         await context.close();
