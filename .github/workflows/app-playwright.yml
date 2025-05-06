@@ -62,7 +62,7 @@ jobs:
         working-directory: api
 
       - name: Run the API
-        run: npm run start
+        run: npm run start && sleep 10
         working-directory: api
 
       - name: Install and build shared
