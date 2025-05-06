@@ -5,7 +5,7 @@ import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
-import { getRest } from "../rest/RestApi";
+import { ChangeRequestQuery, getRest } from "../rest/RestApi";
 
 /**
  * Client configuration type definition
@@ -155,8 +155,14 @@ class SocketIO {
             this.pushLocalChange(localChange);
         }, 60000);
 
-        // this.socket.emit("changeRequest", localChange);
-        await getRest().changeRequest(localChange);
+        const res = await getRest().changeRequest({
+            id: localChange.id,
+            doc: localChange.doc,
+        } as ChangeRequestQuery);
+
+        if (res) {
+            this.handleAck(res as ChangeReqAckDto);
+        }
     }
 
     /**
