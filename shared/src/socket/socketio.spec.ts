@@ -8,9 +8,14 @@ import { AckStatus, ChangeReqDto, DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
 import { config, initConfig } from "../config";
 import { ref } from "vue";
-import { ApiSyncQuery } from "../rest/RestApi";
+import * as RestApi from "../rest/RestApi";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const changeRequestMock = vi.fn();
+vi.spyOn(RestApi, "getRest").mockReturnValue({
+    changeRequest: changeRequestMock,
+} as unknown as any);
 
 describe("socketio", () => {
     const socketServer = new Server(12345);
@@ -19,6 +24,37 @@ describe("socketio", () => {
         initConfig({
             cms: true,
             docsIndex: "parentId, language, [type+docType]",
+            syncList: [
+                {
+                    type: DocType.Tag,
+                    syncPriority: 2,
+                    skipWaitForLanguageSync: true,
+                },
+                {
+                    type: DocType.Post,
+                    syncPriority: 2,
+                    skipWaitForLanguageSync: true,
+                },
+                {
+                    type: DocType.Redirect,
+                    syncPriority: 2,
+                    skipWaitForLanguageSync: true,
+                },
+                {
+                    type: DocType.Language,
+                    syncPriority: 1,
+                    skipWaitForLanguageSync: true,
+                },
+                {
+                    type: DocType.Group,
+                    syncPriority: 1,
+                    skipWaitForLanguageSync: true,
+                },
+                {
+                    type: DocType.User,
+                    sync: false,
+                },
+            ],
             apiUrl: "http://localhost:12345",
             appLanguageIdsAsRef: ref([]),
         });
@@ -49,14 +85,7 @@ describe("socketio", () => {
     });
 
     it("will not sync via the watcher if there the processChangeReqLock is on", async () => {
-        // put more than 1 local change in the database
-
-        // Mock the event listener from the server
-        let changeReq;
         socketServer.on("connection", (socket) => {
-            socket.on("changeRequest", (data) => {
-                changeReq = data;
-            });
             socket.emit("clientConfig", {});
         });
 
@@ -76,16 +105,11 @@ describe("socketio", () => {
 
         // Check that the server should not receive the second localChange, but only the first
         await wait(2000);
-        expect(changeReq.id).not.toEqual(1235);
+        expect(changeRequestMock).not.toHaveBeenCalledWith({ id: 1235 });
     });
 
     it("will immediately sync when online", async () => {
-        // Mock the event listener from the server
-        let changeReq;
         socketServer.on("connection", (socket) => {
-            socket.on("changeRequest", (data) => {
-                changeReq = data;
-            });
             socket.emit("clientConfig", {});
         });
 
@@ -102,17 +126,12 @@ describe("socketio", () => {
 
         // Check if the server received the change request
         await waitForExpect(() => {
-            expect(changeReq).toEqual(localChange);
+            expect(changeRequestMock).toHaveBeenCalledWith(localChange);
         });
     });
 
     it("will start syncing when coming online after being offline", async () => {
-        // Mock the event listener from the server
-        let changeReq;
         socketServer.on("connection", (socket) => {
-            socket.on("changeRequest", (data) => {
-                changeReq = data;
-            });
             socket.emit("clientConfig", {});
         });
 
@@ -126,14 +145,14 @@ describe("socketio", () => {
 
         // check that the local change is not sent to the server
         await wait(1000);
-        expect(changeReq).toBeUndefined();
+        expect(changeRequestMock).not.toHaveBeenCalled();
 
         // Connect to the server
         getSocket({ reconnect: true });
 
         // Check if the server received the change request
         await waitForExpect(() => {
-            expect(changeReq).toEqual(localChange);
+            expect(changeRequestMock).toHaveBeenCalledWith(localChange);
         });
     });
 
@@ -178,13 +197,10 @@ describe("socketio", () => {
     });
 
     it("sends a change request if there are local changes", async () => {
-        let changeReq;
         socketServer.on("connection", (socket) => {
-            socket.on("changeRequest", (data) => {
-                changeReq = data;
-            });
             socket.emit("clientConfig", {});
         });
+
         getSocket({ reconnect: true });
 
         const localChange: ChangeReqDto = {
@@ -194,11 +210,16 @@ describe("socketio", () => {
         await db.localChanges.put(localChange);
 
         await waitForExpect(() => {
-            expect(changeReq).toEqual(localChange);
+            expect(changeRequestMock).toHaveBeenCalledWith(localChange);
         });
     });
 
     it("handles acks for changes", async () => {
+        vi.spyOn(RestApi.getRest(), "changeRequest").mockResolvedValueOnce({
+            id: 1234,
+            ack: AckStatus.Accepted,
+        });
+
         // Create a local change
         await db.localChanges.put({
             id: 1234,
@@ -210,7 +231,6 @@ describe("socketio", () => {
         // Mock the ack from the server
         socketServer.on("connection", (socket) => {
             socket.emit("clientConfig", {});
-            socket.emit("changeRequestAck", { id: 1234, ack: AckStatus.Accepted });
         });
 
         getSocket({ reconnect: true });
