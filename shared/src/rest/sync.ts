@@ -108,40 +108,27 @@ export class Sync {
                 break;
             }
 
-            let initialDeleteCmdSync = true;
-
+            const query: ApiSearchQuery = {
+                apiVersion: "0.0.0",
+                from: 0,
+                types: v.types as DocType[],
+                groups: v.groups,
+                languages: v.languages,
+                contentOnly: v.contentOnly,
+                limit: 100,
+            };
             const blocks = v.blocks;
             const newest = blocks.sort((a: SyncMapEntry, b: SyncMapEntry) => {
                 if (!a || !b) return 0;
                 return b.blockStart - a.blockStart;
             })[0];
 
-            const from = newest?.blockStart || 0;
+            query.from = newest?.blockStart || 0;
 
-            const query: ApiSearchQuery = {
-                apiVersion: "0.0.0",
-                from,
-                types: v.types as DocType[],
-                groups: v.groups,
-                languages: v.languages,
-                contentOnly: v.contentOnly,
-                limit: 100,
-                includeDeleteCmds: from === 0 && initialDeleteCmdSync,
-            };
+            // Only request delete commands if this is not an initial sync
+            if (!(query.from == 0 && query.to == undefined)) query.includeDeleteCmds = true;
 
-            const res = await this.req(query, v.id);
-
-            // Include delete commands if a delete command was created during initial sync
-            const deleteCmds = (res.docs || []).filter((d: any) => d.type == DocType.DeleteCmd);
-            if (deleteCmds.length > 0) {
-                await this.req({ ...query, from: 0, includeDeleteCmds: true }, v.id);
-                initialDeleteCmdSync = false;
-            }
-
-            // Set initialDeleteCmdSync to false if the initial sync is completed
-            if (from == 0 && initialDeleteCmdSync) {
-                initialDeleteCmdSync = false;
-            }
+            await this.req(query, v.id);
         }
         syncActive.value = false;
         cancelSync = false;
