@@ -143,7 +143,9 @@ export class Sync {
         if (!isConnected.value || cancelSync) return;
 
         const data = await getRest().search(query);
-        if (data && data.docs.length > 0) await db.bulkPut(data.docs);
+        if (data && data.docs.length > 0) {
+            await db.bulkPut(data.docs);
+        }
         if (!data)
             return setTimeout(() => {
                 this.req(query, id);
@@ -165,7 +167,6 @@ export class Sync {
             // delete block with blockEnd == 0 and blockStart == 0, since the api has completed the backfill, this will help that the client does not hammer the api unnecessarily
             this.removeBlock00(id);
             this.mergeSyncMapEntries(id);
-            return;
         }
         query.to = missingData.gapStart;
         query.from = missingData.gapEnd; // End == from, start == to
