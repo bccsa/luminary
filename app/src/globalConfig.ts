@@ -1,6 +1,14 @@
-import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
+import {
+    db,
+    DocType,
+    useDexieLiveQuery,
+    type ContentDto,
+    type LanguageDto,
+    type Uuid,
+} from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
 import * as _ from "lodash";
+import Rand from "rand-seed";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -314,4 +322,55 @@ export const loginModalVisible = ref(false);
  */
 export const showLoginModal = () => {
     loginModalVisible.value = true;
+};
+
+const loadFallbackImageUrls = async () => {
+    // Can't use a dynamic path here, so had to resolve with a static path
+    const images = import.meta.glob("@/assets/fallbackImages/*.{png,jpg,jpeg,webp}");
+    const fallbackImages: string[] = [];
+
+    for (const path in images) {
+        fallbackImages.push(path.replace("@/assets", "/src/assets"));
+    }
+
+    return fallbackImages;
+};
+
+export const fallbackImages = ref<any[]>([]);
+
+export const initFallbackImages = async () => {
+    const urls = await loadFallbackImageUrls();
+
+    const contentDocs = useDexieLiveQuery(
+        () =>
+            db.docs
+                .where("parentType")
+                .anyOf([DocType.Post, DocType.Tag])
+                .toArray() as unknown as Promise<ContentDto[]>,
+        { initialValue: [] as ContentDto[] },
+    );
+
+    const processedParentDocs = new Set<string>();
+
+    watch(
+        () => contentDocs.value,
+        (docs) => {
+            docs.forEach((doc) => {
+                if (processedParentDocs.has(doc.parentId)) return;
+
+                const seed = new Rand(doc.parentId).next();
+
+                const randomUrl = urls[Math.floor(seed * urls.length)];
+
+                if (fallbackImages.value.find((img) => img.id === doc.parentId)) return;
+
+                fallbackImages.value = [
+                    ...fallbackImages.value,
+                    { id: doc.parentId, url: randomUrl },
+                ];
+
+                processedParentDocs.add(doc.parentId);
+            });
+        },
+    );
 };

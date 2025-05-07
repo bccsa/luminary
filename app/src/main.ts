@@ -7,7 +7,7 @@ import router from "./router";
 import auth from "./auth";
 import { DocType, getSocket, init } from "luminary-shared";
 import { loadPlugins } from "./util/pluginLoader";
-import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
+import { appLanguageIdsAsRef, initFallbackImages, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
@@ -63,6 +63,8 @@ async function Startup() {
     });
 
     await initLanguage();
+    await initFallbackImages();
+
     const i18n = await initI18n();
     await loadPlugins();
 
@@ -73,7 +75,6 @@ async function Startup() {
     initAppTitle(i18n);
     initAnalytics();
 }
-
 Startup();
 
 if (import.meta.env.DEV == true) {
