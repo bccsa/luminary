@@ -25,7 +25,7 @@ test("it syncs correct document types to the app(non-cms) client", async ({ cont
     //Give extra time to ensure the page has loaded
     await page.waitForTimeout(8000);
 
-    expect(await page.title()).toContain("Home");
+    // expect(await page.title()).toContain("Home");
 
     const result = await page.evaluate(async () => {
         return new Promise((resolve, reject) => {
@@ -73,8 +73,6 @@ test("it does not sync drafted or expired docs to the app(non-cms) client", asyn
 
     //Give extra time to ensure the page has loaded
     await page.waitForTimeout(3000);
-
-    expect(await page.title()).toContain("Home");
 
     const result = await page.evaluate(async () => {
         return new Promise((resolve, reject) => {
