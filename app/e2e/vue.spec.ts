@@ -25,8 +25,6 @@ test("it syncs correct document types to the app(non-cms) client", async ({ cont
     //Give extra time to ensure the page has loaded
     await page.waitForTimeout(8000);
 
-    // expect(await page.title()).toContain("Home");
-
     const result = await page.evaluate(async () => {
         return new Promise((resolve, reject) => {
             //Ensure that the browser supports indexedDB.databases() as it is not supported in all browsers
