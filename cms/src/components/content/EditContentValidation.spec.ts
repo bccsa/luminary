@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import EditContentValidation from "./EditContentValidation.vue";
-import { AclPermission, DocType, PostType, PublishStatus, verifyAccess } from "luminary-shared";
+import {PublishStatus} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router", async (importOriginal) => {
@@ -160,7 +160,7 @@ describe("EditContentValidation.vue", () => {
             });
         });
 
-        it("Check whether the delete translation button has user access or not", async () => {
+        it("Hides the delete button when a user does not have delete access", async () => {
                 const wrapper = mount(EditContentValidation, {
                     props: {
                         languages: [mockData.mockLanguageDtoEng],
