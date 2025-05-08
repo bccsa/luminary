@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  CI: false
+  CI: true
 jobs:
   playwright:
     environment: app-staging
@@ -34,7 +34,7 @@ jobs:
           echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
           echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
           echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
-          echo VITE_PRIVACY_POLICY_ID=="${{ vars.VITE_PRIVACY_POLICY_ID }}" >> .env
+          echo VITE_PRIVACY_POLICY_ID="${{ vars.VITE_PRIVACY_POLICY_ID }}" >> .env
           echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
           echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
           echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
