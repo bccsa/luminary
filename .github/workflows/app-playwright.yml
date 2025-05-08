@@ -1,0 +1,71 @@
+name: Playwright Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - app/**
+      - shared/**
+      - api/**
+      - .github/workflows/playwright.yml
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+jobs:
+  playwright:
+    environment: app-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create enviroment file in app
+        run: |
+          touch .env
+          echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
+          echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
+          echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
+          echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
+          echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
+          echo VITE_PRIVACY_POLICY_ID="${{ vars.VITE_PRIVACY_POLICY_ID }}" >> .env
+          echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
+          echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
+          echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
+          echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
+          echo VITE_LOGO_DARK="${{ vars.VITE_LOGO_DARK }}" >> .env
+          echo VITE_LOGO_SMALL="${{ vars.VITE_LOGO_SMALL }}" >> .env
+          echo VITE_LOGO_SMALL_DARK="${{ vars.VITE_LOGO_SMALL_DARK }}" >> .env
+          echo VITE_LOGO_FAVICON=${{vars.VITE_LOGO_FAVICON}} >> .env
+        working-directory: app
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.node-version
+          cache: "npm"
+          cache-dependency-path: |
+            shared/package-lock.json
+            app/package-lock.json
+
+      - name: Install and build shared
+        run: npm ci && npm run build
+        working-directory: shared
+
+      - name: Install app dependencies
+        run: npm ci --install-links
+        working-directory: app
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+        working-directory: app
+
+      - name: Run Playwright E2E tests
+        working-directory: app
+        run: npx playwright test --reporter=list
