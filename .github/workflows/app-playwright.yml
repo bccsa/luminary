@@ -18,6 +18,7 @@ env:
   CI: true
 jobs:
   playwright:
+    enviroment: app-staging
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -25,24 +26,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create environment file in API
-        run: cp .env.example .env
-        working-directory: api
-
       - name: Create enviroment file in app
-        run: cp .env.example .env
+        run: |
+          touch .env
+          echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
+          echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
+          echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
+          echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
+          echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
+          echo VITE_PRIVACY_POLICY_ID=="${{ vars.VITE_PRIVACY_POLICY_ID }}" >> .env
+          echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
+          echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
+          echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
+          echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
+          echo VITE_LOGO_DARK="${{ vars.VITE_LOGO_DARK }}" >> .env
+          echo VITE_LOGO_SMALL="${{ vars.VITE_LOGO_SMALL }}" >> .env
+          echo VITE_LOGO_SMALL_DARK="${{ vars.VITE_LOGO_SMALL_DARK }}" >> .env
+          echo VITE_LOGO_FAVICON=${{vars.VITE_LOGO_FAVICON}} >> .env
         working-directory: app
-
-      - name: Start CouchDB
-        run: |
-          ./scripts/start-couchdb-in-ci.sh
-          curl -X PUT http://admin:password@127.0.0.1:5984/luminary-local
-        working-directory: api
-
-      - name: Start MinIO
-        run: |
-          ./scripts/start-minio-in-ci.sh
-        working-directory: api
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -52,18 +53,6 @@ jobs:
           cache-dependency-path: |
             shared/package-lock.json
             app/package-lock.json
-
-      - name: Install dependencies in API
-        run: npm ci
-        working-directory: api
-
-      - name: Seed the API with Default Data
-        run: npm run seed
-        working-directory: api
-
-      - name: Run the API
-        run: npm run start & sleep 10
-        working-directory: api
 
       - name: Install and build shared
         run: npm ci && npm run build
