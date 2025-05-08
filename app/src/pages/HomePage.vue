@@ -2,14 +2,14 @@
 import { ref } from "vue";
 import { type ContentDto, DocType, db } from "luminary-shared";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { appLanguageIdsAsRef, loginModalVisible } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import { isPublished } from "@/util/isPublished";
 import BasePage from "@/components/BasePage.vue";
 
-const { isAuthenticated } = useAuth0();
+const { isAuthenticated, loginWithRedirect } = useAuth0();
 
 const hasPosts = db.toRef<boolean>(
     () =>
@@ -47,7 +47,7 @@ setTimeout(() => {
                         Please
                         <span
                             class="cursor-pointer text-yellow-600 underline hover:text-yellow-500"
-                            @click="loginModalVisible = true"
+                            @click="loginWithRedirect()"
                             >log in </span
                         >if you have an account.
                     </p>

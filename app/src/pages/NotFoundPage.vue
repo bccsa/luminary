@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { loginModalVisible } from "@/globalConfig";
 
-const { isAuthenticated } = useAuth0();
+const { isAuthenticated, loginWithRedirect } = useAuth0();
 </script>
 
 <template>
@@ -26,10 +25,7 @@ const { isAuthenticated } = useAuth0();
             </div>
             <div v-else class="mt-10 flex items-center justify-center gap-x-1">
                 Please click
-                <span
-                    class="cursor-pointer text-yellow-700 underline"
-                    @click="loginModalVisible = true"
-                >
+                <span class="cursor-pointer text-yellow-700 underline" @click="loginWithRedirect()">
                     here
                 </span>
                 to log in.
