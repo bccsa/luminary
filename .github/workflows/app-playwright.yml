@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  CI: true
+  CI: false
 jobs:
   playwright:
     environment: app-staging
