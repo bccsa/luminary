@@ -327,14 +327,14 @@ describe("Content query", () => {
     });
 
     it("can filter by group", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             groups: ["group-private-content", "group-public-editors"],
             tagOrPostType: PostType.Blog,
         });
 
-        const res2 = contentOverviewQueryAsRef({
+        const res2 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             groups: ["group-private-content"],
@@ -342,12 +342,12 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            expect(res1.value.some((d) => d._id == "doc1Eng")).toBe(true);
-            expect(res1.value.some((d) => d._id == "doc2Eng")).toBe(true);
+            expect(res1.value?.docs).toHaveLength(2);
+            expect(res1.value?.docs!.some((d) => d._id == "doc1Eng")).toBe(true);
+            expect(res1.value?.docs!.some((d) => d._id == "doc2Eng")).toBe(true);
 
-            expect(res2.value).toHaveLength(1);
-            expect(res2.value[0].memberOf.includes("group-private-content")).toBe(true);
+            expect(res2.value?.docs).toHaveLength(1);
+            expect(res2.value?.docs![0].memberOf!.includes("group-private-content")).toBe(true);
         });
     });
 
