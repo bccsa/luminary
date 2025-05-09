@@ -3,7 +3,6 @@ import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/vue/20/solid";
 import LButton from "../button/LButton.vue";
 import { computed } from "vue";
 import LSelect from "../forms/LSelect.vue";
-import { ListBulletIcon } from "@heroicons/vue/24/outline";
 
 type PaginatorProps = {
     disabled?: boolean;
@@ -27,29 +26,37 @@ const pageSize = defineModel<number>("pageSize", {
     required: true,
 });
 
+const isMobileScreen = computed(() => {
+    return window.innerWidth < 640;
+});
+
 const pages = computed(() => {
     if (!props.amountOfDocs) return [];
-    const amountOfPages = Math.ceil(props.amountOfDocs / pageSize.value);
-    const current = index;
-    const maxVisible = amountOfPages;
 
-    const half = Math.floor(maxVisible / 2);
-    let start = current.value - half;
-    let end = current.value + half;
+    const amountOfPages = Math.ceil(props.amountOfDocs / pageSize.value);
+    const current = index.value;
+    const maxVisible = isMobileScreen.value ? 4 : 5;
+
+    // If total pages are fewer than maxVisible, show all
+    if (amountOfPages <= maxVisible) {
+        return Array.from({ length: amountOfPages }, (_, i) => i);
+    }
+
+    let start = current - Math.floor(maxVisible / 2);
+    let end = start + maxVisible;
 
     if (start < 0) {
         start = 0;
-        end = Math.min(maxVisible, amountOfPages);
-    } else if (end > amountOfPages) {
-        end = amountOfPages;
-        start = Math.max(1, end - maxVisible + 1);
+        end = maxVisible;
     }
 
-    const range: number[] = [];
-    for (let i = start; i <= end - 1; i++) {
-        range.push(i);
+    // Clamp to end
+    if (end > amountOfPages) {
+        end = amountOfPages;
+        start = amountOfPages - maxVisible;
     }
-    return range;
+
+    return Array.from({ length: end - start }, (_, i) => start + i);
 });
 
 const indexDown = () => {
@@ -57,9 +64,7 @@ const indexDown = () => {
 };
 
 const indexUp = () => {
-    console.log(" undefined");
     if (props.amountOfDocs == undefined) return;
-    console.log("Not undefined");
     const maxIndex = Math.ceil(props.amountOfDocs / pageSize.value) - 1;
     if (index.value < maxIndex) index.value += 1;
 };
@@ -67,21 +72,22 @@ const indexUp = () => {
 
 <template>
     <div class="relative flex w-full items-center justify-between">
-        <div class="absolute left-1/2 flex -translate-x-1/2 items-center gap-1">
+        <div class="absolute flex items-center gap-1 sm:left-1/2 sm:-translate-x-1/2">
             <LButton
-                class="h-10 w-16"
-                :disabled="
-                    disabled || (props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)
-                "
+                v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
+                class="h-10 w-10 sm:h-10 sm:w-16"
+                :disabled="disabled"
                 :variant="btnVariant"
                 :icon="ArrowLeftIcon"
                 @click="indexDown"
                 @keydown.left="indexDown"
             />
+            <!-- Simple Variant -->
             <span v-if="variant == 'simple'" class="text-sm text-zinc-600">
                 Page <strong>{{ index + 1 }}</strong> of
                 <strong>{{ pages.length + 1 }}</strong>
             </span>
+            <!-- Extended Variant -->
             <LButton
                 v-else-if="variant == 'extended'"
                 v-for="i in pages"
@@ -94,10 +100,12 @@ const indexUp = () => {
                 "
                 @click="index = i"
             >
+                <!-- Increase i by 1 so that for the user it starts at 1 -->
                 {{ i + 1 }}
             </LButton>
             <LButton
-                class="h-10 w-16"
+                v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
+                class="h-10 w-10 sm:h-10 sm:w-16"
                 :disabled="
                     disabled || (props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)
                 "
@@ -107,10 +115,9 @@ const indexUp = () => {
                 @keydown.right="indexUp"
             />
         </div>
+        <!-- This div is a divider to get the LSelect to appear on the right -->
         <div></div>
         <LSelect
-            :icon="ListBulletIcon"
-            class="w-15"
             v-model="pageSize"
             :options="[
                 { value: 5, label: '5' },
