@@ -73,6 +73,12 @@ export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
                 options.tags.some((tagId) => contentDoc.parentTags.includes(tagId));
             if (!tagFilter) return false;
 
+            const groupFilter =
+                !options.groups ||
+                options.groups.length == 0 ||
+                options.groups.some((groupId) => contentDoc.memberOf.includes(groupId));
+            if (!groupFilter) return false;
+
             const publishFilter = publishStatusFilter(contentDoc, options);
             if (!publishFilter) return false;
 
