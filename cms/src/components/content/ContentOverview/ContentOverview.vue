@@ -185,7 +185,7 @@ const resetQueryOptions = () => {
         orderBy: "updatedTimeUtc",
         orderDirection: "desc",
         pageSize: 20,
-        pageIndex: 1,
+        pageIndex: 0,
         tags: [],
         groups: [],
         search: "",
@@ -235,7 +235,7 @@ const groups = useDexieLiveQuery(
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
-                class="flex-grow"
+                class="w-96 sm:flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
@@ -243,7 +243,7 @@ const groups = useDexieLiveQuery(
                 :full-height="true"
             />
 
-            <div>
+            <div class="overflow-scroll">
                 <div class="relative flex gap-1">
                     <LSelect
                         data-test="filter-select"

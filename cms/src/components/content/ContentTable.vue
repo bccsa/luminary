@@ -115,9 +115,9 @@ const contentDocsTotal = contentOverviewQuery({ ...props.queryOptions, count: tr
             </div>
         </div>
     </LCard>
-    <div class="mt-1 flex h-14 w-full items-center justify-center p-4">
+    <div class="flex h-14 w-full items-center justify-center py-4">
         <LPaginator
-            :amountOfDocs="contentDocsTotal?.count"
+            :amountOfDocs="contentDocsTotal?.count as number"
             v-model:index="pageIndex"
             v-model:page-size="queryOptions.pageSize as number"
             variant="extended"
