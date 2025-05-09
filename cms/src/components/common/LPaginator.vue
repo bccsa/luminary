@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/vue/20/solid";
+import {
+    ArrowLeftIcon,
+    ArrowRightIcon,
+    ChevronDoubleLeftIcon,
+    ChevronDoubleRightIcon,
+} from "@heroicons/vue/20/solid";
 import LButton from "../button/LButton.vue";
 import { computed } from "vue";
 import LSelect from "../forms/LSelect.vue";
@@ -78,8 +83,17 @@ const indexUp = () => {
                 class="h-10 w-10 sm:h-10 sm:w-16"
                 :disabled="disabled"
                 :variant="btnVariant"
-                :icon="ArrowLeftIcon"
+                :icon="ChevronDoubleLeftIcon"
                 @click="indexDown"
+                @keydown.left="indexDown"
+            />
+            <LButton
+                v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
+                class="h-10 w-10 sm:h-10 sm:w-16"
+                :disabled="disabled"
+                :variant="btnVariant"
+                :icon="ArrowLeftIcon"
+                @click="index = index - 1"
                 @keydown.left="indexDown"
             />
             <!-- Simple Variant -->
@@ -114,6 +128,17 @@ const indexUp = () => {
                 @click="indexUp"
                 @keydown.right="indexUp"
             />
+            <LButton
+                v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
+                class="h-10 w-10 sm:h-10 sm:w-16"
+                :disabled="
+                    disabled || (props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)
+                "
+                :variant="btnVariant"
+                :icon="ChevronDoubleRightIcon"
+                @click="index = pages.length - 1"
+                @keydown.right="indexUp"
+            />
         </div>
         <!-- This div is a divider to get the LSelect to appear on the right -->
         <div></div>
@@ -123,7 +148,7 @@ const indexUp = () => {
                 { value: 5, label: '5' },
                 { value: 10, label: '10' },
                 { value: 20, label: '20' },
-                { value: 30, label: '30' },
+                { value: 50, label: '50' },
             ]"
         />
     </div>
