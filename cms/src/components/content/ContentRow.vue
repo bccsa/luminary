@@ -9,7 +9,7 @@ import {
     AclPermission,
     verifyAccess,
     useDexieLiveQuery,
-    GroupDto,
+    type GroupDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
