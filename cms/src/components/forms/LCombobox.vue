@@ -81,7 +81,6 @@ const toggleDropdown = () => {
 </script>
 
 <template>
-    {{ selectedOptions }}
     <div
         ref="comboboxParent"
         class="relative"
@@ -127,7 +126,6 @@ const toggleDropdown = () => {
                             // If no option is highlighted, add the first option to the selected options
                             if (filtered.length > 0) {
                                 selectedOptions.push(filtered[0].id);
-                                console.info('Selected option:', filtered[0]);
                                 query = '';
                                 showDropdown = false;
                             }
@@ -187,7 +185,7 @@ const toggleDropdown = () => {
                 ]"
                 @click="
                     () => {
-                        if (option.selected !== true) {
+                        if (!option.selected) {
                             selectedOptions.push(option.value);
                         }
                         query = '';
@@ -195,7 +193,10 @@ const toggleDropdown = () => {
                     }
                 "
             >
-                <span class="block truncate" data-test="group-selector">
+                <span
+                    class="block truncate hover:overflow-visible hover:text-clip hover:whitespace-normal"
+                    data-test="group-selector"
+                >
                     {{ option.label }}
                 </span>
             </li>
@@ -211,7 +212,7 @@ const toggleDropdown = () => {
                 @remove="
                     () => {
                         if (option.isRemovable !== false) {
-                            selectedOptions.splice(selectedOptions?.indexOf(option.id), 1);
+                            selectedOptions.splice(selectedOptions?.indexOf(option.value), 1);
                         }
                     }
                 "

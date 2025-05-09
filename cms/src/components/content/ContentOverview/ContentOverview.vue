@@ -37,7 +37,6 @@ import LInput from "../../forms/LInput.vue";
 import { Menu } from "@headlessui/vue";
 import LRadio from "../../forms/LRadio.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import LChecklist from "@/components/forms/LChecklist.vue";
 import LTag from "../LTag.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
 
@@ -353,28 +352,19 @@ const groups = useDexieLiveQuery(
             class="w-full bg-white px-2 pb-2 shadow"
         >
             <ul class="flex w-full flex-wrap gap-2">
-                <TransitionGroup
-                    enter-active-class="transition duration-150 delay-75"
-                    enter-from-class="transform scale-90 opacity-0"
-                    enter-to-class="transform scale-100 opacity-100"
-                    leave-active-class="transition duration-100"
-                    leave-from-class="transform scale-100 opacity-100"
-                    leave-to-class="transform scale-90 opacity-0"
+                <LTag
+                    :icon="TagIcon"
+                    v-for="tag in queryOptions.tags"
+                    :key="tag"
+                    @remove="
+                        () => {
+                            if (!queryOptions.tags) return;
+                            queryOptions.tags = queryOptions.tags.filter((v) => v != tag);
+                        }
+                    "
                 >
-                    <LTag
-                        :icon="TagIcon"
-                        v-for="tag in queryOptions.tags"
-                        :key="tag"
-                        @remove="
-                            () => {
-                                if (!queryOptions.tags) return;
-                                queryOptions.tags = queryOptions.tags.filter((v) => v != tag);
-                            }
-                        "
-                    >
-                        {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
-                    </LTag>
-                </TransitionGroup>
+                    {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
+                </LTag>
             </ul>
         </div>
         <div
@@ -382,28 +372,19 @@ const groups = useDexieLiveQuery(
             class="w-full bg-white px-2 pb-2 shadow"
         >
             <ul class="flex w-full flex-wrap gap-2">
-                <TransitionGroup
-                    enter-active-class="transition duration-150 delay-75"
-                    enter-from-class="transform scale-90 opacity-0"
-                    enter-to-class="transform scale-100 opacity-100"
-                    leave-active-class="transition duration-100"
-                    leave-from-class="transform scale-100 opacity-100"
-                    leave-to-class="transform scale-90 opacity-0"
+                <LTag
+                    :icon="UserGroupIcon"
+                    v-for="group in queryOptions.groups"
+                    :key="group"
+                    @remove="
+                        () => {
+                            if (!queryOptions.groups) return;
+                            queryOptions.groups = queryOptions.groups.filter((v) => v != group);
+                        }
+                    "
                 >
-                    <LTag
-                        :icon="UserGroupIcon"
-                        v-for="group in queryOptions.groups"
-                        :key="group"
-                        @remove="
-                            () => {
-                                if (!queryOptions.groups) return;
-                                queryOptions.groups = queryOptions.groups.filter((v) => v != group);
-                            }
-                        "
-                    >
-                        {{ groups.find((g) => g._id == group)?.name }}
-                    </LTag>
-                </TransitionGroup>
+                    {{ groups.find((g) => g._id == group)?.name }}
+                </LTag>
             </ul>
         </div>
         <ContentTable

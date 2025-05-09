@@ -8,6 +8,8 @@ import {
     type Uuid,
     AclPermission,
     verifyAccess,
+    useDexieLiveQuery,
+    GroupDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -84,6 +86,15 @@ const translationStatus = computed(() => {
         }
     };
 });
+
+const groups = useDexieLiveQuery(
+    () =>
+        db.docs
+            .where({ type: DocType.Group })
+            .filter((group) => props.contentDoc.memberOf.includes(group._id))
+            .toArray() as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
 </script>
 
 <template>
@@ -139,6 +150,15 @@ const translationStatus = computed(() => {
             <div class="flex max-w-xs flex-wrap gap-2">
                 <LBadge v-for="tag in tagsContent" :key="tag._id" type="default" class="text-lg">
                     {{ tag.title }}
+                </LBadge>
+            </div>
+        </td>
+
+        <!-- groups -->
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
+            <div class="flex max-w-xs flex-wrap gap-2">
+                <LBadge v-for="group in groups" :key="group._id" type="default" class="text-lg">
+                    {{ group.name }}
                 </LBadge>
             </div>
         </td>
