@@ -32,18 +32,25 @@ export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
 export async function initLanguage() {
     if (cmsLanguageIdAsRef.value) return;
 
-    const languages = (await db.docs.where("type").equals("language").toArray()) as LanguageDto[];
-    const browserPreferredLanguage = navigator.languages[0];
+    const languages: LanguageDto[] = (await db.docs
+        .where({ type: DocType.Language })
+        .toArray()) as LanguageDto[];
 
-    if (languages.some((lang) => lang.languageCode == browserPreferredLanguage)) {
-        const preferredLang = languages.find(
-            (lang) => lang.languageCode === browserPreferredLanguage,
-        );
-        const defaultLang = languages.find((lang) => lang.default === 1);
+    // Ensure the browser languages can be retrieved in all cases, eg. where a browser language is 'en' or 'en-US'
+    const browserPreferredLanguage = languages.find((lang) => {
+        const languageCode = lang.languageCode.toLowerCase();
+        return navigator.languages.some((lang) => lang.toLowerCase().startsWith(languageCode));
+    });
 
-        cmsLanguageIdAsRef.value = preferredLang?._id || defaultLang?._id || "";
+    if (browserPreferredLanguage) {
+        // Set the language ID to the browser preferred language
+        cmsLanguageIdAsRef.value = browserPreferredLanguage?._id;
     } else {
-        cmsLanguageIdAsRef.value = languages.filter((lang) => lang.default === 1)[0]._id;
+        // Find the default language and set it as the selected language
+        const defaultLang = languages.find((lang) => lang.default === 1);
+        if (defaultLang) cmsLanguageIdAsRef.value = defaultLang._id;
+        // If no default language is found, set the first language as the selected language
+        else if (languages.length > 0) cmsLanguageIdAsRef.value = languages[0]._id;
     }
 
     const _cmsLanguages = useDexieLiveQuery(
@@ -53,6 +60,7 @@ export async function initLanguage() {
             >,
         { initialValue: [] },
     );
+
     watch(
         _cmsLanguages,
         (newVal) => {
