@@ -193,10 +193,7 @@ const toggleDropdown = () => {
                     }
                 "
             >
-                <span
-                    class="block truncate hover:overflow-visible hover:text-clip hover:whitespace-normal"
-                    data-test="group-selector"
-                >
+                <span class="block truncate" data-test="group-selector" :title="option.label">
                     {{ option.label }}
                 </span>
             </li>

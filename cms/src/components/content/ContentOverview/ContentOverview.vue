@@ -52,26 +52,36 @@ const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
 
-const savedQueryOptions = sessionStorage.getItem(
-    `queryOptions_${props.docType}_${props.tagOrPostType}`,
-);
+const defaultQueryOptions: ContentOverviewQueryOptions = {
+    languageId: "",
+    parentType: props.docType,
+    tagOrPostType: props.tagOrPostType,
+    translationStatus: "all",
+    orderBy: "updatedTimeUtc",
+    orderDirection: "desc",
+    pageSize: 20,
+    pageIndex: 0,
+    tags: [],
+    groups: [],
+    search: "",
+    publishStatus: "all",
+};
+
+const savedQueryOptions = () =>
+    sessionStorage.getItem(`queryOptions_${props.docType}_${props.tagOrPostType}`);
+
+function mergeNewFields(saved: string | null): ContentOverviewQueryOptions {
+    const parsed = saved ? JSON.parse(saved) : {};
+    return {
+        ...defaultQueryOptions,
+        ...parsed,
+        tags: parsed.tags ?? [],
+        groups: parsed.groups ?? [],
+    };
+}
+
 const queryOptions = ref<ContentOverviewQueryOptions>(
-    savedQueryOptions
-        ? JSON.parse(savedQueryOptions)
-        : {
-              languageId: "",
-              parentType: props.docType,
-              tagOrPostType: props.tagOrPostType,
-              translationStatus: "all",
-              orderBy: "updatedTimeUtc",
-              orderDirection: "desc",
-              pageSize: 20,
-              pageIndex: 0,
-              tags: [],
-              groups: [],
-              search: "",
-              publishStatus: "all",
-          },
+    mergeNewFields(savedQueryOptions()) as ContentOverviewQueryOptions,
 );
 
 watch(
