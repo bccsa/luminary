@@ -390,6 +390,7 @@ const groups = useDexieLiveQuery(
         <ContentTable
             v-if="cmsLanguageIdAsRef"
             :key="tableRefreshKey"
+            :groups="groups"
             :queryOptions="queryOptions"
             data-test="content-table"
         />

@@ -83,7 +83,7 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 bg-white">
-                        <!-- Rather use upper-level groups from props so the query doesn't have to rerun for each row to reduce load -->
+                        <!-- Decided to rather use upper-level groups from props so the query doesn't have to rerun for each row to reduce load -->
                         <ContentRow
                             v-for="contentDoc in contentDocs"
                             data-test="content-row"
