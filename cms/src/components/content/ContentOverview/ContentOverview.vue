@@ -10,6 +10,7 @@ import {
     MagnifyingGlassIcon,
     TagIcon,
     ArrowUturnLeftIcon,
+    UserGroupIcon,
 } from "@heroicons/vue/24/outline";
 import {
     db,
@@ -22,6 +23,8 @@ import {
     PostType,
     useDexieLiveQueryWithDeps,
     type LanguageDto,
+    type GroupDto,
+    useDexieLiveQuery,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
@@ -34,8 +37,8 @@ import LInput from "../../forms/LInput.vue";
 import { Menu } from "@headlessui/vue";
 import LRadio from "../../forms/LRadio.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import LChecklist from "@/components/forms/LChecklist.vue";
 import LTag from "../LTag.vue";
+import LCombobox from "@/components/forms/LCombobox.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -49,25 +52,36 @@ const languageOptions = computed(() =>
     languages.value.map((l) => ({ value: l._id, label: l.name })),
 );
 
-const savedQueryOptions = sessionStorage.getItem(
-    `queryOptions_${props.docType}_${props.tagOrPostType}`,
-);
+const defaultQueryOptions: ContentOverviewQueryOptions = {
+    languageId: "",
+    parentType: props.docType,
+    tagOrPostType: props.tagOrPostType,
+    translationStatus: "all",
+    orderBy: "updatedTimeUtc",
+    orderDirection: "desc",
+    pageSize: 20,
+    pageIndex: 0,
+    tags: [],
+    groups: [],
+    search: "",
+    publishStatus: "all",
+};
+
+const savedQueryOptions = () =>
+    sessionStorage.getItem(`queryOptions_${props.docType}_${props.tagOrPostType}`);
+
+function mergeNewFields(saved: string | null): ContentOverviewQueryOptions {
+    const parsed = saved ? JSON.parse(saved) : {};
+    return {
+        ...defaultQueryOptions,
+        ...parsed,
+        tags: parsed.tags ?? [],
+        groups: parsed.groups ?? [],
+    };
+}
+
 const queryOptions = ref<ContentOverviewQueryOptions>(
-    savedQueryOptions
-        ? JSON.parse(savedQueryOptions)
-        : {
-              languageId: "",
-              parentType: props.docType,
-              tagOrPostType: props.tagOrPostType,
-              translationStatus: "all",
-              orderBy: "updatedTimeUtc",
-              orderDirection: "desc",
-              pageSize: 20,
-              pageIndex: 0,
-              tags: [],
-              search: "",
-              publishStatus: "all",
-          },
+    mergeNewFields(savedQueryOptions()) as ContentOverviewQueryOptions,
 );
 
 watch(
@@ -173,12 +187,18 @@ const resetQueryOptions = () => {
         pageSize: 20,
         pageIndex: 0,
         tags: [],
+        groups: [],
         search: "",
         publishStatus: "all",
     };
 
     debouncedSearchTerm.value = "";
 };
+
+const groups = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
 </script>
 
 <template>
@@ -223,7 +243,7 @@ const resetQueryOptions = () => {
                 :full-height="true"
             />
 
-            <div class="">
+            <div>
                 <div class="relative flex gap-1">
                     <LSelect
                         data-test="filter-select"
@@ -237,16 +257,33 @@ const resetQueryOptions = () => {
                         :options="filterByStatusOptions"
                         :icon="CloudArrowUpIcon"
                     />
-                    <LChecklist
+
+                    <LCombobox
                         :options="
                             tagContentDocs.map((tag) => ({
+                                id: tag.parentId,
                                 label: tag.title,
                                 value: tag.parentId,
                             }))
                         "
+                        v-model:selected-options="queryOptions.tags as string[]"
+                        :show-selected-in-dropdown="false"
+                        :showSelectedLabels="false"
                         :icon="TagIcon"
-                        v-model:selectedValues="queryOptions.tags"
-                        :is-content-overview="true"
+                    />
+
+                    <LCombobox
+                        :options="
+                            groups.map((group: GroupDto) => ({
+                                id: group._id,
+                                label: group.name,
+                                value: group._id,
+                            }))
+                        "
+                        v-model:selected-options="queryOptions.groups as string[]"
+                        :show-selected-in-dropdown="false"
+                        :showSelectedLabels="false"
+                        :icon="UserGroupIcon"
                     />
 
                     <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
@@ -325,32 +362,45 @@ const resetQueryOptions = () => {
             class="w-full bg-white px-2 pb-2 shadow"
         >
             <ul class="flex w-full flex-wrap gap-2">
-                <TransitionGroup
-                    enter-active-class="transition duration-150 delay-75"
-                    enter-from-class="transform scale-90 opacity-0"
-                    enter-to-class="transform scale-100 opacity-100"
-                    leave-active-class="transition duration-100"
-                    leave-from-class="transform scale-100 opacity-100"
-                    leave-to-class="transform scale-90 opacity-0"
+                <LTag
+                    :icon="TagIcon"
+                    v-for="tag in queryOptions.tags"
+                    :key="tag"
+                    @remove="
+                        () => {
+                            if (!queryOptions.tags) return;
+                            queryOptions.tags = queryOptions.tags.filter((v) => v != tag);
+                        }
+                    "
                 >
-                    <LTag
-                        v-for="tag in queryOptions.tags"
-                        :key="tag"
-                        @remove="
-                            () => {
-                                if (!queryOptions.tags) return;
-                                queryOptions.tags = queryOptions.tags.filter((v) => v != tag);
-                            }
-                        "
-                    >
-                        {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
-                    </LTag>
-                </TransitionGroup>
+                    {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
+                </LTag>
+            </ul>
+        </div>
+        <div
+            v-if="queryOptions.groups && queryOptions.groups?.length > 0"
+            class="w-full bg-white px-2 pb-2 shadow"
+        >
+            <ul class="flex w-full flex-wrap gap-2">
+                <LTag
+                    :icon="UserGroupIcon"
+                    v-for="group in queryOptions.groups"
+                    :key="group"
+                    @remove="
+                        () => {
+                            if (!queryOptions.groups) return;
+                            queryOptions.groups = queryOptions.groups.filter((v) => v != group);
+                        }
+                    "
+                >
+                    {{ groups.find((g) => g._id == group)?.name }}
+                </LTag>
             </ul>
         </div>
         <ContentTable
             v-if="cmsLanguageIdAsRef"
             :key="tableRefreshKey"
+            :groups="groups"
             :queryOptions="queryOptions"
             data-test="content-table"
         />
