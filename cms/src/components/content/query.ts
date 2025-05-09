@@ -6,7 +6,7 @@ import {
     type ContentDto,
     PublishStatus,
     PostType,
-    useDexieLiveQueryWithDeps,
+    useDexieLiveQuery,
 } from "luminary-shared";
 
 export type ContentOverviewQueryOptions = {
@@ -26,7 +26,7 @@ export type ContentOverviewQueryOptions = {
 };
 
 export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
-    return useDexieLiveQueryWithDeps(options, async () => {
+    return useDexieLiveQuery(async () => {
         if (!options.orderBy) options.orderBy = "updatedTimeUtc";
         if (!options.orderDirection) options.orderDirection = "desc";
         if (!options.pageSize) options.pageSize = 20;
