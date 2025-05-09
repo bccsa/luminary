@@ -243,7 +243,7 @@ const groups = useDexieLiveQuery(
                 :full-height="true"
             />
 
-            <div class="overflow-scroll">
+            <div>
                 <div class="relative flex gap-1">
                     <LSelect
                         data-test="filter-select"
