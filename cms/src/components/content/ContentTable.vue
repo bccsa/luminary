@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type LanguageDto, DocType, db } from "luminary-shared";
+import { type GroupDto, type LanguageDto, DocType, db } from "luminary-shared";
 import ContentRow from "./ContentRow.vue";
 import LCard from "../common/LCard.vue";
 import { contentOverviewQueryAsRef, type ContentOverviewQueryOptions } from "./query";
@@ -7,6 +7,7 @@ import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     queryOptions: ContentOverviewQueryOptions;
+    groups: GroupDto[];
 };
 const props = defineProps<Props>();
 
@@ -82,10 +83,14 @@ const contentDocs = contentOverviewQueryAsRef(props.queryOptions);
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 bg-white">
+                        <!-- Rather use upper-level groups from props so the query doesn't have to rerun for each row to reduce load -->
                         <ContentRow
                             v-for="contentDoc in contentDocs"
                             data-test="content-row"
                             :key="contentDoc._id"
+                            :groups="
+                                groups.filter((group) => contentDoc.memberOf.includes(group._id))
+                            "
                             :contentDoc="contentDoc"
                             :parentType="queryOptions.parentType"
                             :languageId="queryOptions.languageId"

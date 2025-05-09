@@ -8,7 +8,6 @@ import {
     type Uuid,
     AclPermission,
     verifyAccess,
-    useDexieLiveQuery,
     type GroupDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
@@ -19,6 +18,7 @@ import LButton from "../button/LButton.vue";
 import { DateTime } from "luxon";
 
 type Props = {
+    groups: GroupDto[];
     contentDoc: ContentDto;
     parentType: DocType.Post | DocType.Tag;
     languageId: Uuid;
@@ -86,15 +86,6 @@ const translationStatus = computed(() => {
         }
     };
 });
-
-const groups = useDexieLiveQuery(
-    () =>
-        db.docs
-            .where({ type: DocType.Group })
-            .filter((group) => props.contentDoc.memberOf.includes(group._id))
-            .toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
 </script>
 
 <template>
