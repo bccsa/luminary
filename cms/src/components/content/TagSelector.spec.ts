@@ -108,7 +108,6 @@ describe("TagSelector.vue", () => {
     });
 
     it("can add tags to the passed Parent document", async () => {
-        //This test is not passing correctly, it is giving a false positive.
         const parent = reactive({ ...mockData.mockPostDto, tags: [] });
         const wrapper = mount(TagSelector, {
             props: {
@@ -119,11 +118,16 @@ describe("TagSelector.vue", () => {
         });
 
         await wrapper.find("input").setValue("Category 1");
-        await wrapper.find("input").trigger("keydown.enter");
 
-        waitForExpect(async () => {
-            expect(parent.tags).toContain("tag-category1");
+        let tag;
+        await waitForExpect(() => {
+            tag = wrapper.find("li");
+            expect(tag.exists()).toBe(true);
         });
+
+        await tag!.trigger("click");
+
+        expect(parent.tags).toContain("tag-category1");
     });
 
     it("prevents tagging a tag with itself", async () => {
