@@ -43,10 +43,14 @@ export async function initLanguage() {
     });
 
     if (browserPreferredLanguage) {
+        // Set the language ID to the browser preferred language
         cmsLanguageIdAsRef.value = browserPreferredLanguage?._id;
     } else {
+        // Find the default language and set it as the selected language
         const defaultLang = languages.find((lang) => lang.default === 1);
         if (defaultLang) cmsLanguageIdAsRef.value = defaultLang._id;
+        // If no default language is found, set the first language as the selected language
+        else if (languages.length > 0) cmsLanguageIdAsRef.value = languages[0]._id;
     }
 
     const _cmsLanguages = useDexieLiveQuery(
