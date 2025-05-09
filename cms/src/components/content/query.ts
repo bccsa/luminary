@@ -34,7 +34,7 @@ export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
         if (!options.translationStatus) options.translationStatus = "all";
         if (!options.publishStatus) options.publishStatus = "all";
 
-        const translated = (await db.docs
+        const translated = (await db.docs // This may slow down the query if there are many documents, but it is necessary to be able to include and filter on untranslated documents
             .where({ type: DocType.Content, language: options.languageId })
             .toArray()) as ContentDto[];
         const untranslatedByParentId: Uuid[] = [];
@@ -89,7 +89,7 @@ export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
             return { count };
         } else {
             const docs = await res
-                .offset(options.pageIndex * options.pageSize)
+                .offset(options.pageIndex * options.pageSize) // TODO: This may be improved as described here: https://dexie.org/docs/Collection/Collection.offset()
                 .limit(options.pageSize)
                 .toArray();
             return { docs };
