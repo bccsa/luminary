@@ -403,6 +403,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 const duplicate = async () => {
     if (!editableParent.value) return;
 
+    //Handle Image Processing for duplicated document
     const retrieveImage = async (id: Uuid) => {
         return (await fetch(`${import.meta.env.VITE_CLIENT_IMAGES_URL}/${id}`)).arrayBuffer();
     };
@@ -415,6 +416,7 @@ const duplicate = async () => {
             const duplicateImage = imageFiles[imageFiles.length - 1];
             const imageBuffer = await retrieveImage(duplicateImage.filename);
 
+            // Ensure the duplicate has new fields
             editableParent.value.imageData.fileCollections = [];
 
             if (!editableParent.value.imageData.uploadData) {
@@ -429,6 +431,7 @@ const duplicate = async () => {
         }
     }
 
+    // Handle new data for duplicated document and keep old data
     const newParent = { ...editableParent.value, _id: db.uuid() };
 
     // Duplicate all content documents and make them unique
