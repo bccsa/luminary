@@ -18,54 +18,42 @@ env:
   CI: true
 jobs:
   playwright:
-    environment: app-staging
     runs-on: ubuntu-latest
+    services:
+      couchdb:
+        image: couchdb:latest
+        env:
+          COUCHDB_USER: admin
+          COUCHDB_PASSWORD: password
+        ports:
+          - 5984:5984
+        options: >-
+          --health-cmd="curl -f http://localhost:5984/_up"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     timeout-minutes: 15
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create enviroment file in app
+      - name: Setup API
+        run: npm install && cp .env.example .env
+        working-directory: api
+
+      - name: Setup app and shared library
         run: |
-          touch .env
-          echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
-          echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
-          echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
-          echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
-          echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
-          echo VITE_PRIVACY_POLICY_ID="${{ vars.VITE_PRIVACY_POLICY_ID }}" >> .env
-          echo VITE_ANALYTICS_HOST="${{ secrets.VITE_ANALYTICS_HOST }}" >> .env
-          echo VITE_ANALYTICS_SITEID="${{ secrets.VITE_ANALYTICS_SITEID }}" >> .env
-          echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
-          echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
-          echo VITE_LOGO_DARK="${{ vars.VITE_LOGO_DARK }}" >> .env
-          echo VITE_LOGO_SMALL="${{ vars.VITE_LOGO_SMALL }}" >> .env
-          echo VITE_LOGO_SMALL_DARK="${{ vars.VITE_LOGO_SMALL_DARK }}" >> .env
-          echo VITE_LOGO_FAVICON=${{vars.VITE_LOGO_FAVICON}} >> .env
-        working-directory: app
+          cd shared
+          npm install
+          npm run build
+          cd ../app
+          cp .env.example .env
+          npm ci --install-links
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: app/.node-version
-          cache: "npm"
-          cache-dependency-path: |
-            shared/package-lock.json
-            app/package-lock.json
-
-      - name: Install and build shared
-        run: npm ci && npm run build
-        working-directory: shared
-
-      - name: Install app dependencies
-        run: npm ci --install-links
-        working-directory: app
-
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-        working-directory: app
-
-      - name: Run Playwright E2E tests
-        working-directory: app
-        run: npx playwright test --reporter=list
+      - name: Run Playwright Tests
+        run: |
+          cd api
+          npm run start &
+          sleep 20 # Give the API enough time to start
+          cd ../app
+          npm run test:e2e
