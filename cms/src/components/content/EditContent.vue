@@ -319,7 +319,7 @@ const save = async () => {
     }
 };
 
-const revertChanges = async () => {
+const revertChanges = () => {
     // Restore the parent document to the previous version
     if (
         (_.isEqual(editableContent.value, existingContent.value) &&
