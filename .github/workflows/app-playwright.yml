@@ -37,6 +37,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+        - name: Create database in couchDB
+        run: |
+          curl -X PUT http://admin:password@localhost:5984/luminary-local
+
       - name: Setup API
         run: npm install && cp .env.example .env
         working-directory: api
