@@ -143,9 +143,7 @@ export class Sync {
         if (!isConnected.value || cancelSync) return;
 
         const data = await getRest().search(query);
-        if (data && data.docs.length > 0) {
-            await db.bulkPut(data.docs);
-        }
+        if (data && data.docs.length > 0) await db.bulkPut(data.docs);
         if (!data)
             return setTimeout(() => {
                 this.req(query, id);
