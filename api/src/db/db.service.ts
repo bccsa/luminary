@@ -589,11 +589,7 @@ export class DbService extends EventEmitter {
                             { type: { $in: [DocType.Content] } },
                             { memberOf: { $in: groups } },
                             { parentType: docType },
-                            {
-                                $expr: {
-                                    $lt: ["$publishDate", "$expiryDate"],
-                                },
-                            },
+                            { status: PublishStatus.Published },
                             ...languageSelector,
                         ],
                     });
