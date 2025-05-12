@@ -47,7 +47,6 @@ setTimeout(() => {
             <Suspense>
                 <HomePageNewest />
             </Suspense>
-
             <ContinueWatching />
         </IgnorePagePadding>
     </BasePage>
