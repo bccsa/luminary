@@ -59,8 +59,6 @@ const { addNotification } = useNotificationStore();
 const parentId = props.id == "new" ? db.uuid() : props.id;
 const newDocument = props.id == "new";
 
-const originalParentId = props.id;
-
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
