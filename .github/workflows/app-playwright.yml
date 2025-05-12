@@ -42,7 +42,10 @@ jobs:
           curl -X PUT http://admin:password@localhost:5984/luminary-local
 
       - name: Setup API
-        run: npm install && cp .env.example .env
+        run: |
+          npm install 
+          cp .env.example .env
+          npm run seed
         working-directory: api
 
       - name: Setup app and shared library
