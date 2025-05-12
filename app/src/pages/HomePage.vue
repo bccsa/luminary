@@ -7,9 +7,8 @@ import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import { isPublished } from "@/util/isPublished";
-import BasePage from "@/components/BasePage.vue";
 
-const { isAuthenticated, loginWithRedirect } = useAuth0();
+const { isAuthenticated } = useAuth0();
 
 const hasPosts = db.toRef<boolean>(
     () =>
