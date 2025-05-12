@@ -59,6 +59,8 @@ const { addNotification } = useNotificationStore();
 const parentId = props.id == "new" ? db.uuid() : props.id;
 const newDocument = props.id == "new";
 
+const originalParentId = props.id;
+
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
@@ -319,7 +321,7 @@ const save = async () => {
     }
 };
 
-const revertChanges = () => {
+const revertChanges = async () => {
     // Restore the parent document to the previous version
     if (
         (_.isEqual(editableContent.value, existingContent.value) &&
@@ -401,28 +403,50 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 const duplicate = async () => {
     if (!editableParent.value) return;
 
-    const newParent = _.cloneDeep(editableParent.value);
-    newParent._id = db.uuid();
-    newParent.updatedTimeUtc = Date.now();
+    const retrieveImage = async (id: Uuid) => {
+        return (await fetch(`${import.meta.env.VITE_CLIENT_IMAGES_URL}/${id}`)).arrayBuffer();
+    };
 
-    db.upsert({ doc: newParent });
+    if (editableParent.value.imageData) {
+        const imageFiles = editableParent.value.imageData.fileCollections?.[0]?.imageFiles ?? [];
+        // If the image is already uploaded, download the largest version
+        // Of the original post/tag's image and add it as a new image upload
+        if (imageFiles.length > 0) {
+            const duplicateImage = imageFiles[imageFiles.length - 1];
+            const imageBuffer = await retrieveImage(duplicateImage.filename);
+
+            editableParent.value.imageData.fileCollections = [];
+
+            if (!editableParent.value.imageData.uploadData) {
+                editableParent.value.imageData.uploadData = [];
+            }
+
+            editableParent.value.imageData.uploadData.push({
+                filename: duplicateImage.filename,
+                preset: "photo",
+                fileData: imageBuffer,
+            });
+        }
+    }
+
+    const newParent = { ...editableParent.value, _id: db.uuid() };
 
     // Duplicate all content documents and make them unique
-    const pList: Promise<any>[] = [];
-    editableContent.value.forEach((c) => {
+    const duplicatedContent = editableContent.value.map((c) => {
         const newContent = _.cloneDeep(c);
-
         newContent._id = db.uuid();
         newContent.updatedTimeUtc = Date.now();
-        newContent.title += " (Duplicate)";
-        newContent.slug += "-duplicate";
+        newContent.title += " (Copy)";
+        newContent.slug += "-Copy";
         newContent.parentId = newParent._id;
         newContent.status = PublishStatus.Draft;
 
-        pList.push(db.upsert({ doc: newContent }));
+        return newContent;
     });
 
-    await Promise.all(pList);
+    //Use cloneDeep to prevent a Dexie error that takes place
+    editableParent.value = _.cloneDeep(newParent);
+    editableContent.value = _.cloneDeep(duplicatedContent);
 
     await router.replace({
         name: "edit",
@@ -433,7 +457,6 @@ const duplicate = async () => {
             languageCode: selectedLanguage.value?.languageCode,
         },
     });
-    router.go(0);
 };
 </script>
 
