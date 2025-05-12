@@ -53,6 +53,10 @@ jobs:
           cd ../app
           cp .env.example .env
           npm ci --install-links
+      
+      - name: Install Playwright browsers
+        run: npx playwright install
+        working-directory: app
 
       - name: Run Playwright Tests
         run: |
