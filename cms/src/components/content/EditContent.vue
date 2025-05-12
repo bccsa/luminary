@@ -458,6 +458,12 @@ const duplicate = async () => {
             languageCode: selectedLanguage.value?.languageCode,
         },
     });
+
+    addNotification({
+        title: "Successfully duplicated",
+        description: `This ${props.tagOrPostType} has successfully been duplicated`,
+        state: "success",
+    });
 };
 </script>
 
