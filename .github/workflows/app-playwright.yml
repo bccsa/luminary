@@ -33,12 +33,11 @@ jobs:
           --health-timeout=5s
           --health-retries=5
     timeout-minutes: 15
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-        - name: Create database in couchDB
+      - name: Create database in couchDB
         run: |
           curl -X PUT http://admin:password@localhost:5984/luminary-local
 
@@ -54,7 +53,7 @@ jobs:
           cd ../app
           cp .env.example .env
           npm ci --install-links
-      
+
       - name: Install Playwright browsers
         run: npx playwright install
         working-directory: app
@@ -62,7 +61,7 @@ jobs:
       - name: Run Playwright Tests
         run: |
           cd api
-          npm run start &
-          sleep 20 # Give the API enough time to start
+          npm run start & # Start your API in the background
+          sleep 20         # Wait for the API to be ready
           cd ../app
-          npm run test:e2e
+          npm run test:e2e  # Run Playwright E2E tests
