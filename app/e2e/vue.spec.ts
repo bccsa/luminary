@@ -23,7 +23,7 @@ test("it syncs correct document types to the app(non-cms) client", async ({ cont
     await page.reload({ waitUntil: "networkidle" });
 
     //Give extra time to ensure the page has loaded
-    await page.waitForTimeout(20000);
+    await page.waitForTimeout(30000);
 
     const result = await page.evaluate(async () => {
         return new Promise((resolve, reject) => {
@@ -70,7 +70,7 @@ test("it does not sync drafted or expired docs to the app(non-cms) client", asyn
     await page.reload({ waitUntil: "networkidle" });
 
     //Give extra time to ensure the page has loaded
-    await page.waitForTimeout(20000);
+    await page.waitForTimeout(30000);
 
     const result = await page.evaluate(async () => {
         return new Promise((resolve, reject) => {
