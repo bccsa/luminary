@@ -414,7 +414,7 @@ const duplicate = async () => {
             const duplicateImage = imageFiles[imageFiles.length - 1];
             const imageBuffer = await retrieveImage(duplicateImage.filename);
 
-            // Ensure the duplicate has new fields
+            // Ensure the duplicate has new fields that are clean
             editableParent.value.imageData.fileCollections = [];
 
             if (!editableParent.value.imageData.uploadData) {
