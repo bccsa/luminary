@@ -45,6 +45,7 @@ jobs:
         run: |
           npm install 
           cp .env.example .env
+
           npm run seed
         working-directory: api
 

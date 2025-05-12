@@ -9,7 +9,7 @@ const test = base.extend({
     // eslint-disable-next-line no-empty-pattern
     context: async ({}, use) => {
         const context = await chromium.launchPersistentContext("", {
-            headless: true,
+            headless: false,
             locale: "en",
         });
         await use(context);
