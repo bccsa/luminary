@@ -2,6 +2,27 @@
 // https://playwright.dev/docs/intro
 import { test as base, chromium, expect } from "@playwright/test";
 
+async function waitForExpect(
+    assertion: () => void | Promise<void>,
+    timeout = 4000,
+    interval = 100,
+): Promise<void> {
+    const startTime = Date.now();
+    let lastError: any;
+
+    while (Date.now() - startTime < timeout) {
+        try {
+            await assertion();
+            return;
+        } catch (error) {
+            lastError = error;
+            await new Promise((res) => setTimeout(res, interval));
+        }
+    }
+
+    throw lastError;
+}
+
 //indexedDB.databases() is not supported in all browsers so make context chromium
 const test = base.extend({
     // Playwright requires the first parameter in the context function to be an object
@@ -20,6 +41,8 @@ const test = base.extend({
 test("it syncs correct document types to the app(non-cms) client", async ({ context }) => {
     const page = await context.newPage();
     await page.goto("/", { waitUntil: "networkidle" });
+    // Wait for any post load navigation to prevent errors
+    await page.waitForTimeout(1000);
 
     const result = await page.evaluate(async () => {
         return new Promise((resolve, reject) => {
@@ -53,17 +76,20 @@ test("it syncs correct document types to the app(non-cms) client", async ({ cont
             }
         }) as unknown as Promise<any[]>;
     });
-    expect(result).toBeDefined();
 
-    const types = [...new Set(result.map((doc: any) => doc.type))];
-
-    expect(types).toEqual(expect.arrayContaining(["language", "redirect", "content"]));
+    await waitForExpect(() => {
+        expect(result).toBeDefined();
+        const types = [...new Set(result.map((doc: any) => doc.type))];
+        expect(types).toEqual(expect.arrayContaining(["language", "redirect", "content"]));
+    });
 });
 
 test("it does not sync drafted or expired docs to the app(non-cms) client", async ({ context }) => {
     const page = await context.newPage();
 
     await page.goto("/", { waitUntil: "networkidle" });
+    // Wait for any post load navigation to prevent errors
+    await page.waitForTimeout(1000);
 
     const result = await page.evaluate(async () => {
         return new Promise((resolve, reject) => {
@@ -99,8 +125,9 @@ test("it does not sync drafted or expired docs to the app(non-cms) client", asyn
     });
     expect(result).toBeDefined();
 
-    const types = [...new Set(result.map((doc: any) => doc.status))];
-
-    expect(types).not.toEqual(expect.arrayContaining(["draft", "expired"]));
-    expect(types).toEqual(expect.arrayContaining(["published"]));
+    await waitForExpect(() => {
+        const types = [...new Set(result.map((doc: any) => doc.status))];
+        expect(types).not.toEqual(expect.arrayContaining(["draft", "expired"]));
+        expect(types).toEqual(expect.arrayContaining(["published"]));
+    });
 });

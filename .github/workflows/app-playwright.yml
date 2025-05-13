@@ -45,7 +45,6 @@ jobs:
         run: |
           npm install 
           cp .env.example .env
-          echo "JWT_SECRET='$( echo '${{ secrets.JWT_SECRET }}' )'" >> .env
           npm run seed
         working-directory: api
 
