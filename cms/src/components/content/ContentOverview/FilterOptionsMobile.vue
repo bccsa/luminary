@@ -40,7 +40,7 @@ const showMobileQueryOptions = ref(false);
 </script>
 
 <template>
-    <div class="rounded-t-md bg-white p-2">
+    <div class="rounded-t-md bg-white p-2 shadow">
         <div class="flex gap-1">
             <LInput
                 type="text"
@@ -149,6 +149,10 @@ const showMobileQueryOptions = ref(false);
                 >
             </div>
         </div>
-        <LButton variant="primary" class="mt-2 w-full">Close</LButton>
+        <template #footer>
+            <LButton variant="primary" class="mt-2 w-full" @click="showMobileQueryOptions = false"
+                >Close</LButton
+            >
+        </template>
     </LModal>
 </template>
