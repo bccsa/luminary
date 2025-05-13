@@ -20,7 +20,7 @@ describe("LPaginator", () => {
 
         const buttons = wrapper.findAllComponents(LButton);
 
-        await buttons[1].trigger("click");
+        await buttons[2].trigger("click");
 
         expect(index.value).toBe(1);
     });
@@ -38,7 +38,7 @@ describe("LPaginator", () => {
         });
 
         const buttons = wrapper.findAllComponents(LButton);
-        await buttons[0].trigger("click");
+        await buttons[1].trigger("click");
 
         expect(index.value).toBe(3);
     });
