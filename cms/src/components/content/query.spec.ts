@@ -3,7 +3,7 @@ import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { db, DocType, PostType, type ContentDto } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { contentOverviewQueryAsRef } from "./query";
+import { contentOverviewQuery } from "./query";
 
 describe("Content query", () => {
     beforeEach(async () => {
@@ -102,7 +102,7 @@ describe("Content query", () => {
     });
 
     it("can display the title by preferred language", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             orderBy: "title",
@@ -110,7 +110,7 @@ describe("Content query", () => {
             tagOrPostType: PostType.Blog,
         });
 
-        const res2 = contentOverviewQueryAsRef({
+        const res2 = contentOverviewQuery({
             languageId: "lang-fra",
             parentType: DocType.Post,
             orderBy: "title",
@@ -119,18 +119,20 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            expect(res1.value[0].title).toBe("Doc 1 Eng");
-            expect(res1.value[1].title).toBe("Doc 2 Eng");
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(2);
+            expect(res1DocsAsContent[0].title).toBe("Doc 1 Eng");
+            expect(res1DocsAsContent[1].title).toBe("Doc 2 Eng");
 
-            expect(res2.value).toHaveLength(2);
-            expect(res2.value[0].title).toBe("Doc 1 Fra");
-            expect(res2.value[1].title).toBe("Doc 2 Fra");
+            const res2DocsAsContent = res2.value?.docs as ContentDto[];
+            expect(res2DocsAsContent).toHaveLength(2);
+            expect(res2DocsAsContent[0].title).toBe("Doc 1 Fra");
+            expect(res2DocsAsContent[1].title).toBe("Doc 2 Fra");
         });
     });
 
     it("can sort by title in descending order", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             orderBy: "title",
@@ -139,14 +141,15 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            expect(res1.value[0].title).toBe("Doc 2 Eng");
-            expect(res1.value[1].title).toBe("Doc 1 Eng");
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(2);
+            expect(res1DocsAsContent[0].title).toBe("Doc 2 Eng");
+            expect(res1DocsAsContent[1].title).toBe("Doc 1 Eng");
         });
     });
 
     it("can sort by updatedTimeUtc", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             orderBy: "updatedTimeUtc",
@@ -155,13 +158,16 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            expect(res1.value[1].updatedTimeUtc).toBeGreaterThan(res1.value[0].updatedTimeUtc);
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(2);
+            expect(res1DocsAsContent[1].updatedTimeUtc).toBeGreaterThan(
+                res1DocsAsContent[0].updatedTimeUtc,
+            );
         });
     });
 
     it("can sort by publishDate", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-fra",
             parentType: DocType.Post,
             orderBy: "publishDate",
@@ -170,13 +176,16 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            expect(res1.value[1].publishDate).toBeGreaterThan(res1.value[0].publishDate!);
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(2);
+            expect(res1DocsAsContent[1].publishDate).toBeGreaterThan(
+                res1DocsAsContent[0].publishDate!,
+            );
         });
     });
 
     it("can sort by expiryDate", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             orderBy: "expiryDate",
@@ -185,13 +194,16 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            expect(res1.value[1].expiryDate).toBeGreaterThan(res1.value[0].expiryDate!);
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(2);
+            expect(res1DocsAsContent[1].expiryDate).toBeGreaterThan(
+                res1DocsAsContent[0].expiryDate!,
+            );
         });
     });
 
     it("excludes content with undefined sortable fields from the sorted result", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-fra",
             parentType: DocType.Post,
             orderBy: "expiryDate",
@@ -200,29 +212,30 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(0);
+            expect(res1.value?.docs).toHaveLength(0);
         });
     });
 
     it("can display both untranslated and translated content", async () => {
         // The result should return another translation with the same parentId if the content is not available in the preferred language
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-swa",
             parentType: DocType.Post,
             tagOrPostType: PostType.Blog,
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            const translatedDoc = res1.value.find((d) => d.language == "lang-swa");
-            const untranslatedDoc = res1.value.find((d) => d.language != "lang-swa");
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(2);
+            const translatedDoc = res1DocsAsContent.find((d) => d.language == "lang-swa");
+            const untranslatedDoc = res1DocsAsContent.find((d) => d.language != "lang-swa");
             expect(translatedDoc?.parentId).toBe("doc1");
             expect(untranslatedDoc?.parentId).toBe("doc2");
         });
     });
 
     it("can apply a filter to include only translated content", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-swa",
             parentType: DocType.Post,
             translationStatus: "translated",
@@ -230,13 +243,15 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(1);
-            expect(res1.value[0]._id).toBe("doc1Swa");
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+
+            expect(res1DocsAsContent).toHaveLength(1);
+            expect(res1DocsAsContent[0]._id).toBe("doc1Swa");
         });
     });
 
     it("can apply a filter to include only untranslated content", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-swa",
             parentType: DocType.Post,
             translationStatus: "untranslated",
@@ -244,14 +259,15 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(1);
-            expect(res1.value[0]._id).not.toBe("doc1Swa");
-            expect(res1.value[0].parentId).not.toBe("doc1");
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(1);
+            expect(res1DocsAsContent[0]._id).not.toBe("doc1Swa");
+            expect(res1DocsAsContent[0].parentId).not.toBe("doc1");
         });
     });
 
     it("can set the result page size and index", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             orderBy: "updatedTimeUtc",
@@ -261,7 +277,7 @@ describe("Content query", () => {
             tagOrPostType: PostType.Blog,
         });
 
-        const res2 = contentOverviewQueryAsRef({
+        const res2 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             orderBy: "updatedTimeUtc",
@@ -272,22 +288,24 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(1);
-            expect(res1.value[0]._id).toBe("doc1Eng");
-            expect(res2.value).toHaveLength(1);
-            expect(res2.value[0]._id).toBe("doc2Eng");
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
+            expect(res1DocsAsContent).toHaveLength(1);
+            expect(res1DocsAsContent[0]._id).toBe("doc1Eng");
+            const res2DocsAsContent = res2.value?.docs as ContentDto[];
+            expect(res2DocsAsContent).toHaveLength(1);
+            expect(res2DocsAsContent[0]._id).toBe("doc2Eng");
         });
     });
 
     it("can filter by tag", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             tags: ["tag1", "tag2"],
             tagOrPostType: PostType.Blog,
         });
 
-        const res2 = contentOverviewQueryAsRef({
+        const res2 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             tags: ["tag1"],
@@ -295,24 +313,28 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            expect(res1.value.some((d) => d._id == "doc1Eng")).toBe(true);
-            expect(res1.value.some((d) => d._id == "doc2Eng")).toBe(true);
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
 
-            expect(res2.value).toHaveLength(1);
-            expect(res2.value[0].parentTags.includes("tag1")).toBe(true);
+            expect(res1DocsAsContent).toHaveLength(2);
+            expect(res1DocsAsContent.some((d) => d._id == "doc1Eng")).toBe(true);
+            expect(res1DocsAsContent.some((d) => d._id == "doc2Eng")).toBe(true);
+
+            const res2DocsAsContent = res2.value?.docs as ContentDto[];
+
+            expect(res2DocsAsContent).toHaveLength(1);
+            expect(res2DocsAsContent[0].parentTags.includes("tag1")).toBe(true);
         });
     });
 
     it("can filter by group", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             groups: ["group-private-content", "group-public-editors"],
             tagOrPostType: PostType.Blog,
         });
 
-        const res2 = contentOverviewQueryAsRef({
+        const res2 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             groups: ["group-private-content"],
@@ -320,24 +342,24 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(2);
-            expect(res1.value.some((d) => d._id == "doc1Eng")).toBe(true);
-            expect(res1.value.some((d) => d._id == "doc2Eng")).toBe(true);
+            expect(res1.value?.docs).toHaveLength(2);
+            expect(res1.value?.docs!.some((d) => d._id == "doc1Eng")).toBe(true);
+            expect(res1.value?.docs!.some((d) => d._id == "doc2Eng")).toBe(true);
 
-            expect(res2.value).toHaveLength(1);
-            expect(res2.value[0].memberOf.includes("group-private-content")).toBe(true);
+            expect(res2.value?.docs).toHaveLength(1);
+            expect(res2.value?.docs![0].memberOf!.includes("group-private-content")).toBe(true);
         });
     });
 
     it("can search on the title field", async () => {
-        const res1 = contentOverviewQueryAsRef({
+        const res1 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             search: "Doc 1",
             tagOrPostType: PostType.Blog,
         });
 
-        const res2 = contentOverviewQueryAsRef({
+        const res2 = contentOverviewQuery({
             languageId: "lang-eng",
             parentType: DocType.Post,
             search: "c 2",
@@ -345,11 +367,44 @@ describe("Content query", () => {
         });
 
         await waitForExpect(() => {
-            expect(res1.value).toHaveLength(1);
-            expect(res1.value[0].title).toBe("Doc 1 Eng");
+            const res1DocsAsContent = res1.value?.docs as ContentDto[];
 
-            expect(res2.value).toHaveLength(1);
-            expect(res2.value[0].title).toBe("Doc 2 Eng");
+            expect(res1DocsAsContent).toHaveLength(1);
+            expect(res1DocsAsContent[0].title).toBe("Doc 1 Eng");
+
+            const res2DocsAsContent = res2.value?.docs as ContentDto[];
+
+            expect(res2DocsAsContent).toHaveLength(1);
+            expect(res2DocsAsContent[0].title).toBe("Doc 2 Eng");
+        });
+    });
+
+    it("can return the total count of results", async () => {
+        const res1 = contentOverviewQuery({
+            languageId: "lang-eng",
+            parentType: DocType.Post,
+            orderBy: "updatedTimeUtc",
+            orderDirection: "asc",
+            pageSize: 1,
+            pageIndex: 0,
+            count: true,
+            tagOrPostType: PostType.Blog,
+        });
+
+        const res2 = contentOverviewQuery({
+            languageId: "lang-eng",
+            parentType: DocType.Post,
+            orderBy: "updatedTimeUtc",
+            orderDirection: "asc",
+            pageSize: 1,
+            pageIndex: 1,
+            count: true,
+            tagOrPostType: PostType.Blog,
+        });
+
+        await waitForExpect(() => {
+            expect(res1.value?.count).toBe(2);
+            expect(res2.value?.count).toBe(2);
         });
     });
 });

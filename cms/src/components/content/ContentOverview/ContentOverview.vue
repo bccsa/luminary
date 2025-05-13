@@ -235,7 +235,7 @@ const groups = useDexieLiveQuery(
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
-                class="flex-grow"
+                class="w-96 sm:flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
@@ -399,6 +399,7 @@ const groups = useDexieLiveQuery(
         </div>
         <ContentTable
             v-if="cmsLanguageIdAsRef"
+            v-model:page-index="queryOptions.pageIndex as number"
             :key="tableRefreshKey"
             :groups="groups"
             :queryOptions="queryOptions"
