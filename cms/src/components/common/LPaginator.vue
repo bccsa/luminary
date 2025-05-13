@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {
-    ArrowLeftIcon,
-    ArrowRightIcon,
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
-} from "@heroicons/vue/20/solid";
+    ChevronLeftIcon,
+    ChevronRightIcon,
+} from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import { computed } from "vue";
 import LSelect from "../forms/LSelect.vue";
@@ -35,16 +35,20 @@ const isMobileScreen = computed(() => {
     return window.innerWidth < 640;
 });
 
-const pages = computed(() => {
+const pageCount = computed(() => {
+    if (!props.amountOfDocs) return 0;
+    return Math.ceil(props.amountOfDocs / pageSize.value);
+});
+
+const paginatorPages = computed(() => {
     if (!props.amountOfDocs) return [];
 
-    const amountOfPages = Math.ceil(props.amountOfDocs / pageSize.value);
     const current = index.value;
     const maxVisible = isMobileScreen.value ? 4 : 5;
 
     // If total pages are fewer than maxVisible, show all
-    if (amountOfPages <= maxVisible) {
-        return Array.from({ length: amountOfPages }, (_, i) => i);
+    if (pageCount.value <= maxVisible) {
+        return Array.from({ length: pageCount.value }, (_, i) => i);
     }
 
     let start = current - Math.floor(maxVisible / 2);
@@ -56,9 +60,9 @@ const pages = computed(() => {
     }
 
     // Clamp to end
-    if (end > amountOfPages) {
-        end = amountOfPages;
-        start = amountOfPages - maxVisible;
+    if (end > pageCount.value) {
+        end = pageCount.value;
+        start = pageCount.value - maxVisible;
     }
 
     return Array.from({ length: end - start }, (_, i) => start + i);
@@ -76,9 +80,8 @@ const indexUp = () => {
         <div class="absolute flex items-center gap-1 sm:left-1/2 sm:-translate-x-1/2">
             <!-- Move to first page -->
             <LButton
-                v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
                 class="h-10 w-10 sm:h-10 sm:w-16"
-                :disabled="disabled"
+                :disabled="index <= 0"
                 :variant="btnVariant"
                 :icon="ChevronDoubleLeftIcon"
                 @click="index = 0"
@@ -86,23 +89,22 @@ const indexUp = () => {
             />
             <!-- Index down by 1 -->
             <LButton
-                v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
                 class="h-10 w-10 sm:h-10 sm:w-12"
-                :disabled="disabled"
+                :disabled="index <= 0"
                 :variant="btnVariant"
-                :icon="ArrowLeftIcon"
+                :icon="ChevronLeftIcon"
                 @click="index > 0 ? (index -= 1) : undefined"
                 @keydown.left="index > 0 ? (index -= 1) : undefined"
             />
             <!-- Simple Variant -->
             <span v-if="variant == 'simple'" class="text-sm text-zinc-600">
                 Page <strong>{{ index + 1 }}</strong> of
-                <strong>{{ pages.length + 1 }}</strong>
+                <strong>{{ paginatorPages.length + 1 }}</strong>
             </span>
             <!-- Extended Variant -->
             <LButton
                 v-else-if="variant == 'extended'"
-                v-for="i in pages"
+                v-for="i in paginatorPages"
                 :key="`index-${i}`"
                 class="h-10 w-10 text-zinc-900"
                 :class="
@@ -117,13 +119,10 @@ const indexUp = () => {
             </LButton>
             <!-- Index up by 1 -->
             <LButton
-                v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
                 class="h-10 w-10 sm:h-10 sm:w-12"
-                :disabled="
-                    disabled || (props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)
-                "
+                :disabled="index >= pageCount - 1"
                 :variant="btnVariant"
-                :icon="ArrowRightIcon"
+                :icon="ChevronRightIcon"
                 @click="indexUp"
                 @keydown.right="indexUp"
             />
@@ -131,12 +130,10 @@ const indexUp = () => {
             <LButton
                 v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
                 class="h-10 w-10 sm:h-10 sm:w-16"
-                :disabled="
-                    disabled || (props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)
-                "
+                :disabled="index >= pageCount - 1"
                 :variant="btnVariant"
                 :icon="ChevronDoubleRightIcon"
-                @click="index = pages.length + 1"
+                @click="index = pageCount - 1"
                 @keydown.right="indexUp"
             />
         </div>
