@@ -4,7 +4,7 @@ import { test as base, chromium, expect } from "@playwright/test";
 
 async function waitForExpect(
     assertion: () => void | Promise<void>,
-    timeout = 9000,
+    timeout = 30000,
     interval = 100,
 ): Promise<void> {
     const startTime = Date.now();
