@@ -76,7 +76,6 @@ export default defineConfig({
                 ...devices["iPhone 12"],
             },
         },
-
         /* Test against branded browsers. */
         {
             name: "Microsoft Edge",
