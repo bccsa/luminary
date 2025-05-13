@@ -90,74 +90,76 @@ const toggleDropdown = () => {
         <FormLabel v-if="label"> {{ label }} </FormLabel>
 
         <div
-            class="h- flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 pl-3 pr-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+            class="h- flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
             tabindex="0"
             v-bind="attrsWithoutStyles"
             @click="showDropdown = !showDropdown"
         >
-            <div v-if="icon" class="z-10 flex items-center">
-                <component
-                    :is="icon"
-                    :class="{
-                        'text-zinc-400': !disabled,
-                        'text-zinc-300': disabled,
-                    }"
-                    class="h-5 w-5"
-                />
-            </div>
-            <input
-                @click.stop="toggleDropdown"
-                v-model="query"
-                ref="inputElement"
-                class="z-0 h-[38px] w-24 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
-                placeholder="Type to select..."
-                name="option-search"
-                autocomplete="off"
-                @keydown.enter="
-                    () => {
-                        if (showDropdown) {
-                            // Add the highlighted option to the selected options on enter
-                            if (highlightedIndex > -1) {
-                                selectedOptions.push(filtered[highlightedIndex].value);
-                                query = '';
-                                showDropdown = false;
-                                return;
-                            }
-                            // If no option is highlighted, add the first option to the selected options
-                            if (filtered.length > 0) {
-                                selectedOptions.push(filtered[0].id);
-                                query = '';
-                                showDropdown = false;
+            <div class="flex items-center justify-center gap-2">
+                <div v-if="icon" class="z-10 flex items-center">
+                    <component
+                        :is="icon"
+                        :class="{
+                            'text-zinc-400': !disabled,
+                            'text-zinc-300': disabled,
+                        }"
+                        class="h-5 w-5"
+                    />
+                </div>
+                <input
+                    @click.stop="toggleDropdown"
+                    v-model="query"
+                    ref="inputElement"
+                    class="z-0 h-[38px] w-24 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
+                    placeholder="Type to select..."
+                    name="option-search"
+                    autocomplete="off"
+                    @keydown.enter="
+                        () => {
+                            if (showDropdown) {
+                                // Add the highlighted option to the selected options on enter
+                                if (highlightedIndex > -1) {
+                                    selectedOptions.push(filtered[highlightedIndex].value);
+                                    query = '';
+                                    showDropdown = false;
+                                    return;
+                                }
+                                // If no option is highlighted, add the first option to the selected options
+                                if (filtered.length > 0) {
+                                    selectedOptions.push(filtered[0].id);
+                                    query = '';
+                                    showDropdown = false;
+                                }
                             }
                         }
-                    }
-                "
-                @keydown.escape="
-                    () => {
-                        query = '';
-                        showDropdown = false;
-                    }
-                "
-                @keydown.down="
-                    () => {
-                        if (!showDropdown) showDropdown = true;
-                        if (highlightedIndex < filtered.length - 1) highlightedIndex++;
-                        dropdown?.children[highlightedIndex].scrollIntoView({
-                            block: 'nearest',
-                            behavior: 'smooth',
-                        });
-                    }
-                "
-                @keydown.up="
-                    () => {
-                        if (highlightedIndex > 0) highlightedIndex--;
-                        dropdown?.children[highlightedIndex].scrollIntoView({
-                            block: 'nearest',
-                            behavior: 'smooth',
-                        });
-                    }
-                "
-            />
+                    "
+                    @keydown.escape="
+                        () => {
+                            query = '';
+                            showDropdown = false;
+                        }
+                    "
+                    @keydown.down="
+                        () => {
+                            if (!showDropdown) showDropdown = true;
+                            if (highlightedIndex < filtered.length - 1) highlightedIndex++;
+                            dropdown?.children[highlightedIndex].scrollIntoView({
+                                block: 'nearest',
+                                behavior: 'smooth',
+                            });
+                        }
+                    "
+                    @keydown.up="
+                        () => {
+                            if (highlightedIndex > 0) highlightedIndex--;
+                            dropdown?.children[highlightedIndex].scrollIntoView({
+                                block: 'nearest',
+                                behavior: 'smooth',
+                            });
+                        }
+                    "
+                />
+            </div>
             <button @click.stop="toggleDropdown" name="options-open-btn">
                 <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
             </button>
