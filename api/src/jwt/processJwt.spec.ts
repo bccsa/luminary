@@ -51,7 +51,7 @@ describe("processJwt", () => {
                     "groups": {
                         "group-super-admins": "() => true"
                     },
-                    "userId": "() => '12345678'",
+                    "userId": "() => 'editor1'",
                     "email": "() => 'editor1@users.test'",
                     "name": "() => 'Test User'"
                 }`,
@@ -62,7 +62,7 @@ describe("processJwt", () => {
         const evaluated = await processJwt("any jwt data", db);
 
         expect(evaluated.groups).toContain("group-super-admins");
-        expect(evaluated.userId).toBe("12345678"); // included in the JWT_MAPPINGS
+        expect(evaluated.userId).toBe("editor1"); // included in the JWT_MAPPINGS
         expect(evaluated.email).toBe("editor1@users.test");
         expect(evaluated.name).toBe("Test User");
     });

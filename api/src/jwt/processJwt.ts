@@ -124,7 +124,7 @@ export async function processJwt(
     }
 
     // Get assigned user groups from the database using the email as unique identifier if userId is not set
-    if (!userId && email) {
+    if (!userDoc && email) {
         const d = await db.getUserByEmail(email);
         if (d && d.docs.length > 0) {
             userDoc = d.docs[0] as UserDto;
@@ -134,7 +134,12 @@ export async function processJwt(
     // Update user details in the database (if changed) if userId is set
     if (userDoc && userId) {
         const updatedUserDoc = { ...userDoc, email, name };
-        if (updatedUserDoc.name !== userDoc.name || updatedUserDoc.email !== userDoc.email) {
+        if (userId) updatedUserDoc.userId = userId; // This will allow the id of a user to be changed for the same email address. We think that is not a problem, as we trust the authentication provider to prevent duplicate users (by email address)
+        if (
+            updatedUserDoc.name !== userDoc.name ||
+            updatedUserDoc.email !== userDoc.email ||
+            updatedUserDoc.userId !== userDoc.userId
+        ) {
             await db.upsertDoc(updatedUserDoc);
         }
     }
