@@ -26,7 +26,7 @@ const contentDocsTotal = contentOverviewQuery({ ...props.queryOptions, count: tr
 
 <template>
     <div>
-        <div class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+        <div class="flex flex-col gap-1">
             <ContentDisplayCard
                 v-for="contentDoc in contentDocs?.docs"
                 :is-small-screen="isSmallScreen"

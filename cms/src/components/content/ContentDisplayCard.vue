@@ -94,60 +94,60 @@ const navigateToLanguage = (language: LanguageDto) => {
 </script>
 
 <template>
-    <div class="w-full divide-y rounded-md bg-white p-2 shadow-md">
-        <!-- Title + Languages -->
-        <div class="flex items-center justify-between gap-1 py-1">
-            <div class="flex min-w-0 items-center justify-between gap-1">
-                <div
-                    class="min-w-0 max-w-36 truncate text-sm font-medium sm:max-w-[70vw] md:max-w-none"
+    <div class="w-full divide-y divide-zinc-200 rounded-md bg-white p-2 shadow-md">
+        <div class="relative flex items-center justify-end py-1">
+            <!-- Centered Title (absolute only on md and up) -->
+            <div
+                class="absolute left-1/2 -translate-x-1/2 truncate text-sm font-medium sm:max-w-[70vw] md:max-w-none md:text-center"
+            >
+                {{ contentDoc.title }}
+            </div>
+
+            <!-- Language badges (only on desktop) -->
+            <div v-if="!isSmallScreen" class="mr-2 flex flex-wrap gap-1 py-1">
+                <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
+                <RouterLink
+                    v-for="language in accessibleLanguages"
+                    :key="language._id"
+                    :to="navigateToLanguage(language)"
                 >
-                    {{ contentDoc.title }}
-                </div>
-            </div>
-            <div class="flex items-center">
-                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1 py-1">
-                    <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
-                    <RouterLink
-                        v-for="language in accessibleLanguages"
-                        :key="language._id"
-                        :to="navigateToLanguage(language)"
+                    <LBadge
+                        type="language"
+                        withIcon
+                        :variant="translationStatus(contentDocs, language)"
+                        :class="{
+                            'cursor-pointer hover:opacity-65':
+                                translationStatus(contentDocs, language) !== 'default',
+                        }"
                     >
-                        <LBadge
-                            type="language"
-                            withIcon
-                            :variant="translationStatus(contentDocs, language)"
-                            :class="{
-                                'cursor-pointer hover:opacity-65':
-                                    translationStatus(contentDocs, language) !== 'default',
-                            }"
-                        >
-                            {{ language.languageCode }}
-                        </LBadge>
-                    </RouterLink>
-                </div>
-                <LButton
-                    v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
-                    variant="tertiary"
-                    :icon="
-                        verifyAccess(contentDoc.memberOf, parentType, AclPermission.Edit)
-                            ? PencilSquareIcon
-                            : EyeIcon
-                    "
-                    :is="RouterLink"
-                    :to="{
-                        name: 'edit',
-                        params: {
-                            docType: parentType,
-                            tagOrPostType: contentDoc.parentTagType || contentDoc.parentPostType,
-                            id: contentDoc.parentId,
-                            languageCode: languages.find((l: LanguageDto) => l._id == languageId)
-                                ?.languageCode,
-                        },
-                    }"
-                    class="h-5 w-10 shrink-0"
-                    data-test="edit-button"
-                />
+                        {{ language.languageCode }}
+                    </LBadge>
+                </RouterLink>
             </div>
+
+            <!-- Edit/View Button -->
+            <LButton
+                v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
+                variant="tertiary"
+                :icon="
+                    verifyAccess(contentDoc.memberOf, parentType, AclPermission.Edit)
+                        ? PencilSquareIcon
+                        : EyeIcon
+                "
+                :is="RouterLink"
+                :to="{
+                    name: 'edit',
+                    params: {
+                        docType: parentType,
+                        tagOrPostType: contentDoc.parentTagType || contentDoc.parentPostType,
+                        id: contentDoc.parentId,
+                        languageCode: languages.find((l: LanguageDto) => l._id == languageId)
+                            ?.languageCode,
+                    },
+                }"
+                class="h-5 w-10 shrink-0"
+                data-test="edit-button"
+            />
         </div>
 
         <div v-if="isSmallScreen" class="flex flex-wrap gap-1 py-1">
@@ -171,14 +171,18 @@ const navigateToLanguage = (language: LanguageDto) => {
         </div>
 
         <!-- Tags + Groups -->
-        <div class="flex items-start justify-between gap-2 py-1">
-            <div class="flex flex-wrap items-start gap-1">
+        <div class="flex w-full items-start gap-2 py-1">
+            <div v-if="tagsContent.length > 0" class="flex w-1/2 flex-wrap items-center gap-1">
                 <TagIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="tag in tagsContent" :key="tag._id" type="default">
                     {{ tag.title }}
                 </LBadge>
             </div>
-            <div class="flex flex-wrap items-start gap-1">
+            <span class="flex w-1/2 items-center gap-1 text-xs" v-else>
+                <TagIcon class="h-4 w-4 text-zinc-400" />
+                No tags set
+            </span>
+            <div class="flex flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="group in groups" :key="group._id" type="default">
                     {{ group.name }}
