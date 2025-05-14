@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import EditContentValidation from "./EditContentValidation.vue";
-import { PublishStatus } from "luminary-shared";
+import {PublishStatus} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router", async (importOriginal) => {
@@ -159,5 +159,25 @@ describe("EditContentValidation.vue", () => {
                 expect(wrapper.text()).toContain("Draft");
             });
         });
+
+        it("Hides the delete button when a user does not have delete access", async () => {
+                const wrapper = mount(EditContentValidation, {
+                    props: {
+                        languages: [mockData.mockLanguageDtoEng],
+                        existingContent: {
+                            ...mockData.mockEnglishContentDto,
+                            status: PublishStatus.Published,
+                        }
+                    
+                    },
+
+                });
+
+                await waitForExpect(async() => {
+                    const deletebutton = wrapper.find('[data-test="translation-delete-button"]')
+                    expect(deletebutton.exists()).toBe(false);
+                })
+            });
+
     });
 });

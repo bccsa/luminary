@@ -464,6 +464,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                         Save
                     </LButton>
                     <LButton
+                        v-if="canDelete"
                         type="button"
                         @click="showDeleteModal = true"
                         data-test="delete-button"
