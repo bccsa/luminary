@@ -37,7 +37,7 @@ const showSortOptions = ref(false);
 </script>
 
 <template>
-    <div class="flex w-full gap-1 rounded-t-md bg-white p-2 shadow">
+    <div class="flex w-full gap-1 rounded-md bg-white p-2 shadow">
         <LInput
             type="text"
             :icon="MagnifyingGlassIcon"

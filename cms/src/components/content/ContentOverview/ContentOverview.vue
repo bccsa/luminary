@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
-import { PlusIcon } from "@heroicons/vue/20/solid";
+import { DocumentIcon, PlusIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 
 import {
@@ -28,6 +28,8 @@ import { cmsLanguageIdAsRef } from "@/globalConfig";
 import LTag from "../LTag.vue";
 import FilterOptions from "./FilterOptions.vue";
 import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import LCard from "@/components/common/LCard.vue";
+import LBadge from "@/components/common/LBadge.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -121,13 +123,6 @@ const groups = useDexieLiveQuery(
     <BasePage :is-full-width="true" :title="`${capitaliseFirstLetter(tagOrPostType)} overview`">
         <template #actions>
             <div class="flex gap-4">
-                <LSelect
-                    v-model="cmsLanguageIdAsRef"
-                    :options="languageOptions"
-                    :required="true"
-                    size="lg"
-                    data-test="language-selector"
-                />
                 <LButton
                     v-if="canCreateNew"
                     variant="primary"
@@ -194,13 +189,15 @@ const groups = useDexieLiveQuery(
                 </LTag>
             </ul>
         </div>
-        <ContentTable
-            v-if="cmsLanguageIdAsRef"
-            v-model:page-index="queryOptions.pageIndex as number"
-            :key="tableRefreshKey"
-            :groups="groups"
-            :queryOptions="queryOptions"
-            data-test="content-table"
-        />
+        <div class="mt-1">
+            <ContentTable
+                v-if="cmsLanguageIdAsRef"
+                v-model:page-index="queryOptions.pageIndex as number"
+                :key="tableRefreshKey"
+                :groups="groups"
+                :queryOptions="queryOptions"
+                data-test="content-table"
+            />
+        </div>
     </BasePage>
 </template>
