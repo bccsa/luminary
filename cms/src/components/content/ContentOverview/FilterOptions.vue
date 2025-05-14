@@ -2,7 +2,7 @@
 import type { ContentDto, GroupDto } from "luminary-shared";
 import { type ContentOverviewQueryOptions } from "../query";
 import { ref } from "vue";
-import { debouncedWatch, onClickOutside } from "@vueuse/core";
+import { debouncedWatch } from "@vueuse/core";
 import FilterOptionsMobile from "./FilterOptionsMobile.vue";
 import FilterOptionsDesktop from "./FilterOptionsDesktop.vue";
 
@@ -83,13 +83,6 @@ const resetQueryOptions = () => {
 
     debouncedSearchTerm.value = "";
 };
-
-const sortOptionsMenu = ref(undefined);
-const showSortOptions = ref(false);
-
-onClickOutside(sortOptionsMenu, () => {
-    showSortOptions.value = false;
-});
 </script>
 
 <template>

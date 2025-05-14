@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
-import { DocumentIcon, PlusIcon } from "@heroicons/vue/20/solid";
+import { PlusIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 
 import {
@@ -14,13 +14,11 @@ import {
     type ContentDto,
     PostType,
     useDexieLiveQueryWithDeps,
-    type LanguageDto,
     type GroupDto,
     useDexieLiveQuery,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
-import LSelect from "../../forms/LSelect.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
 import type { ContentOverviewQueryOptions } from "../query";
@@ -28,8 +26,6 @@ import { cmsLanguageIdAsRef } from "@/globalConfig";
 import LTag from "../LTag.vue";
 import FilterOptions from "./FilterOptions.vue";
 import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
-import LCard from "@/components/common/LCard.vue";
-import LBadge from "@/components/common/LBadge.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -37,11 +33,6 @@ type Props = {
 };
 
 const props = defineProps<Props>();
-
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const languageOptions = computed(() =>
-    languages.value.map((l) => ({ value: l._id, label: l.name })),
-);
 
 const defaultQueryOptions: ContentOverviewQueryOptions = {
     languageId: "",
