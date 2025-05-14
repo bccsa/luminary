@@ -31,9 +31,7 @@ const pageSize = defineModel<number>("pageSize", {
     required: true,
 });
 
-const isMobileScreen = computed(() => {
-    return window.innerWidth < 640;
-});
+const isMobileScreen = computed(() => window.innerWidth < 640);
 
 const pageCount = computed(() => {
     if (!props.amountOfDocs) return 0;
@@ -46,7 +44,6 @@ const paginatorPages = computed(() => {
     const current = index.value;
     const maxVisible = isMobileScreen.value ? 4 : 5;
 
-    // If total pages are fewer than maxVisible, show all
     if (pageCount.value <= maxVisible) {
         return Array.from({ length: pageCount.value }, (_, i) => i);
     }
@@ -59,7 +56,6 @@ const paginatorPages = computed(() => {
         end = maxVisible;
     }
 
-    // Clamp to end
     if (end > pageCount.value) {
         end = pageCount.value;
         start = pageCount.value - maxVisible;
@@ -70,83 +66,78 @@ const paginatorPages = computed(() => {
 
 const indexUp = () => {
     if (props.amountOfDocs == undefined) return;
-    const maxIndex = Math.ceil(props.amountOfDocs / pageSize.value) - 1;
+    const maxIndex = pageCount.value - 1;
     if (index.value < maxIndex) index.value += 1;
 };
 </script>
 
 <template>
-    <div class="relative flex w-full items-center justify-between">
-        <div class="absolute flex items-center gap-1 sm:left-1/2 sm:-translate-x-1/2">
-            <!-- Move to first page -->
-            <LButton
-                class="h-10 w-10 sm:h-10 sm:w-16"
-                :disabled="index <= 0"
-                :variant="btnVariant"
-                :icon="ChevronDoubleLeftIcon"
-                @click="index = 0"
-                @keydown.left="index = 0"
-            />
-            <!-- Index down by 1 -->
-            <LButton
-                class="h-10 w-10 sm:h-10 sm:w-12"
-                :disabled="index <= 0"
-                :variant="btnVariant"
-                :icon="ChevronLeftIcon"
-                @click="index > 0 ? (index -= 1) : undefined"
-                @keydown.left="index > 0 ? (index -= 1) : undefined"
-            />
-            <!-- Simple Variant -->
-            <span v-if="variant == 'simple'" class="text-sm text-zinc-600">
-                Page <strong>{{ index + 1 }}</strong> of
-                <strong>{{ paginatorPages.length + 1 }}</strong>
-            </span>
-            <!-- Extended Variant -->
-            <LButton
-                v-else-if="variant == 'extended'"
-                v-for="i in paginatorPages"
-                :key="`index-${i}`"
-                class="h-10 w-10 text-zinc-900"
-                :class="
-                    i === index
-                        ? 'bg-zinc-900 font-bold !text-zinc-50 !ring-zinc-900 hover:bg-zinc-900/80'
-                        : ''
-                "
-                @click="index = i"
-            >
-                <!-- Increase i by 1 so that for the user it starts at 1 -->
-                {{ i + 1 }}
-            </LButton>
-            <!-- Index up by 1 -->
-            <LButton
-                class="h-10 w-10 sm:h-10 sm:w-12"
-                :disabled="index >= pageCount - 1"
-                :variant="btnVariant"
-                :icon="ChevronRightIcon"
-                @click="indexUp"
-                @keydown.right="indexUp"
-            />
-            <!-- Move to last page -->
-            <LButton
-                v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
-                class="h-10 w-10 sm:h-10 sm:w-16"
-                :disabled="index >= pageCount - 1"
-                :variant="btnVariant"
-                :icon="ChevronDoubleRightIcon"
-                @click="index = pageCount - 1"
-                @keydown.right="indexUp"
+    <div class="relative flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex w-full sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:justify-center">
+            <div class="flex flex-wrap items-center justify-center gap-1">
+                <LButton
+                    class="h-10 w-10 sm:h-10 sm:w-16"
+                    :disabled="index <= 0"
+                    :variant="btnVariant"
+                    :icon="ChevronDoubleLeftIcon"
+                    @click="index = 0"
+                    @keydown.left="index = 0"
+                />
+                <LButton
+                    class="h-10 w-10 sm:h-10 sm:w-12"
+                    :disabled="index <= 0"
+                    :variant="btnVariant"
+                    :icon="ChevronLeftIcon"
+                    @click="index > 0 ? (index -= 1) : undefined"
+                    @keydown.left="index > 0 ? (index -= 1) : undefined"
+                />
+                <span v-if="variant === 'simple'" class="text-sm text-zinc-600">
+                    Page <strong>{{ index + 1 }}</strong> of
+                    <strong>{{ paginatorPages.length + 1 }}</strong>
+                </span>
+                <LButton
+                    v-else-if="variant === 'extended'"
+                    v-for="i in paginatorPages"
+                    :key="`index-${i}`"
+                    class="h-10 w-10 text-zinc-900"
+                    :class="{
+                        'bg-zinc-900 font-bold !text-zinc-50 !ring-zinc-900 hover:bg-zinc-900/80':
+                            i === index,
+                    }"
+                    @click="index = i"
+                >
+                    {{ i + 1 }}
+                </LButton>
+                <LButton
+                    class="h-10 w-10 sm:h-10 sm:w-12"
+                    :disabled="index >= pageCount - 1"
+                    :variant="btnVariant"
+                    :icon="ChevronRightIcon"
+                    @click="indexUp"
+                    @keydown.right="indexUp"
+                />
+                <LButton
+                    v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
+                    class="h-10 w-10 sm:h-10 sm:w-16"
+                    :disabled="index >= pageCount - 1"
+                    :variant="btnVariant"
+                    :icon="ChevronDoubleRightIcon"
+                    @click="index = pageCount - 1"
+                    @keydown.right="indexUp"
+                />
+            </div>
+        </div>
+
+        <div class="flex w-full justify-center sm:justify-end">
+            <LSelect
+                v-model="pageSize"
+                :options="[
+                    { value: 5, label: '5' },
+                    { value: 10, label: '10' },
+                    { value: 20, label: '20' },
+                    { value: 50, label: '50' },
+                ]"
             />
         </div>
-        <!-- This div is a divider to get the LSelect to appear on the right -->
-        <div></div>
-        <LSelect
-            v-model="pageSize"
-            :options="[
-                { value: 5, label: '5' },
-                { value: 10, label: '10' },
-                { value: 20, label: '20' },
-                { value: 50, label: '50' },
-            ]"
-        />
     </div>
 </template>
