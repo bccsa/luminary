@@ -101,52 +101,35 @@ const showMobileQueryOptions = ref(false);
                 :icon="UserGroupIcon"
             />
         </div>
-        <div class="mt-3 flex">
-            <div class="w-1/2">
-                <span>Sort By</span>
+        <div class="mt-3">
+            <LSelect
+                label="Sort By"
+                data-test="filter-select"
+                v-model="queryOptions.orderBy"
+                :options="[
+                    { value: 'title', label: 'Title' },
+                    { value: 'publishDate', label: 'Publish Date' },
+                    { value: 'expiryDate', label: 'Expiry Date' },
+                    { value: 'updatedTimeUtc', label: 'Last Updated' },
+                ]"
+                :icon="LanguageIcon"
+            />
+
+            <div class="mt-3 flex w-full gap-1">
                 <LRadio
-                    label="Title"
-                    value="title"
-                    v-model="queryOptions.orderBy"
-                    data-test="sort-option-title"
-                />
-                <LRadio
-                    label="Expiry Date"
-                    value="expiryDate"
-                    v-model="queryOptions.orderBy"
-                    data-test="sort-option-expiry-date"
-                />
-                <LRadio
-                    label="Publish Date"
-                    value="publishDate"
-                    v-model="queryOptions.orderBy"
-                    data-test="sort-option-publish-date"
-                />
-                <LRadio
-                    label="Last Updated"
-                    value="updatedTimeUtc"
-                    v-model="queryOptions.orderBy"
-                    data-test="sort-option-last-updated"
-                />
-            </div>
-            <div class="mt-1 flex w-1/2 flex-col gap-1">
-                <LButton
-                    class="flex justify-stretch"
+                    class="w-1/2"
+                    label="Ascending"
+                    value="asc"
+                    v-model="queryOptions.orderDirection"
                     data-test="ascending-sort-toggle"
-                    :class="queryOptions.orderDirection == 'asc' ? 'bg-zinc-100' : 'bg-white'"
-                    :icon="ArrowUpIcon"
-                    @click="queryOptions.orderDirection = 'asc'"
-                    >Ascending</LButton
-                >
-                <LButton
-                    class="flex justify-stretch"
+                />
+                <LRadio
+                    class="w-1/2"
+                    label="Descending"
+                    value="desc"
+                    v-model="queryOptions.orderDirection"
                     data-test="descending-sort-toggle"
-                    :class="queryOptions.orderDirection == 'desc' ? 'bg-zinc-100' : 'bg-white'"
-                    variant="secondary"
-                    :icon="ArrowDownIcon"
-                    @click="queryOptions.orderDirection = 'desc'"
-                    >Descending</LButton
-                >
+                />
             </div>
         </div>
         <template #footer>

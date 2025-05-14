@@ -98,7 +98,7 @@ const showSortOptions = ref(false);
                 <div
                     as="div"
                     ref="sortOptionsMenu"
-                    class="absolute right-0 top-full mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    class="absolute right-0 top-full z-10 mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                     v-if="showSortOptions"
                     data-test="sort-options-display"
                 >
