@@ -25,6 +25,7 @@ type Props = {
     parentType: DocType.Post | DocType.Tag;
     languageId: Uuid;
     languages: LanguageDto[];
+    isSmallScreen: boolean;
 };
 
 const props = defineProps<Props>();
@@ -93,14 +94,36 @@ const navigateToLanguage = (language: LanguageDto) => {
 </script>
 
 <template>
-    <div class="w-full divide-y rounded-md bg-white p-2 shadow-sm">
+    <div class="w-full divide-y rounded-md bg-white p-2 shadow-md">
         <!-- Title + Languages -->
-        <div class="flex items-start justify-between gap-1 py-1">
-            <div class="flex min-w-0 items-center gap-1">
+        <div class="flex items-center justify-between gap-1 py-1">
+            <div class="flex min-w-0 items-center justify-between gap-1">
                 <div
                     class="min-w-0 max-w-36 truncate text-sm font-medium sm:max-w-[70vw] md:max-w-none"
                 >
                     {{ contentDoc.title }}
+                </div>
+            </div>
+            <div class="flex items-center">
+                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1 py-1">
+                    <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
+                    <RouterLink
+                        v-for="language in accessibleLanguages"
+                        :key="language._id"
+                        :to="navigateToLanguage(language)"
+                    >
+                        <LBadge
+                            type="language"
+                            withIcon
+                            :variant="translationStatus(contentDocs, language)"
+                            :class="{
+                                'cursor-pointer hover:opacity-65':
+                                    translationStatus(contentDocs, language) !== 'default',
+                            }"
+                        >
+                            {{ language.languageCode }}
+                        </LBadge>
+                    </RouterLink>
                 </div>
                 <LButton
                     v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
@@ -125,26 +148,26 @@ const navigateToLanguage = (language: LanguageDto) => {
                     data-test="edit-button"
                 />
             </div>
+        </div>
 
-            <div class="flex flex-wrap gap-1">
-                <RouterLink
-                    v-for="language in accessibleLanguages"
-                    :key="language._id"
-                    :to="navigateToLanguage(language)"
+        <div v-if="isSmallScreen" class="flex flex-wrap gap-1 py-1">
+            <RouterLink
+                v-for="language in accessibleLanguages"
+                :key="language._id"
+                :to="navigateToLanguage(language)"
+            >
+                <LBadge
+                    type="language"
+                    withIcon
+                    :variant="translationStatus(contentDocs, language)"
+                    :class="{
+                        'cursor-pointer hover:opacity-65':
+                            translationStatus(contentDocs, language) !== 'default',
+                    }"
                 >
-                    <LBadge
-                        type="language"
-                        withIcon
-                        :variant="translationStatus(contentDocs, language)"
-                        :class="{
-                            'cursor-pointer  hover:opacity-65':
-                                translationStatus(contentDocs, language) !== 'default',
-                        }"
-                    >
-                        {{ language.languageCode }}
-                    </LBadge>
-                </RouterLink>
-            </div>
+                    {{ language.languageCode }}
+                </LBadge>
+            </RouterLink>
         </div>
 
         <!-- Tags + Groups -->
