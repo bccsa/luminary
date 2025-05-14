@@ -398,39 +398,21 @@ const liveUrl = computed(() => {
 
 const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 
+const showDuplicateModal = ref(false);
+
 const duplicate = async () => {
     if (!editableParent.value) return;
 
-    //Handle Image Processing for duplicated document
-    const retrieveImage = async (id: Uuid) => {
-        return (await fetch(`${import.meta.env.VITE_CLIENT_IMAGES_URL}/${id}`)).arrayBuffer();
-    };
+    // Handle new data for duplicated document and keep old data
+    const clonedParent = _.cloneDeep(editableParent.value);
+    const newParent = { ...clonedParent, _id: db.uuid() };
 
-    if (editableParent.value.imageData) {
-        const imageFiles = editableParent.value.imageData.fileCollections?.[0]?.imageFiles ?? [];
-        // If the image is already uploaded, download the largest version
-        // Of the original post/tag's image and add it as a new image upload
-        if (imageFiles.length > 0) {
-            const duplicateImage = imageFiles[imageFiles.length - 1];
-            const imageBuffer = await retrieveImage(duplicateImage.filename);
-
-            // Ensure the duplicate has new fields that are clean
-            editableParent.value.imageData.fileCollections = [];
-
-            if (!editableParent.value.imageData.uploadData) {
-                editableParent.value.imageData.uploadData = [];
-            }
-
-            editableParent.value.imageData.uploadData.push({
-                filename: duplicateImage.filename,
-                preset: "photo",
-                fileData: imageBuffer,
-            });
+    // Remove Original Image
+    if (newParent.imageData) {
+        if (newParent.imageData.fileCollections) {
+            newParent.imageData.fileCollections = [];
         }
     }
-
-    // Handle new data for duplicated document and keep old data
-    const newParent = { ...editableParent.value, _id: db.uuid() };
 
     // Duplicate all content documents and make them unique
     const duplicatedContent = editableContent.value.map((c) => {
@@ -438,16 +420,15 @@ const duplicate = async () => {
         newContent._id = db.uuid();
         newContent.updatedTimeUtc = Date.now();
         newContent.title += " (Copy)";
-        newContent.slug += "-Copy";
+        newContent.slug += "-copy";
         newContent.parentId = newParent._id;
         newContent.status = PublishStatus.Draft;
 
         return newContent;
     });
 
-    //Use cloneDeep to prevent a Dexie error that takes place
-    editableParent.value = _.cloneDeep(newParent);
-    editableContent.value = _.cloneDeep(duplicatedContent);
+    editableParent.value = newParent;
+    editableContent.value = duplicatedContent;
 
     await router.replace({
         name: "edit",
@@ -536,7 +517,7 @@ const duplicate = async () => {
                         :icon="DocumentDuplicateIcon"
                         title="Duplicate"
                         data-test="duplicate-btn"
-                        @click="duplicate"
+                        @click="isDirty ? (showDuplicateModal = true) : duplicate()"
                         >Duplicate</LButton
                     >
                     <LButton
@@ -629,6 +610,21 @@ const duplicate = async () => {
         "
         :secondaryAction="() => (showDeleteModal = false)"
         primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="danger"
+    ></LDialog>
+    <LDialog
+        v-model:open="showDuplicateModal"
+        :title="`Duplicate ${props.tagOrPostType} and all translations`"
+        :description="`Are you sure you want to duplicate this ${props.tagOrPostType} and all the translations without saving? Consider saving this ${props.tagOrPostType} before continuing to not lose changes.`"
+        :primaryAction="
+            () => {
+                duplicate();
+                showDuplicateModal = false;
+            }
+        "
+        :secondaryAction="() => (showDuplicateModal = false)"
+        primaryButtonText="Duplicate"
         secondaryButtonText="Cancel"
         context="danger"
     ></LDialog>
