@@ -9,9 +9,12 @@ import FilterOptionsDesktop from "./FilterOptionsDesktop.vue";
 type FilterOptionsProps = {
     groups: GroupDto[];
     tagContentDocs: ContentDto[];
+    isSmallScreen?: boolean;
 };
 
-defineProps<FilterOptionsProps>();
+withDefaults(defineProps<FilterOptionsProps>(), {
+    isSmallScreen: false,
+});
 
 const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { required: true });
 
@@ -87,8 +90,6 @@ const showSortOptions = ref(false);
 onClickOutside(sortOptionsMenu, () => {
     showSortOptions.value = false;
 });
-
-const isMobileScreen = window.innerWidth < 430;
 </script>
 
 <template>
@@ -100,7 +101,7 @@ const isMobileScreen = window.innerWidth < 430;
         :status-options="statusOptions"
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
-        v-if="isMobileScreen"
+        v-if="isSmallScreen"
     />
     <FilterOptionsDesktop
         :groups="groups"
