@@ -15,7 +15,7 @@ import LBadge from "../common/LBadge.vue";
 import { EyeIcon, PencilSquareIcon, ClockIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import { DateTime } from "luxon";
-import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { CloudArrowUpIcon, TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { PencilIcon } from "@heroicons/vue/24/solid";
 import LButton from "../button/LButton.vue";
 
@@ -76,8 +76,10 @@ const translationStatus = computed(() => {
     };
 });
 
-const renderDate = (timestamp?: number) =>
-    timestamp ? db.toDateTime(timestamp).toLocaleString(DateTime.DATETIME_SHORT) : "Not set";
+const renderDate = (timestampRelevance: string, timestamp?: number) =>
+    timestamp
+        ? db.toDateTime(timestamp).toLocaleString(DateTime.DATETIME_SHORT)
+        : `${timestampRelevance} not set`;
 
 const navigateToLanguage = (language: LanguageDto) => {
     const langCode = props.languages.find((l) => l._id === language._id)?.languageCode;
@@ -94,60 +96,60 @@ const navigateToLanguage = (language: LanguageDto) => {
 </script>
 
 <template>
-    <div class="w-full divide-y divide-zinc-200 rounded-md bg-white p-2 shadow-md">
-        <div class="relative flex items-center justify-end py-1">
+    <div class="w-full divide-y divide-zinc-100 rounded-md bg-white p-2 shadow-md">
+        <div class="relative flex items-center justify-between py-1">
             <!-- Centered Title (absolute only on md and up) -->
-            <div
-                class="absolute left-1/2 -translate-x-1/2 truncate text-sm font-medium sm:max-w-[70vw] md:max-w-none md:text-center"
-            >
+            <div class="truncate text-sm font-medium sm:max-w-[70vw]">
                 {{ contentDoc.title }}
             </div>
 
-            <!-- Language badges (only on desktop) -->
-            <div v-if="!isSmallScreen" class="mr-2 flex flex-wrap gap-1 py-1">
-                <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
-                <RouterLink
-                    v-for="language in accessibleLanguages"
-                    :key="language._id"
-                    :to="navigateToLanguage(language)"
-                >
-                    <LBadge
-                        type="language"
-                        withIcon
-                        :variant="translationStatus(contentDocs, language)"
-                        :class="{
-                            'cursor-pointer hover:opacity-65':
-                                translationStatus(contentDocs, language) !== 'default',
-                        }"
+            <div class="flex items-center">
+                <!-- Language badges (only on desktop) -->
+                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1 py-1">
+                    <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
+                    <RouterLink
+                        v-for="language in accessibleLanguages"
+                        :key="language._id"
+                        :to="navigateToLanguage(language)"
                     >
-                        {{ language.languageCode }}
-                    </LBadge>
-                </RouterLink>
-            </div>
+                        <LBadge
+                            type="language"
+                            withIcon
+                            :variant="translationStatus(contentDocs, language)"
+                            :class="{
+                                'cursor-pointer hover:opacity-65':
+                                    translationStatus(contentDocs, language) !== 'default',
+                            }"
+                        >
+                            {{ language.languageCode }}
+                        </LBadge>
+                    </RouterLink>
+                </div>
 
-            <!-- Edit/View Button -->
-            <LButton
-                v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
-                variant="tertiary"
-                :icon="
-                    verifyAccess(contentDoc.memberOf, parentType, AclPermission.Edit)
-                        ? PencilSquareIcon
-                        : EyeIcon
-                "
-                :is="RouterLink"
-                :to="{
-                    name: 'edit',
-                    params: {
-                        docType: parentType,
-                        tagOrPostType: contentDoc.parentTagType || contentDoc.parentPostType,
-                        id: contentDoc.parentId,
-                        languageCode: languages.find((l: LanguageDto) => l._id == languageId)
-                            ?.languageCode,
-                    },
-                }"
-                class="h-5 w-10 shrink-0"
-                data-test="edit-button"
-            />
+                <!-- Edit/View Button -->
+                <LButton
+                    v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
+                    variant="tertiary"
+                    :icon="
+                        verifyAccess(contentDoc.memberOf, parentType, AclPermission.Edit)
+                            ? PencilSquareIcon
+                            : EyeIcon
+                    "
+                    :is="RouterLink"
+                    :to="{
+                        name: 'edit',
+                        params: {
+                            docType: parentType,
+                            tagOrPostType: contentDoc.parentTagType || contentDoc.parentPostType,
+                            id: contentDoc.parentId,
+                            languageCode: languages.find((l: LanguageDto) => l._id == languageId)
+                                ?.languageCode,
+                        },
+                    }"
+                    class="h-5 w-10 shrink-0"
+                    data-test="edit-button"
+                />
+            </div>
         </div>
 
         <div v-if="isSmallScreen" class="flex flex-wrap gap-1 py-1">
@@ -193,16 +195,23 @@ const navigateToLanguage = (language: LanguageDto) => {
         <!-- Dates -->
         <div class="grid w-full grid-cols-3 items-start gap-2 py-1 text-xs">
             <div class="flex items-center justify-start gap-1">
-                <PencilIcon class="h-3 w-3 text-zinc-400" />
-                <span title="Last Updated">{{ renderDate(contentDoc.updatedTimeUtc) }}</span>
+                <CloudArrowUpIcon class="h-4 w-4 text-zinc-400" />
+                <span title="Publish Date">{{
+                    renderDate("Publish Date", contentDoc.publishDate)
+                }}</span>
             </div>
+
             <div class="flex items-center justify-center gap-1">
-                <ClockIcon class="h-3 w-3 text-zinc-400" />
-                <span title="Expiry Date">{{ renderDate(contentDoc.expiryDate) }}</span>
+                <ClockIcon class="h-4 w-4 text-zinc-400" />
+                <span title="Expiry Date">{{
+                    renderDate("Expiry Date", contentDoc.expiryDate)
+                }}</span>
             </div>
             <div class="flex items-center justify-end gap-1">
-                <EyeIcon class="h-3 w-3 text-zinc-400" />
-                <span title="Publish Date">{{ renderDate(contentDoc.publishDate) }}</span>
+                <PencilIcon class="h-4 w-4 text-zinc-400" />
+                <span title="Last Updated">{{
+                    renderDate("Last Updated", contentDoc.updatedTimeUtc)
+                }}</span>
             </div>
         </div>
     </div>
