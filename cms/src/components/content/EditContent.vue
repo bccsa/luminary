@@ -401,7 +401,9 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 const showDuplicateModal = ref(false);
 
 const duplicate = async () => {
+    console.log("Duplicating");
     if (!editableParent.value) return;
+    console.log("Did not return");
 
     // Handle new data for duplicated document and keep old data
     const clonedParent = _.cloneDeep(editableParent.value);

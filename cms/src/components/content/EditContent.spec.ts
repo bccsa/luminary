@@ -483,6 +483,33 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it.only("correctly creates a duplicate of a document and all its translations", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await wrapper.find("[data-test='duplicate-btn']").trigger("click");
+
+        let duplicateModalButton;
+        await waitForExpect(async () => {
+            duplicateModalButton = wrapper.find('[data-test="modal-primary-button"]');
+            expect(duplicateModalButton.exists()).toBe(true);
+        });
+
+        duplicateModalButton!.trigger("click");
+
+        await waitForExpect(async () => {
+            console.log(await db.docs.toArray());
+            const res = await db.localChanges.toArray();
+            console.log(res);
+        });
+    });
+
     describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
