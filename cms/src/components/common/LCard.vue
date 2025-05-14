@@ -39,6 +39,7 @@ function collapse() {
                 <component v-if="icon" :is="icon" class="h-4 w-4 text-zinc-600" />
                 <h3 class="text-sm font-semibold leading-6 text-zinc-900">{{ title }}</h3>
             </div>
+            <slot name="header"></slot>
             <button v-if="collapsible">
                 <ChevronDownIcon
                     v-if="collapsed"

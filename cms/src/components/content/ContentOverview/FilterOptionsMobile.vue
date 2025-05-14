@@ -40,7 +40,7 @@ const showMobileQueryOptions = ref(false);
 </script>
 
 <template>
-    <div class="rounded-t-md bg-white p-2 shadow">
+    <div class="rounded-md bg-white p-2 shadow">
         <div class="flex gap-1">
             <LInput
                 type="text"
