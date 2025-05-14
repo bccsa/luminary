@@ -117,6 +117,9 @@ const groups = useDexieLiveQuery(
     () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
     { initialValue: [] as GroupDto[] },
 );
+
+//Rather do calculation here, so it doesn't recalculate for each component
+const isSmallScreen = window.innerWidth < 430;
 </script>
 
 <template>
@@ -144,6 +147,7 @@ const groups = useDexieLiveQuery(
         </template>
 
         <FilterOptions
+            :is-small-screen="isSmallScreen"
             :groups="groups"
             :tagContentDocs="tagContentDocs"
             v-model:query-options="queryOptions"
@@ -191,6 +195,7 @@ const groups = useDexieLiveQuery(
         </div>
         <div class="mt-1">
             <ContentTable
+                :is-small-screen="isSmallScreen"
                 v-if="cmsLanguageIdAsRef"
                 v-model:page-index="queryOptions.pageIndex as number"
                 :key="tableRefreshKey"
