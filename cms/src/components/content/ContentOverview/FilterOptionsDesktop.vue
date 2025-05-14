@@ -18,6 +18,7 @@ import LCombobox from "@/components/forms/LCombobox.vue";
 import LSelect from "@/components/forms/LSelect.vue";
 import LButton from "@/components/button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
+import { onClickOutside } from "@vueuse/core";
 
 type Props = {
     translationOptions: any[];
@@ -33,7 +34,12 @@ const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { 
 // Debouncing the search term so it is the only unique query option that needs a seperate defineModel
 const query = defineModel("query", { required: true });
 
+const sortOptionsMenu = ref(undefined);
 const showSortOptions = ref(false);
+
+onClickOutside(sortOptionsMenu, () => {
+    showSortOptions.value = false;
+});
 </script>
 
 <template>
@@ -92,7 +98,10 @@ const showSortOptions = ref(false);
                     :icon="UserGroupIcon"
                 />
 
-                <LButton @click="() => (showSortOptions = true)" data-test="sort-toggle-btn">
+                <LButton
+                    @click="() => (showSortOptions = !showSortOptions)"
+                    data-test="sort-toggle-btn"
+                >
                     <ArrowsUpDownIcon class="h-full w-4" />
                 </LButton>
                 <div
