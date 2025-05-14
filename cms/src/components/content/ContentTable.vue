@@ -8,6 +8,7 @@ import LPaginator from "../common/LPaginator.vue";
 import ContentDisplayCard from "./ContentDisplayCard.vue";
 
 type Props = {
+    isSmallScreen: boolean;
     queryOptions: ContentOverviewQueryOptions;
     groups: GroupDto[];
 };
@@ -28,6 +29,7 @@ const contentDocsTotal = contentOverviewQuery({ ...props.queryOptions, count: tr
         <div class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
             <ContentDisplayCard
                 v-for="contentDoc in contentDocs?.docs"
+                :is-small-screen="isSmallScreen"
                 data-test="content-row"
                 :key="contentDoc._id"
                 :groups="groups.filter((group) => contentDoc.memberOf?.includes(group._id))"
