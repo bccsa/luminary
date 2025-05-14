@@ -96,7 +96,7 @@ const toggleDropdown = () => {
             @click="showDropdown = !showDropdown"
         >
             <div class="flex items-center justify-center gap-2">
-                <div v-if="icon" class="z-10 flex items-center">
+                <div v-if="icon" class="flex items-center">
                     <component
                         :is="icon"
                         :class="{
