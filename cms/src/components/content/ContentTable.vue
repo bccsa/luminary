@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { type ContentDto, type GroupDto, type LanguageDto, DocType, db } from "luminary-shared";
-import ContentRow from "./ContentRow.vue";
-import LCard from "../common/LCard.vue";
 import { contentOverviewQuery, type ContentOverviewQueryOptions } from "./query";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import LPaginator from "../common/LPaginator.vue";
@@ -47,7 +45,7 @@ const contentDocsTotal = contentOverviewQuery({ ...props.queryOptions, count: tr
                 <p class="text-sm text-zinc-500">No content found with the matched filter.</p>
             </div>
         </div>
-        <div class="flex h-14 w-full items-center justify-center py-4">
+        <div class="mt-6 flex h-14 w-full items-center justify-center py-4 md:my-0">
             <LPaginator
                 :amountOfDocs="contentDocsTotal?.count as number"
                 v-model:index="pageIndex"

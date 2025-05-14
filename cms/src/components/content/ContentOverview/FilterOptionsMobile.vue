@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import {
-    ArrowUpIcon,
-    ArrowDownIcon,
     MagnifyingGlassIcon,
     TagIcon,
     ArrowUturnLeftIcon,
