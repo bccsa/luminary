@@ -709,7 +709,7 @@ describe("EditContent.vue", () => {
         });
 
         it("Check if the user does not have delete access", async () => {
-        delete accessMap.value["group-public-content"].post?.delete
+            delete accessMap.value["group-public-content"].post?.delete;
 
             const wrapper = mount(EditContent, {
                 props: {
@@ -719,10 +719,11 @@ describe("EditContent.vue", () => {
                     tagOrPostType: PostType.Blog,
                 },
             });
-            await waitForExpect(async() => {
-                const deletebutton = wrapper.find('[data-test="delete-button"]')
-                expect(wrapper.text()).toContain("Delete");
-            })
-        })
+
+            await waitForExpect(async () => {
+                const deletebutton = wrapper.find('[data-test="delete-button"]');
+                expect(deletebutton.exists()).toBe(false);
+            });
+        });
     });
 });
