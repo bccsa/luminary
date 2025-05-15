@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
@@ -23,4 +23,9 @@ export class UserDto extends _contentBaseDto {
     @IsString()
     @Expose()
     userId?: string;
+
+    @IsOptional()
+    @IsNumber()
+    @Expose()
+    lastLoggedIn?: string;
 }

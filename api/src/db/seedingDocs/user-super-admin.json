@@ -3,5 +3,6 @@
     "type": "user",
     "memberOf": ["group-super-admins"],
     "email": "superadmin@users.test",
+    "lastLoggedIn": 1704114000000,
     "name": "Super Admin"
 }
