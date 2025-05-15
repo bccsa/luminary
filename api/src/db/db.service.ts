@@ -584,15 +584,31 @@ export class DbService extends EventEmitter {
 
                 // content only docs
                 if (docType === DocType.Post || docType === DocType.Tag)
-                    $or.push({
-                        $and: [
-                            { type: { $in: [DocType.Content] } },
-                            { memberOf: { $in: groups } },
-                            { parentType: docType },
-                            { status: PublishStatus.Published },
-                            ...languageSelector,
-                        ],
-                    });
+                    if (options.contentOnly)
+                        $or.push({
+                            $and: [
+                                { type: { $in: [DocType.Content] } },
+                                { memberOf: { $in: groups } },
+                                { parentType: docType },
+                                { status: PublishStatus.Published },
+                                {
+                                    $or: [
+                                        { expiryDate: { $gt: Date.now() } },
+                                        { expiryDate: { $exists: false } },
+                                    ],
+                                },
+                                ...languageSelector,
+                            ],
+                        });
+                    else
+                        $or.push({
+                            $and: [
+                                { type: { $in: [DocType.Content] } },
+                                { memberOf: { $in: groups } },
+                                { parentType: docType },
+                                ...languageSelector,
+                            ],
+                        });
 
                 // groups docs
                 if (docType === DocType.Group && !options.contentOnly) {

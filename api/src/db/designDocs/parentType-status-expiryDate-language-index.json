@@ -1,0 +1,34 @@
+{
+    "_id": "_design/parentType-status-expiryDate-language-index",
+    "language": "query",
+    "views": {
+        "parentType-status-expiryDate-language-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "asc",
+                    "type": "asc",
+                    "memberOf": "asc",
+                    "parentType": "asc",
+                    "status": "asc",
+                    "expiryDate": "asc",
+                    "language": "asc"
+                },
+                "partial_filter_selector": {}
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": [
+                        "updatedTimeUtc",
+                        "type",
+                        "memberOf",
+                        "parentType",
+                        "status",
+                        "expiryDate",
+                        "language"
+                    ]
+                }
+            }
+        }
+    }
+}
