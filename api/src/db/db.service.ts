@@ -816,37 +816,6 @@ export class DbService extends EventEmitter {
         });
     }
 
-    // /**
-    //  * Get a user document by email
-    //  * @param email
-    //  * @returns
-    //  */
-    // async getUserByEmail(email: string): Promise<DbQueryResult> {
-    //     return new Promise((resolve, reject) => {
-    //         const query = {
-    //             selector: {
-    //                 $and: [
-    //                     {
-    //                         type: DocType.User,
-    //                     },
-    //                     {
-    //                         email: email,
-    //                     },
-    //                 ],
-    //             },
-    //             limit: 1,
-    //         };
-    //         this.db
-    //             .find(query)
-    //             .then((res) => {
-    //                 resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
-    //             })
-    //             .catch((err) => {
-    //                 reject(err);
-    //             });
-    //     });
-    // }
-
     /**
      * Get a user document by userId or email
      * @param email
