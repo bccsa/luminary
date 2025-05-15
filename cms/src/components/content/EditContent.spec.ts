@@ -10,8 +10,6 @@ import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
-import { useRouter } from "vue-router";
-import router from "@/router";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -484,7 +482,7 @@ describe("EditContent.vue", () => {
             expect(saved?.title).toBe("Translated Title");
         });
     });
-    it.only("correctly creates a duplicate of a document and all its translations", async () => {
+    it("correctly creates a duplicate of a document and all its translations", async () => {
         const notificationStore = useNotificationStore();
         const mockNotification = vi.spyOn(notificationStore, "addNotification");
 
