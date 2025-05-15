@@ -174,7 +174,10 @@ const navigateToLanguage = (language: LanguageDto) => {
 
         <!-- Tags + Groups -->
         <div class="flex w-full items-center gap-2 py-1">
-            <div v-if="tagsContent.length > 0" class="flex w-1/2 flex-wrap items-center gap-1">
+            <div
+                v-if="tagsContent.length > 0"
+                class="flex w-full flex-wrap items-center gap-1 sm:w-1/2"
+            >
                 <TagIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="tag in tagsContent" :key="tag._id" type="default">
                     {{ tag.title }}
