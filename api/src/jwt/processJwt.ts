@@ -113,42 +113,34 @@ export async function processJwt(
         return { groups: [] };
     }
 
-    let userDoc: UserDto;
-
     // If userId is set, get the user details from the database using the userId
     if (userId) {
         userId = userId.toString();
-        const d = await db.getUserById(userId);
-        if (d && d.docs.length > 0) {
-            userDoc = d.docs[0] as UserDto;
-        }
     }
 
-    // Get assigned user groups from the database using the email as unique identifier if userId is not set
-    if (!userDoc && email) {
-        const d = await db.getUserByEmail(email);
-        if (d && d.docs.length > 0) {
-            userDoc = d.docs[0] as UserDto;
-        }
-    }
+    const userDocs = (await db.getUserByIdOrEmail(email, userId)).docs as UserDto[];
 
     // Update user details in the database (if changed) if userId is set
-    if (userDoc && userId) {
-        const updatedUserDoc = { ...userDoc, email };
-        if (userId) updatedUserDoc.userId = userId; // This will allow the id of a user to be changed for the same email address. We think that is not a problem, as we trust the authentication provider to prevent duplicate users (by email address)
-        if (name) updatedUserDoc.name = name;
-        if (
-            updatedUserDoc.name !== userDoc.name ||
-            updatedUserDoc.email !== userDoc.email ||
-            updatedUserDoc.userId !== userDoc.userId
-        ) {
-            await db.upsertDoc(updatedUserDoc);
+    if (userId) {
+        for (const d of userDocs) {
+            const updated = { ...d, userId, email };
+            if (name) updated.name = name;
+            if (
+                updated.name !== d.name ||
+                updated.userId !== d.userId ||
+                updated.email !== d.email
+            ) {
+                await db.upsertDoc(updated);
+            }
         }
     }
 
-    userDoc?.memberOf?.forEach((groupId) => {
-        groupSet.add(groupId);
-    });
+    userDocs
+        .map((d) => d.memberOf)
+        .flat()
+        .forEach((groupId) => {
+            groupSet.add(groupId);
+        });
 
     const groups = [...groupSet];
     const accessMap = PermissionSystem.getAccessMap(groups);

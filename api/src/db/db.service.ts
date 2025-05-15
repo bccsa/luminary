@@ -817,65 +817,61 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Get a user document by email
+     * Get a user document by userId or email
      * @param email
-     * @returns
-     */
-    async getUserByEmail(email: string): Promise<DbQueryResult> {
-        return new Promise((resolve, reject) => {
-            const query = {
-                selector: {
-                    $and: [
-                        {
-                            type: DocType.User,
-                        },
-                        {
-                            email: email,
-                        },
-                    ],
-                },
-                limit: 1,
-            };
-            this.db
-                .find(query)
-                .then((res) => {
-                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
-                })
-                .catch((err) => {
-                    reject(err);
-                });
-        });
-    }
-
-    /**
-     * Get a user document by userId
      * @param userId
      * @returns
      */
-    async getUserById(userId: string): Promise<DbQueryResult> {
-        return new Promise((resolve, reject) => {
-            const query = {
+    async getUserByIdOrEmail(email: string, userId?: string): Promise<DbQueryResult> {
+        // As CouchDB does not handle indexing on OR queries well, we need to do two separate queries and merge the results
+
+        let res1;
+        if (userId) {
+            const query1 = {
                 selector: {
                     $and: [
                         {
                             type: DocType.User,
                         },
                         {
-                            userId: userId,
+                            userId,
                         },
                     ],
                 },
-                limit: 1,
             };
-            this.db
-                .find(query)
-                .then((res) => {
-                    resolve({ docs: res.docs, warnings: res.warning ? [res.warning] : undefined });
-                })
-                .catch((err) => {
-                    reject(err);
-                });
+            res1 = await this.db.find(query1);
+        }
+
+        const query2 = {
+            selector: {
+                $and: [
+                    {
+                        type: DocType.User,
+                    },
+                    {
+                        email,
+                    },
+                ],
+            },
+        };
+
+        const warnings = [];
+        if (res1 && res1.warning) warnings.push(res1.warning);
+
+        const res2 = await this.db.find(query2);
+        if (res2.warning) warnings.push(res2.warning);
+
+        // Merge docs and ensure uniqueness by _id
+        const allDocs = res1 ? [...res1.docs, ...res2.docs] : res2.docs;
+        const uniqueDocsMap = new Map<string, any>();
+        allDocs.forEach((doc) => {
+            if (doc && doc._id && !uniqueDocsMap.has(doc._id)) {
+                uniqueDocsMap.set(doc._id, doc);
+            }
         });
+        const docs = Array.from(uniqueDocsMap.values());
+
+        return { docs, warnings: warnings.length ? warnings : undefined };
     }
 
     /**

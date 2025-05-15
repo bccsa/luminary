@@ -93,15 +93,17 @@ describe("DbService", () => {
         });
 
         it("can get a user document by email", async () => {
-            const res = await service.getUserByEmail("editor1@users.test");
+            const res = await service.getUserByIdOrEmail("editor1@users.test", undefined);
             expect(res.docs.length).toBe(1);
             expect(res.docs[0].type === DocType.User).toBe(true);
+            expect(res.docs[0].userId).toBe("editor1");
         });
 
         it("can get a user document by userId", async () => {
-            const res = await service.getUserById("editor1");
+            const res = await service.getUserByIdOrEmail("outdated@email.address", "editor1");
             expect(res.docs.length).toBe(1);
             expect(res.docs[0].type === DocType.User).toBe(true);
+            expect(res.docs[0].email).toBe("editor1@users.test");
         });
     });
 

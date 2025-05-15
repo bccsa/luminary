@@ -116,10 +116,49 @@ describe("processJwt", () => {
 
         await processJwt("any jwt data", db);
 
-        const res = await db.getUserById("editor1");
-        const userDoc = res.docs[0] as UserDto;
-        expect(userDoc).toBeDefined();
-        expect(userDoc.name).toBe("Updated User Name");
-        expect(userDoc.email).toBe("updated@email.address");
+        const res = await db.getUserByIdOrEmail("updated@email.address", "editor1");
+        const userDocs = res.docs as UserDto[];
+
+        expect(userDocs.length).toBe(1); // We have not yet added another user with the same email address
+        expect(userDocs[0].name).toBe("Updated User Name");
+        expect(userDocs[0].email).toBe("updated@email.address");
+    });
+
+    it("can concatenate user groups from multiple user documents with matching email addresses and userIds", async () => {
+        const actual = jest.requireActual("../configuration");
+        jest.spyOn(actual, "default").mockReturnValue({
+            auth: {
+                jwtMappings: `{
+                    "userId": "() => 'testUser1'",
+                    "email": "() => 'test@email.1'"
+                }`,
+            },
+        });
+
+        // Create two users with the same email. Only one of them has an ID set. The two users have different groups.
+        await db.upsertDoc({
+            _id: "testUser1",
+            type: "user",
+            userId: "testUser1",
+            email: "test@email.1",
+            name: "Test User 1",
+            memberOf: ["group-public-editors"],
+        } as UserDto);
+
+        await db.upsertDoc({
+            _id: "testUser2",
+            type: "user",
+            userId: "",
+            email: "test@email.1",
+            name: "Test User 2",
+            memberOf: ["group-private-editors", "group-public-editors"],
+        } as UserDto);
+
+        // It should prefer the userId mapping over the email mapping
+        const evaluated = await processJwt("any jwt data", db);
+
+        expect(evaluated.groups).toContain("group-public-editors");
+        expect(evaluated.groups).toContain("group-private-editors");
+        expect(evaluated.groups.length).toBe(2);
     });
 });
