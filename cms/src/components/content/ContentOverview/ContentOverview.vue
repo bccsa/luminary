@@ -184,7 +184,7 @@ const isSmallScreen = window.innerWidth < 430;
                 </LTag>
             </ul>
         </div>
-        <div class="mt-1">
+        <div class="">
             <ContentTable
                 :is-small-screen="isSmallScreen"
                 v-if="cmsLanguageIdAsRef"
