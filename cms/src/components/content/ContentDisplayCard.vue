@@ -105,7 +105,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 
             <div class="flex items-center">
                 <!-- Language badges (only on desktop) -->
-                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1">
+                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1 py-1">
                     <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
                     <RouterLink
                         v-for="language in accessibleLanguages"
