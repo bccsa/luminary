@@ -1,20 +1,19 @@
 {
-    "_id": "_design/email-type-id-index",
+    "_id": "_design/userId-type-index",
     "language": "query",
     "views": {
-        "email-type-id-index": {
+        "userId-type-index": {
             "map": {
                 "fields": {
-                    "email": "asc",
-                    "type": "asc",
-                    "_id": "asc"
+                    "userId": "asc",
+                    "type": "asc"
                 },
                 "partial_filter_selector": {}
             },
             "reduce": "_count",
             "options": {
                 "def": {
-                    "fields": ["email", "type", "_id"]
+                    "fields": ["userId", "type"]
                 }
             }
         }
