@@ -10,6 +10,8 @@ import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
+import { useRouter } from "vue-router";
+import router from "@/router";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -484,6 +486,9 @@ describe("EditContent.vue", () => {
     });
 
     it.only("correctly creates a duplicate of a document and all its translations", async () => {
+        const mockNotification = vi.spyOn(useNotificationStore(), "addNotification");
+        const mockReplace = vi.spyOn(router, "replace");
+
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -492,6 +497,8 @@ describe("EditContent.vue", () => {
                 tagOrPostType: PostType.Blog,
             },
         });
+
+        wrapper.vm.selectedLanguageId = "lang-eng";
 
         await wrapper.find("[data-test='duplicate-btn']").trigger("click");
 
@@ -503,10 +510,19 @@ describe("EditContent.vue", () => {
 
         duplicateModalButton!.trigger("click");
 
+        expect(mockReplace).toHaveBeenCalled();
+
+        await waitForExpect(() => {
+            expect(mockNotification).toHaveBeenCalled();
+        });
+
+        await wrapper.vm.$nextTick();
+
         await waitForExpect(async () => {
-            console.log(await db.docs.toArray());
+            await wrapper.find("[data-test='save-button']").trigger("click");
+            console.log("database", await db.docs.toArray());
             const res = await db.localChanges.toArray();
-            console.log(res);
+            console.log("Local changes", res);
         });
     });
 

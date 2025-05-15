@@ -239,9 +239,12 @@ const isDirty = computed(
 );
 
 const isValid = ref(true);
+watch(isValid, () => console.log(isValid.value));
 
 const saveChanges = async () => {
+    console.log("Saving");
     if (!isValid.value) {
+        console.log("NOT VALID");
         addNotification({
             title: "Changes not saved",
             description: "There are validation errors that prevent saving",
@@ -249,6 +252,7 @@ const saveChanges = async () => {
         });
         return;
     }
+    console.log("Saving 2");
 
     // Check if content is currently published
     const prevContentDoc = existingContent.value?.find(
@@ -268,6 +272,7 @@ const saveChanges = async () => {
         });
         return;
     }
+    console.log("Saving 3");
 
     // If no translate access at all, disallow saving
     if (!canTranslate.value) {
@@ -278,6 +283,7 @@ const saveChanges = async () => {
         });
         return;
     }
+    console.log("Saving 4");
 
     await save();
 
@@ -292,6 +298,7 @@ const saveChanges = async () => {
 };
 
 const save = async () => {
+    console.log("Saving 5");
     // Bypass saving if the parent document is new and is marked for deletion
     if (!existingContent.value && editableParent.value.deleteReq) {
         return;
@@ -401,6 +408,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
 const showDuplicateModal = ref(false);
 
 const duplicate = async () => {
+    showDuplicateModal.value = false;
     console.log("Duplicating");
     if (!editableParent.value) return;
     console.log("Did not return");
@@ -439,6 +447,7 @@ const duplicate = async () => {
             tagType: props.docType === DocType.Tag ? props.tagOrPostType : undefined,
             id: newParent._id,
             languageCode: selectedLanguage.value?.languageCode,
+            tagOrPostType: props.tagOrPostType,
         },
     });
 
