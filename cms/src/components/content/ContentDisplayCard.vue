@@ -96,8 +96,8 @@ const navigateToLanguage = (language: LanguageDto) => {
 </script>
 
 <template>
-    <div class="w-full divide-y divide-zinc-100 rounded-md bg-white p-2 shadow-md">
-        <div class="relative flex items-center justify-between py-1">
+    <div class="p w-full divide-y divide-zinc-100 rounded-md bg-white px-2 py-1 shadow-md">
+        <div class="relative flex items-center justify-between">
             <!-- Centered Title (absolute only on md and up) -->
             <div class="truncate text-sm font-medium sm:max-w-[70vw]">
                 {{ contentDoc.title }}
@@ -105,7 +105,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 
             <div class="flex items-center">
                 <!-- Language badges (only on desktop) -->
-                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1 py-1">
+                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1">
                     <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
                     <RouterLink
                         v-for="language in accessibleLanguages"
@@ -173,7 +173,7 @@ const navigateToLanguage = (language: LanguageDto) => {
         </div>
 
         <!-- Tags + Groups -->
-        <div class="flex w-full items-start gap-2 py-1">
+        <div class="flex w-full items-center gap-2 py-1">
             <div v-if="tagsContent.length > 0" class="flex w-1/2 flex-wrap items-center gap-1">
                 <TagIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="tag in tagsContent" :key="tag._id" type="default">
@@ -184,30 +184,37 @@ const navigateToLanguage = (language: LanguageDto) => {
                 <TagIcon class="h-4 w-4 text-zinc-400" />
                 No tags set
             </span>
-            <div class="flex flex-wrap items-center gap-1">
+            <div v-if="!isSmallScreen" class="flex flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="group in groups" :key="group._id" type="default">
                     {{ group.name }}
                 </LBadge>
             </div>
         </div>
+        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
+            <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+            <LBadge v-for="group in groups" :key="group._id" type="default">
+                {{ group.name }}
+            </LBadge>
+        </div>
 
         <!-- Dates -->
-        <div class="grid w-full grid-cols-3 items-start gap-2 py-1 text-xs">
-            <div class="flex items-center justify-start gap-1">
-                <CloudArrowUpIcon class="h-4 w-4 text-zinc-400" />
-                <span title="Publish Date">{{
-                    renderDate("Publish Date", contentDoc.publishDate)
-                }}</span>
+        <div class="flex justify-between pt-2 text-xs sm:gap-4">
+            <div class="flex gap-2" :class="isSmallScreen ? 'w-full justify-between' : ''">
+                <div class="flex items-center justify-start">
+                    <CloudArrowUpIcon class="h-4 w-4 text-zinc-400" />
+                    <span title="Publish Date">{{
+                        renderDate("Publish Date", contentDoc.publishDate)
+                    }}</span>
+                </div>
+                <div class="flex items-center justify-center">
+                    <ClockIcon class="h-4 w-4 text-zinc-400" />
+                    <span title="Expiry Date">{{
+                        renderDate("Expiry Date", contentDoc.expiryDate)
+                    }}</span>
+                </div>
             </div>
-
-            <div class="flex items-center justify-center gap-1">
-                <ClockIcon class="h-4 w-4 text-zinc-400" />
-                <span title="Expiry Date">{{
-                    renderDate("Expiry Date", contentDoc.expiryDate)
-                }}</span>
-            </div>
-            <div class="flex items-center justify-end gap-1">
+            <div v-if="!isSmallScreen" class="flex items-center justify-end">
                 <PencilIcon class="h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("Last Updated", contentDoc.updatedTimeUtc)
