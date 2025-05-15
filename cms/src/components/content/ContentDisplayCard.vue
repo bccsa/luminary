@@ -172,6 +172,14 @@ const navigateToLanguage = (language: LanguageDto) => {
             </RouterLink>
         </div>
 
+        <!-- Mobile Groups -->
+        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
+            <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+            <LBadge v-for="group in groups" :key="group._id" type="default">
+                {{ group.name }}
+            </LBadge>
+        </div>
+
         <!-- Tags + Groups -->
         <div class="flex w-full items-center gap-2 py-1">
             <div
@@ -193,12 +201,6 @@ const navigateToLanguage = (language: LanguageDto) => {
                     {{ group.name }}
                 </LBadge>
             </div>
-        </div>
-        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
-            <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-            <LBadge v-for="group in groups" :key="group._id" type="default">
-                {{ group.name }}
-            </LBadge>
         </div>
 
         <!-- Dates -->
