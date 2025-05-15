@@ -239,11 +239,9 @@ const isDirty = computed(
 );
 
 const isValid = ref(true);
-watch(isValid, () => console.log(isValid.value));
 
 const saveChanges = async () => {
     if (!isValid.value) {
-        console.log("NOT VALID");
         addNotification({
             title: "Changes not saved",
             description: "There are validation errors that prevent saving",
