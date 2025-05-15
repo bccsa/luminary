@@ -484,10 +484,9 @@ describe("EditContent.vue", () => {
             expect(saved?.title).toBe("Translated Title");
         });
     });
-
     it.only("correctly creates a duplicate of a document and all its translations", async () => {
-        const mockNotification = vi.spyOn(useNotificationStore(), "addNotification");
-        const mockReplace = vi.spyOn(router, "replace");
+        const notificationStore = useNotificationStore();
+        const mockNotification = vi.spyOn(notificationStore, "addNotification");
 
         const wrapper = mount(EditContent, {
             props: {
@@ -498,31 +497,38 @@ describe("EditContent.vue", () => {
             },
         });
 
-        wrapper.vm.selectedLanguageId = "lang-eng";
-
-        await wrapper.find("[data-test='duplicate-btn']").trigger("click");
-
-        let duplicateModalButton;
-        await waitForExpect(async () => {
-            duplicateModalButton = wrapper.find('[data-test="modal-primary-button"]');
-            expect(duplicateModalButton.exists()).toBe(true);
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
         });
 
-        duplicateModalButton!.trigger("click");
+        let confirmBtn;
+        await waitForExpect(async () => {
+            await wrapper.find("[data-test='duplicate-btn']").trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
 
-        expect(mockReplace).toHaveBeenCalled();
+        await confirmBtn!.trigger("click");
 
         await waitForExpect(() => {
-            expect(mockNotification).toHaveBeenCalled();
+            expect(mockNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: "Successfully duplicated",
+                }),
+            );
         });
 
-        await wrapper.vm.$nextTick();
+        //@ts-expect-error
+        const newParentId = wrapper.vm.editableParent._id;
+        expect(newParentId).not.toBe(mockData.mockPostDto._id);
+
+        await wrapper.setProps({ id: newParentId });
+
+        await wrapper.find("[data-test='save-button']").trigger("click");
 
         await waitForExpect(async () => {
-            await wrapper.find("[data-test='save-button']").trigger("click");
-            console.log("database", await db.docs.toArray());
-            const res = await db.localChanges.toArray();
-            console.log("Local changes", res);
+            const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
+            expect(res.length).toBeGreaterThan(0);
         });
     });
 

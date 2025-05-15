@@ -55,9 +55,6 @@ watchEffect(() => {
 
 // Parent validation
 const parentValidations = ref([] as Validation[]);
-watch(parentValidations, () => {
-    console.log("ParentValidations", parentValidations.value);
-});
 const parentIsValid = ref(true);
 watch(
     [editableParent, editableContent],
