@@ -97,7 +97,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 
 <template>
     <div class="p w-full divide-y divide-zinc-100 rounded-md bg-white px-2 py-1 shadow-md">
-        <div class="relative flex items-center justify-between">
+        <div class="relative flex items-center justify-between py-1">
             <!-- Centered Title (absolute only on md and up) -->
             <div class="truncate text-sm font-medium sm:max-w-[70vw]">
                 {{ contentDoc.title }}
@@ -105,7 +105,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 
             <div class="flex items-center">
                 <!-- Language badges (only on desktop) -->
-                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1 py-1">
+                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1">
                     <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
                     <RouterLink
                         v-for="language in accessibleLanguages"
