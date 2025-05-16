@@ -38,7 +38,7 @@ const showMobileQueryOptions = ref(false);
 </script>
 
 <template>
-    <div class="z-10 rounded-t-md bg-white p-2 shadow">
+    <div class="z-10 rounded-md bg-white p-2 shadow">
         <div class="flex gap-1">
             <LInput
                 type="text"
