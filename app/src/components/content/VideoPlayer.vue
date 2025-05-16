@@ -30,6 +30,7 @@ const hasStarted = ref<boolean>(false);
 const showAudioModeToggle = ref<boolean>(true);
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
+const currentTime = ref(0);
 
 let timeout: any;
 function autoHidePlayerControls() {
@@ -164,8 +165,34 @@ onMounted(() => {
 
     // Save player progress if greater than 60 seconds
     player.on("timeupdate", () => {
-        const currentTime = player.currentTime() || 0;
+        let currentTime = player.currentTime() || 0;
         if (player.options_.liveui === true || !props.content.video || currentTime < 60) return;
+        // Check for the array in localstorage, if this id is not in there, push it
+        /**
+         * Push an object that contains enough data so the data can be retrieved on the homepage with the correct video
+         * ?? {
+         *  _id: string, // The video ID
+         *  lastWatched: number, // Last Time user watched this video
+         *  timestamp: number // The currentTime for the video
+         * }
+         */
+        // This must only be done for the last 10 videos the user has watched
+        // If array already has 10 videos saved, start replacing videos in the array
+        const videos: any[] = JSON.parse(localStorage.getItem("last-watched") ?? "[]");
+        if (videos.includes({ id: props.content._id })) {
+            const updatedVideos = videos.map((video) => {
+                if (video.id == props.content._id) {
+                    video.lastWatched = Date.now();
+                    video.timestamp = currentTime;
+                }
+                return video;
+            });
+            localStorage.setItem("last-watched", JSON.stringify(updatedVideos));
+        } else {
+            if (videos.length == 10) {
+                //Get video that was watched the longest time ago and replace it.
+            }
+        }
         setMediaProgress(props.content.video, props.content._id, currentTime);
     });
 
