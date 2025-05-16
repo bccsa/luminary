@@ -122,13 +122,16 @@ const navigateToLanguage = (language: LanguageDto) => {
             "
         >
             <!-- Centered Title (absolute only on md and up) -->
-            <div class="truncate text-sm font-medium sm:max-w-[70vw]">
+            <div class="w-2/3 truncate text-sm font-medium">
                 {{ contentDoc.title }}
             </div>
 
-            <div class="flex items-center">
-                <div v-if="isSmallScreen" class="flex items-center justify-end text-xs">
-                    <PencilIcon class="h-4 w-4 text-zinc-400" />
+            <div class="flex w-1/3 items-center justify-end">
+                <div
+                    v-if="isSmallScreen"
+                    class="flex items-center justify-end text-xs text-zinc-400"
+                >
+                    <PencilIcon class="h-3 w-3 text-zinc-300" />
                     <span title="Last Updated">{{
                         renderDate("small", "Last Updated", contentDoc.updatedTimeUtc)
                     }}</span>
@@ -147,7 +150,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                             withIcon
                             :variant="translationStatus(contentDocs, language)"
                             :class="{
-                                'cursor-pointer hover:opacity-65':
+                                'z-20 cursor-pointer hover:opacity-65':
                                     translationStatus(contentDocs, language) !== 'default',
                             }"
                         >
@@ -190,14 +193,19 @@ const navigateToLanguage = (language: LanguageDto) => {
                     </LBadge>
                 </div>
             </div>
-            <span class="flex w-1/2 items-center gap-1 text-xs" v-else>
-                <TagIcon class="h-4 w-4 text-zinc-400" />
+            <span class="flex w-1/2 items-center gap-1 text-xs text-zinc-400" v-else>
+                <TagIcon class="h-4 w-4 text-zinc-300" />
                 No tags set
             </span>
         </div>
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-            <LBadge v-for="group in groups" :key="group._id" type="default">
+            <LBadge
+                class="bg-zinc-400 text-zinc-50"
+                v-for="group in groups"
+                :key="group._id"
+                type="default"
+            >
                 {{ group.name }}
             </LBadge>
         </div>
@@ -206,7 +214,7 @@ const navigateToLanguage = (language: LanguageDto) => {
         <div class="flex items-center justify-between pt-1 text-xs sm:gap-4">
             <div v-if="!isSmallScreen" class="flex w-full flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-                <LBadge v-for="group in groups" :key="group._id" type="default">
+                <LBadge class="" v-for="group in groups" :key="group._id" type="default">
                     {{ group.name }}
                 </LBadge>
             </div>
@@ -214,19 +222,19 @@ const navigateToLanguage = (language: LanguageDto) => {
                 <div class="flex items-center justify-end">
                     <CloudArrowUpIcon class="mr-1 h-4 w-4 text-zinc-400" />
                     <span title="Publish Date">{{
-                        renderDate("default", "Publish Date", contentDoc.publishDate as number)
+                        renderDate("default", "Publish date", contentDoc.publishDate as number)
                     }}</span>
                 </div>
                 <div class="flex items-center justify-end">
                     <ClockIcon class="mr-1 h-4 w-4 text-zinc-400" />
                     <span title="Expiry Date">{{
-                        renderDate("default", "Expiry Date", contentDoc.expiryDate as number)
+                        renderDate("default", "Expiry date", contentDoc.expiryDate as number)
                     }}</span>
                 </div>
                 <div v-if="!isSmallScreen" class="flex items-center justify-end">
                     <PencilIcon class="h-4 w-4 text-zinc-400" />
                     <span title="Last Updated">{{
-                        renderDate("default", "Last Updated", contentDoc.updatedTimeUtc)
+                        renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
                     }}</span>
                 </div>
             </div>
