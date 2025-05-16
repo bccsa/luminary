@@ -27,11 +27,6 @@ const contentDocsTotal = contentOverviewQuery({ ...props.queryOptions, count: tr
         <div class="flex flex-col gap-1">
             <ContentDisplayCard
                 v-for="contentDoc in contentDocs?.docs"
-                :class="
-                    contentDocs?.docs && contentDoc._id == contentDocs.docs[0]._id
-                        ? 'rounded-t-none'
-                        : ''
-                "
                 :is-small-screen="isSmallScreen"
                 data-test="content-row"
                 :key="contentDoc._id"

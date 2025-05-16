@@ -18,6 +18,7 @@ import { DateTime } from "luxon";
 import { CloudArrowUpIcon, TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { PencilIcon } from "@heroicons/vue/24/solid";
 import LButton from "../button/LButton.vue";
+import router from "@/router";
 
 type Props = {
     groups: GroupDto[];
@@ -76,10 +77,12 @@ const translationStatus = computed(() => {
     };
 });
 
-const renderDate = (timestampRelevance: string, timestamp?: number) =>
-    timestamp
-        ? db.toDateTime(timestamp).toLocaleString(DateTime.DATETIME_SHORT)
-        : `${timestampRelevance} not set`;
+const renderDate = (size: "default" | "small", timestampRelevance: string, timestamp: number) =>
+    size == "default"
+        ? timestamp
+            ? db.toDateTime(timestamp).toLocaleString(DateTime.DATETIME_SHORT)
+            : `${timestampRelevance} not set`
+        : db.toDateTime(timestamp).toLocaleString();
 
 const navigateToLanguage = (language: LanguageDto) => {
     const langCode = props.languages.find((l) => l._id === language._id)?.languageCode;
@@ -97,16 +100,43 @@ const navigateToLanguage = (language: LanguageDto) => {
 
 <template>
     <div class="p w-full divide-y divide-zinc-100 rounded-md bg-white px-2 py-1 shadow-md">
-        <div class="relative flex items-center justify-between py-1">
+        <div
+            class="relative flex cursor-pointer items-center justify-between py-1"
+            @click="
+                () => {
+                    if (verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)) {
+                        router.replace({
+                            name: 'edit',
+                            params: {
+                                docType: parentType,
+                                tagOrPostType:
+                                    contentDoc.parentTagType || contentDoc.parentPostType,
+                                id: contentDoc.parentId,
+                                languageCode: languages.find(
+                                    (l: LanguageDto) => l._id == languageId,
+                                )?.languageCode,
+                            },
+                        });
+                    }
+                }
+            "
+        >
             <!-- Centered Title (absolute only on md and up) -->
             <div class="truncate text-sm font-medium sm:max-w-[70vw]">
                 {{ contentDoc.title }}
             </div>
 
             <div class="flex items-center">
+                <div v-if="isSmallScreen" class="flex items-center justify-end text-xs">
+                    <PencilIcon class="h-4 w-4 text-zinc-400" />
+                    <span title="Last Updated">{{
+                        renderDate("small", "Last Updated", contentDoc.updatedTimeUtc)
+                    }}</span>
+                </div>
                 <!-- Language badges (only on desktop) -->
                 <div v-if="!isSmallScreen" class="flex flex-wrap gap-1">
                     <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
+
                     <RouterLink
                         v-for="language in accessibleLanguages"
                         :key="language._id"
@@ -125,30 +155,6 @@ const navigateToLanguage = (language: LanguageDto) => {
                         </LBadge>
                     </RouterLink>
                 </div>
-
-                <!-- Edit/View Button -->
-                <LButton
-                    v-if="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
-                    variant="tertiary"
-                    :icon="
-                        verifyAccess(contentDoc.memberOf, parentType, AclPermission.Edit)
-                            ? PencilSquareIcon
-                            : EyeIcon
-                    "
-                    :is="RouterLink"
-                    :to="{
-                        name: 'edit',
-                        params: {
-                            docType: parentType,
-                            tagOrPostType: contentDoc.parentTagType || contentDoc.parentPostType,
-                            id: contentDoc.parentId,
-                            languageCode: languages.find((l: LanguageDto) => l._id == languageId)
-                                ?.languageCode,
-                        },
-                    }"
-                    class="h-5 w-10 shrink-0"
-                    data-test="edit-button"
-                />
             </div>
         </div>
 
@@ -173,6 +179,22 @@ const navigateToLanguage = (language: LanguageDto) => {
         </div>
 
         <!-- Mobile Groups -->
+
+        <!-- Tags + Groups -->
+        <div class="flex w-full items-center gap-2 py-1">
+            <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
+                <TagIcon class="h-4 w-4 text-zinc-400" />
+                <div class="flex flex-wrap gap-1">
+                    <LBadge v-for="tag in tagsContent" :key="tag._id" type="default">
+                        {{ tag.title }}
+                    </LBadge>
+                </div>
+            </div>
+            <span class="flex w-1/2 items-center gap-1 text-xs" v-else>
+                <TagIcon class="h-4 w-4 text-zinc-400" />
+                No tags set
+            </span>
+        </div>
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <UserGroupIcon class="h-4 w-4 text-zinc-400" />
             <LBadge v-for="group in groups" :key="group._id" type="default">
@@ -180,50 +202,33 @@ const navigateToLanguage = (language: LanguageDto) => {
             </LBadge>
         </div>
 
-        <!-- Tags + Groups -->
-        <div class="flex w-full items-center gap-2 py-1">
-            <div
-                v-if="tagsContent.length > 0"
-                class="flex w-full flex-wrap items-center gap-1 sm:w-1/2"
-            >
-                <TagIcon class="h-4 w-4 text-zinc-400" />
-                <LBadge v-for="tag in tagsContent" :key="tag._id" type="default">
-                    {{ tag.title }}
-                </LBadge>
-            </div>
-            <span class="flex w-1/2 items-center gap-1 text-xs" v-else>
-                <TagIcon class="h-4 w-4 text-zinc-400" />
-                No tags set
-            </span>
-            <div v-if="!isSmallScreen" class="flex flex-wrap items-center gap-1">
+        <!-- Dates -->
+        <div class="flex items-center justify-between pt-1 text-xs sm:gap-4">
+            <div v-if="!isSmallScreen" class="flex w-full flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="group in groups" :key="group._id" type="default">
                     {{ group.name }}
                 </LBadge>
             </div>
-        </div>
-
-        <!-- Dates -->
-        <div class="flex justify-between pt-2 text-xs sm:gap-4">
-            <div class="flex gap-2" :class="isSmallScreen ? 'w-full justify-between' : ''">
-                <div class="flex items-center justify-start">
-                    <CloudArrowUpIcon class="h-4 w-4 text-zinc-400" />
+            <div class="flex w-full justify-end gap-3">
+                <div class="flex items-center justify-end">
+                    <CloudArrowUpIcon class="mr-1 h-4 w-4 text-zinc-400" />
                     <span title="Publish Date">{{
-                        renderDate("Publish Date", contentDoc.publishDate)
+                        renderDate("default", "Publish Date", contentDoc.publishDate as number)
                     }}</span>
                 </div>
-                <div class="flex items-center justify-center">
-                    <ClockIcon class="h-4 w-4 text-zinc-400" />
+                <div class="flex items-center justify-end">
+                    <ClockIcon class="mr-1 h-4 w-4 text-zinc-400" />
                     <span title="Expiry Date">{{
-                        renderDate("Expiry Date", contentDoc.expiryDate)
+                        renderDate("default", "Expiry Date", contentDoc.expiryDate as number)
                     }}</span>
                 </div>
-            </div>
-            <div v-if="!isSmallScreen" class="flex items-center justify-end">
-                <PencilIcon class="h-4 w-4 text-zinc-400" />
-                <span title="Last Updated">{{
-                    renderDate("Last Updated", contentDoc.updatedTimeUtc)
-                }}</span>
+                <div v-if="!isSmallScreen" class="flex items-center justify-end">
+                    <PencilIcon class="h-4 w-4 text-zinc-400" />
+                    <span title="Last Updated">{{
+                        renderDate("default", "Last Updated", contentDoc.updatedTimeUtc)
+                    }}</span>
+                </div>
             </div>
         </div>
     </div>

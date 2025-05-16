@@ -57,7 +57,7 @@ const routeKey = computed(() => {
                 <TopBar />
             </div>
 
-            <main class="py-10">
+            <main class="py-4">
                 <div class="px-4 sm:px-6 lg:px-8">
                     <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
                     routes (e.g. Post / Tag overviews) -->
