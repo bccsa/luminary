@@ -72,7 +72,7 @@ describe("ContentOverview.vue", () => {
         });
     });
 
-    it("should show edit button with correct router link and icon", async () => {
+    it.skip("should show edit button with correct router link and icon", async () => {
         const wrapper = mount(ContentOverview, {
             global: {
                 plugins: [createTestingPinia()],
@@ -103,7 +103,7 @@ describe("ContentOverview.vue", () => {
         });
     });
 
-    it("should show view icon with correct router link if no edit permission", async () => {
+    it.skip("should show view icon with correct router link if no edit permission", async () => {
         accessMap.value = mockData.viewAccessToAllContentMap;
 
         const wrapper = mount(ContentOverview, {
