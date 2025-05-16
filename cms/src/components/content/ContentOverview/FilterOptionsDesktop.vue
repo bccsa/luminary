@@ -43,7 +43,7 @@ onClickOutside(sortOptionsMenu, () => {
 </script>
 
 <template>
-    <div class="z-10 flex w-full gap-1 rounded-t-md border-b bg-white p-2 shadow">
+    <div class="z-10 flex w-full gap-1 rounded-md border-b bg-white p-2 shadow">
         <LInput
             type="text"
             :icon="MagnifyingGlassIcon"
