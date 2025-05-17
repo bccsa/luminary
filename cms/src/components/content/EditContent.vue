@@ -407,12 +407,12 @@ const duplicate = async () => {
 
     // Handle new data for duplicated document and keep old data
     const clonedParent = _.cloneDeep(editableParent.value);
-    const newParent = { ...clonedParent, _id: db.uuid() };
+    clonedParent._id = db.uuid();
 
     // Remove Original Image
-    if (newParent.imageData) {
-        if (newParent.imageData.fileCollections) {
-            newParent.imageData.fileCollections = [];
+    if (clonedParent.imageData) {
+        if (clonedParent.imageData.fileCollections) {
+            clonedParent.imageData.fileCollections = [];
         }
     }
 
@@ -423,13 +423,13 @@ const duplicate = async () => {
         newContent.updatedTimeUtc = Date.now();
         newContent.title += " (Copy)";
         newContent.slug += "-copy";
-        newContent.parentId = newParent._id;
+        newContent.parentId = clonedParent._id;
         newContent.status = PublishStatus.Draft;
 
         return newContent;
     });
 
-    editableParent.value = newParent;
+    editableParent.value = clonedParent;
     editableContent.value = duplicatedContent;
 
     const isTestEnviroment = import.meta.env.MODE === "test";
@@ -439,7 +439,7 @@ const duplicate = async () => {
             params: {
                 docType: props.docType,
                 tagType: props.docType === DocType.Tag ? props.tagOrPostType : undefined,
-                id: newParent._id,
+                id: clonedParent._id,
                 languageCode: selectedLanguage.value?.languageCode,
                 tagOrPostType: props.tagOrPostType,
             },

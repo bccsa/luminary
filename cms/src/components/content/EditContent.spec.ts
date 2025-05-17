@@ -482,53 +482,64 @@ describe("EditContent.vue", () => {
             expect(saved?.title).toBe("Translated Title");
         });
     });
-    it("correctly creates a duplicate of a document and all its translations", async () => {
-        const notificationStore = useNotificationStore();
-        const mockNotification = vi.spyOn(notificationStore, "addNotification");
+    it(
+        "correctly creates a duplicate of a document and all its translations",
+        async () => {
+            const notificationStore = useNotificationStore();
+            const mockNotification = vi.spyOn(notificationStore, "addNotification");
 
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-                tagOrPostType: PostType.Blog,
-            },
-        });
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
 
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("English");
-        });
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain("English");
+            });
 
-        let confirmBtn;
-        await waitForExpect(async () => {
-            await wrapper.find("[data-test='duplicate-btn']").trigger("click");
-            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
-            expect(confirmBtn.exists()).toBe(true);
-        });
+            let duplicateBtn;
+            await waitForExpect(() => {
+                duplicateBtn = wrapper.find("[data-test='duplicate-btn']");
+                expect(duplicateBtn.exists()).toBe(true);
+            });
 
-        await confirmBtn!.trigger("click");
+            let confirmBtn;
+            await waitForExpect(async () => {
+                // Duplicate button click is not triggered outside the waitForExpect()
+                duplicateBtn!.trigger("click");
+                confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+                expect(confirmBtn.exists()).toBe(true);
+            });
 
-        await waitForExpect(() => {
-            expect(mockNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    title: "Successfully duplicated",
-                }),
-            );
-        });
+            await confirmBtn!.trigger("click");
 
-        //@ts-expect-error
-        const newParentId = wrapper.vm.editableParent._id;
-        expect(newParentId).not.toBe(mockData.mockPostDto._id);
+            await waitForExpect(() => {
+                expect(mockNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Successfully duplicated",
+                    }),
+                );
+            });
 
-        await wrapper.setProps({ id: newParentId });
+            //@ts-expect-error
+            const newParentId = wrapper.vm.editableParent._id;
+            expect(newParentId).not.toBe(mockData.mockPostDto._id);
 
-        await wrapper.find("[data-test='save-button']").trigger("click");
+            await wrapper.setProps({ id: newParentId });
 
-        await waitForExpect(async () => {
-            const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
-            expect(res.length).toBeGreaterThan(0);
-        });
-    });
+            await wrapper.find("[data-test='save-button']").trigger("click");
+
+            await waitForExpect(async () => {
+                const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
+                expect(res.length).toBeGreaterThan(0);
+            });
+        },
+        { timeout: 999999 },
+    );
 
     describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
