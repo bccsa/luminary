@@ -349,7 +349,6 @@ const deleteParent = async () => {
         });
         return;
     }
-    console.log("Deleting parent", editableParent.value);
 
     editableParent.value.deleteReq = 1;
 
