@@ -10,6 +10,8 @@ import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
+import EditContentText from "./EditContentText.vue";
+import RichTextEditor from "../editor/RichTextEditor.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -480,6 +482,67 @@ describe("EditContent.vue", () => {
         await waitForExpect(async () => {
             const saved = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
             expect(saved?.title).toBe("Translated Title");
+        });
+    });
+
+    it("correctly updates text field in indexedDB from rich text editor", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        // Wait for data load
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+
+        // Check that the publish button is disabled
+        const publishButton = wrapper.findComponent(LTextToggle);
+        expect(publishButton.exists()).toBe(true);
+        expect(publishButton.props().disabled).toBe(true);
+
+        // Update title to make the content dirty
+        const titleInput = wrapper.find('input[name="title"]');
+        await titleInput.setValue("Translated Title");
+
+        // Save
+        const saveButton = wrapper.find('[data-test="save-button"]');
+        expect(saveButton.exists()).toBe(true);
+        await saveButton.trigger("click");
+
+        // Check if content is saved
+        await waitForExpect(async () => {
+            const saved = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
+            expect(saved?.title).toBe("Translated Title");
+        });
+        await wrapper.find("#headlessui-menu-button-v-10").trigger("click");
+        // expect(languageSelector.exists()).toBe(true);
+        await waitForExpect(async () => {
+            const editContentText = wrapper.findComponent(EditContentText);
+
+            expect(editContentText.exists()).toBe(true);
+        });
+
+        const textEditor = wrapper.findComponent(RichTextEditor);
+
+        expect(textEditor.exists()).toBe(true);
+        //@ts-ignore -valid
+        textEditor.vm.text = "New Content";
+
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+
+            expect(res.length).toBe(2);
+            expect(res[1].doc).toMatchObject({
+                ...mockData.mockEnglishContentDto,
+                text: "New Content",
+            });
         });
     });
 
