@@ -165,7 +165,7 @@ const toggleDropdown = () => {
 
         <div
             ref="dropdown"
-            v-show="showDropdown || query.trim().length > 0"
+            v-if="showDropdown || query.trim().length > 0"
             class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
             data-test="options"
         >

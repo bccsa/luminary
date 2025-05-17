@@ -141,4 +141,155 @@ describe("LCombobox", () => {
 
         expect(wrapper.text()).toContain("hidden-uuid");
     });
+
+    it("adds an option to the selected options when clicked", async () => {
+        const selected = ref(["id-1"]);
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: selected.value,
+            },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+
+        await wrapper.vm.$nextTick();
+
+        await wrapper.findAll("[name='list-item']")[2].trigger("click");
+
+        await waitForExpect(() => {
+            expect(selected.value).toContain("test-3");
+        });
+    });
+
+    it("adds an option to the selected options when enter is pressed", async () => {
+        const selected = ref(["id-1"]);
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: selected.value,
+            },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+
+        await wrapper.vm.$nextTick();
+
+        const searchElement = wrapper.find("[name='option-search']");
+        searchElement.setValue("Test Label 3");
+        await searchElement.trigger("keydown.enter");
+
+        await waitForExpect(() => {
+            expect(selected.value).toContain(2);
+        });
+    });
+
+    it("closes the dropdown when escape is pressed", async () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: [],
+            },
+        });
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+
+        await wrapper.vm.$nextTick();
+
+        const searchElement = wrapper.find("[name='option-search']");
+
+        const options = wrapper.find("[data-test='options']");
+
+        await waitForExpect(() => {
+            expect(options.exists()).toBe(true);
+        });
+        await searchElement.trigger("keydown.escape");
+
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(async () => {
+            expect(wrapper.find("[data-test='options']").exists()).toBe(false);
+        });
+    });
+
+    it("highlights correctly when navigating with down arrow key", async () => {
+        // Mock scrollIntoView to prevent errors
+        Element.prototype.scrollIntoView = vi.fn();
+
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: [],
+            },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+
+        await wrapper.vm.$nextTick();
+
+        const searchElement = wrapper.find("[name='option-search']");
+
+        await searchElement.trigger("keydown.down");
+
+        await waitForExpect(() => {
+            expect(wrapper.findAll("[name='list-item']")[0].classes()).toContain("bg-zinc-100");
+        });
+    });
+
+    it("highlights correctly when navigating with up arrow key", async () => {
+        // Mock scrollIntoView to prevent errors
+        Element.prototype.scrollIntoView = vi.fn();
+
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: [],
+            },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+
+        await wrapper.vm.$nextTick();
+
+        const searchElement = wrapper.find("[name='option-search']");
+
+        await searchElement.trigger("keydown.down");
+
+        await searchElement.trigger("keydown.down");
+
+        await waitForExpect(() => {
+            expect(wrapper.findAll("[name='list-item']")[1].classes()).toContain("bg-zinc-100");
+        });
+
+        await searchElement.trigger("keydown.up");
+
+        await waitForExpect(() => {
+            expect(wrapper.findAll("[name='list-item']")[0].classes()).toContain("bg-zinc-100");
+            expect(wrapper.findAll("[name='list-item']")[1].classes()).not.toContain("bg-zinc-100");
+        });
+    });
 });
