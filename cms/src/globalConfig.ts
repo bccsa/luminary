@@ -1,6 +1,13 @@
 import _ from "lodash";
-import { db, DocType, useDexieLiveQuery, type LanguageDto } from "luminary-shared";
 import { ref, toRaw, watch } from "vue";
+import {
+    AclPermission,
+    db,
+    DocType,
+    useDexieLiveQuery,
+    verifyAccess,
+    type LanguageDto,
+} from "luminary-shared";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -29,8 +36,19 @@ export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
 /**
  * Initialize the language settings.
  */
+
+/*
+ * Array of languages available in the CMS as Vue ref.
+ */
+export const cmsLanguagesAsRef = ref<LanguageDto[]>([]);
+
+/**
+ * Array of languages to which the CMS user have translate access to
+ */
+export const translatableLanguagesAsRef = ref<LanguageDto[]>([]);
+
 export async function initLanguage() {
-    if (cmsLanguageIdAsRef.value) return;
+    if (cmsLanguageIdAsRef.value && cmsLanguagesAsRef.value.length > 1) return;
 
     const languages: LanguageDto[] = (await db.docs
         .where({ type: DocType.Language })
@@ -73,6 +91,10 @@ export async function initLanguage() {
             if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
 
             cmsDefaultLanguage.value = defaultLang;
+
+            translatableLanguagesAsRef.value = languages.filter((lang) =>
+                verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
+            );
         },
         { deep: true },
     );
