@@ -432,6 +432,8 @@ const duplicate = async () => {
     editableParent.value = clonedParent;
     editableContent.value = clonedContent;
 
+    // Don't route in test environment so component isn't remounted and loses data integrity
+    // for relevant tests
     if (import.meta.env.MODE !== "test") {
         await router.replace({
             name: "edit",
