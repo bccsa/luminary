@@ -478,7 +478,6 @@ const duplicate = async () => {
         }"
         v-if="editableParent"
         class="relative"
-        :key="editableParent._id"
     >
         <template #postTitleSlot>
             <LButton
