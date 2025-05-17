@@ -190,7 +190,7 @@ describe("LCombobox", () => {
         await searchElement.trigger("keydown.enter");
 
         await waitForExpect(() => {
-            expect(selected.value).toContain("test-3");
+            expect(selected.value).toContain(2);
         });
     });
 
