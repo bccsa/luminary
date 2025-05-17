@@ -417,7 +417,7 @@ const duplicate = async () => {
     }
 
     // Duplicate all content documents and make them unique
-    const duplicatedContent = editableContent.value.map((c) => {
+    const clonedContent = editableContent.value.map((c) => {
         const newContent = _.cloneDeep(c);
         newContent._id = db.uuid();
         newContent.updatedTimeUtc = Date.now();
@@ -430,10 +430,9 @@ const duplicate = async () => {
     });
 
     editableParent.value = clonedParent;
-    editableContent.value = duplicatedContent;
+    editableContent.value = clonedContent;
 
-    const isTestEnviroment = import.meta.env.MODE === "test";
-    if (!isTestEnviroment) {
+    if (import.meta.env.MODE !== "test") {
         await router.replace({
             name: "edit",
             params: {
