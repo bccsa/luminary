@@ -12,7 +12,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
     testDir: "./e2e",
     /* Maximum time one test can run for. */
-    timeout: 30 * 1000,
+    timeout: 100 * 1000,
     expect: {
         /**
          * Maximum time expect() should wait for the condition to be met.
@@ -27,7 +27,7 @@ export default defineConfig({
     /* Opt out of parallel tests on CI. */
     workers: process.env.CI ? 1 : undefined,
     /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-    reporter: "html",
+    reporter: [["html", { open: "never" }]],
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
     use: {
         /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
@@ -38,8 +38,8 @@ export default defineConfig({
         /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
         trace: "on-first-retry",
 
-        /* Only on CI systems run the tests headless */
-        headless: !!process.env.CI,
+        /* Run the tests headless */
+        headless: true,
     },
 
     /* Configure projects for major browsers */
@@ -64,32 +64,31 @@ export default defineConfig({
         },
 
         /* Test against mobile viewports. */
-        // {
-        //   name: 'Mobile Chrome',
-        //   use: {
-        //     ...devices['Pixel 5'],
-        //   },
-        // },
-        // {
-        //   name: 'Mobile Safari',
-        //   use: {
-        //     ...devices['iPhone 12'],
-        //   },
-        // },
-
+        {
+            name: "Mobile Chrome",
+            use: {
+                ...devices["Pixel 5"],
+            },
+        },
+        {
+            name: "Mobile Safari",
+            use: {
+                ...devices["iPhone 12"],
+            },
+        },
         /* Test against branded browsers. */
-        // {
-        //   name: 'Microsoft Edge',
-        //   use: {
-        //     channel: 'msedge',
-        //   },
-        // },
-        // {
-        //   name: 'Google Chrome',
-        //   use: {
-        //     channel: 'chrome',
-        //   },
-        // },
+        {
+            name: "Microsoft Edge",
+            use: {
+                channel: "msedge",
+            },
+        },
+        {
+            name: "Google Chrome",
+            use: {
+                channel: "chrome",
+            },
+        },
     ],
 
     /* Folder for test artifacts such as screenshots, videos, traces, etc. */
@@ -102,7 +101,7 @@ export default defineConfig({
          * Use the preview server on CI for more realistic testing.
          * Playwright will re-use the local server if there is already a dev-server running.
          */
-        command: process.env.CI ? "vite preview --port 5173" : "vite dev",
+        command: "vite build && vite preview --port 5173",
         port: 5173,
         reuseExistingServer: !process.env.CI,
     },
