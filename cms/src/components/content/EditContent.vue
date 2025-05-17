@@ -42,7 +42,7 @@ import * as _ from "lodash";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import { sortByName } from "@/util/sortByName";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
+import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
 
 type Props = {
@@ -397,6 +397,62 @@ const liveUrl = computed(() => {
 });
 
 const ensureRedirect = () => window.open(liveUrl.value, "_blank");
+
+const showDuplicateModal = ref(false);
+
+const duplicate = async () => {
+    showDuplicateModal.value = false;
+
+    if (!editableParent.value) return;
+
+    // Handle new data for duplicated document and keep old data
+    const clonedParent = _.cloneDeep(editableParent.value);
+    clonedParent._id = db.uuid();
+
+    // Remove Original Image
+    if (clonedParent.imageData) {
+        if (clonedParent.imageData.fileCollections) {
+            clonedParent.imageData.fileCollections = [];
+        }
+    }
+
+    // Duplicate all content documents and make them unique
+    const clonedContent = editableContent.value.map((c) => {
+        const newContent = _.cloneDeep(c);
+        newContent._id = db.uuid();
+        newContent.updatedTimeUtc = Date.now();
+        newContent.title += " (Copy)";
+        newContent.slug += "-copy";
+        newContent.parentId = clonedParent._id;
+        newContent.status = PublishStatus.Draft;
+
+        return newContent;
+    });
+
+    editableParent.value = clonedParent;
+    editableContent.value = clonedContent;
+
+    // Don't route in test environment so component isn't remounted and loses data integrity
+    // for relevant tests
+    if (import.meta.env.MODE !== "test") {
+        await router.replace({
+            name: "edit",
+            params: {
+                docType: props.docType,
+                tagType: props.docType === DocType.Tag ? props.tagOrPostType : undefined,
+                id: clonedParent._id,
+                languageCode: selectedLanguage.value?.languageCode,
+                tagOrPostType: props.tagOrPostType,
+            },
+        });
+    }
+
+    addNotification({
+        title: "Successfully duplicated",
+        description: `This ${props.tagOrPostType} has successfully been duplicated`,
+        state: "success",
+    });
+};
 </script>
 
 <template>
@@ -463,6 +519,13 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                     >
                         Save
                     </LButton>
+                    <LButton
+                        :icon="DocumentDuplicateIcon"
+                        title="Duplicate"
+                        data-test="duplicate-btn"
+                        @click="isDirty ? (showDuplicateModal = true) : duplicate()"
+                        >Duplicate</LButton
+                    >
                     <LButton
                         type="button"
                         @click="showDeleteModal = true"
@@ -553,6 +616,21 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
         "
         :secondaryAction="() => (showDeleteModal = false)"
         primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        context="danger"
+    ></LDialog>
+    <LDialog
+        v-model:open="showDuplicateModal"
+        :title="`Duplicate ${props.tagOrPostType} and all translations`"
+        :description="`Are you sure you want to duplicate this ${props.tagOrPostType} and all the translations without saving? Consider saving this ${props.tagOrPostType} before continuing to not lose changes.`"
+        :primaryAction="
+            () => {
+                duplicate();
+                showDuplicateModal = false;
+            }
+        "
+        :secondaryAction="() => (showDuplicateModal = false)"
+        primaryButtonText="Duplicate"
         secondaryButtonText="Cancel"
         context="danger"
     ></LDialog>
