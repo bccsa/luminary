@@ -11,11 +11,12 @@ import {
 } from "vue";
 import LImage from "./LImage.vue";
 import { usePinch, useDrag } from "@vueuse/gesture";
-import type { ImageDto } from "luminary-shared";
+import type { ImageDto, Uuid } from "luminary-shared";
 
 // Props definition
 type Props = {
     image: ImageDto;
+    contentParentId: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
     size?: "small" | "thumbnail" | "post";
     rounded?: boolean;
@@ -180,6 +181,7 @@ onBeforeUnmount(() => {
             }"
         >
             <LImage
+                :contentParentId="contentParentId"
                 :image="image"
                 :aspectRatio="aspectRatio"
                 :size="size"

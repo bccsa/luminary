@@ -420,6 +420,7 @@ const selectedCategory = computed(() => {
 
     <ImageModal
         v-if="content?.parentImageData && enableZoom"
+        :content-parent-id="content.parentId"
         :image="content.parentImageData"
         aspectRatio="video"
         size="post"
