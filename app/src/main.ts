@@ -63,7 +63,6 @@ async function Startup() {
     });
 
     await initLanguage();
-
     const i18n = await initI18n();
     await loadPlugins();
 

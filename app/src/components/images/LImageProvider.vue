@@ -9,7 +9,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import Rand from "rand-seed";
-import { computed, onBeforeMount, ref, watch } from "vue";
+import { computed, onBeforeMount, ref } from "vue";
 
 type Props = {
     image?: ImageDto;
@@ -141,10 +141,6 @@ const srcset2 = computed(() => {
         .join(", ");
 });
 
-watch([srcset1, srcset2], () => {
-    console.info(srcset1.value, srcset2.value);
-});
-
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
@@ -160,11 +156,6 @@ const loadFallbackImage = async () => {
     const randomImage = urls[Math.floor(new Rand(props.parentId).next() * urls.length)] as string;
     fallbackImageUrl.value = randomImage;
 };
-//     () => props.parentId,
-//     () => console.info(props.parentId),
-// );
-
-// watch(fallbackImageUrl, () => console.info(fallbackImageUrl));
 
 onBeforeMount(async () => {
     await loadFallbackImage();

@@ -2,7 +2,6 @@
 // Image component with automatic aspect ratio selection and fallback image
 import { onMounted, ref, watch } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
-// import { fallbackImages } from "@/globalConfig";
 import LImageProvider from "./LImageProvider.vue";
 
 type Props = {
