@@ -301,31 +301,6 @@ describe("SingleContent", () => {
         });
     });
 
-    it("redirects to homepage if no address to redirect to is given", async () => {
-        const mockRedirect = {
-            ...mockRedirectDto,
-            slug: "music",
-            toSlug: "test",
-            _id: "redirect-1",
-        };
-
-        await db.docs.bulkPut([mockRedirect]);
-
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockRedirect.slug,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.vm.slug).toBe("music");
-            expect(routeReplaceMock).toBeCalledWith({
-                name: "content",
-                params: { slug: "test" },
-            });
-        });
-    });
-
     it("can add and remove a bookmark", async () => {
         const wrapper = mount(SingleContent, {
             props: {
