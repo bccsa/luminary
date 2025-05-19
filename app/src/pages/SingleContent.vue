@@ -293,7 +293,7 @@ const selectedCategory = computed(() => {
                         <VideoPlayer v-if="content.video" :content="content" />
                         <!-- Ensure content.parentId does not contain default content empty string -->
                         <LImage
-                            v-if="content.parentId"
+                            v-if="content.parentId && !content.video"
                             :image="content.parentImageData"
                             :content-parent-id="content.parentId"
                             aspectRatio="video"
