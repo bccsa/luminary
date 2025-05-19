@@ -8,7 +8,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: [...defaultTheme.fontFamily.sans],
+                sans: ["Inter var", ...defaultTheme.fontFamily.sans],
             },
         },
     },
