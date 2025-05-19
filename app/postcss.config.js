@@ -18,6 +18,7 @@ export default {
             onFeatureUsage: (usageInfo) => {
                 const title = usageInfo.featureData.title.toLowerCase();
 
+                // Below CSS warnings/errors are surpressed
                 if (
                     title.includes("font-family") ||
                     title.includes("text-decoration") ||
@@ -27,7 +28,7 @@ export default {
                     title.includes("column layout") ||
                     title.includes("scrollbar") ||
                     title.includes("cursors") ||
-                    title.includes("touch-action") || // TODO:: Look at touch-action support
+                    title.includes("touch-action") ||
                     title.includes("intrinsic & extrinsic sizing")
                 )
                     return;

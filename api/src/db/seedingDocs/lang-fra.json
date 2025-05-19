@@ -83,6 +83,7 @@
         "logout.modal.title": "Déconnexion",
         "logout.modal.description": "Êtes-vous sûr de vouloir vous déconnecter ?",
         "logout.modal.button_cancel": "Annuler",
-        "logout.modal.button_logout": "Déconnexion"
+        "logout.modal.button_logout": "Déconnexion",
+        "navigation.cta.home": "Retour à la maison"
     }
 }

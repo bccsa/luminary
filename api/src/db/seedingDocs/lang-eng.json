@@ -83,6 +83,7 @@
         "logout.modal.title": "Logout",
         "logout.modal.description": "Are you sure you want to log out?",
         "logout.modal.button_cancel": "Cancel",
-        "logout.modal.button_logout": "Logout"
+        "logout.modal.button_logout": "Logout",
+        "navigation.cta.home": "Back to home"
     }
 }
