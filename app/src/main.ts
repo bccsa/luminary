@@ -73,6 +73,7 @@ async function Startup() {
     initAppTitle(i18n);
     initAnalytics();
 }
+
 Startup();
 
 if (import.meta.env.DEV == true) {
