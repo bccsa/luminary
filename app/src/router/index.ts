@@ -96,7 +96,8 @@ router.beforeEach(async (to) => {
     const isRedirect = dbRedirects.find((redirect) => redirect.slug === currentSlug);
 
     if (isRedirect) {
-        return `/${isRedirect.toSlug}`;
+        // if there is not a slug to redirect to, redirect to the home page
+        return isRedirect.toSlug ? `/${isRedirect.toSlug}` : "/";
     }
 
     return true;
