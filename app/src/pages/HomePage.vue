@@ -8,6 +8,7 @@ import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import { isPublished } from "@/util/isPublished";
 import ContinueWatching from "@/components/HomePage/ContinueWatching.vue";
+import BasePage from "@/components/BasePage.vue";
 
 const { isAuthenticated } = useAuth0();
 
