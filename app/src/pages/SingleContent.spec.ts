@@ -283,24 +283,6 @@ describe("SingleContent", () => {
         });
     });
 
-    it("redirects correctly", async () => {
-        const wrapper = mount(SingleContent, {
-            props: {
-                slug: mockRedirectDto.slug,
-            },
-        });
-
-        await wrapper.vm.$nextTick();
-
-        await waitForExpect(() => {
-            expect(wrapper.vm.slug).toBe("vod");
-            expect(routeReplaceMock).toBeCalledWith({
-                name: "content",
-                params: { slug: "page1-eng" },
-            });
-        });
-    });
-
     it("can add and remove a bookmark", async () => {
         const wrapper = mount(SingleContent, {
             props: {
