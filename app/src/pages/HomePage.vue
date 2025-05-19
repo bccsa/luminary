@@ -7,6 +7,7 @@ import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import { isPublished } from "@/util/isPublished";
+import BasePage from "@/components/BasePage.vue";
 
 const { isAuthenticated } = useAuth0();
 
@@ -30,20 +31,22 @@ setTimeout(() => {
 </script>
 
 <template>
-    <div v-if="!hasPosts" class="text-zinc-800 dark:text-slate-100">
-        <div v-if="isAuthenticated">
-            <p>
-                You don't have access to any content. If you believe this is an error, send your
-                contact person a message.
-            </p>
+    <BasePage>
+        <div v-if="!hasPosts" class="text-zinc-800 dark:text-slate-100">
+            <div v-if="isAuthenticated">
+                <p>
+                    You don't have access to any content. If you believe this is an error, send your
+                    contact person a message.
+                </p>
+            </div>
         </div>
-    </div>
-    <IgnorePagePadding ignoreTop>
-        <Suspense>
-            <HomePagePinned />
-        </Suspense>
-        <Suspense>
-            <HomePageNewest />
-        </Suspense>
-    </IgnorePagePadding>
+        <IgnorePagePadding ignoreTop>
+            <Suspense>
+                <HomePagePinned />
+            </Suspense>
+            <Suspense>
+                <HomePageNewest />
+            </Suspense>
+        </IgnorePagePadding>
+    </BasePage>
 </template>
