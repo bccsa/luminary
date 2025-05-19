@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { getConnectionSpeed } from "@/globalConfig";
+import { loadFallbackImageUrls } from "@/util/loadFallbackImages";
 import {
     isConnected,
     type ImageDto,
     type ImageFileCollectionDto,
     type ImageFileDto,
+    type Uuid,
 } from "luminary-shared";
-import { computed, ref } from "vue";
+import Rand from "rand-seed";
+import { computed, onBeforeMount, ref, watch } from "vue";
 
 type Props = {
     image?: ImageDto;
@@ -14,6 +17,7 @@ type Props = {
     size?: keyof typeof sizes;
     rounded?: boolean;
     parentWidth: number;
+    parentId: Uuid;
 };
 
 const aspectRatiosCSS = {
@@ -125,7 +129,6 @@ const srcset1 = computed(() => {
 // Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
     if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
-
     return props.image.fileCollections
         .filter((collection) => collection.aspectRatio != closestAspectRatio)
         .map((collection) => {
@@ -138,6 +141,10 @@ const srcset2 = computed(() => {
         .join(", ");
 });
 
+watch([srcset1, srcset2], () => {
+    console.info(srcset1.value, srcset2.value);
+});
+
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
@@ -145,6 +152,23 @@ const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.va
 const showImageElement2 = computed(
     () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
 );
+
+const fallbackImageUrl = ref<string | undefined>(undefined);
+
+const loadFallbackImage = async () => {
+    const urls = await loadFallbackImageUrls();
+    const randomImage = urls[Math.floor(new Rand(props.parentId).next() * urls.length)];
+    fallbackImageUrl.value = randomImage;
+};
+//     () => props.parentId,
+//     () => console.info(props.parentId),
+// );
+
+// watch(fallbackImageUrl, () => console.info(fallbackImageUrl));
+
+onBeforeMount(async () => {
+    await loadFallbackImage();
+});
 </script>
 
 <template>
@@ -176,5 +200,20 @@ const showImageElement2 = computed(
         loading="lazy"
         @error="imageElement2Error = true"
         draggable="false"
+    />
+    <img
+        v-else
+        :src="fallbackImageUrl"
+        :class="[
+            aspectRatiosCSS[aspectRatio],
+            sizes[size],
+            'bg-cover bg-center object-cover object-center',
+        ]"
+        alt=""
+        data-test="image-element2"
+        loading="lazy"
+        @error="imageElement2Error = true"
+        draggable="false"
+        :key="parentId"
     />
 </template>

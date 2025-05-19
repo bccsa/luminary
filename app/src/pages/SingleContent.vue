@@ -291,9 +291,11 @@ const selectedCategory = computed(() => {
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                         <VideoPlayer v-if="content.video" :content="content" />
+                        <!-- Ensure content.parentId does not contain default content empty string -->
                         <LImage
-                            v-else-if="content.parentImageData"
+                            v-if="content.parentId"
                             :image="content.parentImageData"
+                            :content-parent-id="content.parentId"
                             aspectRatio="video"
                             size="post"
                             @click="enableZoom = true"
