@@ -23,6 +23,7 @@ import {
     isConnected,
     type RedirectDto,
     RedirectType,
+    useDexieLiveQuery,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -73,10 +74,32 @@ const editableParent = ref<ContentParentDto>({
     tags: [],
     publishDateVisible: true,
 });
-const isLoading = computed(() => editableParent.value == undefined);
-const existingParent = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
+
+// Get base data to use for dirty checking
+const baseParent = ref<ContentParentDto | undefined>(undefined);
+const baseContent = ref<ContentDto[] | undefined>(undefined);
+
+const existingParent = useDexieLiveQuery(
+    async () =>
+        (await db.docs
+            .where("_id")
+            .equals(parentId)
+            .first()) as unknown as Promise<ContentParentDto>,
+    {
+        initialValue: {} as unknown as ContentParentDto,
+    },
+);
 const editableContent = ref<ContentDto[]>([]);
-const existingContent = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+const existingContent = useDexieLiveQuery(
+    async () =>
+        (await db.docs.where("parentId").equals(parentId)).toArray() as unknown as Promise<
+            ContentDto[]
+        >,
+    {
+        initialValue: [] as unknown as ContentDto[],
+    },
+);
+
 const showDeleteModal = ref(false);
 
 let icon = DocumentIcon;
@@ -94,19 +117,38 @@ if (newDocument) {
         (editableParent.value as PostDto).postType = props.tagOrPostType as PostType;
         (editableParent.value as PostDto).publishDateVisible = true;
     }
-} else {
-    // Get a copy of the parent document from IndexedDB, and host it as a local ref.
-    db.get<PostDto | TagDto>(parentId).then((p) => {
-        editableParent.value = _.cloneDeep(p);
-        existingParent.value = _.cloneDeep(p);
-    });
-
-    // In the same way as the parent document, get a copy of the content documents
-    db.whereParent(parentId, props.docType).then((doc) => {
-        editableContent.value.push(...doc);
-        existingContent.value = _.cloneDeep(doc);
-    });
 }
+
+const hasLoadedParent = ref(false);
+const hasLoadedContent = ref(false);
+
+watch(
+    () => existingContent.value,
+    (newContent) => {
+        // Only initialize editableContent if we haven't yet, and there's data to copy
+        // as to not break dirty checking
+        if (!hasLoadedContent.value && newContent.length > 0) {
+            editableContent.value = _.cloneDeep(newContent);
+            baseContent.value = _.cloneDeep(newContent);
+            hasLoadedContent.value = true;
+        }
+    },
+    { immediate: true, deep: true },
+);
+
+watch(
+    existingParent,
+    (newParent) => {
+        // Only initialize editableParent if we haven't yet, and there's data to copy
+        // as to not break dirty checking
+        if (!hasLoadedParent.value && newParent) {
+            editableParent.value = _.cloneDeep(newParent);
+            baseParent.value = _.cloneDeep(newParent);
+            hasLoadedParent.value = true;
+        }
+    },
+    { immediate: true, deep: true },
+);
 
 const untranslatedLanguages = computed(() => {
     if (!editableContent.value) return [];
@@ -185,6 +227,7 @@ const createTranslation = (language: LanguageDto) => {
 const canTranslate = computed(() => {
     if (!editableParent.value || !selectedLanguage.value) return false;
     if (!canPublish.value && selectedContent.value?.status == PublishStatus.Published) return false;
+    console.info(editableParent.value.memberOf);
     if (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate))
         return false;
     if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
@@ -224,11 +267,11 @@ const isDirty = computed(
     () =>
         !_.isEqual(
             { ...editableParent.value, updatedBy: "" },
-            { ...existingParent.value, updatedBy: "" },
+            { ...baseParent.value, updatedBy: "" },
         ) ||
         !_.isEqual(
             { ...editableContent.value, updatedBy: "" },
-            { ...existingContent.value, updatedBy: "" },
+            { ...baseContent.value, updatedBy: "" },
         ),
 );
 
@@ -286,20 +329,6 @@ const createRedirect = async () => {
 
     await db.upsert({ doc: newRedirect });
 };
-const saveBtnText = ref("Save");
-
-const refreshParent = () => {
-    saveBtnText.value = "Saving";
-    // Use a timeout to wait for the API to process the new data, and then refresh the parent document
-    // This prevents things like the image from reprocessing in the API
-    setTimeout(() => {
-        db.get<PostDto | TagDto>(editableParent.value._id).then((p) => {
-            editableParent.value = _.cloneDeep(p);
-            existingParent.value = _.cloneDeep(p);
-        });
-        saveBtnText.value = "Save";
-    }, 1000);
-};
 
 const saveChanges = async () => {
     if (!isValid.value) {
@@ -355,11 +384,6 @@ const saveChanges = async () => {
         description: `The ${props.tagOrPostType} was saved successfully`,
         state: "success",
     });
-
-    existingParent.value = _.cloneDeep(editableParent.value);
-    existingContent.value = _.cloneDeep(editableContent.value);
-
-    refreshParent();
 };
 
 const save = async () => {
@@ -390,6 +414,17 @@ const save = async () => {
     }
 };
 
+//Patch image data with the data retrieved from the api when uploading a new image
+watch(
+    () => existingParent.value?.imageData,
+    (newImageData) => {
+        if (newImageData && !_.isEqual(newImageData, editableParent.value.imageData)) {
+            editableParent.value.imageData = newImageData;
+        }
+    },
+    { immediate: true, deep: true },
+);
+
 const revertChanges = () => {
     // Restore the parent document to the previous version
     if (
@@ -405,7 +440,7 @@ const revertChanges = () => {
         });
         return;
     }
-    editableParent.value = _.cloneDeep(existingParent.value!);
+    editableParent.value = _.cloneDeep(existingParent.value);
 
     // Restore the content documents to the previous versions
     editableContent.value = _.cloneDeep(existingContent.value!);
@@ -525,13 +560,14 @@ const duplicate = async () => {
     });
 };
 const showLanguageSelector = ref(false);
+
+const isLoading = computed(
+    () => !newDocument && (!hasLoadedParent.value || !hasLoadedContent.value),
+);
 </script>
 
 <template>
-    <div
-        v-if="!newDocument && !editableParent?.updatedTimeUtc"
-        class="relative flex items-center justify-center"
-    >
+    <div v-if="isLoading" class="relative flex h-screen items-center justify-center">
         <div class="flex flex-col items-center gap-4">
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
         </div>
@@ -589,7 +625,7 @@ const showLanguageSelector = ref(false);
                         variant="primary"
                         :icon="FolderArrowDownIcon"
                     >
-                        {{ saveBtnText }}
+                        Save
                     </LButton>
                     <LButton
                         :icon="DocumentDuplicateIcon"

@@ -31,7 +31,7 @@ const sidebarOpen = ref(false);
 </script>
 
 <template>
-    <div class="flex min-h-screen flex-col scrollbar-hide">
+    <div class="scrollbar-hide flex min-h-screen flex-col">
         <MobileSideBar v-model:open="sidebarOpen" />
 
         <div class="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
@@ -107,7 +107,7 @@ const sidebarOpen = ref(false);
                 </div>
                 <div class="max-h-full px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
                     <div
-                        class="relative h-[calc(100vh-8rem)] w-full overflow-y-auto scrollbar-hide"
+                        class="scrollbar-hide relative h-[calc(100vh-8rem)] w-full overflow-y-auto"
                         :class="{ 'mt-2': !$slots.internalPageHeader }"
                     >
                         <div class="relative z-0">
