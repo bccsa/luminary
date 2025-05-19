@@ -9,7 +9,7 @@ describe("LImage", () => {
     it("displays an image", async () => {
         const wrapper = mount(LImage, {
             propsData: {
-                contentParentId: "",
+                contentParentId: "" as string,
                 image: mockImageDto,
                 aspectRatio: "video",
                 size: "thumbnail",
