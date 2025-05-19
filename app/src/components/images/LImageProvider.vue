@@ -157,7 +157,7 @@ const fallbackImageUrl = ref<string | undefined>(undefined);
 
 const loadFallbackImage = async () => {
     const urls = await loadFallbackImageUrls();
-    const randomImage = urls[Math.floor(new Rand(props.parentId).next() * urls.length)];
+    const randomImage = urls[Math.floor(new Rand(props.parentId).next() * urls.length)] as string;
     fallbackImageUrl.value = randomImage;
 };
 //     () => props.parentId,
