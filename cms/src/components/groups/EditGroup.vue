@@ -11,8 +11,7 @@ import {
     isConnected,
     getRest,
 } from "luminary-shared";
-import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
-import { DocumentDuplicateIcon, ChevronUpIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
+import { DocumentDuplicateIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import EditAclByGroup from "./EditAclByGroup.vue";
@@ -146,12 +145,14 @@ const assignedGroups = computed(() => {
 watch(
     assignedGroups,
     (newAssignedGroups, oldAssignedGroups) => {
-        // Get unique IDs of assigned groups not available to the user (the user does not have view access to these group documents, so they are not in the groups list)
+        // Get unique IDs of assigned groups not available to the user
         const unavailableGroupsIds = [
-            ...new Set(
-                props.group.acl
-                    .map((a) => a.groupId)
-                    .filter((g) => !_groups.some((gr) => gr._id == g)),
+            ...Array.from(
+                new Set(
+                    props.group.acl
+                        .map((a) => a.groupId)
+                        .filter((g) => !_groups.some((gr) => gr._id == g)),
+                ),
             ),
         ];
 
@@ -241,21 +242,22 @@ const hasEditPermission = computed(() => {
     // Bypass this check if the group is not in edit mode
     if (!isDirty.value) return true;
 
-    // Check if the user will have inherited permissions to edit the group (exclude self-assigned permissions)
+    // Check if the user will have inherited permissions to edit the group
     const hasInheritedPermissions = verifyAccess(
         [
-            ...new Set(
-                editableGroupWithoutEmpty.value.acl
-                    .map((a) => a.groupId)
-                    .filter((g) => g != props.group._id),
+            ...Array.from(
+                new Set(
+                    editableGroupWithoutEmpty.value.acl
+                        .map((a) => a.groupId)
+                        .filter((g) => g != props.group._id),
+                ),
             ),
         ],
         DocType.Group,
         AclPermission.Edit,
     );
 
-    // Check if the ACL includes group edit permissions.
-    // We here rely on the available groups already being filtered with groups to which the user has assign permissions
+    // Check if the ACL includes group edit permissions
     const editableAcl = editable.value.acl.some(
         (a) => a.type == DocType.Group && a.permission.includes(AclPermission.Edit),
     );
@@ -263,8 +265,7 @@ const hasEditPermission = computed(() => {
     return hasInheritedPermissions || editableAcl;
 });
 
-const startEditingGroupName = (e: Event, open: boolean) => {
-    if (!open) return;
+const startEditingGroupName = (e: Event) => {
     if (disabled.value) return;
 
     e.preventDefault();
@@ -341,178 +342,144 @@ const saveChanges = async () => {
 <template>
     <div
         :class="[
-            'w-full overflow-visible rounded-md shadow',
+            'w-full overflow-visible rounded-md bg-white p-6 shadow',
             { 'bg-zinc-100': disabled },
-            { 'bg-white': !disabled },
         ]"
     >
-        <Disclosure v-slot="{ open }">
-            <DisclosureButton
+        <div class="mb-6 flex items-center justify-between">
+            <div
+                v-if="!isEditingGroupName"
                 :class="[
-                    'flex w-full items-center justify-between rounded-md px-6 py-4',
-                    { 'sticky top-16 z-10 mb-4 rounded-b-none border-b border-zinc-200': open },
-                    { 'bg-zinc-200': disabled },
-                    { 'bg-white': !disabled },
+                    '-mx-2 flex items-center gap-2 rounded px-2 py-1',
+                    {
+                        'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
+                            hasChangedGroupName,
+                    },
+                    { 'hover:bg-zinc-100 active:bg-zinc-200': !hasChangedGroupName && !disabled },
                 ]"
+                @click="startEditingGroupName"
+                :title="'Edit group name'"
+                data-test="groupName"
             >
-                <div
-                    v-if="!isEditingGroupName"
+                <RectangleStackIcon
                     :class="[
-                        '-mx-2 flex items-center gap-2 rounded px-2 py-1',
-                        {
-                            'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
-                                hasChangedGroupName && open,
-                        },
-                        {
-                            'hover:bg-zinc-100 active:bg-zinc-200':
-                                !hasChangedGroupName && open && !disabled,
-                        },
+                        'h-5 w-5',
+                        { 'text-zinc-300': disabled },
+                        { 'text-zinc-400': !disabled },
                     ]"
-                    @click="(e) => startEditingGroupName(e, open)"
-                    :title="open ? 'Edit group name' : ''"
-                    data-test="groupName"
-                >
-                    <RectangleStackIcon
-                        :class="[
-                            'h-5 w-5',
-                            { 'text-zinc-300': disabled },
-                            { 'text-zinc-400': !disabled },
-                        ]"
-                    />
-                    <h2
-                        :class="[
-                            'font-medium',
-                            { 'text-zinc-400': disabled },
-                            { 'text-zinc-800': !disabled },
-                        ]"
-                    >
-                        {{ editable.name }}
-                    </h2>
-                </div>
-                <LInput
-                    v-else
-                    size="sm"
-                    ref="groupNameInput"
-                    name="groupName"
-                    v-model="editable.name"
-                    @blur="finishEditingGroupName"
-                    @keyup.enter="finishEditingGroupName"
-                    @keydown.enter.stop
-                    @keydown.space.stop
-                    @click.stop
-                    class="mr-4 grow"
-                    data-test="groupNameInput"
                 />
-                <div class="flex items-center gap-4">
-                    <div v-if="isDirty && open && !disabled" class="-my-2 flex items-center gap-2">
-                        <LButton
-                            variant="tertiary"
-                            size="sm"
-                            context="danger"
-                            @click.prevent="discardChanges"
-                            data-test="discardChanges"
-                        >
-                            Discard changes
-                        </LButton>
-                        <LButton
-                            v-if="hasEditPermission && isConnected"
-                            size="sm"
-                            @click.prevent="saveChanges"
-                            data-test="saveChanges"
-                        >
-                            Save changes
-                        </LButton>
-                    </div>
-
-                    <LBadge v-if="isDirty && !open">Unsaved changes</LBadge>
-                    <LBadge v-if="isEmpty" variant="warning" withIcon>
-                        The group does not have any access configured
-                    </LBadge>
-                    <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
-                        Saving disabled: The group would not be editable</LBadge
-                    >
-                    <LBadge v-if="!isConnected" variant="warning" withIcon>
-                        Saving disabled: Unable to save while offline</LBadge
-                    >
+                <h2
+                    :class="[
+                        'font-medium',
+                        { 'text-zinc-400': disabled },
+                        { 'text-zinc-800': !disabled },
+                    ]"
+                >
+                    {{ editable.name }}
+                </h2>
+            </div>
+            <LInput
+                v-else
+                size="sm"
+                ref="groupNameInput"
+                name="groupName"
+                v-model="editable.name"
+                @blur="finishEditingGroupName"
+                @keyup.enter="finishEditingGroupName"
+                @keydown.enter.stop
+                @keydown.space.stop
+                @click.stop
+                class="mr-4 grow"
+                data-test="groupNameInput"
+            />
+            <div class="flex items-center gap-4">
+                <div v-if="isDirty && !disabled" class="-my-2 flex items-center gap-2">
                     <LButton
-                        v-if="
-                            _groups &&
-                            _groups.length > 0 &&
-                            open &&
-                            !isDirty &&
-                            !disabled &&
-                            !isNewGroup
-                        "
-                        variant="muted"
+                        variant="tertiary"
                         size="sm"
-                        title="Duplicate"
-                        :icon="DocumentDuplicateIcon"
-                        @click="duplicateGroup"
-                        data-test="duplicateGroup"
-                    />
-                    <ChevronUpIcon :class="{ 'rotate-180 transform': !open }" class="h-5 w-5" />
-                </div>
-            </DisclosureButton>
-            <transition
-                enter-active-class="transition duration-100 ease-out"
-                enter-from-class="transform scale-95 opacity-0"
-                enter-to-class="transform scale-100 opacity-100"
-                leave-active-class="transition duration-75 ease-out"
-                leave-from-class="transform scale-100 opacity-100"
-                leave-to-class="transform scale-95 opacity-0"
-            >
-                <DisclosurePanel class="space-y-6 px-6 pb-10 pt-2">
-                    <p>
-                        <span v-if="!disabled">
-                            Configure which permissions user members of the following groups have to
-                            <strong>this</strong> group and its member documents.
-                        </span>
-                        <span v-else> No edit access. </span>
-                        <span class="text-sm italic">
-                            <br />User members of higher level groups may have more more permissions
-                            (than configured below) to this group and its members by inheritance,
-                            depending on the permissions granted by the higher level groups.
-                        </span>
-                    </p>
-
-                    <TransitionGroup
-                        enter-active-class="transition ease duration-500"
-                        enter-from-class="opacity-0 scale-90"
-                        enter-to-class="opacity-100 scale-100"
+                        context="danger"
+                        @click.prevent="discardChanges"
+                        data-test="discardChanges"
                     >
-                        <EditAclByGroup
-                            v-for="assignedGroup in assignedGroups"
-                            :key="assignedGroup._id"
-                            v-model:group="editable"
-                            :assignedGroup="assignedGroup"
-                            :originalGroup="group"
-                            :availableGroups="availableGroups"
-                            :disabled="disabled"
-                        />
-                    </TransitionGroup>
-
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <AddGroupAclButton
-                                v-if="!disabled"
-                                :groups="availableGroups"
-                                @select="addAssignedGroup"
-                            />
-                        </div>
-                        <LButton
-                            variant="tertiary"
-                            size="sm"
-                            context="default"
-                            @click.prevent="() => copyGroupId(group)"
-                            data-test="copyGroupId"
-                        >
-                            Copy ID
-                        </LButton>
-                    </div>
-                </DisclosurePanel>
-            </transition>
-        </Disclosure>
-
+                        Discard changes
+                    </LButton>
+                    <LButton
+                        v-if="hasEditPermission && isConnected"
+                        size="sm"
+                        @click.prevent="saveChanges"
+                        data-test="saveChanges"
+                    >
+                        Save changes
+                    </LButton>
+                </div>
+                <LBadge v-if="isDirty">Unsaved changes</LBadge>
+                <LBadge v-if="isEmpty" variant="warning" withIcon>
+                    The group does not have any access configured
+                </LBadge>
+                <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
+                    Saving disabled: The group would not be editable
+                </LBadge>
+                <LBadge v-if="!isConnected" variant="warning" withIcon>
+                    Saving disabled: Unable to save while offline
+                </LBadge>
+                <LButton
+                    v-if="_groups && _groups.length > 0 && !isDirty && !disabled && !isNewGroup"
+                    variant="muted"
+                    size="sm"
+                    title="Duplicate"
+                    :icon="DocumentDuplicateIcon"
+                    @click="duplicateGroup"
+                    data-test="duplicateGroup"
+                />
+            </div>
+        </div>
+        <div class="space-y-6">
+            <p>
+                <span v-if="!disabled">
+                    Configure which permissions user members of the following groups have to
+                    <strong>this</strong> group and its member documents.
+                </span>
+                <span v-else> No edit access. </span>
+                <span class="text-sm italic">
+                    <br />User members of higher level groups may have more permissions (than
+                    configured below) to this group and its members by inheritance, depending on the
+                    permissions granted by the higher level groups.
+                </span>
+            </p>
+            <TransitionGroup
+                enter-active-class="transition ease duration-500"
+                enter-from-class="opacity-0 scale-90"
+                enter-to-class="opacity-100 scale-100"
+            >
+                <EditAclByGroup
+                    v-for="assignedGroup in assignedGroups"
+                    :key="assignedGroup._id"
+                    v-model:group="editable"
+                    :assignedGroup="assignedGroup"
+                    :originalGroup="group"
+                    :availableGroups="availableGroups"
+                    :disabled="disabled"
+                />
+            </TransitionGroup>
+            <div class="flex items-center justify-between">
+                <div>
+                    <AddGroupAclButton
+                        v-if="!disabled"
+                        :groups="availableGroups"
+                        @select="addAssignedGroup"
+                    />
+                </div>
+                <LButton
+                    variant="tertiary"
+                    size="sm"
+                    context="default"
+                    @click.prevent="() => copyGroupId(group)"
+                    data-test="copyGroupId"
+                >
+                    Copy ID
+                </LButton>
+            </div>
+        </div>
         <ConfirmBeforeLeavingModal :isDirty="isDirty" />
     </div>
 </template>
