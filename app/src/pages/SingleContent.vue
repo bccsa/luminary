@@ -48,7 +48,6 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
-import { ListboxOption, ListboxButton, Listbox, ListboxOptions } from "@headlessui/vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 
 const router = useRouter();
@@ -154,11 +153,29 @@ const unwatch = watch([idbContent, isConnected], () => {
     });
 });
 
+// Load available languages from IndexedDB immediately (even when online)
 watch([content, isConnected], async () => {
     if (!content.value) return;
 
+    // Load from IndexedDB
+    const [translations, langs] = await Promise.all([
+        db.docs.where("parentId").equals(content.value.parentId).toArray(),
+        db.docs.where("type").equals(DocType.Language).toArray(),
+    ]);
+
+    //
+    if (translations.length > 1) {
+        availableTranslations.value = translations as ContentDto[];
+
+        console.log(translations);
+        // Filter languages based on available translations
+        languages.value = (langs as LanguageDto[]).filter((lang) =>
+            availableTranslations.value.some((translation) => translation.language === lang._id),
+        );
+    }
+
     if (isConnected.value) {
-        // Load from API via live queries
+        // If online, do API call to get list of available languages and update dropdown
         const languageQuery = ref<ApiSearchQuery>({
             types: [DocType.Language],
         });
@@ -175,30 +192,25 @@ watch([content, isConnected], async () => {
         const apiLanguage = apiLanguageLiveQuery.toArrayAsRef();
 
         watch([contentResults, apiLanguage], () => {
-            availableTranslations.value = contentResults.value as ContentDto[];
-            if (contentResults.value && contentResults.value.length == 1) return;
+            if (contentResults.value && contentResults.value.length > 1) {
+                availableTranslations.value = contentResults.value as ContentDto[];
+            }
+
             if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
-                languages.value = (apiLanguage.value as LanguageDto[]).filter((lang) =>
-                    availableTranslations.value.some(
-                        (translation) => translation.language === lang._id,
+                const apiLanguages = apiLanguage.value as LanguageDto[];
+
+                // Merge languages from API with those from IndexedDB, filtering out duplicates
+                const mergedLanguages = [
+                    ...languages.value,
+                    ...apiLanguages.filter(
+                        (apiLang) =>
+                            !languages.value.some((localLang) => localLang._id === apiLang._id),
                     ),
-                );
+                ];
+
+                languages.value = mergedLanguages;
             }
         });
-    } else {
-        // Load from IndexedDB
-        const [translations, langs] = await Promise.all([
-            db.docs.where("parentId").equals(content.value.parentId).toArray(),
-            db.docs.where("type").equals(DocType.Language).toArray(),
-        ]);
-
-        if (translations.length == 1) return;
-        availableTranslations.value = translations as ContentDto[];
-
-        // Filter languages based on available translations
-        languages.value = (langs as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((translation) => translation.language === lang._id),
-        );
     }
 });
 
@@ -323,6 +335,11 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
+/**
+ * Watches for changes in the `content` reactive property.
+ * When `content` is updated, it sets the `selectedLanguageId`
+ * to the `language` property of the new `content` value, if available.
+ */
 watch(content, () => {
     selectedLanguageId.value = content.value?.language;
 });
@@ -330,29 +347,34 @@ watch(content, () => {
 watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
     async () => {
+        // If no selected language or content is available, exit early
         if (!selectedLanguageId.value || !content.value) return;
 
+        // Find the preferred translation for the selected language
         const preferred = availableTranslations.value.find(
             (c) => c.language == selectedLanguageId.value,
         );
 
         if (preferred) {
-            // Check if the preferred translation is published
+            // If a preferred translation exists, navigate to its slug
             router.replace({ name: "content", params: { slug: preferred.slug } });
         }
 
+        // If the content's language is not the preferred app language
         if (content.value && content.value.language !== appLanguagePreferredIdAsRef.value) {
+            // Find the content in the preferred app language
             const preferredContent = availableTranslations.value.find(
                 (c) => c.language == appLanguagePreferredIdAsRef.value,
             );
-            // TODO: add translations in seedings docs for this notification
 
-            // check if it is already in the preferred language and in the SingleContent page
+            // If preferred content exists, show a notification to the user
             if (preferredContent) {
                 useNotificationStore().addNotification({
                     id: "content-available",
-                    title: "Content available",
-                    description: `This content is also available in ${appLanguageAsRef.value?.name}. Click here to view it.`,
+                    title: t("notification.translation_available.title"),
+                    description: t("notification.translation_available.description", {
+                        language: appLanguageAsRef.value?.name,
+                    }),
                     state: "info",
                     type: "banner",
                     timeout: 5000,
@@ -366,6 +388,7 @@ watch(
             }
         }
 
+        // Function to remove the notification if conditions are met
         const removeNotificationIfNeeded = () => {
             if (content.value && content.value.language == appLanguagePreferredIdAsRef.value) {
                 // Remove the notification if the content is already in the preferred language
@@ -399,60 +422,51 @@ const onLanguageSelect = (languageId: Uuid) => {
         router.replace({ name: "content", params: { slug: preferred.slug } });
     }
 };
+
+const showDropdown = ref(false);
 </script>
 
 <template>
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
-            <div class="relative">
-                <!-- Replace your current language dropdown template with this: -->
-                <Listbox v-model="selectedLanguageId" @update:model-value="onLanguageSelect">
-                    <div class="relative mt-1 w-auto">
-                        <ListboxButton>
-                            <span class="block truncate">
-                                <span class="hidden text-zinc-400 dark:text-slate-300 sm:inline">
-                                    {{
-                                        languages.find((lang) => lang._id === selectedLanguageId)
-                                            ?.name
-                                    }}
-                                </span>
-                                <span class="inline text-zinc-400 dark:text-slate-300 sm:hidden">
-                                    {{
-                                        languages
-                                            .find((lang) => lang._id === selectedLanguageId)
-                                            ?.languageCode.toUpperCase()
-                                    }}
-                                </span>
-                            </span>
-                        </ListboxButton>
+            <div class="relative mt-1 w-auto">
+                <button
+                    @click="showDropdown = !showDropdown"
+                    class="block truncate text-zinc-400 dark:text-slate-300"
+                >
+                    <span class="hidden sm:inline">
+                        {{ languages.find((lang) => lang._id === selectedLanguageId)?.name }}
+                    </span>
+                    <span class="inline sm:hidden">
+                        {{
+                            languages
+                                .find((lang) => lang._id === selectedLanguageId)
+                                ?.languageCode.toUpperCase()
+                        }}
+                    </span>
+                </button>
+                <div
+                    v-if="showDropdown"
+                    class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
+                >
+                    <div
+                        v-for="language in languages"
+                        :key="language._id"
+                        @click="
+                            onLanguageSelect(language._id);
+                            showDropdown = false;
+                        "
+                        class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                    >
+                        {{ language.name }}
 
-                        <Transition
-                            enter="transition ease-out duration-100"
-                            enter-from="opacity-0 scale-95"
-                            enter-to="opacity-100 scale-100"
-                            leave="transition ease-in duration-75"
-                            leave-from="opacity-100 scale-100"
-                            leave-to="opacity-0 scale-95"
-                        >
-                            <ListboxOptions
-                                class="max-h-auto absolute right-0 z-10 mt-1 w-auto overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
-                            >
-                                <ListboxOption
-                                    v-for="language in languages"
-                                    :key="language._id"
-                                    :value="language._id"
-                                    class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
-                                >
-                                    {{ language.name }}
-                                    <CheckCircleIcon
-                                        v-if="selectedLanguageId === language._id"
-                                        class="h-5 w-5 text-yellow-500"
-                                    />
-                                </ListboxOption>
-                            </ListboxOptions>
-                        </Transition>
+                        <CheckCircleIcon
+                            v-if="selectedLanguageId === language._id"
+                            class="h-5 w-5 text-yellow-500"
+                            aria-hidden="true"
+                        />
                     </div>
-                </Listbox>
+                </div>
             </div>
             <div class="text-zinc-400 dark:text-slate-300" data-test="themeButton">
                 <SunIcon class="h-6 w-6" v-if="isDarkTheme" @click="theme = 'light'" />
