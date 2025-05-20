@@ -8,7 +8,6 @@ describe("Socketio", () => {
     let server: Socketio;
     let client: Socket;
     let app: INestApplication;
-    //db may still be needed in the future, so keeping it here for now
 
     async function createNestApp(): Promise<INestApplication> {
         const { testingModule } = await createTestingModule("socketio");
