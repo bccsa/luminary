@@ -11,8 +11,11 @@ import {
     type ApiSearchQuery,
     type GroupDto,
 } from "luminary-shared";
-import EditGroup from "@/components/groups/EditGroup.vue";
+// import EditGroup from "@/components/groups/EditGroup.vue";
 import { computed, ref, watch, provide } from "vue";
+import GroupTable from "@/components/groups/GroupTable.vue";
+import LModal from "@/components/modals/LModal.vue";
+import EditGroup from "@/components/groups/EditGroup.vue";
 
 const groupsQuery: ApiSearchQuery = {
     types: [DocType.Group],
@@ -41,9 +44,9 @@ setInterval(getDbGroups, 5000);
 
 const newGroups = ref<GroupDto[]>([]);
 
-const duplicateGroup = (group: GroupDto) => {
-    newGroups.value.push(group);
-};
+// const duplicateGroup = (group: GroupDto) => {
+//     newGroups.value.push(group);
+// };
 
 const combinedGroups = computed(() => {
     const _s = Object.fromEntries(groups.value);
@@ -65,7 +68,10 @@ watch(
     { deep: true },
 );
 
+const openModal = ref(false);
+
 const createGroup = async () => {
+    openModal.value = true;
     const newGroup: GroupDto = {
         _id: db.uuid(),
         type: DocType.Group,
@@ -86,7 +92,7 @@ const canCreateGroup = computed(() => {
     <BasePage title="Groups" :is-full-width="true" :loading="combinedGroups === undefined">
         <template #actions>
             <LButton
-                v-if="combinedGroups && combinedGroups.length > 0 && canCreateGroup"
+                v-if="canCreateGroup"
                 variant="primary"
                 :icon="PlusIcon"
                 @click="createGroup"
@@ -96,16 +102,18 @@ const canCreateGroup = computed(() => {
             </LButton>
         </template>
 
-        <div v-if="combinedGroups.length">
-            <EditGroup
-                v-for="group in combinedGroups"
-                :key="group._id"
-                :group="group"
-                :newGroups="newGroups"
-                class="mb-4"
-                @duplicate-group="duplicateGroup"
-            />
-        </div>
-        <span v-else>Loading...</span>
+        <GroupTable />
     </BasePage>
+
+    <LModal :isVisible="openModal" adaptiveSize noPadding>
+        <EditGroup
+            :group="newGroups[0]"
+            :newGroups="newGroups"
+            :hasEditPermission="canCreateGroup"
+            @close="openModal = false"
+            @save="openModal = false"
+            @delete="openModal = false"
+            @deleteGroup="openModal = false"
+        />
+    </LModal>
 </template>
