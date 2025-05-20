@@ -10,6 +10,8 @@ import { useNotificationStore } from "@/stores/notification";
 import EditContentBasic from "./EditContentBasic.vue";
 import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
+import LanguageSelector from "./LanguageSelector.vue";
+import { initLanguage } from "@/globalConfig";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -44,7 +46,11 @@ describe("EditContent.vue", () => {
 
         // seed the fake indexDB with mock data
         await db.docs.bulkPut([mockData.mockPostDto]);
-        await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
+        await db.docs.bulkPut([
+            mockData.mockEnglishContentDto,
+            mockData.mockFrenchContentDto,
+            mockData.mockSwahiliContentDto,
+        ]);
         await db.docs.bulkPut([
             mockData.mockLanguageDtoEng,
             mockData.mockLanguageDtoFra,
@@ -52,6 +58,7 @@ describe("EditContent.vue", () => {
         ]);
 
         accessMap.value = mockData.superAdminAccessMap;
+        initLanguage();
     });
 
     afterEach(async () => {
@@ -179,6 +186,47 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("only displays languages the user has Translate access to in languageSelector", async () => {
+        await db.docs.clear();
+        await db.docs.bulkPut([mockData.mockPostDto, mockData.mockEnglishContentDto]);
+
+        accessMap.value = { ...mockData.translateAccessToAllContentMap };
+        accessMap.value["group-public-content"].language = {
+            view: true,
+            translate: false,
+            edit: true,
+            publish: true,
+        };
+
+        await db.docs.bulkPut([
+            { ...mockData.mockLanguageDtoFra, memberOf: ["group-public-content"] },
+            { ...mockData.mockLanguageDtoSwa, memberOf: ["group-public-content"] },
+            { ...mockData.mockLanguageDtoEng, memberOf: ["group-languages"] },
+        ]);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                id: "test-id-123",
+                languageCode: "en",
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        const languageSelector = wrapper.findComponent(LanguageSelector);
+        const btn = languageSelector.find("[data-test='language-selector']");
+        await btn.trigger("click");
+
+        const languages = languageSelector.find("[data-test='languagePopup']");
+
+        await waitForExpect(async () => {
+            expect(await languages.html()).toContain("English");
+
+            expect(await languages.html()).not.toContain("Français");
+            expect(await languages.html()).not.toContain("Swahili");
+        });
+    });
+
     it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
             props: {
@@ -215,9 +263,10 @@ describe("EditContent.vue", () => {
             },
         });
 
+        expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
+
         // Wait for the component to fetch data
         await waitForExpect(() => {
-            expect(wrapper.find('[data-test="language-selector"]').exists()).toBe(true); // LanguageSelector is rendered
             expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
             expect(wrapper.html()).toContain("Text content"); // EditContentText is rendered
             expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
@@ -541,9 +590,9 @@ describe("EditContent.vue", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
                 props: {
-                    docType: DocType.Post,
                     id: mockData.mockPostDto._id,
-                    languageCode: "eng",
+                    languageCode: "en",
+                    docType: DocType.Post,
                     tagOrPostType: PostType.Blog,
                 },
             });
