@@ -11,8 +11,7 @@ describe("Socketio", () => {
     //db may still be needed in the future, so keeping it here for now
 
     async function createNestApp(): Promise<INestApplication> {
-        const { testingModule, dbService } = await createTestingModule("socketio");
-        _db = dbService;
+        const { testingModule } = await createTestingModule("socketio");
         return testingModule.createNestApplication();
     }
 
