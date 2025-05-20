@@ -487,6 +487,7 @@ const ensureRedirect = () => window.open(liveUrl.value, "_blank");
                     <EditContentParentValidation
                         :tag-or-post-type="props.tagOrPostType"
                         :can-translate="canTranslate"
+                        :can-delete="canDelete"
                         :can-publish="canPublish"
                         :can-edit="canEditParent"
                         v-if="editableContent"
