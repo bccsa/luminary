@@ -7,12 +7,11 @@ import {
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
-import { AclPermission, AckStatus, DocType } from "./enums";
+import { AclPermission, DocType } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
-import { processChangeRequest } from "./changeRequests/processChangeRequest";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
 import { JwtUserDetails, processJwt } from "./jwt/processJwt";
