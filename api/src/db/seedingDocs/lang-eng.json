@@ -45,6 +45,8 @@
         "notification.clearCache_success.description": "New data is loading from the server, it might take a minute.",
         "notification.content_not_available.title": "Unpublished transation",
         "notification.content_not_available.description": "The {language} translation for this content is not yet available.",
+        "notification.translation_available.title": "Translation available",
+        "notification.translation_available.description": "The content is also available in {language}. Click here to view it.",
         "privacy_policy.modal.title": "Privacy Policy",
         "privacy_policy.modal.message": "By using this app, you agree to our privacy policy.",
         "privacy_policy.modal.button_accept": "Accept",
