@@ -26,7 +26,7 @@
         {
             "type": "language",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "assign", "translate"]
+            "permission": ["view", "edit", "delete", "assign", "translate"]
         },
         {
             "type": "redirect",
