@@ -75,10 +75,6 @@ const editableParent = ref<ContentParentDto>({
     publishDateVisible: true,
 });
 
-// Get base data to use for dirty checking
-const baseParent = ref<ContentParentDto | undefined>(undefined);
-const baseContent = ref<ContentDto[] | undefined>(undefined);
-
 const existingParent = useDexieLiveQuery(
     async () =>
         (await db.docs
@@ -129,11 +125,10 @@ watch(
         // as to not break dirty checking
         if (!hasLoadedContent.value && newContent.length > 0) {
             editableContent.value = _.cloneDeep(newContent);
-            baseContent.value = _.cloneDeep(newContent);
             hasLoadedContent.value = true;
         }
     },
-    { immediate: true, deep: true },
+    { deep: true },
 );
 
 watch(
@@ -141,13 +136,12 @@ watch(
     (newParent) => {
         // Only initialize editableParent if we haven't yet, and there's data to copy
         // as to not break dirty checking
-        if (!hasLoadedParent.value && newParent) {
-            editableParent.value = _.cloneDeep(newParent);
-            baseParent.value = _.cloneDeep(newParent);
-            hasLoadedParent.value = true;
-        }
+        if (hasLoadedParent.value) return;
+
+        editableParent.value = _.cloneDeep(newParent);
+        hasLoadedParent.value = true;
     },
-    { immediate: true, deep: true },
+    { deep: true },
 );
 
 const untranslatedLanguages = computed(() => {
@@ -267,11 +261,11 @@ const isDirty = computed(
     () =>
         !_.isEqual(
             { ...editableParent.value, updatedBy: "" },
-            { ...baseParent.value, updatedBy: "" },
+            { ...existingParent.value, updatedBy: "" },
         ) ||
         !_.isEqual(
             { ...editableContent.value, updatedBy: "" },
-            { ...baseContent.value, updatedBy: "" },
+            { ...existingContent.value, updatedBy: "" },
         ),
 );
 
@@ -416,13 +410,17 @@ const save = async () => {
 
 //Patch image data with the data retrieved from the api when uploading a new image
 watch(
-    () => existingParent.value?.imageData,
+    () => existingParent.value?.imageData?.fileCollections,
     (newImageData) => {
-        if (newImageData && !_.isEqual(newImageData, editableParent.value.imageData)) {
-            editableParent.value.imageData = newImageData;
+        if (
+            newImageData &&
+            !_.isEqual(newImageData, editableParent.value.imageData) &&
+            editableParent.value.imageData
+        ) {
+            editableParent.value.imageData.uploadData = [];
+            editableParent.value.imageData.fileCollections = newImageData;
         }
     },
-    { immediate: true, deep: true },
 );
 
 const revertChanges = () => {
@@ -567,6 +565,7 @@ const isLoading = computed(
 </script>
 
 <template>
+    {{ isDirty }}
     <div v-if="isLoading" class="relative flex h-screen items-center justify-center">
         <div class="flex flex-col items-center gap-4">
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
