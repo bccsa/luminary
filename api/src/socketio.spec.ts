@@ -2,7 +2,6 @@ import { Socket, io } from "socket.io-client";
 import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
 import { createTestingModule } from "./test/testingModule";
-import { DbService } from "./db/db.service";
 
 describe("Socketio", () => {
     const oldEnv = process.env;
@@ -10,7 +9,6 @@ describe("Socketio", () => {
     let client: Socket;
     let app: INestApplication;
     //db may still be needed in the future, so keeping it here for now
-    let _db: DbService;
 
     async function createNestApp(): Promise<INestApplication> {
         const { testingModule, dbService } = await createTestingModule("socketio");
