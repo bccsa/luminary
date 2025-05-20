@@ -70,10 +70,8 @@ const handleNotificationClick = (notification: Notification) => {
     <div v-if="show" class="inset-x-0 text-zinc-900" :class="color">
         <div
             class="flex items-center justify-between px-6 py-1"
-            @click="
-                notification.openLink && notification.link && handleNotificationClick(notification)
-            "
-            :class="{ 'cursor-pointer': notification.openLink }"
+            @click="notification.link && handleNotificationClick(notification)"
+            :class="{ 'cursor-pointer': notification.link }"
         >
             <!-- Conditional rendering for RouterLink or div -->
             <component
@@ -102,7 +100,7 @@ const handleNotificationClick = (notification: Notification) => {
             <button
                 type="button"
                 @click.stop="notification.id ? removeNotification(notification.id) : (show = false)"
-                class="h-6 min-h-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
+                class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
                 data-test="banner-close-button"
                 v-if="notification.closable"
             >
