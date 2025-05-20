@@ -423,7 +423,7 @@ describe("SingleContent", () => {
         expect(quickControls.exists()).toBe(true);
     });
 
-    it("switchs the language of content when clicking on the language button", async () => {
+    it("switches the language of content when clicking on the language button", async () => {
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
