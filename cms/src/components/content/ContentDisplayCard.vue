@@ -124,7 +124,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                 "
             >
                 <!-- Centered Title (absolute only on md and up) -->
-                <div class="w-2/3 truncate text-sm font-medium">
+                <div class="w-full truncate text-sm font-medium">
                     {{ contentDoc.title }}
                 </div>
             </div>
