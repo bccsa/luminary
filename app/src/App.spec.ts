@@ -98,6 +98,25 @@ describe("App", () => {
                 );
             }, 8000);
         }, 9000);
+
+        it.only("shows whether notification are displayed and visible", async () => {
+
+            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+                isLoading: ref(false),
+                isAuthenticated: ref(false),
+            });
+
+            const notificationStore = useNotificationStore();
+
+            mount(App, {
+                shallow: true,
+            });
+
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalled();
+                expect(notificationStore.removeNotification).toHaveBeenCalled();
+            }, 8000)
+        }, 15000);
     });
 
     describe("Theme config", () => {
