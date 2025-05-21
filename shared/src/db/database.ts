@@ -24,6 +24,7 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import _ from "lodash";
+import { syncLocalChanges } from "../rest/syncLocalChanges";
 const dbName: string = "luminary-db";
 
 type LuminaryInternals = {
@@ -851,6 +852,9 @@ export async function initDatabase() {
         },
         { deep: true },
     );
+
+    const localChanges = ref(await db.getLocalChanges());
+    syncLocalChanges(localChanges);
 }
 
 /**
