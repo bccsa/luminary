@@ -63,6 +63,9 @@ const { addNotification } = useNotificationStore();
 const parentId = props.id == "new" ? db.uuid() : props.id;
 const newDocument = props.id == "new";
 
+const hasLoadedParent = ref(false);
+const hasLoadedContent = ref(false);
+
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
@@ -74,7 +77,6 @@ const editableParent = ref<ContentParentDto>({
     tags: [],
     publishDateVisible: true,
 });
-
 const existingParent = useDexieLiveQuery(
     async () =>
         (await db.docs
@@ -85,6 +87,17 @@ const existingParent = useDexieLiveQuery(
         initialValue: {} as unknown as ContentParentDto,
     },
 );
+
+watch(
+    existingParent,
+    (newParent) => {
+        if (isDirty.value && hasLoadedParent.value) return;
+        editableParent.value = _.cloneDeep(newParent);
+        hasLoadedParent.value = true;
+    },
+    { deep: true },
+);
+
 const editableContent = ref<ContentDto[]>([]);
 const existingContent = useDexieLiveQuery(
     async () =>
@@ -94,6 +107,16 @@ const existingContent = useDexieLiveQuery(
     {
         initialValue: [] as unknown as ContentDto[],
     },
+);
+
+watch(
+    () => existingContent.value,
+    (newContent) => {
+        if (isDirty.value && hasLoadedContent.value) return;
+        editableContent.value = newContent.map((content) => _.cloneDeep(content));
+        hasLoadedContent.value = true;
+    },
+    { deep: true },
 );
 
 const showDeleteModal = ref(false);
@@ -114,35 +137,6 @@ if (newDocument) {
         (editableParent.value as PostDto).publishDateVisible = true;
     }
 }
-
-const hasLoadedParent = ref(false);
-const hasLoadedContent = ref(false);
-
-watch(
-    () => existingContent.value,
-    (newContent) => {
-        // Only initialize editableContent if we haven't yet, and there's data to copy
-        // as to not break dirty checking
-        if (!hasLoadedContent.value && newContent.length > 0) {
-            editableContent.value = _.cloneDeep(newContent);
-            hasLoadedContent.value = true;
-        }
-    },
-    { deep: true },
-);
-
-watch(
-    existingParent,
-    (newParent) => {
-        // Only initialize editableParent if we haven't yet, and there's data to copy
-        // as to not break dirty checking
-        if (hasLoadedParent.value) return;
-
-        editableParent.value = _.cloneDeep(newParent);
-        hasLoadedParent.value = true;
-    },
-    { deep: true },
-);
 
 const untranslatedLanguages = computed(() => {
     if (!editableContent.value) return [];
@@ -221,7 +215,6 @@ const createTranslation = (language: LanguageDto) => {
 const canTranslate = computed(() => {
     if (!editableParent.value || !selectedLanguage.value) return false;
     if (!canPublish.value && selectedContent.value?.status == PublishStatus.Published) return false;
-    console.info(editableParent.value.memberOf);
     if (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate))
         return false;
     if (!verifyAccess(selectedLanguage.value.memberOf, DocType.Language, AclPermission.Translate))
@@ -257,17 +250,43 @@ const canDelete = computed(() => {
 });
 
 // Dirty check and save
-const isDirty = computed(
-    () =>
-        !_.isEqual(
-            { ...editableParent.value, updatedBy: "" },
-            { ...existingParent.value, updatedBy: "" },
-        ) ||
-        !_.isEqual(
-            { ...editableContent.value, updatedBy: "" },
-            { ...existingContent.value, updatedBy: "" },
-        ),
-);
+const isDirty = computed(() => {
+    if (!existingParent.value || !existingContent.value) {
+        return false; // Wait until data is loaded
+    }
+
+    const parentChanged = !_.isEqual(
+        { ...editableParent.value, updatedBy: "", _rev: "" },
+        { ...existingParent.value, updatedBy: "", _rev: "" },
+    );
+
+    //Map through content as it is an array of objects that has to ommit "updatedBy" and "_rev"
+    const contentChanged = !_.isEqual(
+        editableContent.value.map(({ updatedTimeUtc, ...content }) => {
+            const { _rev, ...rest } = content as any;
+            return rest;
+        }),
+        existingContent.value?.map(({ updatedTimeUtc, ...content }) => {
+            const { _rev, ...rest } = content as any;
+            return rest;
+        }),
+    );
+
+    return parentChanged || contentChanged;
+});
+
+// Check for any changes from the server when no local changes has been made
+const networkChanges = computed(() => {
+    const parentChanged = !_.isEqual(
+        { ...editableParent.value, updatedBy: "", _rev: "" },
+        { ...existingParent.value, updatedBy: "", _rev: "" },
+    );
+
+    //Map through content as it is an array of objects that has to ommit "updatedBy" and "_rev"
+    const contentChanged = !_.isEqual(editableContent.value, existingContent.value);
+
+    return (parentChanged || contentChanged) && !isDirty.value;
+});
 
 const isValid = ref(true);
 
@@ -605,6 +624,9 @@ const isLoading = computed(
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
+                <LBadge v-if="networkChanges" variant="warning"
+                    >Changes recieved from the server</LBadge
+                >
                 <div class="flex gap-1">
                     <LButton
                         type="button"
