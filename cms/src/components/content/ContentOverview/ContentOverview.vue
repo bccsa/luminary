@@ -135,7 +135,10 @@ const groups = useDexieLiveQuery(
             </div>
         </template>
 
-        <div class="scrollbar-hide overflow-y-auto" style="max-height: calc(100vh - 4rem)">
+        <div
+            class="scrollbar-hide overflow-y-auto md:overflow-y-hidden"
+            style="max-height: calc(100vh - 4rem)"
+        >
             <div class="sticky top-0 z-10 bg-white">
                 <FilterOptions
                     :is-small-screen="isSmallScreen"
