@@ -12,12 +12,11 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
-import { EyeIcon, PencilSquareIcon, ClockIcon } from "@heroicons/vue/20/solid";
+import { ClockIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import { DateTime } from "luxon";
 import { CloudArrowUpIcon, TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { PencilIcon } from "@heroicons/vue/24/solid";
-import LButton from "../button/LButton.vue";
 import router from "@/router";
 
 type Props = {
@@ -186,7 +185,9 @@ const navigateToLanguage = (language: LanguageDto) => {
         <!-- Tags + Groups -->
         <div class="flex w-full items-center gap-2 py-1">
             <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
-                <TagIcon class="h-4 w-4 text-zinc-400" />
+                <div>
+                    <TagIcon class="h-4 w-4 text-zinc-400" />
+                </div>
                 <div class="flex flex-wrap gap-1">
                     <LBadge v-for="tag in tagsContent" :key="tag._id" type="default">
                         {{ tag.title }}
@@ -200,12 +201,7 @@ const navigateToLanguage = (language: LanguageDto) => {
         </div>
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-            <LBadge
-                class="bg-zinc-400 text-zinc-50"
-                v-for="group in groups"
-                :key="group._id"
-                type="default"
-            >
+            <LBadge v-for="group in groups" :key="group._id" type="default" variant="card">
                 {{ group.name }}
             </LBadge>
         </div>
@@ -214,7 +210,7 @@ const navigateToLanguage = (language: LanguageDto) => {
         <div class="flex items-center justify-between pt-1 text-xs sm:gap-4">
             <div v-if="!isSmallScreen" class="flex w-full flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-                <LBadge class="" v-for="group in groups" :key="group._id" type="default">
+                <LBadge v-for="group in groups" :key="group._id" type="default" variant="card">
                     {{ group.name }}
                 </LBadge>
             </div>
