@@ -23,7 +23,7 @@ const contentDocsTotal = contentOverviewQuery({ ...props.queryOptions, count: tr
 </script>
 
 <template>
-    <div>
+    <div class="w-full">
         <div class="flex flex-col gap-1">
             <ContentDisplayCard
                 v-for="contentDoc in contentDocs?.docs"
@@ -45,7 +45,7 @@ const contentDocsTotal = contentOverviewQuery({ ...props.queryOptions, count: tr
                 <p class="text-sm text-zinc-500">No content found with the matched filter.</p>
             </div>
         </div>
-        <div class="mt-10 flex h-14 w-full items-center justify-center py-4 md:my-0">
+        <div class="mt-6 flex h-14 w-full items-center justify-center md:my-0">
             <LPaginator
                 :amountOfDocs="contentDocsTotal?.count as number"
                 v-model:index="pageIndex"

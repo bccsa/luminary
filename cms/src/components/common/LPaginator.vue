@@ -74,7 +74,7 @@ const indexUp = () => {
 <template>
     <div class="relative flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex w-full sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:justify-center">
-            <div class="flex flex-wrap items-center justify-center gap-1">
+            <div class="flex w-full flex-wrap items-center justify-center gap-1">
                 <LButton
                     class="h-10 w-10 sm:h-10 sm:w-16"
                     :disabled="index <= 0"
