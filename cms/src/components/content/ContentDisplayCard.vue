@@ -98,45 +98,46 @@ const navigateToLanguage = (language: LanguageDto) => {
 </script>
 
 <template>
-    <div class="p w-full divide-y divide-zinc-100 rounded-md bg-white px-2 py-1 shadow-md">
-        <div
-            class="relative flex cursor-pointer items-center justify-between py-1"
-            @click="
-                () => {
-                    if (verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)) {
-                        router.replace({
-                            name: 'edit',
-                            params: {
-                                docType: parentType,
-                                tagOrPostType:
-                                    contentDoc.parentTagType || contentDoc.parentPostType,
-                                id: contentDoc.parentId,
-                                languageCode: languages.find(
-                                    (l: LanguageDto) => l._id == languageId,
-                                )?.languageCode,
-                            },
-                        });
+    <div
+        class="w-full divide-y divide-zinc-100 rounded-md border border-zinc-300 bg-white px-2 py-1 shadow-md"
+    >
+        <div class="relative flex cursor-pointer items-center justify-between py-1">
+            <div
+                class="w-full"
+                @click="
+                    () => {
+                        if (verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)) {
+                            router.replace({
+                                name: 'edit',
+                                params: {
+                                    docType: parentType,
+                                    tagOrPostType:
+                                        contentDoc.parentTagType || contentDoc.parentPostType,
+                                    id: contentDoc.parentId,
+                                    languageCode: languages.find(
+                                        (l: LanguageDto) => l._id == languageId,
+                                    )?.languageCode,
+                                },
+                            });
+                        }
                     }
-                }
-            "
-        >
-            <!-- Centered Title (absolute only on md and up) -->
-            <div class="w-2/3 truncate text-sm font-medium">
-                {{ contentDoc.title }}
+                "
+            >
+                <!-- Centered Title (absolute only on md and up) -->
+                <div class="w-2/3 truncate text-sm font-medium">
+                    {{ contentDoc.title }}
+                </div>
             </div>
 
-            <div class="flex w-1/3 items-center justify-end">
-                <div
-                    v-if="isSmallScreen"
-                    class="flex items-center justify-end text-xs text-zinc-400"
-                >
+            <div class="flex items-center justify-end">
+                <div v-if="isSmallScreen" class="flex w-max items-center text-xs text-zinc-400">
                     <PencilIcon class="h-3 w-3 text-zinc-300" />
                     <span title="Last Updated">{{
                         renderDate("small", "Last Updated", contentDoc.updatedTimeUtc)
                     }}</span>
                 </div>
                 <!-- Language badges (only on desktop) -->
-                <div v-if="!isSmallScreen" class="flex flex-wrap gap-1">
+                <div v-if="!isSmallScreen" class="flex gap-1">
                     <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
 
                     <RouterLink
