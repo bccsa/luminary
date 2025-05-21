@@ -42,7 +42,7 @@ const paginatorPages = computed(() => {
     if (!props.amountOfDocs) return [];
 
     const current = index.value;
-    const maxVisible = isMobileScreen.value ? 4 : 5;
+    const maxVisible = isMobileScreen.value ? 3 : 5;
 
     if (pageCount.value <= maxVisible) {
         return Array.from({ length: pageCount.value }, (_, i) => i);
