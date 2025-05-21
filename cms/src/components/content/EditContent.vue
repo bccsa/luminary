@@ -21,6 +21,7 @@ import {
     type ContentParentDto,
     PostType,
     isConnected,
+    useDexieLiveQuery,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -60,6 +61,9 @@ const { addNotification } = useNotificationStore();
 const parentId = props.id == "new" ? db.uuid() : props.id;
 const newDocument = props.id == "new";
 
+const hasLoadedParent = ref(false);
+const hasLoadedContent = ref(false);
+
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
@@ -71,10 +75,48 @@ const editableParent = ref<ContentParentDto>({
     tags: [],
     publishDateVisible: true,
 });
-const isLoading = computed(() => editableParent.value == undefined);
-const existingParent = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
+const existingParent = useDexieLiveQuery(
+    async () =>
+        (await db.docs
+            .where("_id")
+            .equals(parentId)
+            .first()) as unknown as Promise<ContentParentDto>,
+    {
+        initialValue: {} as unknown as ContentParentDto,
+    },
+);
+
+watch(
+    existingParent,
+    (newParent) => {
+        if (isDirty.value && hasLoadedParent.value) return;
+        editableParent.value = _.cloneDeep(newParent);
+        hasLoadedParent.value = true;
+    },
+    { deep: true },
+);
+
 const editableContent = ref<ContentDto[]>([]);
-const existingContent = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+const existingContent = useDexieLiveQuery(
+    async () =>
+        (await db.docs.where("parentId").equals(parentId)).toArray() as unknown as Promise<
+            ContentDto[]
+        >,
+    {
+        initialValue: [] as unknown as ContentDto[],
+    },
+);
+
+watch(
+    () => existingContent.value,
+    (newContent) => {
+        if (isDirty.value && hasLoadedContent.value) return;
+        editableContent.value = newContent.map((content) => _.cloneDeep(content));
+        hasLoadedContent.value = true;
+    },
+    { deep: true },
+);
+
 const showDeleteModal = ref(false);
 
 let icon = DocumentIcon;
@@ -92,18 +134,6 @@ if (newDocument) {
         (editableParent.value as PostDto).postType = props.tagOrPostType as PostType;
         (editableParent.value as PostDto).publishDateVisible = true;
     }
-} else {
-    // Get a copy of the parent document from IndexedDB, and host it as a local ref.
-    db.get<PostDto | TagDto>(parentId).then((p) => {
-        editableParent.value = _.cloneDeep(p);
-        existingParent.value = _.cloneDeep(p);
-    });
-
-    // In the same way as the parent document, get a copy of the content documents
-    db.whereParent(parentId, props.docType).then((doc) => {
-        editableContent.value.push(...doc);
-        existingContent.value = _.cloneDeep(doc);
-    });
 }
 
 const untranslatedLanguages = computed(() => {
@@ -218,17 +248,43 @@ const canDelete = computed(() => {
 });
 
 // Dirty check and save
-const isDirty = computed(
-    () =>
-        !_.isEqual(
-            { ...editableParent.value, updatedBy: "" },
-            { ...existingParent.value, updatedBy: "" },
-        ) ||
-        !_.isEqual(
-            { ...editableContent.value, updatedBy: "" },
-            { ...existingContent.value, updatedBy: "" },
-        ),
-);
+const isDirty = computed(() => {
+    if (!existingParent.value || !existingContent.value) {
+        return false; // Wait until data is loaded
+    }
+
+    const parentChanged = !_.isEqual(
+        { ...editableParent.value, updatedBy: "", _rev: "" },
+        { ...existingParent.value, updatedBy: "", _rev: "" },
+    );
+
+    //Map through content as it is an array of objects that has to ommit "updatedBy" and "_rev"
+    const contentChanged = !_.isEqual(
+        editableContent.value.map(({ updatedTimeUtc, ...content }) => {
+            const { _rev, ...rest } = content as any;
+            return rest;
+        }),
+        existingContent.value?.map(({ updatedTimeUtc, ...content }) => {
+            const { _rev, ...rest } = content as any;
+            return rest;
+        }),
+    );
+
+    return parentChanged || contentChanged;
+});
+
+// Check for any changes from the server when no local changes has been made
+const networkChanges = computed(() => {
+    const parentChanged = !_.isEqual(
+        { ...editableParent.value, updatedBy: "", _rev: "" },
+        { ...existingParent.value, updatedBy: "", _rev: "" },
+    );
+
+    //Map through content as it is an array of objects that has to ommit "updatedBy" and "_rev"
+    const contentChanged = !_.isEqual(editableContent.value, existingContent.value);
+
+    return (parentChanged || contentChanged) && !isDirty.value;
+});
 
 const isValid = ref(true);
 
@@ -278,9 +334,6 @@ const saveChanges = async () => {
         description: `The ${props.tagOrPostType} was saved successfully`,
         state: "success",
     });
-
-    existingParent.value = _.cloneDeep(editableParent.value);
-    existingContent.value = _.cloneDeep(editableContent.value);
 };
 
 const save = async () => {
@@ -311,6 +364,21 @@ const save = async () => {
     }
 };
 
+//Patch image data with the data retrieved from the api when uploading a new image
+watch(
+    () => existingParent.value?.imageData?.fileCollections,
+    (newImageData) => {
+        if (
+            newImageData &&
+            !_.isEqual(newImageData, editableParent.value.imageData) &&
+            editableParent.value.imageData
+        ) {
+            editableParent.value.imageData.uploadData = [];
+            editableParent.value.imageData.fileCollections = newImageData;
+        }
+    },
+);
+
 const revertChanges = () => {
     // Restore the parent document to the previous version
     if (
@@ -326,7 +394,7 @@ const revertChanges = () => {
         });
         return;
     }
-    editableParent.value = _.cloneDeep(existingParent.value!);
+    editableParent.value = _.cloneDeep(existingParent.value);
 
     // Restore the content documents to the previous versions
     editableContent.value = _.cloneDeep(existingContent.value!);
@@ -445,13 +513,15 @@ const duplicate = async () => {
         state: "success",
     });
 };
+
+const isLoading = computed(
+    () => !newDocument && (!hasLoadedParent.value || !hasLoadedContent.value),
+);
 </script>
 
 <template>
-    <div
-        v-if="!newDocument && !editableParent?.updatedTimeUtc"
-        class="relative flex h-screen items-center justify-center"
-    >
+    {{ isDirty }}
+    <div v-if="isLoading" class="relative flex h-screen items-center justify-center">
         <div class="flex flex-col items-center gap-4">
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
         </div>
@@ -490,6 +560,9 @@ const duplicate = async () => {
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
+                <LBadge v-if="networkChanges" variant="warning"
+                    >Changes recieved from the server</LBadge
+                >
                 <div class="flex gap-1">
                     <LButton
                         type="button"
@@ -543,7 +616,7 @@ const duplicate = async () => {
                         :can-translate="canTranslate"
                         :can-publish="canPublish"
                         :can-edit="canEditParent"
-                        v-if="editableContent"
+                        v-if="editableContent && editableParent"
                         v-model:editableParent="editableParent"
                         v-model:editableContent="editableContent"
                         :languages="cmsLanguages"
