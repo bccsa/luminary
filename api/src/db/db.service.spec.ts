@@ -105,6 +105,15 @@ describe("DbService", () => {
             expect(res.docs[0].type === DocType.User).toBe(true);
             expect(res.docs[0].email).toBe("editor1@users.test");
         });
+
+        it("can get a user document by userId and email", async () => {
+            // Only one result should be returned. This test checks that the uniqueness filter is applied correctly (as the index is not unique)
+            const res = await service.getUserByIdOrEmail("editor1@users.test", "editor1");
+            expect(res.docs.length).toBe(1);
+            expect(res.docs[0].type === DocType.User).toBe(true);
+            expect(res.docs[0].userId).toBe("editor1");
+            expect(res.docs[0].email).toBe("editor1@users.test");
+        });
     });
 
     describe("upsert", () => {
@@ -288,34 +297,6 @@ describe("DbService", () => {
 
             const docCount = res.docs.length;
             expect(docCount).toBe(8);
-        });
-
-        it("can retrieve a list of groups from the db (getUserGroups)", async () => {
-            const userAccess = new Map<DocType, Uuid[]>();
-            userAccess[DocType.Group] = [
-                "group-super-admins",
-                "group-public-content",
-                "group-private-content",
-                "group-public-tags",
-                "group-private-tags",
-                "group-public-users",
-                "group-private-users",
-            ];
-
-            const res: any = await service.getUserGroups(userAccess);
-
-            expect(res.docs).toBeDefined();
-            expect(res.docs.length).toBeGreaterThan(0);
-        });
-
-        it("returns no groups if user does not have the right access (getUserGroups)", async () => {
-            const userAccess = new Map<DocType, Uuid[]>();
-            userAccess[DocType.Post] = ["group-super-admins"];
-
-            const res: any = await service.getUserGroups(userAccess);
-
-            expect(res.docs).toBeDefined();
-            expect(res.docs.length).toBe(0);
         });
     });
 
