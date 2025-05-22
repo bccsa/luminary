@@ -1,0 +1,8 @@
+{
+    "_id": "_design/parentId",
+    "views": {
+        "parentId": {
+            "map": "function (doc) {\n  if (doc.parentId) {\n    emit(doc.parentId);\n  }\n}"
+        }
+    }
+}
