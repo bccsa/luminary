@@ -99,7 +99,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 
 <template>
     <div
-        class="w-full divide-y divide-zinc-100 rounded-md border border-zinc-300 bg-white px-2 py-1 shadow-md"
+        class="w-full divide-y divide-zinc-100 rounded-md border border-zinc-300 bg-white px-2 py-1"
     >
         <div class="relative flex cursor-pointer items-center justify-between py-1">
             <div
@@ -202,7 +202,7 @@ const navigateToLanguage = (language: LanguageDto) => {
         </div>
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-            <LBadge v-for="group in groups" :key="group._id" type="default" variant="card">
+            <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
                 {{ group.name }}
             </LBadge>
         </div>
@@ -211,7 +211,7 @@ const navigateToLanguage = (language: LanguageDto) => {
         <div class="flex items-center justify-between pt-1 text-xs sm:gap-4">
             <div v-if="!isSmallScreen" class="flex w-full flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-                <LBadge v-for="group in groups" :key="group._id" type="default" variant="card">
+                <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
                     {{ group.name }}
                 </LBadge>
             </div>
