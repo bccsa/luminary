@@ -1,0 +1,8 @@
+{
+    "_id": "_design/user-email-userId",
+    "views": {
+        "user-email-userId": {
+            "map": "function (doc) {  if (doc.type != \"user\") return; if (doc.userId) emit(doc.userId, doc._id); if (doc.email) emit(doc.email, doc._id); }"
+        }
+    }
+}
