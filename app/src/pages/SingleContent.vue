@@ -433,6 +433,7 @@ const showDropdown = ref(false);
                 <button
                     @click="showDropdown = !showDropdown"
                     class="block truncate text-zinc-400 dark:text-slate-300"
+                    data-test="translationButton"
                 >
                     <span class="hidden sm:inline">
                         {{ languages.find((lang) => lang._id === selectedLanguageId)?.name }}
@@ -446,7 +447,7 @@ const showDropdown = ref(false);
                     </span>
                 </button>
                 <div
-                    v-if="showDropdown"
+                    v-show="availableTranslations.length > 1 && showDropdown"
                     class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
                 >
                     <div
