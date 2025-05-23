@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { getConnectionSpeed } from "@/globalConfig";
+import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
 import {
     isConnected,
     type ImageDto,
     type ImageFileCollectionDto,
     type ImageFileDto,
+    type Uuid,
 } from "luminary-shared";
-import { computed, ref } from "vue";
+import Rand from "rand-seed";
+import { computed, onBeforeMount, ref } from "vue";
 
 type Props = {
     image?: ImageDto;
@@ -14,6 +16,7 @@ type Props = {
     size?: keyof typeof sizes;
     rounded?: boolean;
     parentWidth: number;
+    parentId: Uuid;
 };
 
 const aspectRatiosCSS = {
@@ -125,7 +128,6 @@ const srcset1 = computed(() => {
 // Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
     if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
-
     return props.image.fileCollections
         .filter((collection) => collection.aspectRatio != closestAspectRatio)
         .map((collection) => {
@@ -145,6 +147,19 @@ const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.va
 const showImageElement2 = computed(
     () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
 );
+
+const fallbackImageUrl = ref<string | undefined>(undefined);
+
+const loadFallbackImage = async () => {
+    const randomImage = (await fallbackImageUrls)[
+        Math.floor(new Rand(props.parentId).next() * (await fallbackImageUrls).length)
+    ] as string;
+    fallbackImageUrl.value = randomImage;
+};
+
+onBeforeMount(async () => {
+    await loadFallbackImage();
+});
 </script>
 
 <template>
@@ -176,5 +191,20 @@ const showImageElement2 = computed(
         loading="lazy"
         @error="imageElement2Error = true"
         draggable="false"
+    />
+    <img
+        v-else
+        :src="fallbackImageUrl"
+        :class="[
+            aspectRatiosCSS[aspectRatio],
+            sizes[size],
+            'bg-cover bg-center object-cover object-center',
+        ]"
+        alt=""
+        data-test="image-element2"
+        loading="lazy"
+        @error="imageElement2Error = true"
+        draggable="false"
+        :key="parentId"
     />
 </template>

@@ -248,7 +248,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
             :image="content.parentImageData"
             aspectRatio="video"
             size="post"
-            fallbackImg="/img/fallback.jpg"
+            :content-parent-id="content.parentId"
         />
 
         <div class="video-player absolute bottom-0 left-0 right-0 top-0">

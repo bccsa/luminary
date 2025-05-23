@@ -57,6 +57,8 @@ const tagged = useDexieLiveQueryWithDeps(
                     <div class="flex items-center">
                         <div class="relative overflow-hidden rounded">
                             <LImage
+                                v-if="content.parentId"
+                                :contentParentId="content.parentId"
                                 :image="content.parentImageData"
                                 aspectRatio="video"
                                 size="small"
