@@ -167,7 +167,6 @@ watch([content, isConnected], async () => {
     if (translations.length > 1) {
         availableTranslations.value = translations as ContentDto[];
 
-        console.log(translations);
         // Filter languages based on available translations
         languages.value = (langs as LanguageDto[]).filter((lang) =>
             availableTranslations.value.some((translation) => translation.language === lang._id),
@@ -431,9 +430,10 @@ const showDropdown = ref(false);
         <template #quickControls v-if="!is404">
             <div class="relative mt-1 w-auto">
                 <button
+                    v-show="availableTranslations.length > 1"
                     @click="showDropdown = !showDropdown"
                     class="block truncate text-zinc-400 dark:text-slate-300"
-                    data-test="translationButton"
+                    data-test="translationSelector"
                 >
                     <span class="hidden sm:inline">
                         {{ languages.find((lang) => lang._id === selectedLanguageId)?.name }}
@@ -447,7 +447,7 @@ const showDropdown = ref(false);
                     </span>
                 </button>
                 <div
-                    v-show="availableTranslations.length > 1 && showDropdown"
+                    v-if="showDropdown"
                     class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
                 >
                     <div
@@ -458,6 +458,7 @@ const showDropdown = ref(false);
                             showDropdown = false;
                         "
                         class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                        data-test="translationOption"
                     >
                         {{ language.name }}
 
