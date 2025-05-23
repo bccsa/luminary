@@ -26,7 +26,6 @@ import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
 import { useNotificationStore } from "@/stores/notification";
-import { Listbox } from "@headlessui/vue";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -433,12 +432,13 @@ describe("SingleContent", () => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
 
-        const listBox = wrapper.findComponent(Listbox);
-        expect(listBox.exists()).toBe(true);
+        const translationSelector = wrapper.find("[data-test='translationSelector']");
 
-        await listBox.setValue("lang-fra");
+        await translationSelector.trigger("click");
 
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
+            await wrapper.findAll("[data-test='translationOption']")[1].trigger("click");
+
             expect(wrapper.text()).toContain(mockFrenchContentDto.title);
         });
     });
@@ -452,8 +452,6 @@ describe("SingleContent", () => {
             },
         });
 
-        // const notificationStore = useNotificationStore();
-
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
@@ -463,13 +461,13 @@ describe("SingleContent", () => {
             expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
                 expect.objectContaining({
                     id: "content-available",
-                    title: "Content available",
-                    description: `This content is also available in Français. Click here to view it.`,
+                    title: "Translation available",
+                    description: `The content is also available in {language}. Click here to view it.`,
                     state: "info",
                     type: "banner",
                     timeout: 5000,
                 }),
             );
-        });
+        }, 1500);
     });
 });
