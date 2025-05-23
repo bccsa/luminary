@@ -14,6 +14,7 @@ import {
     type ContentDto,
     type RedirectDto,
     type Uuid,
+    type LanguageDto,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, ref, watch } from "vue";
@@ -30,6 +31,7 @@ import {
     appLanguagePreferredIdAsRef,
     isDarkTheme,
     theme,
+    appLanguageAsRef,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -46,6 +48,7 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
+import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 
 const router = useRouter();
 
@@ -57,6 +60,9 @@ const props = defineProps<Props>();
 const { t } = useI18n();
 const showCategoryModal = ref(false);
 const enableZoom = ref(false);
+const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
+const availableTranslations = ref<ContentDto[]>([]);
+const languages = ref<LanguageDto[]>([]);
 
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
@@ -127,6 +133,10 @@ const unwatch = watch([idbContent, isConnected], () => {
     const apiContent = apiLiveQuery.toRef();
 
     watch(apiContent, () => {
+        if (!apiContent.value) {
+            content.value = undefined;
+            return;
+        }
         // Check if the returned content is a redirect, and redirect to the new slug
         if (apiContent.value?.type == DocType.Redirect) {
             const redirect = apiContent.value as unknown as RedirectDto;
@@ -141,6 +151,66 @@ const unwatch = watch([idbContent, isConnected], () => {
         // If the content is not a redirect, set it to the content ref
         content.value = apiContent.value as ContentDto;
     });
+});
+
+// Load available languages from IndexedDB immediately (even when online)
+watch([content, isConnected], async () => {
+    if (!content.value) return;
+
+    // Load from IndexedDB
+    const [translations, langs] = await Promise.all([
+        db.docs.where("parentId").equals(content.value.parentId).toArray(),
+        db.docs.where("type").equals(DocType.Language).toArray(),
+    ]);
+
+    //
+    if (translations.length > 1) {
+        availableTranslations.value = translations as ContentDto[];
+
+        // Filter languages based on available translations
+        languages.value = (langs as LanguageDto[]).filter((lang) =>
+            availableTranslations.value.some((translation) => translation.language === lang._id),
+        );
+    }
+
+    if (isConnected.value) {
+        // If online, do API call to get list of available languages and update dropdown
+        const languageQuery = ref<ApiSearchQuery>({
+            types: [DocType.Language],
+        });
+
+        const contentQuery = ref<ApiSearchQuery>({
+            types: [DocType.Content],
+            parentId: content.value.parentId,
+        });
+
+        const contentLiveQuery = new ApiLiveQuery(contentQuery);
+        const apiLanguageLiveQuery = new ApiLiveQuery(languageQuery);
+
+        const contentResults = contentLiveQuery.toArrayAsRef();
+        const apiLanguage = apiLanguageLiveQuery.toArrayAsRef();
+
+        watch([contentResults, apiLanguage], () => {
+            if (contentResults.value && contentResults.value.length > 1) {
+                availableTranslations.value = contentResults.value as ContentDto[];
+            }
+
+            if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
+                const apiLanguages = apiLanguage.value as LanguageDto[];
+
+                // Merge languages from API with those from IndexedDB, filtering out duplicates
+                const mergedLanguages = [
+                    ...languages.value,
+                    ...apiLanguages.filter(
+                        (apiLang) =>
+                            !languages.value.some((localLang) => localLang._id === apiLang._id),
+                    ),
+                ];
+
+                languages.value = mergedLanguages;
+            }
+        });
+    }
 });
 
 const tags = useDexieLiveQueryWithDeps(
@@ -263,11 +333,143 @@ const selectedCategory = computed(() => {
     if (!selectedCategoryId.value) return undefined;
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
+
+/**
+ * Watches for changes in the `content` reactive property.
+ * When `content` is updated, it sets the `selectedLanguageId`
+ * to the `language` property of the new `content` value, if available.
+ */
+watch(content, () => {
+    selectedLanguageId.value = content.value?.language;
+});
+
+watch(
+    [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
+    async () => {
+        // If no selected language or content is available, exit early
+        if (!selectedLanguageId.value || !content.value) return;
+
+        // Find the preferred translation for the selected language
+        const preferred = availableTranslations.value.find(
+            (c) => c.language == selectedLanguageId.value,
+        );
+
+        if (preferred) {
+            // If a preferred translation exists, navigate to its slug
+            router.replace({ name: "content", params: { slug: preferred.slug } });
+        }
+
+        // If the content's language is not the preferred app language
+        if (content.value && content.value.language !== appLanguagePreferredIdAsRef.value) {
+            // Find the content in the preferred app language
+            const preferredContent = availableTranslations.value.find(
+                (c) => c.language == appLanguagePreferredIdAsRef.value,
+            );
+
+            // If preferred content exists, show a notification to the user
+            if (preferredContent) {
+                useNotificationStore().addNotification({
+                    id: "content-available",
+                    title: t("notification.translation_available.title"),
+                    description: t("notification.translation_available.description", {
+                        language: appLanguageAsRef.value?.name,
+                    }),
+                    state: "info",
+                    type: "banner",
+                    timeout: 5000,
+                    closable: true,
+                    link: {
+                        name: "content",
+                        params: { slug: preferredContent.slug },
+                    },
+                    openLink: true,
+                });
+            }
+        }
+
+        // Function to remove the notification if conditions are met
+        const removeNotificationIfNeeded = () => {
+            if (content.value && content.value.language == appLanguagePreferredIdAsRef.value) {
+                // Remove the notification if the content is already in the preferred language
+                // or if the user navigates away from the "content" page
+                useNotificationStore().removeNotification("content-available");
+            }
+        };
+
+        // Initial check to remove the notification if conditions are met
+        removeNotificationIfNeeded();
+
+        // Watch for route changes to remove the notification if the user navigates away
+        watch(
+            () => router.currentRoute.value.name,
+            () => {
+                removeNotificationIfNeeded();
+            },
+        );
+    },
+    { immediate: true, deep: true },
+);
+
+// Change language
+const onLanguageSelect = (languageId: Uuid) => {
+    selectedLanguageId.value = languageId;
+
+    const preferred = availableTranslations.value.find(
+        (c) => c.language == languageId && isPublished(c, appLanguageIdsAsRef.value),
+    );
+    if (preferred) {
+        router.replace({ name: "content", params: { slug: preferred.slug } });
+    }
+};
+
+const showDropdown = ref(false);
 </script>
 
 <template>
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
+            <div class="relative mt-1 w-auto">
+                <button
+                    v-show="availableTranslations.length > 1"
+                    @click="showDropdown = !showDropdown"
+                    class="block truncate text-zinc-400 dark:text-slate-300"
+                    data-test="translationSelector"
+                >
+                    <span class="hidden sm:inline">
+                        {{ languages.find((lang) => lang._id === selectedLanguageId)?.name }}
+                    </span>
+                    <span class="inline sm:hidden">
+                        {{
+                            languages
+                                .find((lang) => lang._id === selectedLanguageId)
+                                ?.languageCode.toUpperCase()
+                        }}
+                    </span>
+                </button>
+                <div
+                    v-if="showDropdown"
+                    class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
+                >
+                    <div
+                        v-for="language in languages"
+                        :key="language._id"
+                        @click="
+                            onLanguageSelect(language._id);
+                            showDropdown = false;
+                        "
+                        class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
+                        data-test="translationOption"
+                    >
+                        {{ language.name }}
+
+                        <CheckCircleIcon
+                            v-if="selectedLanguageId === language._id"
+                            class="h-5 w-5 text-yellow-500"
+                            aria-hidden="true"
+                        />
+                    </div>
+                </div>
+            </div>
             <div class="text-zinc-400 dark:text-slate-300" data-test="themeButton">
                 <SunIcon class="h-6 w-6" v-if="isDarkTheme" @click="theme = 'light'" />
                 <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />

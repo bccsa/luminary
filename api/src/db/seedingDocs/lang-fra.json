@@ -45,6 +45,8 @@
         "notification.clearCache_success.description": "Les nouvelles données sont en cours de chargement depuis le serveur, cela peut prendre une minute.",
         "notification.content_not_available.title": "Traduction non disponible",
         "notification.content_not_available.description": "La traduction en {language} de ce contenu n'est pas encore disponible.",
+        "notification.translation_available.title": "Traduction disponible",
+        "notification.translation_available.description": "Le contenu est également disponible en {language}. Cliquez ici pour le voir.",
         "privacy_policy.modal.title": "Politique de confidentialité",
         "privacy_policy.modal.message": "En utilisant cette application, vous acceptez notre politique de confidentialité.",
         "privacy_policy.modal.button_accept": "Accepter",

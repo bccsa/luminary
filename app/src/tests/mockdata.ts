@@ -321,6 +321,9 @@ export const mockLanguageDtoEng: LanguageDto = {
         "notification.content_not_available.title": "Unpublished transation",
         "notification.content_not_available.description":
             "The {language} translation for this content is not yet available.",
+        "notification.translation_available.title": "Translation available",
+        "notification.translation_available.description":
+            "The content is also available in English. Click here to view it.",
         "privacy_policy.modal.title": "Privacy Policy",
         "privacy_policy.modal.message": "By using this app, you agree to our privacy policy.",
         "privacy_policy.modal.button_accept": "Accept",
@@ -378,6 +381,9 @@ export const mockLanguageDtoFra: LanguageDto = {
         "settings.local_cache.button": "Supprimer le cache local",
         "home.title": "Accueil",
         "explore.title": "Explorer",
+        "notification.content_not_available.description":
+            "La traduction en Français de ce contenu n'est pas encore disponible.",
+        "notification.translation_available.title": "Traduction disponible",
     },
     default: 0,
 };
