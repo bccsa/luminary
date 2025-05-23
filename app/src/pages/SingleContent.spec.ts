@@ -462,7 +462,7 @@ describe("SingleContent", () => {
                 expect.objectContaining({
                     id: "content-available",
                     title: "Translation available",
-                    description: `The content is also available in {language}. Click here to view it.`,
+                    description: `The content is also available in English. Click here to view it.`,
                     state: "info",
                     type: "banner",
                     timeout: 5000,
