@@ -152,8 +152,8 @@ const showImageElement2 = computed(
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
 const loadFallbackImage = async () => {
-    const randomImage = fallbackImageUrls[
-        Math.floor(new Rand(props.parentId).next() * fallbackImageUrls.length)
+    const randomImage = (await fallbackImageUrls)[
+        Math.floor(new Rand(props.parentId).next() * (await fallbackImageUrls).length)
     ] as string;
     fallbackImageUrl.value = randomImage;
 };

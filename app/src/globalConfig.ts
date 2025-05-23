@@ -309,6 +309,4 @@ watch(
     { immediate: true },
 );
 
-export const fallbackImageUrls = loadFallbackImageUrls()
-    .then((url) => url)
-    .catch((reason) => `Failed to load fallback images: ${reason}`);
+export const fallbackImageUrls = loadFallbackImageUrls();
