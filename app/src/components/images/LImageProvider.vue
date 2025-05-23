@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
-import { loadFallbackImageUrls } from "@/util/loadFallbackImages";
 import {
     isConnected,
     type ImageDto,
