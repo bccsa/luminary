@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getConnectionSpeed } from "@/globalConfig";
+import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
 import { loadFallbackImageUrls } from "@/util/loadFallbackImages";
 import {
     isConnected,
@@ -152,8 +152,9 @@ const showImageElement2 = computed(
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
 const loadFallbackImage = async () => {
-    const urls = await loadFallbackImageUrls();
-    const randomImage = urls[Math.floor(new Rand(props.parentId).next() * urls.length)] as string;
+    const randomImage = fallbackImageUrls[
+        Math.floor(new Rand(props.parentId).next() * fallbackImageUrls.length)
+    ] as string;
     fallbackImageUrl.value = randomImage;
 };
 
