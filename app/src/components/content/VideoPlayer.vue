@@ -81,6 +81,10 @@ onMounted(() => {
         html5: {
             vhs: {
                 overrideNative: true,
+                enableLowInitialPlaylist: true, // Retries failed playlist fetches, which could prevent stalls if the audio playlist (.aac) fails to load.
+                maxPlaylistRetries: 10, // Retries failed playlist fetches, which could prevent stalls if the audio playlist (.aac) fails to load.
+                useBandwidthFromLocalStorage: true, // Use the bandwidth from local storage to prevent stalls if the audio playlist (.aac) fails to load.
+                useDevicePixelRatio: true,
             },
             nativeAudioTracks: videojs.browser.IS_SAFARI,
             nativeVideoTracks: videojs.browser.IS_SAFARI,
@@ -138,9 +142,36 @@ onMounted(() => {
         setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
     });
 
-    // Reapply audio track when tracks are updated
-    player.on("audioTracks", () => {
-        setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+    // Ensure the audio track language is updated when entering fullscreen mode.
+    // This checks if the current language has changed since the last time it was set,
+    // and updates the audio track language accordingly.
+    let lastLanguageSet: string | null = null;
+
+    player.on("fullscreenchange", () => {
+        if (player.isFullscreen()) {
+            const currentLanguage = appLanguagesPreferredAsRef.value[0].languageCode || null;
+            if (lastLanguageSet !== currentLanguage) {
+                setAudioTrackLanguage(currentLanguage);
+                lastLanguageSet = currentLanguage;
+            }
+        }
+    });
+
+    // Handle the "waiting" event, which occurs when the player is buffering
+    player.on("waiting", () => {
+        const currentTime = player.currentTime() || 0; // Get the current playback time
+        setTimeout(() => {
+            // Check if the player is still stalled after 2 seconds
+            if (player.currentTime() === currentTime && !player.paused()) {
+                console.warn("Player stalled, attempting to refresh buffer");
+
+                // Slightly adjust the current time to refresh the buffer
+                player.currentTime(currentTime + 0.001);
+
+                // Reapply the preferred audio track language
+                setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
+            }
+        }, 2000);
     });
 
     // Workaround to hide controls on inactive mousemove. As the controlbar looks at mouse hover (and our CSS changes the controlbar to fill the player), we need to trigger the userActive method to hide the controls
