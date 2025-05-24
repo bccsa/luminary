@@ -2,7 +2,6 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import SideBar from "@/components/navigation/SideBar.vue";
-import TopBar from "@/components/navigation/TopBar.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { computed, ref } from "vue";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
@@ -54,16 +53,14 @@ const routeKey = computed(() => {
                 <!-- Separator -->
                 <div class="h-6 w-px bg-zinc-900/10 lg:hidden" aria-hidden="true" />
 
-                <TopBar />
-            </div>
-
-            <main class="py-4">
-                <div class="px-4 sm:px-6 lg:px-8">
-                    <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
+                <main class="py-4">
+                    <div class="px-4 sm:px-6 lg:px-8">
+                        <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
                     routes (e.g. Post / Tag overviews) -->
-                    <RouterView :key="routeKey" />
-                </div>
-            </main>
+                        <RouterView :key="routeKey" />
+                    </div>
+                </main>
+            </div>
         </div>
     </template>
 
