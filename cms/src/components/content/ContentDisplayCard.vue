@@ -124,7 +124,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                 "
             >
                 <!-- Centered Title (absolute only on md and up) -->
-                <div class="w-full truncate text-sm font-medium">
+                <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
                     {{ contentDoc.title }}
                 </div>
             </div>
@@ -181,10 +181,8 @@ const navigateToLanguage = (language: LanguageDto) => {
             </RouterLink>
         </div>
 
-        <!-- Mobile Groups -->
-
         <!-- Tags + Groups -->
-        <div class="flex w-full items-center gap-2 py-1">
+        <div class="flex w-full items-center gap-2 py-1 text-xs">
             <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
                 <div>
                     <TagIcon class="h-4 w-4 text-zinc-400" />
@@ -199,6 +197,14 @@ const navigateToLanguage = (language: LanguageDto) => {
                 <TagIcon class="h-4 w-4 text-zinc-300" />
                 No tags set
             </span>
+            <div v-if="!isSmallScreen" class="flex w-full justify-end gap-3">
+                <div class="flex items-center justify-end">
+                    <PencilIcon class="h-4 w-4 text-zinc-400" />
+                    <span title="Last Updated">{{
+                        renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
+                    }}</span>
+                </div>
+            </div>
         </div>
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <UserGroupIcon class="h-4 w-4 text-zinc-400" />
@@ -208,32 +214,12 @@ const navigateToLanguage = (language: LanguageDto) => {
         </div>
 
         <!-- Dates -->
-        <div class="flex items-center justify-between pt-1 text-xs sm:gap-4">
-            <div v-if="!isSmallScreen" class="flex w-full flex-wrap items-center gap-1">
+        <div v-if="!isSmallScreen" class="flex items-center justify-between pt-1 text-xs sm:gap-4">
+            <div class="flex w-full flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
                     {{ group.name }}
                 </LBadge>
-            </div>
-            <div class="flex w-full justify-end gap-3">
-                <div class="flex items-center justify-end">
-                    <CloudArrowUpIcon class="mr-1 h-4 w-4 text-zinc-400" />
-                    <span title="Publish Date">{{
-                        renderDate("default", "Publish date", contentDoc.publishDate as number)
-                    }}</span>
-                </div>
-                <div class="flex items-center justify-end">
-                    <ClockIcon class="mr-1 h-4 w-4 text-zinc-400" />
-                    <span title="Expiry Date">{{
-                        renderDate("default", "Expiry date", contentDoc.expiryDate as number)
-                    }}</span>
-                </div>
-                <div v-if="!isSmallScreen" class="flex items-center justify-end">
-                    <PencilIcon class="h-4 w-4 text-zinc-400" />
-                    <span title="Last Updated">{{
-                        renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
-                    }}</span>
-                </div>
             </div>
         </div>
     </div>

@@ -88,8 +88,6 @@ watch(
 
 const tableRefreshKey = computed(() => JSON.stringify(queryOptions.value));
 
-const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
-
 router.currentRoute.value.meta.title = `${capitaliseFirstLetter(props.tagOrPostType)} overview`;
 
 const tagContentDocs = useDexieLiveQueryWithDeps(
@@ -112,30 +110,8 @@ const groups = useDexieLiveQuery(
 </script>
 
 <template>
-    <BasePage :is-full-width="true" :title="`${capitaliseFirstLetter(tagOrPostType)} overview`">
-        <template #actions>
-            <div class="flex gap-4">
-                <LButton
-                    v-if="canCreateNew"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    :is="RouterLink"
-                    :to="{
-                        name: `edit`,
-                        params: {
-                            docType: docType,
-                            tagOrPostType: tagOrPostType,
-                            id: 'new',
-                        },
-                    }"
-                    data-test="create-button"
-                >
-                    Create {{ docType }}
-                </LButton>
-            </div>
-        </template>
-
-        <div class="scrollbar-hide overflow-y-auto" style="max-height: calc(100vh - 4rem)">
+    <BasePage :is-full-width="true">
+        <div class="overflow-y-auto scrollbar-hide" style="max-height: calc(100vh - 4rem)">
             <div class="sticky top-0 z-10 bg-white">
                 <FilterOptions
                     :is-small-screen="isSmallScreen"
