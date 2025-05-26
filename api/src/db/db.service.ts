@@ -16,6 +16,7 @@ import { ContentDto } from "../dto/ContentDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
 import { RedirectDto } from "../dto/RedirectDto";
+import { calcGroups, type SearchOptions } from "./search";
 
 /**
  * @typedef {Object} - getDocsOptions
@@ -32,22 +33,6 @@ export type GetDocsOptions = {
     limit?: number;
     type: DocType;
     contentOnly?: boolean;
-};
-
-export type SearchOptions = {
-    userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
-    types?: Array<DocType>;
-    groups?: Array<string>;
-    from?: number;
-    to?: number;
-    limit?: number;
-    sort?: Array<{ [key: string]: "asc" | "desc" }>;
-    offset?: number;
-    contentOnly?: boolean;
-    queryString?: string;
-    languages?: string[];
-    docId?: Uuid;
-    slug?: string;
 };
 
 /**
@@ -519,19 +504,6 @@ export class DbService extends EventEmitter {
 
         // TODO: move queries to separate functions similar to searchBySlug
         return new Promise(async (resolve, reject) => {
-            /**
-             * Calculate the list of group memberships. If a list of group memberships is passed, only include the group memberships requested (e.g. for incremental sync of newly added access). Else include all the user available group memberships.
-             * @param docType
-             * @returns
-             */
-            const calcGroups = (docType) => {
-                return options.groups && options.groups.length > 0
-                    ? options.groups.filter(
-                          (group) => options.userAccess[docType]?.indexOf(group) > -1,
-                      )
-                    : options.userAccess[docType];
-            };
-
             // Construct time selectors
             const selectors = [];
             if (options.from) {
@@ -575,7 +547,7 @@ export class DbService extends EventEmitter {
 
                 // reduce user requested groups to only the groups the user has access to
                 // default groups to user access groups if not provided
-                const groups = calcGroups(docType);
+                const groups = calcGroups(docType, options);
 
                 if (docType !== DocType.Group && !options.contentOnly)
                     $or.push({

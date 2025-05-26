@@ -1,10 +1,11 @@
-import { DbService, DbQueryResult, SearchOptions } from "./db.service";
+import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
 import { DeleteReason, DocType, PostType, Uuid } from "../enums";
 import { createTestingModule } from "../test/testingModule";
 import { PostDto } from "../dto/PostDto";
 import waitForExpect from "wait-for-expect";
 import { DeleteCmdDto } from "../dto/DeleteCmdDto";
+import { SearchOptions } from "./search";
 
 describe("DbService", () => {
     let service: DbService;
