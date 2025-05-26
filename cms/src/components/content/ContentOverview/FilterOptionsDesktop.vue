@@ -60,7 +60,6 @@ onClickOutside(sortOptionsMenu, () => {
             />
 
             <div class="relative flex gap-1">
-                <!-- Add relative positioning here to ensure child dropdowns are positioned correctly -->
                 <LSelect
                     data-test="filter-select"
                     v-model="queryOptions.translationStatus"
@@ -74,7 +73,6 @@ onClickOutside(sortOptionsMenu, () => {
                     :icon="CloudArrowUpIcon"
                 />
 
-                <!-- LCombobox with updated z-index -->
                 <LCombobox
                     :options="
                         tagContentDocs.map((tag) => ({
@@ -110,7 +108,6 @@ onClickOutside(sortOptionsMenu, () => {
                     <ArrowsUpDownIcon class="h-full w-4" />
                 </LButton>
 
-                <!-- Sort Options Menu (with z-index) -->
                 <div
                     ref="sortOptionsMenu"
                     class="absolute right-0 top-full z-20 mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
