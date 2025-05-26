@@ -27,8 +27,6 @@ type Props = {
     reset: Function;
 };
 
-//TODO: Add reset query button
-
 defineProps<Props>();
 
 const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { required: true });
