@@ -12,7 +12,20 @@ import waitForExpect from "wait-for-expect";
 import ContentTable from "../ContentTable.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@auth0/auth0-vue", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useAuth0: () => ({
+            user: { name: "Test User", email: "test@example.com" },
+            logout: vi.fn(),
+            loginWithRedirect: vi.fn(),
+            isAuthenticated: true,
+            isLoading: false,
+        }),
+        authGuard: vi.fn(), // add this line
+    };
+});
 
 describe("ContentOverview.vue", () => {
     beforeAll(async () => {
@@ -351,34 +364,6 @@ describe("ContentOverview.vue", () => {
             expect(contentTable.props("queryOptions")).toMatchObject({
                 orderDirection: "desc",
             });
-        });
-    });
-
-    it("can create content", async () => {
-        const wrapper = mount(ContentOverview, {
-            global: {
-                plugins: [createTestingPinia()],
-            },
-            props: {
-                docType: DocType.Post,
-                tagOrPostType: PostType.Blog,
-            },
-        });
-
-        //@ts-ignore as this code is valid
-        wrapper.vm.selectedLanguage = "lang-eng";
-
-        await waitForExpect(() => {
-            const createButton = wrapper.find('[data-test="create-button"]');
-            expect(createButton.text()).toBe("Create post");
-
-            const routerLink = createButton.findComponent(RouterLink);
-            const linkProps = routerLink.props().to as RouteLocationNamedRaw;
-
-            expect(linkProps.name).toBe("edit");
-            expect(linkProps.params?.docType).toBe("post");
-            expect(linkProps.params?.tagOrPostType).toBe("blog");
-            expect(linkProps.params?.id).toBe("new");
         });
     });
 

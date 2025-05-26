@@ -15,7 +15,20 @@ import { initLanguage } from "@/globalConfig";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@auth0/auth0-vue", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useAuth0: () => ({
+            user: { name: "Test User", email: "test@example.com" },
+            logout: vi.fn(),
+            loginWithRedirect: vi.fn(),
+            isAuthenticated: true,
+            isLoading: false,
+        }),
+        authGuard: vi.fn(), // add this line
+    };
+});
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {

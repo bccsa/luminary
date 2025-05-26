@@ -168,7 +168,7 @@ watch(openPageSizeSelect, (newValue) => {
                     @click="
                         () => {
                             index = pageCount - 1;
-                            openPageSizeSelectHandler;
+                            openPageSizeSelectHandler();
                         }
                     "
                     @keydown.right="indexUp"

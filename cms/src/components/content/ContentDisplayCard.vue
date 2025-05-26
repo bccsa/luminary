@@ -113,9 +113,6 @@ const navigateToLanguage = (language: LanguageDto) => {
                                     tagOrPostType:
                                         contentDoc.parentTagType || contentDoc.parentPostType,
                                     id: contentDoc.parentId,
-                                    languageCode: languages.find(
-                                        (l: LanguageDto) => l._id == languageId,
-                                    )?.languageCode,
                                 },
                             });
                         }

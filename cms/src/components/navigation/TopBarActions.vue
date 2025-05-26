@@ -17,6 +17,7 @@ type Props = {
 
 const props = defineProps<Props>();
 
+// Format the title to have the first letter capitalized
 const fTitle = computed(() => {
     const firstLetter = props.title?.charAt(0).toUpperCase() || "";
     const restOfTitle = props.title?.slice(1) || "";
