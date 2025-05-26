@@ -6,6 +6,7 @@ import SingleContent from "@/pages/SingleContent.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
 import BookmarksPage from "@/pages/BookmarksPage.vue";
 import VideoPage from "@/pages/VideoPage.vue";
+import { db, DocType, type RedirectDto } from "luminary-shared";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -79,6 +80,27 @@ const router = createRouter({
             },
         },
     ],
+});
+
+router.beforeEach(async (to) => {
+    const currentSlug = to.params.slug;
+
+    if (!currentSlug) return true;
+
+    //useDexieLiveQuery is not working in this case as this file is outside the boundaries of reactivity, so we need to use the db directly
+    const dbRedirects = (await db.docs
+        .where("type")
+        .equals(DocType.Redirect)
+        .toArray()) as RedirectDto[];
+
+    const isRedirect = dbRedirects.find((redirect) => redirect.slug === currentSlug);
+
+    if (isRedirect) {
+        // if there is not a slug to redirect to, redirect to the home page
+        return isRedirect.toSlug ? `/${isRedirect.toSlug}` : "/";
+    }
+
+    return true;
 });
 
 export default router;
