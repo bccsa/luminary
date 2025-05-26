@@ -6,8 +6,9 @@ import {
     ChevronRightIcon,
 } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import LSelect from "../forms/LSelect.vue";
+import { isSmallScreen } from "@/globalConfig";
 
 type PaginatorProps = {
     disabled?: boolean;
@@ -69,6 +70,20 @@ const indexUp = () => {
     const maxIndex = pageCount.value - 1;
     if (index.value < maxIndex) index.value += 1;
 };
+
+const openPageSizeSelect = ref(false);
+
+const openPageSizeSelectHandler = () => {
+    if (!isSmallScreen.value) return;
+    openPageSizeSelect.value = true;
+};
+
+watch(openPageSizeSelect, (newValue) => {
+    if (!newValue) return;
+    setTimeout(() => {
+        openPageSizeSelect.value = false;
+    }, 3000);
+});
 </script>
 
 <template>
@@ -80,7 +95,10 @@ const indexUp = () => {
                     :disabled="index <= 0"
                     :variant="btnVariant"
                     :icon="ChevronDoubleLeftIcon"
-                    @click="index = 0"
+                    @click="
+                        index = 0;
+                        openPageSizeSelectHandler;
+                    "
                     @keydown.left="index = 0"
                 />
                 <LButton
@@ -88,8 +106,18 @@ const indexUp = () => {
                     :disabled="index <= 0"
                     :variant="btnVariant"
                     :icon="ChevronLeftIcon"
-                    @click="index > 0 ? (index -= 1) : undefined"
-                    @keydown.left="index > 0 ? (index -= 1) : undefined"
+                    @click="
+                        () => {
+                            index > 0 ? (index -= 1) : undefined;
+                            openPageSizeSelectHandler;
+                        }
+                    "
+                    @keydown.left="
+                        () => {
+                            index > 0 ? (index -= 1) : undefined;
+                            openPageSizeSelectHandler;
+                        }
+                    "
                 />
                 <span v-if="variant === 'simple'" class="text-sm text-zinc-600">
                     Page <strong>{{ index + 1 }}</strong> of
@@ -104,7 +132,12 @@ const indexUp = () => {
                         'bg-zinc-900 font-bold !text-zinc-50 !ring-zinc-900 hover:bg-zinc-900/80':
                             i === index,
                     }"
-                    @click="index = i"
+                    @click="
+                        () => {
+                            index = i;
+                            openPageSizeSelectHandler();
+                        }
+                    "
                 >
                     {{ i + 1 }}
                 </LButton>
@@ -113,8 +146,18 @@ const indexUp = () => {
                     :disabled="index >= pageCount - 1"
                     :variant="btnVariant"
                     :icon="ChevronRightIcon"
-                    @click="indexUp"
-                    @keydown.right="indexUp"
+                    @click="
+                        () => {
+                            indexUp;
+                            openPageSizeSelectHandler();
+                        }
+                    "
+                    @keydown.right="
+                        () => {
+                            indexUp;
+                            openPageSizeSelectHandler();
+                        }
+                    "
                 />
                 <LButton
                     v-if="!(props.amountOfDocs !== undefined && props.amountOfDocs < pageSize)"
@@ -122,13 +165,32 @@ const indexUp = () => {
                     :disabled="index >= pageCount - 1"
                     :variant="btnVariant"
                     :icon="ChevronDoubleRightIcon"
-                    @click="index = pageCount - 1"
+                    @click="
+                        () => {
+                            index = pageCount - 1;
+                            openPageSizeSelectHandler;
+                        }
+                    "
                     @keydown.right="indexUp"
+                />
+            </div>
+            <div
+                v-if="openPageSizeSelect"
+                class="absolute bottom-16 z-10 flex w-full items-center justify-center"
+            >
+                <LSelect
+                    v-model="pageSize"
+                    :options="[
+                        { value: 5, label: '5' },
+                        { value: 10, label: '10' },
+                        { value: 20, label: '20' },
+                        { value: 50, label: '50' },
+                    ]"
                 />
             </div>
         </div>
 
-        <div class="flex w-full justify-center sm:justify-end">
+        <div v-if="!isSmallScreen" class="flex w-full justify-center sm:justify-end">
             <LSelect
                 v-model="pageSize"
                 :options="[

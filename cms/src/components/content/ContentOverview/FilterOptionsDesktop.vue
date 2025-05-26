@@ -19,6 +19,7 @@ import LSelect from "@/components/forms/LSelect.vue";
 import LButton from "@/components/button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import { onClickOutside } from "@vueuse/core";
+import LTag from "../LTag.vue";
 
 type Props = {
     translationOptions: any[];
@@ -44,21 +45,22 @@ onClickOutside(sortOptionsMenu, () => {
 
 <template>
     <div
-        class="z-10 flex w-full gap-1 rounded-md border border-b border-zinc-300 bg-white p-2 shadow"
+        class="z-10 flex w-full flex-col gap-1 overflow-visible rounded-md border border-b border-zinc-300 bg-white p-2 shadow"
     >
-        <LInput
-            type="text"
-            :icon="MagnifyingGlassIcon"
-            class="flex-grow"
-            name="search"
-            placeholder="Search..."
-            data-test="search-input"
-            v-model="query as string"
-            :full-height="true"
-        />
+        <div class="flex w-full items-center gap-1">
+            <LInput
+                type="text"
+                :icon="MagnifyingGlassIcon"
+                class="flex-grow"
+                name="search"
+                placeholder="Search..."
+                data-test="search-input"
+                v-model="query as string"
+                :full-height="true"
+            />
 
-        <div>
             <div class="relative flex gap-1">
+                <!-- Add relative positioning here to ensure child dropdowns are positioned correctly -->
                 <LSelect
                     data-test="filter-select"
                     v-model="queryOptions.translationStatus"
@@ -72,6 +74,7 @@ onClickOutside(sortOptionsMenu, () => {
                     :icon="CloudArrowUpIcon"
                 />
 
+                <!-- LCombobox with updated z-index -->
                 <LCombobox
                     :options="
                         tagContentDocs.map((tag) => ({
@@ -106,10 +109,11 @@ onClickOutside(sortOptionsMenu, () => {
                 >
                     <ArrowsUpDownIcon class="h-full w-4" />
                 </LButton>
+
+                <!-- Sort Options Menu (with z-index) -->
                 <div
-                    as="div"
                     ref="sortOptionsMenu"
-                    class="absolute right-0 top-full z-10 mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    class="absolute right-0 top-full z-20 mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                     v-if="showSortOptions"
                     data-test="sort-options-display"
                 >
@@ -164,9 +168,49 @@ onClickOutside(sortOptionsMenu, () => {
                         >
                     </div>
                 </div>
+
                 <LButton @click="reset()" class="w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />
                 </LButton>
+            </div>
+        </div>
+
+        <!-- Selected Tags and Groups -->
+        <div class="flex w-full flex-col gap-1">
+            <div v-if="queryOptions.tags && queryOptions.tags?.length > 0" class="w-full">
+                <ul class="flex w-full flex-wrap gap-2">
+                    <LTag
+                        :icon="TagIcon"
+                        v-for="tag in queryOptions.tags"
+                        :key="tag"
+                        @remove="
+                            () => {
+                                queryOptions.tags = queryOptions.tags?.filter((v) => v != tag);
+                            }
+                        "
+                    >
+                        {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
+                    </LTag>
+                </ul>
+            </div>
+
+            <div v-if="queryOptions.groups && queryOptions.groups?.length > 0" class="w-full">
+                <ul class="flex w-full flex-wrap gap-2">
+                    <LTag
+                        :icon="UserGroupIcon"
+                        v-for="group in queryOptions.groups"
+                        :key="group"
+                        @remove="
+                            () => {
+                                queryOptions.groups = queryOptions.groups?.filter(
+                                    (v) => v != group,
+                                );
+                            }
+                        "
+                    >
+                        {{ groups.find((g) => g._id == group)?.name }}
+                    </LTag>
+                </ul>
             </div>
         </div>
     </div>

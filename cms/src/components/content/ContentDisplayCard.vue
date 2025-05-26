@@ -12,12 +12,12 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
-import { ClockIcon } from "@heroicons/vue/20/solid";
 import { RouterLink } from "vue-router";
 import { DateTime } from "luxon";
-import { CloudArrowUpIcon, TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { PencilIcon } from "@heroicons/vue/24/solid";
 import router from "@/router";
+import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     groups: GroupDto[];
@@ -25,7 +25,6 @@ type Props = {
     parentType: DocType.Post | DocType.Tag;
     languageId: Uuid;
     languages: LanguageDto[];
-    isSmallScreen: boolean;
 };
 
 const props = defineProps<Props>();

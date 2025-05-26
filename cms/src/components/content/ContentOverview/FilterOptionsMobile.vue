@@ -17,6 +17,7 @@ import LCombobox from "@/components/forms/LCombobox.vue";
 import LSelect from "@/components/forms/LSelect.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LModal from "@/components/modals/LModal.vue";
+import LTag from "../LTag.vue";
 
 type Props = {
     translationOptions: any[];
@@ -52,6 +53,42 @@ const showMobileQueryOptions = ref(false);
             />
             <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
             <LButton :icon="ArrowUturnLeftIcon" @click="reset()" />
+        </div>
+        <div class="mt-1 flex w-full flex-col gap-1">
+            <div v-if="queryOptions.tags && queryOptions.tags?.length > 0" class="w-full">
+                <ul class="flex w-full flex-wrap gap-2">
+                    <LTag
+                        :icon="TagIcon"
+                        v-for="tag in queryOptions.tags"
+                        :key="tag"
+                        @remove="
+                            () => {
+                                if (!queryOptions.tags) return;
+                                queryOptions.tags = queryOptions.tags.filter((v) => v != tag);
+                            }
+                        "
+                    >
+                        {{ tagContentDocs.find((t) => t.parentId == tag)?.title }}
+                    </LTag>
+                </ul>
+            </div>
+            <div v-if="queryOptions.groups && queryOptions.groups?.length > 0" class="w-full">
+                <ul class="flex w-full flex-wrap gap-2">
+                    <LTag
+                        :icon="UserGroupIcon"
+                        v-for="group in queryOptions.groups"
+                        :key="group"
+                        @remove="
+                            () => {
+                                if (!queryOptions.groups) return;
+                                queryOptions.groups = queryOptions.groups.filter((v) => v != group);
+                            }
+                        "
+                    >
+                        {{ groups.find((g) => g._id == group)?.name }}
+                    </LTag>
+                </ul>
+            </div>
         </div>
     </div>
     <LModal heading="Filter options" v-model:is-visible="showMobileQueryOptions">

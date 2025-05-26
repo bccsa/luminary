@@ -457,6 +457,7 @@ const duplicate = async () => {
         </div>
     </div>
     <BasePage
+        :isFullWidth="true"
         :title="selectedContent ? selectedContent.title : `Edit ${props.tagOrPostType}`"
         :icon="icon"
         :loading="isLoading"
