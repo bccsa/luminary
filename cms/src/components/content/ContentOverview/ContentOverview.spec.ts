@@ -428,4 +428,36 @@ describe("ContentOverview.vue", () => {
             expect(contentTable.props("queryOptions").publishStatus).toBe("draft");
         });
     });
+
+    it(
+        "can create content",
+        async () => {
+            const wrapper = mount(ContentOverview, {
+                global: {
+                    plugins: [createTestingPinia()],
+                },
+                props: {
+                    docType: DocType.Post,
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            //@ts-ignore as this code is valid
+            wrapper.vm.selectedLanguage = "lang-eng";
+
+            await waitForExpect(() => {
+                const createButton = wrapper.find('[data-test="create-button"]');
+                expect(createButton.text()).toBe("Create post");
+
+                const routerLink = createButton.findComponent(RouterLink);
+                const linkProps = routerLink.props().to as RouteLocationNamedRaw;
+
+                expect(linkProps.name).toBe("edit");
+                expect(linkProps.params?.docType).toBe("post");
+                expect(linkProps.params?.tagOrPostType).toBe("blog");
+                expect(linkProps.params?.id).toBe("new");
+            });
+        },
+        { timeout: 10000 },
+    );
 });
