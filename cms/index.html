@@ -6,7 +6,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Luminary CMS</title>
     </head>
-    <body class="h-full overflow-hidden">
+    <!-- Overflow-hidden would have to go here to remove double scroll bug
+        but some overviews like the language overview need to scroll as it is not
+        updated with a new "mobile friendly" design yet.
+    -->
+    <body class="h-full">
         <div id="app"></div>
         <script type="module" src="/src/main.ts"></script>
     </body>
