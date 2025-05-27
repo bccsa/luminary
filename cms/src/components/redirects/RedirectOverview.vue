@@ -12,7 +12,7 @@ const isModalVisible = ref(false);
 </script>
 
 <template>
-    <BasePage title="Redirects" :isFullWidth="true">
+    <BasePage title="Redirects">
         <template #actions>
             <div class="flex gap-4" v-if="canCreateNew">
                 <LButton

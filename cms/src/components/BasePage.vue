@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import router from "@/router";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
-import { AclPermission, db, DocType, hasAnyPermission } from "luminary-shared";
-import { computed, ref, type Component } from "vue";
+import { ref, type Component } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import MobileSideBar from "./navigation/MobileSideBar.vue";
 import SideBar from "./navigation/SideBar.vue";
-import TopBarActions from "./navigation/TopBarActions.vue";
 
 type Props = {
     title?: string;
+    shouldShowPageTitle?: boolean;
     icon?: Component | Function;
     loading?: boolean;
     centered?: boolean;
@@ -23,80 +21,13 @@ type Props = {
 
 withDefaults(defineProps<Props>(), {
     loading: false,
+    shouldShowPageTitle: true,
     centered: false,
     backLinkText: "Back",
     isFullWidth: false,
 });
 
-const overviewDocType = computed(() => {
-    if (router.currentRoute.value.name != "overview") return;
-    return router.currentRoute.value.params.docType;
-});
-//
-const tagOrPostType = computed(() => {
-    if (router.currentRoute.value.name != "overview") return;
-
-    return router.currentRoute.value.params.tagOrPostType;
-});
-
-const canCreateNewPostOrTag = computed(() => {
-    if (router.currentRoute.value.name != "overview") return;
-
-    return hasAnyPermission(overviewDocType.value as DocType, AclPermission.Edit);
-});
-
-const canCreateNewLanguage = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
-
-const canCreateNewUser = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
-
 const sidebarOpen = ref(false);
-
-export type OverviewRoute = {
-    from?: string;
-    docType?: DocType;
-    tagOrPostType?: string;
-    canCreateNew: boolean;
-    name: string;
-    params: Record<string, string | undefined>;
-};
-
-const overviewRoutes: OverviewRoute[] = [
-    {
-        from: "overview",
-        docType: tagOrPostType.value as DocType,
-        canCreateNew: canCreateNewPostOrTag.value as boolean,
-        name: "edit",
-        params: {
-            docType: overviewDocType.value as string,
-            tagOrPostType: tagOrPostType.value as string,
-            id: "new",
-        },
-    },
-    {
-        from: "languages",
-        docType: DocType.Language,
-        canCreateNew: canCreateNewLanguage.value as boolean,
-        name: "language",
-        params: {
-            id: db.uuid(),
-        },
-    },
-    {
-        from: "users.index",
-        docType: DocType.User,
-        canCreateNew: canCreateNewUser.value as boolean,
-        name: "user",
-        params: {
-            id: db.uuid(),
-        },
-    },
-];
-
-const routeToUse = computed(() => {
-    return overviewRoutes.find((route) => {
-        return route.from == router.currentRoute.value.name;
-    });
-});
 </script>
 
 <template>
@@ -126,25 +57,19 @@ const routeToUse = computed(() => {
                 <div class="h-6 w-px bg-zinc-900/10 lg:hidden" aria-hidden="true" />
 
                 <TopBar>
-                    <template v-if="routeToUse && routeToUse.name" #quickActions>
-                        <TopBarActions
-                            :title="`${routeToUse.name == 'overview' ? routeToUse.tagOrPostType : routeToUse.docType} Overview`"
-                            :can-create-new="routeToUse.canCreateNew"
-                            :docType="routeToUse.docType as DocType"
-                            :to="
-                                {
-                                    name: routeToUse.name,
-                                    params: routeToUse.params,
-                                } as OverviewRoute
-                            "
+                    <template #quickActions>
+                        <h1
+                            v-if="!$slots.actions"
+                            class="flex items-center gap-2 text-lg font-semibold leading-7"
                         >
-                        </TopBarActions>
+                            {{ title }}
+                        </h1>
+                        <slot name="pageNav"> </slot>
                     </template>
                 </TopBar>
             </div>
         </div>
-
-        <div v-if="!loading" :class="isFullWidth ? ' w-full' : 'mx-auto max-w-7xl'">
+        <div v-if="!loading" :class="isFullWidth ? ' mx-auto w-full ' : 'mx-auto max-w-7xl'">
             <RouterLink
                 v-if="backLinkLocation"
                 :to="backLinkLocation"
@@ -164,8 +89,8 @@ const routeToUse = computed(() => {
                 ]"
             >
                 <h1
-                    v-if="useRouter().currentRoute.value.name != 'overview'"
                     class="flex items-center gap-2 text-lg font-semibold leading-7"
+                    v-if="shouldShowPageTitle"
                 >
                     <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
                     {{ title }}
