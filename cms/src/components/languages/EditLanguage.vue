@@ -421,14 +421,10 @@ const deleteLanguage = async () => {
                 </div>
             </LCard>
 
-            <div class="max-h-screen overflow-y-scroll scrollbar-hide">
+            <div class="max-h-screen">
                 <!--Strings translation -->
                 <LCard>
-                    <!-- Temporarily set a margin bottom so last row is not cut off when scrolling, (workaround for disabling root app scrolling) 
-                        This can be fixed when this page is
-                        made mobile friendly. 
-                    -->
-                    <table class="mb-[35rem] mt-5 min-w-full divide-y divide-zinc-200">
+                    <table class="mt-5 min-w-full divide-y divide-zinc-200">
                         <thead class="bg-zinc-50">
                             <tr>
                                 <!-- key -->
