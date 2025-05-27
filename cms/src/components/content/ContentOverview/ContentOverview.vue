@@ -11,6 +11,8 @@ import {
     useDexieLiveQueryWithDeps,
     type GroupDto,
     useDexieLiveQuery,
+    hasAnyPermission,
+    AclPermission,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import ContentTable from "@/components/content/ContentTable.vue";
@@ -20,6 +22,9 @@ import { contentOverviewQuery, type ContentOverviewQueryOptions } from "../query
 import { cmsLanguageIdAsRef, isSmallScreen } from "@/globalConfig";
 import FilterOptions from "./FilterOptions.vue";
 import LPaginator from "@/components/common/LPaginator.vue";
+import { PlusIcon } from "@heroicons/vue/24/outline";
+import { RouterLink } from "vue-router";
+import LButton from "@/components/button/LButton.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -101,11 +106,38 @@ const groups = useDexieLiveQuery(
     { initialValue: [] as GroupDto[] },
 );
 
+const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
+
 const contentDocsTotal = contentOverviewQuery({ ...queryOptions.value, count: true });
 </script>
 
 <template>
-    <BasePage :is-full-width="true">
+    <BasePage
+        :is-full-width="true"
+        :title="`${capitaliseFirstLetter(props.tagOrPostType)} overview`"
+        :should-show-page-title="false"
+    >
+        <template #pageNav>
+            <div class="flex gap-4">
+                <LButton
+                    v-if="canCreateNew"
+                    variant="primary"
+                    :icon="PlusIcon"
+                    :is="RouterLink"
+                    :to="{
+                        name: `edit`,
+                        params: {
+                            docType: docType,
+                            tagOrPostType: tagOrPostType,
+                            id: 'new',
+                        },
+                    }"
+                    data-test="create-button"
+                >
+                    Create {{ docType }}
+                </LButton>
+            </div>
+        </template>
         <div>
             <div class="sticky top-0 z-10 bg-white">
                 <FilterOptions
