@@ -63,12 +63,17 @@ describe("ApiLiveQuery", () => {
         } as any);
 
         const liveQuery = new ApiLiveQuery(query, {});
+        const liveQuery2 = new ApiLiveQuery(query, { returnArray: false });
 
         await waitForExpect(() => {
             expect(getRest().search).toHaveBeenCalledWith(query.value);
         });
-        expect(liveQuery.toArrayAsRef().value).toEqual(mockDocs);
-        expect(liveQuery.toRef().value).toEqual(mockDocs[0]);
+        expect(liveQuery.liveData.value).toEqual(mockDocs);
+
+        await waitForExpect(() => {
+            expect(getRest().search).toHaveBeenCalledWith(query.value);
+        });
+        expect(liveQuery2.liveData.value).toEqual(mockDocs[0]);
     });
 
     it("subscribes to socket updates", async () => {
@@ -114,7 +119,7 @@ describe("ApiLiveQuery", () => {
         const liveQuery = new ApiLiveQuery(query, { initialValue });
 
         await waitForExpect(() => {
-            expect(liveQuery.toArrayAsRef().value).toEqual(initialValue);
+            expect(liveQuery.liveData.value).toEqual(initialValue);
         });
     });
 
@@ -131,7 +136,7 @@ describe("ApiLiveQuery", () => {
         const liveQuery = new ApiLiveQuery(query, {});
 
         await waitForExpect(() => {
-            expect(liveQuery.toArrayAsRef().value).toEqual(mockDocs1);
+            expect(liveQuery.liveData.value).toEqual(mockDocs1);
         });
 
         vi.mocked(getRest).mockReturnValue({
@@ -141,7 +146,7 @@ describe("ApiLiveQuery", () => {
         query.value = { types: [DocType.Tag] }; // Update the query to trigger a new search
 
         await waitForExpect(() => {
-            expect(liveQuery.toArrayAsRef().value).toEqual(mockDocs2);
+            expect(liveQuery.liveData.value).toEqual(mockDocs2);
         });
     });
 
@@ -166,7 +171,133 @@ describe("ApiLiveQuery", () => {
 
         await waitForExpect(() => {
             expect(getRest().search).toHaveBeenCalledWith(query.value);
-            expect(liveQuery.toArrayAsRef().value).toEqual(mockDocs);
+            expect(liveQuery.liveData.value).toEqual(mockDocs);
         });
+    });
+
+    it("provides editable, edited, and modified refs after accessing editable", async () => {
+        const query = ref({ types: [DocType.Post] });
+        const mockDocs = [{ _id: "1", type: DocType.Post }];
+
+        vi.mocked(getRest).mockReturnValue({
+            search: vi.fn().mockResolvedValue({ docs: mockDocs }),
+        } as any);
+
+        const liveQuery = new ApiLiveQuery(query, {});
+
+        const editable = liveQuery.editable;
+        const edited = liveQuery.edited;
+        const modified = liveQuery.modified;
+
+        await waitForExpect(() => {
+            expect(editable!.value).toEqual(mockDocs);
+            expect(edited!.value.length).toBe(0);
+            expect(modified!.value.length).toBe(0);
+        });
+    });
+
+    it("throws error when save is called before editable is accessed", async () => {
+        const query = ref({ types: [DocType.Post] });
+        const mockDocs = [{ _id: "1", type: DocType.Post }];
+
+        vi.mocked(getRest).mockReturnValue({
+            search: vi.fn().mockResolvedValue({ docs: mockDocs }),
+            changeRequest: vi.fn(),
+        } as any);
+
+        const liveQuery = new ApiLiveQuery(query, {});
+        await waitForExpect(() => {
+            expect(liveQuery.liveData.value).toEqual(mockDocs);
+        });
+
+        await expect(liveQuery.save("1")).rejects.toThrow(
+            "Editable data is not available. Call editable first.",
+        );
+    });
+
+    it("calls changeRequest and updates editable when save is called", async () => {
+        type TestDocType = BaseDocumentDto & { val: string };
+        const query = ref({ types: [DocType.Post] });
+        const mockDocs = [{ _id: "1", type: DocType.Post, val: "test" } as TestDocType];
+
+        const changeRequestMock = vi.fn().mockResolvedValue({ ack: 1 });
+        vi.mocked(getRest).mockReturnValue({
+            search: vi.fn().mockResolvedValue({ docs: mockDocs }),
+            changeRequest: changeRequestMock,
+        } as any);
+
+        const liveQuery = new ApiLiveQuery<TestDocType>(query, {});
+
+        // Access editable to initialize
+        await waitForExpect(() => {
+            expect(liveQuery.editable.value).toEqual(mockDocs);
+        });
+
+        // Change the value to simulate an edit
+        liveQuery.editable.value[0].val = "updated";
+
+        const res = await liveQuery.save("1");
+        expect(changeRequestMock).toHaveBeenCalled();
+        expect(res).toEqual({ ack: 1 });
+    });
+
+    it("does not call changeRequest if item is not found in editable", async () => {
+        type TestDocType = BaseDocumentDto & { val: string };
+        const query = ref({ types: [DocType.Post] });
+        const mockDocs = [{ _id: "1", type: DocType.Post, val: "test" } as TestDocType];
+
+        const changeRequestMock = vi.fn().mockResolvedValue({ ack: 1 });
+        vi.mocked(getRest).mockReturnValue({
+            search: vi.fn().mockResolvedValue({ docs: mockDocs }),
+            changeRequest: changeRequestMock,
+        } as any);
+
+        const liveQuery = new ApiLiveQuery<TestDocType>(query, {});
+
+        // Access editable to initialize
+        await waitForExpect(() => {
+            expect(liveQuery.editable.value).toEqual(mockDocs);
+        });
+
+        const res = await liveQuery.save("1");
+        expect(changeRequestMock).not.toHaveBeenCalled();
+        expect(res).toEqual({ ack: "accepted" });
+    });
+
+    it("isLoading is true while fetching and false after data is loaded", async () => {
+        const query = ref({ types: [DocType.Post] });
+        let resolveSearch: (value: any) => void;
+        const searchPromise = new Promise((resolve) => {
+            resolveSearch = resolve;
+        });
+
+        vi.mocked(getRest).mockReturnValue({
+            search: vi.fn().mockReturnValue(searchPromise),
+        } as any);
+
+        const liveQuery = new ApiLiveQuery(query, {});
+
+        // isLoading should be true while waiting for search to resolve
+        expect(liveQuery.isLoading.value).toBe(true);
+
+        // Resolve the search promise to simulate data loaded
+        resolveSearch!({ docs: [{ _id: "1", type: DocType.Post }] });
+
+        await waitForExpect(() => {
+            expect(liveQuery.isLoading.value).toBe(false);
+        });
+    });
+
+    it("isLoading is false if not connected", async () => {
+        isConnected.value = false;
+        const query = ref({ types: [DocType.Post] });
+
+        const liveQuery = new ApiLiveQuery(query, {});
+
+        await waitForExpect(() => {
+            expect(liveQuery.isLoading.value).toBe(false);
+        });
+
+        isConnected.value = true; // restore for other tests
     });
 });
