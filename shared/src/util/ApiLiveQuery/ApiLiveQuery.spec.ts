@@ -63,17 +63,12 @@ describe("ApiLiveQuery", () => {
         } as any);
 
         const liveQuery = new ApiLiveQuery(query, {});
-        const liveQuery2 = new ApiLiveQuery(query, { returnArray: false });
 
         await waitForExpect(() => {
             expect(getRest().search).toHaveBeenCalledWith(query.value);
         });
         expect(liveQuery.liveData.value).toEqual(mockDocs);
-
-        await waitForExpect(() => {
-            expect(getRest().search).toHaveBeenCalledWith(query.value);
-        });
-        expect(liveQuery2.liveData.value).toEqual(mockDocs[0]);
+        expect(liveQuery.liveItem.value).toEqual(mockDocs[0]);
     });
 
     it("subscribes to socket updates", async () => {
@@ -175,7 +170,7 @@ describe("ApiLiveQuery", () => {
         });
     });
 
-    it("provides editable, edited, and modified refs after accessing editable", async () => {
+    it("provides editable, isEdited, and isModified refs and revert function after accessing editable", async () => {
         const query = ref({ types: [DocType.Post] });
         const mockDocs = [{ _id: "1", type: DocType.Post }];
 
@@ -186,13 +181,15 @@ describe("ApiLiveQuery", () => {
         const liveQuery = new ApiLiveQuery(query, {});
 
         const editable = liveQuery.editable;
-        const edited = liveQuery.edited;
-        const modified = liveQuery.modified;
+        const isEdited = liveQuery.isEdited;
+        const isModified = liveQuery.isModified;
+        const revert = liveQuery.revert;
 
         await waitForExpect(() => {
-            expect(editable!.value).toEqual(mockDocs);
-            expect(edited!.value.length).toBe(0);
-            expect(modified!.value.length).toBe(0);
+            expect(editable.value).toEqual(mockDocs);
+            expect(isEdited!.value("a")).toBe(false);
+            expect(isModified!.value("a")).toBe(false);
+            expect(revert).toBeDefined();
         });
     });
 

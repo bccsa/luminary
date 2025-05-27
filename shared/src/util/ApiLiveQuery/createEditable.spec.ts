@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, expect, beforeEach, test } from "vitest";
 import { ref, nextTick, Ref } from "vue";
 import { createEditable } from "./createEditable";
 import { BaseDocumentDto } from "../../types";
@@ -24,99 +24,143 @@ describe("createEditable", () => {
         source = ref([makeDoc("a", 1), makeDoc("b", 2)]);
     });
 
-    it("throws if source is undefined", () => {
+    test("throws if source is undefined", () => {
         expect(() => createEditable(undefined)).toThrow();
     });
 
-    it("throws if source is not a ref of array", () => {
+    test("throws if source is not a ref of array", () => {
         // @ts-expect-error
         expect(() => createEditable(ref(null))).toThrow();
         // @ts-expect-error
         expect(() => createEditable(ref({}))).toThrow();
     });
 
-    it("returns editable, edited, and modified refs", () => {
-        const { editable, edited, modified } = createEditable(source);
+    test("returns editable", () => {
+        const { editable } = createEditable(source);
         expect(Array.isArray(editable.value)).toBe(true);
-        expect(Array.isArray(edited.value)).toBe(true);
-        expect(Array.isArray(modified.value)).toBe(true);
     });
 
-    it("editable is a deep clone of source", () => {
+    test("editable is a deep clone of source", () => {
         const { editable } = createEditable(source);
         expect(editable.value).toEqual(source.value);
         expect(editable.value).not.toBe(source.value);
     });
 
-    it("edited is empty when nothing is changed", () => {
-        const { edited } = createEditable(source);
-        expect(edited.value).toEqual([]);
+    test("edited is empty when nothing is changed", () => {
+        const { isEdited } = createEditable(source);
+        expect(isEdited.value("a")).toBe(false);
     });
 
-    it("edited contains changed items", async () => {
-        const { editable, edited } = createEditable(source);
+    test("isEdited detects changed items", async () => {
+        const { editable, isEdited } = createEditable(source);
         editable.value[0].value = 42;
         await nextTick();
-        expect(edited.value.length).toBe(1);
-        expect(edited.value[0]._id).toBe("a");
+        expect(isEdited.value("a")).toBe(true);
     });
 
-    it("edited ignores changes to _rev, updatedTimeUtc, updatedBy", async () => {
-        const { editable, edited } = createEditable(source);
+    test("isEdited ignores changes to _rev, updatedTimeUtc, updatedBy", async () => {
+        const { editable, isEdited } = createEditable(source);
         editable.value[0]._rev = "2";
         editable.value[0].updatedTimeUtc = 123;
         editable.value[0].updatedBy = "someone";
         await nextTick();
-        expect(edited.value).toEqual([]);
+        expect(isEdited.value("a")).toBe(false);
     });
 
-    it("modified is empty when nothing is changed in source", () => {
-        const { modified } = createEditable(source);
-        expect(modified.value).toEqual([]);
-    });
-
-    it("modified contains items changed in source", async () => {
-        const { modified } = createEditable(source);
+    test("modified contains items changed in source if a user edit exists", async () => {
+        const { isModified, editable } = createEditable(source);
+        editable.value[0].value = 42; // User edit
+        await nextTick();
         source.value[0].value = 99;
         await nextTick();
-        expect(modified.value.length).toBe(1);
-        expect(modified.value[0]._id).toBe("a");
+        expect(isModified.value("a")).toBe(true);
+        expect(editable.value[0].value).toBe(42); // User edit should remain
     });
 
-    it("adding an item to source updates editable and shadow", async () => {
-        const { editable, modified, edited } = createEditable(source);
+    test("adding an item to source updates editable and shadow", async () => {
+        const { editable, isModified, isEdited } = createEditable(source);
+        await nextTick(); // Ensure initial state is set
         source.value.push(makeDoc("c", 3));
         await nextTick();
         expect(editable.value.some((d) => d._id === "c")).toBe(true);
-        expect(modified.value.length).toBe(0);
-        expect(edited.value.length).toBe(0);
+        expect(isModified.value("c")).toBe(false);
+        expect(isEdited.value("c")).toBe(false);
     });
 
-    it("removing an item from source updates editable and shadow", async () => {
-        const { editable, modified, edited } = createEditable(source);
+    test("removing an item from source updates editable and shadow", async () => {
+        const { editable, isModified, isEdited } = createEditable(source);
         source.value.splice(0, 1);
         await nextTick();
         expect(editable.value.some((d) => d._id === "a")).toBe(false);
-        expect(modified.value.length).toBe(0);
-        expect(edited.value.length).toBe(0);
+        expect(isEdited.value("a")).toBe(false);
+        expect(isModified.value("a")).toBe(false);
     });
 
-    it("edited and modified are reactive to changes", async () => {
-        const { editable, edited, modified } = createEditable(source);
-        editable.value[1].value = 123;
+    test("modifying an item in source updates editable if no user edits exist", async () => {
+        const { editable, isModified, isEdited } = createEditable(source);
+        await nextTick(); // Ensure initial state is set
+        source.value[0].value = 100;
         await nextTick();
-        expect(edited.value.length).toBe(1);
+        expect(editable.value[0].value).toBe(100);
+        expect(isModified.value("a")).toBe(false);
+        expect(isEdited.value("a")).toBe(false);
+    });
+
+    test("isEdited and isModified are reactive to changes", async () => {
+        const { editable, isEdited, isModified } = createEditable(source);
+        const _isEdited = isEdited.value;
+        const _isModified = isModified.value;
+
+        expect(_isEdited("a")).toBe(false);
+        expect(_isModified("a")).toBe(false);
+
+        editable.value[1].value = 123;
+
+        expect(_isEdited("b")).toBe(true);
+        expect(_isModified("b")).toBe(false);
 
         source.value[1].value = 456;
-        await nextTick();
-        expect(modified.value.length).toBe(1);
+
+        expect(_isEdited("b")).toBe(true);
+        expect(_isModified("b")).toBe(true);
     });
 
-    it("handles simultaneous add and remove in source", async () => {
+    test("handles simultaneous add and remove in source", async () => {
         const { editable } = createEditable(source);
         source.value.splice(0, 1, makeDoc("c", 10));
         await nextTick();
         expect(editable.value.some((d) => d._id === "a")).toBe(false);
         expect(editable.value.some((d) => d._id === "c")).toBe(true);
+    });
+
+    test("reverts changes to an item", async () => {
+        const { editable, isEdited, revert } = createEditable(source);
+        editable.value[0].value = 42; // User edit
+
+        expect(isEdited.value("a")).toBe(true);
+
+        revert("a");
+
+        expect(editable.value[0].value).toBe(1); // Should revert to original value
+        expect(isEdited.value("a")).toBe(false);
+    });
+
+    test("revert does nothing if item not found in editable", async () => {
+        const { editable, revert } = createEditable(source);
+        const originalLength = editable.value.length;
+
+        revert("nonexistent");
+
+        expect(editable.value.length).toBe(originalLength); // Length should remain unchanged
+    });
+
+    test("revert does nothing if item not found in source", async () => {
+        const { editable, revert } = createEditable(source);
+        editable.value.push(makeDoc("d", 4)); // Add a new item
+
+        const originalLength = editable.value.length;
+        revert("nonexistent");
+
+        expect(editable.value.length).toBe(originalLength); // Length should remain unchanged
     });
 });
