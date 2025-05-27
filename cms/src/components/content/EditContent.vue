@@ -445,6 +445,7 @@ const duplicate = async () => {
         state: "success",
     });
 };
+const showLanguageSelector = ref(false);
 </script>
 
 <template>
@@ -578,7 +579,7 @@ const duplicate = async () => {
                         :parent="editableParent"
                         :content="editableContent"
                         :languages="untranslatedLanguages"
-                        v-model:show-selector="selectedLanguageId"
+                        v-model:show-selector="showLanguageSelector"
                         @create-translation="createTranslation"
                 /></EmptyState>
 
