@@ -97,7 +97,7 @@ watch(openPageSizeSelect, (newValue) => {
                     :icon="ChevronDoubleLeftIcon"
                     @click="
                         index = 0;
-                        openPageSizeSelectHandler;
+                        openPageSizeSelectHandler();
                     "
                     @keydown.left="index = 0"
                 />
@@ -109,13 +109,13 @@ watch(openPageSizeSelect, (newValue) => {
                     @click="
                         () => {
                             index > 0 ? (index -= 1) : undefined;
-                            openPageSizeSelectHandler;
+                            openPageSizeSelectHandler();
                         }
                     "
                     @keydown.left="
                         () => {
                             index > 0 ? (index -= 1) : undefined;
-                            openPageSizeSelectHandler;
+                            openPageSizeSelectHandler();
                         }
                     "
                 />
@@ -148,13 +148,13 @@ watch(openPageSizeSelect, (newValue) => {
                     :icon="ChevronRightIcon"
                     @click="
                         () => {
-                            indexUp;
+                            indexUp();
                             openPageSizeSelectHandler();
                         }
                     "
                     @keydown.right="
                         () => {
-                            indexUp;
+                            indexUp();
                             openPageSizeSelectHandler();
                         }
                     "
