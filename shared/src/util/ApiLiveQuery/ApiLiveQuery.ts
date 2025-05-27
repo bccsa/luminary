@@ -1,15 +1,14 @@
-import { computed, ComputedRef, readonly, Ref, ref, watch } from "vue";
+import { computed, ComputedRef, Ref, ref, watch } from "vue";
 import { ApiSearchQuery, ChangeRequestQuery, getRest } from "../../rest/RestApi";
 import { getSocket, isConnected } from "../../socket/socketio";
 import { AckStatus, ApiQueryResult, BaseDocumentDto, Uuid } from "../../types";
 import { applySocketData } from "./applySocketData";
 import { createEditable } from "./createEditable";
+import _ from "lodash";
 
 export type ApiLiveQueryOptions<T> = {
     /** Provide an initial value while waiting for the API response */
     initialValue?: T;
-    /** When true, return an array with results. When false, return only the first result. Default = true */
-    returnArray?: boolean;
 };
 
 /**
@@ -22,21 +21,18 @@ export type ApiLiveQueryOptions<T> = {
  * automatically when the data changes in the database.
  */
 export class ApiLiveQuery<T extends BaseDocumentDto> {
-    private _dataAsRef: Ref<Array<T>>;
-    private _firstItemAsRef: ComputedRef<T | undefined>;
-    private _returnArray: boolean;
+    private _sourceData: Ref<Array<T>>;
+    private _firstItem: ComputedRef<T | undefined>;
+    private _liveData: ComputedRef<Array<T>>;
     private _socketOnCallback: ((data: ApiQueryResult<T>) => void) | undefined = undefined;
     private _unwatch;
     private _isLoading = ref(true);
     private _editable: Ref<Array<T>> | undefined = undefined;
-    private _edited: ComputedRef<Array<T>> | undefined = undefined;
-    private _modified: ComputedRef<Array<T>> | undefined = undefined;
+    private _isEdited: ComputedRef<(id: Uuid) => boolean> | undefined;
+    private _isModified: ComputedRef<(id: Uuid) => boolean> | undefined;
+    private _revert: ((id: Uuid) => void) | undefined;
 
     constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<Array<T>>) {
-        if (!options) options = {};
-        if (options.returnArray === undefined) options.returnArray = true;
-        this._returnArray = options.returnArray;
-
         // Validate the query
         if (query.value.groups) {
             throw new Error("groups are not supported in ApiLiveQuery");
@@ -46,14 +42,18 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
             throw new Error("queryString is not implemented yet");
         }
 
-        this._dataAsRef = ref((options?.initialValue as Array<T>) ?? ([] as Array<T>)) as Ref<
+        this._sourceData = ref((options?.initialValue as Array<T>) ?? ([] as Array<T>)) as Ref<
             Array<T>
         >;
 
-        this._firstItemAsRef = computed(() => {
-            if (!this._dataAsRef || !this._dataAsRef.value || !this._dataAsRef.value.length)
+        this._firstItem = computed(() => {
+            if (!this._sourceData || !this._sourceData.value || !this._sourceData.value.length)
                 return undefined;
-            return this._dataAsRef.value[0];
+            return this._sourceData.value[0];
+        });
+
+        this._liveData = computed(() => {
+            return this._sourceData.value;
         });
 
         // Fetch initial data from the REST API and subscribe to live updates
@@ -72,7 +72,7 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
                 getRest()
                     .search(query.value)
                     .then((result) => {
-                        this._dataAsRef.value = result.docs as Array<T>;
+                        this._sourceData.value = result.docs as Array<T>;
                     })
                     .catch((error) => {
                         console.error("Error fetching data from API:", error);
@@ -83,7 +83,7 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
 
                 // Listen for updates from the socket
                 this._socketOnCallback = (data) =>
-                    applySocketData<T>(data, this._dataAsRef, query.value);
+                    applySocketData<T>(data, this._sourceData, query.value);
                 getSocket().on("data", this._socketOnCallback);
             },
             { immediate: true },
@@ -96,26 +96,30 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
      */
     public toArrayAsRef() {
         console.warn("ApiLiveQuery.toArrayAsRef() is deprecated. Use liveData instead.");
-        return readonly(this._dataAsRef);
+        return this._liveData;
     }
 
     /**
      * Get the live query data as a Vue ref array.
      */
     public get liveData() {
-        if (this._returnArray) return readonly(this._dataAsRef);
-        return readonly(this._firstItemAsRef);
+        return this._liveData;
     }
 
     /**
-     * Depreciated: Use the liveData() getter instead for ApiLiveQuery instances with the returnArray option set to false.
+     * Get the live query data as a Vue ref - returns the first result.
+     */
+    public get liveItem() {
+        return this._firstItem;
+    }
+
+    /**
+     * Depreciated: Use the liveItem() getter instead.
      * Get the live query data as a Vue ref object. If multiple items are available, only the first one is returned.
      */
     public toRef() {
-        console.warn(
-            "ApiLiveQuery.toRef() is deprecated. Use liveData instead with the returnArray option set to false when instantiating ApiLiveQuery.",
-        );
-        return this._firstItemAsRef;
+        console.warn("ApiLiveQuery.toRef() is deprecated. Use liveItem instead.");
+        return this._firstItem;
     }
 
     /**
@@ -151,11 +155,12 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
     }
 
     private createEditable() {
-        if (!this._editable || !this._edited || !this._modified) {
-            const e = createEditable<T>(this._dataAsRef);
+        if (!this._editable) {
+            const e = createEditable<T>(this._sourceData);
             this._editable = e.editable;
-            this._edited = e.edited;
-            this._modified = e.modified;
+            this._isEdited = e.isEdited;
+            this._isModified = e.isModified;
+            this._revert = e.revert;
         }
     }
 
@@ -168,34 +173,21 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
     }
 
     /**
-     * Get a Vue ref that contains the items that have been edited by the user. This is a subset of the editable items.
-     */
-    public get edited() {
-        this.createEditable();
-        return this._edited as ComputedRef<Array<T>>;
-    }
-
-    /**
-     * Get a Vue ref that contains the items that have been modified in the source data. This is a subset of the source items.
-     */
-    public get modified() {
-        this.createEditable();
-        return this._modified as ComputedRef<Array<T>>;
-    }
-
-    /**
      * Save the current state of an editable item to the database.
      * This method will not save the item if it has not been modified.
      * @param id - The _id of the item to save.
      */
     public async save(id: Uuid) {
-        if (!this._editable || !this._edited) {
+        if (!this._isEdited || !this._editable) {
             throw new Error("Editable data is not available. Call editable first.");
         }
 
-        const item = this._edited.value.find((i) => i._id === id);
-        if (!item) return { ack: AckStatus.Accepted };
+        if (!this._isEdited.value(id)) return { ack: AckStatus.Accepted };
 
+        const item = this._editable.value.find((i) => i._id === id);
+        if (!item) return { ack: AckStatus.Rejected, message: "Item not found" };
+
+        // Send the change request to the API
         const res = await getRest().changeRequest({
             id: 10, // TODO: The ID field is not used in the API, but it is still required by the API. This can be removed in the future.
             doc: item,
@@ -208,5 +200,36 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
         }
 
         return res; // TODO: Add type for the response. This will involve adding a type for the API response.
+    }
+
+    /**
+     * Revert an item to its original state from the source data.
+     * @param id - The _id of the item to revert.
+     */
+    public get revert() {
+        if (!this._revert) {
+            throw new Error("Editable data is not available. Call editable first.");
+        }
+        return this._revert;
+    }
+
+    /**
+     * Check if an item is in the edited state.
+     * @returns a computed function giving true if the passed item has been edited, false otherwise.
+     */
+    public get isEdited() {
+        if (!this._isEdited)
+            throw new Error("Editable data is not available. Call editable first.");
+        return this._isEdited;
+    }
+
+    /**
+     * Check if an item is in the modified state. The modified state means that the item has been edited by the user and has also been modified in the source array.
+     * @returns a computed function giving true if the passed item has been modified, false otherwise.
+     */
+    public get isModified() {
+        if (!this._isModified)
+            throw new Error("Editable data is not available. Call editable first.");
+        return this._isModified;
     }
 }
