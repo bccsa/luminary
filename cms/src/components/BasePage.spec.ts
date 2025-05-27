@@ -17,6 +17,16 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     };
 });
 
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        // @ts-expect-error
+        ...actual,
+        useRouter: vi.fn(),
+        onBeforeRouteLeave: vi.fn(),
+    };
+});
+
 describe("BasePage", () => {
     it("renders the title and default slot", async () => {
         const wrapper = mount(BasePage, {
