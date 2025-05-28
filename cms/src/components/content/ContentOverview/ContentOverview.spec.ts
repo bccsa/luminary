@@ -23,7 +23,7 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
             isAuthenticated: true,
             isLoading: false,
         }),
-        authGuard: vi.fn(), // add this line
+        authGuard: vi.fn(),
     };
 });
 
