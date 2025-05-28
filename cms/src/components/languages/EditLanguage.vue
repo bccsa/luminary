@@ -337,7 +337,6 @@ const deleteLanguage = async () => {
         :backLinkParams="{
             docType: DocType.Language,
         }"
-        class="mb-16"
     >
         <template #actions>
             <div class="flex gap-2">
@@ -421,7 +420,7 @@ const deleteLanguage = async () => {
                 </div>
             </LCard>
 
-            <div class="max-h-screen">
+            <div class="min-h-screen">
                 <!--Strings translation -->
                 <LCard>
                     <table class="mt-5 min-w-full divide-y divide-zinc-200">

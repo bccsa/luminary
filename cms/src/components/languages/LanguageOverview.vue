@@ -5,8 +5,14 @@ import { PlusIcon } from "@heroicons/vue/24/outline";
 import { AclPermission, db, DocType, hasAnyPermission } from "luminary-shared";
 import { computed } from "vue";
 import LButton from "../button/LButton.vue";
+import { isSmallScreen } from "@/globalConfig";
+import router from "@/router";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
+
+const createNew = () => {
+    router.push({ name: "language", params: { id: db.uuid() } });
+};
 </script>
 
 <template>
@@ -14,7 +20,7 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermis
         <template #pageNav>
             <div class="flex gap-4" v-if="canCreateNew">
                 <LButton
-                    v-if="canCreateNew"
+                    v-if="canCreateNew && !isSmallScreen"
                     variant="primary"
                     :icon="PlusIcon"
                     @click="$router.push({ name: 'language', params: { id: db.uuid() } })"
@@ -22,6 +28,11 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermis
                 >
                     Create language
                 </LButton>
+                <PlusIcon
+                    v-else-if="canCreateNew && isSmallScreen"
+                    class="h-6 w-6 text-zinc-500"
+                    @click="createNew"
+                />
             </div>
         </template>
 

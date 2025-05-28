@@ -109,6 +109,17 @@ const groups = useDexieLiveQuery(
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
 
 const contentDocsTotal = contentOverviewQuery({ ...queryOptions.value, count: true });
+
+const createNew = () => {
+    router.push({
+        name: `edit`,
+        params: {
+            docType: props.docType,
+            tagOrPostType: props.tagOrPostType,
+            id: "new",
+        },
+    });
+};
 </script>
 
 <template>
@@ -118,9 +129,9 @@ const contentDocsTotal = contentOverviewQuery({ ...queryOptions.value, count: tr
         :should-show-page-title="false"
     >
         <template #pageNav>
-            <div class="flex gap-4">
+            <div>
                 <LButton
-                    v-if="canCreateNew"
+                    v-if="canCreateNew && !isSmallScreen"
                     variant="primary"
                     :icon="PlusIcon"
                     :is="RouterLink"
@@ -136,18 +147,23 @@ const contentDocsTotal = contentOverviewQuery({ ...queryOptions.value, count: tr
                 >
                     Create {{ docType }}
                 </LButton>
-            </div>
-        </template>
-        <div>
-            <div class="sticky top-0 z-10 bg-white">
-                <FilterOptions
-                    :is-small-screen="isSmallScreen"
-                    :groups="groups"
-                    :tagContentDocs="tagContentDocs"
-                    v-model:query-options="queryOptions"
+                <PlusIcon
+                    v-else-if="canCreateNew && isSmallScreen"
+                    class="h-6 w-6 text-zinc-500"
+                    @click="createNew"
                 />
             </div>
+        </template>
 
+        <template #internalPageHeader>
+            <FilterOptions
+                :is-small-screen="isSmallScreen"
+                :groups="groups"
+                :tagContentDocs="tagContentDocs"
+                v-model:query-options="queryOptions"
+            />
+        </template>
+        <div>
             <div class="mt-1">
                 <ContentTable
                     v-if="cmsLanguageIdAsRef"
@@ -161,9 +177,7 @@ const contentDocsTotal = contentOverviewQuery({ ...queryOptions.value, count: tr
             </div>
         </div>
         <template #footer>
-            <div
-                class="absolute bottom-0 left-0 right-0 z-10 flex w-full items-center justify-between bg-white/20 px-4 py-2 shadow backdrop-blur-sm"
-            >
+            <div class="w-full px-8">
                 <LPaginator
                     :amountOfDocs="contentDocsTotal?.count as number"
                     v-model:index="queryOptions.pageIndex as number"
