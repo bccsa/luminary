@@ -9,23 +9,27 @@ import { db, isConnected } from "luminary-shared";
 const requestDataMock = vi.hoisted(() => vi.fn());
 const restartMock = vi.fn();
 
-vi.mock("luminary-shared", () => ({
-    db: {
-        purge: vi.fn(),
-    },
-    getRest: vi.fn(() => ({
-        sync: {
-            restart: restartMock,
+vi.mock("luminary-shared", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        db: {
+            purge: vi.fn(),
         },
-    })),
-    getSocket: vi.fn(() => ({
-        requestData: requestDataMock,
-    })),
-    isConnected: { value: false },
-    api: vi.fn(() => ({
-        rest: vi.fn(),
-    })),
-}));
+        getRest: vi.fn(() => ({
+            sync: {
+                restart: restartMock,
+            },
+        })),
+        getSocket: vi.fn(() => ({
+            requestData: requestDataMock,
+        })),
+        isConnected: { value: false },
+        api: vi.fn(() => ({
+            rest: vi.fn(),
+        })),
+    };
+});
 
 describe("purgeLocalDatabase", () => {
     beforeEach(() => {
