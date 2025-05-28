@@ -37,7 +37,7 @@ const showMobileQueryOptions = ref(false);
 </script>
 
 <template>
-    <div class="z-10 rounded-md border border-zinc-300 bg-white p-2 shadow">
+    <div class="z-10 rounded-t-md border border-zinc-300 bg-white px-2 py-2 shadow">
         <div class="flex gap-1">
             <LInput
                 type="text"
@@ -52,7 +52,7 @@ const showMobileQueryOptions = ref(false);
             <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
             <LButton :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>
-        <div class="mt-1 flex w-full flex-col gap-1">
+        <div class="flex w-full flex-col gap-1">
             <div v-if="queryOptions.tags && queryOptions.tags?.length > 0" class="w-full">
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag

@@ -31,7 +31,7 @@ const sidebarOpen = ref(false);
 </script>
 
 <template>
-    <div>
+    <div class="flex min-h-screen flex-col scrollbar-hide">
         <!-- Top bar -->
         <MobileSideBar v-model:open="sidebarOpen" />
 
@@ -40,7 +40,7 @@ const sidebarOpen = ref(false);
             <SideBar />
         </div>
 
-        <div class="lg:pl-72">
+        <div class="sticky top-0 z-20 lg:pl-72">
             <div
                 class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-zinc-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8"
             >
@@ -58,9 +58,17 @@ const sidebarOpen = ref(false);
 
                 <TopBar>
                     <template #quickActions>
+                        <RouterLink
+                            v-if="backLinkLocation"
+                            :to="backLinkLocation"
+                            :params="backLinkParams"
+                            class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
+                        >
+                            <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
+                        </RouterLink>
                         <h1
                             v-if="!$slots.actions"
-                            class="flex items-center gap-2 text-lg font-semibold leading-7"
+                            class="text-md flex items-center gap-2 font-semibold leading-7"
                         >
                             {{ title }}
                         </h1>
@@ -69,45 +77,55 @@ const sidebarOpen = ref(false);
                 </TopBar>
             </div>
         </div>
-        <div v-if="!loading" :class="isFullWidth ? ' mx-auto w-full ' : 'mx-auto max-w-7xl'">
-            <RouterLink
-                v-if="backLinkLocation"
-                :to="backLinkLocation"
-                :params="backLinkParams"
-                class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
-            >
-                <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
-            </RouterLink>
-            <header
-                v-if="title || $slots.actions"
-                :class="[
-                    'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center lg:pl-80',
-                    {
-                        'sm:justify-center': centered,
-                        'sm:justify-between': !centered,
-                    },
-                ]"
-            >
-                <h1
-                    class="flex items-center gap-2 text-lg font-semibold leading-7"
-                    v-if="shouldShowPageTitle"
+        <div class="relative min-h-full flex-1">
+            <div v-if="!loading" :class="isFullWidth ? ' mx-auto w-full ' : 'mx-auto max-w-7xl'">
+                <header
+                    v-if="title || $slots.actions"
+                    :class="[
+                        'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center lg:pl-80',
+                        {
+                            'sm:justify-center': centered,
+                            'sm:justify-between': !centered,
+                        },
+                    ]"
                 >
-                    <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
-                    {{ title }}
-                    <slot name="postTitleSlot"></slot>
-                </h1>
+                    <h1
+                        class="flex items-center gap-2 text-lg font-semibold leading-7"
+                        v-if="shouldShowPageTitle"
+                    >
+                        <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
+                        {{ title }}
+                        <slot name="postTitleSlot"></slot>
+                    </h1>
 
-                <div v-if="$slots.actions && useRouter().currentRoute.value.name != 'overview'">
-                    <slot name="actions" />
+                    <div v-if="$slots.actions && useRouter().currentRoute.value.name != 'overview'">
+                        <slot name="actions" />
+                    </div>
+                </header>
+
+                <div class="mt-4 max-h-full px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
+                    <!-- Set height and enable vertical scroll -->
+                    <div
+                        class="relative h-[calc(100vh-8rem)] w-full overflow-y-auto scrollbar-hide"
+                    >
+                        <!-- Sticky internal header (sticks within this scroll container) -->
+                        <div class="sticky top-0 z-30 w-full bg-white shadow">
+                            <slot name="internalPageHeader" />
+                        </div>
+
+                        <!-- Content that scrolls under the sticky header -->
+                        <div class="relative z-0">
+                            <slot />
+                        </div>
+                    </div>
                 </div>
-            </header>
 
-            <div class="mt-4 px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
-                <slot />
-            </div>
-
-            <div class="mb-4 mt-2 px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
-                <slot name="footer" />
+                <div
+                    v-if="$slots.footer"
+                    class="fixed bottom-0 w-full bg-white/20 px-6 py-2 backdrop-blur-sm sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8"
+                >
+                    <slot name="footer" />
+                </div>
             </div>
         </div>
     </div>

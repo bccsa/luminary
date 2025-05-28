@@ -45,7 +45,7 @@ onClickOutside(sortOptionsMenu, () => {
 
 <template>
     <div
-        class="z-10 flex w-full flex-col gap-1 overflow-visible rounded-md border border-b border-zinc-300 bg-white p-2 shadow"
+        class="z-10 flex w-full flex-col gap-1 overflow-visible rounded-t-md border border-b border-zinc-300 bg-white p-2 shadow"
     >
         <div class="flex w-full items-center gap-1">
             <LInput

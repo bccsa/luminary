@@ -43,7 +43,6 @@ const pinned = computed({
     <LCard
         :title="`${capitaliseFirstLetter(tagOrPostType)} settings`"
         :icon="Cog6ToothIcon"
-        class="sticky top-20"
         collapsible
         v-if="parent"
     >
