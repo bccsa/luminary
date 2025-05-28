@@ -32,10 +32,8 @@ const sidebarOpen = ref(false);
 
 <template>
     <div class="flex min-h-screen flex-col scrollbar-hide">
-        <!-- Top bar -->
         <MobileSideBar v-model:open="sidebarOpen" />
 
-        <!-- Static sidebar for desktop -->
         <div class="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
             <SideBar />
         </div>
@@ -104,16 +102,13 @@ const sidebarOpen = ref(false);
                 </header>
 
                 <div class="mt-4 max-h-full px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
-                    <!-- Set height and enable vertical scroll -->
                     <div
                         class="relative h-[calc(100vh-8rem)] w-full overflow-y-auto scrollbar-hide"
                     >
-                        <!-- Sticky internal header (sticks within this scroll container) -->
                         <div class="sticky top-0 z-30 w-full bg-white shadow">
                             <slot name="internalPageHeader" />
                         </div>
 
-                        <!-- Content that scrolls under the sticky header -->
                         <div class="relative z-0">
                             <slot />
                         </div>
