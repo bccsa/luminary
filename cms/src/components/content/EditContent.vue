@@ -451,7 +451,7 @@ const showLanguageSelector = ref(false);
 <template>
     <div
         v-if="!newDocument && !editableParent?.updatedTimeUtc"
-        class="relative flex h-screen items-center justify-center"
+        class="relative flex items-center justify-center"
     >
         <div class="flex flex-col items-center gap-4">
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
@@ -532,13 +532,10 @@ const showLanguageSelector = ref(false);
                 </div>
             </div>
         </template>
-        <div class="relative grid min-h-screen grid-cols-3 gap-8">
+        <div class="relative grid min-h-full grid-cols-3 gap-8">
             <!-- Sidebar -->
-            <div
-                class="scrollbar col-span-3 h-screen overflow-y-auto md:col-span-1"
-                v-if="editableParent"
-            >
-                <div class="sticky top-0 space-y-6">
+            <div class="relative col-span-3 md:col-span-1" v-if="editableParent">
+                <div class="relative size-full space-y-6">
                     <EditContentParentValidation
                         :tag-or-post-type="props.tagOrPostType"
                         :can-translate="canTranslate"
@@ -556,17 +553,19 @@ const showLanguageSelector = ref(false);
                         @create-translation="(language) => createTranslation(language)"
                     />
 
-                    <EditContentParent
-                        v-if="editableParent"
-                        :docType="props.docType"
-                        :tagOrPostType="props.tagOrPostType"
-                        :language="selectedLanguage"
-                        v-model:parent="editableParent"
-                        :disabled="!canEditParent"
-                    />
+                    <div class="sticky top-0">
+                        <EditContentParent
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :language="selectedLanguage"
+                            v-model:parent="editableParent"
+                            :disabled="!canEditParent"
+                        />
+                    </div>
                 </div>
             </div>
-            <div class="scrollbar col-span-3 h-screen overflow-y-auto md:col-span-2">
+            <div class="col-span-3 min-h-full md:col-span-2">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
@@ -583,7 +582,7 @@ const showLanguageSelector = ref(false);
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="space-y-6">
+                <div v-else class="mb-48 space-y-6">
                     <EditContentStatus
                         v-model:content="selectedContent"
                         :disabled="!canTranslate"
@@ -629,14 +628,3 @@ const showLanguageSelector = ref(false);
         context="danger"
     ></LDialog>
 </template>
-
-<style>
-.scrollbar::-webkit-scrollbar {
-    display: none; /* Hide scrollbar in Chrome, Safari */
-}
-
-.scrollbar {
-    -ms-overflow-style: none; /* Hide scrollbar in IE/Edge */
-    scrollbar-width: none; /* Hide scrollbar in Firefox */
-}
-</style>

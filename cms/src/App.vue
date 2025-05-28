@@ -1,16 +1,11 @@
 <script setup lang="ts">
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
-import SideBar from "@/components/navigation/SideBar.vue";
-import TopBar from "@/components/navigation/TopBar.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
-import { computed, ref } from "vue";
-import { Bars3Icon } from "@heroicons/vue/24/outline";
+import { computed } from "vue";
 import { appName } from "@/globalConfig";
-import MobileSideBar from "./components/navigation/MobileSideBar.vue";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import router from "./router";
-import BasePage from "./components/BasePage.vue";
 
 const { isAuthenticated } = useAuth0();
 
