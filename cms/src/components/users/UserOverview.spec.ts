@@ -9,11 +9,15 @@ import { mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
 import { accessMap, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
-vi.mock("vue-router", () => ({
-    useRouter: () => ({
-        push: vi.fn(),
-    }),
-}));
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useRouter: () => ({
+            push: vi.fn(),
+        }),
+    };
+});
 
 const mockRouter = {
     push: vi.fn(), // Mock Vue Router push

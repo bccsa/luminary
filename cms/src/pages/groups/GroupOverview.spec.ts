@@ -15,7 +15,12 @@ import {
 import { accessMap, DocType, getRest, initConfig } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
-vi.mock("vue-router");
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+    };
+});
 
 // ============================
 // Mock api
