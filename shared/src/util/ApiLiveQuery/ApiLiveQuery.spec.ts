@@ -170,7 +170,7 @@ describe("ApiLiveQuery", () => {
         });
     });
 
-    it("provides editable, isEdited, and isModified refs and revert function after accessing editable", async () => {
+    it("provides editable, isEdited, and isModified refs and revert functions", async () => {
         const query = ref({ types: [DocType.Post] });
         const mockDocs = [{ _id: "1", type: DocType.Post }];
 
@@ -178,7 +178,7 @@ describe("ApiLiveQuery", () => {
             search: vi.fn().mockResolvedValue({ docs: mockDocs }),
         } as any);
 
-        const liveQuery = new ApiLiveQuery(query, {});
+        const liveQuery = new ApiLiveQuery(query, { enableEditable: true });
 
         const editable = liveQuery.editable;
         const isEdited = liveQuery.isEdited;
@@ -193,7 +193,7 @@ describe("ApiLiveQuery", () => {
         });
     });
 
-    it("throws error when save is called before editable is accessed", async () => {
+    it("throws error when save is if editable is not enabled", async () => {
         const query = ref({ types: [DocType.Post] });
         const mockDocs = [{ _id: "1", type: DocType.Post }];
 
@@ -208,7 +208,7 @@ describe("ApiLiveQuery", () => {
         });
 
         await expect(liveQuery.save("1")).rejects.toThrow(
-            "Editable data is not available. Call editable first.",
+            "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
         );
     });
 
@@ -223,7 +223,7 @@ describe("ApiLiveQuery", () => {
             changeRequest: changeRequestMock,
         } as any);
 
-        const liveQuery = new ApiLiveQuery<TestDocType>(query, {});
+        const liveQuery = new ApiLiveQuery<TestDocType>(query, { enableEditable: true });
 
         // Access editable to initialize
         await waitForExpect(() => {
@@ -249,7 +249,7 @@ describe("ApiLiveQuery", () => {
             changeRequest: changeRequestMock,
         } as any);
 
-        const liveQuery = new ApiLiveQuery<TestDocType>(query, {});
+        const liveQuery = new ApiLiveQuery<TestDocType>(query, { enableEditable: true });
 
         // Access editable to initialize
         await waitForExpect(() => {
