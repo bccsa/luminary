@@ -28,7 +28,6 @@ type Props = {
     languages: LanguageDto[];
     existingContent?: ContentDto;
     canDelete: boolean;
-    
 };
 const props = defineProps<Props>();
 const editableContent = defineModel<ContentDto>("editableContent");
@@ -38,8 +37,6 @@ const sortedLanguages = computed(() => {
 });
 
 const showDeleteModal = ref(false);
-
-const canDeleteLang = computed(() => props.canDelete);
 
 const usedLanguage = computed(() => {
     if (!editableContent.value || !sortedLanguages.value) return null;
@@ -136,7 +133,6 @@ const deleteTranslation = () => {
     if (!editableContent.value) return;
     editableContent.value.deleteReq = 1;
 };
-
 </script>
 
 <template>
