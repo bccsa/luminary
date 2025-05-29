@@ -1,13 +1,11 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbQueryResult, DbService, SearchOptions } from "../db/db.service";
 import { AclPermission, DocType } from "../enums";
-import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
+import { PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { getJwtPermission, parsePermissionMap } from "../jwt/jwtPermissionMap";
-import * as JWT from "jsonwebtoken";
+import { processJwt } from "../jwt/processJwt";
 import configuration, { Configuration } from "../configuration";
-import { validateJWT } from "../validation/jwt";
 import { SearchReqDto } from "../dto/SearchReqDto";
 
 @Injectable()
@@ -31,6 +29,8 @@ export class SearchService {
      * @returns
      */
     async processReq(query: SearchReqDto, token: string): Promise<DbQueryResult> {
+        const userDetails = await processJwt(token, this.db, this.logger);
+
         // Validate request
         if (!query.slug && (!query.types || query.types.length < 1)) {
             throw new HttpException(
@@ -57,23 +57,12 @@ export class SearchService {
             query.types = [DocType.Post, DocType.Tag, DocType.Redirect];
         }
 
-        // decode and validate JWT
-        const jwt: string | JWT.JwtPayload = validateJWT(
-            token,
-            this.config.auth.jwtSecret,
-            this.logger,
-        );
-
-        // Get group access
-        this.permissionMap = parsePermissionMap(this.config.permissionMap, this.logger);
-        const permissions = getJwtPermission(jwt, this.permissionMap, this.logger);
-        const accessMap: AccessMap = PermissionSystem.getAccessMap(permissions.groups);
-
         // Get user accessible groups
-        const userViewGroups = PermissionSystem.accessMapToGroups(accessMap, AclPermission.View, [
-            ...query.types,
-            DocType.Language,
-        ]);
+        const userViewGroups = PermissionSystem.accessMapToGroups(
+            userDetails.accessMap,
+            AclPermission.View,
+            [...query.types, DocType.Language],
+        );
 
         if (query.includeDeleteCmds) {
             // Get accessible groups for delete command documents (all groups to which the user has view access to)
@@ -110,7 +99,7 @@ export class SearchService {
                 }
             })
             .catch((err) => {
-                this.logger.error(`Error getting data for client: ${permissions.userId}`, err);
+                this.logger.error(`Error getting data for client: ${userDetails.userId}`, err);
             });
         return _res;
     }

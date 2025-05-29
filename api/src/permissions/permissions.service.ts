@@ -6,6 +6,8 @@ import { EventEmitter } from "node:events";
 
 let dbService: DbService;
 
+EventEmitter.setMaxListeners(Number.MAX_SAFE_INTEGER);
+
 /**
  * Acl map entry used internally in Group objects containing ACL entries for a given parent group
  */
@@ -64,7 +66,7 @@ type GroupTypePermissionMap = Map<
         /** Document Type */
         DocType,
         Map<
-            /** Perission */
+            /** Permission */
             AclPermission,
             Map<
                 /** route group Uuid */
@@ -155,7 +157,7 @@ export class PermissionSystem extends EventEmitter {
         const dbGroups = await dbService.getGroups();
         this.upsertGroups(dbGroups.docs);
 
-        // Add changes that might have occured while the permission system was being initialized
+        // Add changes that might have occurred while the permission system was being initialized
         this.upsertGroups(updateQueue);
         updateQueue = [];
         initialized = true;
@@ -174,14 +176,27 @@ export class PermissionSystem extends EventEmitter {
      * @returns - Access Map for the passed group IDs
      */
     static getAccessMap(groupIds: Array<Uuid>): AccessMap {
-        let resultMap: AccessMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
+        const resultMap: AccessMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
 
         if (groupIds) {
             groupIds.forEach((id: Uuid) => {
                 const g = groupMap[id] as PermissionSystem;
                 if (!g) return;
 
-                resultMap = { ...resultMap, ...g._accessMap };
+                // Add the access map of the group to the result map
+                Object.keys(g._accessMap).forEach((key: Uuid) => {
+                    const value = g._accessMap[key];
+                    if (!resultMap[key]) resultMap[key] = {};
+
+                    Object.keys(value).forEach((docType: DocType) => {
+                        if (!resultMap[key][docType]) resultMap[key][docType] = {};
+                        Object.keys(value[docType]).forEach((permission: AclPermission) => {
+                            if (!resultMap[key][docType][permission]) {
+                                resultMap[key][docType][permission] = true;
+                            }
+                        });
+                    });
+                });
             });
         }
 

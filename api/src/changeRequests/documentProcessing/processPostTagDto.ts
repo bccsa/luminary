@@ -59,7 +59,7 @@ export default async function processPostTagDto(
     }
 
     // tag caching to the taggedDocs / parentTaggedDocs property of tag / content documents. This is done to improve client query performance.
-    const addedTags = prevDoc ? doc.tags.filter((tag) => !prevDoc.tags.includes(tag)) : [];
+    const addedTags = prevDoc ? doc.tags.filter((tag) => !prevDoc.tags.includes(tag)) : doc.tags;
     const removedTags = prevDoc ? prevDoc.tags.filter((tag) => !doc.tags.includes(tag)) : [];
     const changedTags = addedTags
         .concat(removedTags)

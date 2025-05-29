@@ -6,6 +6,7 @@ import {
     type ContentDto,
     PublishStatus,
     PostType,
+    useDexieLiveQuery,
 } from "luminary-shared";
 
 export type ContentOverviewQueryOptions = {
@@ -19,27 +20,29 @@ export type ContentOverviewQueryOptions = {
     pageSize?: number;
     pageIndex?: number;
     tags?: Uuid[];
+    groups?: Uuid[];
     search?: string;
+    count?: boolean;
 };
 
-async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
-    if (!options.orderBy) options.orderBy = "updatedTimeUtc";
-    if (!options.orderDirection) options.orderDirection = "desc";
-    if (!options.pageSize) options.pageSize = 20;
-    if (!options.pageIndex) options.pageIndex = 0;
-    if (!options.translationStatus) options.translationStatus = "all";
-    if (!options.publishStatus) options.publishStatus = "all";
+export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
+    return useDexieLiveQuery(async () => {
+        if (!options.orderBy) options.orderBy = "updatedTimeUtc";
+        if (!options.orderDirection) options.orderDirection = "desc";
+        if (!options.pageSize) options.pageSize = 20;
+        if (!options.pageIndex) options.pageIndex = 0;
+        if (!options.translationStatus) options.translationStatus = "all";
+        if (!options.publishStatus) options.publishStatus = "all";
 
-    const translated = (await db.docs // This may slow down the query if there are many documents, but it is necessary to be able to include and filter on untranslated documents
-        .where({ type: DocType.Content, language: options.languageId })
-        .toArray()) as ContentDto[];
-    const untranslatedByParentId: Uuid[] = [];
+        const translated = (await db.docs // This may slow down the query if there are many documents, but it is necessary to be able to include and filter on untranslated documents
+            .where({ type: DocType.Content, language: options.languageId })
+            .toArray()) as ContentDto[];
+        const untranslatedByParentId: Uuid[] = [];
 
-    let res = db.docs.orderBy(options.orderBy);
-    if (options.orderDirection == "desc") res = res.reverse();
+        let res = db.docs.orderBy(options.orderBy);
+        if (options.orderDirection == "desc") res = res.reverse();
 
-    return res
-        .filter((doc) => {
+        res = res.filter((doc) => {
             const contentDoc = doc as ContentDto;
             // Filter documents by type
             if (!contentDoc.parentId) return false;
@@ -70,6 +73,12 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
                 options.tags.some((tagId) => contentDoc.parentTags.includes(tagId));
             if (!tagFilter) return false;
 
+            const groupFilter =
+                !options.groups ||
+                options.groups.length == 0 ||
+                options.groups.some((groupId) => contentDoc.memberOf.includes(groupId));
+            if (!groupFilter) return false;
+
             const publishFilter = publishStatusFilter(contentDoc, options);
             if (!publishFilter) return false;
 
@@ -79,11 +88,20 @@ async function contentOverviewQuery(options: ContentOverviewQueryOptions) {
             if (!searchFilter) return false;
 
             return true;
-        })
-        .offset(options.pageIndex * options.pageSize) // TODO: This may be improved as described here: https://dexie.org/docs/Collection/Collection.offset()
-        .limit(options.pageSize)
-        .toArray();
-}
+        });
+
+        if (options.count) {
+            const count = await res.count();
+            return { count };
+        } else {
+            const docs = await res
+                .offset(options.pageIndex * options.pageSize) // TODO: This may be improved as described here: https://dexie.org/docs/Collection/Collection.offset()
+                .limit(options.pageSize)
+                .toArray();
+            return { docs };
+        }
+    });
+};
 
 /**
  * Filter by translation status
@@ -134,14 +152,4 @@ function publishStatusFilter(doc: ContentDto, options: ContentOverviewQueryOptio
     if (options.publishStatus == "expired")
         return doc.status == PublishStatus.Published && doc.expiryDate && doc.expiryDate <= now;
     if (options.publishStatus == "draft") return doc.status == PublishStatus.Draft;
-}
-
-/**
- * Get a list of content documents for a given parent document type as a Vue Ref
- */
-export function contentOverviewQueryAsRef(options: ContentOverviewQueryOptions) {
-    return db.toRef<ContentDto[]>(
-        () => contentOverviewQuery(options) as unknown as Promise<ContentDto[]>,
-        [],
-    );
 }

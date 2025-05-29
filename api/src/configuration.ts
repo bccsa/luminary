@@ -1,5 +1,6 @@
 export type AuthConfig = {
     jwtSecret: string;
+    jwtMappings: string;
 };
 
 export type DatabaseConfig = {
@@ -39,6 +40,7 @@ export default () =>
     ({
         auth: {
             jwtSecret: process.env.JWT_SECRET,
+            jwtMappings: process.env.JWT_MAPPINGS,
         } as AuthConfig,
         database: {
             connectionString: process.env.DB_CONNECTION_STRING,

@@ -3,36 +3,31 @@ import { DbService } from "../db/db.service";
 import { createTestingModule } from "../test/testingModule";
 import { DeleteReason, DocType } from "../enums";
 import { SearchReqDto } from "../dto/SearchReqDto";
-import { DeleteCmdDto } from "src/dto/DeleteCmdDto";
-
-jest.mock("../configuration", () => {
-    const originalModule = jest.requireActual("../configuration");
-    const origConfig = originalModule.default();
-
-    return {
-        default: () => ({
-            ...origConfig,
-            permissionMap: `{
-                "jwt": {
-                    "groups": {
-                        "group-super-admins": "() => true"
-                    },
-                    "userId": {
-                        "user-super-admin": "() => true"
-                    }
-                }
-            }`,
-        }),
-    };
-});
+import { DeleteCmdDto } from "../dto/DeleteCmdDto";
 
 describe("Search service", () => {
+    const oldEnv = process.env;
     let service: DbService;
     let searchService: SearchService;
 
     beforeAll(async () => {
+        process.env = { ...oldEnv }; // Make a copy of the old environment variables
+
+        process.env.JWT_MAPPINGS = `{
+            "groups": {
+                "group-super-admins": "() => true"
+            },
+            "userId": "() => 'user-super-admin'",
+            "email": "() => 'test@123.com'",
+            "name": "() => 'Test User'"
+        }`;
+
         service = (await createTestingModule("search-service")).dbService;
         searchService = new SearchService(undefined, service);
+    });
+
+    afterAll(async () => {
+        process.env = oldEnv; // Restore the original environment variables
     });
 
     it("can query the api endpoint", async () => {

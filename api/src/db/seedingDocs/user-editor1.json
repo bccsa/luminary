@@ -3,5 +3,6 @@
     "type": "user",
     "memberOf": ["group-public-editors", "group-private-editors"],
     "email": "editor1@users.test",
-    "name": "Editor 1"
+    "name": "Editor 1",
+    "userId": "editor1"
 }

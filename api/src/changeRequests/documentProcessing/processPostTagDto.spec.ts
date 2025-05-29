@@ -102,8 +102,9 @@ describe("processPostTagDto", () => {
     });
 
     it("can store the id's of tagged documents to the taggedDocs / parentTaggedDocs property of the tag document and it's content documents", async () => {
-        // Ensure that the test doc is in it's original state
-        await processChangeRequest("", changeRequest_post(), ["group-super-admins"], db, s3);
+        // Ensure that the test doc is in it's original state (as an existing document)
+        const changeRequest1 = changeRequest_post();
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3);
 
         const changeRequest = changeRequest_post();
         changeRequest.doc.tags = ["tag-category2", "tag-topicA"]; // This will remove tag-category1 from the tag and add tag-category2
@@ -125,6 +126,39 @@ describe("processPostTagDto", () => {
         expect(
             category2Content.docs.some((d) =>
                 d.parentTaggedDocs.some((t) => t == changeRequest.doc._id),
+            ),
+        ).toBe(true);
+
+        // Run the test again with a new document
+        const changeRequest2 = changeRequest_post();
+        changeRequest2.doc._id = "post-blog3";
+        changeRequest2.doc.tags = ["tag-category2", "tag-topicA"]; // This will remove tag-category1 from the tag and add tag-category2
+
+        await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3);
+
+        const category1_2 = await db.getDoc("tag-category1");
+        const category2_2 = await db.getDoc("tag-category2");
+        const topicA_2 = await db.getDoc("tag-topicA");
+        const category1Content_2 = await db.getContentByParentId("tag-category1");
+        const category2Content_2 = await db.getContentByParentId("tag-category2");
+        const topicAContent_2 = await db.getContentByParentId("tag-topicA");
+
+        expect(category1_2.docs[0].taggedDocs.some((t) => t == changeRequest2.doc._id)).toBe(false);
+        expect(category2_2.docs[0].taggedDocs.some((t) => t == changeRequest2.doc._id)).toBe(true);
+        expect(topicA_2.docs[0].taggedDocs.some((t) => t == changeRequest2.doc._id)).toBe(true);
+        expect(
+            category1Content_2.docs.some((d) =>
+                d.parentTaggedDocs.some((t) => t == changeRequest2.doc._id),
+            ),
+        ).toBe(false);
+        expect(
+            category2Content_2.docs.some((d) =>
+                d.parentTaggedDocs.some((t) => t == changeRequest2.doc._id),
+            ),
+        ).toBe(true);
+        expect(
+            topicAContent_2.docs.some((d) =>
+                d.parentTaggedDocs.some((t) => t == changeRequest2.doc._id),
             ),
         ).toBe(true);
     });

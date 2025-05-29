@@ -16,6 +16,15 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
+// Mock auth0 to return a mock implementation of useAuth0
+vi.mock("@auth0/auth0-vue", () => ({
+    useAuth0: () => ({
+        isAuthenticated: vi.fn().mockReturnValue(true),
+        user: { name: "Test User", picture: "test-picture-url" },
+        logout: vi.fn(),
+    }),
+}));
+
 describe("BookmarksPage", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.

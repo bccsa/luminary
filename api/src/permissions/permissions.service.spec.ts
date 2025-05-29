@@ -32,6 +32,32 @@ describe("PermissionService", () => {
             expect(accessMap["group-public-content"][DocType.Post][AclPermission.View]).toBe(true);
         });
 
+        it("returns the highest level of (inherited) permission for a given group if multiple group memberships are present", () => {
+            const accessMap = PermissionSystem.getAccessMap([
+                "group-public-users",
+                "group-public-editors",
+            ]);
+            expect(accessMap).toBeDefined();
+            expect(accessMap["group-public-content"][DocType.Post][AclPermission.View]).toBe(true);
+            expect(accessMap["group-public-content"][DocType.Post][AclPermission.Edit]).toBe(true);
+            expect(accessMap["group-public-content"][DocType.Post][AclPermission.Publish]).toBe(
+                true,
+            );
+
+            // Check that the result is the same if the order of the groups is reversed
+            const accessMap2 = PermissionSystem.getAccessMap([
+                "group-public-editors",
+                "group-public-users",
+            ]);
+            expect(accessMap2).toBeDefined();
+            expect(accessMap2["group-public-content"][DocType.Post][AclPermission.View]).toBe(true);
+            expect(accessMap2["group-public-content"][DocType.Post][AclPermission.Edit]).toBe(true);
+            expect(accessMap2["group-public-content"][DocType.Post][AclPermission.Publish]).toBe(
+                true,
+            );
+            expect(accessMap2).toEqual(accessMap);
+        });
+
         it("can convert an AccessMap to a map of accessible groups", () => {
             const accessMap = PermissionSystem.getAccessMap(["group-public-users"]);
             const accessibleGroups = PermissionSystem.accessMapToGroups(

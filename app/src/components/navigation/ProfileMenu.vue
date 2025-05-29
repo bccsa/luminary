@@ -18,15 +18,14 @@ import {
     SunIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
-import { appLanguageAsRef, showLoginModal } from "@/globalConfig";
+import { appLanguageAsRef } from "@/globalConfig";
 import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 import { useI18n } from "vue-i18n";
-import LoginModal from "@/components/navigation/LoginModal.vue";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 
-const { user, logout, isAuthenticated } = useAuth0();
+const { user, logout, loginWithRedirect, isAuthenticated } = useAuth0();
 const router = useRouter();
 
 const showThemeSelector = ref(false);
@@ -122,7 +121,7 @@ const userNavigation = computed(() => {
                 icon: ArrowLeftEndOnRectangleIcon,
                 action: () => {
                     if (isConnected.value) {
-                        showLoginModal();
+                        loginWithRedirect();
                         return;
                     }
                     useNotificationStore().addNotification({
@@ -217,7 +216,7 @@ const userNavigation = computed(() => {
         <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
         <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
         <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
-        <LoginModal />
+
         <LDialog
             v-model:open="showLogoutDialog"
             :title="t('logout.modal.title')"
