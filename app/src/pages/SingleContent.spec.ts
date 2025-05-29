@@ -18,13 +18,14 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, appName, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
+import { useNotificationStore } from "@/stores/notification";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -419,5 +420,54 @@ describe("SingleContent", () => {
         // Now the quick controls slot should be rendered
         const quickControls = wrapper.find('[data-test="themeButton"]');
         expect(quickControls.exists()).toBe(true);
+    });
+
+    it("switches the language of content when clicking on the language button", async () => {
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        const translationSelector = wrapper.find("[data-test='translationSelector']");
+
+        await translationSelector.trigger("click");
+
+        await waitForExpect(async () => {
+            await wrapper.findAll("[data-test='translationOption']")[1].trigger("click");
+
+            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+        });
+    });
+
+    it("shows the notification when the content is available in the preferred language", async () => {
+        await initLanguage();
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        await waitForExpect(() => {
+            appLanguageIdsAsRef.value = ["lang-fra"];
+            expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: "content-available",
+                    title: "Translation available",
+                    description: `The content is also available in English. Click here to view it.`,
+                    state: "info",
+                    type: "banner",
+                    timeout: 5000,
+                }),
+            );
+        }, 1500);
     });
 });

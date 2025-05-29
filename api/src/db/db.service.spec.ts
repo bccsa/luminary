@@ -555,6 +555,25 @@ describe("DbService", () => {
             expect(res.docs[0].slug).toBe("post1-eng");
             expect(res.docs[0].type).toBe(DocType.Redirect);
         });
+
+        it("can retrieve documents by their parentId", async () => {
+            const userAccess = new Map<DocType, Uuid[]>();
+            userAccess[DocType.Content] = [
+                "group-super-admins",
+                "group-public-content",
+                "group-private-content",
+            ];
+
+            const options = {
+                userAccess: userAccess,
+                parentId: "post-blog1",
+                types: [DocType.Content],
+            } as SearchOptions;
+
+            const res = await service.search(options);
+            expect(res.docs.length).toBe(2);
+            expect(res.docs[0].parentId).toBe("post-blog1");
+        });
     });
 
     describe("delete", () => {
