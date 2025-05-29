@@ -185,12 +185,12 @@ describe("ApiLiveQuery", () => {
         const isModified = liveQuery.isModified;
         const revert = liveQuery.revert;
 
-        await waitForExpect(() => {
-            expect(editable.value).toEqual(mockDocs);
-            expect(isEdited!.value("a")).toBe(false);
-            expect(isModified!.value("a")).toBe(false);
-            expect(revert).toBeDefined();
-        });
+        // await waitForExpect(() => {
+        expect(editable.value).toEqual(mockDocs);
+        expect(isEdited!.value("a")).toBe(false);
+        expect(isModified!.value("a")).toBe(false);
+        expect(revert).toBeDefined();
+        // });
     });
 
     it("throws error when save is called before editable is accessed", async () => {
