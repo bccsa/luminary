@@ -8,7 +8,9 @@ import _ from "lodash";
 
 export type ApiLiveQueryOptions<T> = {
     /** Provide an initial value while waiting for the API response */
-    initialValue?: T;
+    initialValue?: Array<T>;
+    /** Enable an editable copy of the live data with state management */
+    enableEditable?: boolean;
 };
 
 /**
@@ -16,7 +18,7 @@ export type ApiLiveQueryOptions<T> = {
  * functionality. It allows you to subscribe to a query and get live updates when the data
  * changes. It uses Vue's reactivity system to provide a reactive API.
  * @param query The query to subscribe to. It should be a valid ApiSearchQuery object.
- * @param options Options for the live query. It can contain an initial value for the data.
+ * @param options Options for the live query.
  * @returns A Vue ref that contains the data from the query. The data will be updated
  * automatically when the data changes in the database.
  */
@@ -32,7 +34,7 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
     private _isModified: ComputedRef<(id: Uuid) => boolean> | undefined;
     private _revert: ((id: Uuid) => void) | undefined;
 
-    constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<Array<T>>) {
+    constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<T>) {
         // Validate the query
         if (query.value.groups) {
             throw new Error("groups are not supported in ApiLiveQuery");
@@ -45,6 +47,14 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
         this._sourceData = ref((options?.initialValue as Array<T>) ?? ([] as Array<T>)) as Ref<
             Array<T>
         >;
+
+        if (options?.enableEditable) {
+            const editable = createEditable<T>(this._sourceData);
+            this._editable = editable.editable;
+            this._isEdited = editable.isEdited;
+            this._isModified = editable.isModified;
+            this._revert = editable.revert;
+        }
 
         this._firstItem = computed(() => {
             if (!this._sourceData || !this._sourceData.value || !this._sourceData.value.length)
@@ -154,21 +164,15 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
         this._socketOnCallback = undefined;
     }
 
-    private createEditable() {
-        if (!this._editable) {
-            const e = createEditable<T>(this._sourceData);
-            this._editable = e.editable;
-            this._isEdited = e.isEdited;
-            this._isModified = e.isModified;
-            this._revert = e.revert;
-        }
-    }
-
     /**
      * Get a Vue ref that contains the editable version of the data. This allows you to modify the data but does not save it to the database.
      */
     public get editable() {
-        this.createEditable();
+        if (!this._editable) {
+            throw new Error(
+                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
+            );
+        }
         return this._editable as Ref<Array<T>>;
     }
 
@@ -179,7 +183,9 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
      */
     public async save(id: Uuid) {
         if (!this._isEdited || !this._editable) {
-            throw new Error("Editable data is not available. Call editable first.");
+            throw new Error(
+                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
+            );
         }
 
         if (!this._isEdited.value(id)) return { ack: AckStatus.Accepted };
@@ -208,7 +214,9 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
      */
     public get revert() {
         if (!this._revert) {
-            throw new Error("Editable data is not available. Call editable first.");
+            throw new Error(
+                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
+            );
         }
         return this._revert;
     }
@@ -219,7 +227,9 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
      */
     public get isEdited() {
         if (!this._isEdited)
-            throw new Error("Editable data is not available. Call editable first.");
+            throw new Error(
+                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
+            );
         return this._isEdited;
     }
 
@@ -229,7 +239,9 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
      */
     public get isModified() {
         if (!this._isModified)
-            throw new Error("Editable data is not available. Call editable first.");
+            throw new Error(
+                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
+            );
         return this._isModified;
     }
 }
