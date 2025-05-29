@@ -21,6 +21,7 @@ export type ApiDataResponseDto = {
 
 export type BaseDocumentDto = {
     _id: string;
+    _rev?: string;
     type: DocType;
     updatedTimeUtc: number;
     memberOf?: Uuid[];
@@ -36,6 +37,7 @@ export type BaseDocumentDto = {
     parentTags?: Uuid[];
     parentPinned?: number;
     deleteReq?: number;
+    updatedBy?: string;
 };
 
 export enum AclPermission {
