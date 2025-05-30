@@ -343,23 +343,34 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
 
 <template>
     <div class="relative bg-transparent md:rounded-lg">
-        <LImage
-            :image="content.parentImageData"
-            aspectRatio="video"
-            size="post"
-            :content-parent-id="content.parentId"
-        />
+        <div v-if="!audioMode">
+            <LImage
+                :image="content.parentImageData"
+                aspectRatio="video"
+                size="post"
+                :content-parent-id="content.parentId"
+            />
 
-        <div class="video-player absolute bottom-0 left-0 right-0 top-0">
-            <video
-                playsinline
-                ref="playerElement"
-                class="video-js h-full w-full md:rounded-lg"
-                controls
-                preload="auto"
-                data-setup="{}"
-                v-bind:data-matomo-title="props.content.title"
-            ></video>
+            <div class="video-player absolute bottom-0 left-0 right-0 top-0">
+                <video
+                    playsinline
+                    ref="playerElement"
+                    class="video-js h-full w-full md:rounded-lg"
+                    controls
+                    preload="auto"
+                    data-setup="{}"
+                    v-bind:data-matomo-title="props.content.title"
+                ></video>
+            </div>
+        </div>
+
+        <div v-else>
+            <AudioPlayer
+                v-if="audioMode"
+                v-bind:player="player"
+                v-bind:audioMode="audioMode"
+                :content="props.content"
+            />
         </div>
 
         <transition
