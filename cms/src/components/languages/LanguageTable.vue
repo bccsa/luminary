@@ -55,7 +55,7 @@ const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
                             ></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 bg-white">
+                    <tbody class="h-full divide-y divide-zinc-200 overflow-scroll scrollbar-hide">
                         <LanguageRow
                             v-for="language in languages"
                             :key="language._id"

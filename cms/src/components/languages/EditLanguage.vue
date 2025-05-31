@@ -337,7 +337,6 @@ const deleteLanguage = async () => {
         :backLinkParams="{
             docType: DocType.Language,
         }"
-        class="mb-16"
     >
         <template #actions>
             <div class="flex gap-2">
@@ -421,160 +420,165 @@ const deleteLanguage = async () => {
                 </div>
             </LCard>
 
-            <!--Strings translation -->
-            <LCard>
-                <table class="mt-5 min-w-full divide-y divide-zinc-200">
-                    <thead class="bg-zinc-50">
-                        <tr>
-                            <!-- key -->
-                            <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
-                            >
-                                Key
-                            </th>
+            <div class="min-h-screen">
+                <!--Strings translation -->
+                <LCard>
+                    <table class="mt-5 min-w-full divide-y divide-zinc-200">
+                        <thead class="bg-zinc-50">
+                            <tr>
+                                <!-- key -->
+                                <th
+                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                >
+                                    Key
+                                </th>
 
-                            <!-- value -->
-                            <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
-                            >
-                                Value
-                            </th>
+                                <!-- value -->
+                                <th
+                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-3"
+                                >
+                                    Value
+                                </th>
 
-                            <!-- value -->
-                            <th
-                                class="group py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-zinc-900 sm:pl-3"
-                                v-if="canEditOrCreate"
-                            >
-                                Action
-                            </th>
+                                <!-- value -->
+                                <th
+                                    class="group py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-zinc-900 sm:pl-3"
+                                    v-if="canEditOrCreate"
+                                >
+                                    Action
+                                </th>
 
-                            <!-- action -->
-                            <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
-                            >
-                                Compare
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-zinc-200 bg-white">
-                        <tr>
-                            <td
-                                class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
-                            >
-                                <LInput
-                                    name="key"
-                                    v-model="keyInput"
-                                    placeholder="Enter key (e.g., 'menu.home')"
-                                    class="w-full"
-                                    data-test="key-input"
-                                />
-                            </td>
-                            <td
-                                class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
-                            >
-                                <LInput
-                                    name="value"
-                                    v-model="valueInput"
-                                    placeholder="Enter value (e.g., 'Home Page')"
-                                    class="w-full"
-                                    data-test="value-input"
-                                />
-                            </td>
+                                <!-- action -->
+                                <th
+                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                >
+                                    Compare
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-200 bg-white">
+                            <tr>
+                                <td
+                                    class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
+                                >
+                                    <LInput
+                                        name="key"
+                                        v-model="keyInput"
+                                        placeholder="Enter key (e.g., 'menu.home')"
+                                        class="w-full"
+                                        data-test="key-input"
+                                    />
+                                </td>
+                                <td
+                                    class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                >
+                                    <LInput
+                                        name="value"
+                                        v-model="valueInput"
+                                        placeholder="Enter value (e.g., 'Home Page')"
+                                        class="w-full"
+                                        data-test="value-input"
+                                    />
+                                </td>
 
-                            <td
-                                class="w-1/8 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
-                                v-if="canEditOrCreate"
-                            >
-                                <div class="flex justify-center">
-                                    <button
-                                        @click="addProperty"
-                                        data-test="add-key-button"
-                                        class="mx-auto"
-                                    >
-                                        <PlusCircleIcon
-                                            class="w-7 cursor-pointer text-zinc-500 hover:text-zinc-700"
-                                        />
-                                    </button>
-                                </div>
-                            </td>
+                                <td
+                                    class="w-1/8 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                    v-if="canEditOrCreate"
+                                >
+                                    <div class="flex justify-center">
+                                        <button
+                                            @click="addProperty"
+                                            data-test="add-key-button"
+                                            class="mx-auto"
+                                        >
+                                            <PlusCircleIcon
+                                                class="w-7 cursor-pointer text-zinc-500 hover:text-zinc-700"
+                                            />
+                                        </button>
+                                    </div>
+                                </td>
 
-                            <td
-                                class="w-1/12 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
-                            >
-                                <LSelect
-                                    v-model="comparisonLanguage"
-                                    :options="
-                                        languageOptions.filter(
-                                            (l) =>
-                                                editable &&
-                                                editable._id &&
-                                                l.value !== editable._id,
-                                        )
-                                    "
-                                    :required="true"
-                                    class="w-full"
-                                />
-                            </td>
-                        </tr>
+                                <td
+                                    class="w-1/12 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
+                                >
+                                    <LSelect
+                                        v-model="comparisonLanguage"
+                                        :options="
+                                            languageOptions.filter(
+                                                (l) =>
+                                                    editable &&
+                                                    editable._id &&
+                                                    l.value !== editable._id,
+                                            )
+                                        "
+                                        :required="true"
+                                        class="w-full"
+                                    />
+                                </td>
+                            </tr>
 
-                        <tr
-                            v-for="row in translations"
-                            :key="row.rowKey"
-                            data-test="translation-row"
-                        >
-                            <td
-                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
+                            <tr
+                                v-for="(row, index) in translations"
+                                :key="row.rowKey"
+                                data-test="translation-row"
+                                :class="{
+                                    'mb-96': index === translations.length - 1,
+                                }"
                             >
-                                <LInput
-                                    v-model="row.translationKey"
-                                    name="key"
-                                    type="text"
-                                    inputType="textarea"
-                                    placeholder="Edit key"
-                                    data-test="edit-key-input"
-                                    :disabled="!canEditOrCreate"
-                                />
-                            </td>
-                            <td
-                                class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 hover:cursor-pointer sm:pl-3"
-                            >
-                                <LInput
-                                    v-model="row.translationValue"
-                                    name="value"
-                                    type="text"
-                                    inputType="textarea"
-                                    placeholder="Edit value"
-                                    data-test="edit-value-input"
-                                    :state="row.translationValue ? 'default' : 'warning'"
-                                    :disabled="!canTranslate"
-                                />
-                            </td>
-                            <td
-                                class="flex-1 justify-items-center whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
-                                v-if="canEditOrCreate"
-                            >
-                                <TrashIcon
-                                    class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-red-600"
-                                    title="Delete this line"
-                                    @click="
-                                        keyToDelete = row.translationKey;
-                                        showStringDeleteModal = true;
-                                    "
-                                    data-test="delete-key-button"
-                                />
-                            </td>
+                                <td
+                                    class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 sm:pl-6"
+                                >
+                                    <LInput
+                                        v-model="row.translationKey"
+                                        name="key"
+                                        type="text"
+                                        inputType="textarea"
+                                        placeholder="Edit key"
+                                        data-test="edit-key-input"
+                                        :disabled="!canEditOrCreate"
+                                    />
+                                </td>
+                                <td
+                                    class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 hover:cursor-pointer sm:pl-3"
+                                >
+                                    <LInput
+                                        v-model="row.translationValue"
+                                        name="value"
+                                        type="text"
+                                        inputType="textarea"
+                                        placeholder="Edit value"
+                                        data-test="edit-value-input"
+                                        :state="row.translationValue ? 'default' : 'warning'"
+                                        :disabled="!canTranslate"
+                                    />
+                                </td>
+                                <td
+                                    class="flex-1 justify-items-center whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3"
+                                    v-if="canEditOrCreate"
+                                >
+                                    <TrashIcon
+                                        class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-red-600"
+                                        title="Delete this line"
+                                        @click="
+                                            keyToDelete = row.translationKey;
+                                            showStringDeleteModal = true;
+                                        "
+                                        data-test="delete-key-button"
+                                    />
+                                </td>
 
-                            <td
-                                class="w-2/3 flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
-                            >
-                                <span class="text-wrap">
-                                    {{ row.comparisonValue }}
-                                </span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </LCard>
+                                <td
+                                    class="w-2/3 flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6"
+                                >
+                                    <span class="text-wrap">
+                                        {{ row.comparisonValue }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </LCard>
+            </div>
         </div>
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editable.deleteReq" />

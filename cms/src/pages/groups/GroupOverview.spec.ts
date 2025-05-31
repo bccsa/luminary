@@ -15,7 +15,27 @@ import {
 import { accessMap, DocType, getRest, initConfig } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
-vi.mock("vue-router");
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+    };
+});
+
+vi.mock("@auth0/auth0-vue", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useAuth0: () => ({
+            user: { name: "Test User", email: "test@example.com" },
+            logout: vi.fn(),
+            loginWithRedirect: vi.fn(),
+            isAuthenticated: true,
+            isLoading: false,
+        }),
+        authGuard: vi.fn(),
+    };
+});
 
 // ============================
 // Mock api

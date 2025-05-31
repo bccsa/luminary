@@ -16,7 +16,7 @@ defineProps<Props>();
 
 const emit = defineEmits(["createTranslation"]);
 
-const showSelector = defineModel("showSelector");
+const showSelector = defineModel<boolean>("showSelector");
 
 const languagePopup = ref();
 
