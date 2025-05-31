@@ -177,7 +177,7 @@ const createNew = () => {
             </div>
         </div>
         <template #footer>
-            <div class="w-full px-8">
+            <div class="w-full sm:px-8">
                 <LPaginator
                     :amountOfDocs="contentDocsTotal?.count as number"
                     v-model:index="queryOptions.pageIndex as number"
