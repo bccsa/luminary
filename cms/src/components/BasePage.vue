@@ -2,7 +2,7 @@
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { Bars3Icon } from "@heroicons/vue/24/outline";
 import { ref, type Component } from "vue";
-import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
+import { RouterLink, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import MobileSideBar from "./navigation/MobileSideBar.vue";
 import SideBar from "./navigation/SideBar.vue";
@@ -78,7 +78,7 @@ const sidebarOpen = ref(false);
         <div class="relative min-h-full flex-1">
             <div v-if="!loading" :class="isFullWidth ? ' mx-auto w-full ' : 'mx-auto max-w-7xl'">
                 <header
-                    v-if="title || $slots.actions"
+                    v-if="$slots.actions"
                     :class="[
                         'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center lg:pl-80',
                         {
@@ -96,7 +96,7 @@ const sidebarOpen = ref(false);
                         <slot name="postTitleSlot"></slot>
                     </h1>
 
-                    <div v-if="$slots.actions && useRouter().currentRoute.value.name != 'overview'">
+                    <div v-if="$slots.actions">
                         <slot name="actions" />
                     </div>
                 </header>

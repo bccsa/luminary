@@ -486,7 +486,7 @@ const showLanguageSelector = ref(false);
                 @click="ensureRedirect"
                 target="_blank"
                 title="View live version"
-            ></LButton>
+            />
         </template>
         <template #actions>
             <div class="flex gap-2">
