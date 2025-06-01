@@ -35,6 +35,9 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
     private _revert: ((id: Uuid) => void) | undefined;
 
     constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<T>) {
+        // Bind async methods to the class instance
+        this.save = this.save.bind(this);
+
         // Validate the query
         if (query.value.groups) {
             throw new Error("groups are not supported in ApiLiveQuery");
