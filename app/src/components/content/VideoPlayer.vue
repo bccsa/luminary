@@ -347,8 +347,6 @@ watch(audioMode, async (mode) => {
 
     player.ready(() => {
         player.currentTime(currentTime);
-        console.log(player.currentSources());
-
         player.play();
 
         // Wait for tracks to be available
