@@ -15,7 +15,7 @@ import {
     setMediaProgress,
     queryParams,
 } from "@/globalConfig";
-import AudioPlayer from "./AudioPlayer.vue";
+import { Parser } from "m3u8-parser";
 
 type Props = {
     content: ContentDto;
@@ -74,6 +74,74 @@ function setAudioTrackLanguage(languageCode: string | null) {
             iso.iso6392TTo1[track.language] === languageCode ||
             iso.iso6392BTo1[track.language] === languageCode;
     }
+}
+
+/**
+ * Extracts and builds an audio master playlist from a given HLS manifest URL.
+ *
+ * @param {string} originalUrl - The URL of the original HLS manifest file.
+ * @returns {Promise<string>} - A Promise that resolves to the generated audio master playlist as a string.
+ */
+async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> {
+    // Fetch the HLS manifest file from the provided URL.
+    const response = await fetch(originalUrl);
+
+    // Read the manifest file content as text.
+    const manifestText = await response.text();
+
+    // Initialize a new HLS parser instance.
+    const parser = new Parser();
+
+    // Push the manifest text into the parser for processing.
+    parser.push(manifestText);
+
+    // Finalize the parsing process.
+    parser.end();
+
+    // Retrieve the parsed manifest object from the parser.
+    const parsedManifest = parser.manifest;
+
+    // Extract the base URL of the manifest file to resolve relative paths.
+    const baseUrl = new URL(originalUrl);
+    const manifestDir = baseUrl.href.substring(0, baseUrl.href.lastIndexOf("/") + 1);
+
+    // Extract the AUDIO media groups from the parsed manifest.
+    const audioMedia = parsedManifest.mediaGroups?.AUDIO || {};
+
+    // Initialize an array to store the lines of the new audio master playlist.
+    const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:4", "#EXT-X-INDEPENDENT-SEGMENTS"];
+
+    // Iterate through each audio group in the media groups.
+    for (const group in audioMedia) {
+        const variants = audioMedia[group];
+
+        // Iterate through each audio variant in the group.
+        for (const name in variants) {
+            const track: any = (variants as Record<string, typeof track>)[name];
+
+            // Check if the audio track has a URI defined.
+            if (track.uri) {
+                // Resolve the absolute URI of the audio track.
+                const absoluteTrackUri = new URL(track.uri, manifestDir).toString();
+
+                // Add an EXT-X-MEDIA tag for the audio track to the playlist.
+                lines.push(
+                    `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="${group}",NAME="${name}",LANGUAGE="${track.language}",DEFAULT=${track.default ? "YES" : "NO"},AUTOSELECT=${track.autoselect ? "YES" : "NO"},URI="${absoluteTrackUri}"`,
+                );
+
+                // Add an EXT-X-STREAM-INF tag for the audio track to the playlist.
+                lines.push(
+                    `#EXT-X-STREAM-INF:BANDWIDTH=128000,CODECS="mp4a.40.2",AUDIO="${group}"`,
+                );
+
+                // Add the absolute URI of the audio track to the playlist.
+                lines.push(absoluteTrackUri);
+            }
+        }
+    }
+
+    // Join all lines into a single string and return the generated audio master playlist.
+    return lines.join("\n");
 }
 
 onMounted(() => {
@@ -245,15 +313,62 @@ onUnmounted(() => {
     window.dispatchEvent(playerDestroyEvent);
 });
 
-// Set player audio only mode
-watch(audioMode, (mode) => {
+watch(audioMode, async (mode) => {
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
-
-    // Set player's user active state to true as a workaround to show audio track selection button on iOS
     player.userActive(true);
-
     playerUserActiveEventHandler();
+
+    // Save current time and selected track label/language
+    const currentTime = player.currentTime() || 0;
+
+    let selectedTrackInfo: { label?: string; language?: string } | null = null;
+    const tracks = (player as any).audioTracks?.();
+    if (tracks) {
+        for (let i = 0; i < tracks.length; i++) {
+            if (tracks[i].enabled) {
+                selectedTrackInfo = {
+                    label: tracks[i].label,
+                    language: tracks[i].language,
+                };
+                break;
+            }
+        }
+    }
+
+    // Switch source
+    if (mode) {
+        const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+        const blob = new Blob([audioMaster], { type: "application/x-mpegURL" });
+        const blobUrl = URL.createObjectURL(blob);
+        player.src({ type: "application/x-mpegURL", src: blobUrl });
+    } else {
+        player.src({ type: "application/x-mpegURL", src: props.content.video });
+    }
+
+    player.ready(() => {
+        player.currentTime(currentTime);
+        console.log(player.currentSources());
+
+        player.play();
+
+        // Wait for tracks to be available
+        player.on("loadedmetadata", () => {
+            const newTracks = (player as any).audioTracks?.();
+            if (!newTracks || !selectedTrackInfo) return;
+
+            for (let i = 0; i < newTracks.length; i++) {
+                const t = newTracks[i];
+                const langMatch = t.language === selectedTrackInfo.language;
+                const labelMatch = t.label === selectedTrackInfo.label;
+                if (langMatch || labelMatch) {
+                    t.enabled = true;
+                } else {
+                    t.enabled = false;
+                }
+            }
+        });
+    });
 });
 
 // Watch for changes in appLanguageAsRef
@@ -277,34 +392,23 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
 
 <template>
     <div class="relative bg-transparent md:rounded-lg">
-        <div v-if="!audioMode">
-            <LImage
-                :image="content.parentImageData"
-                aspectRatio="video"
-                size="post"
-                :content-parent-id="content.parentId"
-            />
+        <LImage
+            :image="content.parentImageData"
+            aspectRatio="video"
+            size="post"
+            :content-parent-id="content.parentId"
+        />
 
-            <div class="video-player absolute bottom-0 left-0 right-0 top-0">
-                <video
-                    playsinline
-                    ref="playerElement"
-                    class="video-js h-full w-full md:rounded-lg"
-                    controls
-                    preload="auto"
-                    data-setup="{}"
-                    v-bind:data-matomo-title="props.content.title"
-                ></video>
-            </div>
-        </div>
-
-        <div v-else>
-            <AudioPlayer
-                v-if="audioMode"
-                v-bind:player="player"
-                v-bind:audioMode="audioMode"
-                :content="props.content"
-            />
+        <div class="video-player absolute bottom-0 left-0 right-0 top-0">
+            <video
+                playsinline
+                ref="playerElement"
+                class="video-js h-full w-full md:rounded-lg"
+                controls
+                preload="auto"
+                data-setup="{}"
+                v-bind:data-matomo-title="props.content.title"
+            ></video>
         </div>
 
         <transition
