@@ -174,7 +174,7 @@ watch(openPageSizeSelect, (newValue) => {
             </div>
             <div
                 v-if="openPageSizeSelect"
-                class="absolute bottom-16 z-10 flex w-full items-center justify-center"
+                class="absolute bottom-14 z-10 flex h-10 w-full items-center justify-center rounded-2xl border border-zinc-300 bg-white/20 py-6 shadow backdrop-blur-sm"
             >
                 <LSelect
                     @click="openPageSizeSelect = true"
