@@ -32,8 +32,6 @@ const pageSize = defineModel<number>("pageSize", {
     required: true,
 });
 
-const isMobileScreen = computed(() => window.innerWidth < 640);
-
 const pageCount = computed(() => {
     if (!props.amountOfDocs) return 0;
     return Math.ceil(props.amountOfDocs / pageSize.value);
@@ -43,7 +41,7 @@ const paginatorPages = computed(() => {
     if (!props.amountOfDocs) return [];
 
     const current = index.value;
-    const maxVisible = isMobileScreen.value ? 3 : 5;
+    const maxVisible = isSmallScreen.value ? 3 : 5;
 
     if (pageCount.value <= maxVisible) {
         return Array.from({ length: pageCount.value }, (_, i) => i);
@@ -82,7 +80,7 @@ watch(openPageSizeSelect, (newValue) => {
     if (!newValue) return;
     setTimeout(() => {
         openPageSizeSelect.value = false;
-    }, 3000);
+    }, 6000);
 });
 </script>
 
@@ -179,6 +177,7 @@ watch(openPageSizeSelect, (newValue) => {
                 class="absolute bottom-16 z-10 flex w-full items-center justify-center"
             >
                 <LSelect
+                    @click="openPageSizeSelect = true"
                     v-model="pageSize"
                     :options="[
                         { value: 5, label: '5' },

@@ -40,7 +40,8 @@ const sidebarOpen = ref(false);
 
         <div class="sticky top-0 z-20 lg:pl-72">
             <div
-                class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-zinc-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8"
+                class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 sm:gap-x-6 sm:px-6 lg:px-8"
+                :class="{ 'border-b border-zinc-200': !$slots.internalPageHeader }"
             >
                 <button
                     type="button"
@@ -56,14 +57,6 @@ const sidebarOpen = ref(false);
 
                 <TopBar>
                     <template #quickActions>
-                        <RouterLink
-                            v-if="backLinkLocation"
-                            :to="backLinkLocation"
-                            :params="backLinkParams"
-                            class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
-                        >
-                            <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
-                        </RouterLink>
                         <h1
                             v-if="!$slots.actions"
                             class="text-md flex items-center gap-2 font-semibold leading-7"
@@ -76,7 +69,15 @@ const sidebarOpen = ref(false);
             </div>
         </div>
         <div class="relative min-h-full flex-1">
-            <div v-if="!loading" :class="isFullWidth ? ' mx-auto w-full ' : 'mx-auto max-w-7xl'">
+            <div v-if="!loading" :class="isFullWidth ? ' mx-auto w-full  ' : 'mx-auto max-w-7xl'">
+                <RouterLink
+                    v-if="backLinkLocation"
+                    :to="backLinkLocation"
+                    :params="backLinkParams"
+                    class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
+                >
+                    <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
+                </RouterLink>
                 <header
                     v-if="$slots.actions"
                     :class="[
@@ -101,14 +102,14 @@ const sidebarOpen = ref(false);
                     </div>
                 </header>
 
-                <div class="mt-4 max-h-full px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
+                <div class="w-full lg:pl-72">
+                    <slot name="internalPageHeader" />
+                </div>
+                <div class="max-h-full px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
                     <div
                         class="relative h-[calc(100vh-8rem)] w-full overflow-y-auto scrollbar-hide"
+                        :class="{ 'mt-2': !$slots.internalPageHeader }"
                     >
-                        <div class="sticky top-0 z-30 w-full bg-white shadow">
-                            <slot name="internalPageHeader" />
-                        </div>
-
                         <div class="relative z-0">
                             <slot />
                         </div>
@@ -117,7 +118,7 @@ const sidebarOpen = ref(false);
 
                 <div
                     v-if="$slots.footer"
-                    class="fixed bottom-0 w-full bg-white/20 px-6 py-2 backdrop-blur-sm sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8"
+                    class="fixed bottom-0 w-full border-t border-zinc-200 bg-white px-6 pb-4 pt-2 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8"
                 >
                     <slot name="footer" />
                 </div>

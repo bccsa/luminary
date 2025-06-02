@@ -14,6 +14,7 @@ import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { appName, isDevMode, logo } from "@/globalConfig";
 import { ref, watch } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
+import ProfileMenu from "./ProfileMenu.vue";
 
 const route = useRoute();
 
@@ -163,6 +164,11 @@ watch(route, (newRoute) => {
                                     </li>
                                 </DisclosurePanel>
                             </Disclosure>
+                        </li>
+                        <li class="h-full w-full border-t border-zinc-200 pt-4">
+                            <div class="flex w-full items-center justify-center gap-x-4 lg:gap-x-6">
+                                <ProfileMenu />
+                            </div>
                         </li>
                     </ul>
                 </li>

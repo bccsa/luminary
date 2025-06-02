@@ -45,9 +45,9 @@ onClickOutside(sortOptionsMenu, () => {
 
 <template>
     <div
-        class="z-10 flex w-full flex-col gap-1 overflow-visible rounded-t-md border border-b border-zinc-300 bg-white p-2 shadow"
+        class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pt-2"
     >
-        <div class="flex w-full items-center gap-1">
+        <div class="flex w-full items-center gap-1 px-8 py-1">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
@@ -110,7 +110,7 @@ onClickOutside(sortOptionsMenu, () => {
 
                 <div
                     ref="sortOptionsMenu"
-                    class="absolute right-0 top-full z-20 mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    class="absolute right-0 top-full mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                     v-if="showSortOptions"
                     data-test="sort-options-display"
                 >

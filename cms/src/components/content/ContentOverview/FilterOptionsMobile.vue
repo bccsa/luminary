@@ -37,7 +37,9 @@ const showMobileQueryOptions = ref(false);
 </script>
 
 <template>
-    <div class="z-10 rounded-t-md border border-zinc-300 bg-white px-2 py-2 shadow">
+    <div
+        class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white px-4 pb-1 pt-2"
+    >
         <div class="flex gap-1">
             <LInput
                 type="text"

@@ -119,20 +119,19 @@ const navigateToLanguage = (language: LanguageDto) => {
                     }
                 "
             >
-                <!-- Centered Title (absolute only on md and up) -->
                 <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
                     {{ contentDoc.title }}
                 </div>
             </div>
 
             <div class="flex items-center justify-end">
-                <div v-if="isSmallScreen" class="flex w-max items-center text-xs text-zinc-400">
+                <div v-if="isSmallScreen" class="flex w-max items-start text-xs text-zinc-400">
                     <PencilIcon class="h-3 w-3 text-zinc-300" />
                     <span title="Last Updated">{{
                         renderDate("small", "Last Updated", contentDoc.updatedTimeUtc)
                     }}</span>
                 </div>
-                <!-- Language badges (only on desktop) -->
+
                 <div v-if="!isSmallScreen" class="flex gap-1">
                     <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
 
@@ -177,7 +176,6 @@ const navigateToLanguage = (language: LanguageDto) => {
             </RouterLink>
         </div>
 
-        <!-- Tags + Groups -->
         <div class="flex w-full items-center gap-2 py-1 text-xs">
             <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
                 <div>
@@ -202,6 +200,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                 </div>
             </div>
         </div>
+
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <UserGroupIcon class="h-4 w-4 text-zinc-400" />
             <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
@@ -209,7 +208,6 @@ const navigateToLanguage = (language: LanguageDto) => {
             </LBadge>
         </div>
 
-        <!-- Dates -->
         <div v-if="!isSmallScreen" class="flex items-center justify-between pt-1 text-xs sm:gap-4">
             <div class="flex w-full flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
