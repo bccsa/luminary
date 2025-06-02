@@ -90,7 +90,7 @@ const toggleDropdown = () => {
         <FormLabel v-if="label"> {{ label }} </FormLabel>
 
         <div
-            class="h- flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+            class="flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
             tabindex="0"
             v-bind="attrsWithoutStyles"
             @click="showDropdown = !showDropdown"

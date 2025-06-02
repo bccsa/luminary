@@ -18,7 +18,7 @@ const contentDocs = contentOverviewQuery(props.queryOptions);
 
 <template>
     <div class="w-full">
-        <div class="flex flex-col gap-1 overflow-y-auto scrollbar-hide">
+        <div class="flex flex-col gap-2 overflow-y-auto scrollbar-hide">
             <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
             <ContentDisplayCard
                 v-for="(contentDoc, i) in contentDocs?.docs"
@@ -30,7 +30,7 @@ const contentDocs = contentOverviewQuery(props.queryOptions);
                 :language-id="queryOptions.languageId"
                 :languages="languages"
                 :class="{
-                    'mb-10': contentDocs?.docs?.length
+                    'mb-16': contentDocs?.docs?.length
                         ? i === contentDocs?.docs?.length - 1
                         : false,
                 }"

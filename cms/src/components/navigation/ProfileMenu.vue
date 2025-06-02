@@ -84,7 +84,7 @@ onMounted(() => {
             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300" v-else>
                 <UserIcon class="h-6 w-6 text-zinc-600" />
             </div>
-            <span class="hidden lg:flex lg:items-center">
+            <span class="flex items-center justify-center">
                 <span
                     class="ml-4 text-sm font-semibold leading-6 text-zinc-900"
                     aria-hidden="true"
@@ -102,7 +102,7 @@ onMounted(() => {
             leave-to-class="transform opacity-0 scale-95"
         >
             <MenuItems
-                class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
+                class="absolute right-0 z-50 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
             >
                 <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
                     <button

@@ -144,7 +144,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'pr-10': state == 'error',
                         'resize-none': inputType === 'textarea',
                     },
-                    'block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
+                    'block w-full border-0 py-2 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
                 ]"
                 :id="id"
                 :name="name"
