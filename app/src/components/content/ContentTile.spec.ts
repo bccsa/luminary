@@ -5,6 +5,7 @@ import ContentTile from "./ContentTile.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
 import type { ContentDto } from "luminary-shared";
+import { setMediaProgress } from "@/globalConfig";
 
 const routePushMock = vi.fn();
 
@@ -148,5 +149,45 @@ describe("ContentTile", () => {
 
         expect(playIcon.exists()).toBe(false);
         expect(playIconOutline.exists()).toBe(false);
+    });
+
+    it("shows the progress and duration if the content has a video", () => {
+        const content = {
+            _id: "sample-content-id",
+            title: "Sample Content",
+            slug: "sample-content",
+            parentImageData: {},
+            publishDate: 1,
+            parentPublishDateVisible: false,
+            video: "sample-media-id",
+            parentId: "post-blog1",
+        } as ContentDto;
+
+        // Set media progress AND duration in localStorage
+        setMediaProgress("sample-media-id", content._id, 120, 300); // 120s played, 300s total
+
+        const wrapper = mount(ContentTile, {
+            props: {
+                content,
+                showProgress: true,
+                showPublishDate: true,
+                titlePosition: "center",
+            },
+            global: {
+                stubs: {
+                    LImage: {
+                        template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
+                    },
+                    PlayIcon,
+                    PlayIconOutline,
+                },
+            },
+        });
+
+        // Duration 300s = 5:00
+        expect(wrapper.html()).toContain("5:00");
+        expect(wrapper.html()).toContain('style="width: 40%');
+
+        console.log(wrapper.html());
     });
 });
