@@ -11,21 +11,14 @@ import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
-import { ref, watch } from "vue";
 
 type Props = {
+    groups: GroupDto[];
     usersDoc: UserDto;
 };
 const props = defineProps<Props>();
 
 const isLocalChanges = db.isLocalChangeAsRef(props.usersDoc._id);
-
-const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group);
-const group = ref<GroupDto[]>([]);
-
-watch(groups, (newGroups) => {
-    group.value = newGroups.filter((g) => props.usersDoc.memberOf.includes(g._id));
-});
 </script>
 
 <template>
@@ -48,15 +41,8 @@ watch(groups, (newGroups) => {
         <!-- memberof -->
         <td class="py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             <div class="flex max-w-xs flex-wrap gap-2">
-                <LBadge
-                    v-for="g in usersDoc.memberOf.map(
-                        (g) => group.find((gr) => gr._id === g)?.name,
-                    )"
-                    :key="g"
-                    type="default"
-                    class="text-lg"
-                >
-                    {{ g }}
+                <LBadge v-for="group in groups" :key="group._id" type="default" class="text-lg">
+                    {{ group.name }}
                 </LBadge>
             </div>
         </td>
