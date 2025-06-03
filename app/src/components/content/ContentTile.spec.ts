@@ -187,7 +187,5 @@ describe("ContentTile", () => {
         // Duration 300s = 5:00
         expect(wrapper.html()).toContain("5:00");
         expect(wrapper.html()).toContain('style="width: 40%');
-
-        console.log(wrapper.html());
     });
 });
