@@ -28,6 +28,7 @@
         "settings.device_info.title": "Device info",
         "settings.device_info.description": "Provide these details when contacting support",
         "home.title": "Home",
+        "home.continueWatching": "Continue Watching",
         "explore.title": "Explore",
         "explore.other": "Other",
         "watch.title": "Watch",
