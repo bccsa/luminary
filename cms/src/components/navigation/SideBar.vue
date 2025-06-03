@@ -168,9 +168,9 @@ watch(route, (newRoute) => {
                     </ul>
                 </li>
                 <li
-                    class="flex w-full items-center justify-between rounded-md p-2 hover:bg-zinc-200"
+                    class="flex w-full items-center justify-between rounded-md p-1 hover:bg-zinc-200"
                 >
-                    <div class="flex w-full items-center justify-center gap-x-4 lg:gap-x-6">
+                    <div class="flex w-full items-center justify-center">
                         <ProfileMenu />
                     </div>
                 </li>

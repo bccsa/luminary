@@ -72,30 +72,30 @@ onMounted(() => {
 
 <template>
     <Menu as="div" class="relative w-full">
-        <MenuButton class="-m-1.5 flex w-full items-center justify-between p-1.5">
-            <div class="w-max">
+        <MenuButton class="flex w-full items-center justify-between">
+            <div class="flex-none">
                 <span class="sr-only">Open user menu</span>
                 <img
-                    class="h-8 w-8 rounded-full bg-zinc-50"
-                    :src="user.picture"
                     v-if="user?.picture"
+                    :src="user.picture"
                     alt=""
+                    class="h-8 w-8 rounded-full bg-zinc-50 object-cover"
                 />
                 <div
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300"
                     v-else
+                    class="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300"
                 >
                     <UserIcon class="h-6 w-6 text-zinc-600" />
                 </div>
             </div>
-            <span class="flex w-full items-center justify-center">
-                <span
-                    class="ml-4 text-sm font-semibold leading-6 text-zinc-900"
-                    aria-hidden="true"
-                    >{{ user?.name }}</span
-                >
-            </span>
+
+            <div class="ml-2 flex-1 truncate">
+                <span class="text-sm font-semibold leading-6 text-zinc-900">
+                    {{ user?.name }}
+                </span>
+            </div>
         </MenuButton>
+
         <transition
             enter-active-class="transition ease-out duration-100"
             enter-from-class="transform opacity-0 scale-95"
