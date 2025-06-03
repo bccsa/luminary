@@ -184,6 +184,7 @@ export type mediaProgressEntry = {
     mediaId: string;
     contentId: Uuid;
     progress: number;
+    duration: number;
 };
 
 const _mediaProgress = JSON.parse(
@@ -204,12 +205,31 @@ export const getMediaProgress = (mediaId: string, contentId: Uuid) => {
 };
 
 /**
+ * Get the duration of a media item.
+ * @param mediaId - The media unique identifier
+ * @param contentId - The content document ID.
+ * @returns - Duration time in seconds
+ */
+export const getMediaDuration = (mediaId: string, contentId: Uuid): number => {
+    return (
+        _mediaProgress.find((p) => p.mediaId === mediaId && p.contentId === contentId)?.duration ||
+        0
+    );
+};
+
+/**
  * Set the playback progress of a media item.
  * @param mediaId - The media unique identifier
  * @param contentId - The content document ID.
  * @param progress - Playback progress in seconds
+ * @param duration - Optional duration in seconds, if available
  */
-export const setMediaProgress = (mediaId: string, contentId: Uuid, progress: number) => {
+export const setMediaProgress = (
+    mediaId: string,
+    contentId: Uuid,
+    progress: number,
+    duration: number,
+) => {
     const index = _mediaProgress.findIndex(
         (p) => p.mediaId === mediaId && p.contentId === contentId,
     );
@@ -217,7 +237,7 @@ export const setMediaProgress = (mediaId: string, contentId: Uuid, progress: num
         _mediaProgress.splice(index, 1);
     }
 
-    _mediaProgress.push({ mediaId, contentId, progress });
+    _mediaProgress.push({ mediaId, contentId, progress, duration });
 
     // Only keep the last 10 progress entries
     while (_mediaProgress.length > 10) {
