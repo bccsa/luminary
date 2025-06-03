@@ -1,52 +1,24 @@
 <script setup lang="ts">
-import {
-    DocType,
-    type ApiSearchQuery,
-    type UserDto,
-    ApiLiveQuery,
-    isConnected,
-} from "luminary-shared";
+import { type UserDto, isConnected, type GroupDto } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import UserRow from "../users/UserRow.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-import { computed, onBeforeUnmount, ref, watch } from "vue";
-import LoadingBar from "../LoadingBar.vue";
+import { userOverviewQuery, type userOverviewQueryOptions } from "../content/query";
+import LPaginator from "../common/LPaginator.vue";
 
-const usersQuery = ref<ApiSearchQuery>({
-    types: [DocType.User],
+type Props = {
+    queryOptions: userOverviewQueryOptions;
+    groups: GroupDto[];
+};
+
+const props = defineProps<Props>();
+
+const pageIndex = defineModel<number>("pageIndex", {
+    required: true,
 });
 
-const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery);
-const users = apiLiveQuery.toArrayAsRef();
-const isLoading = apiLiveQuery.isLoadingAsRef();
-
-const newUsers = ref<UserDto[]>([]);
-
-const combinedUsers = computed(() => {
-    if (users.value && users.value.length && newUsers.value)
-        return newUsers.value.concat(users.value);
-    if (newUsers.value) return newUsers.value;
-    return [];
-});
-
-// Remove duplicates from newUsers
-watch(
-    [newUsers, users],
-    async () => {
-        if (!users.value || !newUsers.value) return;
-        const duplicates = newUsers.value.filter((u) =>
-            users.value?.some((user) => user._id === u._id),
-        );
-        for (const duplicate of duplicates) {
-            newUsers.value.splice(newUsers.value.indexOf(duplicate), 1);
-        }
-    },
-    { deep: true },
-);
-
-onBeforeUnmount(() => {
-    apiLiveQuery.stopLiveQuery();
-});
+const userDocs = userOverviewQuery(props.queryOptions);
+const userDocsTotal = userOverviewQuery({ ...props.queryOptions, count: true });
 </script>
 
 <template>
@@ -54,7 +26,7 @@ onBeforeUnmount(() => {
         <div class="overflow-x-auto rounded-md">
             <div class="inline-block min-w-full align-middle">
                 <table class="min-w-full divide-y divide-zinc-200">
-                    <thead class="bg-zinc-50" v-if="!isLoading && isConnected">
+                    <thead class="bg-zinc-50" v-if="!userDocs.isLoading && isConnected">
                         <tr>
                             <!-- name -->
                             <th
@@ -99,15 +71,29 @@ onBeforeUnmount(() => {
                             ></th>
                         </tr>
                     </thead>
-                    <tbody
-                        class="divide-y divide-zinc-200 bg-white"
-                        v-if="isConnected && !isLoading"
-                    >
-                        <UserRow v-for="user in combinedUsers" :key="user._id" :usersDoc="user" />
+                    <tbody class="divide-y divide-zinc-200 bg-white" v-if="isConnected">
+                        <UserRow
+                            v-for="user in userDocs.users"
+                            :key="user._id"
+                            :usersDoc="user as UserDto"
+                            :groups="groups.filter((group) => user.memberOf?.includes(group._id))"
+                        />
                     </tbody>
                 </table>
-                <div class="flex h-32 w-full items-center justify-center gap-2" v-if="isLoading">
-                    <LoadingBar class="h-5 w-20 text-zinc-500" />
+                <div
+                    class="flex h-32 w-full items-center justify-center gap-2"
+                    v-if="(userDocs.users && userDocs.users?.length < 1) || !userDocs"
+                >
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
+                    <p class="text-sm text-zinc-500">No content found with the matched filter.</p>
+                </div>
+
+                <div
+                    class="flex h-32 w-full items-center justify-center gap-2"
+                    v-if="userDocs.isLoading"
+                >
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
+                    <p class="text-sm text-zinc-500">Loading...</p>
                 </div>
                 <div class="flex h-32 w-full items-center justify-center gap-2" v-if="!isConnected">
                     <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
@@ -116,4 +102,12 @@ onBeforeUnmount(() => {
             </div>
         </div>
     </LCard>
+    <div class="flex h-14 w-full items-center justify-center py-4">
+        <LPaginator
+            :amountOfDocs="userDocsTotal?.count as number"
+            v-model:index="pageIndex"
+            v-model:page-size="queryOptions.pageSize as number"
+            variant="extended"
+        />
+    </div>
 </template>
