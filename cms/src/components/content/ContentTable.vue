@@ -30,7 +30,7 @@ const contentDocs = contentOverviewQuery(props.queryOptions);
                 :language-id="queryOptions.languageId"
                 :languages="languages"
                 :class="{
-                    'mb-16': contentDocs?.docs?.length
+                    'mb-20': contentDocs?.docs?.length
                         ? i === contentDocs?.docs?.length - 1
                         : false,
                 }"

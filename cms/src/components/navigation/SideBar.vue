@@ -104,7 +104,7 @@ watch(route, (newRoute) => {
             </span>
         </div>
         <nav class="flex flex-1 flex-col">
-            <ul role="list" class="flex flex-1 flex-col gap-y-7">
+            <ul role="list" class="flex flex-1 flex-col justify-between gap-y-7">
                 <li>
                     <ul role="list" class="-mx-2 space-y-1">
                         <li v-for="item in navigation" :key="item.name">
@@ -165,12 +165,14 @@ watch(route, (newRoute) => {
                                 </DisclosurePanel>
                             </Disclosure>
                         </li>
-                        <li class="h-full w-full border-t border-zinc-200 pt-4">
-                            <div class="flex w-full items-center justify-center gap-x-4 lg:gap-x-6">
-                                <ProfileMenu />
-                            </div>
-                        </li>
                     </ul>
+                </li>
+                <li
+                    class="flex w-full items-center justify-between rounded-md p-2 hover:bg-zinc-200"
+                >
+                    <div class="flex w-full items-center justify-center gap-x-4 lg:gap-x-6">
+                        <ProfileMenu />
+                    </div>
                 </li>
             </ul>
         </nav>

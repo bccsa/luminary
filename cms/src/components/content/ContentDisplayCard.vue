@@ -106,7 +106,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                 @click="
                     () => {
                         if (verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)) {
-                            router.replace({
+                            router.push({
                                 name: 'edit',
                                 params: {
                                     docType: parentType,
@@ -125,13 +125,6 @@ const navigateToLanguage = (language: LanguageDto) => {
             </div>
 
             <div class="flex items-center justify-end">
-                <div v-if="isSmallScreen" class="flex w-max items-start text-xs text-zinc-400">
-                    <PencilIcon class="h-3 w-3 text-zinc-300" />
-                    <span title="Last Updated">{{
-                        renderDate("small", "Last Updated", contentDoc.updatedTimeUtc)
-                    }}</span>
-                </div>
-
                 <div v-if="!isSmallScreen" class="flex gap-1">
                     <LBadge v-if="isLocalChange" variant="warning"> Offline changes </LBadge>
 
@@ -191,29 +184,35 @@ const navigateToLanguage = (language: LanguageDto) => {
                 <TagIcon class="h-4 w-4 text-zinc-300" />
                 No tags set
             </span>
-            <div v-if="!isSmallScreen" class="flex w-full justify-end gap-3">
-                <div class="flex items-center justify-end">
-                    <PencilIcon class="h-4 w-4 text-zinc-400" />
-                    <span title="Last Updated">{{
-                        renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
-                    }}</span>
-                </div>
-            </div>
         </div>
 
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
-            <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-            <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
-                {{ group.name }}
-            </LBadge>
-        </div>
-
-        <div v-if="!isSmallScreen" class="flex items-center justify-between pt-1 text-xs sm:gap-4">
-            <div class="flex w-full flex-wrap items-center gap-1">
+            <div class="flex flex-1 items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
                     {{ group.name }}
                 </LBadge>
+            </div>
+            <div class="flex w-max items-start text-xs text-zinc-400">
+                <PencilIcon class="h-3 w-3 text-zinc-300" />
+                <span title="Last Updated">{{
+                    renderDate("small", "Last Updated", contentDoc.updatedTimeUtc)
+                }}</span>
+            </div>
+        </div>
+
+        <div v-if="!isSmallScreen" class="flex items-center justify-between pt-1 text-xs sm:gap-4">
+            <div class="flex w-full flex-1 flex-wrap items-center gap-1">
+                <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
+                    {{ group.name }}
+                </LBadge>
+            </div>
+            <div class="flex items-center justify-end">
+                <PencilIcon class="h-4 w-4 text-zinc-400" />
+                <span title="Last Updated">{{
+                    renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
+                }}</span>
             </div>
         </div>
     </div>
