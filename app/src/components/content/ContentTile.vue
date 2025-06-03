@@ -4,18 +4,63 @@ import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 import LImage from "../images/LImage.vue";
 import { PlayIcon } from "@heroicons/vue/24/solid";
+import { getMediaDuration, getMediaProgress } from "@/globalConfig";
+import { ref } from "vue";
 
 type Props = {
     content: ContentDto;
     showPublishDate?: boolean;
     aspectRatio?: typeof LImage.aspectRatios;
     titlePosition?: "bottom" | "center";
+    showProgress?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
     aspectRatio: "video",
     titlePosition: "bottom",
+    showProgress: false,
 });
+
+const media = ref<{ progress: number; duration: number }>({
+    progress: 0,
+    duration: 0,
+});
+
+function formatDuration(seconds: number): string {
+    const totalSeconds = Math.floor(seconds);
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (hrs > 0) {
+        return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    } else {
+        return `${mins.toString().padStart(1, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+}
+
+const durationText = ref("");
+const hasProgress = ref(false);
+
+if (props.content.video) {
+    const allMedia = localStorage.getItem("mediaProgress");
+
+    if (allMedia) {
+        const mediaProgress = getMediaProgress(props.content.video, props.content._id);
+        const mediaDuration = getMediaDuration(props.content.video, props.content._id);
+
+        if (mediaProgress > 0 && mediaDuration > 0) {
+            hasProgress.value = true;
+            media.value.progress = Math.min(100, (mediaProgress / mediaDuration) * 100);
+            media.value.duration = mediaDuration;
+            durationText.value = formatDuration(mediaDuration);
+        } else {
+            hasProgress.value = false; // fallback if duration is 0
+        }
+    } else {
+        hasProgress.value = false;
+    }
+}
 
 const router = useRouter();
 
@@ -84,6 +129,29 @@ const openContent = () => {
                             >
                                 {{ content.title }}
                             </p>
+                        </div>
+
+                        <!-- Bottom overlay: progress bar + duration on same line -->
+                        <div
+                            v-if="showProgress && content.video && hasProgress"
+                            class="absolute bottom-2 left-0 right-0 z-10 mx-1 rounded-md bg-black/50 px-1"
+                        >
+                            <div class="flex h-4 w-full items-center gap-2">
+                                <!-- Progress bar -->
+                                <div
+                                    class="relative h-2 flex-1 overflow-hidden rounded bg-zinc-600"
+                                >
+                                    <div
+                                        class="absolute left-0 top-0 h-full bg-white"
+                                        :style="{ width: `${media.progress}%` }"
+                                    ></div>
+                                </div>
+
+                                <!-- Duration text -->
+                                <span class="whitespace-nowrap text-xs text-white">
+                                    {{ durationText }}
+                                </span>
+                            </div>
                         </div>
                     </template>
                 </LImage>
