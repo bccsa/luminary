@@ -32,6 +32,7 @@ describe("UserRow.vue", () => {
         const wrapper = mount(UserRow, {
             props: {
                 usersDoc: mockUserDto,
+                groups: [mockGroupDtoSuperAdmins],
             },
         });
 
