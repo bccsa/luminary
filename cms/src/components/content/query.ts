@@ -7,8 +7,11 @@ import {
     PublishStatus,
     PostType,
     useDexieLiveQuery,
+    type UserDto,
+    type ApiSearchQuery,
+    ApiLiveQuery,
 } from "luminary-shared";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 export type ContentOverviewQueryOptions = {
     languageId: Uuid;
@@ -27,6 +30,75 @@ export type ContentOverviewQueryOptions = {
 };
 
 export const loadingContentOverviewContent = ref(false);
+
+export type userOverviewQueryOptions = {
+    orderBy?: "name" | "email" | "updatedTimeUtc";
+    orderDirection?: "asc" | "desc";
+    pageSize?: number;
+    pageIndex?: number;
+    search?: string;
+    count?: boolean;
+    groups?: Uuid[];
+};
+
+export const userOverviewQuery = (options: userOverviewQueryOptions) => {
+    const usersQuery = ref<ApiSearchQuery>({
+        types: [DocType.User],
+    });
+
+    const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery);
+    const apiLiveResults = apiLiveQuery.toArrayAsRef();
+    const isLoading = apiLiveQuery.isLoadingAsRef();
+
+    const filtered = computed(() => {
+        let result = apiLiveResults.value || [];
+
+        if (!options.orderBy) options.orderBy = "updatedTimeUtc";
+        if (!options.orderDirection) options.orderDirection = "desc";
+        if (!options.pageSize) options.pageSize = 20;
+        if (!options.pageIndex) options.pageIndex = 0;
+
+        // Filter by search
+        if (options.search) {
+            const lower = options.search.toLowerCase();
+            result = result.filter(
+                (u) =>
+                    u.name?.toLowerCase().includes(lower) || u.email?.toLowerCase().includes(lower),
+            );
+        }
+
+        // Filter by groups
+        if (options.groups?.length) {
+            result = result.filter((u) => options.groups!.some((g) => u.memberOf?.includes(g)));
+        }
+
+        // Sort
+        result.sort((a, b) => {
+            const valA = a[options.orderBy!];
+            const valB = b[options.orderBy!];
+            if (valA === valB) return 0;
+            if (options.orderDirection === "desc") return valA < valB ? 1 : -1;
+            return valA > valB ? 1 : -1;
+        });
+
+        return result;
+    });
+
+    const paginated = computed(() => {
+        if (options.count) return [];
+        const start = options.pageIndex! * options.pageSize!;
+        const end = start + options.pageSize!;
+        return filtered.value.slice(start, end);
+    });
+
+    return computed(() => {
+        if (options.count) {
+            return { count: filtered.value.length, isLoading: isLoading.value };
+        } else {
+            return { users: paginated.value, isLoading: isLoading.value };
+        }
+    });
+};
 
 export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
     loadingContentOverviewContent.value = true;
