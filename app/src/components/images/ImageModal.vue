@@ -29,41 +29,33 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits(["close"]);
 
-// Refs for DOM and transformations
 const container = ref<HTMLDivElement | null>(null);
-const scale = ref(1); // current zoom level
-const translateX = ref(0); // horizontal drag offset
-const translateY = ref(0); // vertical drag offset
+const scale = ref(1);
+const translateX = ref(0);
+const translateY = ref(0);
 
-// Clamp limits
 const MAX_SCALE = 3;
 const MIN_SCALE = 1;
-const PADDING = 50; // image can't go more than 50px offscreen
+const PADDING = 50;
 
-// Lock states to prevent drag+pinch at same time
 const isPinching = ref(false);
 const isDragging = ref(false);
 
-// Clamp helper
 function clamp(val: number, min: number, max: number) {
     return Math.min(Math.max(val, min), max);
 }
 
-// Clamp translation so image edge doesn't go past viewport by more than PADDING
 function clampTranslation() {
     const el = container.value;
     if (!el || scale.value <= 1) return;
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-
     const containerWidth = el.offsetWidth;
     const containerHeight = el.offsetHeight;
 
     const scaledWidth = containerWidth * scale.value;
     const scaledHeight = containerHeight * scale.value;
-
-    // Max allowed translation so the scaled image doesn't go offscreen more than PADDING
 
     const maxTranslateX = Math.max((scaledWidth - viewportWidth) / 2 + PADDING, 0);
     const maxTranslateY = Math.max((scaledHeight - viewportHeight) / 2 + PADDING, 0);
@@ -72,21 +64,16 @@ function clampTranslation() {
     translateY.value = clamp(translateY.value, -maxTranslateY, maxTranslateY);
 }
 
-// Handle zoom via mouse wheel + ctrl
 function handleWheel(e: WheelEvent) {
     if (!props.image || !e.ctrlKey) return;
     e.preventDefault();
-
     const delta = -e.deltaY * 0.002;
     scale.value = clamp(scale.value + delta, MIN_SCALE, MAX_SCALE);
-
     clampTranslation();
 }
 
-// Emit close on backdrop click
 const closeModal = () => emit("close");
 
-// Reset zoom/translation on new image
 watch(
     () => props.image,
     () => {
@@ -98,9 +85,19 @@ watch(
     { immediate: true },
 );
 
-// Handle pinch zoom (touch)
-// Only active if not currently dragging
-if (props.image) {
+onMounted(() => {
+    const el = container.value;
+    if (!el || !props.image) return;
+
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+        scale.value = 1.5;
+        translateX.value = 0;
+        translateY.value = 0;
+    }
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+
     usePinch(
         ({ delta: [d], last }) => {
             if (isDragging.value) return;
@@ -112,14 +109,12 @@ if (props.image) {
             clampTranslation();
         },
         {
-            domTarget: container,
+            domTarget: el,
             eventOptions: { passive: false },
             pointer: { touch: true },
         },
     );
 
-    // Handle drag translation
-    // Only active when zoomed AND not pinching
     useDrag(
         ({ offset: [x, y], last }) => {
             if (scale.value <= 1 || isPinching.value) {
@@ -132,33 +127,14 @@ if (props.image) {
 
             translateX.value = x;
             translateY.value = y;
-
-            clampTranslation(); // always re-validate limits
+            clampTranslation();
         },
         {
-            domTarget: container,
-            eventOptions: { passive: false }, // must be false to prevent touch scroll issues
+            domTarget: el,
+            eventOptions: { passive: false },
             pointer: { touch: true },
         },
     );
-}
-
-// Add/remove mouse wheel zoom on mount/unmount
-onMounted(() => {
-    const el = container.value;
-    if (!el || !props.image) return;
-
-    const isMobile = window.innerWidth < 768;
-
-    // zoomed image when opened on mobile
-    if (isMobile) {
-        scale.value = 1.5;
-        translateX.value = 0;
-        translateY.value = 0;
-    }
-
-    // Add wheel event listener for zooming
-    el.addEventListener("wheel", handleWheel, { passive: false });
 });
 
 onBeforeUnmount(() => {
@@ -170,12 +146,12 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex touch-none items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <div
             ref="container"
-            class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none items-center justify-center overflow-hidden rounded-lg bg-gray-900 transition-transform duration-300 ease-out"
+            class="relative flex max-h-[1100px] max-w-[1300px] origin-center items-center justify-center overflow-hidden rounded-lg bg-gray-900 transition-transform duration-300 ease-out"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
             }"
@@ -191,3 +167,12 @@ onBeforeUnmount(() => {
         </div>
     </div>
 </template>
+
+<style scoped>
+/* Prevent pinch zoom on body or html globally if needed */
+html,
+body {
+    overscroll-behavior: contain;
+    touch-action: none;
+}
+</style>
