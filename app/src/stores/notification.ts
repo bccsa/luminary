@@ -22,6 +22,7 @@ export type Notification = {
      * Priority of the notification. Higher priority (lower number) notifications will be displayed first. Default is 10.
      */
     priority?: number;
+    openLink?: boolean;
 };
 
 export const useNotificationStore = defineStore("notification", () => {
@@ -32,6 +33,7 @@ export const useNotificationStore = defineStore("notification", () => {
         // Set default values
         if (notification.closable == undefined) notification.closable = true;
         if (notification.priority == undefined) notification.priority = 10;
+        if (notification.openLink == undefined) notification.openLink = false;
 
         // Do not add the notification if the notification's ID is already in the list
         if (notifications.value.some((n) => n.id === notification.id)) {

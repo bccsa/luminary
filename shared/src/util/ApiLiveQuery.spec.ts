@@ -300,6 +300,23 @@ describe("ApiLiveQuery", () => {
             ]);
         });
 
+        it("can filters documents by parentId", () => {
+            const destination = ref<ContentDto[]>([]);
+            const data: ApiQueryResult<BaseDocumentDto> = {
+                docs: [
+                    { _id: "1", type: DocType.Content, parentId: "parent1" } as ContentDto,
+                    { _id: "2", type: DocType.Content, parentId: "parent2" } as ContentDto,
+                    { _id: "3", type: DocType.Content, parentId: "parent1" } as ContentDto,
+                ],
+            };
+            const query = { parentId: "parent1" };
+            applySocketData(data, destination, query);
+            expect(destination.value).toEqual([
+                { _id: "1", type: DocType.Content, parentId: "parent1" },
+                { _id: "3", type: DocType.Content, parentId: "parent1" },
+            ]);
+        });
+
         it("updates existing documents in the destination array", () => {
             const destination = ref<BaseDocumentDto[]>([
                 { _id: "1", type: DocType.Post, updatedTimeUtc: 1000 },
