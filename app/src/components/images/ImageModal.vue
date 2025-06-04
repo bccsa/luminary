@@ -33,7 +33,7 @@ const scale = ref(1);
 const translateX = ref(0);
 const translateY = ref(0);
 
-const MAX_SCALE = 2;
+const MAX_SCALE = ref(2); // default desktop
 const MIN_SCALE = 1;
 const PADDING = 50;
 
@@ -68,7 +68,6 @@ function clampTranslation() {
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-
     const elWidth = el.offsetWidth;
     const elHeight = el.offsetHeight;
 
@@ -82,7 +81,7 @@ function clampTranslation() {
     translateY.value = clamp(translateY.value, -maxY, maxY);
 }
 
-// TOUCH EVENTS
+// Touch events
 function onTouchStart(e: TouchEvent) {
     if (e.touches.length === 2) {
         lastDistance = getDistance(e.touches);
@@ -103,7 +102,7 @@ function onTouchMove(e: TouchEvent) {
         isTouchDragging = false;
         const newDistance = getDistance(e.touches);
         const deltaScale = newDistance / lastDistance;
-        scale.value = clamp(initialScale * deltaScale, MIN_SCALE, MAX_SCALE);
+        scale.value = clamp(initialScale * deltaScale, MIN_SCALE, MAX_SCALE.value);
         clampTranslation();
     } else if (e.touches.length === 1 && isTouchDragging) {
         e.preventDefault();
@@ -117,11 +116,14 @@ function onTouchEnd() {
     isTouchDragging = false;
 }
 
-// MOUSE EVENTS
+// Mouse events
 function onMouseDown(e: MouseEvent) {
     if (scale.value <= 1) return;
     isMouseDragging = true;
-    lastMouse = { x: e.clientX - translateX.value, y: e.clientY - translateY.value };
+    lastMouse = {
+        x: e.clientX - translateX.value,
+        y: e.clientY - translateY.value,
+    };
 }
 
 function onMouseMove(e: MouseEvent) {
@@ -139,7 +141,7 @@ function handleWheel(e: WheelEvent) {
     if (!e.ctrlKey) return;
     e.preventDefault();
     const delta = -e.deltaY * 0.05;
-    const newScale = clamp(scale.value + delta, MIN_SCALE, MAX_SCALE);
+    const newScale = clamp(scale.value + delta, MIN_SCALE, MAX_SCALE.value);
     if (Math.abs(newScale - scale.value) > 0.001) {
         scale.value = newScale;
         clampTranslation();
@@ -155,9 +157,7 @@ function onDblClick(e: MouseEvent) {
         translateX.value = 0;
         translateY.value = 0;
     } else {
-        scale.value = MAX_SCALE;
-
-        // Optional: zoom relative to click position
+        scale.value = MAX_SCALE.value;
         const rect = el.getBoundingClientRect();
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
@@ -165,13 +165,13 @@ function onDblClick(e: MouseEvent) {
         const offsetX = e.clientX - rect.left - centerX;
         const offsetY = e.clientY - rect.top - centerY;
 
-        translateX.value = -offsetX * (MAX_SCALE - 1);
-        translateY.value = -offsetY * (MAX_SCALE - 1);
-
+        translateX.value = -offsetX * (MAX_SCALE.value - 1);
+        translateY.value = -offsetY * (MAX_SCALE.value - 1);
         clampTranslation();
     }
 }
 
+// Watch image change
 watch(
     () => props.image,
     () => {
@@ -183,16 +183,18 @@ watch(
     { immediate: true },
 );
 
+// Setup on mount
 onMounted(() => {
     const el = container.value;
-
-    // Default zoom on mobile
     const isMobile = window.innerWidth <= 768;
-    if (isMobile && scale.value === 1) {
-        scale.value = 1.4; // Slight zoom
-        translateX.value = 0;
-        translateY.value = 0;
-        clampTranslation();
+    if (isMobile) {
+        MAX_SCALE.value = 3;
+        if (scale.value === 1) {
+            scale.value = 1.4;
+            translateX.value = 0;
+            translateY.value = 0;
+            clampTranslation();
+        }
     }
 
     if (!el) return;
