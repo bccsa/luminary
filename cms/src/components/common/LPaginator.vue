@@ -70,17 +70,45 @@ const indexUp = () => {
 };
 
 const openPageSizeSelect = ref(false);
+// Timeout to close the page size select after 6
+const isPageSizeSelectFocused = ref(false);
+let closeTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const openPageSizeSelectHandler = () => {
     if (!isSmallScreen.value) return;
     openPageSizeSelect.value = true;
 };
 
+// Timer to close the page size select after 3 seconds of inactivity and select is not currently focused
+const timer = () => {
+    const activateTimer = () => {
+        if (closeTimeout) clearTimeout(closeTimeout);
+        closeTimeout = setTimeout(() => {
+            if (!isPageSizeSelectFocused.value) {
+                openPageSizeSelect.value = false;
+            }
+        }, 3000);
+    };
+
+    const exitTimer = () => {
+        isPageSizeSelectFocused.value = false;
+        closeTimeout = setTimeout(() => {
+            if (!isPageSizeSelectFocused.value) {
+                openPageSizeSelect.value = false;
+            }
+        }, 3000);
+    };
+
+    return {
+        activateTimer,
+        exitTimer,
+    };
+};
+
 watch(openPageSizeSelect, (newValue) => {
     if (!newValue) return;
-    setTimeout(() => {
-        openPageSizeSelect.value = false;
-    }, 6000);
+
+    timer().activateTimer();
 });
 </script>
 
@@ -174,7 +202,7 @@ watch(openPageSizeSelect, (newValue) => {
             </div>
             <div
                 v-if="openPageSizeSelect"
-                class="absolute bottom-14 z-10 flex h-10 w-full items-center justify-center rounded-2xl border border-zinc-300 bg-white/20 py-6 shadow backdrop-blur-sm"
+                class="absolute -left-6 bottom-12 z-10 flex h-10 w-screen items-center justify-center border-t border-t-zinc-300 bg-white py-6"
             >
                 <LSelect
                     @click="openPageSizeSelect = true"
@@ -185,6 +213,13 @@ watch(openPageSizeSelect, (newValue) => {
                         { value: 20, label: '20' },
                         { value: 50, label: '50' },
                     ]"
+                    @focus="
+                        () => {
+                            timer().activateTimer();
+                            isPageSizeSelectFocused = true;
+                        }
+                    "
+                    @blur="timer().exitTimer()"
                 />
             </div>
         </div>
