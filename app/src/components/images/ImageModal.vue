@@ -33,42 +33,143 @@ const scale = ref(1);
 const translateX = ref(0);
 const translateY = ref(0);
 
-const MAX_SCALE = 3;
+const MAX_SCALE = 2;
 const MIN_SCALE = 1;
+const PADDING = 50;
 
 let lastDistance = 0;
 let initialScale = 1;
 
+let isTouchDragging = false;
+let lastTouch = { x: 0, y: 0 };
+
+let isMouseDragging = false;
+let lastMouse = { x: 0, y: 0 };
+
 const closeModal = () => emit("close");
 
+function clamp(val: number, min: number, max: number) {
+    return Math.min(Math.max(val, min), max);
+}
+
 function getDistance(touches: TouchList): number {
-    if (touches.length < 2) return 0;
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
 }
 
+function clampTranslation() {
+    const el = container.value;
+    if (!el || scale.value <= 1) {
+        translateX.value = 0;
+        translateY.value = 0;
+        return;
+    }
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    const elWidth = el.offsetWidth;
+    const elHeight = el.offsetHeight;
+
+    const scaledWidth = elWidth * scale.value;
+    const scaledHeight = elHeight * scale.value;
+
+    const maxX = Math.max((scaledWidth - viewportWidth) / 2 + PADDING, 0);
+    const maxY = Math.max((scaledHeight - viewportHeight) / 2 + PADDING, 0);
+
+    translateX.value = clamp(translateX.value, -maxX, maxX);
+    translateY.value = clamp(translateY.value, -maxY, maxY);
+}
+
+// TOUCH EVENTS
 function onTouchStart(e: TouchEvent) {
     if (e.touches.length === 2) {
         lastDistance = getDistance(e.touches);
         initialScale = scale.value;
+        isTouchDragging = false;
+    } else if (e.touches.length === 1 && scale.value > 1) {
+        lastTouch = {
+            x: e.touches[0].clientX - translateX.value,
+            y: e.touches[0].clientY - translateY.value,
+        };
+        isTouchDragging = true;
     }
 }
 
 function onTouchMove(e: TouchEvent) {
     if (e.touches.length === 2) {
-        e.preventDefault(); // prevent page zoom
+        e.preventDefault();
+        isTouchDragging = false;
         const newDistance = getDistance(e.touches);
         const deltaScale = newDistance / lastDistance;
-        scale.value = Math.min(MAX_SCALE, Math.max(MIN_SCALE, initialScale * deltaScale));
+        scale.value = clamp(initialScale * deltaScale, MIN_SCALE, MAX_SCALE);
+        clampTranslation();
+    } else if (e.touches.length === 1 && isTouchDragging) {
+        e.preventDefault();
+        translateX.value = e.touches[0].clientX - lastTouch.x;
+        translateY.value = e.touches[0].clientY - lastTouch.y;
+        clampTranslation();
     }
+}
+
+function onTouchEnd() {
+    isTouchDragging = false;
+}
+
+// MOUSE EVENTS
+function onMouseDown(e: MouseEvent) {
+    if (scale.value <= 1) return;
+    isMouseDragging = true;
+    lastMouse = { x: e.clientX - translateX.value, y: e.clientY - translateY.value };
+}
+
+function onMouseMove(e: MouseEvent) {
+    if (!isMouseDragging) return;
+    translateX.value = e.clientX - lastMouse.x;
+    translateY.value = e.clientY - lastMouse.y;
+    clampTranslation();
+}
+
+function onMouseUp() {
+    isMouseDragging = false;
 }
 
 function handleWheel(e: WheelEvent) {
     if (!e.ctrlKey) return;
     e.preventDefault();
-    const delta = -e.deltaY * 0.002;
-    scale.value = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale.value + delta));
+    const delta = -e.deltaY * 0.05;
+    const newScale = clamp(scale.value + delta, MIN_SCALE, MAX_SCALE);
+    if (Math.abs(newScale - scale.value) > 0.001) {
+        scale.value = newScale;
+        clampTranslation();
+    }
+}
+
+function onDblClick(e: MouseEvent) {
+    const el = container.value;
+    if (!el) return;
+
+    if (scale.value > 1) {
+        scale.value = 1;
+        translateX.value = 0;
+        translateY.value = 0;
+    } else {
+        scale.value = MAX_SCALE;
+
+        // Optional: zoom relative to click position
+        const rect = el.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+
+        const offsetX = e.clientX - rect.left - centerX;
+        const offsetY = e.clientY - rect.top - centerY;
+
+        translateX.value = -offsetX * (MAX_SCALE - 1);
+        translateY.value = -offsetY * (MAX_SCALE - 1);
+
+        clampTranslation();
+    }
 }
 
 watch(
@@ -77,18 +178,37 @@ watch(
         scale.value = 1;
         translateX.value = 0;
         translateY.value = 0;
-        nextTick(() => {});
+        nextTick(() => clampTranslation());
     },
     { immediate: true },
 );
 
 onMounted(() => {
     const el = container.value;
+
+    // Default zoom on mobile
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile && scale.value === 1) {
+        scale.value = 1.4; // Slight zoom
+        translateX.value = 0;
+        translateY.value = 0;
+        clampTranslation();
+    }
+
     if (!el) return;
 
     el.addEventListener("touchstart", onTouchStart, { passive: false });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+
+    el.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
     el.addEventListener("wheel", handleWheel, { passive: false });
+
+    el.addEventListener("dblclick", onDblClick);
 });
 
 onBeforeUnmount(() => {
@@ -97,7 +217,16 @@ onBeforeUnmount(() => {
 
     el.removeEventListener("touchstart", onTouchStart);
     el.removeEventListener("touchmove", onTouchMove);
+    el.removeEventListener("touchend", onTouchEnd);
+    el.removeEventListener("touchcancel", onTouchEnd);
+
+    el.removeEventListener("mousedown", onMouseDown);
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+
     el.removeEventListener("wheel", handleWheel);
+
+    el.removeEventListener("dblclick", onDblClick);
 });
 </script>
 
@@ -108,10 +237,11 @@ onBeforeUnmount(() => {
     >
         <div
             ref="container"
-            class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none items-center justify-center overflow-hidden rounded-lg bg-gray-900"
+            class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg bg-gray-900"
             :style="{
-                transform: `scale(${scale})`,
-                transition: 'transform 0.05s ease-out',
+                transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+                transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
+                cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
             }"
         >
             <LImage
@@ -120,14 +250,13 @@ onBeforeUnmount(() => {
                 :aspectRatio="aspectRatio"
                 :size="size"
                 :rounded="rounded"
-                class="pointer-events-none min-h-full min-w-full select-none object-contain"
+                class="pointer-events-none min-h-full min-w-full object-contain"
             />
         </div>
     </div>
 </template>
 
 <style scoped>
-/* Necessary to block page zoom behavior on mobile */
 html,
 body {
     touch-action: none;
