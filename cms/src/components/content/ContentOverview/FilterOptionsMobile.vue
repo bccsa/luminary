@@ -38,7 +38,7 @@ const showMobileQueryOptions = ref(false);
 
 <template>
     <div
-        class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white px-4 pb-1 pt-2"
+        class="z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white px-4 pb-1 pt-2"
     >
         <div class="flex gap-1">
             <LInput

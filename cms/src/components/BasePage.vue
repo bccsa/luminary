@@ -105,7 +105,7 @@ const sidebarOpen = ref(false);
                 <div class="w-full lg:pl-72">
                     <slot name="internalPageHeader" />
                 </div>
-                <div class="mt-1 max-h-full px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
+                <div class="max-h-full px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
                     <div
                         class="relative h-[calc(100vh-8rem)] w-full overflow-y-auto scrollbar-hide"
                         :class="{ 'mt-2': !$slots.internalPageHeader }"
