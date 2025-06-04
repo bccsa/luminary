@@ -14,6 +14,7 @@ import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue";
 import { appName, isDevMode, logo } from "@/globalConfig";
 import { ref, watch } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
+import ProfileMenu from "./ProfileMenu.vue";
 
 const route = useRoute();
 
@@ -103,7 +104,7 @@ watch(route, (newRoute) => {
             </span>
         </div>
         <nav class="flex flex-1 flex-col">
-            <ul role="list" class="flex flex-1 flex-col gap-y-7">
+            <ul role="list" class="flex flex-1 flex-col justify-between gap-y-7">
                 <li>
                     <ul role="list" class="-mx-2 space-y-1">
                         <li v-for="item in navigation" :key="item.name">
@@ -165,6 +166,13 @@ watch(route, (newRoute) => {
                             </Disclosure>
                         </li>
                     </ul>
+                </li>
+                <li
+                    class="flex w-full items-center justify-between rounded-md p-1 hover:bg-zinc-200"
+                >
+                    <div class="flex w-full items-center justify-center">
+                        <ProfileMenu />
+                    </div>
                 </li>
             </ul>
         </nav>
