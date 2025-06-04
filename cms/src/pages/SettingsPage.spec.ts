@@ -8,6 +8,7 @@ import { db, isConnected, accessMap, init, DocType } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 import waitForExpect from "wait-for-expect";
+import { useNotificationStore } from "@/stores/notification";
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
@@ -78,7 +79,6 @@ describe("purgeLocalDatabase", () => {
     });
 
     beforeEach(async () => {
-        isConnected.value = false;
         await db.docs.bulkPut([mockData.mockPostDto]);
         await db.docs.bulkPut([mockData.mockEnglishContentDto, mockData.mockFrenchContentDto]);
         await db.docs.bulkPut([
@@ -101,6 +101,8 @@ describe("purgeLocalDatabase", () => {
     it("purges the local database when connected", async () => {
         const wrapper = mount(SettingsPage);
 
+        isConnected.value = false;
+
         await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
 
         waitForExpect(async () => {
@@ -115,6 +117,33 @@ describe("purgeLocalDatabase", () => {
         waitForExpect(async () => {
             expect((await db.docs.toArray()).length).toBe(0);
             expect(await db.docs.toArray()).toEqual([]);
+        });
+    });
+
+    it("renders purge local database success notification", async () => {
+        const notificationStore = useNotificationStore();
+
+        const wrapper = mount(SettingsPage);
+
+        isConnected.value = false;
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+
+        waitForExpect(() => {
+            expect(db.purge).not.toHaveBeenCalled();
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ state: "error" }),
+            );
+        });
+
+        isConnected.value = true;
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+
+        waitForExpect(() => {
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ state: "success" }),
+            );
         });
     });
 });
