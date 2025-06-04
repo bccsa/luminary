@@ -4,16 +4,16 @@
 @custom-variant dark (&:where(.dark, .dark *)); 
 
 @theme {
-  bcc-brand-50: #f5f8f8;
-  bcc-brand-100: #eaeeef;
-  bcc-brand-200: #d2dadb;
-  bcc-brand-300: #acbdbd;
-  bcc-brand-400: #8ea6a6;
-  bcc-brand-500: #437571;
-  bcc-brand-600: #004e48;
-  bcc-brand-700: #023d38;
-  bcc-brand-800: #021f1c;
-  bcc-brand-900: #020a0b;
+  --bcc-brand-50: #f5f8f8;
+  --bcc-brand-100: #eaeeef;
+  --bcc-brand-200: #d2dadb;
+  --bcc-brand-300: #acbdbd;
+  --bcc-brand-400: #8ea6a6;
+  --bcc-brand-500: #437571;
+  --bcc-brand-600: #004e48;
+  --bcc-brand-700: #023d38;
+  --bcc-brand-800: #021f1c;
+  --bcc-brand-900: #020a0b;
 }
 
 @layer utilities {
