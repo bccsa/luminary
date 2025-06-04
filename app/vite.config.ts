@@ -4,6 +4,10 @@ import vue from "@vitejs/plugin-vue";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import util from "util";
 import child_process from "child_process";
+import tailwindcss from '@tailwindcss/vite'
+
+
+
 const exec = util.promisify(child_process.exec);
 const env = loadEnv("", process.cwd());
 
@@ -11,6 +15,7 @@ const env = loadEnv("", process.cwd());
 export default defineConfig({
     plugins: [
         vue(),
+        tailwindcss(),
         viteStaticCopy({
             targets: [
                 {
