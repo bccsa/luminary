@@ -110,7 +110,7 @@ const toggleDropdown = () => {
                     @click.stop="toggleDropdown"
                     v-model="query"
                     ref="inputElement"
-                    class="z-0 h-[38px] w-24 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
+                    class=" z-0 h-[38px] w-full border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
                     placeholder="Type to select..."
                     name="option-search"
                     autocomplete="off"
