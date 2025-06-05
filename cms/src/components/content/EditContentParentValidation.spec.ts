@@ -54,6 +54,7 @@ describe("EditContentParentValidation.vue", () => {
                 canPublish: true,
                 canTranslate: true,
                 untranslatedLanguages: [],
+                canDelete: true,
             },
         });
 
@@ -86,6 +87,7 @@ describe("EditContentParentValidation.vue", () => {
                 canPublish: false,
                 canTranslate: false,
                 untranslatedLanguages: [],
+                canDelete: true,
             },
         });
 
@@ -119,6 +121,7 @@ describe("EditContentParentValidation.vue", () => {
                     canTranslate: true,
                     canPublish: true,
                     untranslatedLanguages: [],
+                    canDelete: true,
                 },
             });
 
@@ -150,6 +153,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslate: true,
                 canPublish: true,
                 untranslatedLanguages: [],
+                canDelete: true,
             },
         });
 
@@ -176,6 +180,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslate: true,
                 canPublish: true,
                 untranslatedLanguages: [],
+                canDelete: true,
             },
         });
 
@@ -202,6 +207,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslate: true,
                 canPublish: true,
                 untranslatedLanguages: [],
+                canDelete: true,
             },
         });
 
@@ -228,6 +234,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslate: true,
                 canPublish: true,
                 untranslatedLanguages: [],
+                canDelete: true,
             },
         });
 
@@ -254,6 +261,7 @@ describe("EditContentParentValidation.vue", () => {
                 canTranslate: true,
                 canPublish: true,
                 untranslatedLanguages: [],
+                canDelete: true,
             },
         });
 
