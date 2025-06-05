@@ -267,10 +267,10 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
 <style>
 @import "video.js/dist/video-js.min.css";
 @import "videojs-mobile-ui/dist/videojs-mobile-ui.css";
-@import "VideoPlayer.css";
+@import "./VideoPlayer.css";
 
 .audio-mode-toggle {
-    @apply !absolute right-2 top-2;
+    @reference !absolute right-2 top-2;
 }
 </style>
 
