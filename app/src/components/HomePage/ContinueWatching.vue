@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// Import required components and modules
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { type ContentDto, DocType, db, PostType, TagType, type Uuid } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -9,9 +10,13 @@ import { ref, onMounted, onUnmounted } from "vue";
 
 const { t } = useI18n();
 
-// Make mediaProgress reactive
+// Reactive reference to media progress stored in localStorage
 const mediaProgressRef = ref(getWatchedMediaIds());
 
+/**
+ * Load the list of watched media from localStorage.
+ * Each entry contains a mediaId and its corresponding contentId.
+ */
 function getWatchedMediaIds(): { mediaId: string; contentId: Uuid }[] {
     try {
         const progressList = JSON.parse(localStorage.getItem("mediaProgress") || "[]");
@@ -21,26 +26,34 @@ function getWatchedMediaIds(): { mediaId: string; contentId: Uuid }[] {
     }
 }
 
-// Watch localStorage for changes (for multi-tab support)
+/**
+ * Start watching for changes to localStorage (to sync between tabs).
+ * Also sets a fallback interval to update regularly (useful for same-tab updates).
+ */
 function startWatchingLocalStorage() {
     const update = () => {
         mediaProgressRef.value = getWatchedMediaIds();
     };
 
-    // Initial load
+    // Listen for cross-tab updates
     window.addEventListener("storage", update);
 
-    // Fallback polling every 5s (optional but helps with internal tab)
+    // Fallback: update every 5 seconds in case the event doesn't fire
     const interval = setInterval(update, 5000);
 
+    // Cleanup on component unmount
     onUnmounted(() => {
         window.removeEventListener("storage", update);
         clearInterval(interval);
     });
 }
 
+// Start watching on mount
 onMounted(startWatchingLocalStorage);
 
+/**
+ * Fetch the content documents based on watched media IDs.
+ */
 const watchedContent = useDexieLiveQueryWithDeps(
     () => [appLanguageIdsAsRef.value, mediaProgressRef.value],
     async ([appLanguageIds, watched]) => {
@@ -62,7 +75,7 @@ const watchedContent = useDexieLiveQueryWithDeps(
     },
     {
         initialValue: [],
-        deep: true,
+        deep: true, // react to nested changes in dependencies
     },
 );
 </script>
@@ -71,7 +84,7 @@ const watchedContent = useDexieLiveQueryWithDeps(
     <HorizontalContentTileCollection
         v-if="watchedContent.length > 0"
         :contentDocs="watchedContent"
-        :title="t('home.continueWatching')"
+        :title="t('home.continue')"
         :showPublishDate="true"
         :showProgress="true"
         class="pb-1 pt-4"
