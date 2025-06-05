@@ -196,8 +196,9 @@ onMounted(() => {
     // Save player progress if greater than 60 seconds
     player.on("timeupdate", () => {
         const currentTime = player.currentTime() || 0;
+        const durationTime = player.duration() || 0;
         if (player.options_.liveui === true || !props.content.video || currentTime < 60) return;
-        setMediaProgress(props.content.video, props.content._id, currentTime);
+        setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
     });
 
     // Get and apply the player saved progress (rewind 30 seconds)
