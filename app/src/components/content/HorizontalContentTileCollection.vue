@@ -13,6 +13,7 @@ type Props = {
     showPublishDate?: boolean;
     aspectRatio?: typeof LImage.aspectRatios;
     contentTitlePosition?: "bottom" | "center";
+    showProgress?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
@@ -116,6 +117,7 @@ useInfiniteScroll(
                         :aspectRatio="aspectRatio"
                         :show-publish-date="showPublishDate"
                         :titlePosition="contentTitlePosition"
+                        :showProgress="showProgress"
                     />
                 </div>
             </div>
