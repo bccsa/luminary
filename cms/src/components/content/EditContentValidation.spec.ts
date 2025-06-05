@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import * as mockData from "@/tests/mockdata";
 import EditContentValidation from "./EditContentValidation.vue";
-import { DocType, PublishStatus } from "luminary-shared";
+import { PublishStatus } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("vue-router", async (importOriginal) => {
@@ -57,7 +57,7 @@ describe("EditContentValidation.vue", () => {
                     publishDate: 1704114000000,
                     expiryDate: 1604114000000,
                 },
-                canDelete: true,
+                    canDelete: true,
             },
         });
 
@@ -82,7 +82,7 @@ describe("EditContentValidation.vue", () => {
                 props: {
                     languages: [mockData.mockLanguageDtoFra],
                     editableContent: mockData.mockFrenchContentDto,
-                canDelete: true,
+                    canDelete: true,
                 },
             });
 
@@ -100,7 +100,7 @@ describe("EditContentValidation.vue", () => {
                         ...mockData.mockSwahiliContentDto,
                         expiryDate: Date.now() - 1,
                     },
-                canDelete: true,
+                    canDelete: true,
                 },
             });
 
@@ -118,7 +118,7 @@ describe("EditContentValidation.vue", () => {
                         ...mockData.mockEnglishContentDto,
                         publishDate: Date.now() + 100000,
                     },
-                canDelete: true,
+                    canDelete: true,
                 },
             });
 
@@ -136,7 +136,7 @@ describe("EditContentValidation.vue", () => {
                         ...mockData.mockEnglishContentDto,
                         status: PublishStatus.Draft,
                     },
-                canDelete: true,
+                    canDelete: true,
                 },
             });
 
@@ -158,7 +158,7 @@ describe("EditContentValidation.vue", () => {
                         ...mockData.mockCategoryContentDto,
                         status: PublishStatus.Published,
                     },
-                canDelete: true,
+                    canDelete: true,
                 },
             });
 
@@ -177,8 +177,7 @@ describe("EditContentValidation.vue", () => {
                             ...mockData.mockEnglishContentDto,
                             status: PublishStatus.Published,
                         },
-                canDelete: true,
-                    
+                        canDelete: false,
                     },
 
                 });
