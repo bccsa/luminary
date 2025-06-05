@@ -27,14 +27,12 @@ const variants = {
         "bg-white dark:bg-slate-600 dark:hover:bg-slate-600/50 ring-1 dark:ring-slate-400 shadow-sm dark:text-slate-200 text-zinc-900 ring-zinc-300 hover:bg-zinc-100 active:bg-zinc-200/70 disabled:bg-zinc-100 disabled:text-zinc-500",
     tertiary:
         "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
-    bcc: "bg-bcc-brand-600 ring-1 shadow-sm text-bcc-brand-50 ring-bcc-brand-700/60 hover:bg-bcc-brand-600/80 active:bg-bcc-brand-900/90 hover:ring-bcc-brand-700/40",
 };
 
 const iconVariants = {
     primary: "text-zinc-100 group-hover:text-zinc-50 group-active:text-white",
     secondary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
     tertiary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
-    bcc: "text-bcc-brand-100 group-hover:text-bcc-brand-50 group-active:text-white",
 };
 
 const sizes = {
