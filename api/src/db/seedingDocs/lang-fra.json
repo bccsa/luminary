@@ -28,8 +28,7 @@
         "settings.device_info.title": "Informations sur l'appareil",
         "settings.device_info.description": "Fournissez ces détails lors de la prise de contact avec le support",
         "home.title": "Accueil",
-        "home.continueWatching": "Continuer à regarder",
-
+        "home.continue": "Continuer à regarder",
         "explore.title": "Explore",
         "explore.other": "Autre",
         "watch.title": "Regarde",
