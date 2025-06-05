@@ -18,6 +18,7 @@
     "dependencies": {
         "@auth0/auth0-vue": "^2.3.3",
         "@sentry/vue": "^7.110.1",
+        "@tailwindcss/forms": "^0.5.10",
         "@tailwindcss/vite": "^4.1.8",
         "@tiptap/extension-link": "^2.7.2",
         "@tiptap/pm": "^2.3.0",

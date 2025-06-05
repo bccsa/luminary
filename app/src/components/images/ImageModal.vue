@@ -10,10 +10,9 @@ import {
     nextTick,
 } from "vue";
 import LImage from "./LImage.vue";
-import { usePinch, useDrag } from "@vueuse/gesture";
 import type { ImageDto, Uuid } from "luminary-shared";
 
-// Props definition
+// Props
 type Props = {
     image: ImageDto;
     contentParentId: Uuid;
@@ -29,64 +28,156 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits(["close"]);
 
-// Refs for DOM and transformations
 const container = ref<HTMLDivElement | null>(null);
-const scale = ref(1); // current zoom level
-const translateX = ref(0); // horizontal drag offset
-const translateY = ref(0); // vertical drag offset
+const scale = ref(1);
+const translateX = ref(0);
+const translateY = ref(0);
 
-// Clamp limits
-const MAX_SCALE = 3;
+const MAX_SCALE = ref(2); // default desktop
 const MIN_SCALE = 1;
-const PADDING = 50; // image can't go more than 50px offscreen
+const PADDING = 50;
 
-// Lock states to prevent drag+pinch at same time
-const isPinching = ref(false);
-const isDragging = ref(false);
+let lastDistance = 0;
+let initialScale = 1;
 
-// Clamp helper
+let isTouchDragging = false;
+let lastTouch = { x: 0, y: 0 };
+
+let isMouseDragging = false;
+let lastMouse = { x: 0, y: 0 };
+
+const closeModal = () => emit("close");
+
 function clamp(val: number, min: number, max: number) {
     return Math.min(Math.max(val, min), max);
 }
 
-// Clamp translation so image edge doesn't go past viewport by more than PADDING
+function getDistance(touches: TouchList): number {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
 function clampTranslation() {
     const el = container.value;
-    if (!el || scale.value <= 1) return;
+    if (!el || scale.value <= 1) {
+        translateX.value = 0;
+        translateY.value = 0;
+        return;
+    }
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const elWidth = el.offsetWidth;
+    const elHeight = el.offsetHeight;
 
-    const containerWidth = el.offsetWidth;
-    const containerHeight = el.offsetHeight;
+    const scaledWidth = elWidth * scale.value;
+    const scaledHeight = elHeight * scale.value;
 
-    const scaledWidth = containerWidth * scale.value;
-    const scaledHeight = containerHeight * scale.value;
+    const maxX = Math.max((scaledWidth - viewportWidth) / 2 + PADDING, 0);
+    const maxY = Math.max((scaledHeight - viewportHeight) / 2 + PADDING, 0);
 
-    // Max allowed translation so the scaled image doesn't go offscreen more than PADDING
-
-    const maxTranslateX = Math.max((scaledWidth - viewportWidth) / 2 + PADDING, 0);
-    const maxTranslateY = Math.max((scaledHeight - viewportHeight) / 2 + PADDING, 0);
-
-    translateX.value = clamp(translateX.value, -maxTranslateX, maxTranslateX);
-    translateY.value = clamp(translateY.value, -maxTranslateY, maxTranslateY);
+    translateX.value = clamp(translateX.value, -maxX, maxX);
+    translateY.value = clamp(translateY.value, -maxY, maxY);
 }
 
-// Handle zoom via mouse wheel + ctrl
-function handleWheel(e: WheelEvent) {
-    if (!props.image || !e.ctrlKey) return;
-    e.preventDefault();
+// Touch events
+function onTouchStart(e: TouchEvent) {
+    if (e.touches.length === 2) {
+        lastDistance = getDistance(e.touches);
+        initialScale = scale.value;
+        isTouchDragging = false;
+    } else if (e.touches.length === 1 && scale.value > 1) {
+        lastTouch = {
+            x: e.touches[0].clientX - translateX.value,
+            y: e.touches[0].clientY - translateY.value,
+        };
+        isTouchDragging = true;
+    }
+}
 
-    const delta = -e.deltaY * 0.002;
-    scale.value = clamp(scale.value + delta, MIN_SCALE, MAX_SCALE);
+function onTouchMove(e: TouchEvent) {
+    if (e.touches.length === 2) {
+        e.preventDefault();
+        isTouchDragging = false;
+        const newDistance = getDistance(e.touches);
+        const deltaScale = newDistance / lastDistance;
+        scale.value = clamp(initialScale * deltaScale, MIN_SCALE, MAX_SCALE.value);
+        clampTranslation();
+    } else if (e.touches.length === 1 && isTouchDragging) {
+        e.preventDefault();
+        translateX.value = e.touches[0].clientX - lastTouch.x;
+        translateY.value = e.touches[0].clientY - lastTouch.y;
+        clampTranslation();
+    }
+}
 
+function onTouchEnd() {
+    isTouchDragging = false;
+}
+
+// Mouse events
+function onMouseDown(e: MouseEvent) {
+    if (scale.value <= 1) return;
+    isMouseDragging = true;
+    lastMouse = {
+        x: e.clientX - translateX.value,
+        y: e.clientY - translateY.value,
+    };
+}
+
+function onMouseMove(e: MouseEvent) {
+    if (!isMouseDragging) return;
+    translateX.value = e.clientX - lastMouse.x;
+    translateY.value = e.clientY - lastMouse.y;
     clampTranslation();
 }
 
-// Emit close on backdrop click
-const closeModal = () => emit("close");
+function onMouseUp() {
+    isMouseDragging = false;
+}
 
-// Reset zoom/translation on new image
+function handleWheel(e: WheelEvent) {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const delta = -e.deltaY * 0.05;
+    const newScale = clamp(scale.value + delta, MIN_SCALE, MAX_SCALE.value);
+    if (Math.abs(newScale - scale.value) > 0.001) {
+        scale.value = newScale;
+        clampTranslation();
+    }
+}
+
+function onDblClick(e: MouseEvent) {
+    const el = container.value;
+    if (!el) return;
+
+    if (scale.value > 1) {
+        scale.value = 1;
+        translateX.value = 0;
+        translateY.value = 0;
+    } else {
+        scale.value = MAX_SCALE.value;
+        const rect = el.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+
+        const offsetX = e.clientX - rect.left - centerX;
+        const offsetY = e.clientY - rect.top - centerY;
+
+        translateX.value = -offsetX * (MAX_SCALE.value - 1);
+        translateY.value = -offsetY * (MAX_SCALE.value - 1);
+        clampTranslation();
+    }
+}
+
+function onKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+        closeModal();
+    }
+}
+
+// Watch image change
 watch(
     () => props.image,
     () => {
@@ -98,73 +189,56 @@ watch(
     { immediate: true },
 );
 
-// Handle pinch zoom (touch)
-// Only active if not currently dragging
-if (props.image) {
-    usePinch(
-        ({ delta: [d], last }) => {
-            if (isDragging.value) return;
-
-            isPinching.value = !last;
-
-            const next = scale.value * (1 + d * 0.1);
-            scale.value = clamp(next, MIN_SCALE, MAX_SCALE);
-            clampTranslation();
-        },
-        {
-            domTarget: container,
-            eventOptions: { passive: false },
-            pointer: { touch: true },
-        },
-    );
-
-    // Handle drag translation
-    // Only active when zoomed AND not pinching
-    useDrag(
-        ({ offset: [x, y], last }) => {
-            if (scale.value <= 1 || isPinching.value) {
-                translateX.value = 0;
-                translateY.value = 0;
-                return;
-            }
-
-            isDragging.value = !last;
-
-            translateX.value = x;
-            translateY.value = y;
-
-            clampTranslation(); // always re-validate limits
-        },
-        {
-            domTarget: container,
-            eventOptions: { passive: false }, // must be false to prevent touch scroll issues
-            pointer: { touch: true },
-        },
-    );
-}
-
-// Add/remove mouse wheel zoom on mount/unmount
+// Setup on mount
 onMounted(() => {
     const el = container.value;
-    if (!el || !props.image) return;
-
-    const isMobile = window.innerWidth < 768;
-
-    // zoomed image when opened on mobile
+    const isMobile = window.innerWidth <= 768;
     if (isMobile) {
-        scale.value = 1.5;
-        translateX.value = 0;
-        translateY.value = 0;
+        MAX_SCALE.value = 3;
+        if (scale.value === 1) {
+            scale.value = 1.4;
+            translateX.value = 0;
+            translateY.value = 0;
+            clampTranslation();
+        }
     }
 
-    // Add wheel event listener for zooming
+    if (!el) return;
+
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+
+    el.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
     el.addEventListener("wheel", handleWheel, { passive: false });
+
+    el.addEventListener("dblclick", onDblClick);
+
+     window.addEventListener("keydown", onKeyDown);
 });
 
 onBeforeUnmount(() => {
     const el = container.value;
     if (!el) return;
+
+    el.removeEventListener("touchstart", onTouchStart);
+    el.removeEventListener("touchmove", onTouchMove);
+    el.removeEventListener("touchend", onTouchEnd);
+    el.removeEventListener("touchcancel", onTouchEnd);
+
+    el.removeEventListener("mousedown", onMouseDown);
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+
     el.removeEventListener("wheel", handleWheel);
+
+    el.removeEventListener("dblclick", onDblClick);
+
+     window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
@@ -175,9 +249,11 @@ onBeforeUnmount(() => {
     >
         <div
             ref="container"
-            class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none items-center justify-center overflow-hidden rounded-lg bg-gray-900 transition-transform duration-300 ease-out"
+            class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg bg-gray-900"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+                transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
+                cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
             }"
         >
             <LImage
@@ -186,8 +262,16 @@ onBeforeUnmount(() => {
                 :aspectRatio="aspectRatio"
                 :size="size"
                 :rounded="rounded"
-                class="pointer-events-none min-h-full min-w-full select-none object-contain"
+                class="pointer-events-none min-h-full min-w-full object-contain"
             />
         </div>
     </div>
 </template>
+
+<style scoped>
+html,
+body {
+    touch-action: none;
+    overscroll-behavior: contain;
+}
+</style>
