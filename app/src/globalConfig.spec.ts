@@ -5,6 +5,7 @@ import {
     appLanguageIdsAsRef,
     initLanguage,
     setMediaProgress,
+    getMediaDuration,
     getMediaProgress,
     removeMediaProgress,
 } from "@/globalConfig";
@@ -44,7 +45,7 @@ describe("globalConfig.ts", () => {
     });
 
     it("can set the playback progress of a media item", async () => {
-        setMediaProgress("mediaId", "contentId", 100);
+        setMediaProgress("mediaId", "contentId", 100, 200);
         expect(getMediaProgress("mediaId", "contentId")).toBe(100);
     });
 
@@ -54,7 +55,7 @@ describe("globalConfig.ts", () => {
 
     it("only keeps the playback progress of the last 10 media items", async () => {
         for (let i = 0; i < 20; i++) {
-            setMediaProgress(`mediaId${i}`, `contentId${i}`, i);
+            setMediaProgress(`mediaId${i}`, `contentId${i}`, i, i * 10);
         }
         expect(getMediaProgress("mediaId0", "contentId0")).toBe(0);
         expect(getMediaProgress("mediaId9", "contentId9")).toBe(0);
@@ -63,7 +64,7 @@ describe("globalConfig.ts", () => {
     });
 
     it("can remove the playback progress of a media item", async () => {
-        setMediaProgress("mediaId", "contentId", 100);
+        setMediaProgress("mediaId", "contentId", 100, 200);
         expect(getMediaProgress("mediaId", "contentId")).toBe(100);
         removeMediaProgress("mediaId", "contentId");
         expect(getMediaProgress("mediaId", "contentId")).toBe(0);
@@ -72,5 +73,13 @@ describe("globalConfig.ts", () => {
     it("can dynamically load a plugin", async () => {
         const _c = await dynamicLoadPlugin("examplePlugin");
         expect(_c.someFunction()).toBe("res");
+    });
+
+    it("can get the media duration", async () => {
+        setMediaProgress("mediaId", "contentId", 100, 200);
+
+        const duration = getMediaDuration("mediaId", "contentId");
+        expect(duration).toBeDefined();
+        expect(duration).toBe(200);
     });
 });
