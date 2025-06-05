@@ -171,6 +171,12 @@ function onDblClick(e: MouseEvent) {
     }
 }
 
+function onKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+        closeModal();
+    }
+}
+
 // Watch image change
 watch(
     () => props.image,
@@ -211,6 +217,8 @@ onMounted(() => {
     el.addEventListener("wheel", handleWheel, { passive: false });
 
     el.addEventListener("dblclick", onDblClick);
+
+     window.addEventListener("keydown", onKeyDown);
 });
 
 onBeforeUnmount(() => {
@@ -229,6 +237,8 @@ onBeforeUnmount(() => {
     el.removeEventListener("wheel", handleWheel);
 
     el.removeEventListener("dblclick", onDblClick);
+
+     window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
