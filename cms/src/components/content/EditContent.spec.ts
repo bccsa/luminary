@@ -707,5 +707,23 @@ describe("EditContent.vue", () => {
                 });
             });
         });
+
+        it("Check if the user does not have delete access", async () => {
+            delete accessMap.value["group-public-content"].post?.delete;
+
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(async () => {
+                const deletebutton = wrapper.find('[data-test="delete-button"]');
+                expect(deletebutton.exists()).toBe(false);
+            });
+        });
     });
 });

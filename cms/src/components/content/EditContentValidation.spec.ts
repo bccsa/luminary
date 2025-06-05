@@ -29,6 +29,7 @@ describe("EditContentValidation.vue", () => {
             props: {
                 languages: [mockData.mockLanguageDtoEng],
                 editableContent: { ...mockData.mockEnglishContentDto, title: "" },
+                canDelete: true,
             },
         });
 
@@ -40,6 +41,7 @@ describe("EditContentValidation.vue", () => {
             props: {
                 languages: [mockData.mockLanguageDtoEng],
                 editableContent: { ...mockData.mockEnglishContentDto, slug: "" },
+                canDelete: true,
             },
         });
 
@@ -55,6 +57,7 @@ describe("EditContentValidation.vue", () => {
                     publishDate: 1704114000000,
                     expiryDate: 1604114000000,
                 },
+                    canDelete: true,
             },
         });
 
@@ -66,6 +69,7 @@ describe("EditContentValidation.vue", () => {
             props: {
                 languages: [mockData.mockLanguageDtoFra],
                 editableContent: { ...mockData.mockFrenchContentDto, title: "" },
+                canDelete: true,
             },
         });
 
@@ -78,6 +82,7 @@ describe("EditContentValidation.vue", () => {
                 props: {
                     languages: [mockData.mockLanguageDtoFra],
                     editableContent: mockData.mockFrenchContentDto,
+                    canDelete: true,
                 },
             });
 
@@ -95,6 +100,7 @@ describe("EditContentValidation.vue", () => {
                         ...mockData.mockSwahiliContentDto,
                         expiryDate: Date.now() - 1,
                     },
+                    canDelete: true,
                 },
             });
 
@@ -112,6 +118,7 @@ describe("EditContentValidation.vue", () => {
                         ...mockData.mockEnglishContentDto,
                         publishDate: Date.now() + 100000,
                     },
+                    canDelete: true,
                 },
             });
 
@@ -129,6 +136,7 @@ describe("EditContentValidation.vue", () => {
                         ...mockData.mockEnglishContentDto,
                         status: PublishStatus.Draft,
                     },
+                    canDelete: true,
                 },
             });
 
@@ -150,6 +158,7 @@ describe("EditContentValidation.vue", () => {
                         ...mockData.mockCategoryContentDto,
                         status: PublishStatus.Published,
                     },
+                    canDelete: true,
                 },
             });
 
@@ -159,5 +168,25 @@ describe("EditContentValidation.vue", () => {
                 expect(wrapper.text()).toContain("Draft");
             });
         });
+
+        it("Hides the delete button when a user does not have delete access", async () => {
+                const wrapper = mount(EditContentValidation, {
+                    props: {
+                        languages: [mockData.mockLanguageDtoEng],
+                        existingContent: {
+                            ...mockData.mockEnglishContentDto,
+                            status: PublishStatus.Published,
+                        },
+                        canDelete: false,
+                    },
+
+                });
+
+                await waitForExpect(async() => {
+                    const deletebutton = wrapper.find('[data-test="translation-delete-button"]')
+                    expect(deletebutton.exists()).toBe(false);
+                })
+            });
+
     });
 });
