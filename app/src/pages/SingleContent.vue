@@ -627,6 +627,5 @@ const showDropdown = ref(false);
         aspectRatio="video"
         size="post"
         @close="enableZoom = false"
-        @keydown.esc="enableZoom = false"
     />
 </template>
