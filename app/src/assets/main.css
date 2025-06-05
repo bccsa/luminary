@@ -1,8 +1,8 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-// Define a custom variant for dark mode, applying styles to elements with the `.dark` class or its descendants.
-@custom-variant dark (&:where(.dark, .dark *)); 
+/* Define a custom variant for dark mode, applying styles to elements with the `.dark` class or its descendants. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer utilities {
     .no-scrollbar::-webkit-scrollbar {
