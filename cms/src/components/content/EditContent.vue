@@ -520,6 +520,7 @@ const showLanguageSelector = ref(false);
                         >Duplicate</LButton
                     >
                     <LButton
+                        v-if="canDelete"
                         type="button"
                         @click="showDeleteModal = true"
                         data-test="delete-button"
@@ -539,6 +540,7 @@ const showLanguageSelector = ref(false);
                     <EditContentParentValidation
                         :tag-or-post-type="props.tagOrPostType"
                         :can-translate="canTranslate"
+                        :can-delete="canDelete"
                         :can-publish="canPublish"
                         :can-edit="canEditParent"
                         v-if="editableContent"

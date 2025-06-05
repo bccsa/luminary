@@ -24,6 +24,7 @@ type Props = {
     canPublish: boolean;
     untranslatedLanguages: LanguageDto[];
     tagOrPostType: TagType | PostType;
+    canDelete: boolean;
 };
 defineProps<Props>();
 const editableParent = defineModel<ContentParentDto>("editableParent");
@@ -154,6 +155,7 @@ watch(
                     :key="content._id"
                     @isValid="(val) => setOverallValidation(content._id, val)"
                     :existingContent="existingContent?.find((c) => c._id == content._id)"
+                    :can-delete="canDelete"
                 />
             </div>
             <div class="flex flex-col items-center">
