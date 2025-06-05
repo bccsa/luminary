@@ -1,6 +1,8 @@
 import autoprefixer from "autoprefixer";
-import tailwindcss from "tailwindcss";
+import tailwindcss from "@tailwindcss/postcss";
 import doiuse from "doiuse";
+
+const isCI = process.env.CI === "true";
 
 export default {
     plugins: [
@@ -29,7 +31,8 @@ export default {
                     title.includes("scrollbar") ||
                     title.includes("cursors") ||
                     title.includes("touch-action") ||
-                    title.includes("intrinsic & extrinsic sizing")
+                    title.includes("intrinsic & extrinsic sizing") ||
+                    !isCI
                 )
                     return;
 
