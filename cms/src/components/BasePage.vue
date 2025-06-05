@@ -118,7 +118,7 @@ const sidebarOpen = ref(false);
 
                 <div
                     v-if="$slots.footer"
-                    class="fixed bottom-0 w-full border-t border-zinc-200 bg-white px-6 pb-4 pt-2 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8"
+                    class="fixed bottom-0 w-full border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:ml-8 lg:pb-4 lg:pl-72 lg:pr-8"
                 >
                     <slot name="footer" />
                 </div>
