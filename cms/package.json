@@ -33,6 +33,7 @@
         "luxon": "^3.4.4",
         "pinia": "^2.1.7",
         "socket.io-client": "^4.7.4",
+        "tailwind-scrollbar-hide": "^4.0.0",
         "tailwindcss": "^4.1.8",
         "transliteration": "^2.3.5",
         "vue": "^3.5.13",
