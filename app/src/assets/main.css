@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@import "tailwind-scrollbar-hide/v4";
 
 /* Define a custom variant for dark mode, applying styles to elements with the `.dark` class or its descendants. */
 @custom-variant dark (&:where(.dark, .dark *));
