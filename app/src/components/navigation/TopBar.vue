@@ -80,7 +80,7 @@ onMounted(() => {
                     <div class="flex flex-1 items-center" ref="logoContainer">
                         <div
                             :style="logoCss"
-                            class="h-8 bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
+                            class="h-8 bg-(image:--image-url) bg-cover bg-center dark:bg-(image:--image-url-dark)"
                         >
                             <!-- Show the image with 0 opacity to set the outer div's size. We assume that the dark mode logo will have the same size as the light mode logo. -->
                             <img class="h-full opacity-0" :src="logo" />

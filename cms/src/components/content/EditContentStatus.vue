@@ -148,7 +148,7 @@ const clearExpiryDate = () => {
                         variant="secondary"
                         class="flex-1"
                         :class="{
-                            '!bg-black !text-white': selectedExpiryNumber === 1,
+                            'bg-black! text-white!': selectedExpiryNumber === 1,
                         }"
                         @click="setExpiryNumber(1)"
                         :disabled="disabled"
@@ -160,7 +160,7 @@ const clearExpiryDate = () => {
                         name="2"
                         variant="secondary"
                         class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
+                        :class="{ 'bg-black! text-white!': selectedExpiryNumber === 2 }"
                         @click="setExpiryNumber(2)"
                         :disabled="disabled"
                     >
@@ -171,7 +171,7 @@ const clearExpiryDate = () => {
                         name="3"
                         variant="secondary"
                         class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
+                        :class="{ 'bg-black! text-white!': selectedExpiryNumber === 3 }"
                         @click="setExpiryNumber(3)"
                         :disabled="disabled"
                     >
@@ -182,7 +182,7 @@ const clearExpiryDate = () => {
                         name="6"
                         variant="secondary"
                         class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
+                        :class="{ 'bg-black! text-white!': selectedExpiryNumber === 6 }"
                         @click="setExpiryNumber(6)"
                         :disabled="disabled"
                     >
@@ -193,7 +193,7 @@ const clearExpiryDate = () => {
                         name="W"
                         variant="secondary"
                         class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
+                        :class="{ 'bg-black! text-white!': selectedExpiryUnit === 'Week' }"
                         @click="setExpiryUnit('Week')"
                         data-test="W"
                         :disabled="disabled"
@@ -205,7 +205,7 @@ const clearExpiryDate = () => {
                         name="M"
                         variant="secondary"
                         class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
+                        :class="{ 'bg-black! text-white!': selectedExpiryUnit === 'Month' }"
                         @click="setExpiryUnit('Month')"
                         :disabled="disabled"
                     >
@@ -216,7 +216,7 @@ const clearExpiryDate = () => {
                         name="Y"
                         variant="secondary"
                         class="flex-1"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
+                        :class="{ 'bg-black! text-white!': selectedExpiryUnit === 'Year' }"
                         @click="setExpiryUnit('Year')"
                         :disabled="disabled"
                     >

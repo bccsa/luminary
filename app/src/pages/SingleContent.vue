@@ -489,7 +489,7 @@ const showDropdown = ref(false);
         <NotFoundPage v-if="is404" />
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
-            <div class="flex flex-grow justify-center">
+            <div class="flex grow justify-center">
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                         <VideoPlayer v-if="content.video" :content="content" />

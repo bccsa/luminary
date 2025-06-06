@@ -481,7 +481,7 @@ const showLanguageSelector = ref(false);
                 "
                 :icon="ArrowTopRightOnSquareIcon"
                 iconRight
-                class="cursor-pointer font-extralight text-zinc-600/[55%]"
+                class="cursor-pointer font-extralight text-zinc-600/55"
                 variant="tertiary"
                 @click="ensureRedirect"
                 target="_blank"

@@ -20,7 +20,7 @@ const show = ref(true);
     >
         <div class="p-4">
             <div class="flex items-start">
-                <div class="flex-shrink-0">
+                <div class="shrink-0">
                     <CheckCircleIcon
                         class="h-6 w-6 text-green-400"
                         aria-hidden="true"
@@ -38,7 +38,7 @@ const show = ref(true);
                         {{ notification.description }}
                     </p>
                 </div>
-                <div class="ml-4 flex flex-shrink-0">
+                <div class="ml-4 flex shrink-0">
                     <button
                         type="button"
                         @click="show = false"

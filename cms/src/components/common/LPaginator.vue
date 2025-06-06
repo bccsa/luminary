@@ -155,7 +155,7 @@ watch(openPageSizeSelect, (newValue) => {
                     :key="`index-${i}`"
                     class="h-10 w-10 text-zinc-900"
                     :class="{
-                        'bg-zinc-900 font-bold !text-zinc-50 !ring-zinc-900 hover:bg-zinc-900/80':
+                        'bg-zinc-900 font-bold text-zinc-50! ring-zinc-900! hover:bg-zinc-900/80':
                             i === index,
                     }"
                     @click="

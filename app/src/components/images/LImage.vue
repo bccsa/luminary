@@ -20,9 +20,9 @@ const props = withDefaults(defineProps<Props>(), {
 const aspectRatiosCSS = {
     video: "aspect-video",
     square: "aspect-square",
-    vertical: "aspect-[9/16]",
-    wide: "aspect-[18/9]",
-    classic: "aspect-[4/3]",
+    vertical: "aspect-9/16",
+    wide: "aspect-18/9",
+    classic: "aspect-4/3",
 };
 
 const sizes = {

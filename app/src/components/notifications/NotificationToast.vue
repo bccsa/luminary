@@ -62,7 +62,7 @@ switch (props.notification.state) {
         >
             <div class="p-4">
                 <div class="flex items-start">
-                    <div class="flex-shrink-0">
+                    <div class="shrink-0">
                         <component
                             v-if="icon"
                             :is="icon"
@@ -79,7 +79,7 @@ switch (props.notification.state) {
                             {{ notification.description }}
                         </p>
                     </div>
-                    <div class="ml-4 flex flex-shrink-0">
+                    <div class="ml-4 flex shrink-0">
                         <button
                             type="button"
                             @click="
