@@ -343,6 +343,8 @@ watch(content, () => {
     selectedLanguageId.value = content.value?.language;
 });
 
+const isLanguageSwitch = ref(false);
+
 watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
     async () => {
@@ -360,7 +362,11 @@ watch(
         }
 
         // If the content's language is not the preferred app language
-        if (content.value && content.value.language !== appLanguagePreferredIdAsRef.value) {
+        if (
+            content.value &&
+            content.value.language !== appLanguagePreferredIdAsRef.value &&
+            !isLanguageSwitch.value
+        ) {
             // Find the content in the preferred app language
             const preferredContent = availableTranslations.value.find(
                 (c) => c.language == appLanguagePreferredIdAsRef.value,
@@ -385,6 +391,11 @@ watch(
                     openLink: true,
                 });
             }
+        }
+
+        // Reset the language selection flag after navigation
+        if (isLanguageSwitch.value) {
+            isLanguageSwitch.value = false;
         }
 
         // Function to remove the notification if conditions are met
@@ -412,6 +423,8 @@ watch(
 
 // Change language
 const onLanguageSelect = (languageId: Uuid) => {
+    isLanguageSwitch.value = true;
+
     selectedLanguageId.value = languageId;
 
     const preferred = availableTranslations.value.find(
@@ -507,7 +520,7 @@ const showDropdown = ref(false);
                     <div class="flex w-full flex-col items-center">
                         <div class="mt-3 flex flex-col gap-3">
                             <h1
-                                class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
+                                class="text-bold text-center text-xl text-zinc-800 lg:text-2xl dark:text-slate-50"
                             >
                                 {{ content.title }}
                             </h1>
@@ -589,7 +602,7 @@ const showDropdown = ref(false);
                     <div
                         v-if="content.text"
                         v-html="text"
-                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
+                        class="prose prose-zinc dark:prose-invert mt-3 max-w-full"
                         :class="{
                             'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
                         }"
