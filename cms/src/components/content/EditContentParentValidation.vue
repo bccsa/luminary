@@ -138,7 +138,7 @@ watch(
                     <div
                         v-for="validation in parentValidations.filter((v) => !v.isValid)"
                         :key="validation.id"
-                        class="-mb-[1px] flex items-center gap-1"
+                        class="-mb-px flex items-center gap-1"
                     >
                         <div class="flex items-center gap-2">
                             <XCircleIcon class="h-[18px] w-[18px] min-w-[18px] text-red-400" />

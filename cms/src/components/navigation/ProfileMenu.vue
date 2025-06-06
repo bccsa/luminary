@@ -117,7 +117,7 @@ onMounted(() => {
                     >
                         <component
                             :is="item.icon"
-                            class="h-5 w-5 flex-shrink-0 text-zinc-500"
+                            class="h-5 w-5 shrink-0 text-zinc-500"
                             aria-hidden="true"
                         />
                         <div class="flex flex-col text-nowrap leading-none">

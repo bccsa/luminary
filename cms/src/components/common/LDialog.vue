@@ -32,7 +32,7 @@ const isTestEnviroment = import.meta.env.MODE === "test";
                 >
                     <div class="sm:flex sm:items-start">
                         <div
-                            class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+                            class="mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
                             v-if="context == 'danger'"
                         >
                             <ExclamationTriangleIcon

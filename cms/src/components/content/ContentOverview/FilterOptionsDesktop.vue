@@ -51,7 +51,7 @@ onClickOutside(sortOptionsMenu, () => {
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
-                class="flex-grow"
+                class="grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"

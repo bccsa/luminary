@@ -196,7 +196,7 @@ const userNavigation = computed(() => {
                         >
                             <component
                                 :is="item.icon"
-                                class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
+                                class="h-5 w-5 shrink-0 text-zinc-500 dark:text-slate-300"
                                 aria-hidden="true"
                             />
                             <div class="flex flex-col text-nowrap leading-none">
