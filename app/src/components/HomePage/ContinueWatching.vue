@@ -84,9 +84,8 @@ const watchedContent = useDexieLiveQueryWithDeps(
     <HorizontalContentTileCollection
         v-if="watchedContent.length > 0"
         :contentDocs="watchedContent"
-        :title="t('home.continue')"
+        :title="t('home.continue.watch')"
         :showPublishDate="true"
-        :showProgress="true"
-        class="pb-1 pt-4"
+        class="pt-4 pb-1"
     />
 </template>
