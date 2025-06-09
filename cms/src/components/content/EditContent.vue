@@ -253,10 +253,11 @@ const saveChanges = async () => {
     if (
         selectedContent.value &&
         selectedContent_Existing.value &&
-        !_.isEqual(selectedContent.value.slug, selectedContent_Existing.value?.slug)
+        !_.isEqual(selectedContent.value.slug, selectedContent_Existing.value?.slug) &&
+        verifyAccess(selectedContent.value.memberOf, DocType.Redirect, AclPermission.Publish) &&
+        selectedContent.value.status === PublishStatus.Published &&
+        (!selectedContent.value.expiryDate || selectedContent.value.expiryDate >= Date.now())
     ) {
-        console.log("Existing content slug", selectedContent_Existing.value.slug);
-        console.log("Selected content slug", selectedContent.value.slug);
         const newRedirect: RedirectDto = {
             _id: db.uuid(),
             type: DocType.Redirect,
@@ -264,7 +265,7 @@ const saveChanges = async () => {
             memberOf: _.cloneDeep(selectedContent.value.memberOf),
             slug: selectedContent_Existing.value.slug,
             redirectType: RedirectType.Temporary,
-            toSlug: selectedContent_Existing.value.slug,
+            toSlug: selectedContent.value.slug,
         };
 
         addNotification({
