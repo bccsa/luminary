@@ -5,7 +5,6 @@ import { ChangeReqAckDto, LocalChangeDto } from "../types";
 import { db } from "../db/database";
 
 export const processChangeReqLock = ref(false);
-let retryTimeout = 0;
 
 /**
  * Handle change request acknowledgements from the api
@@ -14,10 +13,10 @@ let retryTimeout = 0;
  */
 async function handleAck(ack: ChangeReqAckDto, localChanges: Ref<LocalChangeDto[]>) {
     await db.applyLocalChangeAck(ack);
+
+    //Update localChanges with changes made after acknowledgements was applied to localChanges
     localChanges.value = await db.getLocalChanges();
 
-    // Push the next local change to api
-    clearTimeout(retryTimeout);
     if (localChanges.value.length > 1) {
         pushLocalChange(localChanges.value[0], localChanges);
     } else {
@@ -32,14 +31,6 @@ async function handleAck(ack: ChangeReqAckDto, localChanges: Ref<LocalChangeDto[
  */
 async function pushLocalChange(localChange: LocalChangeDto, localChanges: Ref<LocalChangeDto[]>) {
     processChangeReqLock.value = true;
-    if (retryTimeout) {
-        clearTimeout(retryTimeout);
-    }
-
-    // Retry the submission after one minute if we haven't gotten an ack from the API
-    retryTimeout = window.setTimeout(() => {
-        pushLocalChange(localChange, localChanges);
-    }, 60000);
 
     const res = await getRest().changeRequest({
         id: localChange.id,
@@ -65,7 +56,4 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
         },
         { immediate: true },
     );
-
-    // Update localChanges from db
-    setInterval(async () => (localChanges.value = await db.getLocalChanges()), 500);
 }
