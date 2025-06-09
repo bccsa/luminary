@@ -27,5 +27,5 @@ export class UserDto extends _contentBaseDto {
     @IsOptional()
     @IsNumber()
     @Expose()
-    lastLoggedIn?: string;
+    lastLogin?: number;
 }
