@@ -9,6 +9,7 @@ import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import { isPublished } from "@/util/isPublished";
 import BasePage from "@/components/BasePage.vue";
 import ContinueWatching from "@/components/HomePage/ContinueWatching.vue";
+import ContinueReading from "@/components/HomePage/ContinueReading.vue";
 
 const { isAuthenticated, loginWithRedirect } = useAuth0();
 
@@ -64,6 +65,7 @@ setTimeout(() => {
             </Suspense>
 
             <ContinueWatching />
+            <ContinueReading />
         </IgnorePagePadding>
     </BasePage>
 </template>
