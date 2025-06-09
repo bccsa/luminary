@@ -20,7 +20,7 @@ import {
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -41,6 +41,9 @@ import {
     queryParams,
     addToMediaQueue,
     cmsUrl,
+    setReadingProgress,
+    getReadingProgress,
+    removeReadingProgress,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -493,8 +496,109 @@ watch(
 
 const openedFromExternalLink = ref(false);
 
+const scrollPosition = ref(0);
+const maxScrollPosition = ref(0);
+const scrollContainer = ref<HTMLElement | Window>(window);
+let ticking = false;
+
+const storedScrollKey = computed(() => `scrollPosition-${content.value?._id}`);
+
+const restoreScrollPosition = () => {
+    if (!content.value) return;
+    const percent = getReadingProgress(content.value._id);
+    if (percent && percent < 100) {
+        setTimeout(() => {
+            const maxScroll =
+                scrollContainer.value === window
+                    ? document.documentElement.scrollHeight - window.innerHeight
+                    : (scrollContainer.value as HTMLElement).scrollHeight -
+                      (scrollContainer.value as HTMLElement).clientHeight;
+
+            const targetY = Math.round((percent / 100) * maxScroll);
+
+            if (scrollContainer.value === window) {
+                window.scrollTo({ top: targetY });
+            } else {
+                (scrollContainer.value as HTMLElement).scrollTo({ top: targetY });
+            }
+
+            maxScrollPosition.value = targetY;
+        }, 300);
+    }
+};
+
+const updateScrollPosition = () => {
+    const scrollY =
+        scrollContainer.value === window
+            ? window.scrollY
+            : (scrollContainer.value as HTMLElement).scrollTop;
+
+    scrollPosition.value = scrollY;
+
+    if (scrollY > maxScrollPosition.value) {
+        maxScrollPosition.value = scrollY;
+    }
+
+    if (!ticking) {
+        window.requestAnimationFrame(() => {
+            if (content.value && content.value._id) {
+                const maxScroll =
+                    scrollContainer.value === window
+                        ? document.documentElement.scrollHeight - window.innerHeight
+                        : (scrollContainer.value as HTMLElement).scrollHeight -
+                          (scrollContainer.value as HTMLElement).clientHeight;
+
+                const percentScrolled =
+                    maxScroll > 0 ? (maxScrollPosition.value / maxScroll) * 100 : 0;
+                const rounded = Math.round(percentScrolled);
+
+                if (rounded < 100) {
+                    setReadingProgress(content.value._id, rounded);
+                    localStorage.setItem(storedScrollKey.value, maxScrollPosition.value.toString());
+                } else {
+                    removeReadingProgress(content.value._id);
+                    localStorage.removeItem(storedScrollKey.value);
+                }
+            }
+            ticking = false;
+        });
+        ticking = true;
+    }
+};
+
+const setScrollContainer = () => {
+    const basePage = document.querySelector("main, .scroll-container, [data-scroll-container]");
+    scrollContainer.value =
+        basePage && basePage.scrollHeight > basePage.clientHeight
+            ? (basePage as HTMLElement)
+            : window;
+};
+
+const addScrollListener = () => {
+    scrollContainer.value.addEventListener("scroll", updateScrollPosition, { passive: true });
+};
+
+const removeScrollListener = () => {
+    scrollContainer.value.removeEventListener("scroll", updateScrollPosition);
+};
+
 onMounted(() => {
     openedFromExternalLink.value = isExternalNavigation();
+    setScrollContainer();
+    addScrollListener();
+    restoreScrollPosition();
+
+    watch(content, () => {
+        removeScrollListener();
+        setScrollContainer();
+        addScrollListener();
+        maxScrollPosition.value = 0;
+        restoreScrollPosition();
+    });
+});
+
+onUnmounted(() => {
+    removeScrollListener();
 });
 
 // Track whether the user explicitly switched language via the quick selector
