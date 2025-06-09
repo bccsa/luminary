@@ -24,7 +24,9 @@ import waitForExpect from "wait-for-expect";
 import {
     appLanguageIdsAsRef,
     appName,
+    getReadingProgress,
     initLanguage,
+    setReadingProgress,
     userPreferencesAsRef,
     cmsUrl,
 } from "@/globalConfig";
@@ -660,5 +662,21 @@ describe("SingleContent", () => {
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(`${expectedReadingTime} min`);
         });
+    });
+
+    it("restores reading progress", async () => {
+        setReadingProgress(mockEnglishContentDto._id, 60);
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(getReadingProgress(mockEnglishContentDto._id)).toBeGreaterThanOrEqual(60);
+        });
+
+        wrapper.unmount();
     });
 });
