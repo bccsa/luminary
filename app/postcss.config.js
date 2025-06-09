@@ -3,6 +3,9 @@ import tailwindcss from "@tailwindcss/postcss";
 import doiuse from "doiuse";
 
 const isCI = process.env.CI === "true";
+//Checks if this is an interactive terminal environment
+const isTTY = process.stdout.isTTY;
+const isCLI = isCI || (isTTY && process.env.NODE_ENV !== "development");
 
 export default {
     plugins: [
@@ -32,7 +35,8 @@ export default {
                     title.includes("cursors") ||
                     title.includes("touch-action") ||
                     title.includes("intrinsic & extrinsic sizing") ||
-                    !isCI
+                    title.includes("lch and lab color values") ||
+                    !isCLI
                 )
                     return;
 
