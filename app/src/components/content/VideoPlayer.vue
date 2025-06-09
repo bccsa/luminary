@@ -31,6 +31,15 @@ const showAudioModeToggle = ref<boolean>(true);
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 
+const silentAudio = new Audio();
+silentAudio.src =
+    "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="; // 1s silence
+silentAudio.loop = true;
+silentAudio.volume = 0;
+
+let lockPlay = false;
+let lockPause = false;
+
 let timeout: any;
 function autoHidePlayerControls() {
     if (timeout) clearTimeout(timeout);
@@ -115,6 +124,39 @@ onMounted(() => {
     };
 
     player = videojs(playerElement.value!, options);
+
+    // This for audio mode toggle
+    player.on("play", () => {
+        if (audioMode.value && !lockPlay) {
+            lockPause = true;
+            silentAudio.play().catch(() => {});
+            setTimeout(() => (lockPause = false), 100);
+        }
+    });
+
+    player.on("pause", () => {
+        if (audioMode.value && !lockPause) {
+            lockPlay = true;
+            silentAudio.pause();
+            setTimeout(() => (lockPlay = false), 100);
+        }
+    });
+
+    silentAudio.addEventListener("play", () => {
+        if (!audioMode.value && lockPlay && player.paused()) {
+            lockPause = true;
+            silentAudio.play().catch(() => {});
+            setTimeout(() => (lockPause = false), 100);
+        }
+    });
+
+    silentAudio.addEventListener("pause", () => {
+        if (audioMode.value && !lockPause && !player?.paused()) {
+            lockPlay = true;
+            player.pause();
+            setTimeout(() => (lockPlay = false), 100);
+        }
+    });
 
     // emit event with player on mount
     const playerEvent = new CustomEvent("vjsPlayer", { detail: player });
@@ -242,10 +284,18 @@ onUnmounted(() => {
     // emit event when player is Destroyed
     const playerDestroyEvent = new Event("vjsPlayerDestroyed");
     window.dispatchEvent(playerDestroyEvent);
+
+    silentAudio.pause();
+    silentAudio.src = "";
 });
 
 // Set player audio only mode
 watch(audioMode, (mode) => {
+    if (mode) {
+        silentAudio.play().catch(() => {});
+    } else {
+        silentAudio.pause();
+    }
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
 
@@ -270,7 +320,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
 @import "./VideoPlayer.css";
 
 .audio-mode-toggle {
-    @reference !absolute right-2 top-2;
+    @apply !absolute top-2 right-2;
 }
 </style>
 
@@ -283,7 +333,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
             :content-parent-id="content.parentId"
         />
 
-        <div class="video-player absolute bottom-0 left-0 right-0 top-0">
+        <div class="video-player absolute top-0 right-0 bottom-0 left-0">
             <video
                 playsinline
                 ref="playerElement"
