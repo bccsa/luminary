@@ -606,7 +606,6 @@ const isLoading = computed(
 </script>
 
 <template>
-    {{ networkChanges }}
     <div v-if="isLoading" class="relative flex h-screen items-center justify-center">
         <div class="flex flex-col items-center gap-4">
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
