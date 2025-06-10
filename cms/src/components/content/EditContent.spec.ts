@@ -624,11 +624,13 @@ describe("EditContent.vue", () => {
 
         const res = await db.docs.where("type").equals(DocType.Redirect).toArray();
 
-        expect(res.length).toBe(1);
-        expect(res[0].type).toBe(DocType.Redirect);
+        await waitForExpect(async () => {
+            console.info(res);
+            console.info(await db.localChanges.toArray());
+            expect(res.length).toBe(1);
+            expect(res[0].type).toBe(DocType.Redirect);
+        });
     });
-
-    // Check if the redirect is created in localChanges
 
     describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
