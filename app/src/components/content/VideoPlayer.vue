@@ -130,9 +130,8 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
                 );
 
                 // Add an EXT-X-STREAM-INF tag for the audio track to the playlist.
-                lines.push(
-                    `#EXT-X-STREAM-INF:BANDWIDTH=128000,CODECS="mp4a.40.2",AUDIO="${group}"`,
-                );
+                // TODO: Add more attributes if needed, such as "BANDWIDTH" or "CODECS" if available in the original manifest.
+                lines.push(`#EXT-X-STREAM-INF:AUDIO="${group}"`);
 
                 // Add the absolute URI of the audio track to the playlist.
                 lines.push(absoluteTrackUri);
