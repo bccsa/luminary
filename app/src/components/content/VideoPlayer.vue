@@ -37,8 +37,10 @@ silentAudio.src =
 silentAudio.loop = true;
 silentAudio.volume = 0;
 
-let lockPlay = false;
-let lockPause = false;
+const eventLock = {
+    fromVideo: false,
+    fromAudio: false,
+};
 
 let timeout: any;
 function autoHidePlayerControls() {
@@ -125,36 +127,35 @@ onMounted(() => {
 
     player = videojs(playerElement.value!, options);
 
-    // This for audio mode toggle
+    // Sync player -> silentAudio
     player.on("play", () => {
-        if (audioMode.value && !lockPlay) {
-            lockPause = true;
-            silentAudio.play().catch(() => {});
-            setTimeout(() => (lockPause = false), 100);
+        if (audioMode.value && !eventLock.fromAudio) {
+            eventLock.fromVideo = true;
+            silentAudio.play().finally(() => setTimeout(() => (eventLock.fromVideo = false), 100));
         }
     });
 
     player.on("pause", () => {
-        if (audioMode.value && !lockPause) {
-            lockPlay = true;
+        if (audioMode.value && !eventLock.fromAudio) {
+            eventLock.fromVideo = true;
             silentAudio.pause();
-            setTimeout(() => (lockPlay = false), 100);
+            setTimeout(() => (eventLock.fromVideo = false), 100);
         }
     });
 
+    // Sync silentAudio -> player
     silentAudio.addEventListener("play", () => {
-        if (!audioMode.value && lockPlay && player.paused()) {
-            lockPause = true;
-            silentAudio.play().catch(() => {});
-            setTimeout(() => (lockPause = false), 100);
+        if (audioMode.value && player.paused() && !eventLock.fromVideo) {
+            eventLock.fromAudio = true;
+            player.play()?.finally(() => setTimeout(() => (eventLock.fromAudio = false), 100));
         }
     });
 
     silentAudio.addEventListener("pause", () => {
-        if (audioMode.value && !lockPause && !player?.paused()) {
-            lockPlay = true;
+        if (audioMode.value && !player.paused() && !eventLock.fromVideo) {
+            eventLock.fromAudio = true;
             player.pause();
-            setTimeout(() => (lockPlay = false), 100);
+            setTimeout(() => (eventLock.fromAudio = false), 100);
         }
     });
 
@@ -287,15 +288,15 @@ onUnmounted(() => {
 
     silentAudio.pause();
     silentAudio.src = "";
+    silentAudio.removeAttribute("src");
+    silentAudio.load();
 });
 
 // Set player audio only mode
 watch(audioMode, (mode) => {
-    if (mode) {
-        silentAudio.play().catch(() => {});
-    } else {
-        silentAudio.pause();
-    }
+    if (mode) silentAudio.play().catch(() => {});
+    else silentAudio.pause();
+
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
 
