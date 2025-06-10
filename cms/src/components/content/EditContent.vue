@@ -66,6 +66,10 @@ const newDocument = props.id == "new";
 const hasLoadedParent = ref(false);
 const hasLoadedContent = ref(false);
 
+//Initial loaded data to check against for network changes
+const initialParent = ref<ContentParentDto | undefined>(undefined);
+const initialContent = ref<ContentDto[] | undefined>(undefined);
+
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
@@ -91,6 +95,7 @@ const existingParent = useDexieLiveQuery(
 watch(
     existingParent,
     (newParent) => {
+        if (!hasLoadedParent.value) initialParent.value = _.cloneDeep(newParent);
         if (isDirty.value && hasLoadedParent.value) return;
         editableParent.value = _.cloneDeep(newParent);
         hasLoadedParent.value = true;
@@ -112,6 +117,8 @@ const existingContent = useDexieLiveQuery(
 watch(
     () => existingContent.value,
     (newContent) => {
+        if (!hasLoadedContent.value)
+            initialContent.value = newContent.map((content) => _.cloneDeep(content));
         if (isDirty.value && hasLoadedContent.value) return;
         editableContent.value = newContent.map((content) => _.cloneDeep(content));
         hasLoadedContent.value = true;
@@ -277,15 +284,26 @@ const isDirty = computed(() => {
 
 // Check for any changes from the server when no local changes has been made
 const networkChanges = computed(() => {
-    const parentChanged = !_.isEqual(
-        { ...editableParent.value, updatedBy: "", _rev: "" },
+    if (!initialContent.value || !initialParent.value) return false;
+    // Check if the current existing (from DB/server) parent is different from what was initially loaded
+    const parentChangedFromServer = !_.isEqual(
         { ...existingParent.value, updatedBy: "", _rev: "" },
+        { ...initialParent.value, updatedBy: "", _rev: "" },
     );
 
-    //Map through content as it is an array of objects that has to ommit "updatedBy" and "_rev"
-    const contentChanged = !_.isEqual(editableContent.value, existingContent.value);
+    // Check if the current existing (from DB/server) content is different from what was initially loaded
+    const contentChangedFromServer = !_.isEqual(
+        existingContent.value.map(({ updatedTimeUtc, ...content }) => {
+            const { _rev, ...rest } = content as any;
+            return rest;
+        }),
+        initialContent.value.map(({ updatedTimeUtc, ...content }) => {
+            const { _rev, ...rest } = content as any;
+            return rest;
+        }),
+    );
 
-    return (parentChanged || contentChanged) && !isDirty.value;
+    return (parentChangedFromServer || contentChangedFromServer) && !isLocalChange.value;
 });
 
 const isValid = ref(true);
@@ -425,6 +443,10 @@ const save = async () => {
 
         await Promise.all(pList);
     }
+
+    //Reset initial data with new data so this client doesn't see the new data in the useDexieLiveQuery as network changes
+    initialParent.value = _.cloneDeep(existingParent.value);
+    initialContent.value = existingContent.value.map((content) => _.cloneDeep(content));
 };
 
 //Patch image data with the data retrieved from the api when uploading a new image
@@ -584,7 +606,7 @@ const isLoading = computed(
 </script>
 
 <template>
-    {{ isDirty }}
+    {{ networkChanges }}
     <div v-if="isLoading" class="relative flex h-screen items-center justify-center">
         <div class="flex flex-col items-center gap-4">
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
@@ -624,7 +646,10 @@ const isLoading = computed(
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-                <LBadge v-if="networkChanges" variant="warning"
+                <LBadge
+                    v-if="networkChanges"
+                    title="Please refresh the page before continuing"
+                    variant="warning"
                     >Changes recieved from the server</LBadge
                 >
                 <div class="flex gap-1">
@@ -644,6 +669,7 @@ const isLoading = computed(
                         @click="saveChanges"
                         data-test="save-button"
                         variant="primary"
+                        :disabled="networkChanges"
                         :icon="FolderArrowDownIcon"
                     >
                         Save
