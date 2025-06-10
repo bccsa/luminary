@@ -455,8 +455,8 @@ watch(
     (newImageData) => {
         if (
             newImageData &&
-            !_.isEqual(newImageData, editableParent.value.imageData) &&
-            editableParent.value.imageData
+            editableParent.value.imageData &&
+            !_.isEqual(newImageData, editableParent.value.imageData)
         ) {
             editableParent.value.imageData.uploadData = [];
             editableParent.value.imageData.fileCollections = newImageData;
