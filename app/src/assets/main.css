@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* This is to publish the branch */
 @font-face {
     font-family: "Inter";
     font-style: normal;
