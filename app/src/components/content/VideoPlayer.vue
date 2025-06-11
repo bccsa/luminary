@@ -15,7 +15,7 @@ import {
     setMediaProgress,
     queryParams,
 } from "@/globalConfig";
-import { Parser } from "m3u8-parser";
+import { Parser, type Attributes } from "m3u8-parser";
 
 type Props = {
     content: ContentDto;
@@ -83,13 +83,13 @@ function setAudioTrackLanguage(languageCode: string | null) {
  * @returns {Promise<string>} - A Promise that resolves to the generated audio master playlist as a string.
  */
 async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> {
-    // Fetch the HLS manifest file from the provided URL.
+    // Fetch the original HLS manifest
     const response = await fetch(originalUrl);
 
     // Read the manifest file content as text.
     const manifestText = await response.text();
 
-    // Initialize a new HLS parser instance.
+    // Parse the manifest using m3u8-parser
     const parser = new Parser();
 
     // Push the manifest text into the parser for processing.
@@ -100,13 +100,15 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
 
     // Retrieve the parsed manifest object from the parser.
     const parsedManifest = parser.manifest;
+    // Get the directory of the manifest for resolving relative URIs
+    const manifestDir = originalUrl.substring(0, originalUrl.lastIndexOf("/") + 1);
 
-    // Extract the base URL of the manifest file to resolve relative paths.
-    const baseUrl = new URL(originalUrl);
-    const manifestDir = baseUrl.href.substring(0, baseUrl.href.lastIndexOf("/") + 1);
-
-    // Extract the AUDIO media groups from the parsed manifest.
+    // Extract audio media groups and playlists from the manifest
     const audioMedia = parsedManifest.mediaGroups?.AUDIO || {};
+    const playlists = (parsedManifest.playlists || []) as unknown as {
+        uri: string;
+        attributes: Attributes;
+    }[];
 
     // Initialize an array to store the lines of the new audio master playlist.
     const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:4", "#EXT-X-INDEPENDENT-SEGMENTS"];
@@ -129,17 +131,34 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
                     `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="${group}",NAME="${name}",LANGUAGE="${track.language}",DEFAULT=${track.default ? "YES" : "NO"},AUTOSELECT=${track.autoselect ? "YES" : "NO"},URI="${absoluteTrackUri}"`,
                 );
 
-                // Add an EXT-X-STREAM-INF tag for the audio track to the playlist.
-                // TODO: Add more attributes if needed, such as "BANDWIDTH" or "CODECS" if available in the original manifest.
-                lines.push(`#EXT-X-STREAM-INF:AUDIO="${group}"`);
+                // Get the original relative URI (without query params)
+                const relativeTrackUri = track.uri.split("?")[0];
 
-                // Add the absolute URI of the audio track to the playlist.
+                // Find the matching playlist for this audio group
+                const matched = playlists.find(
+                    (p) => p.attributes?.AUDIO === group && p.uri.includes(relativeTrackUri),
+                );
+
+                // Use the matched playlist's bandwidth or a default/random value
+                const bandwidth =
+                    matched?.attributes?.BANDWIDTH ?? 96000 + Math.floor(Math.random() * 64000);
+
+                // Use the matched playlist's codecs or a default value
+                const codecs =
+                    typeof matched?.attributes?.CODECS === "string"
+                        ? matched.attributes.CODECS
+                        : "mp4a.40.2";
+
+                // Add the EXT-X-STREAM-INF line for this audio track
+                const streamInfLine = `#EXT-X-STREAM-INF:AUDIO="${group}",BANDWIDTH=${bandwidth},CODECS="${codecs}"`;
+
+                lines.push(streamInfLine);
                 lines.push(absoluteTrackUri);
             }
         }
     }
 
-    // Join all lines into a single string and return the generated audio master playlist.
+    // Join all lines to form the final playlist string
     return lines.join("\n");
 }
 
@@ -352,12 +371,14 @@ watch(audioMode, async (mode) => {
         // Wait for tracks to be available
         player.on("loadedmetadata", () => {
             const newTracks = (player as any).audioTracks?.();
+
             if (!newTracks || !selectedTrackInfo) return;
 
             for (let i = 0; i < newTracks.length; i++) {
                 const t = newTracks[i];
                 const langMatch = t.language === selectedTrackInfo.language;
                 const labelMatch = t.label === selectedTrackInfo.label;
+
                 if (langMatch || labelMatch) {
                     t.enabled = true;
                 } else {
