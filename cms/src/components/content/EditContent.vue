@@ -270,14 +270,14 @@ const isDirty = computed(() => {
         editableContent.value.map((c) => {
             // Create a copy of each content and delete values that can reduce data quality for accuracy
             const content = c;
-            if (content._rev) delete content._rev;
+            delete (content as any)._rev;
             delete content.updatedTimeUtc;
             return content;
         }),
         existingContent.value?.map((c) => {
             // Create a copy of each content and delete values that can reduce data quality for accuracy
             const content = c;
-            if (content._rev) delete content._rev;
+            delete (content as any)._rev;
             delete content.updatedTimeUt;
             return content;
         }),
@@ -300,14 +300,14 @@ const networkChanges = computed(() => {
         existingContent.value.map((c) => {
             // Create a copy of each content and delete values that can reduce data quality for accuracy
             const content = c;
-            if (content._rev) delete content._rev;
+            delete (content as any)._rev;
             delete content.updatedTimeUtc;
             return content;
         }),
         initialContent.value.map((c) => {
             // Create a copy of each content and delete values that can reduce data quality for accuracy
             const content = c;
-            if (content._rev) delete content._rev;
+            delete (content as any)._rev;
             delete content.updatedTimeUtc;
             return content;
         }),
