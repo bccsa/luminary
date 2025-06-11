@@ -1,15 +1,7 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    db,
-    DocType,
-    type ContentDto,
-    accessMap,
-    PostType,
-    PublishStatus,
-    type LanguageDto,
-} from "luminary-shared";
+import { db, DocType, type ContentDto, accessMap, PostType, PublishStatus } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -20,7 +12,6 @@ import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
 import LanguageSelector from "./LanguageSelector.vue";
 import { initLanguage } from "@/globalConfig";
-import { nextTick } from "process";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
