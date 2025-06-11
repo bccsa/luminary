@@ -1,38 +1,41 @@
 <script setup lang="ts">
-import { ApiLiveQuery, DocType, type ApiSearchQuery, type GroupDto } from "luminary-shared";
+import { type GroupDto } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import GroupRow from "./GroupRow.vue";
-import { ref, watch } from "vue";
 
-const groups = ref<GroupDto[] | undefined>([]);
-const accessToGroup = ref<GroupDto[]>([]);
+// const groups = ref<GroupDto[] | undefined>([]);
+// const accessToGroup = ref<GroupDto[]>([]);
 
-const groupsQuery = ref<ApiSearchQuery>({
-    types: [DocType.Group],
-});
-const apiGroup = new ApiLiveQuery<GroupDto>(groupsQuery);
+type Props = {
+    groups: GroupDto[];
+};
+defineProps<Props>();
 
-const apiGroupResults = apiGroup.toArrayAsRef();
+defineEmits<{
+    (e: "save", group: GroupDto): void;
+    (e: "delete", group: GroupDto): void;
+    (e: "duplicate", group: GroupDto): void;
+}>();
 
-watch(
-    apiGroupResults,
-    () => {
-        if (!apiGroupResults.value) {
-            return;
-        }
+// watch(
+//     apiGroupResults,
+//     () => {
+//         if (!apiGroupResults.value) {
+//             return;
+//         }
 
-        groups.value = apiGroupResults.value;
+//         groups.value = apiGroupResults.value;
 
-        // Step 1: Collect all unique groupIds from ACLs
-        const aclGroupIds = new Set(
-            groups.value.flatMap((group) => group.acl.map((a) => a.groupId)).filter(Boolean),
-        );
+//         // Step 1: Collect all unique groupIds from ACLs
+//         const aclGroupIds = new Set(
+//             groups.value.flatMap((group) => group.acl.map((a) => a.groupId)).filter(Boolean),
+//         );
 
-        // Step 2: Filter groups that are referenced in the ACLs
-        accessToGroup.value = groups.value.filter((group) => aclGroupIds.has(group._id));
-    },
-    { immediate: true },
-);
+//         // Step 2: Filter groups that are referenced in the ACLs
+//         accessToGroup.value = groups.value.filter((group) => aclGroupIds.has(group._id));
+//     },
+//     { immediate: true },
+// );
 </script>
 
 <template>
@@ -75,12 +78,15 @@ watch(
                             ></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 bg-white">
+                    <tbody class="divide-y divide-zinc-200 bg-white" v-if="groups">
                         <GroupRow
                             v-for="group in groups"
                             :key="group._id"
-                            :groupsDoc="group"
-                            :accessToGroup="accessToGroup"
+                            :group="group"
+                            :groups="groups"
+                            @save="$emit('save', $event)"
+                            @delete="$emit('delete', $event)"
+                            @duplicate="$emit('duplicate', $event)"
                         />
                     </tbody>
                 </table>
