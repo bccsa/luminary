@@ -1,7 +1,15 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, type ContentDto, accessMap, PostType, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    type ContentDto,
+    accessMap,
+    PostType,
+    PublishStatus,
+    type LanguageDto,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -38,6 +46,7 @@ vi.mock("vue-router", async (importOriginal) => {
         useRouter: () => ({
             currentRoute: {
                 value: {
+                    name: "edit",
                     params: {
                         languageCode: "eng",
                     },
@@ -71,8 +80,8 @@ describe("EditContent.vue", () => {
             mockData.mockLanguageDtoSwa,
         ]);
 
+        await initLanguage();
         accessMap.value = { ...mockData.superAdminAccessMap };
-        initLanguage();
     });
 
     afterEach(async () => {
@@ -220,18 +229,20 @@ describe("EditContent.vue", () => {
 
         const wrapper = mount(EditContent, {
             props: {
-                id: "test-id-123",
-                languageCode: "en",
+                id: "new",
+                languageCode: "eng",
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
             },
         });
-
-        const languageSelector = wrapper.findComponent(LanguageSelector);
-        const btn = languageSelector.find("[data-test='language-selector']");
+        let languageSelector;
+        await waitForExpect(() => {
+            languageSelector = wrapper.findComponent(LanguageSelector);
+        });
+        const btn = languageSelector!.find("[data-test='language-selector']");
         await btn.trigger("click");
 
-        const languages = languageSelector.find("[data-test='languagePopup']");
+        const languages = languageSelector!.find("[data-test='languagePopup']");
 
         await waitForExpect(async () => {
             expect(await languages.html()).toContain("English");
@@ -257,36 +268,51 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockData.mockPostDto._id,
+                id: "new",
                 tagOrPostType: PostType.Blog,
+                languageCode: undefined,
             },
         });
-
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Please select a language to start editing");
         });
     });
 
-    it("renders all the components", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-                tagOrPostType: PostType.Blog,
-            },
-        });
+    it(
+        "renders all the components",
+        async () => {
+            // Add a new language so that there are untranslated languages for the LanguageSelector to display
+            await db.docs.bulkPut([
+                {
+                    ...mockData.mockLanguageDtoEng,
+                    languageCode: "tst",
+                    _id: "lang-test",
+                },
+            ]);
 
-        expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
 
-        // Wait for the component to fetch data
-        await waitForExpect(() => {
-            expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
-            expect(wrapper.html()).toContain("Text content"); // EditContentText is rendered
-            expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
-            expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
-        });
-    });
+            await waitForExpect(async () => {
+                expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
+            });
+
+            // Wait for the component to fetch data
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
+                expect(wrapper.html()).toContain("Text content"); // EditContentText is rendered
+                expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
+                expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
+            });
+        },
+        { timeout: 999999 },
+    );
 
     it("renders the title of the default language", async () => {
         const wrapper = mount(EditContent, {

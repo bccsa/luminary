@@ -426,7 +426,7 @@ const save = async () => {
     // Save the parent document
     await db.upsert({ doc: editableParent.value });
 
-    if (!editableParent.value.deleteReq) {
+    if (editableParent.value && !editableParent.value.deleteReq) {
         // Save the content documents that changed
         const pList: Promise<any>[] = [];
         editableContent.value.forEach((c) => {
@@ -455,7 +455,7 @@ watch(
     (newImageData) => {
         if (
             newImageData &&
-            editableParent.value.imageData &&
+            editableParent.value &&
             !_.isEqual(newImageData, editableParent.value.imageData)
         ) {
             editableParent.value.imageData.uploadData = [];
@@ -759,7 +759,9 @@ const isLoading = computed(
             </div>
         </div>
     </BasePage>
-    <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />
+    <ConfirmBeforeLeavingModal
+        :isDirty="isDirty && (!editableParent || !editableParent.deleteReq)"
+    />
     <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete ${props.tagOrPostType} and all translations`"
