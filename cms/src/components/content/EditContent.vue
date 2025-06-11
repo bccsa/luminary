@@ -393,6 +393,7 @@ watch(
         if (
             newImageData &&
             editableParent.value &&
+            editableParent.value.imageData &&
             !_.isEqual(newImageData, editableParent.value.imageData)
         ) {
             editableParent.value.imageData.uploadData = [];

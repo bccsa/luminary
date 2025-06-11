@@ -282,13 +282,12 @@ describe("EditContent.vue", () => {
         "renders all the components",
         async () => {
             // Add a new language so that there are untranslated languages for the LanguageSelector to display
-            await db.docs.bulkPut([
-                {
-                    ...mockData.mockLanguageDtoEng,
-                    languageCode: "tst",
-                    _id: "lang-test",
-                },
-            ]);
+            const mockUntranslatedLanguage = {
+                ...mockData.mockLanguageDtoEng,
+                languageCode: "tst",
+                _id: "lang-test",
+            };
+            await db.docs.bulkPut([mockUntranslatedLanguage]);
 
             const wrapper = mount(EditContent, {
                 props: {
