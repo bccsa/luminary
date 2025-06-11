@@ -269,13 +269,19 @@ const isDirty = computed(() => {
 
     //Map through content as it is an array of objects that has to ommit "updatedBy" and "_rev"
     const contentChanged = !_.isEqual(
-        editableContent.value.map(({ updatedTimeUtc, ...content }) => {
-            const { _rev, ...rest } = content as any;
-            return rest;
+        editableContent.value.map((c) => {
+            // Create a copy of each content and delete values that can reduce data quality for accuracy
+            const content = c;
+            delete content._rev;
+            delete content.updatedTimeUtc;
+            return content;
         }),
-        existingContent.value?.map(({ updatedTimeUtc, ...content }) => {
-            const { _rev, ...rest } = content as any;
-            return rest;
+        existingContent.value?.map((c) => {
+            // Create a copy of each content and delete values that can reduce data quality for accuracy
+            const content = c;
+            delete content._rev;
+            delete content.updatedTimeUt;
+            return content;
         }),
     );
 
@@ -293,13 +299,19 @@ const networkChanges = computed(() => {
 
     // Check if the current existing (from DB/server) content is different from what was initially loaded
     const contentChangedFromServer = !_.isEqual(
-        existingContent.value.map(({ updatedTimeUtc, ...content }) => {
-            const { _rev, ...rest } = content as any;
-            return rest;
+        existingContent.value.map((c) => {
+            // Create a copy of each content and delete values that can reduce data quality for accuracy
+            const content = c;
+            delete content._rev;
+            delete content.updatedTimeUtc;
+            return content;
         }),
-        initialContent.value.map(({ updatedTimeUtc, ...content }) => {
-            const { _rev, ...rest } = content as any;
-            return rest;
+        initialContent.value.map((c) => {
+            // Create a copy of each content and delete values that can reduce data quality for accuracy
+            const content = c;
+            delete content._rev;
+            delete content.updatedTimeUtc;
+            return content;
         }),
     );
 
