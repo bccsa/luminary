@@ -298,6 +298,6 @@ watch(showModal, async () => {
 
 <style>
 .tiptap[contenteditable="false"] {
-    @reference bg-zinc-100 opacity-80 hover:ring-zinc-300;
+    @apply bg-zinc-100 opacity-80 hover:ring-zinc-300;
 }
 </style>
