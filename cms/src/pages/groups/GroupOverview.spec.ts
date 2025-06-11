@@ -41,7 +41,7 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 // Mock api
 // ============================
 const app = express();
-const port = 12347;
+const port = 12345612;
 
 let mockApiRequest: string;
 app.get("/search", (req, res) => {
