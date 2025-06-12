@@ -250,34 +250,32 @@ const canDelete = computed(() => {
 
 // Dirty check and save
 const isDirty = computed(() => {
-    if (!existingParent.value || !existingContent.value) {
-        return false; // Wait until data is loaded
-    }
+    /*
+      Function to omit the required fields from an object and reduce repetition in this isDirty function
+    */
+    const omitFields = (object) => {
+        if (!object) return undefined;
+        return _.omit(object, ["updatedBy", "_rev"]);
+    };
 
-    const parentChanged = !_.isEqual(
-        { ...editableParent.value, updatedBy: "", _rev: "" },
-        { ...existingParent.value, updatedBy: "", _rev: "" },
+    /*
+      Function to omit the required fields from objects in an array and reduce repetition in this isDirty function
+    */
+    const omitFieldsInArray = (array) => {
+        if (!Array.isArray(array)) return [];
+        return array.map((item) => omitFields(item));
+    };
+
+    return (
+        !_.isEqual(
+            omitRedundantFields(existingParent.value),
+            omitRedundantFields(editableParent.value),
+        ) ||
+        !_.isEqual(
+            omitFieldsInArray(existingContent.value),
+            omitFieldsInArray(editableContent.value),
+        )
     );
-
-    //Map through content as it is an array of objects that has to ommit "updatedBy" and "_rev"
-    const contentChanged = !_.isEqual(
-        editableContent.value.map((c) => {
-            // Create a copy of each content and delete values that can reduce data quality for accuracy
-            const content = { ...c } as any;
-            delete content._rev;
-            delete content.updatedTimeUtc;
-            return content;
-        }),
-        existingContent.value?.map((c) => {
-            // Create a copy of each content and delete values that can reduce data quality for accuracy
-            const content = { ...c } as any;
-            delete content._rev;
-            delete content.updatedTimeUtc;
-            return content;
-        }),
-    );
-
-    return parentChanged || contentChanged;
 });
 
 const isValid = ref(true);
