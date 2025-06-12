@@ -417,10 +417,6 @@ const save = async () => {
 
         await Promise.all(pList);
     }
-
-    //Reset initial data with new data so this client doesn't see the new data in the useDexieLiveQuery as network changes
-    initialParent.value = _.cloneDeep(existingParent.value);
-    initialContent.value = existingContent.value.map((content) => _.cloneDeep(content));
 };
 
 //Patch image data with the data retrieved from the api when uploading a new image
