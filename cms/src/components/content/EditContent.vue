@@ -253,7 +253,7 @@ const isDirty = computed(() => {
     /*
       Function to omit the required fields from an object and reduce repetition in this isDirty function
     */
-    const omitFields = (object) => {
+    const omitFields = (object: any) => {
         if (!object) return undefined;
         return _.omit(object, ["updatedBy", "_rev"]);
     };
@@ -261,7 +261,7 @@ const isDirty = computed(() => {
     /*
       Function to omit the required fields from objects in an array and reduce repetition in this isDirty function
     */
-    const omitFieldsInArray = (array) => {
+    const omitFieldsInArray = (array: any) => {
         if (!Array.isArray(array)) return [];
         return array.map((item) => omitFields(item));
     };
