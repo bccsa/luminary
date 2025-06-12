@@ -39,7 +39,13 @@ const usedLanguage = computed(() => {
     return sortedLanguages.value.find((l) => editableContent.value?.language == l._id);
 });
 
-const isContentDirty = computed(() => !_.isEqual(editableContent.value, props.existingContent));
+const isContentDirty = computed(
+    () =>
+        !_.isEqual(
+            _.omit(editableContent.value, ["updatedTimeUtc", "_rev"]),
+            _.omit(props.existingContent, ["updatedTimeUtc", "_rev"]),
+        ),
+);
 
 const emit = defineEmits<{
     (e: "isValid", value: boolean): void;
