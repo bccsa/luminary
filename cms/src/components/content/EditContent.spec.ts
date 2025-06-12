@@ -37,6 +37,7 @@ vi.mock("vue-router", async (importOriginal) => {
         useRouter: () => ({
             currentRoute: {
                 value: {
+                    name: "edit",
                     params: {
                         languageCode: "eng",
                     },
@@ -70,8 +71,8 @@ describe("EditContent.vue", () => {
             mockData.mockLanguageDtoSwa,
         ]);
 
-        accessMap.value = mockData.superAdminAccessMap;
-        initLanguage();
+        await initLanguage();
+        accessMap.value = { ...mockData.superAdminAccessMap };
     });
 
     afterEach(async () => {
@@ -219,18 +220,20 @@ describe("EditContent.vue", () => {
 
         const wrapper = mount(EditContent, {
             props: {
-                id: "test-id-123",
-                languageCode: "en",
+                id: "new",
+                languageCode: "eng",
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
             },
         });
-
-        const languageSelector = wrapper.findComponent(LanguageSelector);
-        const btn = languageSelector.find("[data-test='language-selector']");
+        let languageSelector;
+        await waitForExpect(() => {
+            languageSelector = wrapper.findComponent(LanguageSelector);
+        });
+        const btn = languageSelector!.find("[data-test='language-selector']");
         await btn.trigger("click");
 
-        const languages = languageSelector.find("[data-test='languagePopup']");
+        const languages = languageSelector!.find("[data-test='languagePopup']");
 
         await waitForExpect(async () => {
             expect(await languages.html()).toContain("English");
@@ -256,17 +259,25 @@ describe("EditContent.vue", () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
-                id: mockData.mockPostDto._id,
+                id: "new",
                 tagOrPostType: PostType.Blog,
+                languageCode: undefined,
             },
         });
-
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Please select a language to start editing");
         });
     });
 
     it("renders all the components", async () => {
+        // Add a new language so that there are untranslated languages for the LanguageSelector to display
+        const mockUntranslatedLanguage = {
+            ...mockData.mockLanguageDtoEng,
+            languageCode: "tst",
+            _id: "lang-test",
+        };
+        await db.docs.bulkPut([mockUntranslatedLanguage]);
+
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -276,7 +287,9 @@ describe("EditContent.vue", () => {
             },
         });
 
-        expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
+        await waitForExpect(async () => {
+            expect(wrapper.findComponent(LanguageSelector).exists()).toBe(true); // LanguageSelector is rendered
+        });
 
         // Wait for the component to fetch data
         await waitForExpect(() => {
