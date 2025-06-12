@@ -66,11 +66,6 @@ const newDocument = props.id == "new";
 const hasLoadedParent = ref(false);
 const hasLoadedContent = ref(false);
 
-//Initial loaded data to check against for network changes
-const initialParent = ref<ContentParentDto | undefined>(undefined);
-const initialContent = ref<ContentDto[] | undefined>(undefined);
-
-// Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
 const editableParent = ref<ContentParentDto>({
@@ -95,7 +90,6 @@ const existingParent = useDexieLiveQuery(
 watch(
     existingParent,
     (newParent) => {
-        if (!hasLoadedParent.value) initialParent.value = _.cloneDeep(newParent);
         if (isDirty.value && hasLoadedParent.value) return;
         editableParent.value = _.cloneDeep(newParent);
         hasLoadedParent.value = true;
@@ -117,8 +111,6 @@ const existingContent = useDexieLiveQuery(
 watch(
     () => existingContent.value,
     (newContent) => {
-        if (!hasLoadedContent.value)
-            initialContent.value = newContent.map((content) => _.cloneDeep(content));
         if (isDirty.value && hasLoadedContent.value) return;
         editableContent.value = newContent.map((content) => _.cloneDeep(content));
         hasLoadedContent.value = true;
@@ -286,36 +278,6 @@ const isDirty = computed(() => {
     );
 
     return parentChanged || contentChanged;
-});
-
-// Check for any changes from the server when no local changes has been made
-const networkChanges = computed(() => {
-    if (!initialContent.value || !initialParent.value) return false;
-    // Check if the current existing (from DB/server) parent is different from what was initially loaded
-    const parentChangedFromServer = !_.isEqual(
-        { ...existingParent.value, updatedBy: "", _rev: "" },
-        { ...initialParent.value, updatedBy: "", _rev: "" },
-    );
-
-    // Check if the current existing (from DB/server) content is different from what was initially loaded
-    const contentChangedFromServer = !_.isEqual(
-        existingContent.value.map((c) => {
-            // Create a copy of each content and delete values that can reduce data quality for accuracy
-            const content = { ...c } as any;
-            delete content._rev;
-            delete content.updatedTimeUtc;
-            return content;
-        }),
-        initialContent.value.map((c) => {
-            // Create a copy of each content and delete values that can reduce data quality for accuracy
-            const content = { ...c } as any;
-            delete content._rev;
-            delete content.updatedTimeUtc;
-            return content;
-        }),
-    );
-
-    return (parentChangedFromServer || contentChangedFromServer) && !isLocalChange.value;
 });
 
 const isValid = ref(true);
@@ -658,12 +620,6 @@ const isLoading = computed(
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-                <LBadge
-                    v-if="networkChanges"
-                    title="Please refresh the page before continuing"
-                    variant="warning"
-                    >Changes recieved from the server</LBadge
-                >
                 <div class="flex gap-1">
                     <LButton
                         type="button"
