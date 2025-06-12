@@ -355,11 +355,41 @@ watch(audioMode, async (mode) => {
     }
 
     // Switch source
+    // if (mode) {
+    //     const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+    //     const blob = new Blob([audioMaster], { type: "application/x-mpegURL" });
+    //     const blobUrl = URL.createObjectURL(blob);
+    //     player.src({ type: "application/x-mpegURL", src: blobUrl });
+    // } else {
+    //     player.src({ type: "application/x-mpegURL", src: props.content.video });
+    // }
+
+    // Switch source
     if (mode) {
+        player.audioOnlyMode(true); // <- important for Safari
+
         const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
-        const blob = new Blob([audioMaster], { type: "application/x-mpegURL" });
-        const blobUrl = URL.createObjectURL(blob);
-        player.src({ type: "application/x-mpegURL", src: blobUrl });
+        // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
+        let playlistUrl: string;
+        try {
+            // Data URLs are more compatible on mobile for small files
+            // Encode the audio master playlist as base64
+            const base64 = btoa(
+                String.fromCharCode(...new Uint8Array(new TextEncoder().encode(audioMaster))),
+            );
+            // Construct a data URL for the playlist
+            playlistUrl = `data:application/x-mpegURL;base64,${base64}`;
+            // Some browsers may have limits on data URL size; fallback to blob if too large
+            if (playlistUrl.length > 2_000_000) {
+                // ~2MB: If the data URL is too large, throw to trigger the Blob fallback
+                throw new Error("Data URL too large, fallback to Blob URL");
+            }
+        } catch {
+            const blob = new Blob([audioMaster], { type: "application/x-mpegURL" });
+            playlistUrl = URL.createObjectURL(blob);
+        }
+        console.log("Using audio master playlist:", playlistUrl);
+        player.src({ type: "application/x-mpegURL", src: playlistUrl });
     } else {
         player.src({ type: "application/x-mpegURL", src: props.content.video });
     }
