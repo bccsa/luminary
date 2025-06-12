@@ -253,7 +253,7 @@ const isDirty = computed(() => {
     */
     const omitFields = (object: any) => {
         if (!object) return undefined;
-        return _.omit(object, ["updatedBy", "_rev"]);
+        return _.omit(object, ["updatedTimeUtc", "_rev"]);
     };
 
     /*
