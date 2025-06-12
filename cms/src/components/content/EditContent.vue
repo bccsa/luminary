@@ -267,10 +267,7 @@ const isDirty = computed(() => {
     };
 
     return (
-        !_.isEqual(
-            omitRedundantFields(existingParent.value),
-            omitRedundantFields(editableParent.value),
-        ) ||
+        !_.isEqual(omitFields(existingParent.value), omitFields(editableParent.value)) ||
         !_.isEqual(
             omitFieldsInArray(existingContent.value),
             omitFieldsInArray(editableContent.value),
