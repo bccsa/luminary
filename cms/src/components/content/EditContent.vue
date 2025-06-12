@@ -422,12 +422,13 @@ watch(
             newImageData &&
             editableParent.value &&
             editableParent.value.imageData &&
-            !_.isEqual(newImageData, editableParent.value.imageData)
+            !_.isEqual(newImageData, editableParent.value.imageData.fileCollections)
         ) {
             editableParent.value.imageData.uploadData = [];
-            editableParent.value.imageData.fileCollections = newImageData;
+            editableParent.value.imageData.fileCollections = _.cloneDeep(newImageData);
         }
     },
+    { deep: true },
 );
 
 const revertChanges = () => {
