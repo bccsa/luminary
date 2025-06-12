@@ -633,7 +633,6 @@ const isLoading = computed(
                         @click="saveChanges"
                         data-test="save-button"
                         variant="primary"
-                        :disabled="networkChanges"
                         :icon="FolderArrowDownIcon"
                     >
                         Save
