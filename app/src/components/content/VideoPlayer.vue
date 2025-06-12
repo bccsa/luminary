@@ -355,16 +355,6 @@ watch(audioMode, async (mode) => {
     }
 
     // Switch source
-    // if (mode) {
-    //     const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
-    //     const blob = new Blob([audioMaster], { type: "application/x-mpegURL" });
-    //     const blobUrl = URL.createObjectURL(blob);
-    //     player.src({ type: "application/x-mpegURL", src: blobUrl });
-    // } else {
-    //     player.src({ type: "application/x-mpegURL", src: props.content.video });
-    // }
-
-    // Switch source
     if (mode) {
         player.audioOnlyMode(true); // <- important for Safari
 
