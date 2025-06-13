@@ -41,7 +41,16 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 // Mock api
 // ============================
 const app = express();
-const port = 12347;
+
+const randomPort = () => {
+    const minPort = 1024;
+    const maxPort = 65535;
+    return Math.floor(Math.random() * (maxPort - minPort + 1)) + minPort;
+};
+
+// Ensure port is randomly generated so it doesn't break when the same test is also run somewhere else
+// in github actions
+const port = randomPort();
 
 let mockApiRequest: string;
 app.get("/search", (req, res) => {
