@@ -270,7 +270,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
 @import "./VideoPlayer.css";
 
 .audio-mode-toggle {
-    @reference !absolute right-2 top-2;
+    @apply !absolute right-2 top-2;
 }
 </style>
 

@@ -1,138 +1,138 @@
 .video-js {
-    @reference !bg-transparent;
+    @apply !bg-transparent;
 }
 
 .video-player {
-    @reference aspect-video !bg-transparent;
+    @apply aspect-video !bg-transparent;
 }
 
 .video-player .vjs-tech {
-    @reference md:!rounded-lg;
+    @apply md:!rounded-lg;
 }
 
 .video-player .vjs-poster img {
-    @reference object-cover md:!rounded-lg;
+    @apply object-cover md:!rounded-lg;
 }
 
 .video-player .vjs-big-play-button {
-    @reference !border-none bg-zinc-800/60 !text-3xl;
+    @apply !border-none bg-zinc-800/60 !text-3xl;
 }
 
 .video-player .vjs-big-play-button span {
-    @reference !text-5xl;
+    @apply !text-5xl;
 }
 
 /* Position skip buttons next to the big play button */
 .video-player .vjs-skip-forward-10,
 .video-player .vjs-skip-backward-10 {
-    @reference !absolute flex !h-14 !w-14 items-center justify-center rounded-full !border-none text-white !outline-none !important;
-    @reference top-2/4 !-translate-y-3/4 !important;
+    @apply !absolute flex !h-14 !w-14 items-center justify-center rounded-full !border-none text-white !outline-none !important;
+    @apply top-2/4 !-translate-y-3/4 !important;
 }
 
 .video-player .vjs-skip-backward-10 {
-    @reference left-[calc(50%-100px)];
+    @apply left-[calc(50%-100px)];
 }
 
 .video-player .vjs-skip-forward-10 {
-    @reference right-[calc(50%-100px)];
+    @apply right-[calc(50%-100px)];
 }
 
 .video-player .vjs-skip-backward-10 span,
 .video-player .vjs-skip-forward-10 span {
-    @reference !text-xl;
+    @apply !text-xl;
 }
 
 .video-player :is(.vjs-live) .vjs-skip-backward-10 {
-    @reference !hidden;
+    @apply !hidden;
 }
 
 .video-player :is(.vjs-live) .vjs-skip-forward-10 {
-    @reference !hidden;
+    @apply !hidden;
 }
 
 .video-player .vjs-control-bar {
-    @reference !relative !h-full !w-full md:rounded-lg;
+    @apply !relative !h-full !w-full md:rounded-lg;
     background-color: rgba(0, 0, 0, 0.3) !important;
 }
 
 .video-player :is(.vjs-has-started) .vjs-control-bar {
-    @reference block;
+    @apply block;
 }
 
 .video-player .vjs-control {
-    @reference !float-left !h-11 !w-11 !text-sm !outline-none;
+    @apply !float-left !h-11 !w-11 !text-sm !outline-none;
 }
 
 .video-player .vjs-play-control {
-    @reference !absolute !inset-0 !m-auto !h-24 !w-24 !text-3xl;
+    @apply !absolute !inset-0 !m-auto !h-24 !w-24 !text-3xl;
 }
 
 .video-player .vjs-progress-control {
-    @reference !absolute !bottom-0 !left-0 !pl-2 !pr-0;
+    @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
     width: calc(100% - 40px) !important;
 }
 
 .video-player .vjs-live-control {
-    @reference !absolute !bottom-0 !left-0 !pl-2 !pr-0;
+    @apply !absolute !bottom-0 !left-0 !pl-2 !pr-0;
 }
 
 .video-player .vjs-live-display {
-    @reference p-3 pl-2;
+    @apply p-3 pl-2;
 }
 
 .video-player :is(.vjs-live) .vjs-playback-rate {
-    @reference !hidden;
+    @apply !hidden;
 }
 
 .video-player .vjs-slider {
-    @reference !rounded-full;
+    @apply !rounded-full;
 }
 
 .video-player .vjs-slider-bar {
-    @reference !rounded-full;
+    @apply !rounded-full;
 }
 
 .audio-mode .vjs-play-progress {
-    @reference !rounded-full;
+    @apply !rounded-full;
 }
 
 .audio-mode .vjs-load-progress {
-    @reference !rounded-full;
+    @apply !rounded-full;
 }
 
 .video-player .vjs-fullscreen-control {
-    @reference !absolute !bottom-0 !right-0;
+    @apply !absolute !bottom-0 !right-0;
 }
 
 .video-player .vjs-menu {
-    @reference !left-11 !top-0 !outline-none;
+    @apply !left-11 !top-0 !outline-none;
 }
 
 .video-player .vjs-menu-content {
-    @reference !top-4 z-10 !h-fit rounded-md  !bg-zinc-50 shadow-lg dark:!bg-zinc-600 dark:text-slate-100;
+    @apply !top-4 z-10 !h-fit rounded-md  !bg-zinc-50 shadow-lg dark:!bg-zinc-600 dark:text-slate-100;
 }
 
 .video-player .vjs-selected {
-    @reference !bg-zinc-300 font-bold focus:!bg-zinc-300 dark:!bg-zinc-500 focus:dark:!bg-zinc-500;
+    @apply !bg-zinc-300 font-bold focus:!bg-zinc-300 dark:!bg-zinc-500 focus:dark:!bg-zinc-500;
 }
 
 .video-player .vjs-menu-item-text {
-    @reference text-zinc-900 dark:text-slate-100;
+    @apply text-zinc-900 dark:text-slate-100;
 }
 
 .video-player .video-js :not(.vjs-selected) {
-    @reference focus:!bg-transparent;
+    @apply focus:!bg-transparent;
 }
 
 .video-player .vjs-menu-button {
-    @reference !outline-none;
+    @apply !outline-none;
 }
 
 .video-player .vjs-menu-item {
-    @reference !p-3 !text-sm !outline-none;
+    @apply !p-3 !text-sm !outline-none;
     width: 100% !important;
 }
 
 .video-player .vjs-volume-control {
-    @reference hidden md:block; /* Hidden on mobile (sm) and shown on medium (md) and up */
+    @apply hidden md:block; /* Hidden on mobile (sm) and shown on medium (md) and up */
 }

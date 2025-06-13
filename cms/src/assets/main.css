@@ -1,16 +1,6 @@
-@import "tailwindcss";
-@plugin "@tailwindcss/typography";
-@plugin "@tailwindcss/forms";
-
-@layer utilities {
-    .no-scrollbar::-webkit-scrollbar {
-        display: none;
-    }
-    .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @font-face {
     font-family: "Inter";
