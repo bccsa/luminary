@@ -90,7 +90,7 @@ const toggleDropdown = () => {
         <FormLabel v-if="label"> {{ label }} </FormLabel>
 
         <div
-            class="flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+            class="flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pr-3 pl-3 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
             tabindex="0"
             v-bind="attrsWithoutStyles"
             @click="showDropdown = !showDropdown"
@@ -110,7 +110,7 @@ const toggleDropdown = () => {
                     @click.stop="toggleDropdown"
                     v-model="query"
                     ref="inputElement"
-                    class="z-0 h-[38px] w-24 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
+                    class="z-0 h-[38px] flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
                     placeholder="Type to select..."
                     name="option-search"
                     autocomplete="off"
@@ -178,7 +178,7 @@ const toggleDropdown = () => {
                 :disabled="option.selected"
                 class="w-full list-none text-sm hover:bg-zinc-100"
                 :class="[
-                    'relative cursor-default select-none py-2 pl-3 pr-9',
+                    'relative cursor-default py-2 pr-9 pl-3 select-none',
                     {
                         'bg-white text-black hover:bg-zinc-100': !option.selected,
                         'text-zinc-300 hover:bg-white': option.selected,
