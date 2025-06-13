@@ -15,6 +15,7 @@ import {
     setMediaProgress,
     queryParams,
 } from "@/globalConfig";
+import { Parser, type Attributes } from "m3u8-parser";
 
 type Props = {
     content: ContentDto;
@@ -73,6 +74,92 @@ function setAudioTrackLanguage(languageCode: string | null) {
             iso.iso6392TTo1[track.language] === languageCode ||
             iso.iso6392BTo1[track.language] === languageCode;
     }
+}
+
+/**
+ * Extracts and builds an audio master playlist from a given HLS manifest URL.
+ *
+ * @param {string} originalUrl - The URL of the original HLS manifest file.
+ * @returns {Promise<string>} - A Promise that resolves to the generated audio master playlist as a string.
+ */
+async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> {
+    // Fetch the original HLS manifest
+    const response = await fetch(originalUrl);
+
+    // Read the manifest file content as text.
+    const manifestText = await response.text();
+
+    // Parse the manifest using m3u8-parser
+    const parser = new Parser();
+
+    // Push the manifest text into the parser for processing.
+    parser.push(manifestText);
+
+    // Finalize the parsing process.
+    parser.end();
+
+    // Retrieve the parsed manifest object from the parser.
+    const parsedManifest = parser.manifest;
+    // Get the directory of the manifest for resolving relative URIs
+    const manifestDir = originalUrl.substring(0, originalUrl.lastIndexOf("/") + 1);
+
+    // Extract audio media groups and playlists from the manifest
+    const audioMedia = parsedManifest.mediaGroups?.AUDIO || {};
+    const playlists = (parsedManifest.playlists || []) as unknown as {
+        uri: string;
+        attributes: Attributes;
+    }[];
+
+    // Initialize an array to store the lines of the new audio master playlist.
+    const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:4", "#EXT-X-INDEPENDENT-SEGMENTS"];
+
+    // Iterate through each audio group in the media groups.
+    for (const group in audioMedia) {
+        const variants = audioMedia[group];
+
+        // Iterate through each audio variant in the group.
+        for (const name in variants) {
+            const track: any = (variants as Record<string, typeof track>)[name];
+
+            // Check if the audio track has a URI defined.
+            if (track.uri) {
+                // Resolve the absolute URI of the audio track.
+                const absoluteTrackUri = new URL(track.uri, manifestDir).toString();
+
+                // Add an EXT-X-MEDIA tag for the audio track to the playlist.
+                lines.push(
+                    `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="${group}",NAME="${name}",LANGUAGE="${track.language}",DEFAULT=${track.default ? "YES" : "NO"},AUTOSELECT=${track.autoselect ? "YES" : "NO"},URI="${absoluteTrackUri}"`,
+                );
+
+                // Get the original relative URI (without query params)
+                const relativeTrackUri = track.uri.split("?")[0];
+
+                // Find the matching playlist for this audio group
+                const matched = playlists.find(
+                    (p) => p.attributes?.AUDIO === group && p.uri.includes(relativeTrackUri),
+                );
+
+                // Use the matched playlist's bandwidth or a default/random value
+                const bandwidth =
+                    matched?.attributes?.BANDWIDTH ?? 96000 + Math.floor(Math.random() * 64000);
+
+                // Use the matched playlist's codecs or a default value
+                const codecs =
+                    typeof matched?.attributes?.CODECS === "string"
+                        ? matched.attributes.CODECS
+                        : "mp4a.40.2";
+
+                // Add the EXT-X-STREAM-INF line for this audio track
+                const streamInfLine = `#EXT-X-STREAM-INF:AUDIO="${group}",BANDWIDTH=${bandwidth},CODECS="${codecs}"`;
+
+                lines.push(streamInfLine);
+                lines.push(absoluteTrackUri);
+            }
+        }
+    }
+
+    // Join all lines to form the final playlist string
+    return lines.join("\n");
 }
 
 onMounted(() => {
@@ -244,15 +331,82 @@ onUnmounted(() => {
     window.dispatchEvent(playerDestroyEvent);
 });
 
-// Set player audio only mode
-watch(audioMode, (mode) => {
+watch(audioMode, async (mode) => {
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
-
-    // Set player's user active state to true as a workaround to show audio track selection button on iOS
     player.userActive(true);
-
     playerUserActiveEventHandler();
+
+    // Save current time and selected track label/language
+    const currentTime = player.currentTime() || 0;
+
+    let selectedTrackInfo: { label?: string; language?: string } | null = null;
+    const tracks = (player as any).audioTracks?.();
+    if (tracks) {
+        for (let i = 0; i < tracks.length; i++) {
+            if (tracks[i].enabled) {
+                selectedTrackInfo = {
+                    label: tracks[i].label,
+                    language: tracks[i].language,
+                };
+                break;
+            }
+        }
+    }
+
+    // Switch source
+    if (mode) {
+        player.audioOnlyMode(true); // <- important for Safari
+
+        const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+        // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
+        let playlistUrl: string;
+        try {
+            // Data URLs are more compatible on mobile for small files
+            // Encode the audio master playlist as base64
+            const base64 = btoa(
+                String.fromCharCode(...new Uint8Array(new TextEncoder().encode(audioMaster))),
+            );
+            // Construct a data URL for the playlist
+            playlistUrl = `data:application/x-mpegURL;base64,${base64}`;
+            // Some browsers may have limits on data URL size; fallback to blob if too large
+            if (playlistUrl.length > 2_000_000) {
+                // ~2MB: If the data URL is too large, throw to trigger the Blob fallback
+                throw new Error("Data URL too large, fallback to Blob URL");
+            }
+        } catch {
+            const blob = new Blob([audioMaster], { type: "application/x-mpegURL" });
+            playlistUrl = URL.createObjectURL(blob);
+        }
+        console.log("Using audio master playlist:", playlistUrl);
+        player.src({ type: "application/x-mpegURL", src: playlistUrl });
+    } else {
+        player.src({ type: "application/x-mpegURL", src: props.content.video });
+    }
+
+    player.ready(() => {
+        player.currentTime(currentTime);
+        player.play();
+
+        // Wait for tracks to be available
+        player.on("loadedmetadata", () => {
+            const newTracks = (player as any).audioTracks?.();
+
+            if (!newTracks || !selectedTrackInfo) return;
+
+            for (let i = 0; i < newTracks.length; i++) {
+                const t = newTracks[i];
+                const langMatch = t.language === selectedTrackInfo.language;
+                const labelMatch = t.label === selectedTrackInfo.label;
+
+                if (langMatch || labelMatch) {
+                    t.enabled = true;
+                } else {
+                    t.enabled = false;
+                }
+            }
+        });
+    });
 });
 
 // Watch for changes in appLanguageAsRef
