@@ -11,15 +11,15 @@ import { ref, onMounted, onUnmounted } from "vue";
 const { t } = useI18n();
 
 // Reactive reference to media progress stored in localStorage
-const mediaProgressRef = ref(getWatchedMediaIds());
+const mediaProgressRef = ref(getReadedContentIds());
 
 /**
  * Load the list of watched media from localStorage.
  * Each entry contains a mediaId and its corresponding contentId.
  */
-function getWatchedMediaIds(): { mediaId: string; contentId: Uuid }[] {
+function getReadedContentIds(): { contentId: Uuid }[] {
     try {
-        const progressList = JSON.parse(localStorage.getItem("mediaProgress") || "[]");
+        const progressList = JSON.parse(localStorage.getItem("readingProgress") || "[]");
         return Array.isArray(progressList) ? progressList : [];
     } catch {
         return [];
@@ -32,7 +32,7 @@ function getWatchedMediaIds(): { mediaId: string; contentId: Uuid }[] {
  */
 function startWatchingLocalStorage() {
     const update = () => {
-        mediaProgressRef.value = getWatchedMediaIds();
+        mediaProgressRef.value = getReadedContentIds();
     };
 
     // Listen for cross-tab updates
@@ -84,8 +84,9 @@ const watchedContent = useDexieLiveQueryWithDeps(
     <HorizontalContentTileCollection
         v-if="watchedContent.length > 0"
         :contentDocs="watchedContent"
-        :title="t('home.continue.watch')"
+        :title="t('home.continue.read')"
         :showPublishDate="true"
-        class="pt-4 pb-1"
+        :showProgress="true"
+        class="pb-1 pt-4"
     />
 </template>
