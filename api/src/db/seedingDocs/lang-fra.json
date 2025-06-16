@@ -83,14 +83,6 @@
         "logout.modal.title": "Déconnexion",
         "logout.modal.description": "Êtes-vous sûr de vouloir vous déconnecter ?",
         "logout.modal.button_cancel": "Annuler",
-        "logout.modal.button_logout": "Déconnexion",
-        "notfoundpage.navigation.home": "Retour à la maison",
-        "notfoundpage.unauthenticated.title": "Oups ! Vous n'êtes pas connecté.",
-        "notfoundpage.unauthenticated.loginPrompt.before": "Veuillez cliquer",
-        "notfoundpage.unauthenticated.loginPrompt.linkText": "ici",
-        "notfoundpage.unauthenticated.loginPrompt.after": "pour vous connecter ou créer un compte.",
-        "notfoundpage.unauthenticated.description": "Le contenu peut être uniquement disponible pour les utilisateurs connectés.",
-        "notfoundpage.authenticated.title": "Hé, nous n'avons pas pu trouver cette page",
-        "notfoundpage.authenticated.description": "Le contenu que vous recherchez a peut-être été supprimé ou n'est pas disponible pour le moment."
+        "logout.modal.button_logout": "Déconnexion"
     }
 }
