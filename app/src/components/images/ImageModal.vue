@@ -218,7 +218,7 @@ onMounted(() => {
 
     el.addEventListener("dblclick", onDblClick);
 
-     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
 });
 
 onBeforeUnmount(() => {
@@ -238,7 +238,7 @@ onBeforeUnmount(() => {
 
     el.removeEventListener("dblclick", onDblClick);
 
-     window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
@@ -268,10 +268,10 @@ onBeforeUnmount(() => {
     </div>
 </template>
 
-<style scoped>
+<!-- <style scoped>
 html,
 body {
     touch-action: none;
     overscroll-behavior: contain;
 }
-</style>
+</style> -->
