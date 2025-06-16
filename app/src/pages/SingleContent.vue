@@ -345,6 +345,20 @@ watch(content, () => {
 
 const isLanguageSwitch = ref(false);
 
+// Change language
+const onLanguageSelect = (languageId: Uuid) => {
+    isLanguageSwitch.value = true;
+
+    selectedLanguageId.value = languageId;
+
+    const preferred = availableTranslations.value.find(
+        (c) => c.language == languageId && isPublished(c, appLanguageIdsAsRef.value),
+    );
+    if (preferred) {
+        router.replace({ name: "content", params: { slug: preferred.slug } });
+    }
+};
+
 watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
     async () => {
@@ -420,20 +434,6 @@ watch(
     },
     { immediate: true, deep: true },
 );
-
-// Change language
-const onLanguageSelect = (languageId: Uuid) => {
-    isLanguageSwitch.value = true;
-
-    selectedLanguageId.value = languageId;
-
-    const preferred = availableTranslations.value.find(
-        (c) => c.language == languageId && isPublished(c, appLanguageIdsAsRef.value),
-    );
-    if (preferred) {
-        router.replace({ name: "content", params: { slug: preferred.slug } });
-    }
-};
 
 const showDropdown = ref(false);
 </script>
@@ -520,7 +520,7 @@ const showDropdown = ref(false);
                     <div class="flex w-full flex-col items-center">
                         <div class="mt-3 flex flex-col gap-3">
                             <h1
-                                class="text-bold text-center text-xl text-zinc-800 lg:text-2xl dark:text-slate-50"
+                                class="text-bold text-center text-xl text-zinc-800 dark:text-slate-50 lg:text-2xl"
                             >
                                 {{ content.title }}
                             </h1>
@@ -602,7 +602,7 @@ const showDropdown = ref(false);
                     <div
                         v-if="content.text"
                         v-html="text"
-                        class="prose prose-zinc dark:prose-invert mt-3 max-w-full"
+                        class="prose prose-zinc mt-3 max-w-full dark:prose-invert"
                         :class="{
                             'border-t-2 border-yellow-500/25 pt-2': categoryTags.length == 0,
                         }"
