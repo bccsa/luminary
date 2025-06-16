@@ -32,6 +32,8 @@ import {
     isDarkTheme,
     theme,
     appLanguageAsRef,
+    markLanguageSwitch,
+    consumeLanguageSwitchFlag,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -343,50 +345,44 @@ watch(content, () => {
     selectedLanguageId.value = content.value?.language;
 });
 
-const isLanguageSwitch = ref(false);
+const hasConsumedLangSwitch = ref(false);
+const wasLangSwitch = ref(false);
 
 // Change language
 const onLanguageSelect = (languageId: Uuid) => {
-    isLanguageSwitch.value = true;
-
+    markLanguageSwitch(); // reactive version
     selectedLanguageId.value = languageId;
-
-    const preferred = availableTranslations.value.find(
-        (c) => c.language == languageId && isPublished(c, appLanguageIdsAsRef.value),
-    );
-    if (preferred) {
-        router.replace({ name: "content", params: { slug: preferred.slug } });
-    }
 };
 
 watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
-    async () => {
-        // If no selected language or content is available, exit early
+    () => {
         if (!selectedLanguageId.value || !content.value) return;
 
-        // Find the preferred translation for the selected language
         const preferred = availableTranslations.value.find(
-            (c) => c.language == selectedLanguageId.value,
+            (c) => c.language === selectedLanguageId.value,
         );
 
-        if (preferred) {
-            // If a preferred translation exists, navigate to its slug
+        // Route only if different slug
+        if (preferred && preferred.slug !== content.value.slug) {
             router.replace({ name: "content", params: { slug: preferred.slug } });
+            return;
         }
 
-        // If the content's language is not the preferred app language
-        if (
-            content.value &&
-            content.value.language !== appLanguagePreferredIdAsRef.value &&
-            !isLanguageSwitch.value
-        ) {
-            // Find the content in the preferred app language
+        // Consume flag ONCE
+
+        // Consume the language switch flag only once to determine if the user switched language via dropdown
+        if (!hasConsumedLangSwitch.value) {
+            wasLangSwitch.value = consumeLanguageSwitchFlag();
+            hasConsumedLangSwitch.value = true;
+        }
+
+        // Show banner only if it wasn't from dropdown
+        if (content.value.language !== appLanguagePreferredIdAsRef.value && !wasLangSwitch.value) {
             const preferredContent = availableTranslations.value.find(
-                (c) => c.language == appLanguagePreferredIdAsRef.value,
+                (c) => c.language === appLanguagePreferredIdAsRef.value,
             );
 
-            // If preferred content exists, show a notification to the user
             if (preferredContent) {
                 useNotificationStore().addNotification({
                     id: "content-available",
@@ -407,24 +403,15 @@ watch(
             }
         }
 
-        // Reset the language selection flag after navigation
-        if (isLanguageSwitch.value) {
-            isLanguageSwitch.value = false;
-        }
-
-        // Function to remove the notification if conditions are met
+        // Remove banner if user views content in preferred language
         const removeNotificationIfNeeded = () => {
-            if (content.value && content.value.language == appLanguagePreferredIdAsRef.value) {
-                // Remove the notification if the content is already in the preferred language
-                // or if the user navigates away from the "content" page
+            if (content.value?.language === appLanguagePreferredIdAsRef.value) {
                 useNotificationStore().removeNotification("content-available");
             }
         };
 
-        // Initial check to remove the notification if conditions are met
         removeNotificationIfNeeded();
 
-        // Watch for route changes to remove the notification if the user navigates away
         watch(
             () => router.currentRoute.value.name,
             () => {
