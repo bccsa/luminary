@@ -436,6 +436,7 @@ export const mockUserDto: UserDto = {
     email: "john@doe.com",
     name: "John Doe",
     updatedTimeUtc: 1704114000000,
+    lastLogin: 1704114000000,
     memberOf: ["group-super-admins"],
 };
 

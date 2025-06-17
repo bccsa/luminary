@@ -5,12 +5,7 @@ import UserRow from "./UserRow.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { accessMap, db } from "luminary-shared";
-import {
-    fullAccessToAllContentMap,
-    mockGroupDtoSuperAdmins,
-    mockLanguageDtoEng,
-    mockUserDto,
-} from "@/tests/mockdata";
+import { fullAccessToAllContentMap, mockGroupDtoSuperAdmins, mockUserDto } from "@/tests/mockdata";
 import { DateTime } from "luxon";
 
 describe("UserRow.vue", () => {
@@ -42,9 +37,7 @@ describe("UserRow.vue", () => {
 
         // check if the updated time is formatted correctly according the systems settings
         expect(wrapper.html()).toContain(
-            db
-                .toDateTime(mockLanguageDtoEng.updatedTimeUtc)
-                .toLocaleString(DateTime.DATETIME_SHORT),
+            db.toDateTime(mockUserDto.lastLogin!).toLocaleString(DateTime.DATETIME_SHORT),
         );
     });
 });
