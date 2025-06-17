@@ -83,14 +83,6 @@
         "logout.modal.title": "Logout",
         "logout.modal.description": "Are you sure you want to log out?",
         "logout.modal.button_cancel": "Cancel",
-        "logout.modal.button_logout": "Logout",
-        "notfoundpage.navigation.home": "Back to home",
-        "notfoundpage.unauthenticated.title": "Oops! You are not logged in.",
-        "notfoundpage.unauthenticated.loginPrompt.before": "Please click",
-        "notfoundpage.unauthenticated.loginPrompt.linkText": "here",
-        "notfoundpage.unauthenticated.loginPrompt.after": "to log in or create an account.",
-        "notfoundpage.unauthenticated.description": "The content may only be available to logged in users.",
-        "notfoundpage.authenticated.title": "Hey - we could not find this page",
-        "notfoundpage.authenticated.description": "The content you are looking for may have been removed or is not available at the moment."
+        "logout.modal.button_logout": "Logout"
     }
 }

@@ -88,6 +88,19 @@ describe("HomePage.vue", () => {
     });
 
     describe("No content notifications", () => {
+        it("renders correctly with no content and not authenticated", async () => {
+            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+                isAuthenticated: ref(false),
+            });
+            const wrapper = mount(HomePage);
+
+            await waitForExpect(() => {
+                expect(wrapper.text()).toContain(
+                    "There is currently no content available. Please log in if you have an account.",
+                );
+            });
+        });
+
         it("renders correctly with no content and authenticated", async () => {
             (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
                 isAuthenticated: ref(true),
