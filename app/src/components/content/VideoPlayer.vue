@@ -105,6 +105,8 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
 
     // Extract audio media groups and playlists from the manifest
     const audioMedia = parsedManifest.mediaGroups?.AUDIO || {};
+
+    // Ensure audio media groups are in the expected format
     const playlists = (parsedManifest.playlists || []) as unknown as {
         uri: string;
         attributes: Attributes;
@@ -139,9 +141,13 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
                     (p) => p.attributes?.AUDIO === group && p.uri.includes(relativeTrackUri),
                 );
 
-                // Use the matched playlist's bandwidth or a default/random value
+                // Infer bandwidth based on group name
+                const isStereo = group.toLowerCase().includes("stereo");
+                const isMono = group.toLowerCase().includes("mono");
+
                 const bandwidth =
-                    matched?.attributes?.BANDWIDTH ?? 96000 + Math.floor(Math.random() * 64000);
+                    matched?.attributes?.BANDWIDTH ??
+                    (isStereo ? 96000 : isMono ? 48000 : 96000 + Math.floor(Math.random() * 64000));
 
                 // Use the matched playlist's codecs or a default value
                 const codecs =
@@ -358,27 +364,19 @@ watch(audioMode, async (mode) => {
     if (mode) {
         player.audioOnlyMode(true); // <- important for Safari
 
+        // Extract and build an audio-only master playlist from the original HLS manifest
         const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+
         // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
         let playlistUrl: string;
-        try {
-            // Data URLs are more compatible on mobile for small files
-            // Encode the audio master playlist as base64
-            const base64 = btoa(
-                String.fromCharCode(...new Uint8Array(new TextEncoder().encode(audioMaster))),
-            );
-            // Construct a data URL for the playlist
-            playlistUrl = `data:application/x-mpegURL;base64,${base64}`;
-            // Some browsers may have limits on data URL size; fallback to blob if too large
-            if (playlistUrl.length > 2_000_000) {
-                // ~2MB: If the data URL is too large, throw to trigger the Blob fallback
-                throw new Error("Data URL too large, fallback to Blob URL");
-            }
-        } catch {
-            const blob = new Blob([audioMaster], { type: "application/x-mpegURL" });
-            playlistUrl = URL.createObjectURL(blob);
-        }
-        console.log("Using audio master playlist:", playlistUrl);
+
+        // Create a Blob URL for the generated audio master playlist
+        const URL = window.URL || window.webkitURL;
+
+        const blob = new Blob([audioMaster], { type: "application/x-mpegURL" });
+        playlistUrl = URL.createObjectURL(blob) || webkitURL.createObjectURL(blob);
+
+        // Set the player source to the generated audio-only playlist
         player.src({ type: "application/x-mpegURL", src: playlistUrl });
     } else {
         player.src({ type: "application/x-mpegURL", src: props.content.video });
