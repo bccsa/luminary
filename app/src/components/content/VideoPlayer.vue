@@ -382,6 +382,8 @@ watch(audioMode, async (mode) => {
 
     // Switch source
     if (mode) {
+        stopKeepAliveAudio(); // ✅ Don't keep screen on in audio mode
+
         player.audioOnlyMode(true); // <- important for Safari
 
         // Extract and build an audio-only master playlist from the original HLS manifest
@@ -433,11 +435,11 @@ watch(audioMode, async (mode) => {
         });
     });
 
-    if (mode) {
-        syncKeepAliveAudioState();
-    } else {
-        stopKeepAliveAudio();
-    }
+    // if (mode) {
+    //     syncKeepAliveAudioState();
+    // } else {
+    //     stopKeepAliveAudio();
+    // }
 });
 
 // Watch for changes in appLanguageAsRef
