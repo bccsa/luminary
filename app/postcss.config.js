@@ -2,8 +2,13 @@ import autoprefixer from "autoprefixer";
 import tailwindcss from "tailwindcss";
 import doiuse from "doiuse";
 
+// Can ignore the following error (this file is outside the scope of the browser -- it will be defined at runtime):
+// Error: 'process' is not defined.
+// eslint-disable-next-line no-undef
 const isCI = process.env.CI === "true";
+// eslint-disable-next-line no-undef
 const isTTY = process.stdout.isTTY;
+// eslint-disable-next-line no-undef
 const isCLI = isCI || (isTTY && process.env.NODE_ENV !== "development");
 
 export default {
