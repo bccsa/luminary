@@ -32,8 +32,6 @@ import {
     isDarkTheme,
     theme,
     appLanguageAsRef,
-    markLanguageSwitch,
-    consumeLanguageSwitchFlag,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -51,6 +49,7 @@ import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { markLanguageSwitch, consumeLanguageSwitchFlag } from "@/util/isLangSwitch";
 
 const router = useRouter();
 
@@ -384,22 +383,23 @@ watch(
             );
 
             if (preferredContent) {
-                useNotificationStore().addNotification({
-                    id: "content-available",
-                    title: t("notification.translation_available.title"),
-                    description: t("notification.translation_available.description", {
-                        language: appLanguageAsRef.value?.name,
-                    }),
-                    state: "info",
-                    type: "banner",
-                    timeout: 5000,
-                    closable: true,
-                    link: {
-                        name: "content",
-                        params: { slug: preferredContent.slug },
-                    },
-                    openLink: true,
-                });
+                setTimeout(() => {
+                    useNotificationStore().addNotification({
+                        id: "content-available",
+                        title: t("notification.translation_available.title"),
+                        description: t("notification.translation_available.description", {
+                            language: appLanguageAsRef.value?.name,
+                        }),
+                        state: "info",
+                        type: "banner",
+                        closable: true,
+                        link: {
+                            name: "content",
+                            params: { slug: preferredContent.slug },
+                        },
+                        openLink: true,
+                    });
+                }, 3000);
             }
         }
 
