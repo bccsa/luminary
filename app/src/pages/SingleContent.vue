@@ -432,7 +432,7 @@ const showDropdown = ref(false);
                 <button
                     v-show="availableTranslations.length > 1"
                     @click="showDropdown = !showDropdown"
-                    class="block truncate text-zinc-400 dark:text-slate-300"
+                    class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
                     data-test="translationSelector"
                 >
                     <span class="hidden sm:inline">
