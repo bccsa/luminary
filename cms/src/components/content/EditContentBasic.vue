@@ -97,13 +97,15 @@ const tabs = [
 const existingRedirectForSlug = useDexieLiveQuery(
     () => {
         const slug = content.value?.slug;
-        if (!slug) return Promise.resolve([]);
 
         return db.docs
             .where("type")
             .equals(DocType.Redirect)
-            .and((doc: RedirectDto) => doc.slug === slug)
-            .toArray();
+            .and((d) => {
+                const doc = d as RedirectDto;
+                return doc.slug === slug;
+            })
+            .toArray() as unknown as Promise<RedirectDto[]>;
     },
     { initialValue: [] },
 );
