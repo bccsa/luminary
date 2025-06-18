@@ -17,7 +17,7 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
@@ -423,6 +423,17 @@ watch(
 );
 
 const showDropdown = ref(false);
+// Simple dropdown close on click outside using Vue's global event
+function onClickOutside(event: MouseEvent) {
+    const dropdown = document.querySelector("[name='translationSelector']");
+    if (showDropdown.value && dropdown && !dropdown.contains(event.target as Node)) {
+        showDropdown.value = false;
+    }
+}
+
+onMounted(() => {
+    window.addEventListener("click", onClickOutside);
+});
 </script>
 
 <template>
@@ -431,6 +442,7 @@ const showDropdown = ref(false);
             <div class="relative mt-1 w-auto">
                 <button
                     v-show="availableTranslations.length > 1"
+                    name="translationSelector"
                     @click="showDropdown = !showDropdown"
                     class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
                     data-test="translationSelector"
