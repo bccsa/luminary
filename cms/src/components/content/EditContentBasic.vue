@@ -5,7 +5,7 @@ import {
     db,
     DocType,
     PublishStatus,
-    RedirectDto,
+    type RedirectDto,
     useDexieLiveQuery,
     type ContentDto,
 } from "luminary-shared";
