@@ -106,7 +106,13 @@ watch(
     <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
         <div class="flex flex-col gap-2">
             <div
-                v-if="editableParent && !_.isEqual(editableParent, existingParent)"
+                v-if="
+                    editableParent &&
+                    !_.isEqual(
+                        _.omit(editableParent, ['updatedTimeUtc', 'updatedBy', '_rev']),
+                        _.omit(existingParent, ['updatedTimeUtc', 'updatedBy', '_rev']),
+                    )
+                "
                 class="flex items-center gap-2"
             >
                 <p>
