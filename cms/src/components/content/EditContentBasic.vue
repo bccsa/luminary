@@ -94,7 +94,7 @@ const tabs = [
     { title: "SEO title & summary", key: "seo" },
 ];
 
-const currentSlugAsRef = useDexieLiveQuery(
+const existingRedirectForSlug = useDexieLiveQuery(
     () => {
         const slug = content.value?.slug;
         if (!slug) return Promise.resolve([]);
@@ -162,7 +162,8 @@ const currentSlugAsRef = useDexieLiveQuery(
                             </button>
                         </div>
                         <span
-                            v-if="currentSlugAsRef.length > 0"
+                            v-if="existingRedirectForSlug.length > 0"
+                            :title="`This slug redirects to '/${existingRedirectForSlug[0].toSlug}'`"
                             class="flex items-center gap-1 text-xs"
                         >
                             <ExclamationCircleIcon class="size-4 text-yellow-400" />

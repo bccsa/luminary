@@ -70,7 +70,7 @@ describe("EditContent.vue", () => {
             mockData.mockLanguageDtoSwa,
         ]);
 
-        accessMap.value = mockData.superAdminAccessMap;
+        accessMap.value = { ...mockData.superAdminAccessMap };
         initLanguage();
     });
 
@@ -612,23 +612,24 @@ describe("EditContent.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
         });
+        expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
+        await wrapper.find('[data-test="editSlugButton"]').trigger("click");
+        await wrapper.find('[name="slug"]').setValue("new-slug");
+        await wrapper.find('[name="slug"]').trigger("change");
 
         await waitForExpect(async () => {
-            expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
-            await wrapper.find('[data-test="editSlugButton"]').trigger("click");
-            await wrapper.find('[name="slug"]').setValue("new-slug");
-            await wrapper.find('[name="slug"]').trigger("change");
+            await wrapper.find('[data-test="save-button"]').trigger("click");
         });
 
-        await wrapper.find('[data-test="save-button"]').trigger("click");
-
-        const res = await db.docs.where("type").equals(DocType.Redirect).toArray();
-
         await waitForExpect(async () => {
-            console.info(res);
-            console.info(await db.localChanges.toArray());
-            expect(res.length).toBe(1);
-            expect(res[0].type).toBe(DocType.Redirect);
+            const res = await db.localChanges.toArray();
+            expect(res.length).toBeGreaterThan(0);
+
+            expect(res.length).toBe(3);
+            const redirect = res.filter((o) => o.doc?.type === DocType.Redirect);
+            expect(redirect.length).toBe(1);
+            expect((redirect[0].doc as any).slug).toBe("post1-eng");
+            expect((redirect[0].doc as any).toSlug).toBe("new-slug");
         });
     });
 
