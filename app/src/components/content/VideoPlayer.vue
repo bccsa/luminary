@@ -113,6 +113,24 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
     // Initialize an array to store the lines of the new audio master playlist.
     const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:4", "#EXT-X-INDEPENDENT-SEGMENTS"];
 
+    // Map to store the mapping of audio group/name to CHANNELS value (e.g., "2" for stereo, "1" for mono)
+    const channelMap = new Map<string, string>();
+
+    // Extract CHANNELS values from raw text
+    // Extract all #EXT-X-MEDIA lines and parse out GROUP-ID, NAME, and CHANNELS attributes
+    const mediaLines = manifestText.split("\n").filter((line) => line.startsWith("#EXT-X-MEDIA"));
+    for (const line of mediaLines) {
+        const groupIdMatch = /GROUP-ID="([^"]+)"/.exec(line);
+        const nameMatch = /NAME="([^"]+)"/.exec(line);
+        const channelsMatch = /CHANNELS="([^"]+)"/.exec(line);
+
+        // If all attributes are found, store the CHANNELS value in the channelMap using "group|name" as the key
+        if (groupIdMatch && nameMatch && channelsMatch) {
+            const key = `${groupIdMatch[1]}|${nameMatch[1]}`;
+            channelMap.set(key, channelsMatch[1]);
+        }
+    }
+
     // Iterate through each audio group in the media groups.
     for (const group in audioMedia) {
         const variants = audioMedia[group];
@@ -126,10 +144,36 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
                 // Resolve the absolute URI of the audio track.
                 const absoluteTrackUri = new URL(track.uri, manifestDir).toString();
 
+                // Normalize name and group for consistent keying (e.g., remove extra spaces)
+                const normalize = (val: string) => val.trim().toLowerCase();
+                const channelKey = `${normalize(group)}|${normalize(name)}`;
+
+                // Find the matching entry in the channelMap for this group/name
+                const matchedChannel = Array.from(channelMap.entries()).find(([key]) => {
+                    return key.trim().toLowerCase() === channelKey;
+                });
+
+                // If a matching CHANNELS value is found, assign it to the track
+                if (matchedChannel) {
+                    track.channels = matchedChannel[1];
+                }
+
                 // Add an EXT-X-MEDIA tag for the audio track to the playlist.
-                lines.push(
-                    `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="${group}",NAME="${name}",LANGUAGE="${track.language}",DEFAULT=${track.default ? "YES" : "NO"},AUTOSELECT=${track.autoselect ? "YES" : "NO"},URI="${absoluteTrackUri}"`,
-                );
+                const mediaAttributes = [
+                    `TYPE=AUDIO`,
+                    `GROUP-ID="${group}"`,
+                    track.channels !== undefined && track.channels !== null
+                        ? `CHANNELS="${String(track.channels)}"`
+                        : null,
+                    `NAME="${name}"`,
+                    `LANGUAGE="${track.language}"`,
+                    `DEFAULT=${track.default ? "YES" : "NO"}`,
+                    `AUTOSELECT=${track.autoselect ? "YES" : "NO"}`,
+                    `URI="${absoluteTrackUri}"`,
+                ].filter(Boolean); // Remove nulls
+
+                // Join the attributes into a single string
+                lines.push(`#EXT-X-MEDIA:${mediaAttributes.join(",")}`);
 
                 // Get the original relative URI (without query params)
                 const relativeTrackUri = track.uri.split("?")[0];
@@ -141,8 +185,10 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
                 );
 
                 // Infer bandwidth based on group name
-                const isStereo = group.toLowerCase().includes("stereo");
-                const isMono = group.toLowerCase().includes("mono");
+                // Use the channels attribute if available, otherwise assume stereo
+                const channels = track.channels ? String(track.channels) : "2";
+                const isStereo = channels === "2";
+                const isMono = channels === "1";
 
                 const bandwidth =
                     matched?.attributes?.BANDWIDTH ??
