@@ -17,7 +17,7 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
@@ -49,6 +49,7 @@ import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { markLanguageSwitch, consumeLanguageSwitchFlag } from "@/util/isLangSwitch";
 
 const router = useRouter();
 
@@ -343,63 +344,74 @@ watch(content, () => {
     selectedLanguageId.value = content.value?.language;
 });
 
+const hasConsumedLangSwitch = ref(false);
+const wasLangSwitch = ref(false);
+
+// Change language
+const onLanguageSelect = (languageId: Uuid) => {
+    markLanguageSwitch(); // reactive version
+    selectedLanguageId.value = languageId;
+};
+
 watch(
     [selectedLanguageId, content, appLanguagePreferredIdAsRef, availableTranslations],
-    async () => {
-        // If no selected language or content is available, exit early
+    () => {
         if (!selectedLanguageId.value || !content.value) return;
 
-        // Find the preferred translation for the selected language
         const preferred = availableTranslations.value.find(
-            (c) => c.language == selectedLanguageId.value,
+            (c) => c.language === selectedLanguageId.value,
         );
 
-        if (preferred) {
-            // If a preferred translation exists, navigate to its slug
+        // Route only if different slug
+        if (preferred && preferred.slug !== content.value.slug) {
             router.replace({ name: "content", params: { slug: preferred.slug } });
+            return;
         }
 
-        // If the content's language is not the preferred app language
-        if (content.value && content.value.language !== appLanguagePreferredIdAsRef.value) {
-            // Find the content in the preferred app language
+        // Consume flag ONCE
+
+        // Consume the language switch flag only once to determine if the user switched language via dropdown
+        if (!hasConsumedLangSwitch.value) {
+            wasLangSwitch.value = consumeLanguageSwitchFlag();
+            hasConsumedLangSwitch.value = true;
+        }
+
+        // Show banner only if it wasn't from dropdown
+        if (content.value.language !== appLanguagePreferredIdAsRef.value && !wasLangSwitch.value) {
             const preferredContent = availableTranslations.value.find(
-                (c) => c.language == appLanguagePreferredIdAsRef.value,
+                (c) => c.language === appLanguagePreferredIdAsRef.value,
             );
 
-            // If preferred content exists, show a notification to the user
             if (preferredContent) {
-                useNotificationStore().addNotification({
-                    id: "content-available",
-                    title: t("notification.translation_available.title"),
-                    description: t("notification.translation_available.description", {
-                        language: appLanguageAsRef.value?.name,
-                    }),
-                    state: "info",
-                    type: "banner",
-                    timeout: 5000,
-                    closable: true,
-                    link: {
-                        name: "content",
-                        params: { slug: preferredContent.slug },
-                    },
-                    openLink: true,
-                });
+                setTimeout(() => {
+                    useNotificationStore().addNotification({
+                        id: "content-available",
+                        title: t("notification.translation_available.title"),
+                        description: t("notification.translation_available.description", {
+                            language: appLanguageAsRef.value?.name,
+                        }),
+                        state: "info",
+                        type: "banner",
+                        closable: true,
+                        link: {
+                            name: "content",
+                            params: { slug: preferredContent.slug },
+                        },
+                        openLink: true,
+                    });
+                }, 3000);
             }
         }
 
-        // Function to remove the notification if conditions are met
+        // Remove banner if user views content in preferred language
         const removeNotificationIfNeeded = () => {
-            if (content.value && content.value.language == appLanguagePreferredIdAsRef.value) {
-                // Remove the notification if the content is already in the preferred language
-                // or if the user navigates away from the "content" page
+            if (content.value?.language === appLanguagePreferredIdAsRef.value) {
                 useNotificationStore().removeNotification("content-available");
             }
         };
 
-        // Initial check to remove the notification if conditions are met
         removeNotificationIfNeeded();
 
-        // Watch for route changes to remove the notification if the user navigates away
         watch(
             () => router.currentRoute.value.name,
             () => {
@@ -410,19 +422,18 @@ watch(
     { immediate: true, deep: true },
 );
 
-// Change language
-const onLanguageSelect = (languageId: Uuid) => {
-    selectedLanguageId.value = languageId;
-
-    const preferred = availableTranslations.value.find(
-        (c) => c.language == languageId && isPublished(c, appLanguageIdsAsRef.value),
-    );
-    if (preferred) {
-        router.replace({ name: "content", params: { slug: preferred.slug } });
-    }
-};
-
 const showDropdown = ref(false);
+// Simple dropdown close on click outside using Vue's global event
+function onClickOutside(event: MouseEvent) {
+    const dropdown = document.querySelector("[name='translationSelector']");
+    if (showDropdown.value && dropdown && !dropdown.contains(event.target as Node)) {
+        showDropdown.value = false;
+    }
+}
+
+onMounted(() => {
+    window.addEventListener("click", onClickOutside);
+});
 </script>
 
 <template>
@@ -431,8 +442,9 @@ const showDropdown = ref(false);
             <div class="relative mt-1 w-auto">
                 <button
                     v-show="availableTranslations.length > 1"
+                    name="translationSelector"
                     @click="showDropdown = !showDropdown"
-                    class="block truncate text-zinc-400 dark:text-slate-300"
+                    class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
                     data-test="translationSelector"
                 >
                     <span class="hidden sm:inline">
