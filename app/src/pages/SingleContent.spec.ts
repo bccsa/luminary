@@ -465,7 +465,6 @@ describe("SingleContent", () => {
                     description: `The content is also available in English. Click here to view it.`,
                     state: "info",
                     type: "banner",
-                    timeout: 5000,
                 }),
             );
         }, 1500);
