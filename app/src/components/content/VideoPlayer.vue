@@ -15,7 +15,7 @@ import {
     setMediaProgress,
     queryParams,
 } from "@/globalConfig";
-import { Parser, type Attributes } from "m3u8-parser";
+import { Parser } from "m3u8-parser";
 
 type Props = {
     content: ContentDto;
@@ -100,6 +100,7 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
 
     // Retrieve the parsed manifest object from the parser.
     const parsedManifest = parser.manifest;
+
     // Get the directory of the manifest for resolving relative URIs
     const manifestDir = originalUrl.substring(0, originalUrl.lastIndexOf("/") + 1);
 
@@ -107,10 +108,7 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
     const audioMedia = parsedManifest.mediaGroups?.AUDIO || {};
 
     // Ensure audio media groups are in the expected format
-    const playlists = (parsedManifest.playlists || []) as unknown as {
-        uri: string;
-        attributes: Attributes;
-    }[];
+    const playlists = parsedManifest.playlists || [];
 
     // Initialize an array to store the lines of the new audio master playlist.
     const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:4", "#EXT-X-INDEPENDENT-SEGMENTS"];
@@ -138,7 +136,8 @@ async function extractAndBuildAudioMaster(originalUrl: string): Promise<string> 
 
                 // Find the matching playlist for this audio group
                 const matched = playlists.find(
-                    (p) => p.attributes?.AUDIO === group && p.uri.includes(relativeTrackUri),
+                    (p) =>
+                        p.attributes?.AUDIO === group && (p as any).uri?.includes(relativeTrackUri),
                 );
 
                 // Infer bandwidth based on group name
