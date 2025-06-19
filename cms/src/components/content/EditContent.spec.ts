@@ -662,6 +662,8 @@ describe("EditContent.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
         });
+
+        // Edit the slug to trigger a redirect creation
         expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
         await wrapper.find('[data-test="editSlugButton"]').trigger("click");
         await wrapper.find('[name="slug"]').setValue("new-slug");
@@ -681,6 +683,7 @@ describe("EditContent.vue", () => {
             const res = await db.localChanges.toArray();
             expect(res.length).toBeGreaterThan(0);
 
+            // Check if a redirect was created with the new slug.
             expect(res.length).toBe(3);
             const redirect = res.filter((o) => o.doc?.type === DocType.Redirect);
             expect(redirect.length).toBe(1);

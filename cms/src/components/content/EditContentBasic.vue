@@ -94,6 +94,8 @@ const tabs = [
     { title: "SEO title & summary", key: "seo" },
 ];
 
+// A Dexie live query to check if a redirect exists for the current slug
+// This is used to warn the user if they are editing a slug that already has a redirect
 const existingRedirectForSlug = useDexieLiveQuery(
     () => {
         const slug = content.value?.slug;

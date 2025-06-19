@@ -234,6 +234,64 @@ const isDirty = computed(
 
 const isValid = ref(true);
 
+const createRedirect = async () => {
+    if (!selectedContent.value || !selectedContent_Existing.value) return;
+
+    // If the slug is the same or if the user does not have edit access to redirects, do not create a redirect
+    if (
+        _.isEqual(selectedContent.value.slug, selectedContent_Existing.value.slug) ||
+        !verifyAccess(selectedContent.value.memberOf, DocType.Redirect, AclPermission.Edit)
+    )
+        return;
+
+    //Check to see if the content document was previously published
+    const previouslyPublished = selectedContent_Existing.value.status === PublishStatus.Published;
+    // Check to see if the content document is currently published
+    const currentlyPublished = selectedContent.value.status === PublishStatus.Published;
+
+    // Check to see if the content document is scheduled to be published
+    const scheduled =
+        selectedContent.value.publishDate && selectedContent.value.publishDate >= Date.now();
+    // Check to see if the previously selected content document was scheduled to be published
+    const previouslyScheduled =
+        selectedContent_Existing.value.publishDate &&
+        selectedContent_Existing.value.publishDate >= Date.now();
+
+    // Check to see if the content document is expired
+    const isExpired =
+        selectedContent.value.expiryDate && selectedContent.value.expiryDate <= Date.now();
+    // Check to see if the previously selected content document was expired
+    const preveiouslyExpired =
+        selectedContent_Existing.value.expiryDate &&
+        selectedContent_Existing.value.expiryDate <= Date.now();
+
+    // If the content document was previously not published, or is currently not published, do not create a redirect
+    if (!previouslyPublished || !currentlyPublished) return;
+    // If the content document is currently scheduled or was previously scheduled, do not create a redirect
+    if (previouslyScheduled || scheduled) return;
+    // If the content document is currently expired or was previously expired, do not create a redirect
+    if (preveiouslyExpired || isExpired) return;
+
+    // Create a new redirect document
+    const newRedirect: RedirectDto = {
+        _id: db.uuid(),
+        type: DocType.Redirect,
+        updatedTimeUtc: Date.now(),
+        memberOf: { ...selectedContent.value.memberOf },
+        slug: selectedContent_Existing.value.slug,
+        redirectType: RedirectType.Temporary,
+        toSlug: selectedContent.value.slug,
+    };
+
+    addNotification({
+        title: "Redirect created",
+        description: `A redirect was created from ${selectedContent_Existing.value.slug} to ${selectedContent.value.slug}`,
+        state: "info",
+    });
+
+    await db.upsert({ doc: newRedirect });
+};
+
 const saveChanges = async () => {
     if (!isValid.value) {
         addNotification({
@@ -249,33 +307,6 @@ const saveChanges = async () => {
         (d) => d.language === selectedLanguageId.value,
     );
     const isPublished = prevContentDoc?.status === PublishStatus.Published;
-
-    if (
-        selectedContent.value &&
-        selectedContent_Existing.value &&
-        !_.isEqual(selectedContent.value.slug, selectedContent_Existing.value?.slug) &&
-        verifyAccess(selectedContent.value.memberOf, DocType.Redirect, AclPermission.Publish) &&
-        selectedContent.value.status === PublishStatus.Published &&
-        (!selectedContent.value.expiryDate || selectedContent.value.expiryDate >= Date.now())
-    ) {
-        const newRedirect: RedirectDto = {
-            _id: db.uuid(),
-            type: DocType.Redirect,
-            updatedTimeUtc: Date.now(),
-            memberOf: _.cloneDeep(selectedContent.value.memberOf),
-            slug: selectedContent_Existing.value.slug,
-            redirectType: RedirectType.Temporary,
-            toSlug: selectedContent.value.slug,
-        };
-
-        addNotification({
-            title: "Redirect created",
-            description: `A redirect was created from ${selectedContent_Existing.value.slug} to ${selectedContent.value.slug}`,
-            state: "info",
-        });
-
-        await db.upsert({ doc: newRedirect });
-    }
 
     // If editing a published doc, require publish permission
     if (
@@ -299,6 +330,14 @@ const saveChanges = async () => {
         });
         return;
     }
+
+    /**
+     * Create a redirect if neccessary
+     * This is done if the content document is currently published,
+     * was already published, the slug has changed
+     * and the user has edit access to redirect documents.
+     */
+    await createRedirect();
 
     await save();
 
