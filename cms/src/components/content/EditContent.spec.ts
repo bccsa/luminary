@@ -70,7 +70,7 @@ describe("EditContent.vue", () => {
             mockData.mockLanguageDtoSwa,
         ]);
 
-        accessMap.value = mockData.superAdminAccessMap;
+        accessMap.value = { ...mockData.superAdminAccessMap };
         initLanguage();
     });
 
@@ -596,6 +596,43 @@ describe("EditContent.vue", () => {
         await waitForExpect(async () => {
             const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
             expect(res.length).toBeGreaterThan(0);
+        });
+    });
+
+    it("should generate a redirect if a slug has been changed", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
+        });
+
+        // Edit the slug to trigger a redirect creation
+        expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
+        await wrapper.find('[data-test="editSlugButton"]').trigger("click");
+        await wrapper.find('[name="slug"]').setValue("new-slug");
+        await wrapper.find('[name="slug"]').trigger("change");
+
+        await waitForExpect(async () => {
+            await wrapper.find('[data-test="save-button"]').trigger("click");
+        });
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+            expect(res.length).toBeGreaterThan(0);
+
+            // Check if a redirect was created with the new slug.
+            expect(res.length).toBe(3);
+            const redirect = res.filter((o) => o.doc?.type === DocType.Redirect);
+            expect(redirect.length).toBe(1);
+            expect((redirect[0].doc as any).slug).toBe("post1-eng");
+            expect((redirect[0].doc as any).toSlug).toBe("new-slug");
         });
     });
 

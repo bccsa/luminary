@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import { PencilIcon } from "@heroicons/vue/16/solid";
-import { PublishStatus, type ContentDto } from "luminary-shared";
+import { PencilIcon, ExclamationCircleIcon } from "@heroicons/vue/16/solid";
+import {
+    db,
+    DocType,
+    PublishStatus,
+    type RedirectDto,
+    useDexieLiveQuery,
+    type ContentDto,
+} from "luminary-shared";
 import { nextTick, ref, watch } from "vue";
 import { Slug } from "@/util/slug";
 import LCard from "@/components/common/LCard.vue";
@@ -86,6 +93,24 @@ const tabs = [
     { title: "Visible title & summary", key: "visible" },
     { title: "SEO title & summary", key: "seo" },
 ];
+
+// A Dexie live query to check if a redirect exists for the current slug
+// This is used to warn the user if they are editing a slug that already has a redirect
+const existingRedirectForSlug = useDexieLiveQuery(
+    () => {
+        const slug = content.value?.slug;
+
+        return db.docs
+            .where("type")
+            .equals(DocType.Redirect)
+            .and((d) => {
+                const doc = d as RedirectDto;
+                return doc.slug === slug;
+            })
+            .toArray() as unknown as Promise<RedirectDto[]>;
+    },
+    { initialValue: [] },
+);
 </script>
 
 <template>
@@ -108,36 +133,46 @@ const tabs = [
                     />
 
                     <!-- Slug -->
-                    <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
-                        <span class="py-0.5">Slug:</span>
+                    <div class="flex flex-col gap-1">
+                        <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
+                            <span class="py-0.5">Slug:</span>
+                            <span
+                                v-show="!isEditingSlug"
+                                data-test="slugSpan"
+                                class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
+                                >{{ content.slug }}</span
+                            >
+                            <LInput
+                                v-show="isEditingSlug"
+                                :disabled="disabled"
+                                ref="slugInput"
+                                name="slug"
+                                size="sm"
+                                class="w-full"
+                                v-model="content.slug"
+                                @blur="
+                                    isEditingSlug = false;
+                                    validateSlug();
+                                "
+                            />
+                            <button
+                                data-test="editSlugButton"
+                                v-if="!isEditingSlug && !disabled"
+                                @click="startEditingSlug"
+                                class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
+                                title="Edit slug"
+                            >
+                                <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
+                            </button>
+                        </div>
                         <span
-                            v-show="!isEditingSlug"
-                            data-test="slugSpan"
-                            class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
-                            >{{ content.slug }}</span
+                            v-if="existingRedirectForSlug.length > 0"
+                            :title="`This slug redirects to '/${existingRedirectForSlug[0].toSlug}'`"
+                            class="flex items-center gap-1 text-xs"
                         >
-                        <LInput
-                            v-show="isEditingSlug"
-                            :disabled="disabled"
-                            ref="slugInput"
-                            name="slug"
-                            size="sm"
-                            class="w-full"
-                            v-model="content.slug"
-                            @blur="
-                                isEditingSlug = false;
-                                validateSlug();
-                            "
-                        />
-                        <button
-                            data-test="editSlugButton"
-                            v-if="!isEditingSlug && !disabled"
-                            @click="startEditingSlug"
-                            class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
-                            title="Edit slug"
-                        >
-                            <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
-                        </button>
+                            <ExclamationCircleIcon class="size-4 text-yellow-400" />
+                            A redirect exists for this slug
+                        </span>
                     </div>
 
                     <!-- Author -->
