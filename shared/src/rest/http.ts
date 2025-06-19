@@ -30,7 +30,39 @@ export class HttpReq<T> {
         }
     }
 
+    // multipart/form-data possible solution:
+    // async post(endpoint: string, formData: FormData) {
+    //     try {
+    //         const schema = "https://";
+    //         const regex = /^https?:\/\//;
+    //         const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
+    //         const res = await fetch(`${url}/${endpoint}`, {
+    //             method: "POST",
+    //             headers: {
+    //                 Authorization: this.token ? `Bearer ${this.token}` : "",
+    //             },
+    //             body: formData,
+    //         });
+    //         if (!res.ok) {
+    //             throw new Error(`HTTP error! Status: ${res.status}`);
+    //         }
+    //         return await res.json().catch((err) => {
+    //             console.log(err.message);
+    //         });
+    //     } catch (err) {
+    //         console.log(err);
+    //     }
+    // }
+
     async post(endpoint: string, query: T) {
+        // It was decided to use multipart/form-data, so this will have to change
+        // Possible solution to send image array buffers along with the json data inside the form data:
+        // 1. Create a new FormData object
+        // 2. Append the JSON data as a string
+        // 3. Append the image array buffers as Blob objects
+        // 4. Send the FormData object in the fetch request
+        // 5. On the server side, parse the FormData object to extract the JSON
+        //    data and the image array buffers
         try {
             const schema = "https://";
             const regex = /^https?:\/\//;
