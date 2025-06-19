@@ -12,6 +12,7 @@ import EditContentParent from "./EditContentParent.vue";
 import LTextToggle from "../forms/LTextToggle.vue";
 import LanguageSelector from "./LanguageSelector.vue";
 import { initLanguage } from "@/globalConfig";
+import RichTextEditor from "../editor/RichTextEditor.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -596,6 +597,55 @@ describe("EditContent.vue", () => {
         await waitForExpect(async () => {
             const res = await db.localChanges.where({ docId: wrapper.vm.$props.id }).toArray();
             expect(res.length).toBeGreaterThan(0);
+        });
+    });
+
+    it("correctly updates text field in indexedDB from rich text editor", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+
+        const richTextEditor = wrapper.findComponent(RichTextEditor);
+        expect(richTextEditor.exists()).toBe(true);
+
+        const authorInput = wrapper.find('input[name="author"]');
+        expect(authorInput.exists()).toBe(true);
+        await authorInput.setValue("New Author");
+
+        //@ts-ignore -- valid code
+        await richTextEditor.vm.editor.commands.setContent("<p>New Content</p>");
+
+        // Trigger the update event to save the content
+        //@ts-ignore -- valid code
+        const updatedContent = richTextEditor.vm.editor.getJSON();
+        //@ts-ignore -- valid code
+        richTextEditor.vm.text = JSON.stringify(updatedContent);
+
+        await waitForExpect(() => {
+            expect(richTextEditor.vm.text).toContain("New Content");
+            expect(wrapper.html()).toContain("New Content");
+        });
+
+        const saveButton = wrapper.find('[data-test="save-button"]');
+        expect(saveButton.exists()).toBe(true);
+        await saveButton.trigger("click");
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+
+            expect(res.length).toBe(2);
+            expect(JSON.parse((res[1].doc as any).text).content[0].content[0].text).toBe(
+                "New Content",
+            );
         });
     });
 
