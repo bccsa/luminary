@@ -361,21 +361,6 @@ watch(audioMode, async (mode) => {
         });
     });
 
-    if ("mediaSession" in navigator) {
-        navigator.mediaSession.metadata = new window.MediaMetadata({
-            title: props.content.title,
-            artist: props.content.author || "",
-            album: props.categoryTitle || "",
-            artwork: [
-                {
-                    src: px,
-                    sizes: "512x512",
-                    type: "image/png",
-                },
-            ],
-        });
-    }
-
     if (mode) {
         syncKeepAliveAudioState();
     } else {
