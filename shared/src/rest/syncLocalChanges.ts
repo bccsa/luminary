@@ -1,7 +1,7 @@
 import { ref, watch, type Ref } from "vue";
 import { isConnected } from "../socket/socketio";
 import { ChangeRequestQuery, getRest } from "./RestApi";
-import { ChangeReqAckDto, LocalChangeDto } from "../types";
+import { ChangeReqAckDto, DocType, LocalChangeDto, PostDto, TagDto } from "../types";
 import { db } from "../db/database";
 
 export const processChangeReqLock = ref(false);
@@ -32,9 +32,32 @@ async function handleAck(ack: ChangeReqAckDto, localChanges: Ref<LocalChangeDto[
 async function pushLocalChange(localChange: LocalChangeDto, localChanges: Ref<LocalChangeDto[]>) {
     processChangeReqLock.value = true;
 
+    // If the local change has an image field
+    // make a new FormData object and append the image data alongside the rest of the change request as JSON
+    // This is to support sending images as part of the change request
+
+    let doc;
+    if (localChange.doc.type === DocType.Post || localChange.doc.type === DocType.Tag) {
+        const _doc = localChange.doc as PostDto | TagDto;
+
+        if (_doc.imageData?.uploadData && _doc.imageData.uploadData[0].fileData) {
+            const fileData = _doc.imageData.uploadData[0].fileData;
+
+            delete _doc.imageData.uploadData; // Remove the uploadData field from the document to avoid sending it as part of the JSON
+
+            const formData = new FormData();
+
+            if (fileData) formData.append("imageData", imageUploadData);
+
+            const blob = new Blob([JSON.stringify(_doc)], { type: "application/json" });
+            formData.append("doc", blob);
+            doc = formData;
+        }
+    }
+
     const res = await getRest().changeRequest({
         id: localChange.id,
-        doc: localChange.doc,
+        doc,
     } as ChangeRequestQuery);
 
     if (res) {
