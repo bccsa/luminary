@@ -71,6 +71,7 @@ describe("BasePage", () => {
 
         await waitForExpect(() => {
             expect(bannerManager.html()).toContain("Test Title");
+            expect(wrapper.html()).toContain("Test Description");
         });
     });
 });
