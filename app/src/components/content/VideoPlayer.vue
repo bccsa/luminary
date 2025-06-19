@@ -19,7 +19,6 @@ import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 
 type Props = {
     content: ContentDto;
-    categoryTitle?: string;
 };
 const props = defineProps<Props>();
 

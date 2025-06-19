@@ -504,14 +504,7 @@ onMounted(() => {
             <div class="flex flex-grow justify-center">
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
-                        <VideoPlayer
-                            v-if="content.video"
-                            :content="content"
-                            :categoryTitle="
-                                categoryTags.filter((t) => t.parentId === content?.parentId)[0]
-                                    ?.title
-                            "
-                        />
+                        <VideoPlayer v-if="content.video" :content="content" />
                         <!-- Ensure content.parentId does not contain default content empty string -->
                         <LImage
                             v-else-if="content.parentId || content.parentImageData"
