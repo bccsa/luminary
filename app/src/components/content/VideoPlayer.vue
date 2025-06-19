@@ -19,6 +19,7 @@ import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 
 type Props = {
     content: ContentDto;
+    categoryTitle?: string;
 };
 const props = defineProps<Props>();
 
@@ -78,14 +79,20 @@ function setAudioTrackLanguage(languageCode: string | null) {
 }
 
 function syncKeepAliveAudioState() {
-    if (!audioMode.value || !keepAliveAudio.value) return;
+    const audio = keepAliveAudio.value;
+    if (!audioMode.value || !audio) return;
 
+    // If the player is playing, play the silent audio to keep the audio context alive (especially for iOS/Safari)
     if (!player.paused()) {
-        keepAliveAudio.value.play().catch(() => {
-            console.warn("Keep-alive audio failed to play.");
-        });
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch((e) => {
+                console.warn("Silent audio play failed", e);
+            });
+        }
     } else {
-        keepAliveAudio.value.pause();
+        // Pause the silent audio if the player is paused
+        audio.pause();
     }
 }
 
@@ -201,7 +208,14 @@ onMounted(() => {
     // Get player playing state
     player.on("play", () => {
         playerPlayEventHandler();
-        if (audioMode.value) syncKeepAliveAudioState();
+
+        // If audio mode is enabled, sync the keep-alive audio state
+        if (audioMode.value) {
+            // Ensures user interaction already happened
+            requestAnimationFrame(() => {
+                syncKeepAliveAudioState();
+            });
+        }
     });
 
     // Get player user active states
@@ -347,6 +361,21 @@ watch(audioMode, async (mode) => {
         });
     });
 
+    if ("mediaSession" in navigator) {
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+            title: props.content.title,
+            artist: props.content.author || "",
+            album: props.categoryTitle || "",
+            artwork: [
+                {
+                    src: px,
+                    sizes: "512x512",
+                    type: "image/png",
+                },
+            ],
+        });
+    }
+
     if (mode) {
         syncKeepAliveAudioState();
     } else {
@@ -395,7 +424,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
         </div>
 
         <!-- audio tag to keep player alive -->
-        <audio ref="keepAliveAudio" loop preload="auto" style="display: none">
+        <audio ref="keepAliveAudio" loop muted preload="auto" style="display: none">
             <source src="../../assets/silence_1s.wav" type="audio/mpeg" />
         </audio>
 
