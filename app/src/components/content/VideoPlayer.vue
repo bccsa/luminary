@@ -15,6 +15,7 @@ import {
     setMediaProgress,
     queryParams,
 } from "@/globalConfig";
+import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 
 type Props = {
     content: ContentDto;
@@ -244,15 +245,81 @@ onUnmounted(() => {
     window.dispatchEvent(playerDestroyEvent);
 });
 
-// Set player audio only mode
-watch(audioMode, (mode) => {
+watch(audioMode, async (mode) => {
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
-
-    // Set player's user active state to true as a workaround to show audio track selection button on iOS
     player.userActive(true);
-
     playerUserActiveEventHandler();
+
+    // Save current time and selected track label/language
+    const currentTime = player.currentTime() || 0;
+
+    let selectedTrackInfo: { label?: string; language?: string } | null = null;
+    const tracks = (player as any).audioTracks?.();
+    if (tracks) {
+        for (let i = 0; i < tracks.length; i++) {
+            if (tracks[i].enabled) {
+                selectedTrackInfo = {
+                    label: tracks[i].label,
+                    language: tracks[i].language,
+                };
+                break;
+            }
+        }
+    }
+
+    // Switch source
+    if (mode) {
+        player.audioOnlyMode(true); // <- important for Safari
+
+        // Extract and build an audio-only master playlist from the original HLS manifest
+        const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+
+        // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
+        let playlistUrl: string;
+
+        /** We use base64-encode here because Videojs doesn't support HLS via blob
+         * Because it is also videojs expect a direct HTTP(S) URL that the player
+         * or native decoder can request as a standalone resource.
+         */
+        // base64-encoded data: URL for audio-only master
+        const base64 = btoa(
+            String.fromCharCode(
+                ...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster))),
+            ),
+        );
+        // Construct a data URL for the playlist
+        playlistUrl = `data:application/x-mpegURL;base64,${base64}`;
+
+        // Set the player source to the generated audio-only playlist
+        player.src({ type: "application/x-mpegURL", src: playlistUrl });
+    } else {
+        player.src({ type: "application/x-mpegURL", src: props.content.video });
+    }
+
+    player.ready(() => {
+        player.currentTime(currentTime);
+        player.play();
+
+        // Wait for tracks to be available
+        player.on("loadedmetadata", () => {
+            const newTracks = (player as any).audioTracks?.();
+
+            if (!newTracks || !selectedTrackInfo) return;
+
+            for (let i = 0; i < newTracks.length; i++) {
+                const t = newTracks[i];
+                const langMatch = t.language === selectedTrackInfo.language;
+                const labelMatch = t.label === selectedTrackInfo.label;
+
+                if (langMatch || labelMatch) {
+                    t.enabled = true;
+                } else {
+                    t.enabled = false;
+                }
+            }
+        });
+    });
 });
 
 // Watch for changes in appLanguageAsRef
