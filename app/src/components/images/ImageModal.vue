@@ -8,13 +8,16 @@ import {
     defineProps,
     defineEmits,
     nextTick,
+    computed,
 } from "vue";
 import LImage from "./LImage.vue";
-import type { ImageDto, Uuid } from "luminary-shared";
+import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
+import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/outline";
 
 // Props
 type Props = {
-    image: ImageDto;
+    imageCollections: ImageFileCollectionDto[];
+    currentIndex: number;
     contentParentId: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
     size?: "small" | "thumbnail" | "post";
@@ -26,7 +29,13 @@ const props = withDefaults(defineProps<Props>(), {
     size: "post",
 });
 
-const emit = defineEmits(["close"]);
+const emit = defineEmits(["close", "update:index"]);
+
+const currentImage = computed(() => {
+    return {
+        fileCollections: [props.imageCollections[props.currentIndex]],
+    } as ImageDto;
+});
 
 const container = ref<HTMLDivElement | null>(null);
 const scale = ref(1);
@@ -45,6 +54,12 @@ let lastTouch = { x: 0, y: 0 };
 
 let isMouseDragging = false;
 let lastMouse = { x: 0, y: 0 };
+
+let swipeStartX = 0;
+let swipeEndX = 0;
+const swipeThreshold = 50;
+let pinchZooming = false;
+let draggingImage = false;
 
 const closeModal = () => emit("close");
 
@@ -81,12 +96,27 @@ function clampTranslation() {
     translateY.value = clamp(translateY.value, -maxY, maxY);
 }
 
+function handleSwipeGesture() {
+    if (draggingImage || scale.value > 1) return;
+
+    const deltaX = swipeEndX - swipeStartX;
+    if (Math.abs(deltaX) > swipeThreshold) {
+        if (deltaX > 0) onSwipe("right");
+        else onSwipe("left");
+    }
+}
+
 // Touch events
 function onTouchStart(e: TouchEvent) {
+    if (e.touches.length === 1) {
+        swipeStartX = e.touches[0].clientX;
+    }
+
     if (e.touches.length === 2) {
         lastDistance = getDistance(e.touches);
         initialScale = scale.value;
         isTouchDragging = false;
+        pinchZooming = true;
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
@@ -112,7 +142,17 @@ function onTouchMove(e: TouchEvent) {
     }
 }
 
-function onTouchEnd() {
+function onTouchEnd(e: TouchEvent) {
+    if (pinchZooming) {
+        pinchZooming = false;
+        return; // Don't swipe after a pinch gesture
+    }
+
+    if (e.changedTouches?.[0]) {
+        swipeEndX = e.changedTouches[0].clientX;
+        handleSwipeGesture();
+    }
+
     isTouchDragging = false;
 }
 
@@ -184,6 +224,15 @@ function onDblClick(e: MouseEvent | TouchEvent) {
     }
 }
 
+function onSwipe(direction: "left" | "right") {
+    const total = props.imageCollections.length;
+    const newIndex =
+        direction === "left"
+            ? (props.currentIndex + 1) % total
+            : (props.currentIndex - 1 + total) % total;
+    emit("update:index", newIndex);
+}
+
 // Double-tap support for mobile
 let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
@@ -194,18 +243,18 @@ function onTouchEndWithDoubleTap(e: TouchEvent) {
     } else {
         lastTap = now;
     }
-    onTouchEnd();
+    onTouchEnd(e);
 }
 
 function onKeyDown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
-        closeModal();
-    }
+    if (event.key === "ArrowLeft") onSwipe("right");
+    else if (event.key === "ArrowRight") onSwipe("left");
+    else if (event.key === "Escape") closeModal();
 }
 
 // Watch image change
 watch(
-    () => props.image,
+    () => currentImage,
     () => {
         scale.value = 1;
         translateX.value = 0;
@@ -219,7 +268,7 @@ watch(
 onMounted(() => {
     const el = container.value;
     const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
+    if (isMobile && props.imageCollections.length == 1) {
         MAX_SCALE.value = 3;
         if (scale.value === 1) {
             scale.value = 1.4;
@@ -282,14 +331,45 @@ onBeforeUnmount(() => {
                 cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
             }"
         >
-            <LImage
-                :contentParentId="contentParentId"
-                :image="image"
-                :aspectRatio="aspectRatio"
-                :size="size"
-                :rounded="rounded"
-                class="pointer-events-none min-h-full min-w-full object-contain"
-            />
+            <transition name="fade">
+                <LImage
+                    :contentParentId="contentParentId"
+                    :image="currentImage"
+                    :aspectRatio="aspectRatio"
+                    :size="size"
+                    :rounded="rounded"
+                    class="pointer-events-none min-h-full min-w-full object-contain"
+                />
+            </transition>
+
+            <div v-if="imageCollections.length > 1">
+                <ArrowLeftCircleIcon
+                    class="absolute left-1 top-1/2 z-40 h-12 w-12 -translate-y-1/2 cursor-pointer text-zinc-300 sm:block"
+                    @click="onSwipe('right')"
+                />
+
+                <ArrowRightCircleIcon
+                    class="absolute right-1 top-1/2 h-12 w-12 -translate-y-1/2 cursor-pointer text-zinc-300 sm:block"
+                    @click="onSwipe('left')"
+                />
+            </div>
+
+            <div
+                v-if="imageCollections.length > 1"
+                data-role="dot"
+                class="absolute bottom-2 left-1/2 z-50 flex -translate-x-1/2 gap-1"
+            >
+                <span
+                    v-for="(img, idx) in imageCollections"
+                    :key="idx"
+                    class="h-2 w-2 rounded-full"
+                    :class="[
+                        idx === props.currentIndex ? 'bg-zinc-300' : 'bg-zinc-700',
+                        'cursor-pointer transition-all duration-300',
+                    ]"
+                    @click="emit('update:index', idx)"
+                ></span>
+            </div>
         </div>
     </div>
 </template>
