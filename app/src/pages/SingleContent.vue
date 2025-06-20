@@ -74,6 +74,8 @@ const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
 const availableTranslations = ref<ContentDto[]>([]);
 const languages = ref<LanguageDto[]>([]);
 
+const currentImageIndex = ref(0);
+
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
     _id: "",
@@ -550,12 +552,19 @@ const selectedLanguageCode = computed(() => {
                         />
                         <!-- Ensure content.parentId does not contain default content empty string -->
                         <LImage
-                            v-else-if="content.parentId || content.parentImageData"
-                            :image="content.parentImageData"
+                            v-if="content.parentImageData?.fileCollections?.length"
+                            :image="{
+                                fileCollections: [content.parentImageData.fileCollections[0]],
+                            }"
                             :content-parent-id="content.parentId"
                             aspectRatio="video"
                             size="post"
-                            @click="enableZoom = true"
+                            @click="
+                                () => {
+                                    currentImageIndex = 0;
+                                    enableZoom = true;
+                                }
+                            "
                         />
                     </IgnorePagePadding>
 
@@ -683,9 +692,11 @@ const selectedLanguageCode = computed(() => {
     <ImageModal
         v-if="content && enableZoom"
         :content-parent-id="content.parentId"
-        :image="content.parentImageData"
+        :imageCollections="content.parentImageData.fileCollections"
+        :current-index="currentImageIndex"
         aspectRatio="video"
         size="post"
+        @update:index="currentImageIndex = $event"
         @close="enableZoom = false"
     />
 </template>
