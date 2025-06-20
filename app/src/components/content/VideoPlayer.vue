@@ -31,6 +31,7 @@ const hasStarted = ref<boolean>(false);
 const showAudioModeToggle = ref<boolean>(true);
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
+const keepAliveAudio = ref<HTMLAudioElement | null>(null);
 
 let timeout: any;
 function autoHidePlayerControls() {
@@ -73,6 +74,31 @@ function setAudioTrackLanguage(languageCode: string | null) {
         track.enabled =
             iso.iso6392TTo1[track.language] === languageCode ||
             iso.iso6392BTo1[track.language] === languageCode;
+    }
+}
+
+function syncKeepAliveAudioState() {
+    const audio = keepAliveAudio.value;
+    if (!audioMode.value || !audio) return;
+
+    // If the player is playing, play the silent audio to keep the audio context alive (especially for iOS/Safari)
+    if (!player.paused()) {
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch((e) => {
+                console.warn("Silent audio play failed", e);
+            });
+        }
+    } else {
+        // Pause the silent audio if the player is paused
+        audio.pause();
+    }
+}
+
+function stopKeepAliveAudio() {
+    if (keepAliveAudio.value) {
+        keepAliveAudio.value.pause();
+        keepAliveAudio.value.currentTime = 0;
     }
 }
 
@@ -179,7 +205,17 @@ onMounted(() => {
     player.on(["mousemove", "click"], autoHidePlayerControls);
 
     // Get player playing state
-    player.on("play", playerPlayEventHandler);
+    player.on("play", () => {
+        playerPlayEventHandler();
+
+        // If audio mode is enabled, sync the keep-alive audio state
+        if (audioMode.value) {
+            // Ensures user interaction already happened
+            requestAnimationFrame(() => {
+                syncKeepAliveAudioState();
+            });
+        }
+    });
 
     // Get player user active states
     player.on(["useractive", "userinactive"], playerUserActiveEventHandler);
@@ -211,6 +247,8 @@ onMounted(() => {
 
     player.on("ended", () => {
         if (!props.content.video) return;
+        stopKeepAliveAudio();
+
         // Remove player progress on ended
         removeMediaProgress(props.content.video, props.content._id);
 
@@ -224,6 +262,7 @@ onMounted(() => {
     player.on("pause", () => {
         if (!props.content.video) return;
 
+        if (audioMode.value) syncKeepAliveAudioState();
         if (autoFullscreen)
             setTimeout(() => {
                 if (!player.paused()) return;
@@ -320,6 +359,12 @@ watch(audioMode, async (mode) => {
             }
         });
     });
+
+    if (mode) {
+        syncKeepAliveAudioState();
+    } else {
+        stopKeepAliveAudio();
+    }
 });
 
 // Watch for changes in appLanguageAsRef
@@ -361,6 +406,11 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
                 v-bind:data-matomo-title="props.content.title"
             ></video>
         </div>
+
+        <!-- audio tag to keep player alive -->
+        <audio ref="keepAliveAudio" loop muted preload="auto" style="display: none">
+            <source src="../../assets/silence.wav" type="audio/wav" />
+        </audio>
 
         <transition
             leave-active-class="transition ease-in duration-500"
