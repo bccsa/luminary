@@ -1,4 +1,4 @@
-import { DocType } from "../types";
+import { DocType, ImageUploadDto } from "../types";
 import { Sync, syncActive } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
@@ -88,7 +88,6 @@ class RestApi {
 
     async search(query: ApiSearchQuery) {
         query.apiVersion = "0.0.0";
-
         return await this.http.get("search", query); //TODO: Add type: ApiQueryResult<T>
     }
 
