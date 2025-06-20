@@ -2,6 +2,7 @@ import { DocType } from "../types";
 import { Sync, syncActive } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
+import { LFormData } from "../util/LFormData";
 
 export type ApiSearchQuery = {
     apiVersion?: string;
@@ -88,12 +89,14 @@ class RestApi {
 
     async search(query: ApiSearchQuery) {
         query.apiVersion = "0.0.0";
-
         return await this.http.get("search", query); //TODO: Add type: ApiQueryResult<T>
     }
 
-    async changeRequest(query: ChangeRequestQuery) {
-        query.apiVersion = "0.0.0";
+    async changeRequest(query: ChangeRequestQuery | LFormData) {
+        if (query instanceof LFormData) {
+            (query as LFormData).append("changeRequestApiVersion", "0.0.0");
+        }
+        (query as ChangeRequestQuery).apiVersion = "0.0.0";
         return await this.http.post("changerequest", query);
     }
 }

@@ -1,5 +1,5 @@
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, Post, UseInterceptors, UploadedFiles, Body } from "@nestjs/common";
 import { DbService } from "../db/db.service";
 import { AckStatus, AclPermission, DocType, Uuid } from "../enums";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
@@ -10,6 +10,7 @@ import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { S3Service } from "../s3/s3.service";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
+import { AnyFilesInterceptor } from "@nestjs/platform-express";
 
 @Injectable()
 export class ChangeRequestService {
@@ -25,6 +26,26 @@ export class ChangeRequestService {
     ) {
         // Create config object with environmental variables
         this.config = configuration();
+    }
+
+    @Post()
+    @UseInterceptors(AnyFilesInterceptor())
+    async handleChangeRequest(@UploadedFiles() files, @Body() body) {
+        const apiVersion = body["changeRequestApiVersion"];
+        const parsedChangeRequestDoc = JSON.parse(body["changeRequestDoc"]);
+        const changeRequestID = body["changeRequestID"];
+        console.log(apiVersion);
+        console.log(parsedChangeRequestDoc);
+        files.forEach((file) => {
+            console.log(file);
+        });
+
+        const changeRequest = {
+            id: changeRequestID,
+            doc: parsedChangeRequestDoc,
+        };
+
+        return this.changeRequest(changeRequest, "auth_token_placeholder");
     }
 
     async changeRequest(changeRequest: ChangeReqDto, token: string): Promise<ChangeReqAckDto> {
