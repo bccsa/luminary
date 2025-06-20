@@ -307,34 +307,25 @@ watch(audioMode, async (mode) => {
         }
     }
 
-    // Switch source
-    if (mode) {
-        player.audioOnlyMode(true); // <- important for Safari
+    // Extract and build an audio-only master playlist from the original HLS manifest
+    const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
 
-        // Extract and build an audio-only master playlist from the original HLS manifest
-        const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
+    // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
+    let playlistUrl: string;
 
-        // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
-        let playlistUrl: string;
+    /** We use base64-encode here because Videojs doesn't support HLS via blob
+     * Because it is also videojs expect a direct HTTP(S) URL that the player
+     * or native decoder can request as a standalone resource.
+     */
+    // base64-encoded data: URL for audio-only master
+    const base64 = btoa(
+        String.fromCharCode(...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster)))),
+    );
+    // Construct a data URL for the playlist
+    playlistUrl = `data:application/x-mpegURL;base64,${base64}`;
 
-        /** We use base64-encode here because Videojs doesn't support HLS via blob
-         * Because it is also videojs expect a direct HTTP(S) URL that the player
-         * or native decoder can request as a standalone resource.
-         */
-        // base64-encoded data: URL for audio-only master
-        const base64 = btoa(
-            String.fromCharCode(
-                ...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster))),
-            ),
-        );
-        // Construct a data URL for the playlist
-        playlistUrl = `data:application/x-mpegURL;base64,${base64}`;
-
-        // Set the player source to the generated audio-only playlist
-        player.src({ type: "application/x-mpegURL", src: playlistUrl });
-    } else {
-        player.src({ type: "application/x-mpegURL", src: props.content.video });
-    }
+    // Set the player source based on the mode status
+    player.src({ type: "application/x-mpegURL", src: mode ? playlistUrl : props.content.video });
 
     player.ready(() => {
         player.currentTime(currentTime);
