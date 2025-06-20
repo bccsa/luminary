@@ -409,7 +409,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
 
         <!-- audio tag to keep player alive -->
         <audio ref="keepAliveAudio" loop muted preload="auto" style="display: none">
-            <source src="../../assets/silence_1s.wav" type="audio/mpeg" />
+            <source src="../../assets/silence.wav" type="audio/wav" />
         </audio>
 
         <transition
