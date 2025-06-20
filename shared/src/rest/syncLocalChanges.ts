@@ -1,45 +1,11 @@
 import { ref, watch, type Ref } from "vue";
 import { isConnected } from "../socket/socketio";
-import { ChangeRequestQuery, getRest } from "./RestApi";
-import {
-    ChangeReqAckDto,
-    ChangeReqDto,
-    ContentParentDto,
-    DocType,
-    ImageUnprocessedDto,
-    ImageUploadDto,
-    LocalChangeDto,
-} from "../types";
+import { getRest } from "./RestApi";
+import { ChangeReqAckDto, LocalChangeDto } from "../types";
 import { db } from "../db/database";
+import { LFormData } from "../util/LFormData";
 
 export const processChangeReqLock = ref(false);
-
-function convertChangeReqToFormData(changeReq: ChangeReqDto) {
-    const formData = new FormData();
-    const doc = structuredClone(changeReq.doc);
-
-    if (doc.type === DocType.Post || doc.type === DocType.Tag) {
-        const _doc = doc as ContentParentDto;
-        if (_doc.imageData?.uploadData) {
-            const newUploadData: ImageUnprocessedDto[] = [];
-            _doc.imageData.uploadData.forEach((u: ImageUploadDto, i: number) => {
-                const imgBlob = new Blob([u.fileData], { type: "image/webp" });
-                const fileKey = `fileData_${i}`;
-
-                // Append the binary file to formData
-                formData.append(fileKey, imgBlob, u.filename || `${i}-img-${_doc._id}`);
-
-                // Build unprocessed DTO
-                newUploadData.push({
-                    fileIndex: fileKey,
-                    preset: u.preset,
-                    filename: u.filename,
-                });
-            });
-            _doc.imageData.uploadData = newUploadData;
-        }
-    }
-}
 
 /**
  * Handle change request acknowledgements from the api
@@ -67,10 +33,11 @@ async function handleAck(ack: ChangeReqAckDto, localChanges: Ref<LocalChangeDto[
 async function pushLocalChange(localChange: LocalChangeDto, localChanges: Ref<LocalChangeDto[]>) {
     processChangeReqLock.value = true;
 
-    const res = await getRest().changeRequest({
-        id: localChange.id,
-        doc: localChange.doc,
-    } as ChangeRequestQuery);
+    const formData = new LFormData();
+    formData.append("changeRequestId", localChange.id);
+    formData.append("changeRequestDoc", localChange.doc);
+
+    const res = await getRest().changeRequest(formData);
 
     if (res) {
         handleAck(res as ChangeReqAckDto, localChanges);
