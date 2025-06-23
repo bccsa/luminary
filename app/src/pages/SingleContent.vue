@@ -551,19 +551,59 @@ const selectedLanguageCode = computed(() => {
                             :language="selectedLanguageCode"
                         />
                         <!-- Ensure content.parentId does not contain default content empty string -->
-                        <LImage
+                        <div
                             v-else-if="content.parentId || content.parentImageData"
-                            :image="content.parentImageData"
-                            :content-parent-id="content.parentId"
-                            aspectRatio="video"
-                            size="post"
+                            class="relative cursor-pointer"
                             @click="
                                 () => {
                                     currentImageIndex = 0;
                                     enableZoom = true;
                                 }
                             "
-                        />
+                        >
+                            <!-- Main Image -->
+                            <LImage
+                                :image="content.parentImageData"
+                                :content-parent-id="content.parentId"
+                                aspectRatio="video"
+                                size="post"
+                            />
+
+                            <!-- Thumbnails Overlay -->
+                            <div
+                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                class="absolute bottom-2 right-2 flex gap-1"
+                            >
+                                <template
+                                    v-for="(
+                                        collection, index
+                                    ) in content.parentImageData?.fileCollections?.slice(0, 3)"
+                                    :key="collection.imageFiles?.[0]?.filename || index"
+                                >
+                                    <LImage
+                                        :image="{ fileCollections: [collection] }"
+                                        :content-parent-id="content.parentId"
+                                        aspectRatio="video"
+                                        size="small"
+                                        class="rounded border shadow-xl"
+                                        @click.stop="
+                                            currentImageIndex = index;
+                                            enableZoom = true;
+                                        "
+                                    />
+                                </template>
+
+                                <div
+                                    v-if="
+                                        content.parentImageData &&
+                                        content.parentImageData.fileCollections.length > 3
+                                    "
+                                    class="flex h-10 w-10 items-center justify-center rounded bg-black bg-opacity-50 text-sm font-semibold text-white shadow-md"
+                                >
+                                    +{{ content.parentImageData.fileCollections.length - 3 }}
+                                </div>
+                            </div>
+                        </div>
                     </IgnorePagePadding>
 
                     <div class="flex w-full flex-col items-center">
