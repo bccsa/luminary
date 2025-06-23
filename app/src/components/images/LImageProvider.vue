@@ -71,6 +71,8 @@ const filteredFileCollections = computed(() => {
     if (props.isModal) return props.image.fileCollections;
 
     props.image.fileCollections.forEach((collection) => {
+        if (!collection || !collection.imageFiles?.length) return;
+
         const images = collection.imageFiles.filter(
             (imgFile) =>
                 !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
