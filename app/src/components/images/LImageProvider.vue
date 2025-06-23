@@ -190,6 +190,38 @@ const loadFallbackImage = async () => {
     fallbackImageUrl.value = randomImage;
 };
 
+/**
+ * Computes the aspect ratio of the best image in the filtered file collections
+ * that matches the closest aspect ratio. Returns undefined if no suitable image is found.
+ *
+ * @returns {number|undefined} The aspect ratio (width / height) of the best image, or undefined if not available.
+ */
+
+// const trueAspectRatio = computed(() => {
+//     if (!filteredFileCollections.value.length) return undefined;
+//     const collection = filteredFileCollections.value.find(
+//         (c) => c.aspectRatio === closestAspectRatio,
+//     );
+//     const bestImage = collection?.imageFiles?.[0];
+//     if (!bestImage || !bestImage.width || !bestImage.height) return undefined;
+//     return bestImage.width / bestImage.height;
+// });
+
+/**
+ * Computes a dynamic style object containing the CSS aspect-ratio property
+ * if a valid aspect ratio is available. Returns an empty object otherwise.
+ *
+ * @returns {Object} An object with the aspectRatio CSS property or an empty object.
+ */
+// const dynamicAspectStyle = computed(() => {
+//     if (trueAspectRatio.value) {
+//         return {
+//             aspectRatio: `${trueAspectRatio.value}`,
+//         };
+//     }
+//     return {};
+// });
+
 onBeforeMount(async () => {
     await loadFallbackImage();
 });
