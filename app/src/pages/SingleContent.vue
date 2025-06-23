@@ -529,12 +529,12 @@ onMounted(() => {
                             <!-- Thumbnails Overlay -->
                             <div
                                 v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
-                                class="absolute bottom-2 right-2 flex gap-1"
+                                class="absolute bottom-2 right-2 flex items-center gap-1"
                             >
                                 <template
                                     v-for="(
                                         collection, index
-                                    ) in content.parentImageData?.fileCollections?.slice(0, 3)"
+                                    ) in content.parentImageData?.fileCollections.slice(1, 4)"
                                     :key="collection.imageFiles?.[0]?.filename || index"
                                 >
                                     <LImage
@@ -544,12 +544,13 @@ onMounted(() => {
                                         size="small"
                                         class="rounded border shadow-xl"
                                         @click.stop="
-                                            currentImageIndex = index;
+                                            currentImageIndex = index + 1;
                                             enableZoom = true;
                                         "
                                     />
                                 </template>
 
+                                <!-- Remaining images -->
                                 <div
                                     v-if="
                                         content.parentImageData &&
