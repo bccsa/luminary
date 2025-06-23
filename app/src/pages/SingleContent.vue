@@ -540,7 +540,12 @@ const selectedLanguageCode = computed(() => {
                         <!-- Ensure content.parentId does not contain default content empty string -->
                         <div
                             v-else-if="content.parentId || content.parentImageData"
-                            class="relative cursor-pointer"
+                            class="relative"
+                            :class="{
+                                'cursor-pointer':
+                                    content.parentImageData &&
+                                    content.parentImageData.fileCollections.length > 0,
+                            }"
                             @click="
                                 () => {
                                     currentImageIndex = 0;
@@ -711,7 +716,11 @@ const selectedLanguageCode = computed(() => {
     </LModal>
 
     <ImageModal
-        v-if="content && enableZoom"
+        v-if="
+            content?.parentImageData &&
+            content.parentImageData.fileCollections.length > 0 &&
+            enableZoom
+        "
         :content-parent-id="content.parentId"
         :imageCollections="content.parentImageData.fileCollections"
         :currentIndex="currentImageIndex"
