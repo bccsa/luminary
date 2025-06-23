@@ -219,6 +219,11 @@ function onDblClick(e: MouseEvent | TouchEvent) {
 }
 
 function onSwipe(direction: "left" | "right") {
+    // reset zoom and position when swiping
+    scale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+
     const total = props.imageCollections.length;
     const newIndex =
         direction === "left"
@@ -245,6 +250,10 @@ function onKeyDown(event: KeyboardEvent) {
     else if (event.key === "ArrowRight") onSwipe("left");
     else if (event.key === "Escape") closeModal();
 }
+
+const arrowSizeClass = computed(() => {
+    return "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14";
+});
 
 // Watch image change
 watch(
@@ -364,30 +373,39 @@ onBeforeUnmount(() => {
                 />
             </div>
 
-            <div
-                v-if="imageCollections.length > 1"
-                data-role="dot"
-                class="absolute bottom-2 left-1/2 z-50 flex -translate-x-1/2 gap-1"
-            >
-                <span
-                    v-for="(img, idx) in imageCollections"
-                    :key="idx"
-                    class="h-2 w-2 rounded-full"
-                    :class="[
-                        idx === props.currentIndex ? 'bg-zinc-300' : 'bg-zinc-700',
-                        'cursor-pointer transition-all duration-300',
-                    ]"
-                    @click="emit('update:index', idx)"
-                ></span>
+                <!-- Dot Indicators -->
+                <div
+                    v-if="imageCollections.length > 1"
+                    class="z-50 mt-4 flex items-center justify-center gap-2"
+                >
+                    <span
+                        v-for="(img, idx) in imageCollections"
+                        :key="idx"
+                        class="h-2 w-2 rounded-full"
+                        :class="[
+                            idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
+                            'cursor-pointer transition-all duration-300',
+                        ]"
+                        @click="
+                            () => {
+                                // Reset zoom and position when switching images
+                                scale = 1;
+                                translateX = 0;
+                                translateY = 0;
+                                emit('update:index', idx);
+                            }
+                        "
+                    ></span>
+                </div>
             </div>
+
+            <!-- Right Arrow -->
+            <ArrowRightCircleIcon
+                v-if="imageCollections.length > 1"
+                class="inline-block cursor-pointer text-white drop-shadow-lg transition hover:scale-110"
+                :class="arrowSizeClass"
+                @click="onSwipe('left')"
+            />
         </div>
     </div>
 </template>
-
-<style scoped>
-html,
-body {
-    touch-action: none;
-    overscroll-behavior: contain;
-}
-</style>
