@@ -552,10 +552,8 @@ const selectedLanguageCode = computed(() => {
                         />
                         <!-- Ensure content.parentId does not contain default content empty string -->
                         <LImage
-                            v-if="content.parentImageData?.fileCollections?.length"
-                            :image="{
-                                fileCollections: [content.parentImageData.fileCollections[0]],
-                            }"
+                            v-else-if="content.parentId || content.parentImageData"
+                            :image="content.parentImageData"
                             :content-parent-id="content.parentId"
                             aspectRatio="video"
                             size="post"
@@ -693,7 +691,7 @@ const selectedLanguageCode = computed(() => {
         v-if="content && enableZoom"
         :content-parent-id="content.parentId"
         :imageCollections="content.parentImageData.fileCollections"
-        :current-index="currentImageIndex"
+        :currentIndex="currentImageIndex"
         aspectRatio="video"
         size="post"
         @update:index="currentImageIndex = $event"
