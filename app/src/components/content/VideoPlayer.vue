@@ -311,7 +311,7 @@ watch(audioMode, async (mode) => {
     const audioMaster = await extractAndBuildAudioMaster(props.content.video!);
 
     // For mobile compatibility, use a data URL if the playlist is small enough, otherwise fallback to blob URL
-    let playlistUrl: string;
+    let audioOnlyPlaylistUrl: string;
 
     /** We use base64-encode here because Videojs doesn't support HLS via blob
      * Because it is also videojs expect a direct HTTP(S) URL that the player
@@ -322,10 +322,13 @@ watch(audioMode, async (mode) => {
         String.fromCharCode(...Array.from(new Uint8Array(new TextEncoder().encode(audioMaster)))),
     );
     // Construct a data URL for the playlist
-    playlistUrl = `data:application/x-mpegURL;base64,${base64}`;
+    audioOnlyPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
 
     // Set the player source based on the mode status
-    player.src({ type: "application/x-mpegURL", src: mode ? playlistUrl : props.content.video });
+    player.src({
+        type: "application/x-mpegURL",
+        src: mode ? audioOnlyPlaylistUrl : props.content.video,
+    });
 
     player.ready(() => {
         player.currentTime(currentTime);
