@@ -47,7 +47,7 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
-import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import {
     markLanguageSwitch,
     consumeLanguageSwitchFlag,
@@ -574,40 +574,15 @@ const selectedLanguageCode = computed(() => {
                                 size="post"
                             />
 
-                            <!-- Thumbnails Overlay -->
+                            <!-- Icon to indicate multiple images -->
                             <div
                                 v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
                                 class="absolute bottom-2 right-2 flex items-center gap-1"
                             >
-                                <template
-                                    v-for="(
-                                        collection, index
-                                    ) in content.parentImageData?.fileCollections.slice(1, 4)"
-                                    :key="collection.imageFiles?.[0]?.filename || index"
-                                >
-                                    <LImage
-                                        :image="{ fileCollections: [collection] }"
-                                        :content-parent-id="content.parentId"
-                                        aspectRatio="video"
-                                        size="small"
-                                        class="rounded border shadow-xl"
-                                        @click.stop="
-                                            currentImageIndex = index + 1;
-                                            enableZoom = true;
-                                        "
-                                    />
-                                </template>
-
-                                <!-- Remaining images -->
-                                <div
-                                    v-if="
-                                        content.parentImageData &&
-                                        content.parentImageData.fileCollections.length > 3
-                                    "
-                                    class="flex h-10 w-10 items-center justify-center rounded bg-black bg-opacity-50 text-sm font-semibold text-white shadow-md"
-                                >
-                                    +{{ content.parentImageData.fileCollections.length - 3 }}
-                                </div>
+                                <DocumentDuplicateIcon
+                                    class="h-10 w-10 text-zinc-400"
+                                    @click.stop="currentImageIndex = 0"
+                                />
                             </div>
                         </div>
                     </IgnorePagePadding>
