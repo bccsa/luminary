@@ -77,6 +77,8 @@ export class LFormData extends FormData {
                 files.forEach((file, index) => {
                     fileKey = `${index}-${key}-files`;
                     Object.entries(file).forEach(([k, v]) => {
+                        // Each child key attached to fileKey to keep track of images for their perspective
+                        // sibling fields. For Example: 0-key-files.fileName belongs with 0-key-files.fileData
                         const valueKey = `${fileKey}.${k}`;
                         if (
                             typeof v === "string" ||
@@ -86,7 +88,7 @@ export class LFormData extends FormData {
                             super.append(valueKey, String(v));
                         } else if (k === "fileData" && this.isBinary(v)) {
                             const blob = new Blob([v as BlobPart], {
-                                type: "application/octet-stream",
+                                type: "image/octet-stream",
                             });
                             super.append(valueKey, blob, k);
                         }
