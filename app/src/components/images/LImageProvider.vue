@@ -21,6 +21,7 @@ type Props = {
 };
 
 const aspectRatiosCSS = {
+    original: "aspect-auto",
     video: "aspect-video",
     square: "aspect-square",
     vertical: "aspect-[9/16]",
@@ -29,6 +30,7 @@ const aspectRatiosCSS = {
 };
 
 const aspectRatioNumbers = {
+    original: 0, // placeholder for type safety, not used in calculations
     video: 1.78,
     square: 1,
     vertical: 0.56,
@@ -71,8 +73,6 @@ const filteredFileCollections = computed(() => {
     if (props.isModal) return props.image.fileCollections;
 
     props.image.fileCollections.forEach((collection) => {
-        if (!collection || !collection.imageFiles?.length) return;
-
         const images = collection.imageFiles.filter(
             (imgFile) =>
                 !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
@@ -120,6 +120,8 @@ const closestAspectRatio = computed(() => {
 
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
+    if (props.aspectRatio == "original") return "";
+
     if (props.image?.uploadData && props.image.uploadData.length > 0) {
         return URL.createObjectURL(
             new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
@@ -149,23 +151,18 @@ const srcset1 = computed(() => {
 
 // Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
-    if (!filteredFileCollections.value.length) return "";
-    return filteredFileCollections.value
-        .filter((collection) => collection.aspectRatio != closestAspectRatio.value)
+    if (!props.image?.fileCollections?.length) return "";
+
+    // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
+    // 400 is a conservative default that avoids excluding all images due to 0 width,
+    // and works well across mobile, modal, and early-render scenarios.
+    const effectiveWidth = props.parentWidth > 0 ? props.parentWidth : 400;
+
+    return props.image.fileCollections
+        .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
         .map((collection) => {
-            let images = collection.imageFiles;
-
-            // Only filter by parent width if not in modal mode
-            if (!props.isModal) {
-                images = collection.imageFiles.filter(
-                    (imgFile) => imgFile.width <= props.parentWidth,
-                );
-            }
-
-            if (images.length === 0 && collection.imageFiles.length > 0) {
-                images = [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
-            }
-            return images
+            return collection.imageFiles
+                .filter((imgFile) => imgFile.width <= effectiveWidth)
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
                 .join(", ");
@@ -176,9 +173,14 @@ const srcset2 = computed(() => {
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
-const showImageElement1 = computed(() => !imageElement1Error.value && srcset1.value != "");
+const showImageElement1 = computed(
+    () => props.aspectRatio != "original" && !imageElement1Error.value && srcset1.value != "",
+);
 const showImageElement2 = computed(
-    () => imageElement1Error.value && !imageElement2Error.value && srcset2.value != "",
+    () =>
+        (props.aspectRatio == "original" || imageElement1Error.value) &&
+        !imageElement2Error.value &&
+        srcset2.value != "",
 );
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
@@ -189,38 +191,6 @@ const loadFallbackImage = async () => {
     ] as string;
     fallbackImageUrl.value = randomImage;
 };
-
-/**
- * Computes the aspect ratio of the best image in the filtered file collections
- * that matches the closest aspect ratio. Returns undefined if no suitable image is found.
- *
- * @returns {number|undefined} The aspect ratio (width / height) of the best image, or undefined if not available.
- */
-
-// const trueAspectRatio = computed(() => {
-//     if (!filteredFileCollections.value.length) return undefined;
-//     const collection = filteredFileCollections.value.find(
-//         (c) => c.aspectRatio === closestAspectRatio,
-//     );
-//     const bestImage = collection?.imageFiles?.[0];
-//     if (!bestImage || !bestImage.width || !bestImage.height) return undefined;
-//     return bestImage.width / bestImage.height;
-// });
-
-/**
- * Computes a dynamic style object containing the CSS aspect-ratio property
- * if a valid aspect ratio is available. Returns an empty object otherwise.
- *
- * @returns {Object} An object with the aspectRatio CSS property or an empty object.
- */
-// const dynamicAspectStyle = computed(() => {
-//     if (trueAspectRatio.value) {
-//         return {
-//             aspectRatio: `${trueAspectRatio.value}`,
-//         };
-//     }
-//     return {};
-// });
 
 onBeforeMount(async () => {
     await loadFallbackImage();
@@ -292,6 +262,7 @@ const modalSrcset = computed(() => {
         @error="imageElement1Error = true"
         draggable="false"
     />
+    <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
         src=""
