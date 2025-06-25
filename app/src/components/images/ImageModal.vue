@@ -23,7 +23,7 @@ type Props = {
     imageCollections: ImageFileCollectionDto[];
     currentIndex: number;
     contentParentId: Uuid;
-    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
+    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
     rounded?: boolean;
 };
