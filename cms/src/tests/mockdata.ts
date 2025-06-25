@@ -785,6 +785,9 @@ export const superAdminAccessMap = {
             create: true,
             edit: true,
             delete: true,
+            translate: true,
+            publish: true,
+            assign: true,
         },
         user: {
             view: true,
@@ -832,6 +835,9 @@ export const superAdminAccessMap = {
             create: true,
             edit: true,
             delete: true,
+            translate: true,
+            publish: true,
+            assign: true,
         },
         user: {
             view: true,
@@ -879,6 +885,9 @@ export const superAdminAccessMap = {
             create: true,
             edit: true,
             delete: true,
+            translate: true,
+            publish: true,
+            assign: true,
         },
         user: {
             view: true,
@@ -927,6 +936,9 @@ export const superAdminAccessMap = {
             create: true,
             edit: true,
             delete: true,
+            translate: true,
+            publish: true,
+            assign: true,
         },
         user: {
             view: true,
@@ -975,6 +987,9 @@ export const superAdminAccessMap = {
             create: true,
             edit: true,
             delete: true,
+            translate: true,
+            publish: true,
+            assign: true,
         },
         user: {
             view: true,
@@ -1023,6 +1038,9 @@ export const superAdminAccessMap = {
             create: true,
             edit: true,
             delete: true,
+            translate: true,
+            publish: true,
+            assign: true,
         },
         user: {
             view: true,
@@ -1071,6 +1089,9 @@ export const superAdminAccessMap = {
             create: true,
             edit: true,
             delete: true,
+            translate: true,
+            publish: true,
+            assign: true,
         },
         user: {
             view: true,
@@ -1118,6 +1139,9 @@ export const superAdminAccessMap = {
             create: true,
             edit: true,
             delete: true,
+            translate: true,
+            publish: true,
+            assign: true,
         },
         user: {
             view: true,

@@ -21,6 +21,8 @@ import {
     type ContentParentDto,
     PostType,
     isConnected,
+    type RedirectDto,
+    RedirectType,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -232,6 +234,59 @@ const isDirty = computed(
 
 const isValid = ref(true);
 
+const createRedirect = async () => {
+    if (!selectedContent.value || !selectedContent_Existing.value) return;
+
+    // If the slug is the same or if the user does not have edit access to redirects, do not create a redirect
+    if (
+        selectedContent.value.slug === selectedContent_Existing.value.slug ||
+        !verifyAccess(selectedContent.value.memberOf, DocType.Redirect, AclPermission.Edit)
+    )
+        return;
+
+    // Do not create a redirect if the content was not published or is currently not published
+    if (
+        selectedContent_Existing.value.status !== PublishStatus.Published ||
+        selectedContent.value.status !== PublishStatus.Published
+    )
+        return;
+
+    // Do not create a redirect if the content was scheduled or is currently scheduled
+    if (
+        (selectedContent.value.publishDate && selectedContent.value.publishDate > Date.now()) ||
+        (selectedContent_Existing.value.publishDate &&
+            selectedContent_Existing.value.publishDate > Date.now())
+    )
+        return;
+
+    // Do not create a redirect if the content was expired or is currently expired
+    if (
+        (selectedContent.value.expiryDate && selectedContent.value.expiryDate <= Date.now()) ||
+        (selectedContent_Existing.value.expiryDate &&
+            selectedContent_Existing.value.expiryDate <= Date.now())
+    )
+        return;
+
+    // Create a new redirect document
+    const newRedirect: RedirectDto = {
+        _id: db.uuid(),
+        type: DocType.Redirect,
+        updatedTimeUtc: Date.now(),
+        memberOf: [...selectedContent.value.memberOf],
+        slug: selectedContent_Existing.value.slug,
+        redirectType: RedirectType.Temporary,
+        toSlug: selectedContent.value.slug,
+    };
+
+    addNotification({
+        title: "Redirect created",
+        description: `A redirect was created from ${selectedContent_Existing.value.slug} to ${selectedContent.value.slug}`,
+        state: "info",
+    });
+
+    await db.upsert({ doc: newRedirect });
+};
+
 const saveChanges = async () => {
     if (!isValid.value) {
         addNotification({
@@ -270,6 +325,14 @@ const saveChanges = async () => {
         });
         return;
     }
+
+    /**
+     * Create a redirect if neccessary
+     * This is done if the content document is currently published,
+     * was already published, the slug has changed
+     * and the user has edit access to redirect documents.
+     */
+    await createRedirect();
 
     await save();
 
