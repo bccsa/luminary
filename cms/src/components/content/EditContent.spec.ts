@@ -669,12 +669,6 @@ describe("EditContent.vue", () => {
         await wrapper.find('[name="slug"]').setValue("new-slug");
         await wrapper.find('[name="slug"]').trigger("change");
 
-        // Edit the slug to trigger a redirect creation
-        expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
-        await wrapper.find('[data-test="editSlugButton"]').trigger("click");
-        await wrapper.find('[name="slug"]').setValue("new-slug");
-        await wrapper.find('[name="slug"]').trigger("change");
-
         await waitForExpect(async () => {
             await wrapper.find('[data-test="save-button"]').trigger("click");
         });
