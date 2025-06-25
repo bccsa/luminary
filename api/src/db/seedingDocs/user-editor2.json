@@ -3,5 +3,6 @@
     "type": "user",
     "memberOf": ["group-private-editors"],
     "email": "editor2@users.test",
+    "lastLogin": 1704114000000,
     "name": "Editor 2"
 }

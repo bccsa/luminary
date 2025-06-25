@@ -3,5 +3,6 @@
     "type": "user",
     "memberOf": ["group-public-users"],
     "email": "public@users.test",
+    "lastLogin": 1704114000000,
     "name": "Public User"
 }

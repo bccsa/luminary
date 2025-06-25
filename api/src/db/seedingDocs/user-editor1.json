@@ -4,5 +4,6 @@
     "memberOf": ["group-public-editors", "group-private-editors"],
     "email": "editor1@users.test",
     "name": "Editor 1",
+    "lastLogin": 1704114000000,
     "userId": "editor1"
 }

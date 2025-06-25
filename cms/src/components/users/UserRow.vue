@@ -68,9 +68,13 @@ watch(groups, (newGroups) => {
             </div>
         </td>
 
-        <!-- updated -->
+        <!-- Last Logged In -->
         <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
-            {{ db.toDateTime(usersDoc.updatedTimeUtc).toLocaleString(DateTime.DATETIME_SHORT) }}
+            {{
+                usersDoc.lastLogin
+                    ? db.toDateTime(usersDoc.lastLogin).toLocaleString(DateTime.DATETIME_SHORT)
+                    : "Has not logged in yet"
+            }}
         </td>
 
         <!-- actions -->

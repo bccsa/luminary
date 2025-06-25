@@ -77,6 +77,7 @@ export type UserDto = ContentBaseDto & {
     type: DocType.User;
     email: string;
     name: string;
+    lastLogin?: number;
 };
 
 export type ContentDto = ContentBaseDto & {
