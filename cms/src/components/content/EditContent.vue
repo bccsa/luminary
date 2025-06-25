@@ -239,45 +239,40 @@ const createRedirect = async () => {
 
     // If the slug is the same or if the user does not have edit access to redirects, do not create a redirect
     if (
-        _.isEqual(selectedContent.value.slug, selectedContent_Existing.value.slug) ||
+        selectedContent.value.slug === selectedContent_Existing.value.slug ||
         !verifyAccess(selectedContent.value.memberOf, DocType.Redirect, AclPermission.Edit)
     )
         return;
 
-    //Check to see if the content document was previously published
-    const previouslyPublished = selectedContent_Existing.value.status === PublishStatus.Published;
-    // Check to see if the content document is currently published
-    const currentlyPublished = selectedContent.value.status === PublishStatus.Published;
+    // Do not create a redirect if the content was not published or is currently not published
+    if (
+        selectedContent_Existing.value.status !== PublishStatus.Published ||
+        selectedContent.value.status !== PublishStatus.Published
+    )
+        return;
 
-    // Check to see if the content document is scheduled to be published
-    const scheduled =
-        selectedContent.value.publishDate && selectedContent.value.publishDate >= Date.now();
-    // Check to see if the previously selected content document was scheduled to be published
-    const previouslyScheduled =
-        selectedContent_Existing.value.publishDate &&
-        selectedContent_Existing.value.publishDate >= Date.now();
+    // Do not create a redirect if the content was scheduled or is currently scheduled
+    if (
+        (selectedContent.value.publishDate && selectedContent.value.publishDate > Date.now()) ||
+        (selectedContent_Existing.value.publishDate &&
+            selectedContent_Existing.value.publishDate > Date.now())
+    )
+        return;
 
-    // Check to see if the content document is expired
-    const isExpired =
-        selectedContent.value.expiryDate && selectedContent.value.expiryDate <= Date.now();
-    // Check to see if the previously selected content document was expired
-    const preveiouslyExpired =
-        selectedContent_Existing.value.expiryDate &&
-        selectedContent_Existing.value.expiryDate <= Date.now();
-
-    // If the content document was previously not published, or is currently not published, do not create a redirect
-    if (!previouslyPublished || !currentlyPublished) return;
-    // If the content document is currently scheduled or was previously scheduled, do not create a redirect
-    if (previouslyScheduled || scheduled) return;
-    // If the content document is currently expired or was previously expired, do not create a redirect
-    if (preveiouslyExpired || isExpired) return;
+    // Do not create a redirect if the content was expired or is currently expired
+    if (
+        (selectedContent.value.expiryDate && selectedContent.value.expiryDate <= Date.now()) ||
+        (selectedContent_Existing.value.expiryDate &&
+            selectedContent_Existing.value.expiryDate <= Date.now())
+    )
+        return;
 
     // Create a new redirect document
     const newRedirect: RedirectDto = {
         _id: db.uuid(),
         type: DocType.Redirect,
         updatedTimeUtc: Date.now(),
-        memberOf: { ...selectedContent.value.memberOf },
+        memberOf: [...selectedContent.value.memberOf],
         slug: selectedContent_Existing.value.slug,
         redirectType: RedirectType.Temporary,
         toSlug: selectedContent.value.slug,
