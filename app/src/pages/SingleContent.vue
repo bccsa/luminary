@@ -91,19 +91,6 @@ const idbContent = useDexieLiveQuery(
             .then((docs) => {
                 if (!docs?.length) return;
 
-                // Check if the document is a redirect, and redirect to the new slug
-                const redirect = docs.find(
-                    (d) => d.type === DocType.Redirect,
-                ) as unknown as RedirectDto;
-                if (redirect) {
-                    if (redirect.toSlug) {
-                        router.replace({ name: "content", params: { slug: redirect.toSlug } });
-                        return;
-                    }
-                    router.replace("/");
-                    return;
-                }
-
                 return docs[0];
             }) as unknown as Promise<ContentDto | undefined>,
     { initialValue: defaultContent },
