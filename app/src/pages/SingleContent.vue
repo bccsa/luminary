@@ -75,6 +75,21 @@ const availableTranslations = ref<ContentDto[]>([]);
 const languages = ref<LanguageDto[]>([]);
 
 const currentImageIndex = ref(0);
+const mainAspectRatio = 1.78; // 16:9 aspect ratio, used for video and most images
+
+/**
+ * Computes the index of the main image in the fileCollections array based on the closest aspect ratio match to mainAspectRatio.
+ * If no matching collection is found, defaults to index 0.
+ *
+ * @returns {number} Index of the image with aspect ratio closest to mainAspectRatio, or 0 if not found.
+ */
+const mainImageIndex = computed(() => {
+    return (
+        content.value?.parentImageData?.fileCollections?.findIndex(
+            (collection) => Math.abs(collection.aspectRatio - mainAspectRatio) < 0.01,
+        ) ?? 0
+    );
+});
 
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
@@ -561,7 +576,7 @@ const selectedLanguageCode = computed(() => {
                             }"
                             @click="
                                 () => {
-                                    currentImageIndex = 0;
+                                    currentImageIndex = mainImageIndex;
                                     enableZoom = true;
                                 }
                             "
@@ -579,10 +594,7 @@ const selectedLanguageCode = computed(() => {
                                 v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
                                 class="absolute bottom-2 right-2 flex items-center gap-1"
                             >
-                                <DocumentDuplicateIcon
-                                    class="h-10 w-10 text-zinc-400"
-                                    @click.stop="currentImageIndex = 0"
-                                />
+                                <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
                             </div>
                         </div>
                     </IgnorePagePadding>
@@ -717,8 +729,7 @@ const selectedLanguageCode = computed(() => {
         :content-parent-id="content.parentId"
         :imageCollections="content.parentImageData.fileCollections"
         :currentIndex="currentImageIndex"
-        aspectRatio="video"
-        size="post"
+        aspectRatio="original"
         @update:index="currentImageIndex = $event"
         @close="enableZoom = false"
     />
