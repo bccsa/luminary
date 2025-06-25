@@ -19,7 +19,7 @@ type Props = {
     imageCollections: ImageFileCollectionDto[];
     currentIndex: number;
     contentParentId: Uuid;
-    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
+    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
     rounded?: boolean;
 };
@@ -354,16 +354,14 @@ onBeforeUnmount(() => {
                         cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
                     }"
                 >
-                    <transition name="fade">
-                        <LImage
-                            :contentParentId="contentParentId"
-                            :image="currentImage"
-                            :aspectRatio="aspectRatio"
-                            :size="size"
-                            :rounded="rounded"
-                            class="pointer-events-none max-h-[80vh] max-w-full object-contain"
-                        />
-                    </transition>
+                    <LImage
+                        :contentParentId="contentParentId"
+                        :image="currentImage"
+                        aspectRatio="original"
+                        :size="size"
+                        :rounded="rounded"
+                        class="pointer-events-none max-h-[90vh] max-w-full"
+                    />
                 </div>
 
                 <!-- Dot Indicators -->
