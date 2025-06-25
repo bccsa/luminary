@@ -139,8 +139,9 @@ const srcset2 = computed(() => {
     const effectiveWidth = props.parentWidth > 0 ? props.parentWidth : 400;
 
     return props.image.fileCollections
-        .filter((collection) => collection.aspectRatio !== closestAspectRatio)
+        .filter((collection) => collection?.aspectRatio !== closestAspectRatio)
         .map((collection) => {
+            if (!collection.imageFiles.length) return "";
             return collection.imageFiles
                 .filter((imgFile) => imgFile.width <= effectiveWidth)
                 .sort((a, b) => a.width - b.width)
