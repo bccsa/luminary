@@ -8,6 +8,7 @@ import { initConfig } from "../config";
 import { Server } from "socket.io";
 import waitForExpect from "wait-for-expect";
 import * as RestApi from "../rest/RestApi";
+import { LFormData } from "../util/LFormData";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -94,10 +95,24 @@ describe("localChanges", () => {
             id: 1234,
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
         };
+
         await db.localChanges.put(localChange);
 
         await waitForExpect(() => {
-            expect(changeRequestMock).toHaveBeenCalledWith(localChange);
+            expect(changeRequestMock).toHaveBeenCalled();
+
+            const formData = changeRequestMock.mock.calls[0][0] as any;
+
+            const entries = [...formData.entries()];
+            expect(entries).toEqual(
+                expect.arrayContaining([
+                    ["changeRequestId", "1234"],
+                    [
+                        "changeRequestDoc-JSON",
+                        JSON.stringify({ _id: "test-doc", type: "post", updatedTimeUtc: 1234 }),
+                    ],
+                ]),
+            );
         });
     });
 
@@ -109,6 +124,7 @@ describe("localChanges", () => {
 
         // Create a local change
         await db.localChanges.put({
+            docId: "",
             id: 1234,
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
         });
@@ -137,18 +153,27 @@ describe("localChanges", () => {
         // Connect to the server
         getSocket({ reconnect: true });
 
-        // Create a local change
-        await db.localChanges.put({
+        const localChange = {
             docId: "1234",
             id: 1234,
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
-        });
-        const localChange = await db.localChanges.get(1234);
-        expect(localChange).toBeDefined();
+        };
+
+        // Create a local change
+        await db.localChanges.put(localChange);
 
         // Check if the server received the change request
         await waitForExpect(() => {
-            expect(changeRequestMock).toHaveBeenCalledWith(localChange);
+            expect(changeRequestMock).toHaveBeenCalled();
+
+            const formData = changeRequestMock.mock.calls[0][0] as any;
+            const entries = [...formData.entries()];
+            expect(entries).toEqual(
+                expect.arrayContaining([
+                    ["changeRequestId", localChange.id.toString()],
+                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
+                ]),
+            );
         });
     });
 
@@ -157,24 +182,35 @@ describe("localChanges", () => {
             socket.emit("clientConfig", {});
         });
 
-        // Create a local change
-        await db.localChanges.put({
+        const localChange = {
             id: 1234,
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
-        });
-        const localChange = await db.localChanges.get(1234);
-        expect(localChange).toBeDefined();
+        };
 
-        // check that the local change is not sent to the server
-        await wait(1000);
+        // Store while offline
+        await db.localChanges.put(localChange);
+        const stored = await db.localChanges.get(1234);
+        expect(stored).toBeDefined();
+
+        // Ensure not synced before connecting
+        await wait(500);
         expect(changeRequestMock).not.toHaveBeenCalled();
 
-        // Connect to the server
+        // Now connect
         getSocket({ reconnect: true });
 
-        // Check if the server received the change request
+        // Wait and validate sync
         await waitForExpect(() => {
-            expect(changeRequestMock).toHaveBeenCalledWith(localChange);
+            expect(changeRequestMock).toHaveBeenCalled();
+
+            const formData = changeRequestMock.mock.calls[0][0] as any;
+            const entries = [...formData.entries()];
+            expect(entries).toEqual(
+                expect.arrayContaining([
+                    ["changeRequestId", localChange.id.toString()],
+                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
+                ]),
+            );
         });
     });
 
