@@ -148,9 +148,22 @@ function handleWheel(e: WheelEvent) {
     }
 }
 
-function onDblClick(e: MouseEvent) {
+function onDblClick(e: MouseEvent | TouchEvent) {
     const el = container.value;
     if (!el) return;
+
+    let clientX: number, clientY: number;
+
+    if (e instanceof TouchEvent) {
+        const touch = e.changedTouches[0]; // ← changedTouches instead of touches
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+    } else if (e instanceof MouseEvent) {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    } else {
+        return;
+    }
 
     if (scale.value > 1) {
         scale.value = 1;
@@ -162,13 +175,26 @@ function onDblClick(e: MouseEvent) {
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
 
-        const offsetX = e.clientX - rect.left - centerX;
-        const offsetY = e.clientY - rect.top - centerY;
+        const offsetX = clientX - rect.left - centerX;
+        const offsetY = clientY - rect.top - centerY;
 
         translateX.value = -offsetX * (MAX_SCALE.value - 1);
         translateY.value = -offsetY * (MAX_SCALE.value - 1);
         clampTranslation();
     }
+}
+
+// Double-tap support for mobile
+let lastTap = 0;
+function onTouchEndWithDoubleTap(e: TouchEvent) {
+    const now = Date.now();
+    if (now - lastTap < 400) {
+        onDblClick(e);
+        lastTap = 0;
+    } else {
+        lastTap = now;
+    }
+    onTouchEnd();
 }
 
 function onKeyDown(event: KeyboardEvent) {
@@ -207,8 +233,8 @@ onMounted(() => {
 
     el.addEventListener("touchstart", onTouchStart, { passive: false });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
-    el.addEventListener("touchcancel", onTouchEnd);
+    el.addEventListener("touchend", onTouchEndWithDoubleTap);
+    el.addEventListener("touchcancel", onTouchEndWithDoubleTap);
 
     el.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
@@ -218,7 +244,7 @@ onMounted(() => {
 
     el.addEventListener("dblclick", onDblClick);
 
-     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
 });
 
 onBeforeUnmount(() => {
@@ -227,8 +253,8 @@ onBeforeUnmount(() => {
 
     el.removeEventListener("touchstart", onTouchStart);
     el.removeEventListener("touchmove", onTouchMove);
-    el.removeEventListener("touchend", onTouchEnd);
-    el.removeEventListener("touchcancel", onTouchEnd);
+    el.removeEventListener("touchend", onTouchEndWithDoubleTap);
+    el.removeEventListener("touchcancel", onTouchEndWithDoubleTap);
 
     el.removeEventListener("mousedown", onMouseDown);
     window.removeEventListener("mousemove", onMouseMove);
@@ -238,7 +264,7 @@ onBeforeUnmount(() => {
 
     el.removeEventListener("dblclick", onDblClick);
 
-     window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
