@@ -139,6 +139,7 @@ describe("localChanges", () => {
 
         // Create a local change
         await db.localChanges.put({
+            docId: "1234",
             id: 1234,
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
         });
