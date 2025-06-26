@@ -73,13 +73,15 @@ export class LFormData extends FormData {
             // Get the files inside of the json(if any), extract it, and append it to the FormData object
             const files = this.extractAnyFile(value);
             if (files.length > 0) {
+                let fileName: string;
                 // Iterate over the binary data and append it to the FormData instance
                 files.forEach((file, index) => {
                     fileKey = `${index}-${key}-files`;
                     Object.entries(file).forEach(([k, v]) => {
+                        if (k == "filename") fileName = v as string;
                         // Each child key attached to fileKey to keep track of images for their perspective
                         // sibling fields. For Example: 0-key-files.fileName belongs with 0-key-files.fileData
-                        const valueKey = `${fileKey}.${k}`;
+                        const valueKey = `${fileKey}-${k}`;
                         if (
                             typeof v === "string" ||
                             typeof v === "boolean" ||
@@ -90,7 +92,7 @@ export class LFormData extends FormData {
                             const blob = new Blob([v as BlobPart], {
                                 type: "image/octet-stream",
                             });
-                            super.append(valueKey, blob, k);
+                            super.append(valueKey, blob, fileName);
                         }
                     });
                 });
