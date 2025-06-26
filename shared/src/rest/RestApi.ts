@@ -92,7 +92,7 @@ class RestApi {
         return await this.http.get("search", query); //TODO: Add type: ApiQueryResult<T>
     }
 
-    async changeRequest(query: ChangeRequestQuery | LFormData) {
+    async changeRequest(query: ChangeRequestQuery | FormData) {
         if (query instanceof LFormData) {
             (query as LFormData).append("changeRequestApiVersion", "0.0.0");
         }

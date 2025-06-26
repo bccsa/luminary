@@ -30,11 +30,7 @@ export class ChangeRequestController {
 
     @Post()
     @UseGuards(AuthGuard)
-    @UseInterceptors(
-        AnyFilesInterceptor({
-            limits: { fileSize: parseInt(process.env.SOCKETIO_MAX_BUFFER_SIZE) },
-        }),
-    )
+    @UseInterceptors(AnyFilesInterceptor())
     async handleChangeRequest(
         @UploadedFiles() files,
         @Body() body,
@@ -60,14 +56,11 @@ export class ChangeRequestController {
                     // as forEach does not await properly so validation could be skipped
                     for (const [index, file] of files.entries()) {
                         const fileType = await fileTypeFromBuffer(file.buffer);
-                        console.log(fileType);
                         if (!fileType || !fileType.mime.startsWith("image/")) {
-                            console.error("FILE IS BAD");
-                            throw new BadRequestException("Invalid File Type");
+                            throw new BadRequestException("Invalid file type was found");
                         }
-
-                        const fileName = body[`${index}-changeRequestDoc-files.filename`];
-                        const filePreset = body[`${index}-changeRequestDoc-files.preset`];
+                        const fileName = body[`${index}-changeRequestDoc-files-filename`];
+                        const filePreset = body[`${index}-changeRequestDoc-files-preset`];
 
                         uploadData.push({
                             fileData: file.buffer,
