@@ -8,7 +8,6 @@ import { initConfig } from "../config";
 import { Server } from "socket.io";
 import waitForExpect from "wait-for-expect";
 import * as RestApi from "../rest/RestApi";
-import { LFormData } from "../util/LFormData";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
