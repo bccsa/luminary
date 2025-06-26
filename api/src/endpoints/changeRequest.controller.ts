@@ -13,8 +13,8 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
-import { DocType } from "src/enums";
-import { fileTypeFromBuffer } from "file-type";
+import { DocType } from "../enums";
+import { fromBuffer } from "file-type";
 // Files (atleast for now) must be images, we use
 // octec-stream inside form data to send any binary data, this allows
 // us to send more file types in the future
@@ -55,7 +55,7 @@ export class ChangeRequestController {
                     // We are using a for..of so each file validation is awaited correctly
                     // as forEach does not await properly so validation could be skipped
                     for (const [index, file] of files.entries()) {
-                        const fileType = await fileTypeFromBuffer(file.buffer);
+                        const fileType = await fromBuffer(file.buffer);
                         if (!fileType || !fileType.mime.startsWith("image/")) {
                             throw new BadRequestException("Invalid file type was found");
                         }
