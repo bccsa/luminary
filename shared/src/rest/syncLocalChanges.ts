@@ -5,6 +5,11 @@ import { ChangeReqAckDto, LocalChangeDto } from "../types";
 import { db } from "../db/database";
 import { LFormData } from "../util/LFormData";
 
+/**
+ * Lock to prevent multiple change requests from being processed at the same time
+ * This is set to true when a change request is being processed and false when it is done
+ * as change requests are asynchronous operations that can take time to complete.
+ */
 export const processChangeReqLock = ref(false);
 
 /**

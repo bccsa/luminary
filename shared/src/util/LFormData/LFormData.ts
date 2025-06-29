@@ -1,14 +1,20 @@
-import * as _ from "lodash";
+type BinaryData = Blob | File | ArrayBuffer | Exclude<ArrayBufferView, SharedArrayBuffer>;
 
-type Binary = Blob | File | ArrayBuffer | Exclude<ArrayBufferView, SharedArrayBuffer>;
-
+/**
+ * LFormData extends the FormData class to handle binary data and JSON objects.
+ * It allows appending binary data (Blob, File, ArrayBuffer) and JSON objects
+ * while extracting any binary files from the JSON object and appending them
+ * to the FormData instance.
+ * This allows us to easily make use of multipart/form-data requests
+ * while still being able to send complex JSON objects with binary data.
+ */
 export class LFormData extends FormData {
     /**
      * This method check if a value is binary data that is compatible with a BlobPart/Blob and FormData
      * @param value the value to check if it is binary data or not
      * @returns
      */
-    private isBinary(value: any): value is Binary {
+    private isBinary(value: any): value is BinaryData {
         if (value instanceof Blob || value instanceof File || value instanceof ArrayBuffer) {
             return true;
         }
@@ -90,7 +96,7 @@ export class LFormData extends FormData {
                             super.append(valueKey, String(v));
                         } else if (k === "fileData" && this.isBinary(v)) {
                             const blob = new Blob([v as BlobPart], {
-                                type: "image/octet-stream",
+                                type: "application/octet-stream",
                             });
                             super.append(valueKey, blob, fileName);
                         }
