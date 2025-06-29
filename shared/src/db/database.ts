@@ -24,6 +24,7 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import _ from "lodash";
+
 const dbName: string = "luminary-db";
 
 type LuminaryInternals = {

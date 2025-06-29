@@ -30,18 +30,19 @@ export class HttpReq<T> {
         }
     }
 
-    async post(endpoint: string, query: T) {
+    async post(endpoint: string, query: T | FormData) {
         try {
             const schema = "https://";
             const regex = /^https?:\/\//;
             const url = regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
+            const isFormData = query instanceof FormData;
             const res = await fetch(`${url}/${endpoint}`, {
                 method: "POST",
                 headers: {
                     Authorization: this.token ? `Bearer ${this.token}` : "",
-                    "Content-Type": "application/json",
+                    ...(!isFormData && { "Content-Type": "application/json" }),
                 },
-                body: JSON.stringify(query),
+                body: isFormData ? query : JSON.stringify(query),
             });
             if (!res.ok) {
                 throw new Error(`HTTP error! Status: ${res.status}`);
