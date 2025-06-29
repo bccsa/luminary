@@ -24,8 +24,7 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import _ from "lodash";
-import { syncLocalChanges } from "../rest/syncLocalChanges";
-import { useDexieLiveQuery } from "../util";
+
 const dbName: string = "luminary-db";
 
 type LuminaryInternals = {
@@ -853,12 +852,6 @@ export async function initDatabase() {
         },
         { deep: true },
     );
-
-    const localChanges = useDexieLiveQuery(
-        () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
-        { initialValue: [] as unknown as LocalChangeDto[] },
-    );
-    syncLocalChanges(localChanges);
 }
 
 /**

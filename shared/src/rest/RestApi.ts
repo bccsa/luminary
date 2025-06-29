@@ -1,8 +1,11 @@
-import { DocType } from "../types";
+import { DocType, LocalChangeDto } from "../types";
 import { Sync, syncActive } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
 import { LFormData } from "../util/LFormData";
+import { db } from "../db/database";
+import { useDexieLiveQuery } from "../util";
+import { syncLocalChanges } from "./syncLocalChanges";
 
 export type ApiSearchQuery = {
     apiVersion?: string;
@@ -78,6 +81,12 @@ class RestApi {
 
         this._sync = new Sync();
         this.http = new HttpReq(config.apiUrl || "", config.token);
+
+        const localChanges = useDexieLiveQuery(
+            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
+            { initialValue: [] as unknown as LocalChangeDto[] },
+        );
+        syncLocalChanges(localChanges);
     }
 
     /**
