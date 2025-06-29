@@ -1,13 +1,15 @@
 import "fake-indexeddb/auto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
-import { AckStatus, ChangeReqDto, DocType } from "../types";
+import { AckStatus, ChangeReqDto, DocType, LocalChangeDto } from "../types";
 import { db, initDatabase } from "../db/database";
 import { getSocket } from "../socket/socketio";
 import { initConfig } from "../config";
 import { Server } from "socket.io";
 import waitForExpect from "wait-for-expect";
 import * as RestApi from "../rest/RestApi";
+import { useDexieLiveQuery } from "../util";
+import { syncLocalChanges } from "./syncLocalChanges";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -60,6 +62,13 @@ describe("localChanges", () => {
 
         // Initialize the IndexedDB database
         await initDatabase();
+
+        // Initialize syncLocalChanges since we're mocking getRest()
+        const localChanges = useDexieLiveQuery(
+            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
+            { initialValue: [] as unknown as LocalChangeDto[] },
+        );
+        syncLocalChanges(localChanges);
 
         // initialize the socket client
         const socket = getSocket();
