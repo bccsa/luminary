@@ -64,6 +64,8 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
     watch(isConnected, (connected) => {
         if (connected) {
             processChangeReqLock.value = true;
+        } else {
+            processChangeReqLock.value = false;
         }
     });
 }
