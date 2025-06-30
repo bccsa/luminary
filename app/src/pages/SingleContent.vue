@@ -90,7 +90,6 @@ const idbContent = useDexieLiveQuery(
             .toArray()
             .then((docs) => {
                 if (!docs?.length) {
-                    // Fallback to home if nothing is found
                     router.replace("/");
                     return undefined;
                 }
@@ -101,8 +100,17 @@ const idbContent = useDexieLiveQuery(
                     | undefined;
 
                 if (redirect && redirect.toSlug) {
-                    // Only redirect if a redirect doc is found
-                    router.replace({ name: "content", params: { slug: redirect.toSlug } });
+                    // If toSlug matches a route name, redirect to that route
+                    const routes = router.getRoutes();
+
+                    const targetRoute = routes.find((r) => r.name === redirect.toSlug);
+                    if (targetRoute) {
+                        router.replace({ name: redirect.toSlug });
+                    } else {
+                        // Otherwise, treat as a content slug
+                        router.replace({ name: "content", params: { slug: redirect.toSlug } });
+                    }
+
                     return undefined;
                 }
 
