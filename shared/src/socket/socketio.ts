@@ -5,7 +5,6 @@ import { db } from "../db/database";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
-import { processChangeReqLock } from "../rest/syncLocalChanges";
 
 /**
  * Client configuration type definition
@@ -38,7 +37,6 @@ class SocketIO {
 
         this.socket.on("connect", () => {
             this.socket.emit("joinSocketGroups", { docTypes: config.syncList });
-            processChangeReqLock.value = false; // reset process lock on connection
         });
 
         this.socket.on("disconnect", () => {

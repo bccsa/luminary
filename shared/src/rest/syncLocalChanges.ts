@@ -10,7 +10,7 @@ import { LFormData } from "../util/LFormData";
  * This is set to true when a change request is being processed and false when it is done
  * as change requests are asynchronous operations that can take time to complete.
  */
-export const processChangeReqLock = ref(false);
+export const processChangeReqLock = ref(true);
 
 /**
  * Handle change request acknowledgements from the api
@@ -23,11 +23,7 @@ async function handleAck(ack: ChangeReqAckDto, localChanges: Ref<LocalChangeDto[
     //Update localChanges with changes made after acknowledgements was applied to localChanges
     localChanges.value = await db.getLocalChanges();
 
-    if (localChanges.value.length > 1) {
-        pushLocalChange(localChanges.value[0], localChanges);
-    } else {
-        processChangeReqLock.value = false;
-    }
+    processChangeReqLock.value = false;
 }
 
 /**
@@ -63,4 +59,11 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
         },
         { immediate: true },
     );
+
+    // Reset lock when connected after being disconnected to continue processing
+    watch(isConnected, (connected) => {
+        if (connected) {
+            processChangeReqLock.value = true;
+        }
+    });
 }

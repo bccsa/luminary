@@ -12,7 +12,6 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
-import { DocType } from "../enums";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -38,23 +37,21 @@ export class ChangeRequestController {
             //Only parent documents (Posts and Tags) can have files uploaded,
             //Child documents only have a reference to the parent document's fileCollection field
             //without this check it could lead to unexpected behavior or critical errors
-            if ((parsedDoc && parsedDoc.type == DocType.Post) || parsedDoc.type == DocType.Tag) {
-                if (files.length > 0) {
-                    const uploadData = [];
+            if (files.length > 0) {
+                const uploadData = [];
 
-                    files.forEach((file, index) => {
-                        const fileName = body[`${index}-changeRequestDoc-files-filename`];
-                        const filePreset = body[`${index}-changeRequestDoc-files-preset`];
+                files.forEach((file, index) => {
+                    const fileName = body[`${index}-changeRequestDoc-files-filename`];
+                    const filePreset = body[`${index}-changeRequestDoc-files-preset`];
 
-                        uploadData.push({
-                            fileData: file.buffer,
-                            filename: fileName,
-                            preset: filePreset,
-                        });
+                    uploadData.push({
+                        fileData: file.buffer,
+                        filename: fileName,
+                        preset: filePreset,
                     });
+                });
 
-                    parsedDoc.imageData.uploadData = uploadData;
-                }
+                parsedDoc.imageData.uploadData = uploadData;
             }
 
             const changeRequest: ChangeReqDto = {
