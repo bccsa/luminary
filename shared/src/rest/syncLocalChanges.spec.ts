@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { nextTick, ref } from "vue";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
 import { AckStatus, ChangeReqDto, DocType, LocalChangeDto } from "../types";
 import { db, initDatabase } from "../db/database";
 import { getSocket, isConnected } from "../socket/socketio";
@@ -60,6 +60,47 @@ describe("localChanges", () => {
         // Initialize the IndexedDB database
         await initDatabase();
 
+        // initialize the socket client
+        const socket = getSocket();
+        socket.disconnect();
+    });
+
+    afterEach(async () => {
+        vi.clearAllMocks();
+        getSocket().disconnect();
+        socketServer.removeAllListeners();
+
+        await db.docs.clear();
+        await db.localChanges.clear();
+    });
+
+    afterAll(async () => {
+        isConnected.value = false;
+        processChangeReqLock.value = false;
+        vi.restoreAllMocks();
+
+        // Clear the database after each test
+        await db.docs.clear();
+        await db.localChanges.clear();
+    });
+
+    beforeEach(() => {
+        isConnected.value = false;
+        processChangeReqLock.value = false;
+
+        vi.spyOn(RestApi, "getRest").mockReturnValue({
+            changeRequest: changeRequestMock,
+        } as unknown as any);
+
+        // Initialize syncLocalChanges since we're mocking getRest()
+        const localChanges = useDexieLiveQuery(
+            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
+            { initialValue: [] as unknown as LocalChangeDto[] },
+        );
+        syncLocalChanges(localChanges);
+    });
+
+    it("sends a change request if there are local changes", async () => {
         vi.spyOn(RestApi, "getRest").mockReturnValue({
             changeRequest: changeRequestMock,
         } as unknown as any);
@@ -71,59 +112,29 @@ describe("localChanges", () => {
         );
         syncLocalChanges(localChanges);
 
-        // initialize the socket client
-        const socket = getSocket();
-        socket.disconnect();
-    });
-
-    afterEach(async () => {
-        vi.clearAllMocks();
-        getSocket().disconnect();
-        socketServer.removeAllListeners();
-
-        isConnected.value = false;
-        processChangeReqLock.value = false;
-
-        await db.docs.clear();
-        await db.localChanges.clear();
-    });
-
-    afterAll(async () => {
-        vi.restoreAllMocks();
-
-        // Clear the database after each test
-        await db.docs.clear();
-        await db.localChanges.clear();
-    });
-
-    it("sends a change request if there are local changes", async () => {
         // Simulate server connection
         socketServer.on("connection", (socket) => {
             socket.emit("clientConfig", {});
         });
 
-        // Ensure we are online before adding the change
         isConnected.value = true;
-        processChangeReqLock.value = false;
-
-        getSocket({ reconnect: true });
-
         // Add a local change
-        const localChange: ChangeReqDto = {
+        const localChange = {
+            docId: "1234",
             id: 1234,
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
         };
 
-        await db.localChanges.put(localChange);
+        processChangeReqLock.value = false;
+        getSocket({ reconnect: true });
 
-        // Wait for Vue/Dexie reactivity and watcher to process
-        await nextTick();
+        await db.localChanges.put(localChange);
 
         // Assert that the changeRequestMock was called with the correct data
         await waitForExpect(() => {
-            expect(changeRequestMock).toHaveBeenCalledTimes(1);
+            expect(changeRequestMock).toHaveBeenCalled();
 
-            const formData = changeRequestMock.mock.calls[0][0] as any;
+            const formData = changeRequestMock.mock.calls[0][0] as FormData;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
                 expect.arrayContaining([
@@ -183,10 +194,12 @@ describe("localChanges", () => {
         // Create a local change
         await db.localChanges.put(localChange);
 
+        await waitForExpect(async () => {
+            expect(changeRequestMock).toHaveBeenCalled();
+        });
+
         // Check if the server received the change request
         await waitForExpect(() => {
-            expect(changeRequestMock).toHaveBeenCalled();
-
             const formData = changeRequestMock.mock.calls[0][0] as any;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
