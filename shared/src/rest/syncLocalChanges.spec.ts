@@ -62,6 +62,18 @@ describe("localChanges", () => {
 
         // initialize the socket client
         const socket = getSocket();
+
+        vi.spyOn(RestApi, "getRest").mockReturnValue({
+            changeRequest: changeRequestMock,
+        } as unknown as any);
+
+        // Initialize syncLocalChanges since we're mocking getRest()
+        const localChanges = useDexieLiveQuery(
+            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
+            { initialValue: [] as unknown as LocalChangeDto[] },
+        );
+        syncLocalChanges(localChanges);
+
         socket.disconnect();
     });
 
@@ -75,8 +87,6 @@ describe("localChanges", () => {
     });
 
     afterAll(async () => {
-        isConnected.value = false;
-        processChangeReqLock.value = false;
         vi.restoreAllMocks();
 
         // Clear the database after each test
@@ -85,48 +95,32 @@ describe("localChanges", () => {
     });
 
     beforeEach(() => {
-        isConnected.value = false;
         processChangeReqLock.value = false;
-
-        vi.spyOn(RestApi, "getRest").mockReturnValue({
-            changeRequest: changeRequestMock,
-        } as unknown as any);
-
-        // Initialize syncLocalChanges since we're mocking getRest()
-        const localChanges = useDexieLiveQuery(
-            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
-            { initialValue: [] as unknown as LocalChangeDto[] },
-        );
-        syncLocalChanges(localChanges);
     });
 
     it("sends a change request if there are local changes", async () => {
-        vi.spyOn(RestApi, "getRest").mockReturnValue({
-            changeRequest: changeRequestMock,
-        } as unknown as any);
-
-        // Initialize syncLocalChanges since we're mocking getRest()
-        const localChanges = useDexieLiveQuery(
-            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
-            { initialValue: [] as unknown as LocalChangeDto[] },
-        );
-        syncLocalChanges(localChanges);
-
         // Simulate server connection
         socketServer.on("connection", (socket) => {
             socket.emit("clientConfig", {});
         });
+        getSocket({ reconnect: true });
 
-        isConnected.value = true;
         // Add a local change
         const localChange = {
-            docId: "1234",
             id: 1234,
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
         };
 
-        processChangeReqLock.value = false;
-        getSocket({ reconnect: true });
+        vi.spyOn(RestApi, "getRest").mockReturnValue({
+            changeRequest: changeRequestMock,
+        } as unknown as any);
+
+        // Initialize syncLocalChanges since we're mocking getRest()
+        const localChanges = useDexieLiveQuery(
+            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
+            { initialValue: [] as unknown as LocalChangeDto[] },
+        );
+        syncLocalChanges(localChanges);
 
         await db.localChanges.put(localChange);
 

@@ -32,7 +32,7 @@ async function handleAck(ack: ChangeReqAckDto, localChanges: Ref<LocalChangeDto[
  * @param localChanges the local changes from db as Ref to keep reactivity
  */
 async function pushLocalChange(localChange: LocalChangeDto, localChanges: Ref<LocalChangeDto[]>) {
-    processChangeReqLock.value = true;
+    processChangeReqLock.value = false;
 
     const formData = new LFormData();
     formData.append("changeRequestId", localChange.id);
