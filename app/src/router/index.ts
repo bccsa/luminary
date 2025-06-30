@@ -6,7 +6,6 @@ import SingleContent from "@/pages/SingleContent.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
 import BookmarksPage from "@/pages/BookmarksPage.vue";
 import VideoPage from "@/pages/VideoPage.vue";
-import { db, DocType, type RedirectDto } from "luminary-shared";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
