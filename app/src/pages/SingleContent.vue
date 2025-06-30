@@ -102,7 +102,7 @@ const idbContent = useDexieLiveQuery(
 
                 if (redirect && redirect.toSlug) {
                     // Only redirect if a redirect doc is found
-                    router.push({ name: "content", params: { slug: redirect.toSlug } });
+                    router.replace({ name: "content", params: { slug: redirect.toSlug } });
                     return undefined;
                 }
 
