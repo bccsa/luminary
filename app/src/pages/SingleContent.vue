@@ -89,33 +89,26 @@ const idbContent = useDexieLiveQuery(
             .equals(props.slug)
             .toArray()
             .then((docs) => {
-                if (!docs?.length) return;
-
-                const routes = router.getRoutes();
-
-                // Check if the document is a redirect, and redirect to the new slug
-                const redirect = docs.find(
-                    (d) => d.type === DocType.Redirect,
-                ) as unknown as RedirectDto;
-
-                // If the document is a redirect, we redirect to the new slug
-                // If no redirect, but the current route exists in the routes, we just push the current route
-                // If no redirect and the current route does not exist, we replace with the home page
-                // Normal SingleContent routing with a slug without a redirect still works
-                if (redirect) {
-                    if (redirect.toSlug) {
-                        router.push({ name: "content", params: { slug: redirect.toSlug } });
-                    }
-                } else if (routes.some((route) => route.name === router.currentRoute.value.name)) {
-                    router.push({
-                        name: router.currentRoute.value.name,
-                    });
-                } else {
+                if (!docs?.length) {
+                    // Fallback to home if nothing is found
                     router.replace("/");
+                    return undefined;
                 }
 
-                return docs[0];
-            }) as unknown as Promise<ContentDto | undefined>,
+                // Check if the document is a redirect
+                const redirect = docs.find((d) => d.type === DocType.Redirect) as
+                    | RedirectDto
+                    | undefined;
+
+                if (redirect && redirect.toSlug) {
+                    // Only redirect if a redirect doc is found
+                    router.push({ name: "content", params: { slug: redirect.toSlug } });
+                    return undefined;
+                }
+
+                // Return the first content doc (normal case)
+                return docs.find((d) => d.type === DocType.Content) as ContentDto | undefined;
+            }),
     { initialValue: defaultContent },
 );
 
