@@ -373,39 +373,29 @@ onBeforeUnmount(() => {
                 />
             </div>
 
-                <!-- Dot Indicators -->
-                <div
-                    v-if="imageCollections.length > 1"
-                    class="z-50 mt-4 flex items-center justify-center gap-2"
-                >
-                    <span
-                        v-for="(img, idx) in imageCollections"
-                        :key="idx"
-                        class="h-2 w-2 rounded-full"
-                        :class="[
-                            idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
-                            'cursor-pointer transition-all duration-300',
-                        ]"
-                        @click="
-                            () => {
-                                // Reset zoom and position when switching images
-                                scale = 1;
-                                translateX = 0;
-                                translateY = 0;
-                                emit('update:index', idx);
-                            }
-                        "
-                    ></span>
-                </div>
-            </div>
-
-            <!-- Right Arrow -->
-            <ArrowRightCircleIcon
-                v-if="imageCollections.length > 1"
-                class="inline-block cursor-pointer text-white drop-shadow-lg transition hover:scale-110"
-                :class="arrowSizeClass"
-                @click="onSwipe('left')"
-            />
+        <!-- Dot Indicators -->
+        <div
+            v-if="imageCollections.length > 1"
+            class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
+        >
+            <span
+                v-for="(img, idx) in imageCollections"
+                :key="idx"
+                class="h-2 w-2 rounded-full"
+                :class="[
+                    idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
+                    'cursor-pointer transition-all duration-300',
+                ]"
+                @click="
+                    () => {
+                        // Reset zoom and position when switching images
+                        scale = 1;
+                        translateX = 0;
+                        translateY = 0;
+                        emit('update:index', idx);
+                    }
+                "
+            ></span>
         </div>
     </div>
 </template>
