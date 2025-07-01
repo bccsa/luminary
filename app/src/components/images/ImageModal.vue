@@ -8,15 +8,18 @@ import {
     defineProps,
     defineEmits,
     nextTick,
+    computed,
 } from "vue";
 import LImage from "./LImage.vue";
-import type { ImageDto, Uuid } from "luminary-shared";
+import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
+import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/outline";
 
 // Props
 type Props = {
-    image: ImageDto;
+    imageCollections: ImageFileCollectionDto[];
+    currentIndex: number;
     contentParentId: Uuid;
-    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
+    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
     rounded?: boolean;
 };
@@ -26,7 +29,13 @@ const props = withDefaults(defineProps<Props>(), {
     size: "post",
 });
 
-const emit = defineEmits(["close"]);
+const emit = defineEmits(["close", "update:index"]);
+
+const currentImage = computed(() => {
+    return {
+        fileCollections: [props.imageCollections[props.currentIndex]],
+    } as ImageDto;
+});
 
 const container = ref<HTMLDivElement | null>(null);
 const scale = ref(1);
@@ -45,6 +54,12 @@ let lastTouch = { x: 0, y: 0 };
 
 let isMouseDragging = false;
 let lastMouse = { x: 0, y: 0 };
+
+let swipeStartX = 0;
+let swipeEndX = 0;
+const swipeThreshold = 50;
+let pinchZooming = false;
+let draggingImage = false;
 
 const closeModal = () => emit("close");
 
@@ -81,12 +96,27 @@ function clampTranslation() {
     translateY.value = clamp(translateY.value, -maxY, maxY);
 }
 
+function handleSwipeGesture() {
+    if (draggingImage || scale.value > 1) return;
+
+    const deltaX = swipeEndX - swipeStartX;
+    if (Math.abs(deltaX) > swipeThreshold) {
+        if (deltaX > 0) onSwipe("right");
+        else onSwipe("left");
+    }
+}
+
 // Touch events
 function onTouchStart(e: TouchEvent) {
+    if (e.touches.length === 1) {
+        swipeStartX = e.touches[0].clientX;
+    }
+
     if (e.touches.length === 2) {
         lastDistance = getDistance(e.touches);
         initialScale = scale.value;
         isTouchDragging = false;
+        pinchZooming = true;
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
@@ -112,7 +142,17 @@ function onTouchMove(e: TouchEvent) {
     }
 }
 
-function onTouchEnd() {
+function onTouchEnd(e: TouchEvent) {
+    if (pinchZooming) {
+        pinchZooming = false;
+        return; // Don't swipe after a pinch gesture
+    }
+
+    if (e.changedTouches?.[0]) {
+        swipeEndX = e.changedTouches[0].clientX;
+        handleSwipeGesture();
+    }
+
     isTouchDragging = false;
 }
 
@@ -148,9 +188,22 @@ function handleWheel(e: WheelEvent) {
     }
 }
 
-function onDblClick(e: MouseEvent) {
+function onDblClick(e: MouseEvent | TouchEvent) {
     const el = container.value;
     if (!el) return;
+
+    let clientX: number, clientY: number;
+
+    if (e instanceof TouchEvent) {
+        const touch = e.changedTouches[0]; // ← changedTouches instead of touches
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+    } else if (e instanceof MouseEvent) {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    } else {
+        return;
+    }
 
     if (scale.value > 1) {
         scale.value = 1;
@@ -162,8 +215,8 @@ function onDblClick(e: MouseEvent) {
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
 
-        const offsetX = e.clientX - rect.left - centerX;
-        const offsetY = e.clientY - rect.top - centerY;
+        const offsetX = clientX - rect.left - centerX;
+        const offsetY = clientY - rect.top - centerY;
 
         translateX.value = -offsetX * (MAX_SCALE.value - 1);
         translateY.value = -offsetY * (MAX_SCALE.value - 1);
@@ -171,15 +224,46 @@ function onDblClick(e: MouseEvent) {
     }
 }
 
-function onKeyDown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
-        closeModal();
-    }
+function onSwipe(direction: "left" | "right") {
+    // reset zoom and position when swiping
+    scale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+
+    const total = props.imageCollections.length;
+    const newIndex =
+        direction === "left"
+            ? (props.currentIndex + 1) % total
+            : (props.currentIndex - 1 + total) % total;
+    emit("update:index", newIndex);
 }
+
+// Double-tap support for mobile
+let lastTap = 0;
+function onTouchEndWithDoubleTap(e: TouchEvent) {
+    const now = Date.now();
+    if (now - lastTap < 400) {
+        onDblClick(e);
+        lastTap = 0;
+    } else {
+        lastTap = now;
+    }
+    onTouchEnd(e);
+}
+
+function onKeyDown(event: KeyboardEvent) {
+    if (event.key === "ArrowLeft") onSwipe("right");
+    else if (event.key === "ArrowRight") onSwipe("left");
+    else if (event.key === "Escape") closeModal();
+}
+
+const arrowSizeClass = computed(() => {
+    return "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14";
+});
 
 // Watch image change
 watch(
-    () => props.image,
+    () => currentImage,
     () => {
         scale.value = 1;
         translateX.value = 0;
@@ -193,7 +277,7 @@ watch(
 onMounted(() => {
     const el = container.value;
     const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
+    if (isMobile && props.imageCollections.length == 1) {
         MAX_SCALE.value = 3;
         if (scale.value === 1) {
             scale.value = 1.4;
@@ -207,8 +291,8 @@ onMounted(() => {
 
     el.addEventListener("touchstart", onTouchStart, { passive: false });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
-    el.addEventListener("touchcancel", onTouchEnd);
+    el.addEventListener("touchend", onTouchEndWithDoubleTap);
+    el.addEventListener("touchcancel", onTouchEndWithDoubleTap);
 
     el.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
@@ -218,7 +302,7 @@ onMounted(() => {
 
     el.addEventListener("dblclick", onDblClick);
 
-     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
 });
 
 onBeforeUnmount(() => {
@@ -227,8 +311,8 @@ onBeforeUnmount(() => {
 
     el.removeEventListener("touchstart", onTouchStart);
     el.removeEventListener("touchmove", onTouchMove);
-    el.removeEventListener("touchend", onTouchEnd);
-    el.removeEventListener("touchcancel", onTouchEnd);
+    el.removeEventListener("touchend", onTouchEndWithDoubleTap);
+    el.removeEventListener("touchcancel", onTouchEndWithDoubleTap);
 
     el.removeEventListener("mousedown", onMouseDown);
     window.removeEventListener("mousemove", onMouseMove);
@@ -238,40 +322,78 @@ onBeforeUnmount(() => {
 
     el.removeEventListener("dblclick", onDblClick);
 
-     window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("keydown", onKeyDown);
 });
 </script>
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex w-full items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
+        <!-- Responsive wrapper -->
+        <div class="relative flex w-full max-w-[1300px] items-center justify-center">
+            <div class="relative flex w-full items-center justify-center">
+                <!-- Mobile arrows overlayed -->
+                <ArrowLeftCircleIcon
+                    v-if="imageCollections.length > 1"
+                    class="absolute left-2 top-1/2 z-40 -translate-y-1/2 cursor-pointer text-white drop-shadow-lg transition hover:scale-110 sm:left-4 md:left-[-64px]"
+                    :class="arrowSizeClass"
+                    @click="onSwipe('right')"
+                />
+                <ArrowRightCircleIcon
+                    v-if="imageCollections.length > 1"
+                    class="absolute right-2 top-1/2 z-40 -translate-y-1/2 cursor-pointer text-white drop-shadow-lg transition hover:scale-110 sm:right-4 md:right-[-64px]"
+                    :class="arrowSizeClass"
+                    @click="onSwipe('left')"
+                />
+
+                <!-- Zoomable image -->
+                <div
+                    ref="container"
+                    class="touch-none select-none overflow-hidden rounded-lg bg-gray-900"
+                    :style="{
+                        transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+                        transition:
+                            isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
+                        cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
+                    }"
+                >
+                    <LImage
+                        :contentParentId="contentParentId"
+                        :image="currentImage"
+                        :aspectRatio="aspectRatio"
+                        :size="size"
+                        :rounded="rounded"
+                        class="pointer-events-none h-full max-h-[90vh] w-full max-w-[90vh] object-contain"
+                    />
+                </div>
+            </div>
+        </div>
+
+        <!-- Dot Indicators -->
         <div
-            ref="container"
-            class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg bg-gray-900"
-            :style="{
-                transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-                transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
-                cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
-            }"
+            v-if="imageCollections.length > 1"
+            class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
         >
-            <LImage
-                :contentParentId="contentParentId"
-                :image="image"
-                :aspectRatio="aspectRatio"
-                :size="size"
-                :rounded="rounded"
-                class="pointer-events-none min-h-full min-w-full object-contain"
-            />
+            <span
+                v-for="(img, idx) in imageCollections"
+                :key="idx"
+                class="h-2 w-2 rounded-full"
+                :class="[
+                    idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
+                    'cursor-pointer transition-all duration-300',
+                ]"
+                @click="
+                    () => {
+                        // Reset zoom and position when switching images
+                        scale = 1;
+                        translateX = 0;
+                        translateY = 0;
+                        emit('update:index', idx);
+                    }
+                "
+            ></span>
         </div>
     </div>
 </template>
-
-<style scoped>
-html,
-body {
-    touch-action: none;
-    overscroll-behavior: contain;
-}
-</style>

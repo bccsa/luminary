@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const aspectRatiosCSS = {
+    original: "aspect-auto",
     video: "aspect-video",
     square: "aspect-square",
     vertical: "aspect-[9/16]",
