@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
-import { Bars3Icon } from "@heroicons/vue/24/outline";
+import { Bars3Icon, ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { ref, type Component } from "vue";
-import { RouterLink, type RouteLocationRaw } from "vue-router";
+import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import MobileSideBar from "./navigation/MobileSideBar.vue";
 import SideBar from "./navigation/SideBar.vue";
@@ -28,6 +28,8 @@ withDefaults(defineProps<Props>(), {
 });
 
 const sidebarOpen = ref(false);
+const router = useRouter();
+const isEditContentPage = router.currentRoute.value.name === "edit";
 </script>
 
 <template>
@@ -48,10 +50,23 @@ const sidebarOpen = ref(false);
                 <button
                     type="button"
                     class="-m-2.5 p-2.5 text-zinc-700 lg:hidden"
-                    @click="sidebarOpen = true"
+                    @click="
+                        !isEditContentPage
+                            ? (sidebarOpen = true)
+                            : router.push({ name: 'overview' })
+                    "
                 >
                     <span class="sr-only">Open sidebar</span>
-                    <Bars3Icon class="h-6 w-6" aria-hidden="true" />
+                    <Bars3Icon
+                        class="h-6 w-6"
+                        :class="{ hidden: isEditContentPage }"
+                        aria-hidden="true"
+                    />
+                    <ChevronLeftIcon
+                        class="h-6 w-6 lg:hidden"
+                        :class="{ hidden: !isEditContentPage }"
+                        aria-hidden="true"
+                    />
                 </button>
 
                 <!-- Separator -->
@@ -66,6 +81,9 @@ const sidebarOpen = ref(false);
                             {{ title }}
                         </h1>
                         <slot name="pageNav"> </slot>
+                    </template>
+                    <template #contentActions>
+                        <slot name="topBarActions" />
                     </template>
                 </TopBar>
             </div>
