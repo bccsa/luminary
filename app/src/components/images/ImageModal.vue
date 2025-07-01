@@ -328,21 +328,26 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex w-full items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
-        <!-- Container with side arrows and center image -->
-        <div class="relative flex w-full max-w-[1300px] items-center justify-between gap-2">
-            <!-- Left Arrow -->
-            <ArrowLeftCircleIcon
-                v-if="imageCollections.length > 1"
-                class="z-50 inline-block cursor-pointer text-white drop-shadow-lg transition hover:scale-110"
-                :class="arrowSizeClass"
-                @click="onSwipe('right')"
-            />
+        <!-- Responsive wrapper -->
+        <div class="relative flex w-full max-w-[1300px] items-center justify-center">
+            <div class="relative flex w-full items-center justify-center">
+                <!-- Mobile arrows overlayed -->
+                <ArrowLeftCircleIcon
+                    v-if="imageCollections.length > 1"
+                    class="absolute left-2 top-1/2 z-40 -translate-y-1/2 cursor-pointer text-white drop-shadow-lg transition hover:scale-110 sm:left-4 md:left-[-64px]"
+                    :class="arrowSizeClass"
+                    @click="onSwipe('right')"
+                />
+                <ArrowRightCircleIcon
+                    v-if="imageCollections.length > 1"
+                    class="absolute right-2 top-1/2 z-40 -translate-y-1/2 cursor-pointer text-white drop-shadow-lg transition hover:scale-110 sm:right-4 md:right-[-64px]"
+                    :class="arrowSizeClass"
+                    @click="onSwipe('left')"
+                />
 
-            <!-- Center image + dots -->
-            <div class="flex flex-grow flex-col items-center justify-center">
                 <!-- Zoomable image -->
                 <div
                     ref="container"
@@ -357,46 +362,38 @@ onBeforeUnmount(() => {
                     <LImage
                         :contentParentId="contentParentId"
                         :image="currentImage"
-                        aspectRatio="original"
+                        :aspectRatio="aspectRatio"
                         :size="size"
                         :rounded="rounded"
-                        class="pointer-events-none max-h-[90vh] max-w-full"
+                        class="pointer-events-none h-full max-h-[90vh] w-full max-w-[90vh] object-contain"
                     />
                 </div>
-
-                <!-- Dot Indicators -->
-                <div
-                    v-if="imageCollections.length > 1"
-                    class="z-50 mt-4 flex items-center justify-center gap-2"
-                >
-                    <span
-                        v-for="(img, idx) in imageCollections"
-                        :key="idx"
-                        class="h-2 w-2 rounded-full"
-                        :class="[
-                            idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
-                            'cursor-pointer transition-all duration-300',
-                        ]"
-                        @click="
-                            () => {
-                                // Reset zoom and position when switching images
-                                scale = 1;
-                                translateX = 0;
-                                translateY = 0;
-                                emit('update:index', idx);
-                            }
-                        "
-                    ></span>
-                </div>
             </div>
+        </div>
 
-            <!-- Right Arrow -->
-            <ArrowRightCircleIcon
-                v-if="imageCollections.length > 1"
-                class="inline-block cursor-pointer text-white drop-shadow-lg transition hover:scale-110"
-                :class="arrowSizeClass"
-                @click="onSwipe('left')"
-            />
+        <!-- Dot Indicators -->
+        <div
+            v-if="imageCollections.length > 1"
+            class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
+        >
+            <span
+                v-for="(img, idx) in imageCollections"
+                :key="idx"
+                class="h-2 w-2 rounded-full"
+                :class="[
+                    idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
+                    'cursor-pointer transition-all duration-300',
+                ]"
+                @click="
+                    () => {
+                        // Reset zoom and position when switching images
+                        scale = 1;
+                        translateX = 0;
+                        translateY = 0;
+                        emit('update:index', idx);
+                    }
+                "
+            ></span>
         </div>
     </div>
 </template>
