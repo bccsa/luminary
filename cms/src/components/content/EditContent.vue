@@ -78,16 +78,24 @@ const editableParent = ref<ContentParentDto>({
 });
 const isLoading = computed(() => editableParent.value == undefined);
 const existingParent = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
-const liveParent = useDexieLiveQuery(() => db.docs.where("_id").equals(parentId).first(), {
-    initialValue: editableParent.value,
-});
+const liveParent = useDexieLiveQuery(
+    async () => (await db.get(parentId)) as unknown as Promise<ContentParentDto>,
+    {
+        initialValue: editableParent.value,
+    },
+);
 
 const editableContent = ref<ContentDto[]>([]);
 const existingContent = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 const showDeleteModal = ref(false);
 
 watch(liveParent, (parent) => {
-    if (waitForUpdate.value && parent) {
+    if (
+        waitForUpdate.value &&
+        parent &&
+        editableParent.value.imageData &&
+        !parent.imageData?.uploadData
+    ) {
         editableParent.value.imageData = (parent as ContentParentDto).imageData;
         waitForUpdate.value = false;
     }
