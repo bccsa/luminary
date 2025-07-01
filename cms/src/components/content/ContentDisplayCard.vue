@@ -17,7 +17,7 @@ import { DateTime } from "luxon";
 import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { PencilIcon } from "@heroicons/vue/24/solid";
 import router from "@/router";
-import { isSmallScreen } from "@/globalConfig";
+import { cmsDefaultLanguage, isSmallScreen } from "@/globalConfig";
 
 type Props = {
     groups: GroupDto[];
@@ -113,6 +113,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                                     tagOrPostType:
                                         contentDoc.parentTagType || contentDoc.parentPostType,
                                     id: contentDoc.parentId,
+                                    languageCode: cmsDefaultLanguage?.languageCode,
                                 },
                             });
                         }
