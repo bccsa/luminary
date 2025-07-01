@@ -32,6 +32,7 @@ import {
     ArrowUturnLeftIcon,
     TrashIcon,
 } from "@heroicons/vue/24/solid";
+import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch } from "vue";
 import EditContentStatus from "@/components/content/EditContentStatus.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
@@ -48,6 +49,7 @@ import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 
 type Props = {
     id: Uuid;
@@ -539,6 +541,55 @@ const duplicate = async () => {
     });
 };
 const showLanguageSelector = ref(false);
+const showContentActionMenu = ref(false);
+
+const contentActions = [
+    {
+        name: "View live",
+        action: ensureRedirect,
+        icon: ArrowTopRightOnSquareIcon,
+        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+    },
+    {
+        name: "Save changes",
+        action: saveChanges,
+        icon: FolderArrowDownIcon,
+        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+    },
+    {
+        name: "Duplicate",
+        action: duplicate,
+        icon: DocumentDuplicateIcon,
+        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+    },
+    {
+        name: "Delete",
+        action: () => (showDeleteModal.value = true),
+        icon: TrashIcon,
+        iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+    },
+];
+
+// Watch for changes in dirty state and new document state to add or remove the revert action
+watch(
+    [isDirty, () => newDocument],
+    ([dirty, isNew]) => {
+        const revertActionIndex = contentActions.findIndex((a) => a.name === "Revert changes");
+        if (dirty && !isNew) {
+            if (revertActionIndex === -1) {
+                contentActions.unshift({
+                    name: "Revert changes",
+                    action: revertChanges as any,
+                    icon: ArrowUturnLeftIcon,
+                    iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+                });
+            }
+        } else if (revertActionIndex !== -1) {
+            contentActions.splice(revertActionIndex, 1);
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -554,8 +605,6 @@ const showLanguageSelector = ref(false);
         :title="selectedContent ? selectedContent.title : `Edit ${props.tagOrPostType}`"
         :icon="icon"
         :loading="isLoading"
-        :backLinkLocation="{ name: 'overview' }"
-        :backLinkText="`${capitaliseFirstLetter(tagOrPostType)} overview`"
         :backLinkParams="{
             docType: docType,
             tagOrPostType: tagOrPostType,
@@ -565,6 +614,59 @@ const showLanguageSelector = ref(false);
         v-if="editableParent"
         class="relative"
     >
+        <template #pageNav>
+            <h1 class="text-xl font-bold lg:hidden">
+                {{ `Edit ${tagOrPostType}` }}
+            </h1>
+        </template>
+
+        <template #topBarActions>
+            <Menu as="div" class="relative w-full">
+                <MenuButton class="flex w-full items-center justify-between">
+                    <EllipsisVerticalIcon
+                        class="ml-2 h-6 w-6 text-zinc-500 hover:text-zinc-700 lg:hidden"
+                        @click="showContentActionMenu = !showContentActionMenu"
+                    />
+                </MenuButton>
+
+                <transition
+                    enter-active-class="transition ease-out duration-100"
+                    enter-from-class="transform opacity-0 scale-95"
+                    enter-to-class="transform opacity-100 scale-100"
+                    leave-active-class="transition ease-in duration-75"
+                    leave-from-class="transform opacity-100 scale-100"
+                    leave-to-class="transform opacity-0 scale-95"
+                >
+                    <MenuItems
+                        class="absolute right-0 z-50 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
+                    >
+                        <MenuItem
+                            v-for="action in contentActions"
+                            :key="action.name"
+                            v-slot="{ active }"
+                        >
+                            <button
+                                :class="[
+                                    active ? 'bg-zinc-50' : '',
+                                    'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 ',
+                                ]"
+                                @click="action.action"
+                            >
+                                <component
+                                    :is="action.icon"
+                                    :class="action.iconClass"
+                                    aria-hidden="true"
+                                />
+                                <div class="flex flex-col text-nowrap leading-none">
+                                    {{ action.name }}
+                                </div>
+                            </button>
+                        </MenuItem>
+                    </MenuItems>
+                </transition>
+            </Menu>
+        </template>
+
         <template #postTitleSlot>
             <LButton
                 v-if="
@@ -574,7 +676,7 @@ const showLanguageSelector = ref(false);
                 "
                 :icon="ArrowTopRightOnSquareIcon"
                 iconRight
-                class="cursor-pointer font-extralight text-zinc-600/[55%]"
+                class="hidden cursor-pointer font-extralight text-zinc-600/[55%]"
                 variant="tertiary"
                 @click="ensureRedirect"
                 target="_blank"
@@ -584,7 +686,7 @@ const showLanguageSelector = ref(false);
         <template #actions>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-                <div class="flex gap-1">
+                <div class="hidden gap-1 lg:flex">
                     <LButton
                         type="button"
                         @click="revertChanges"
