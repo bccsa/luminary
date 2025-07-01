@@ -1,6 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
 import { RouterLinkStub, mount } from "@vue/test-utils";
 import BasePage from "./BasePage.vue";
+import { ref } from "vue";
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useRouter: () => ({
+            push: vi.fn(),
+            currentRoute: ref({ name: "edit" }),
+        }),
+    };
+});
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
