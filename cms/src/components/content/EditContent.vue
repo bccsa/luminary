@@ -23,6 +23,7 @@ import {
     isConnected,
     type RedirectDto,
     RedirectType,
+    useDexieLiveQuery,
 } from "luminary-shared";
 import {
     DocumentIcon,
@@ -62,6 +63,8 @@ const { addNotification } = useNotificationStore();
 const parentId = props.id == "new" ? db.uuid() : props.id;
 const newDocument = props.id == "new";
 
+const waitForUpdate = ref(false);
+
 // Refs
 // The initial ref is populated with an empty object and thereafter filled with the actual
 // data retrieved from the database.
@@ -75,9 +78,28 @@ const editableParent = ref<ContentParentDto>({
 });
 const isLoading = computed(() => editableParent.value == undefined);
 const existingParent = ref<ContentParentDto>(); // Previous version of the parent document for dirty check
+const liveParent = useDexieLiveQuery(
+    async () => (await db.get(parentId)) as unknown as Promise<ContentParentDto>,
+    {
+        initialValue: editableParent.value,
+    },
+);
+
 const editableContent = ref<ContentDto[]>([]);
 const existingContent = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
 const showDeleteModal = ref(false);
+
+watch(liveParent, (parent) => {
+    if (
+        waitForUpdate.value &&
+        parent &&
+        editableParent.value.imageData &&
+        !parent.imageData?.uploadData
+    ) {
+        editableParent.value.imageData = (parent as ContentParentDto).imageData;
+        waitForUpdate.value = false;
+    }
+});
 
 let icon = DocumentIcon;
 if (props.docType == DocType.Tag) {
@@ -347,6 +369,14 @@ const saveChanges = async () => {
 };
 
 const save = async () => {
+    if (
+        existingParent.value?.imageData?.uploadData !== editableParent.value.imageData?.uploadData
+    ) {
+        // If the image data has changed, we need to wait for the server to update the image data
+        // before saving the parent document
+        waitForUpdate.value = true;
+    }
+
     // Bypass saving if the parent document is new and is marked for deletion
     if (!existingContent.value && editableParent.value.deleteReq) {
         return;
