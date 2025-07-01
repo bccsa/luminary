@@ -14,11 +14,16 @@ import {
 } from "@/tests/mockdata";
 import { accessMap, DocType, getRest, initConfig } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import { ref } from "vue";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...(actual as any),
+        useRouter: () => ({
+            push: vi.fn(),
+            currentRoute: ref({ name: "edit" }),
+        }),
     };
 });
 
