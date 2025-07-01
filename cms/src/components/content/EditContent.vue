@@ -376,8 +376,6 @@ const save = async () => {
         // before saving the parent document
         waitForUpdate.value = true;
     }
-    // // Wait for an update from the server to get the latest image data
-    // waitForUpdate.value = true;
 
     // Bypass saving if the parent document is new and is marked for deletion
     if (!existingContent.value && editableParent.value.deleteReq) {
