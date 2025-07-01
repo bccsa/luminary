@@ -8,6 +8,7 @@ import express from "express";
 import { mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
 import { accessMap, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import { ref } from "vue";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -15,6 +16,7 @@ vi.mock("vue-router", async (importOriginal) => {
         ...(actual as any),
         useRouter: () => ({
             push: vi.fn(),
+            currentRoute: ref({ name: "edit" }),
         }),
     };
 });
