@@ -601,7 +601,6 @@ const showLanguageSelector = ref(false);
 </script>
 
 <template>
-    {{ saveWasCalled }}
     <div
         v-if="!newDocument && !editableParent?.updatedTimeUtc"
         class="relative flex items-center justify-center"
