@@ -57,7 +57,7 @@ describe("EditContentValidation.vue", () => {
                     publishDate: 1704114000000,
                     expiryDate: 1604114000000,
                 },
-                    canDelete: true,
+                canDelete: true,
             },
         });
 
@@ -170,23 +170,21 @@ describe("EditContentValidation.vue", () => {
         });
 
         it("Hides the delete button when a user does not have delete access", async () => {
-                const wrapper = mount(EditContentValidation, {
-                    props: {
-                        languages: [mockData.mockLanguageDtoEng],
-                        existingContent: {
-                            ...mockData.mockEnglishContentDto,
-                            status: PublishStatus.Published,
-                        },
-                        canDelete: false,
+            const wrapper = mount(EditContentValidation, {
+                props: {
+                    languages: [mockData.mockLanguageDtoEng],
+                    existingContent: {
+                        ...mockData.mockEnglishContentDto,
+                        status: PublishStatus.Published,
                     },
-
-                });
-
-                await waitForExpect(async() => {
-                    const deletebutton = wrapper.find('[data-test="translation-delete-button"]')
-                    expect(deletebutton.exists()).toBe(false);
-                })
+                    canDelete: false,
+                },
             });
 
+            await waitForExpect(async () => {
+                const deletebutton = wrapper.find('[data-test="translation-delete-button"]');
+                expect(deletebutton.exists()).toBe(false);
+            });
+        });
     });
 });
