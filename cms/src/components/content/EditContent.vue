@@ -50,6 +50,7 @@ import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
+import EditContentImage from "./EditContentImage.vue";
 
 type Props = {
     id: Uuid;
@@ -758,6 +759,15 @@ watch(
                             :language="selectedLanguage"
                             v-model:parent="editableParent"
                             :disabled="!canEditParent"
+                        />
+
+                        <EditContentImage
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :disabled="!canEditParent"
+                            v-model:parent="editableParent"
+                            class="mt-4"
                         />
                     </div>
                 </div>
