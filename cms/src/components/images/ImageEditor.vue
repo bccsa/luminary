@@ -124,7 +124,6 @@ defineExpose({
 <template>
     <div class="flex-col overflow-x-auto">
         <div :disabled="disabled" class="flex justify-between">
-            <!-- <span class="text-sm font-medium leading-6 text-zinc-900">Image</span> -->
             <div class="flex">
                 <button
                     v-if="failureMessage"
