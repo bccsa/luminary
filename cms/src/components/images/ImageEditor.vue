@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, toRaw } from "vue";
 import LButton from "../button/LButton.vue";
-import {
-    ArrowUpOnSquareIcon,
-    ExclamationCircleIcon,
-    QuestionMarkCircleIcon,
-} from "@heroicons/vue/24/outline";
+import { ArrowUpOnSquareIcon, ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import {
     type ImageUploadDto,
@@ -26,7 +22,6 @@ const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 const isDragging = ref(false);
 const dragCounter = ref(0);
-const showHelp = ref(false);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
 
@@ -119,12 +114,17 @@ const handleDrop = (e: DragEvent) => {
     isDragging.value = false;
     handleFiles(e.dataTransfer?.files || null);
 };
+
+defineExpose({
+    handleFiles,
+    uploadInput,
+});
 </script>
 
 <template>
-    <div class="flex-col overflow-y-auto">
+    <div class="flex-col overflow-x-auto">
         <div :disabled="disabled" class="flex justify-between">
-            <span class="text-sm font-medium leading-6 text-zinc-900">Image</span>
+            <!-- <span class="text-sm font-medium leading-6 text-zinc-900">Image</span> -->
             <div class="flex">
                 <button
                     v-if="failureMessage"
@@ -133,12 +133,6 @@ const handleDrop = (e: DragEvent) => {
                     :title="failureMessage"
                 >
                     <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
-                </button>
-                <button
-                    class="flex cursor-pointer items-center gap-1 rounded-md"
-                    @click="showHelp = !showHelp"
-                >
-                    <QuestionMarkCircleIcon class="h-5 w-5" />
                 </button>
             </div>
         </div>
@@ -149,20 +143,10 @@ const handleDrop = (e: DragEvent) => {
                 {{ failureMessage }}
             </p>
         </div>
-        <div v-if="showHelp">
-            <p class="my-2 text-xs">
-                You can upload several files in different aspect ratios. The most suitable image
-                will automatically be displayed based on the aspect ratio of the image element where
-                the image is displayed.
-            </p>
-            <p class="mb-2 text-xs">
-                Uploaded images are automatically scaled for various screen and display sizes.
-            </p>
-        </div>
 
         <!-- Drag and Drop Area or File Picker -->
         <div
-            class="mb-4 mt-2 flex min-h-36 flex-col justify-center rounded-md border-2 border-dashed border-gray-300 p-3 transition duration-150 ease-in-out"
+            class="flex flex-col justify-center border-2 border-gray-300 bg-white p-3 transition duration-150 ease-in-out md:mt-2 md:min-h-36"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"
@@ -171,7 +155,7 @@ const handleDrop = (e: DragEvent) => {
                 ' border-blue-500 bg-blue-50': isDragging,
             }"
         >
-            <div class="flex flex-col items-center justify-center">
+            <div class="hidden flex-col items-center justify-center md:flex">
                 <p v-if="isDragging" class="text-sm">Drop your files here</p>
                 <div v-else>
                     <LButton
@@ -200,24 +184,38 @@ const handleDrop = (e: DragEvent) => {
                     (parent.imageData.fileCollections.length > 0 || parent.imageData.uploadData)
                 "
             >
-                <div v-if="!isDragging">
-                    <div class="flex flex-1 flex-wrap gap-2 pt-5" data-test="thumbnail-area">
-                        <!-- Display file collections as thumbnails -->
+                <div
+                    v-if="!isDragging && parent.imageData.fileCollections.length > 0"
+                    class="flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden pb-2 pt-4 scrollbar-hide"
+                    data-test="thumbnail-area"
+                >
+                    <!-- Display file collections as thumbnails -->
+                    <div
+                        v-for="c in parent.imageData.fileCollections"
+                        :key="c.aspectRatio"
+                        class="flex shrink-0 items-center justify-center rounded text-xs shadow"
+                    >
                         <ImageEditorThumbnail
-                            v-for="c in parent.imageData.fileCollections"
                             :imageFileCollection="c"
                             @deleteFileCollection="removeFileCollection"
                             :key="c.aspectRatio"
                             :disabled="!disabled"
+                            class="flex shrink-0 items-center justify-center rounded text-xs shadow"
                         />
+                    </div>
 
-                        <!-- Display uploaded image data as thumbnails -->
+                    <!-- Display uploaded image data as thumbnails -->
+                    <div
+                        v-for="u in parent.imageData.uploadData"
+                        :key="u.filename"
+                        class="flex shrink-0 items-center justify-center rounded text-xs shadow"
+                    >
                         <ImageEditorThumbnail
-                            v-for="u in parent.imageData.uploadData"
                             :imageUploadData="u"
                             @deleteUploadData="removeFileUploadData"
                             :key="u.filename"
                             :disabled="!disabled"
+                            class="flex shrink-0 items-center justify-center rounded bg-zinc-200 text-xs shadow"
                         />
                     </div>
                 </div>
