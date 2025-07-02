@@ -51,19 +51,6 @@ const pinned = computed({
             :docType="docType"
             class="mb-6"
         />
-        <div
-            v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
-            class="mb-6 flex items-center justify-between"
-        >
-            <FormLabel>Pinned</FormLabel>
-            <LToggle v-model="pinned" :disabled="disabled" />
-        </div>
-
-        <!-- Toggle for Publish Date Visibility -->
-        <div class="mb-6 flex items-center justify-between">
-            <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
-        </div>
 
         <TagSelector
             v-model:parent="parent"
@@ -85,14 +72,18 @@ const pinned = computed({
             :key="language?._id"
         />
 
-        <TagSelector
-            v-model:parent="parent"
-            :language="language"
-            :tagType="TagType.AudioPlaylist"
-            label="Audio Playlists"
-            class="mt-6"
-            :disabled="disabled"
-            :key="language?._id"
-        />
+        <div
+            v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
+            class="mt-6 flex items-center justify-between"
+        >
+            <FormLabel>Pinned</FormLabel>
+            <LToggle v-model="pinned" :disabled="disabled" />
+        </div>
+
+        <!-- Toggle for Publish Date Visibility -->
+        <div class="mt-6 flex items-center justify-between">
+            <FormLabel>Show publish date</FormLabel>
+            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
+        </div>
     </LCard>
 </template>
