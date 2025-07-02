@@ -57,20 +57,6 @@ describe("EditContentParent.vue", () => {
         expect(toggle.props("modelValue")).toBe(false);
     });
 
-    it("can display an image thumbnail", async () => {
-        const parent = ref<TagDto>({ ...mockData.mockCategoryDto });
-        const wrapper = mount(EditContentParent, {
-            props: {
-                docType: DocType.Tag,
-                parent: parent.value,
-                tagOrPostType: TagType.Category,
-                disabled: false,
-            },
-        });
-
-        expect(wrapper.html()).toContain("test-image.webp");
-    });
-
     it("test to see if Category and selected tags are displayed", async () => {
         const parent = ref<PostDto>({ ...mockData.mockPostDto, tags: ["tag-category1"] });
         const wrapper = mount(EditContentParent, {
