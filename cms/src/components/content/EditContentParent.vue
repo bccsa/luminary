@@ -15,7 +15,6 @@ import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
-import ImageEditor from "../images/ImageEditor.vue";
 
 type Props = {
     docType: DocType;
@@ -46,8 +45,12 @@ const pinned = computed({
         collapsible
         v-if="parent"
     >
-        <GroupSelector v-model:groups="parent.memberOf" :disabled="disabled" :docType="docType" />
-        <ImageEditor :disabled="disabled" v-model:parent="parent" class="my-4" />
+        <GroupSelector
+            v-model:groups="parent.memberOf"
+            :disabled="disabled"
+            :docType="docType"
+            class="mb-6"
+        />
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mb-6 flex items-center justify-between"
