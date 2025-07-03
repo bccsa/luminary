@@ -282,7 +282,6 @@ describe("EditContent.vue", () => {
         // Wait for the component to fetch data
         await waitForExpect(() => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
-            expect(wrapper.html()).toContain("Text content"); // EditContentText is rendered
             expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
             expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
         });
@@ -614,7 +613,8 @@ describe("EditContent.vue", () => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true);
         });
 
-        const richTextEditor = wrapper.findComponent(RichTextEditor);
+        const editContentBasic = wrapper.findComponent(EditContentBasic);
+        const richTextEditor = editContentBasic.findComponent(RichTextEditor);
         expect(richTextEditor.exists()).toBe(true);
 
         const authorInput = wrapper.find('input[name="author"]');
