@@ -12,7 +12,9 @@ import {
 import { nextTick, ref, watch } from "vue";
 import { Slug } from "@/util/slug";
 import LCard from "@/components/common/LCard.vue";
-import LTabs from "@/components/common/LTabs.vue";
+import LTextToggle from "../forms/LTextToggle.vue";
+import RichTextEditor from "../editor/RichTextEditor.vue";
+import FormLabel from "../forms/FormLabel.vue";
 
 type Props = {
     disabled: boolean;
@@ -88,11 +90,7 @@ const validateSlug = async () => {
 };
 
 // Tabs for Title & Summary
-const currentTab = ref("visible"); // Default tab key
-const tabs = [
-    { title: "Visible title & summary", key: "visible" },
-    { title: "SEO title & summary", key: "seo" },
-];
+const currentToogle = ref("visible"); // Default tab key
 
 // A Dexie live query to check if a redirect exists for the current slug
 // This is used to warn the user if they are editing a slug that already has a redirect
@@ -115,105 +113,141 @@ const existingRedirectForSlug = useDexieLiveQuery(
 
 <template>
     <div v-if="content">
-        <LCard title="Title & Summary" collapsible>
+        <LCard title="Content" collapsible>
             <!-- Tab Navigation using LTabs -->
-            <LTabs :tabs="tabs" :currentTab="currentTab" @update:currentTab="currentTab = $event" />
+            <template #actions>
+                <LTextToggle
+                    v-model="currentToogle"
+                    leftLabel="Visible"
+                    :leftValue="'visible'"
+                    rightLabel="SEO"
+                    :rightValue="'seo'"
+                    :disabled="disabled"
+                    @click.stop
+                />
+            </template>
 
             <!-- Tab Content -->
-            <div class="py-4">
-                <div v-if="currentTab === 'visible'">
-                    <!-- Title -->
-                    <LInput
-                        name="title"
-                        label="Title"
-                        required
-                        :disabled="disabled"
-                        v-model="content.title"
-                        @blur="validateSlug"
-                    />
-
-                    <!-- Slug -->
-                    <div class="flex flex-col gap-1">
-                        <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
-                            <span class="py-0.5">Slug:</span>
-                            <span
-                                v-show="!isEditingSlug"
-                                data-test="slugSpan"
-                                class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
-                                >{{ content.slug }}</span
-                            >
+            <div class="">
+                <div v-if="currentToogle === 'visible'">
+                    <div class="mb-4 flex flex-col gap-2">
+                        <!-- Title -->
+                        <div class="flex items-center gap-2">
+                            <FormLabel class="w-16">Title</FormLabel>
                             <LInput
-                                v-show="isEditingSlug"
+                                name="title"
+                                label=""
+                                required
                                 :disabled="disabled"
-                                ref="slugInput"
-                                name="slug"
-                                size="sm"
-                                class="w-full"
-                                v-model="content.slug"
-                                @blur="
-                                    isEditingSlug = false;
-                                    validateSlug();
-                                "
+                                v-model="content.title"
+                                @blur="validateSlug"
+                                class="flex-1"
                             />
-                            <button
-                                data-test="editSlugButton"
-                                v-if="!isEditingSlug && !disabled"
-                                @click="startEditingSlug"
-                                class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
-                                title="Edit slug"
-                            >
-                                <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
-                            </button>
                         </div>
-                        <span
-                            v-if="existingRedirectForSlug.length > 0"
-                            :title="`This slug redirects to '/${existingRedirectForSlug[0].toSlug}'`"
-                            class="flex items-center gap-1 text-xs"
-                        >
-                            <ExclamationCircleIcon class="size-4 text-yellow-400" />
-                            A redirect exists for this slug
-                        </span>
+
+                        <!-- Slug -->
+                        <div class="flex flex-col gap-1">
+                            <div class="mt-0 flex gap-1 align-top text-xs text-zinc-800">
+                                <span class="py-0.5">Slug:</span>
+                                <span
+                                    v-show="!isEditingSlug"
+                                    data-test="slugSpan"
+                                    class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
+                                    >{{ content.slug }}</span
+                                >
+                                <LInput
+                                    v-show="isEditingSlug"
+                                    :disabled="disabled"
+                                    ref="slugInput"
+                                    name="slug"
+                                    size="sm"
+                                    class="w-full"
+                                    v-model="content.slug"
+                                    @blur="
+                                        isEditingSlug = false;
+                                        validateSlug();
+                                    "
+                                />
+                                <button
+                                    data-test="editSlugButton"
+                                    v-if="!isEditingSlug && !disabled"
+                                    @click="startEditingSlug"
+                                    class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
+                                    title="Edit slug"
+                                >
+                                    <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
+                                </button>
+                            </div>
+                            <span
+                                v-if="existingRedirectForSlug.length > 0"
+                                :title="`This slug redirects to '/${existingRedirectForSlug[0].toSlug}'`"
+                                class="flex items-center gap-1 text-xs"
+                            >
+                                <ExclamationCircleIcon class="size-4 text-yellow-400" />
+                                A redirect exists for this slug
+                            </span>
+                        </div>
+
+                        <!-- Author -->
+                        <div class="flex items-center gap-2">
+                            <FormLabel class="w-16">Author</FormLabel>
+                            <LInput
+                                name="author"
+                                v-model="content.author"
+                                placeholder="John Doe..."
+                                :disabled="disabled"
+                                inlineLabel
+                                class="flex-1"
+                            />
+                        </div>
+
+                        <!-- Summary -->
+                        <LInput
+                            name="summary"
+                            label="Summary"
+                            :disabled="disabled"
+                            inputType="textarea"
+                            placeholder="A short summary of the content..."
+                            v-model="content.summary"
+                            class="min-h-10 flex-1"
+                        />
                     </div>
 
-                    <!-- Author -->
-                    <LInput
-                        name="author"
-                        label="Author"
-                        v-model="content.author"
-                        placeholder="John Doe..."
+                    <!-- Text -->
+                    <RichTextEditor
+                        v-model:text="content.text"
+                        title="Text"
                         :disabled="disabled"
-                        class="mt-4"
-                    />
-
-                    <!-- Summary -->
-                    <LInput
-                        name="summary"
-                        label="Summary"
-                        class="mt-4"
-                        :disabled="disabled"
-                        v-model="content.summary"
+                        data-test="richTextEditor"
                     />
                 </div>
 
-                <div v-else-if="currentTab === 'seo'">
-                    <!-- Title SEO -->
-                    <LInput
-                        name="seo-title"
-                        label="Title"
-                        :disabled="disabled"
-                        :placeholder="content.title"
-                        v-model="content.seoTitle"
-                    />
+                <div v-else-if="currentToogle === 'seo'">
+                    <div class="flex flex-col gap-4">
+                        <!-- Seo -->
+                        <div class="flex items-center gap-2">
+                            <FormLabel class="w-16">Seo</FormLabel>
+                            <LInput
+                                name="seo-title"
+                                :disabled="disabled"
+                                :placeholder="content.title"
+                                v-model="content.seoTitle"
+                                class="flex-1"
+                            />
+                        </div>
 
-                    <!-- Summary SEO -->
-                    <LInput
-                        name="seo-summary"
-                        label="Summary"
-                        class="mt-4"
-                        :disabled="disabled"
-                        :placeholder="content.summary"
-                        v-model="content.seoString"
-                    />
+                        <!-- Summary SEO -->
+                        <div class="flex items-center gap-2">
+                            <FormLabel class="w-16">Summary</FormLabel>
+                            <LInput
+                                name="seo-summary"
+                                class="flex-1"
+                                :disabled="disabled"
+                                :placeholder="content.summary"
+                                v-model="content.seoString"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
         </LCard>
