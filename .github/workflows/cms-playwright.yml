@@ -1,10 +1,10 @@
-name: App Playwright Tests
+name: CMS Playwright Tests
 
 on:
   pull_request:
     branches: [main, master]
     paths:
-      - app/**
+      - cms/**
       - shared/**
       - api/**
       - .github/workflows/playwright.yml
@@ -48,23 +48,23 @@ jobs:
           npm run seed
         working-directory: api
 
-      - name: Setup app and shared library
+      - name: Setup cms and shared library
         run: |
           cd shared
           npm install
           npm run build
-          cd ../app
+          cd ../cms
           cp .env.example .env
           npm ci --install-links
 
       - name: Install Playwright browsers
         run: npx playwright install
-        working-directory: app
+        working-directory: cms
 
       - name: Run Playwright Tests
         run: |
           cd api
           npm run start & # Start your API in the background
           sleep 20         # Wait for the API to be ready
-          cd ../app
+          cd ../cms
           npm run test:e2e  # Run Playwright E2E tests
