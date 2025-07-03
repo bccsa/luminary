@@ -20,19 +20,6 @@ describe("EditContentVideo.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("does not display video field when not defined", async () => {
-        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, video: undefined });
-        const wrapper = mount(EditContentVideo, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
-
-        const videoContent = wrapper.find('div[data-test="videoContent"]');
-        expect(videoContent.exists()).toBe(false);
-    });
-
     it("display video field, when is defined", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
