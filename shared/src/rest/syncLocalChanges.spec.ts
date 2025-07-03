@@ -104,6 +104,7 @@ describe("localChanges", () => {
             socket.emit("clientConfig", {});
         });
         getSocket({ reconnect: true });
+        processChangeReqLock.value = false;
 
         // Add a local change
         const localChange = {
@@ -242,7 +243,7 @@ describe("localChanges", () => {
         });
     });
 
-    it("will not sync via the watcher if there the processChangeReqLock is on", async () => {
+    it("will not sync via the watcher if the processChangeReqLock is on", async () => {
         socketServer.on("connection", (socket) => {
             socket.emit("clientConfig", {});
         });

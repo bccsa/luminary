@@ -60,12 +60,11 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
         { immediate: true },
     );
 
-    // Reset lock when connected after being disconnected to continue processing
     watch(isConnected, (connected) => {
         if (connected) {
-            processChangeReqLock.value = true;
-        } else {
             processChangeReqLock.value = false;
+        } else {
+            processChangeReqLock.value = true;
         }
     });
 }
