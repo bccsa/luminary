@@ -31,8 +31,6 @@ const triggerFilePicker = () => {
 
 const handleFileChange = () => {
     const files = uploadInput.value?.files;
-    console.log("Picked files:", files);
-
     if (files?.length && imageEditorRef.value?.handleFiles) {
         imageEditorRef.value.handleFiles(files);
         uploadInput.value!.value = ""; // reset input
