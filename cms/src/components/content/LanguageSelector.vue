@@ -26,7 +26,7 @@ onClickOutside(languagePopup, () => {
 </script>
 
 <template>
-    <div>
+    <div class="hidden md:block">
         <button
             @click="showSelector = !showSelector"
             data-test="language-selector"
@@ -47,7 +47,7 @@ onClickOutside(languagePopup, () => {
             leave-to-class="transform opacity-0 scale-95"
         >
             <ul
-                v-if="showSelector"
+                v-show="showSelector"
                 class="absolute z-10 w-56 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:-right-28 sm:left-auto sm:origin-top-right"
             >
                 <div class="py-1">
