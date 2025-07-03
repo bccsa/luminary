@@ -10,6 +10,7 @@ import * as mockData from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 
 // Monkey patch the router to keep test accurate and avoid false positives
+// This also prevents vitest hoisting issues with the router
 import * as actualRouter from "@/router";
 Object.defineProperty(actualRouter, "default", {
     value: { push: vi.fn() },
