@@ -66,6 +66,7 @@ docker run --rm -it -p 8080:80 luminary-app
 ```
 
 `gzip` functionality is enabled by default, disable it as shown:
+**It is available as a docker .env parameter**
 
 ```sh
 docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-app
