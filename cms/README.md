@@ -17,4 +17,11 @@ docker build -t luminary-cms .
 docker run --rm -it -p 8080:80 luminary-cms
 ```
 
+`gzip` functionality is enabled by default, disable it as shown:
+**Available as a docker .env parameter**
+
+```sh
+docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-cms
+```
+
 This will run the CMS on port 8080 on the host machine.
