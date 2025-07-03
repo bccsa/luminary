@@ -226,7 +226,7 @@ const existingRedirectForSlug = useDexieLiveQuery(
                     <div class="flex flex-col gap-4">
                         <!-- Seo -->
                         <div class="flex items-center gap-2">
-                            <FormLabel class="w-16">Seo</FormLabel>
+                            <FormLabel class="w-16">Title</FormLabel>
                             <LInput
                                 name="seo-title"
                                 :disabled="disabled"
