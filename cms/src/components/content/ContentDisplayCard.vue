@@ -102,6 +102,7 @@ const navigateToLanguage = (language: LanguageDto) => {
     >
         <div class="relative flex cursor-pointer items-center justify-between py-1">
             <div
+                data-test="content-title"
                 class="w-full"
                 @click="
                     () => {
