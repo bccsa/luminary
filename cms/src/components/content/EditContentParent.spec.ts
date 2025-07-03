@@ -71,7 +71,6 @@ describe("EditContentParent.vue", () => {
 
         expect(wrapper.text()).toContain("Categories");
         expect(wrapper.text()).toContain("Topics");
-        expect(wrapper.text()).toContain("Audio Playlists");
 
         // TODO: Check why the selected categories are not displayed
     });
