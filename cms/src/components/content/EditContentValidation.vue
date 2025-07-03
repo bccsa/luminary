@@ -150,10 +150,10 @@ const deleteTranslation = () => {
     >
         <div
             :class="[
-                'rounded-md p-4',
+                'rounded-md px-2 py-1.5',
                 {
                     'cursor-default bg-white shadow': isActive,
-                    'border bg-white/25 hover:bg-white/50': !isActive,
+                    'border bg-white/80 hover:bg-white/100': !isActive,
                 },
             ]"
         >
