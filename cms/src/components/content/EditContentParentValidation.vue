@@ -11,8 +11,15 @@ import {
 import { ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import LanguageSelector from "./LanguageSelector.vue";
-import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import {
+    ExclamationCircleIcon,
+    LanguageIcon,
+    PlusIcon,
+    XCircleIcon,
+} from "@heroicons/vue/20/solid";
 import _ from "lodash";
+import LCard from "../common/LCard.vue";
+import LButton from "../button/LButton.vue";
 
 type Props = {
     languages: LanguageDto[];
@@ -33,6 +40,8 @@ const editableContent = defineModel<ContentDto[]>("editableContent");
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
 const overallIsValid = ref(true);
+
+const showLanguageSelector = ref(false);
 
 const setOverallValidation = (id: Uuid, isValid: boolean) => {
     let validation = overallValidations.value.find((v) => v.id == id);
@@ -103,7 +112,34 @@ watch(
 </script>
 
 <template>
-    <div class="rounded-md bg-zinc-100 p-3 shadow-inner">
+    <LCard title="Translation" :icon="LanguageIcon" collapsible>
+        <template #actions>
+            <div class="flex flex-col items-center gap-2 md:hidden">
+                <LButton
+                    v-if="editableParent && canTranslate && untranslatedLanguages.length > 0"
+                    :icon="PlusIcon"
+                    class="w-fit"
+                    variant="muted"
+                    @click.stop="showLanguageSelector = !showLanguageSelector"
+                    data-test="add-translation-button"
+                />
+
+                <LanguageSelector
+                    v-if="untranslatedLanguages.length > 0"
+                    :languages="untranslatedLanguages"
+                    :parent="editableParent"
+                    :content="editableContent"
+                    :showSelector="showLanguageSelector"
+                    @create-translation="
+                        (language) => {
+                            emit('createTranslation', language);
+                            showLanguageSelector = false;
+                        }
+                    "
+                />
+            </div>
+        </template>
+
         <div class="flex flex-col gap-2">
             <div
                 v-if="editableParent && !_.isEqual(editableParent, existingParent)"
@@ -158,15 +194,17 @@ watch(
                     :can-delete="canDelete"
                 />
             </div>
-            <div class="flex flex-col items-center">
+            <div class="hidden flex-col items-center md:flex">
                 <LanguageSelector
                     v-if="untranslatedLanguages.length > 0"
                     :languages="untranslatedLanguages"
                     :parent="editableParent"
                     :content="editableContent"
+                    :showSelector="showLanguageSelector"
                     @create-translation="(language) => emit('createTranslation', language)"
+                    class="hidden md:block"
                 />
             </div>
         </div>
-    </div>
+    </LCard>
 </template>
