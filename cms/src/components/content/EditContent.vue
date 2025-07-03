@@ -36,7 +36,6 @@ import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch } from "vue";
 import EditContentStatus from "@/components/content/EditContentStatus.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
-import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -617,7 +616,7 @@ watch(
     >
         <template #pageNav>
             <h1 class="text-xl font-bold lg:hidden">
-                {{ `Edit ${tagOrPostType}` }}
+                {{ `Edit ${props.docType}` }}
             </h1>
         </template>
 
@@ -729,45 +728,45 @@ watch(
                 </div>
             </div>
         </template>
-        <div class="relative grid min-h-full grid-cols-3 gap-8">
+        <div class="relative mb-5 grid min-h-full grid-cols-3 gap-8">
             <!-- Sidebar -->
             <div class="relative col-span-3 md:col-span-1" v-if="editableParent">
                 <div class="relative size-full space-y-6">
-                    <EditContentParentValidation
-                        :tag-or-post-type="props.tagOrPostType"
-                        :can-translate="canTranslate"
-                        :can-delete="canDelete"
-                        :can-publish="canPublish"
-                        :can-edit="canEditParent"
-                        v-if="editableContent"
-                        v-model:editableParent="editableParent"
-                        v-model:editableContent="editableContent"
-                        :languages="cmsLanguages"
-                        :untranslatedLanguages="untranslatedLanguages"
-                        :dirty="isDirty"
-                        :existingContent="existingContent"
-                        :existingParent="existingParent"
-                        @updateIsValid="(val) => (isValid = val)"
-                        @create-translation="(language) => createTranslation(language)"
+                    <EditContentParent
+                        v-if="editableParent"
+                        :docType="props.docType"
+                        :tagOrPostType="props.tagOrPostType"
+                        :language="selectedLanguage"
+                        v-model:parent="editableParent"
+                        :disabled="!canEditParent"
+                    />
+
+                    <EditContentImage
+                        v-if="editableParent"
+                        :docType="props.docType"
+                        :tagOrPostType="props.tagOrPostType"
+                        :disabled="!canEditParent"
+                        v-model:parent="editableParent"
+                        class="mt-4"
                     />
 
                     <div class="sticky top-0">
-                        <EditContentParent
-                            v-if="editableParent"
-                            :docType="props.docType"
-                            :tagOrPostType="props.tagOrPostType"
-                            :language="selectedLanguage"
-                            v-model:parent="editableParent"
-                            :disabled="!canEditParent"
-                        />
-
-                        <EditContentImage
-                            v-if="editableParent"
-                            :docType="props.docType"
-                            :tagOrPostType="props.tagOrPostType"
-                            :disabled="!canEditParent"
-                            v-model:parent="editableParent"
-                            class="mt-4"
+                        <EditContentParentValidation
+                            :tag-or-post-type="props.tagOrPostType"
+                            :can-translate="canTranslate"
+                            :can-delete="canDelete"
+                            :can-publish="canPublish"
+                            :can-edit="canEditParent"
+                            v-if="editableContent"
+                            v-model:editableParent="editableParent"
+                            v-model:editableContent="editableContent"
+                            :languages="cmsLanguages"
+                            :untranslatedLanguages="untranslatedLanguages"
+                            :dirty="isDirty"
+                            :existingContent="existingContent"
+                            :existingParent="existingParent"
+                            @updateIsValid="(val) => (isValid = val)"
+                            @create-translation="(language) => createTranslation(language)"
                         />
                     </div>
                 </div>
@@ -796,8 +795,6 @@ watch(
                         :disablePublish="!canPublish"
                     />
                     <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
-
-                    <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
                     <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>
             </div>
