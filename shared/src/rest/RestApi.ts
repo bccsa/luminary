@@ -1,7 +1,11 @@
-import { DocType } from "../types";
+import { DocType, LocalChangeDto } from "../types";
 import { Sync, syncActive } from "./sync";
 import { HttpReq } from "./http";
 import { config } from "../config";
+import { LFormData } from "../util/LFormData";
+import { db } from "../db/database";
+import { useDexieLiveQuery } from "../util";
+import { syncLocalChanges } from "./syncLocalChanges";
 
 export type ApiSearchQuery = {
     apiVersion?: string;
@@ -77,6 +81,12 @@ class RestApi {
 
         this._sync = new Sync();
         this.http = new HttpReq(config.apiUrl || "", config.token);
+
+        const localChanges = useDexieLiveQuery(
+            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
+            { initialValue: [] as unknown as LocalChangeDto[] },
+        );
+        syncLocalChanges(localChanges);
     }
 
     /**
@@ -88,12 +98,15 @@ class RestApi {
 
     async search(query: ApiSearchQuery) {
         query.apiVersion = "0.0.0";
-
         return await this.http.get("search", query); //TODO: Add type: ApiQueryResult<T>
     }
 
-    async changeRequest(query: ChangeRequestQuery) {
-        query.apiVersion = "0.0.0";
+    async changeRequest(query: ChangeRequestQuery | FormData) {
+        console.log("ENTERED CHANGE REQUEST");
+        if (query instanceof LFormData) {
+            (query as LFormData).append("changeRequestApiVersion", "0.0.0");
+        }
+        (query as ChangeRequestQuery).apiVersion = "0.0.0";
         return await this.http.post("changerequest", query);
     }
 }
@@ -115,5 +128,6 @@ export function getRest(
     if (rest && !options.reset) return rest;
 
     rest = new RestApi();
+
     return rest;
 }
