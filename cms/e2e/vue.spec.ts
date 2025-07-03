@@ -23,41 +23,41 @@ async function waitForExpect(
     throw lastError;
 }
 
-// Helper function to handle Auth0 login
-async function loginWithAuth0(page) {
-    try {
-        // Navigate to your app's login page
-        await page.goto("/", { waitUntil: "networkidle" });
+// // Helper function to handle Auth0 login
+// async function loginWithAuth0(page) {
+//     try {
+//         // Navigate to your app's login page
+//         await page.goto("/", { waitUntil: "networkidle" });
 
-        // Check if there's a login button to click (if not already on Auth0 page)
-        const loginButtonVisible = await page.isVisible(
-            'button:has-text("Login"), a:has-text("Login")',
-        );
-        if (loginButtonVisible) {
-            await page.click('button:has-text("Login"), a:has-text("Login")');
-        }
+//         // Check if there's a login button to click (if not already on Auth0 page)
+//         const loginButtonVisible = await page.isVisible(
+//             'button:has-text("Login"), a:has-text("Login")',
+//         );
+//         if (loginButtonVisible) {
+//             await page.click('button:has-text("Login"), a:has-text("Login")');
+//         }
 
-        // Wait for Auth0 login page to load
-        await page.waitForSelector('input[name="username"], input[type="email"]', {
-            timeout: 10000,
-        });
+//         // Wait for Auth0 login page to load
+//         await page.waitForSelector('input[name="username"], input[type="email"]', {
+//             timeout: 10000,
+//         });
 
-        // Fill Auth0 login form - get credentials from environment variables
-        await page.fill('input[name="username"], input[type="email"]', "test-user@example.com");
-        await page.fill('input[name="password"], input[type="password"]', "test-password");
+//         // Fill Auth0 login form - get credentials from environment variables
+//         await page.fill('input[name="username"], input[type="email"]', "test-user@example.com");
+//         await page.fill('input[name="password"], input[type="password"]', "test-password");
 
-        // Click login button
-        await page.click('button[type="submit"]');
+//         // Click login button
+//         await page.click('button[type="submit"]');
 
-        // Wait for redirect back to your app after successful login
-        await page.waitForNavigation({ waitUntil: "networkidle" });
+//         // Wait for redirect back to your app after successful login
+//         await page.waitForNavigation({ waitUntil: "networkidle" });
 
-        console.log("Successfully logged in with Auth0");
-    } catch (error) {
-        console.error("Auth0 login failed:", error);
-        throw error;
-    }
-}
+//         console.log("Successfully logged in with Auth0");
+//     } catch (error) {
+//         console.error("Auth0 login failed:", error);
+//         throw error;
+//     }
+// }
 
 //indexedDB.databases() is not supported in all browsers so make context chromium
 const test = base.extend({
@@ -72,7 +72,7 @@ const test = base.extend({
 
         // Create a page and login with Auth0
         const page = await context.newPage();
-        await loginWithAuth0(page);
+        // await loginWithAuth0(page);
         await page.close(); // Close this page after authentication
 
         await use(context);
