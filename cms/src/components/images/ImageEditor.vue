@@ -184,11 +184,15 @@ defineExpose({
                 "
             >
                 <div
-                    v-if="!isDragging && parent.imageData.fileCollections.length > 0"
+                    v-if="
+                        !isDragging &&
+                        (parent.imageData.fileCollections.length > 0 ||
+                            (parent.imageData.uploadData && parent.imageData.uploadData.length > 0))
+                    "
                     class="flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden pb-2 pt-4 scrollbar-hide"
                     data-test="thumbnail-area"
                 >
-                    <!-- Display file collections as thumbnails -->
+                    <!-- File Collections Thumbnails -->
                     <div
                         v-for="c in parent.imageData.fileCollections"
                         :key="c.aspectRatio"
@@ -197,13 +201,11 @@ defineExpose({
                         <ImageEditorThumbnail
                             :imageFileCollection="c"
                             @deleteFileCollection="removeFileCollection"
-                            :key="c.aspectRatio"
                             :disabled="!disabled"
-                            class="flex shrink-0 items-center justify-center rounded text-xs shadow"
                         />
                     </div>
 
-                    <!-- Display uploaded image data as thumbnails -->
+                    <!-- Upload Data Thumbnails -->
                     <div
                         v-for="u in parent.imageData.uploadData"
                         :key="u.filename"
@@ -212,12 +214,13 @@ defineExpose({
                         <ImageEditorThumbnail
                             :imageUploadData="u"
                             @deleteUploadData="removeFileUploadData"
-                            :key="u.filename"
                             :disabled="!disabled"
-                            class="flex shrink-0 items-center justify-center rounded bg-zinc-200 text-xs shadow"
                         />
                     </div>
                 </div>
+            </div>
+            <div v-else class="my-4 md:hidden">
+                <p class="text-center text-sm italic text-gray-500">No images uploaded yet.</p>
             </div>
         </div>
     </div>
