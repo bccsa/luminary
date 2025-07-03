@@ -12,8 +12,11 @@ import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LButton from "../button/LButton.vue";
 import { LinkSlashIcon, LinkIcon } from "@heroicons/vue/20/solid";
+import FormLabel from "../forms/FormLabel.vue";
 
 type Props = {
+    title?: string;
+    icon?: any;
     disabled: boolean;
 };
 const props = defineProps<Props>();
@@ -125,7 +128,11 @@ watch(showModal, async () => {
 </script>
 
 <template>
-    <div class="-mx-4 px-4">
+    <div :class="$attrs.class" class="-mx-4 px-4">
+        <div class="mb-2 flex items-center gap-2">
+            <component v-if="props.icon" :is="props.icon" class="h-6 w-6 text-zinc-600" />
+            <FormLabel v-if="props.title" :icon="props.icon">{{ title }}</FormLabel>
+        </div>
         <div class="flex flex-wrap gap-4" v-if="!disabled">
             <div class="flex pb-2">
                 <button
@@ -258,7 +265,7 @@ watch(showModal, async () => {
                 </button>
             </div>
         </div>
-        <EditorContent :editor="editor" />
+        <EditorContent :editor="editor" class="bg-white" />
     </div>
     <LModal
         v-model:isVisible="showModal"
