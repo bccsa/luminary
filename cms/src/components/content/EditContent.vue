@@ -728,10 +728,10 @@ watch(
                 </div>
             </div>
         </template>
-        <div class="relative mb-5 grid min-h-full grid-cols-3 gap-8">
+        <div class="relative mb-5 grid min-h-full grid-cols-3 gap-3">
             <!-- Sidebar -->
             <div class="relative col-span-3 md:col-span-1" v-if="editableParent">
-                <div class="relative size-full space-y-6">
+                <div class="relative size-full space-y-3">
                     <EditContentParent
                         v-if="editableParent"
                         :docType="props.docType"
@@ -788,7 +788,7 @@ watch(
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="mb-48 space-y-6">
+                <div v-else class="mb-48 space-y-3">
                     <EditContentStatus
                         v-model:content="selectedContent"
                         :disabled="!canTranslate"
