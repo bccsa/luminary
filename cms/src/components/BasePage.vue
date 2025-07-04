@@ -105,7 +105,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 <header
                     v-if="$slots.actions"
                     :class="[
-                        'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center lg:pl-80',
+                        'flex items-center justify-between gap-4 py-4 pl-4 pr-8 sm:flex-row sm:items-center lg:pl-80',
                         {
                             'sm:justify-center': centered,
                             'sm:justify-between': !centered,
