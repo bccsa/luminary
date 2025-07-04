@@ -42,8 +42,8 @@ function collapse() {
         <div
             v-if="title || icon"
             :class="[
-                'flex items-center justify-between gap-4 px-2 pt-3 sm:px-6',
-                { 'cursor-pointer': collapsible, 'pb-5': collapsed },
+                'flex items-center justify-between gap-4 px-2 pt-2 sm:px-5',
+                { 'cursor-pointer': collapsible, 'pb-2': collapsed },
             ]"
             @click="collapse"
         >
@@ -71,7 +71,7 @@ function collapse() {
         <div v-show="!collapsed" data-test="collapsible-container">
             <div
                 :class="{
-                    'px-4 py-5 sm:px-6': padding == 'normal',
+                    'px-4 py-5 sm:px-5': padding == 'normal',
                     'pt-5': padding == 'none' && title,
                 }"
             >
