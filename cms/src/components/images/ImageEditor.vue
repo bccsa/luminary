@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, toRaw } from "vue";
-import LButton from "../button/LButton.vue";
-import { ArrowUpOnSquareIcon, ExclamationCircleIcon } from "@heroicons/vue/24/outline";
+import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import {
     type ImageUploadDto,
@@ -24,11 +23,6 @@ const isDragging = ref(false);
 const dragCounter = ref(0);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
-
-const showFilePicker = () => {
-    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
-    uploadInput.value!.showPicker();
-};
 
 const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -145,7 +139,7 @@ defineExpose({
 
         <!-- Drag and Drop Area or File Picker -->
         <div
-            class="flex flex-col justify-center border-2 border-gray-300 bg-white p-3 transition duration-150 ease-in-out md:mt-2 md:min-h-36"
+            class="flex flex-col justify-center border-2 border-gray-300 bg-white p-2 transition duration-150 ease-in-out"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"
@@ -157,13 +151,6 @@ defineExpose({
             <div class="hidden flex-col items-center justify-center md:flex">
                 <p v-if="isDragging" class="text-sm">Drop your files here</p>
                 <div v-else>
-                    <LButton
-                        :disabled="disabled"
-                        :icon="ArrowUpOnSquareIcon"
-                        @click="showFilePicker"
-                    >
-                        Drop image file or click to Upload
-                    </LButton>
                     <input
                         ref="uploadInput"
                         type="file"
@@ -220,7 +207,7 @@ defineExpose({
                 </div>
             </div>
             <div v-else class="my-4 md:hidden">
-                <p class="text-center text-sm italic text-gray-500">No images uploaded yet.</p>
+                @deleteUploadData="removeFileUploadData" :disabled="!disabled" />
             </div>
         </div>
     </div>
