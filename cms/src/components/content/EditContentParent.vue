@@ -15,7 +15,6 @@ import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
-import ImageEditor from "../images/ImageEditor.vue";
 
 type Props = {
     docType: DocType;
@@ -46,21 +45,12 @@ const pinned = computed({
         collapsible
         v-if="parent"
     >
-        <GroupSelector v-model:groups="parent.memberOf" :disabled="disabled" :docType="docType" />
-        <ImageEditor :disabled="disabled" v-model:parent="parent" class="my-4" />
-        <div
-            v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
-            class="mb-6 flex items-center justify-between"
-        >
-            <FormLabel>Pinned</FormLabel>
-            <LToggle v-model="pinned" :disabled="disabled" />
-        </div>
-
-        <!-- Toggle for Publish Date Visibility -->
-        <div class="mb-6 flex items-center justify-between">
-            <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
-        </div>
+        <GroupSelector
+            v-model:groups="parent.memberOf"
+            :disabled="disabled"
+            :docType="docType"
+            class="mb-6"
+        />
 
         <TagSelector
             v-model:parent="parent"
@@ -82,14 +72,18 @@ const pinned = computed({
             :key="language?._id"
         />
 
-        <TagSelector
-            v-model:parent="parent"
-            :language="language"
-            :tagType="TagType.AudioPlaylist"
-            label="Audio Playlists"
-            class="mt-6"
-            :disabled="disabled"
-            :key="language?._id"
-        />
+        <div
+            v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
+            class="mt-6 flex items-center justify-between"
+        >
+            <FormLabel>Pinned</FormLabel>
+            <LToggle v-model="pinned" :disabled="disabled" />
+        </div>
+
+        <!-- Toggle for Publish Date Visibility -->
+        <div class="mt-6 flex items-center justify-between">
+            <FormLabel>Show publish date</FormLabel>
+            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
+        </div>
     </LCard>
 </template>

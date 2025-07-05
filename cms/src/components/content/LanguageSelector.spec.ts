@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
-import LanguageSelector2 from "./LanguageSelector.vue";
+import LanguageSelector from "./LanguageSelector.vue";
 import { accessMap } from "luminary-shared";
 
 describe("LanguageSelector.vue", () => {
@@ -19,7 +19,7 @@ describe("LanguageSelector.vue", () => {
     });
 
     it("can handle an unset language", async () => {
-        const wrapper = mount(LanguageSelector2, {
+        const wrapper = mount(LanguageSelector, {
             props: {
                 languages: [
                     mockData.mockLanguageDtoEng,
@@ -33,14 +33,25 @@ describe("LanguageSelector.vue", () => {
             },
         });
 
+        // Dropdown is hidden by default
         expect(wrapper.text()).toContain("Add translation");
-        expect(wrapper.text()).not.toContain("English");
-        expect(wrapper.text()).not.toContain("French");
-        expect(wrapper.text()).not.toContain("Swahili");
+
+        // Now simulate showing the dropdown
+        const selectLanguageButton = wrapper.find('[data-test="language-selector"]');
+        await selectLanguageButton.trigger("click");
+
+        // Languages should now be visible
+        // explain ^: Match elements where the attribute starts with a specific string.
+        const items = wrapper.findAll('[data-test^="select-language-"]');
+        const visibleLanguages = items.map((item) => item.text());
+
+        expect(visibleLanguages).toContain("eng English");
+        expect(visibleLanguages).toContain("fra Français");
+        expect(visibleLanguages).toContain("swa Swahili");
     });
 
     it("can display a dropdown with all languages", async () => {
-        const wrapper = mount(LanguageSelector2, {
+        const wrapper = mount(LanguageSelector, {
             props: {
                 languages: [
                     mockData.mockLanguageDtoEng,

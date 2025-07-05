@@ -88,7 +88,8 @@ describe("EditContentBasic.vue", () => {
     });
 
     it("can update the seo title", async () => {
-        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
+        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto });
+
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
@@ -96,19 +97,22 @@ describe("EditContentBasic.vue", () => {
             },
         });
 
-        // Find and update the title input field
-        const options = wrapper.findAll("option");
-        await options[1].trigger("click");
+        // Find and click the toggle to switch to the SEO tab
+        const seoToggle = wrapper.find('[data-test="text-toggle"]');
+        const seoToggleBtn = seoToggle.findAll("button")[1];
+        await seoToggleBtn.trigger("click");
 
-        const titleInput = wrapper.find('[name="seo-title"]');
-        await titleInput.setValue("Updated Seo Title");
+        // Find and update the SEO title input field
+        const seoTitleInput = wrapper.find('input[name="seo-title"]');
+        await seoTitleInput.setValue("Updated Seo Title");
 
-        // // Check if the content's title was updated
+        // Assert that the model has been updated
         expect(content.value.seoTitle).toBe("Updated Seo Title");
     });
 
     it("can update the seo summary", async () => {
-        const content = ref<ContentDto>(mockData.mockEnglishContentDto);
+        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto });
+
         const wrapper = mount(EditContentBasic, {
             props: {
                 disabled: false,
@@ -116,14 +120,15 @@ describe("EditContentBasic.vue", () => {
             },
         });
 
-        const options = wrapper.findAll("option");
-        await options[1].trigger("click");
+        // Switch to the SEO tab
+        const seoToggle = wrapper.find('[data-test="text-toggle"]');
+        const seoToggleBtn = seoToggle.findAll("button")[1];
+        await seoToggleBtn.trigger("click");
 
-        // Find and update the summary input field
-        const summaryInput = wrapper.find('[name="seo-summary"]');
-        await summaryInput.setValue("Updated Seo Summary");
+        // Find and update the SEO summary input field
+        const seoSummaryInput = wrapper.find('input[name="seo-summary"]');
+        await seoSummaryInput.setValue("Updated Seo Summary");
 
-        // Check if the content's summary was updated
         expect(content.value.seoString).toBe("Updated Seo Summary");
     });
 });
