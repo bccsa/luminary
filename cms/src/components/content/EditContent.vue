@@ -676,7 +676,7 @@ watch(
                 "
                 :icon="ArrowTopRightOnSquareIcon"
                 iconRight
-                class="hidden cursor-pointer font-extralight text-zinc-600/[55%]"
+                class="hidden cursor-pointer font-extralight text-zinc-600/[55%] sm:inline-flex"
                 variant="tertiary"
                 @click="ensureRedirect"
                 target="_blank"
