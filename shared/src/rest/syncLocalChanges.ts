@@ -63,6 +63,11 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
     watch(isConnected, (connected) => {
         if (connected) {
             processChangeReqLock.value = false;
+            /*
+             To ensure safety, we can reset the lock when the connection is established
+             This prevents any pending change requests from being processed while the connection is down
+             and ensures that the next change request will be processed correctly.
+            */
         } else {
             processChangeReqLock.value = true;
         }

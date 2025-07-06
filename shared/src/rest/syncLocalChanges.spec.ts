@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { ref } from "vue";
 import { AckStatus, ChangeReqDto, DocType, LocalChangeDto } from "../types";
 import { db, initDatabase } from "../db/database";
-import { getSocket, isConnected } from "../socket/socketio";
+import { getSocket } from "../socket/socketio";
 import { initConfig } from "../config";
 import { Server } from "socket.io";
 import waitForExpect from "wait-for-expect";
