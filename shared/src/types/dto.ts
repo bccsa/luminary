@@ -145,6 +145,12 @@ export type ImageFileDto = {
     filename: string;
 };
 
+export type ImageUnprocessedDto = {
+    fileIndex: string;
+    preset: string;
+    filename?: string;
+};
+
 export type ImageUploadDto = {
     fileData: ArrayBuffer;
     preset: string;

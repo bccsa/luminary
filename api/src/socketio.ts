@@ -7,12 +7,11 @@ import {
 } from "@nestjs/websockets";
 import { Inject, Injectable } from "@nestjs/common";
 import { DbService } from "./db/db.service";
-import { AclPermission, AckStatus, DocType } from "./enums";
+import { AclPermission, DocType } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
 import { Socket, Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
-import { processChangeRequest } from "./changeRequests/processChangeRequest";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
 import { JwtUserDetails, processJwt } from "./jwt/processJwt";
@@ -201,87 +200,5 @@ export class Socketio implements OnGatewayInit {
         for (const group of userAccessibleGroups) {
             socket.join(`${DocType.DeleteCmd}-${group}`);
         }
-    }
-
-    /**
-     * Client data submission event handler
-     * @param changeRequests An array of change requests
-     * @param socket
-     */
-    @SubscribeMessage("changeRequest")
-    async changeRequest(
-        @MessageBody() changeRequest: ChangeReqDto,
-        @ConnectedSocket() socket: ClientSocket,
-    ) {
-        // Process change request
-        await processChangeRequest(
-            socket.data.userDetails.userId || "",
-            changeRequest,
-            socket.data.userDetails.groups,
-            this.db,
-            this.s3,
-        )
-            .then(async () => {
-                await this.emitAck(socket, AckStatus.Accepted, changeRequest);
-            })
-            .catch(async (err) => {
-                await this.emitAck(socket, AckStatus.Rejected, changeRequest, err.message);
-            });
-    }
-
-    /**
-     * Emit an acknowledgement to a Change Request
-     * @param socket - Socket.io connected client instance
-     * @param status - Acknowledged status
-     * @param changeRequest - Change request object
-     * @param message - Error message
-     */
-    private async emitAck(
-        socket: Socket,
-        status: AckStatus,
-        changeRequest: ChangeReqDto,
-        message?: string,
-    ) {
-        if (!changeRequest) changeRequest = { id: undefined, doc: undefined };
-
-        const ack: ChangeReqAckDto = {
-            id: changeRequest.id,
-            ack: status,
-        };
-
-        if (message && status == AckStatus.Rejected) {
-            ack.message = message;
-        }
-
-        if (changeRequest.doc && status == AckStatus.Rejected) {
-            await this.db.getDoc(changeRequest.doc._id).then((res) => {
-                if (res.docs.length > 0) {
-                    ack.docs = [res.docs[0]];
-                }
-            });
-
-            // Handle rejected Post / Tag requests
-            if (
-                changeRequest.doc.type == DocType.Post ||
-                (changeRequest.doc.type == DocType.Tag && changeRequest.doc.deleteReq)
-            ) {
-                // Get all content documents associated to the post/tag to which the user has view access
-                const res = await this.db.getContentByParentId(changeRequest.doc._id);
-                const contentDocs = res.docs.filter((doc) =>
-                    PermissionSystem.verifyAccess(
-                        doc.memberOf,
-                        changeRequest.doc.type,
-                        AclPermission.View,
-                        socket.data.userDetails.groups,
-                        "any",
-                    ),
-                );
-                if (contentDocs.length > 0) {
-                    ack.docs.push(...contentDocs);
-                }
-            }
-        }
-
-        socket.emit("changeRequestAck", ack);
     }
 }
