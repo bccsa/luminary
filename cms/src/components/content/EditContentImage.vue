@@ -39,7 +39,7 @@ const handleFileChange = () => {
 </script>
 
 <template>
-    <LCard title="Image" :icon="PhotoIcon" collapsible v-if="parent">
+    <LCard title="Image" :icon="PhotoIcon" collapsible v-if="parent" class="bg-white">
         <template #actions>
             <div>
                 <LButton

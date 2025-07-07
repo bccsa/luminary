@@ -44,6 +44,7 @@ const pinned = computed({
         :icon="Cog6ToothIcon"
         collapsible
         v-if="parent"
+        class="bg-white"
     >
         <GroupSelector
             v-model:groups="parent.memberOf"
