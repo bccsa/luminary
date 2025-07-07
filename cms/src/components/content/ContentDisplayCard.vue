@@ -14,7 +14,7 @@ import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import { DateTime } from "luxon";
-import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { ClockIcon, TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { PencilIcon } from "@heroicons/vue/24/solid";
 import router from "@/router";
 import { cmsDefaultLanguage, isSmallScreen } from "@/globalConfig";
@@ -98,7 +98,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 
 <template>
     <div
-        class="w-full divide-y divide-zinc-100 rounded-md border border-zinc-300 bg-white px-2 py-1"
+        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 sm:rounded-md sm:border"
     >
         <div class="relative flex cursor-pointer items-center justify-between py-1">
             <div
@@ -196,7 +196,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                 </LBadge>
             </div>
             <div class="flex w-max items-start text-xs text-zinc-400">
-                <PencilIcon class="h-3 w-3 text-zinc-300" />
+                <ClockIcon class="h-3 w-3 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("small", "Last Updated", contentDoc.updatedTimeUtc)
                 }}</span>
@@ -210,8 +210,8 @@ const navigateToLanguage = (language: LanguageDto) => {
                     {{ group.name }}
                 </LBadge>
             </div>
-            <div class="flex items-center justify-end">
-                <PencilIcon class="h-4 w-4 text-zinc-400" />
+            <div class="flex items-center justify-end text-zinc-400">
+                <ClockIcon class="text-zinc-340 h-4 w-4" />
                 <span title="Last Updated">{{
                     renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
                 }}</span>
