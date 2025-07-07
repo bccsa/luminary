@@ -102,7 +102,6 @@ class RestApi {
     }
 
     async changeRequest(query: ChangeRequestQuery | FormData) {
-        console.log("ENTERED CHANGE REQUEST");
         if (query instanceof LFormData) {
             (query as LFormData).append("changeRequestApiVersion", "0.0.0");
         }
