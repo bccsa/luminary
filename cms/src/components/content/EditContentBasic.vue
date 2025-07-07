@@ -113,7 +113,7 @@ const existingRedirectForSlug = useDexieLiveQuery(
 
 <template>
     <div v-if="content">
-        <LCard title="Content" collapsible>
+        <LCard title="Content" collapsible class="bg-white">
             <!-- Tab Navigation using LTabs -->
             <template #actions>
                 <LTextToggle

@@ -112,7 +112,7 @@ watch(
 </script>
 
 <template>
-    <LCard title="Translations" :icon="LanguageIcon" collapsible>
+    <LCard class="bg-white" title="Translations" :icon="LanguageIcon" collapsible>
         <template #actions>
             <div class="flex flex-col items-center gap-2 md:hidden">
                 <LButton

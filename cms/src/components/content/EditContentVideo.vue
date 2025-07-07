@@ -30,12 +30,13 @@ watch(
 
 <template>
     <LCard
+        v-if="content"
         title="Video"
         :icon="VideoCameraIcon"
         collapsible
-        v-if="content"
         :collapsed="collapsed"
         data-test="videoContent"
+        class="bg-white"
     >
         <LInput
             name="video"
