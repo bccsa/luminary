@@ -10,7 +10,10 @@ import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
 import ContentTable from "../ContentTable.vue";
-import { cmsLanguageIdAsRef } from "@/globalConfig";
+import { cmsLanguageIdAsRef, isSmallScreen } from "@/globalConfig";
+import FilterOptions from "./FilterOptions.vue";
+import FilterOptionsMobile from "./FilterOptionsMobile.vue";
+import FilterOptionsDesktop from "./FilterOptionsDesktop.vue";
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
@@ -41,6 +44,8 @@ describe("ContentOverview.vue", () => {
             mockData.mockGroupDtoPublicUsers,
             mockData.mockGroupDtoSuperAdmins,
         ]);
+        window.innerWidth = 1600; // Set a width greater than 1500px to trigger desktop view
+        window.dispatchEvent(new Event("resize"));
     });
 
     beforeEach(async () => {
