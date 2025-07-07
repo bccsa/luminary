@@ -38,12 +38,14 @@ function collapse() {
 </script>
 
 <template>
-    <div class="rounded-md border-2 border-zinc-200 bg-zinc-200/10 shadow-md shadow-zinc-300/60">
+    <div
+        class="border-y-2 border-zinc-200 bg-zinc-200/10 px-3 shadow-md shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
+    >
         <div
             v-if="title || icon"
             :class="[
-                'flex items-center justify-between gap-4 px-2 pt-2 sm:px-5',
-                { 'cursor-pointer': collapsible, 'pb-2': collapsed },
+                'flex items-center justify-between gap-4 px-2 py-3 sm:px-2',
+                { 'cursor-pointer': collapsible, 'pb-3': collapsed },
             ]"
             @click="collapse"
         >
@@ -71,13 +73,13 @@ function collapse() {
         <div v-show="!collapsed" data-test="collapsible-container">
             <div
                 :class="{
-                    'px-4 py-5 sm:px-5': padding == 'normal',
+                    'px-3 py-3 sm:px-2': padding == 'normal',
                     'pt-5': padding == 'none' && title,
                 }"
             >
                 <slot />
             </div>
-            <div v-if="$slots.footer" class="bg-zinc-50 px-4 py-5 sm:px-6">
+            <div v-if="$slots.footer" class="bg-zinc-50 px-4 py-3 sm:px-2">
                 <slot name="footer" />
             </div>
         </div>
