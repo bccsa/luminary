@@ -41,14 +41,15 @@ const handleFileChange = () => {
 <template>
     <LCard title="Image" :icon="PhotoIcon" collapsible v-if="parent">
         <template #actions>
-            <div class="block md:hidden">
+            <div>
                 <LButton
                     :icon="ArrowUpOnSquareIcon"
                     size="base"
                     :disabled="disabled"
                     @click.stop="triggerFilePicker"
                 >
-                    Upload Image
+                    <span class="block sm:hidden">Upload Image</span>
+                    <span class="hidden text-sm sm:inline">Upload</span>
                 </LButton>
 
                 <input
