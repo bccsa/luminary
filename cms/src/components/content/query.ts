@@ -8,6 +8,7 @@ import {
     PostType,
     useDexieLiveQuery,
 } from "luminary-shared";
+import { ref } from "vue";
 
 export type ContentOverviewQueryOptions = {
     languageId: Uuid;
@@ -25,7 +26,10 @@ export type ContentOverviewQueryOptions = {
     count?: boolean;
 };
 
+export const loadingContentOverviewContent = ref(false);
+
 export const contentOverviewQuery = (options: ContentOverviewQueryOptions) => {
+    loadingContentOverviewContent.value = true;
     return useDexieLiveQuery(async () => {
         if (!options.orderBy) options.orderBy = "updatedTimeUtc";
         if (!options.orderDirection) options.orderDirection = "desc";
