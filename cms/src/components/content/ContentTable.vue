@@ -18,7 +18,7 @@ const contentDocs = contentOverviewQuery(props.queryOptions);
 
 <template>
     <div class="w-full pt-2">
-        <div class="flex flex-col gap-2 overflow-y-auto scrollbar-hide">
+        <div class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
             <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
             <ContentDisplayCard
                 v-for="(contentDoc, i) in contentDocs?.docs"
