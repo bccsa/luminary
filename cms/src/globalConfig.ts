@@ -19,7 +19,7 @@ const windowWidth = ref(window.innerWidth);
 window.addEventListener("resize", () => {
     windowWidth.value = window.innerWidth;
 });
-export const isSmallScreen = computed(() => windowWidth.value < 1024);
+export const isSmallScreen = computed(() => windowWidth.value < 1500);
 
 /**
  * The preferred CMS language ID as Vue ref.
