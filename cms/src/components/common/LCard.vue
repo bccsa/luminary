@@ -39,7 +39,7 @@ function collapse() {
 
 <template>
     <div
-        class="border-y-2 border-zinc-200 bg-zinc-200/10 px-3 shadow-md shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
+        class="border-y-2 border-zinc-200 px-3 shadow-sm shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
     >
         <div
             v-if="title || icon"
