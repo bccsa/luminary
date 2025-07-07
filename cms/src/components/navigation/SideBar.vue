@@ -92,7 +92,8 @@ watch(route, (newRoute) => {
 
 <template>
     <div
-        class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-zinc-200 bg-zinc-100 px-6 pb-4"
+        @scroll.stop
+        class="flex max-h-screen grow flex-col gap-y-5 overflow-y-auto border-r border-zinc-200 bg-zinc-100 px-6 pb-4"
     >
         <div class="flex h-16 shrink-0 items-center">
             <img class="h-8" :src="logo" :alt="appName" />
