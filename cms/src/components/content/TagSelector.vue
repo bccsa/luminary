@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, type Component } from "vue";
+import { computed, ref, type Component } from "vue";
 import {
     db,
     AclPermission,
@@ -13,6 +13,7 @@ import {
 } from "luminary-shared";
 import { getPreferredContentLanguage } from "@/util/getPreferredContentLanguage";
 import LCombobox, { type ComboboxOption } from "@/components/forms/LCombobox.vue";
+import { ChevronRightIcon, TagIcon } from "@heroicons/vue/24/outline";
 
 type Props = {
     tagType: TagType;
@@ -89,6 +90,13 @@ const selectedOptions = computed(
             })
             .filter((o) => o !== undefined) as ComboboxOption[]) || [],
 );
+
+const showEditModal = ref(false);
+const toggleDropdown = () => {
+    if (assignableOptions.value.length > 0) {
+        showEditModal.value = !showEditModal.value;
+    }
+};
 </script>
 
 <template>
@@ -97,11 +105,26 @@ const selectedOptions = computed(
             v-if="parent"
             :label="label"
             :disabled="disabled"
+            :labelIcon="TagIcon"
             :options="assignableOptions"
             v-model:selected-options="parent.tags"
             :selected-labels="selectedOptions"
             :show-selected-labels="true"
-        />
+            v-bind:show-edit-modal="showEditModal"
+        >
+            <template #actions>
+                <div
+                    class="flex items-center rounded-lg px-1 hover:bg-zinc-300/50"
+                    @click="toggleDropdown"
+                    data-test="edit-button"
+                >
+                    <button class="flex items-center text-sm">
+                        edit
+                        <ChevronRightIcon class="h-4 w-4 text-zinc-600" />
+                    </button>
+                </div>
+            </template>
+        </LCombobox>
 
         <!-- Message when no tags are selected -->
         <Transition
