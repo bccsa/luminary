@@ -102,7 +102,7 @@ const clearExpiryDate = () => {
 </script>
 
 <template>
-    <LCard title="Status" collapsible v-if="content">
+    <LCard title="Status" collapsible v-if="content" class="bg-white">
         <template #actions>
             <LTextToggle
                 v-model="content.status"
