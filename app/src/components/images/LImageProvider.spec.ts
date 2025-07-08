@@ -4,7 +4,45 @@ import { describe, expect, it } from "vitest";
 import waitForExpect from "wait-for-expect";
 import LImageProvider from "./LImageProvider.vue";
 
-describe("LImage", () => {
+const mockImage = {
+    fileCollections: [
+        {
+            aspectRatio: 1.33, // classic
+            imageFiles: [
+                { filename: "classic-100.webp", width: 100, height: 75 },
+                { filename: "classic-200.webp", width: 200, height: 150 },
+            ],
+        },
+        {
+            aspectRatio: 1.78, // video
+            imageFiles: [
+                { filename: "video-300.webp", width: 300, height: 169 },
+                { filename: "video-600.webp", width: 600, height: 338 },
+            ],
+        },
+    ],
+};
+
+describe("LImageProvider", () => {
+    it("renders the smallest image in srcset2 if all are too large for the tile", async () => {
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id",
+                parentWidth: 50, // smaller than any image width
+                image: mockImage,
+                aspectRatio: "video",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        // Simulate error on image 1 to trigger image 2
+        //@ts-expect-error
+        wrapper.vm.imageElement1Error = true;
+        await wrapper.vm.$nextTick();
+        const img2 = wrapper.find('img[data-test="image-element2"]');
+        expect(img2.exists()).toBe(true);
+        // Should contain the smallest image from the classic collection (since video is closest, classic is srcset2)
+        expect(img2.attributes("srcset")).toContain("classic-100.webp");
+    });
     it("renders fallback image when no main images are available", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
