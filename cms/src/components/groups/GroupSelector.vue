@@ -79,11 +79,6 @@ const selectedGroupOptions = computed<ComboboxOption[]>(() =>
     }),
 );
 const showEditModal = ref(false);
-const toggleDropdown = () => {
-    if (assignableGroups.value.length > 0) {
-        showEditModal.value = !showEditModal.value;
-    }
-};
 </script>
 
 <template>
@@ -98,20 +93,20 @@ const toggleDropdown = () => {
             :selectedLabels="selectedGroupOptions"
             :showSelectedInDropdown="false"
             badgeVariant="blue"
-            v-bind:show-edit-modal="showEditModal"
+            v-model:showEditModal="showEditModal"
         >
             <template #actions>
-                <div class="flex items-center rounded-lg px-1 hover:bg-zinc-300/50">
-                    <button
-                        v-if="assignableGroups.length > 0"
-                        @click="toggleDropdown"
-                        data-test="edit-group"
-                        class="flex items-center text-sm"
-                    >
-                        edit
-                        <ChevronRightIcon class="h-4 w-4 text-zinc-600" />
-                    </button>
-                </div>
+                <button
+                    v-if="assignableGroups.length > 0"
+                    @click="showEditModal = true"
+                    type="button"
+                    :disabled="disabled"
+                    data-test="edit-group"
+                    class="flex items-center rounded-lg px-1 text-sm hover:bg-zinc-300/50"
+                >
+                    edit
+                    <ChevronRightIcon class="h-4 w-4 text-zinc-600" />
+                </button>
             </template>
         </LCombobox>
 
