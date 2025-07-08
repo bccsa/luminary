@@ -13,6 +13,7 @@ import GroupSelector from "./GroupSelector.vue";
 import { accessMap, db, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import LCombobox from "../forms/LCombobox.vue";
+import LTag from "../content/LTag.vue";
 
 describe("GroupSelector", () => {
     // Need to set the access map before starting the tests. When moving this to beforeAll, it fails for some or other reason.
@@ -38,9 +39,6 @@ describe("GroupSelector", () => {
             props: {
                 groups: [mockGroupDtoPublicContent._id],
                 docType: DocType.Post,
-            },
-            slots: {
-                actions: "<button>edit</button>",
             },
         });
 
@@ -82,9 +80,6 @@ describe("GroupSelector", () => {
                 groups: [],
                 docType: DocType.Post,
             },
-            slots: {
-                actions: "<button>edit</button>",
-            },
         });
 
         await waitForExpect(async () => {
@@ -106,9 +101,6 @@ describe("GroupSelector", () => {
                 groups,
                 "onUpdate:groups": (e: any) => wrapper.setProps({ groups: e }),
                 docType: DocType.Post,
-            },
-            slots: {
-                actions: "<button>edit</button>",
             },
         });
 
@@ -163,9 +155,6 @@ describe("GroupSelector", () => {
                 disabled: true,
                 docType: DocType.Post,
             },
-            slots: {
-                actions: "<button>edit</button>",
-            },
         });
 
         await waitForExpect(() => {
@@ -186,9 +175,6 @@ describe("GroupSelector", () => {
                 groups: [],
                 docType: DocType.Post,
             },
-            slots: {
-                actions: "<button>edit</button>",
-            },
         });
 
         await waitForExpect(async () => {
@@ -199,6 +185,28 @@ describe("GroupSelector", () => {
             expect(wrapper.text()).toContain("Private Content");
 
             expect(wrapper.text()).not.toContain("Public Editors");
+        });
+    });
+
+    it("disables tag remove button when group is not removable", async () => {
+        // Remove edit and assign access to the group
+        // @ts-ignore
+        accessMap.value[mockGroupDtoPublicUsers._id].post.edit = false;
+        // @ts-ignore
+        accessMap.value[mockGroupDtoPublicUsers._id].group.assign = false;
+
+        const wrapper = mount(GroupSelector, {
+            props: {
+                groups: [mockGroupDtoPublicUsers._id],
+                docType: DocType.Post,
+            },
+        });
+
+        await waitForExpect(async () => {
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+
+            const tag = wrapper.findComponent(LTag);
+            expect(tag.props().disabled).toBe(true);
         });
     });
 });
