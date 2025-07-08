@@ -27,7 +27,7 @@ type Props = {
     selectedLabels?: ComboboxOption[];
     showSelectedLabels?: boolean;
     icon?: Component | Function;
-    inputIcon?: Component | Function;
+    showIcon?: boolean;
     badgeVariant?: keyof typeof variants;
 };
 
@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
     showSelectedInDropdown: true,
     showSelectedLabels: true,
+    showIcon: true,
 });
 
 const selectedOptions = defineModel<Array<string | number>>("selectedOptions", { required: true });
@@ -98,7 +99,7 @@ const toggleDropdown = () => {
                 <component
                     :is="props.labelIcon"
                     class="h-5 w-5 text-zinc-400"
-                    v-if="props.labelIcon"
+                    v-if="props.labelIcon && props.showIcon"
                 />
                 <FormLabel v-if="label">{{ label }}</FormLabel>
             </div>
