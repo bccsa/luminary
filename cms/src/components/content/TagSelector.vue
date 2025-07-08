@@ -92,11 +92,6 @@ const selectedOptions = computed(
 );
 
 const showEditModal = ref(false);
-const toggleDropdown = () => {
-    if (assignableOptions.value.length > 0) {
-        showEditModal.value = !showEditModal.value;
-    }
-};
 </script>
 
 <template>
@@ -110,19 +105,19 @@ const toggleDropdown = () => {
             v-model:selected-options="parent.tags"
             :selected-labels="selectedOptions"
             :show-selected-labels="true"
-            v-bind:show-edit-modal="showEditModal"
+            v-model:showEditModal="showEditModal"
         >
             <template #actions>
-                <div
-                    class="flex items-center rounded-lg px-1 hover:bg-zinc-300/50"
-                    @click="toggleDropdown"
-                    data-test="edit-button"
+                <button
+                    @click="showEditModal = true"
+                    type="button"
+                    :disabled="disabled"
+                    data-test="edit-group"
+                    class="flex items-center rounded-lg px-1 text-sm hover:bg-zinc-300/50"
                 >
-                    <button class="flex items-center text-sm">
-                        edit
-                        <ChevronRightIcon class="h-4 w-4 text-zinc-600" />
-                    </button>
-                </div>
+                    edit
+                    <ChevronRightIcon class="h-4 w-4 text-zinc-600" />
+                </button>
             </template>
         </LCombobox>
 
