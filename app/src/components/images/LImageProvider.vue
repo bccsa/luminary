@@ -131,8 +131,13 @@ const srcset2 = computed(() => {
     return props.image.fileCollections
         .filter((collection) => collection.aspectRatio != closestAspectRatio)
         .map((collection) => {
-            return collection.imageFiles
-                .filter((imgFile) => imgFile.width <= props.parentWidth)
+            let images = collection.imageFiles.filter(
+                (imgFile) => imgFile.width <= props.parentWidth,
+            );
+            if (images.length === 0 && collection.imageFiles.length > 0) {
+                images = [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
+            }
+            return images
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
                 .join(", ");

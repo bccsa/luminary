@@ -1,3 +1,5 @@
+import cloneDeep from "lodash.clonedeep";
+
 type BinaryData = Blob | File | ArrayBuffer | Exclude<ArrayBufferView, SharedArrayBuffer>;
 
 /**
@@ -39,8 +41,8 @@ export class LFormData extends FormData {
 
         const results: any[] = [];
         const seen = new WeakSet();
+        const pathsToDelete: Array<{ parent: any; key: string | number }> = [];
 
-        // parentObj and parentKey track the place to delete in the parent's object
         const find = (value: any, parentObj?: any, parentKey?: string | number) => {
             if (!value || typeof value !== "object") return;
             if (seen.has(value)) return;
@@ -55,13 +57,10 @@ export class LFormData extends FormData {
                     if (this.isBinary(val)) {
                         results.push(value);
                         if (parentObj && parentKey !== undefined) {
-                            // Delete the entire field holding this object from the parent
-                            delete parentObj[parentKey];
+                            pathsToDelete.push({ parent: parentObj, key: parentKey });
                         } else {
-                            // If no parent, delete this binary field itself
-                            delete value[key];
+                            pathsToDelete.push({ parent: value, key });
                         }
-                        // We do NOT return here, continue scanning other fields
                     } else if (typeof val === "object" && val !== null) {
                         find(val, value, key);
                     }
@@ -70,23 +69,25 @@ export class LFormData extends FormData {
         };
 
         find(json);
+        // Remove all found binary fields after collecting
+        for (const { parent, key } of pathsToDelete) {
+            delete parent[key];
+        }
         return results;
     }
 
     append(key: string, value: any) {
         if (typeof value === "object") {
             let fileKey: string;
-            // Get the files inside of the json(if any), extract it, and append it to the FormData object
-            const files = this.extractAnyFile(value);
+            // Work on a deep clone to avoid mutating the original
+            const valueClone = cloneDeep(value);
+            const files = this.extractAnyFile(valueClone);
             if (files.length > 0) {
                 let fileName: string;
-                // Iterate over the binary data and append it to the FormData instance
                 files.forEach((file, index) => {
                     fileKey = `${index}-${key}-files`;
                     Object.entries(file).forEach(([k, v]) => {
                         if (k == "filename") fileName = v as string;
-                        // Each child key attached to fileKey to keep track of images for their perspective
-                        // sibling fields. For Example: 0-key-files.fileName belongs with 0-key-files.fileData
                         const valueKey = `${fileKey}-${k}`;
                         if (
                             typeof v === "string" ||
@@ -103,12 +104,10 @@ export class LFormData extends FormData {
                     });
                 });
             }
-
-            super.append(`${key}-JSON`, JSON.stringify(value));
+            super.append(`${key}-JSON`, JSON.stringify(valueClone));
         } else {
             super.append(key, String(value));
         }
-
         return this;
     }
 }
