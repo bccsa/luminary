@@ -24,13 +24,15 @@ const routeKey = computed(() => {
 
 <template>
     <template v-if="isAuthenticated">
-        <main>
-            <div class="w-full">
-                <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
+        <div class="relative h-screen min-h-screen w-full overflow-hidden">
+            <main class="absolute left-0 top-0 h-full w-full overflow-hidden pl-0">
+                <div class="h-full w-full overflow-hidden">
+                    <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
                     routes (e.g. Post / Tag overviews) -->
-                <RouterView :key="routeKey" />
-            </div>
-        </main>
+                    <RouterView :key="routeKey" />
+                </div>
+            </main>
+        </div>
     </template>
 
     <div v-else class="absolute flex h-full w-full items-center justify-center">

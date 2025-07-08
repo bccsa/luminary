@@ -31,10 +31,12 @@ const sidebarOpen = ref(false);
 </script>
 
 <template>
-    <div class="flex min-h-screen flex-col scrollbar-hide">
+    <div class="flex h-full min-h-screen flex-col scrollbar-hide">
         <MobileSideBar v-model:open="sidebarOpen" />
 
-        <div class="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
+        <div
+            class="absolute bottom-0 left-0 top-0 hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col"
+        >
             <SideBar />
         </div>
 
@@ -68,13 +70,17 @@ const sidebarOpen = ref(false);
                 </TopBar>
             </div>
         </div>
-        <div class="relative min-h-full flex-1">
-            <div v-if="!loading" :class="isFullWidth ? ' mx-auto w-full  ' : 'mx-auto max-w-7xl'">
+        <div class="relative flex h-full min-h-0 flex-1 flex-col">
+            <div
+                v-if="!loading"
+                :class="isFullWidth ? 'mx-auto w-full' : 'mx-auto max-w-7xl'"
+                class="flex h-full flex-1 flex-col"
+            >
                 <RouterLink
                     v-if="backLinkLocation"
                     :to="backLinkLocation"
                     :params="backLinkParams"
-                    class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
+                    class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 sm:pl-60"
                 >
                     <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
                 </RouterLink>
@@ -105,14 +111,12 @@ const sidebarOpen = ref(false);
                 <div class="w-full lg:pl-72">
                     <slot name="internalPageHeader" />
                 </div>
-                <div class="max-h-full px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
+                <div class="flex max-h-full flex-1 flex-col px-4 sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
                     <div
-                        class="relative h-[calc(100vh-8rem)] w-full overflow-y-auto scrollbar-hide"
+                        class="relative z-0 h-full flex-1 overflow-y-auto scrollbar-hide"
                         :class="{ 'mt-2': !$slots.internalPageHeader }"
                     >
-                        <div class="relative z-0">
-                            <slot />
-                        </div>
+                        <slot />
                     </div>
                 </div>
 

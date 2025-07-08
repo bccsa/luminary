@@ -2,32 +2,16 @@
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
 import { XMarkIcon } from "@heroicons/vue/24/outline";
 import SideBar from "@/components/navigation/SideBar.vue";
-import { watch } from "vue";
 
 type Props = {
     open: boolean;
 };
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     open: false,
 });
 
 const emit = defineEmits(["update:open"]);
-
-// Ensure that the body has the overflow-hidden class when the sidebar is open
-// and remove it when the sidebar is closed.
-// This fixes a bug where the body scrolls when the mobile sidebar is open.
-watch(
-    () => props.open,
-    (newValue) => {
-        if (newValue) {
-            document.body.classList.add("overflow-hidden");
-        } else {
-            document.body.classList.remove("overflow-hidden");
-        }
-    },
-    { immediate: true },
-);
 </script>
 
 <template>
