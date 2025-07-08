@@ -15,9 +15,11 @@ import { ChevronRightIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 type Props = {
     disabled?: boolean;
     docType: DocType;
+    showIcon?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
+    showIcon: true,
 });
 
 // Bind the model for selected groups using Vue's defineModel
@@ -94,6 +96,7 @@ const showEditModal = ref(false);
             :showSelectedInDropdown="false"
             badgeVariant="blue"
             v-model:showEditModal="showEditModal"
+            :showIcon="props.showIcon"
         >
             <template #actions>
                 <button
