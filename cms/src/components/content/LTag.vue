@@ -18,7 +18,7 @@ const emit = defineEmits(["remove"]);
 <template>
     <div
         :class="[
-            'flex gap-2 rounded-md border border-zinc-200 bg-zinc-50 py-1 pl-2  text-sm text-zinc-900 shadow-sm',
+            'mt-0.5 flex gap-2 rounded-md border border-zinc-200 bg-zinc-50 py-1 pl-2 text-sm text-zinc-900 shadow-sm',
             disabled ? 'pr-2' : 'pr-1',
         ]"
     >
