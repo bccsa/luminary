@@ -258,4 +258,31 @@ describe("EditContentStatus.vue", () => {
         // Check if the expiry date input field has the correct value
         expect(expiryDateInput.element.value).toBe(db.toIsoDateTime(content.value.expiryDate!));
     });
+
+    it("shows the message error when clicking on expiry date shortcut buttons without setting a publish date", async () => {
+        const content = ref<ContentDto>({
+            ...mockData.mockEnglishContentDto,
+            publishDate: undefined,
+        });
+        const wrapper = mount(EditContentStatus, {
+            props: {
+                disabled: false,
+                content: content.value,
+                disablePublish: false,
+            },
+        });
+
+        // Find the expiry date shortcut buttons
+        const one = wrapper.find("[name='1']");
+        const week = wrapper.find("[name='W']");
+
+        // Click on the shortcut buttons
+        await one.trigger("click");
+        await week.trigger("click");
+
+        // Check if the error message is displayed
+        expect(wrapper.text()).toContain(
+            "Please set a publish date before using the expiry shortcut.",
+        );
+    });
 });
