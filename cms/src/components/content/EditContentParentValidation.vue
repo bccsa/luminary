@@ -8,7 +8,7 @@ import {
     TagType,
     PostType,
 } from "luminary-shared";
-import { ref, watch, watchEffect } from "vue";
+import { computed, ref, watch, watchEffect } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import LanguageSelector from "./LanguageSelector.vue";
 import {
@@ -20,6 +20,7 @@ import {
 import _ from "lodash";
 import LCard from "../common/LCard.vue";
 import LButton from "../button/LButton.vue";
+import { useRouter } from "vue-router";
 
 type Props = {
     languages: LanguageDto[];
@@ -33,7 +34,7 @@ type Props = {
     tagOrPostType: TagType | PostType;
     canDelete: boolean;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
 const editableParent = defineModel<ContentParentDto>("editableParent");
 const editableContent = defineModel<ContentDto[]>("editableContent");
 
@@ -42,6 +43,20 @@ const overallValidations = ref([] as Validation[]);
 const overallIsValid = ref(true);
 
 const showLanguageSelector = ref(false);
+const isCardCollapsed = ref(false);
+
+const router = useRouter();
+const selectedLanguage = computed(() => {
+    return props.languages.find(
+        (l) => l.languageCode == router.currentRoute.value.params.languageCode,
+    );
+});
+
+const lang = computed(() => {
+    return isCardCollapsed.value
+        ? props.languages?.filter((l) => l._id == selectedLanguage.value?._id)
+        : props.languages;
+});
 
 const setOverallValidation = (id: Uuid, isValid: boolean) => {
     let validation = overallValidations.value.find((v) => v.id == id);
@@ -112,11 +127,16 @@ watch(
 </script>
 
 <template>
-    <LCard class="bg-white" title="Translations" :icon="LanguageIcon" collapsible>
+    <LCard
+        class="bg-white"
+        title="Translations"
+        :icon="LanguageIcon"
+        collapsible
+        v-model:collapsed="isCardCollapsed"
+    >
         <template #actions>
-            <div class="flex flex-col items-center gap-2 md:hidden">
+            <div class="relative flex flex-col items-end gap-2 md:hidden">
                 <LButton
-                    v-if="editableParent && canTranslate && untranslatedLanguages.length > 0"
                     :icon="PlusIcon"
                     class="w-fit"
                     variant="muted"
@@ -124,18 +144,33 @@ watch(
                     data-test="add-translation-button"
                 />
 
-                <LanguageSelector
-                    v-if="untranslatedLanguages.length > 0"
-                    :languages="untranslatedLanguages"
-                    :parent="editableParent"
-                    :content="editableContent"
-                    :showSelector="showLanguageSelector"
-                    @create-translation="
-                        (language) => {
-                            emit('createTranslation', language);
-                            showLanguageSelector = false;
-                        }
-                    "
+                <div v-if="untranslatedLanguages.length > 0" class="absolute right-48 z-10 mt-2">
+                    <LanguageSelector
+                        :languages="untranslatedLanguages"
+                        :parent="editableParent"
+                        :content="editableContent"
+                        :showSelector="showLanguageSelector"
+                        @create-translation="
+                            (language) => {
+                                emit('createTranslation', language);
+                                showLanguageSelector = false;
+                            }
+                        "
+                    />
+                </div>
+            </div>
+        </template>
+
+        <template #persistent>
+            <div class="flex flex-col gap-2">
+                <EditContentValidation
+                    v-for="content in editableContent?.filter((c) => !c.deleteReq)"
+                    :editableContent="content"
+                    :languages="lang"
+                    :key="content._id"
+                    @isValid="(val) => setOverallValidation(content._id, val)"
+                    :existingContent="existingContent?.find((c) => c._id == content._id)"
+                    :can-delete="canDelete"
                 />
             </div>
         </template>
@@ -183,17 +218,7 @@ watch(
                     </div>
                 </div>
             </div>
-            <div class="flex flex-col gap-2">
-                <EditContentValidation
-                    v-for="content in editableContent?.filter((c) => !c.deleteReq)"
-                    :editableContent="content"
-                    :languages="languages"
-                    :key="content._id"
-                    @isValid="(val) => setOverallValidation(content._id, val)"
-                    :existingContent="existingContent?.find((c) => c._id == content._id)"
-                    :can-delete="canDelete"
-                />
-            </div>
+
             <div class="hidden flex-col items-center md:flex">
                 <LanguageSelector
                     v-if="untranslatedLanguages.length > 0"
