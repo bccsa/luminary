@@ -20,12 +20,17 @@ const props = withDefaults(defineProps<Props>(), {
 const modelCollapsed = defineModel<boolean>("collapsed");
 const collapsed = ref(modelCollapsed?.value ?? props.defaultCollapsed);
 
+const emit = defineEmits<{
+    (e: "update:collapsed", value: boolean): void;
+}>();
+
 // Sync v-model if defined
 watch(modelCollapsed, (newVal) => {
     if (newVal !== undefined) collapsed.value = newVal;
 });
 watch(collapsed, (newVal) => {
     if (modelCollapsed.value) modelCollapsed.value = newVal;
+    emit("update:collapsed", newVal);
 });
 
 function collapse() {
@@ -70,6 +75,9 @@ function collapse() {
                 </button>
             </div>
         </div>
+
+        <slot name="persistent" />
+
         <div v-show="!collapsed" data-test="collapsible-container">
             <div
                 :class="{
