@@ -149,6 +149,7 @@ const deleteTranslation = () => {
         v-slot="{ isActive }"
     >
         <div
+            v-if="languages.find((l) => l._id == editableContent?.language)"
             :class="[
                 'rounded-md px-2 py-1.5',
                 {
