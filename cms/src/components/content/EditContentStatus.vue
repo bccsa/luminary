@@ -48,6 +48,7 @@ const expiryDateString = computed({
 
 const selectedExpiryNumber = ref<number | undefined>(undefined);
 const selectedExpiryUnit = ref<string | undefined>(undefined);
+const showPublishDateWarning = ref(false);
 
 const calculateExpiryDate = () => {
     if (
@@ -55,8 +56,12 @@ const calculateExpiryDate = () => {
         !content.value.publishDate ||
         !selectedExpiryNumber.value ||
         !selectedExpiryUnit.value
-    )
+    ) {
+        showPublishDateWarning.value = true; // Show warning if publish date is not set
         return;
+    }
+
+    showPublishDateWarning.value = false; // Hide warning if publish date is set
 
     switch (selectedExpiryUnit.value) {
         case "Week":
@@ -98,6 +103,7 @@ const clearExpirySelection = () => {
 const clearExpiryDate = () => {
     if (content.value) content.value.expiryDate = undefined;
     clearExpirySelection();
+    showPublishDateWarning.value = false; // Hide warning when clearing
 };
 </script>
 
@@ -125,7 +131,15 @@ const clearExpiryDate = () => {
             </div>
         </div>
 
-        <div class="mt-4 flex flex-col gap-4">
+        <div class="mt-4 flex flex-col gap-4 text-center">
+            <!-- Warning message -->
+            <div
+                v-show="showPublishDateWarning && !content.publishDate"
+                class="text-xs text-red-600"
+            >
+                Please set a publish date before using the expiry shortcut.
+            </div>
+
             <!-- Publish -->
             <div class="flex items-center gap-2">
                 <FormLabel class="w-24">Publish date</FormLabel>
