@@ -206,8 +206,8 @@ defineExpose({
                     </div>
                 </div>
             </div>
-            <div v-else class="my-4 md:hidden">
-                @deleteUploadData="removeFileUploadData" :disabled="!disabled" />
+            <div v-else class="my-4 text-center italic">
+                <p class="text-sm text-gray-500">No images uploaded yet.</p>
             </div>
         </div>
     </div>
