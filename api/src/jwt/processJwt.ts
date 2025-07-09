@@ -13,7 +13,6 @@ export type JwtUserDetails = {
     userId?: Uuid;
     email?: string;
     name?: string;
-    lastLogin?: number;
     jwtPayload?: JWT.JwtPayload;
     accessMap?: AccessMap;
 };
@@ -123,7 +122,7 @@ export async function processJwt(
     const userDocs = (await db.getUserByIdOrEmail(email, userId)).docs as UserDto[];
 
     // Update user details in the database (if changed) if userId is set
-    if (userId) {
+    if (userId || email) {
         for (const d of userDocs) {
             const updated = { ...d, userId, email, lastLogin };
             if (name) updated.name = name;
@@ -144,5 +143,5 @@ export async function processJwt(
     if (!userId) userId = email || "";
     userId = userId.toString();
 
-    return { groups, userId, lastLogin, email, name, jwtPayload, accessMap };
+    return { groups, userId, email, name, jwtPayload, accessMap };
 }
