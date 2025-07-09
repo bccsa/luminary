@@ -121,10 +121,13 @@ export async function processJwt(
 
     const userDocs = (await db.getUserByIdOrEmail(email, userId)).docs as UserDto[];
 
-    // Update user details in the database (if changed) if userId is set
+    // Update user details in the database if either userId or email is set
     if (userId || email) {
         for (const d of userDocs) {
-            const updated = { ...d, userId, email, lastLogin };
+            const updated = { ...d, lastLogin };
+            // To avoid trying to set undefined values, check these following values seperately
+            if (userId) updated.userId = userId;
+            if (email) updated.email = email;
             if (name) updated.name = name;
             await db.upsertDoc(updated);
         }
