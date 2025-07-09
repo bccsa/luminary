@@ -9,7 +9,6 @@ import { ref } from "vue";
 type Props = {
     parent?: ContentParentDto;
     content?: ContentDto[];
-    languages: LanguageDto[];
 };
 
 defineProps<Props>();
@@ -17,6 +16,7 @@ defineProps<Props>();
 const emit = defineEmits(["createTranslation"]);
 
 const showSelector = defineModel<boolean>("showSelector");
+const languages = defineModel<LanguageDto[]>("languages");
 
 const languagePopup = ref();
 
