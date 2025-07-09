@@ -77,6 +77,9 @@ describe("UserOverview", () => {
 
         // Reset the rest api client to use the new config
         getRest({ reset: true });
+
+        window.innerWidth = 1600; // Set a width greater than 1500px to trigger desktop view
+        window.dispatchEvent(new Event("resize"));
     });
 
     beforeEach(() => {
