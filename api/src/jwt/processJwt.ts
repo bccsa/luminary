@@ -13,6 +13,7 @@ export type JwtUserDetails = {
     userId?: Uuid;
     email?: string;
     name?: string;
+    lastLogin?: number;
     jwtPayload?: JWT.JwtPayload;
     accessMap?: AccessMap;
 };
@@ -70,7 +71,7 @@ export async function processJwt(
     let userId: string;
     let email: string;
     let name: string;
-    let lastLogin: number;
+    const lastLogin = Date.now();
 
     // Load the JWT mappings if not already loaded
     if (!jwtMap) {
@@ -109,8 +110,6 @@ export async function processJwt(
         if (jwtMap["name"]) {
             name = jwtMap["name"](jwtPayload);
         }
-
-        lastLogin = Date.now();
     } catch (err) {
         logger?.error(`Unable to get JWT mappings`, err);
         return { groups: [] };
@@ -145,5 +144,5 @@ export async function processJwt(
     if (!userId) userId = email || "";
     userId = userId.toString();
 
-    return { groups, userId, email, name, jwtPayload, accessMap };
+    return { groups, userId, lastLogin, email, name, jwtPayload, accessMap };
 }
