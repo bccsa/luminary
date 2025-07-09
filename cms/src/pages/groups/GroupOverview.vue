@@ -83,7 +83,7 @@ const canCreateGroup = computed(() => {
 </script>
 
 <template>
-    <BasePage title="Groups" :loading="combinedGroups === undefined">
+    <BasePage title="Groups" :is-full-width="true" :loading="combinedGroups === undefined">
         <template #actions>
             <LButton
                 v-if="combinedGroups && combinedGroups.length > 0 && canCreateGroup"

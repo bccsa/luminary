@@ -16,7 +16,11 @@ const emit = defineEmits(["update:open"]);
 
 <template>
     <TransitionRoot as="template" :show="open">
-        <Dialog as="div" class="relative z-50 lg:hidden" @close="emit('update:open', false)">
+        <Dialog
+            as="div"
+            class="relative z-50 overflow-hidden lg:hidden"
+            @close="emit('update:open', false)"
+        >
             <TransitionChild
                 as="template"
                 enter="transition-opacity ease-linear duration-300"
@@ -61,7 +65,7 @@ const emit = defineEmits(["update:open"]);
                             </div>
                         </TransitionChild>
 
-                        <SideBar />
+                        <SideBar @close="emit('update:open', false)" />
                     </DialogPanel>
                 </TransitionChild>
             </div>
