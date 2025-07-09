@@ -65,7 +65,7 @@ const emit = defineEmits(["update:open"]);
                             </div>
                         </TransitionChild>
 
-                        <SideBar />
+                        <SideBar @close="emit('update:open', false)" />
                     </DialogPanel>
                 </TransitionChild>
             </div>

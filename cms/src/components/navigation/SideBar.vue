@@ -27,6 +27,8 @@ type NavigationEntry = {
     children?: NavigationEntry[];
 };
 
+defineEmits(["close"]);
+
 const navigation = ref<NavigationEntry[]>([
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
     {
@@ -115,6 +117,7 @@ watch(route, (newRoute) => {
                                 active-class="bg-zinc-200 text-zinc-950"
                                 class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
                                 v-slot="{ isActive }"
+                                @click="$emit('close')"
                             >
                                 <component
                                     :is="item.icon"
@@ -159,6 +162,7 @@ watch(route, (newRoute) => {
                                             :to="subItem.to"
                                             active-class="bg-zinc-200 text-zinc-900"
                                             class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
+                                            @click="$emit('close')"
                                         >
                                             {{ subItem.name }}
                                         </DisclosureButton>
