@@ -1,5 +1,3 @@
-import cloneDeep from "lodash.clonedeep";
-
 type BinaryData = Blob | File | ArrayBuffer | Exclude<ArrayBufferView, SharedArrayBuffer>;
 
 /**
@@ -80,7 +78,7 @@ export class LFormData extends FormData {
         if (typeof value === "object") {
             let fileKey: string;
             // Work on a deep clone to avoid mutating the original
-            const valueClone = cloneDeep(value);
+            const valueClone = { ...value };
             const files = this.extractAnyFile(valueClone);
             if (files.length > 0) {
                 let fileName: string;
