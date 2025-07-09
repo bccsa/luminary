@@ -10,10 +10,7 @@ import { RouterLink, type RouteLocationNamedRaw } from "vue-router";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
 import ContentTable from "../ContentTable.vue";
-import { cmsLanguageIdAsRef, isSmallScreen } from "@/globalConfig";
-import FilterOptions from "./FilterOptions.vue";
-import FilterOptionsMobile from "./FilterOptionsMobile.vue";
-import FilterOptionsDesktop from "./FilterOptionsDesktop.vue";
+import { cmsLanguageIdAsRef } from "@/globalConfig";
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();

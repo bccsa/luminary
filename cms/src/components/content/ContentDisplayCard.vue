@@ -15,7 +15,6 @@ import LBadge from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import { DateTime } from "luxon";
 import { ClockIcon, TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
-import { PencilIcon } from "@heroicons/vue/24/solid";
 import router from "@/router";
 import { cmsDefaultLanguage, isSmallScreen } from "@/globalConfig";
 
