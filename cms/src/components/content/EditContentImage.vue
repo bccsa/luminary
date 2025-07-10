@@ -78,6 +78,11 @@ const handleFileChange = () => {
                 Uploaded images are automatically scaled for various screen and display sizes.
             </p>
         </div>
-        <ImageEditor ref="imageEditorRef" :disabled="disabled" v-model:parent="parent" />
+        <ImageEditor
+            ref="imageEditorRef"
+            :disabled="disabled"
+            v-model:parent="parent"
+            class="scrollbar-hide"
+        />
     </LCard>
 </template>
