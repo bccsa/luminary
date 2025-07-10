@@ -189,13 +189,17 @@ const navigateToLanguage = (language: LanguageDto) => {
 
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <div class="flex flex-1 items-center gap-1">
-                <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-                <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
-                    {{ group.name }}
-                </LBadge>
+                <div>
+                    <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                </div>
+                <div class="flex flex-wrap gap-1">
+                    <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
+                        {{ group.name }}
+                    </LBadge>
+                </div>
             </div>
             <div class="flex w-max items-start text-xs text-zinc-400">
-                <ClockIcon class="h-3 w-3 text-zinc-400" />
+                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("small", "Last Updated", contentDoc.updatedTimeUtc)
                 }}</span>
@@ -210,7 +214,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                 </LBadge>
             </div>
             <div class="flex items-center justify-end text-zinc-400">
-                <ClockIcon class="text-zinc-340 h-4 w-4" />
+                <ClockIcon class="text-zinc-340 mr-[1px] h-4 w-4" />
                 <span title="Last Updated">{{
                     renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
                 }}</span>
