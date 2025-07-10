@@ -597,7 +597,7 @@ watch(
         v-if="!newDocument && !editableParent?.updatedTimeUtc"
         class="relative flex items-center justify-center"
     >
-        <div class="flex flex-col items-center gap-4">
+        <div class="flex flex-col items-center gap-[3px]">
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
         </div>
     </div>
@@ -728,10 +728,10 @@ watch(
                 </div>
             </div>
         </template>
-        <div class="relative mb-5 grid min-h-full grid-cols-3 gap-3">
+        <div class="relative mb-5 grid min-h-full grid-cols-3 gap-[3px]">
             <!-- Sidebar -->
             <div class="relative col-span-3 md:col-span-1" v-if="editableParent">
-                <div class="relative size-full space-y-3">
+                <div class="relative size-full space-y-[3px]">
                     <EditContentParent
                         v-if="editableParent"
                         :docType="props.docType"
@@ -788,7 +788,7 @@ watch(
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="mb-48 space-y-3">
+                <div v-else class="mb-48 space-y-[3px]">
                     <EditContentStatus
                         v-model:content="selectedContent"
                         :disabled="!canTranslate"
