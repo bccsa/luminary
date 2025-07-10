@@ -116,8 +116,9 @@ defineExpose({
 </script>
 
 <template>
-    <div class="flex-col overflow-x-auto">
-        <div :disabled="disabled" class="flex justify-between">
+    <div class="flex flex-col overflow-x-auto">
+        <!-- Header with error message toggle -->
+        <div :disabled="disabled" class="flex justify-between px-4">
             <div class="flex">
                 <button
                     v-if="failureMessage"
@@ -130,24 +131,25 @@ defineExpose({
             </div>
         </div>
 
-        <!-- Description and Instructions -->
-        <div v-if="showFailureMessage">
+        <!-- Error Message -->
+        <div v-if="showFailureMessage" class="px-4">
             <p class="my-2 text-xs text-red-600">
                 {{ failureMessage }}
             </p>
         </div>
 
-        <!-- Drag and Drop Area or File Picker -->
+        <!-- Full-width Drag and Drop Area -->
         <div
-            class="flex flex-col justify-center border-2 border-gray-300 bg-white p-2 transition duration-150 ease-in-out"
+            class="-mx-4 flex w-screen flex-col justify-center bg-white transition duration-150 ease-in-out scrollbar-hide sm:mx-0 sm:w-full"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"
             @drop="handleDrop"
             :class="{
-                ' border-blue-500 bg-blue-50': isDragging,
+                'border-blue-500 bg-blue-50': isDragging,
             }"
         >
+            <!-- Drop instructions -->
             <div class="hidden flex-col items-center justify-center md:flex">
                 <p v-if="isDragging" class="text-sm">Drop your files here</p>
                 <div v-else>
@@ -163,12 +165,14 @@ defineExpose({
                 </div>
             </div>
 
+            <!-- Thumbnails -->
             <div
                 v-if="
                     parent &&
                     parent.imageData &&
                     (parent.imageData.fileCollections.length > 0 || parent.imageData.uploadData)
                 "
+                class="mx-2 px-2 pb-2 scrollbar-hide md:mx-0"
             >
                 <div
                     v-if="
@@ -176,14 +180,14 @@ defineExpose({
                         (parent.imageData.fileCollections.length > 0 ||
                             (parent.imageData.uploadData && parent.imageData.uploadData.length > 0))
                     "
-                    class="flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden pb-2 pt-4 scrollbar-hide"
+                    class="flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden scrollbar-hide"
                     data-test="thumbnail-area"
                 >
-                    <!-- File Collections Thumbnails -->
+                    <!-- File Collections -->
                     <div
                         v-for="c in parent.imageData.fileCollections"
                         :key="c.aspectRatio"
-                        class="flex shrink-0 items-center justify-center rounded text-xs shadow"
+                        class="mb-1 mt-2 flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
                     >
                         <ImageEditorThumbnail
                             :imageFileCollection="c"
@@ -192,7 +196,7 @@ defineExpose({
                         />
                     </div>
 
-                    <!-- Upload Data Thumbnails -->
+                    <!-- Upload Data -->
                     <div
                         v-for="u in parent.imageData.uploadData"
                         :key="u.filename"
@@ -206,6 +210,8 @@ defineExpose({
                     </div>
                 </div>
             </div>
+
+            <!-- No images fallback -->
             <div v-else class="my-4 text-center italic">
                 <p class="text-sm text-gray-500">No images uploaded yet.</p>
             </div>
