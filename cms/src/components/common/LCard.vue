@@ -81,8 +81,8 @@ function collapse() {
         <div v-show="!collapsed" data-test="collapsible-container">
             <div
                 :class="{
-                    'px-3 py-3 sm:px-2': padding == 'normal',
-                    'pt-5': padding == 'none' && title,
+                    'px-2 py-2 sm:px-1': padding == 'normal',
+                    'pt-2': padding == 'none' && title,
                 }"
             >
                 <slot />
