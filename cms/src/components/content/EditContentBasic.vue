@@ -147,8 +147,8 @@ const existingRedirectForSlug = useDexieLiveQuery(
 
                         <!-- Slug -->
                         <div class="flex flex-col gap-1">
-                            <div class="mt-0 flex gap-1 align-top text-xs text-zinc-800">
-                                <span class="py-0.5">Slug:</span>
+                            <div class="mt-0 flex items-center gap-2 align-top text-zinc-800">
+                                <FormLabel class="w-16">Slug:</FormLabel>
                                 <span
                                     v-show="!isEditingSlug"
                                     data-test="slugSpan"
@@ -161,7 +161,7 @@ const existingRedirectForSlug = useDexieLiveQuery(
                                     ref="slugInput"
                                     name="slug"
                                     size="sm"
-                                    class="w-full"
+                                    class="flex-1"
                                     v-model="content.slug"
                                     @blur="
                                         isEditingSlug = false;
