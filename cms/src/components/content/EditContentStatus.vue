@@ -122,7 +122,7 @@ const clearExpiryDate = () => {
         </template>
 
         <div class="flex flex-col items-center gap-2">
-            <div class="text-xs text-zinc-700">
+            <div class="text-center text-xs text-zinc-700">
                 {{
                     content.status == PublishStatus.Draft
                         ? "This content will never be visible in the app"
