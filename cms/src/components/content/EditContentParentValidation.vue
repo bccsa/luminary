@@ -162,7 +162,12 @@ watch(
         </template>
 
         <template #persistent>
-            <div class="flex flex-col gap-2">
+            <div
+                class="flex flex-col gap-2"
+                :class="{
+                    'pb-2 pt-0': isCardCollapsed,
+                }"
+            >
                 <EditContentValidation
                     v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                     :editableContent="content"
@@ -171,6 +176,7 @@ watch(
                     @isValid="(val) => setOverallValidation(content._id, val)"
                     :existingContent="existingContent?.find((c) => c._id == content._id)"
                     :can-delete="canDelete"
+                    :isCardCollapsed="isCardCollapsed"
                 />
             </div>
         </template>
