@@ -21,46 +21,16 @@ async function waitForExpect(
     throw lastError;
 }
 
-// Helper function to handle Auth0 login
-async function loginWithAuth0(page) {
-    try {
-        // 1. Go to your app's login page
-        await page.goto("/", { waitUntil: "networkidle" });
-
-        // 2. Click the login button if present
-        const loginButtonVisible = await page.isVisible(
-            'button:has-text("Login"), a:has-text("Login")',
-        );
-        if (loginButtonVisible) {
-            await page.click('button:has-text("Login"), a:has-text("Login")');
-        }
-
-        // 3. Wait for Auth0 login page by URL
-        await page.waitForURL(/auth0/, { timeout: 10000 });
-
-        // 4. Fill Auth0 login form
-        await page.waitForSelector('input[name="username"], input[type="email"]', {
-            timeout: 10000,
-        });
-        await page.fill('input[name="username"], input[type="email"]', "test-user@example.com");
-        await page.click('button[type="submit"]');
-        await page.fill('input[name="password"], input[type="password"]', "test-password");
-        await page.click('button[type="submit"]');
-
-        // 5. Wait for redirect back to your app
-        await page.waitForNavigation({ waitUntil: "networkidle" });
-
-        console.log("Successfully logged in with Auth0");
-    } catch (error) {
-        console.error("Auth0 login failed:", error);
-        throw error;
-    }
-}
-
-// Use a persistent context for indexedDB support
+//indexedDB.databases() is not supported in all browsers so make context chromium
 const test = base.extend({
+    // Playwright requires the first parameter in the context function to be an object
+    // "_" does not work here.
+    // eslint-disable-next-line no-empty-pattern
     context: async ({}, use) => {
         const context = await chromium.launchPersistentContext("", {
+            // NOTE: Run in headful mode to see the browser actions
+            // This is useful for debugging, but can be set to true for CI runs
+            // or when you don't need to see the browser actions.
             headless: true,
             locale: "en",
         });
@@ -69,17 +39,39 @@ const test = base.extend({
     },
 });
 
-test("it syncs correct document types to the cms client", async ({ context }) => {
+const handleAuth0 = async (page: any) => {
+    // Create a new random user email
+    // This is necessary because the Auth0 test user might already exist
+    // and the easiest way to avoid conflicts is to create a new user each time
+    const userEmail = "test" + Math.floor(Math.random() * 999999999) + "@gmail.com";
+
+    await page.goto("http://localhost:5173", { waitUntil: "networkidle" });
+
+    const currentUrl = page.url();
+    expect(currentUrl).toMatch(/auth0\.com/);
+
+    //Find the sign up button and click it
+    const signUpButton = page.locator('a:has-text("Sign Up")');
+    await signUpButton.click();
+
+    await page.fill('input[name="email"]', userEmail);
+    await page.fill('input[name="password"]', "#test@1234");
+
+    await page.click('button[type="submit"]');
+
+    await page.click('button[type="submit"]');
+
+    // Wait for any post load navigation to prevent errors
+    await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 });
+};
+
+test("it syncs correct document types to the app(non-cms) client", async ({ context }) => {
     const page = await context.newPage();
-
-    await loginWithAuth0(page);
-
-    // You may not need to re-navigate after login, but if you do:
-    await page.goto("/", { waitUntil: "networkidle" });
-    await page.waitForTimeout(1000);
+    await handleAuth0(page);
 
     const result = await page.evaluate(async () => {
         return new Promise((resolve, reject) => {
+            //Ensure that the browser supports indexedDB.databases() as it is not supported in all browsers
             if ("databases" in indexedDB) {
                 const dbRequest = indexedDB.open("luminary-db");
                 dbRequest.onerror = (event) => {
@@ -90,11 +82,14 @@ test("it syncs correct document types to the cms client", async ({ context }) =>
                     const db = dbRequest.result;
                     const transaction = db.transaction("docs", "readonly");
                     const objectStore = transaction.objectStore("docs");
+
                     const request = objectStore.getAll();
+
                     request.onerror = (event) => {
                         console.error("Error getting all documents", event);
                         reject("Error getting all documents");
                     };
+
                     request.onsuccess = () => {
                         const documents = request.result;
                         resolve(documents);
@@ -110,8 +105,8 @@ test("it syncs correct document types to the cms client", async ({ context }) =>
     await waitForExpect(() => {
         expect(result).toBeDefined();
         const types = [...new Set(result.map((doc: any) => doc.type))];
-        expect(types).toEqual(
-            expect.arrayContaining(["language", "redirect", "content", "group", "post", "tag"]),
+        expect(types.sort()).toEqual(
+            ["content", "group", "language", "post", "redirect", "tag"].sort(),
         );
     });
 });
