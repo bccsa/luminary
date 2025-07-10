@@ -32,6 +32,7 @@ const sortedLanguages = computed(() => {
     return props.languages.slice().sort((a, b) => a.name.localeCompare(b.name));
 });
 
+const isCardCollapsed = defineModel<boolean>("isCardCollapsed");
 const showDeleteModal = ref(false);
 
 const usedLanguage = computed(() => {
@@ -151,9 +152,10 @@ const deleteTranslation = () => {
         <div
             v-if="languages.find((l) => l._id == editableContent?.language)"
             :class="[
-                'rounded-md px-2 py-1.5',
+                ' rounded-md px-2 py-1.5',
                 {
-                    'cursor-default bg-white shadow': isActive,
+                    'cursor-default bg-yellow-100/80 shadow': isActive && !isCardCollapsed,
+                    'border-1.5 cursor-default bg-white shadow': isActive && isCardCollapsed,
                     'border bg-white/80 hover:bg-white/100': !isActive,
                 },
             ]"
