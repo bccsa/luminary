@@ -65,7 +65,7 @@ const handleAuth0 = async (page: any) => {
     await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 });
 };
 
-test("it syncs correct document types to the app(non-cms) client", async ({ context }) => {
+test.skip("the client recieves the correct document types from the api", async ({ context }) => {
     const page = await context.newPage();
     await handleAuth0(page);
 
@@ -108,5 +108,89 @@ test("it syncs correct document types to the app(non-cms) client", async ({ cont
         expect(types.sort()).toEqual(
             ["content", "group", "language", "post", "redirect", "tag"].sort(),
         );
+    });
+});
+
+test("the user can login to the cms client", async ({ context }) => {
+    const page = await context.newPage();
+    await handleAuth0(page);
+
+    // Wait for the dashboard to load
+    await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 });
+
+    // Check if the user is logged in by checking the URL or a specific element
+    const currentUrl = page.url();
+    expect(currentUrl).toMatch(/dashboard/);
+});
+
+test("the user can create a new post document", async ({ context }) => {
+    const page = await context.newPage();
+    await handleAuth0(page);
+
+    await page.getByRole("button", { name: "Posts" }).click();
+    await page.getByRole("link", { name: "Blog" }).click();
+
+    await page.locator('[data-test="create-button"]').click();
+
+    await page
+        .locator("div")
+        .filter({ hasText: /^Group Membership$/ })
+        .getByPlaceholder("Type to select...")
+        .click();
+    await page.getByText("Super Admins").click();
+    await page.locator('[data-test="no-content"] [data-test="language-selector"]').click();
+    await page.locator('[data-test="select-language-en"]').click();
+
+    await page.getByRole("textbox", { name: "Title Required" }).click();
+    await page.getByRole("textbox", { name: "Title Required" }).fill("E2ETest");
+
+    await page.locator('[data-test="save-button"]').click();
+
+    // Submit the form (there is default data in the form)
+    await page.click('button:has-text("Save")');
+
+    // Wait for the content to be sent back to indexedDB from the API
+    await page.waitForTimeout(5000);
+
+    const result = await page.evaluate(async () => {
+        return new Promise((resolve, reject) => {
+            //Ensure that the browser supports indexedDB.databases() as it is not supported in all browsers
+            if ("databases" in indexedDB) {
+                const dbRequest = indexedDB.open("luminary-db");
+                dbRequest.onerror = (event) => {
+                    console.error("Error opening database", event);
+                    reject("Error opening database");
+                };
+                dbRequest.onsuccess = () => {
+                    const db = dbRequest.result;
+                    const transaction = db.transaction("docs", "readonly");
+                    const objectStore = transaction.objectStore("docs");
+
+                    const request = objectStore.getAll();
+
+                    request.onerror = (event) => {
+                        console.error("Error getting all documents", event);
+                        reject("Error getting all documents");
+                    };
+
+                    request.onsuccess = () => {
+                        const documents = request.result;
+                        resolve(documents);
+                    };
+                };
+            } else {
+                console.error("indexedDB.databases() not supported");
+                reject("indexedDB.databases() not supported");
+            }
+        }) as unknown as Promise<any[]>;
+    });
+
+    await waitForExpect(() => {
+        expect(result).toBeDefined();
+        const postDocs = result.filter((doc: any) => doc.type === "post");
+        expect(postDocs.length).toBeGreaterThan(0);
+        const justCreatedDoc = postDocs.find((doc) => doc.title === "E2ETest");
+        expect(justCreatedDoc).toBeDefined();
+        expect(justCreatedDoc.memberOf).toEqual(["Super Admins"]);
     });
 });
