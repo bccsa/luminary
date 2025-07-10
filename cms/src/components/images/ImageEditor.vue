@@ -172,7 +172,7 @@ defineExpose({
                     parent.imageData &&
                     (parent.imageData.fileCollections.length > 0 || parent.imageData.uploadData)
                 "
-                class="mx-2 px-2 pb-2 scrollbar-hide md:mx-0"
+                class="mx-2 pb-2 scrollbar-hide md:mx-0"
             >
                 <div
                     v-if="
