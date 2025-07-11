@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
-import { Bars3Icon } from "@heroicons/vue/24/outline";
+import { Bars3Icon, ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { ref, type Component } from "vue";
-import { RouterLink, type RouteLocationRaw } from "vue-router";
+import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import MobileSideBar from "./navigation/MobileSideBar.vue";
 import SideBar from "./navigation/SideBar.vue";
@@ -28,6 +28,8 @@ withDefaults(defineProps<Props>(), {
 });
 
 const sidebarOpen = ref(false);
+const router = useRouter();
+const isEditContentPage = router.currentRoute.value.name === "edit";
 </script>
 
 <template>
@@ -48,10 +50,23 @@ const sidebarOpen = ref(false);
                 <button
                     type="button"
                     class="-m-2.5 p-2.5 text-zinc-700 lg:hidden"
-                    @click="sidebarOpen = true"
+                    @click="
+                        !isEditContentPage
+                            ? (sidebarOpen = true)
+                            : router.push({ name: 'overview' })
+                    "
                 >
                     <span class="sr-only">Open sidebar</span>
-                    <Bars3Icon class="h-6 w-6" aria-hidden="true" />
+                    <Bars3Icon
+                        class="h-6 w-6"
+                        :class="{ hidden: isEditContentPage }"
+                        aria-hidden="true"
+                    />
+                    <ChevronLeftIcon
+                        class="h-6 w-6 lg:hidden"
+                        :class="{ hidden: !isEditContentPage }"
+                        aria-hidden="true"
+                    />
                 </button>
 
                 <!-- Separator -->
@@ -67,13 +82,16 @@ const sidebarOpen = ref(false);
                         </h1>
                         <slot name="pageNav"> </slot>
                     </template>
+                    <template #contentActions>
+                        <slot name="topBarActions" />
+                    </template>
                 </TopBar>
             </div>
         </div>
         <div class="relative flex h-full min-h-0 flex-1 flex-col">
             <div
                 v-if="!loading"
-                :class="isFullWidth ? 'mx-auto w-full' : 'mx-auto max-w-7xl'"
+                :class="isFullWidth ? 'mx-auto w-full' : 'min-w-full max-w-7xl'"
                 class="flex h-full flex-1 flex-col"
             >
                 <RouterLink
@@ -87,7 +105,7 @@ const sidebarOpen = ref(false);
                 <header
                     v-if="$slots.actions"
                     :class="[
-                        'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center lg:pl-80',
+                        'flex items-center justify-between gap-4 py-4 pl-4 pr-8 sm:flex-row sm:items-center lg:pl-80',
                         {
                             'sm:justify-center': centered,
                             'sm:justify-between': !centered,
@@ -111,7 +129,7 @@ const sidebarOpen = ref(false);
                 <div class="w-full lg:pl-72">
                     <slot name="internalPageHeader" />
                 </div>
-                <div class="max-h-full sm:px-6 lg:ml-8 lg:pl-72 lg:pr-8">
+                <div class="max-h-full sm:px-3 lg:ml-8 lg:pl-72 lg:pr-8">
                     <div
                         class="relative z-0 h-full flex-1 overflow-y-auto scrollbar-hide"
                         :class="{ 'mt-2': !$slots.internalPageHeader }"

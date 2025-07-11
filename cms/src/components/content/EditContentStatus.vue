@@ -7,6 +7,7 @@ import { PublishStatus, type ContentDto, db } from "luminary-shared";
 import { computed, ref } from "vue";
 import { DateTime } from "luxon";
 import { BackspaceIcon } from "@heroicons/vue/20/solid";
+import FormLabel from "../forms/FormLabel.vue";
 
 type Props = {
     disabled: boolean;
@@ -47,6 +48,7 @@ const expiryDateString = computed({
 
 const selectedExpiryNumber = ref<number | undefined>(undefined);
 const selectedExpiryUnit = ref<string | undefined>(undefined);
+const showPublishDateWarning = ref(false);
 
 const calculateExpiryDate = () => {
     if (
@@ -54,8 +56,12 @@ const calculateExpiryDate = () => {
         !content.value.publishDate ||
         !selectedExpiryNumber.value ||
         !selectedExpiryUnit.value
-    )
+    ) {
+        showPublishDateWarning.value = true; // Show warning if publish date is not set
         return;
+    }
+
+    showPublishDateWarning.value = false; // Hide warning if publish date is set
 
     switch (selectedExpiryUnit.value) {
         case "Week":
@@ -97,12 +103,13 @@ const clearExpirySelection = () => {
 const clearExpiryDate = () => {
     if (content.value) content.value.expiryDate = undefined;
     clearExpirySelection();
+    showPublishDateWarning.value = false; // Hide warning when clearing
 };
 </script>
 
 <template>
-    <LCard title="Status" collapsible v-if="content">
-        <div class="flex flex-col items-center gap-2">
+    <LCard title="Status" collapsible v-if="content" class="bg-white">
+        <template #actions>
             <LTextToggle
                 v-model="content.status"
                 leftLabel="Draft"
@@ -110,8 +117,12 @@ const clearExpiryDate = () => {
                 rightLabel="Publishable"
                 :rightValue="PublishStatus.Published"
                 :disabled="disabled || disablePublish"
+                @click.stop
             />
-            <div class="text-xs text-zinc-700">
+        </template>
+
+        <div class="flex flex-col items-center gap-2">
+            <div class="pb-3 text-center text-xs text-zinc-700">
                 {{
                     content.status == PublishStatus.Draft
                         ? "This content will never be visible in the app"
@@ -120,33 +131,46 @@ const clearExpiryDate = () => {
             </div>
         </div>
 
-        <div class="mt-6 flex flex-col gap-4 sm:flex-row">
-            <!-- Publish date -->
-            <LInput
-                name="publishDate"
-                label="Publish date"
-                class="sm:w-1/2"
-                type="datetime-local"
-                :disabled="disabled"
-                v-model="publishDateString"
-            />
+        <div class="flex flex-col gap-4 text-center">
+            <!-- Warning message -->
+            <div
+                v-show="showPublishDateWarning && !content.publishDate"
+                class="text-xs text-red-600"
+            >
+                Please set a publish date before using the expiry shortcut.
+            </div>
+
+            <!-- Publish -->
+            <div class="flex items-center gap-2">
+                <FormLabel class="w-24">Publish date</FormLabel>
+                <LInput
+                    name="publishDate"
+                    class="flex-1"
+                    type="datetime-local"
+                    :disabled="disabled"
+                    v-model="publishDateString"
+                />
+            </div>
 
             <!-- Expiry date -->
-            <LInput
-                name="expiryDate"
-                label="Expiry date"
-                class="group sm:w-1/2"
-                type="datetime-local"
-                :disabled="disabled"
-                v-model="expiryDateString"
-            >
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                    <FormLabel class="w-24 self-start pt-2">Expiry date</FormLabel>
+                    <LInput
+                        name="expiryDate"
+                        class="flex-1"
+                        type="datetime-local"
+                        :disabled="disabled"
+                        v-model="expiryDateString"
+                    />
+                </div>
                 <!-- Expiry date shortcut buttons -->
-                <div class="flex w-full cursor-pointer flex-wrap gap-1">
+                <div class="flex flex-wrap gap-1 sm:flex-row">
                     <LButton
                         type="button"
                         name="1"
                         variant="secondary"
-                        class="flex-1"
+                        class="min-w-[2.5rem] flex-1 basis-0"
                         :class="{
                             '!bg-black !text-white': selectedExpiryNumber === 1,
                         }"
@@ -159,7 +183,7 @@ const clearExpiryDate = () => {
                         type="button"
                         name="2"
                         variant="secondary"
-                        class="flex-1"
+                        class="min-w-[2.5rem] flex-1 basis-0"
                         :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
                         @click="setExpiryNumber(2)"
                         :disabled="disabled"
@@ -170,7 +194,7 @@ const clearExpiryDate = () => {
                         type="button"
                         name="3"
                         variant="secondary"
-                        class="flex-1"
+                        class="min-w-[2.5rem] flex-1 basis-0"
                         :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
                         @click="setExpiryNumber(3)"
                         :disabled="disabled"
@@ -181,7 +205,7 @@ const clearExpiryDate = () => {
                         type="button"
                         name="6"
                         variant="secondary"
-                        class="flex-1"
+                        class="min-w-[2.5rem] flex-1 basis-0"
                         :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
                         @click="setExpiryNumber(6)"
                         :disabled="disabled"
@@ -192,7 +216,7 @@ const clearExpiryDate = () => {
                         type="button"
                         name="W"
                         variant="secondary"
-                        class="flex-1"
+                        class="min-w-[2.5rem] flex-1 basis-0"
                         :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
                         @click="setExpiryUnit('Week')"
                         data-test="W"
@@ -204,7 +228,7 @@ const clearExpiryDate = () => {
                         type="button"
                         name="M"
                         variant="secondary"
-                        class="flex-1"
+                        class="min-w-[2.5rem] flex-1 basis-0"
                         :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
                         @click="setExpiryUnit('Month')"
                         :disabled="disabled"
@@ -215,7 +239,7 @@ const clearExpiryDate = () => {
                         type="button"
                         name="Y"
                         variant="secondary"
-                        class="flex-1"
+                        class="min-w-[2.5rem] flex-1 basis-0"
                         :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
                         @click="setExpiryUnit('Year')"
                         :disabled="disabled"
@@ -227,13 +251,12 @@ const clearExpiryDate = () => {
                         name="clear"
                         variant="secondary"
                         :icon="BackspaceIcon"
-                        class="flex-1"
+                        class="min-w-[2.5rem] flex-1 basis-0"
                         @click="clearExpiryDate()"
                         :disabled="disabled"
-                    >
-                    </LButton>
+                    />
                 </div>
-            </LInput>
+            </div>
         </div>
     </LCard>
 </template>
