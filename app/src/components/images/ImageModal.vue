@@ -236,11 +236,15 @@ function onSwipe(direction: "left" | "right") {
 let lastTap = 0;
 function onTouchEndWithDoubleTap(e: TouchEvent) {
     const now = Date.now();
-    if (now - lastTap < 400) {
+    const isDoubleTap = now - lastTap < 400;
+    lastTap = now;
+
+    if (isDoubleTap) {
+        e.preventDefault();
         onDblClick(e);
         lastTap = 0;
     } else {
-        lastTap = now;
+        onTouchEnd(e); // This handles swipe logic
     }
     onTouchEnd(e);
 }
