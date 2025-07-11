@@ -237,11 +237,11 @@ export const setMediaProgress = (
         _mediaProgress.splice(index, 1);
     }
 
-    _mediaProgress.push({ mediaId, contentId, progress, duration });
+    _mediaProgress.unshift({ mediaId, contentId, progress, duration });
 
     // Only keep the last 10 progress entries
-    while (_mediaProgress.length > 10) {
-        _mediaProgress.shift();
+    if (_mediaProgress.length > 10) {
+        _mediaProgress.splice(10);
     }
 
     localStorage.setItem("mediaProgress", JSON.stringify(_mediaProgress));
