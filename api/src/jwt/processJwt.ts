@@ -70,6 +70,7 @@ export async function processJwt(
     let userId: string;
     let email: string;
     let name: string;
+    let lastLogin: number;
 
     // Load the JWT mappings if not already loaded
     if (!jwtMap) {
@@ -108,6 +109,8 @@ export async function processJwt(
         if (jwtMap["name"]) {
             name = jwtMap["name"](jwtPayload);
         }
+
+        lastLogin = Date.now();
     } catch (err) {
         logger?.error(`Unable to get JWT mappings`, err);
         return { groups: [] };
@@ -123,7 +126,7 @@ export async function processJwt(
     // Update user details in the database (if changed) if userId is set
     if (userId) {
         for (const d of userDocs) {
-            const updated = { ...d, userId, email, lastLogin: Date.now() };
+            const updated = { ...d, userId, email, lastLogin };
             if (name) updated.name = name;
             await db.upsertDoc(updated);
         }
