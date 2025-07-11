@@ -27,7 +27,7 @@ const updateValue = (newValue: string) => {
     >
         <button
             :class="[
-                'px-4 py-1 text-sm',
+                'px-2 py-1 text-sm',
                 { 'rounded-full bg-white shadow': modelValue == leftValue },
                 { 'text-zinc-400': disabled },
                 { 'text-zinc-900': !disabled && modelValue == leftValue },
@@ -41,7 +41,7 @@ const updateValue = (newValue: string) => {
         </button>
         <button
             :class="[
-                'px-4 py-1 text-sm',
+                'px-2 py-1 text-sm',
                 { 'rounded-full bg-white shadow': modelValue == rightValue },
                 { 'text-zinc-400': disabled },
                 { 'text-zinc-900': !disabled && modelValue == leftValue },
