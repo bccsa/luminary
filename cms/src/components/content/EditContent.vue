@@ -750,7 +750,7 @@ watch(
                         class="mt-4"
                     />
 
-                    <div class="sticky top-0">
+                    <div class="sticky top-0 z-10">
                         <EditContentParentValidation
                             :tag-or-post-type="props.tagOrPostType"
                             :can-translate="canTranslate"
