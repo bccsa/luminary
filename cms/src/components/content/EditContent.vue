@@ -728,10 +728,10 @@ watch(
                 </div>
             </div>
         </template>
-        <div class="relative mb-5 grid min-h-full grid-cols-3 gap-[3px]">
+        <div class="relative mb-5 grid min-h-full gap-3 sm:grid-cols-4">
             <!-- Sidebar -->
-            <div class="relative col-span-3 md:col-span-1" v-if="editableParent">
-                <div class="relative size-full space-y-[3px]">
+            <div class="relative col-auto md:col-span-1" v-if="editableParent">
+                <div class="relative space-y-[3px]">
                     <EditContentParent
                         v-if="editableParent"
                         :docType="props.docType"
@@ -769,9 +769,15 @@ watch(
                             @create-translation="(language) => createTranslation(language)"
                         />
                     </div>
+                    <EditContentStatus
+                        v-model:content="selectedContent"
+                        :disabled="!canTranslate"
+                        :disablePublish="!canPublish"
+                    />
+                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>
             </div>
-            <div class="col-span-3 min-h-full md:col-span-2">
+            <div class="col-span-full min-h-full md:col-span-3">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
@@ -789,13 +795,7 @@ watch(
                 /></EmptyState>
 
                 <div v-else class="mb-48 space-y-[3px]">
-                    <EditContentStatus
-                        v-model:content="selectedContent"
-                        :disabled="!canTranslate"
-                        :disablePublish="!canPublish"
-                    />
                     <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>
             </div>
         </div>
