@@ -36,7 +36,7 @@ watch(contentDocs, (newValue) => {
 
 <template>
     <div class="w-full">
-        <div class="-md:mx-0.5 mx-4 flex flex-col gap-[3px] overflow-y-auto scrollbar-hide sm:mx-0">
+        <div class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
             <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
             <ContentDisplayCard
                 v-for="(contentDoc, i) in contentDocs?.docs"
