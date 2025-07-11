@@ -70,6 +70,7 @@ export async function processJwt(
     let userId: string;
     let email: string;
     let name: string;
+    const lastLogin = Date.now();
 
     // Load the JWT mappings if not already loaded
     if (!jwtMap) {
@@ -120,11 +121,29 @@ export async function processJwt(
 
     const userDocs = (await db.getUserByIdOrEmail(email, userId)).docs as UserDto[];
 
-    // Update user details in the database (if changed) if userId is set
+    // Update user details in the database if either userId or email is set
     if (userId) {
         for (const d of userDocs) {
-            const updated = { ...d, userId, email, lastLogin: Date.now() };
-            if (name) updated.name = name;
+            // Only update userId if it was actually mapped from JWT (not email fallback)
+            const updated = { ...d, userId, lastLogin };
+            // Update email if it was mapped from JWT
+            if (email) {
+                updated.email = email;
+            }
+            // Update name if it was mapped from JWT
+            if (name) {
+                updated.name = name;
+            }
+            await db.upsertDoc(updated);
+        }
+    } else if (email) {
+        for (const d of userDocs) {
+            // When signing in with email only, don't update userId field
+            const updated = { ...d, lastLogin, email };
+            // Update name if it was mapped from JWT
+            if (name) {
+                updated.name = name;
+            }
             await db.upsertDoc(updated);
         }
     }
