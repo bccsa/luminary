@@ -152,9 +152,9 @@ const deleteTranslation = () => {
         <div
             v-if="languages.find((l) => l._id == editableContent?.language)"
             :class="[
-                ' rounded-md px-2 py-1.5',
+                ' rounded-md px-2 py-1.5 sm:px-1',
                 {
-                    'cursor-default bg-yellow-100/80 shadow': isActive && !isCardCollapsed,
+                    'cursor-default bg-yellow-100/40 shadow': isActive && !isCardCollapsed,
                     'border-1.5 cursor-default bg-white shadow': isActive && isCardCollapsed,
                     'border bg-white/80 hover:bg-white/100': !isActive,
                 },
