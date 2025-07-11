@@ -44,7 +44,7 @@ function collapse() {
 
 <template>
     <div
-        class="border-y-2 border-zinc-200 px-3 shadow-sm shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
+        class="overflow-hidden border-y-2 border-zinc-200 px-2 shadow-sm shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
     >
         <div
             v-if="title || icon"
@@ -81,7 +81,7 @@ function collapse() {
         <div v-show="!collapsed" data-test="collapsible-container">
             <div
                 :class="{
-                    'px-2 py-2 sm:px-1': padding == 'normal',
+                    'px-2 py-1.5 sm:px-1': padding == 'normal',
                     'pt-2': padding == 'none' && title,
                 }"
             >
