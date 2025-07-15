@@ -34,8 +34,8 @@ import {
 } from "@heroicons/vue/24/solid";
 import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch } from "vue";
-import EditContentText from "@/components/content/EditContentText.vue";
-import EditContentBasic from "@/components/content/EditContentBasic.vue";
+import EditContentStatus from "@/components/content/EditContentBasic.vue";
+import EditContentBasic from "@/components/content/EditContentText.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -602,6 +602,7 @@ watch(
         </div>
     </div>
     <BasePage
+        :title="selectedContent ? selectedContent.title : `Edit ${props.tagOrPostType}`"
         :icon="icon"
         :loading="isLoading"
         :backLinkParams="{
@@ -614,17 +615,12 @@ watch(
         class="relative"
     >
         <template #pageNav>
-            <!-- add back button -->
-
-            <h1 class="text-md font-semibold leading-7 lg:hidden">
+            <h1 class="text-xl font-bold lg:hidden">
                 {{ `Edit ${props.docType}` }}
-            </h1>
-            <h1 class="text-md hidden font-semibold leading-7 lg:block">
-                {{ selectedContent?.title }}
             </h1>
         </template>
 
-        <template #topBarActionsMobile>
+        <template #topBarActions>
             <Menu as="div" class="relative w-full">
                 <MenuButton class="flex w-full items-center justify-between">
                     <EllipsisVerticalIcon
@@ -671,74 +667,73 @@ watch(
             </Menu>
         </template>
 
-        <template #topBarActionsDesktop>
-            <!-- <div class="flex gap-2">
+        <template #postTitleSlot>
+            <LButton
+                v-if="
+                    isConnected &&
+                    selectedContent_Existing &&
+                    selectedContent_Existing.status == PublishStatus.Published
+                "
+                :icon="ArrowTopRightOnSquareIcon"
+                iconRight
+                class="hidden cursor-pointer font-extralight text-zinc-600/[55%] sm:inline-flex"
+                variant="tertiary"
+                @click="ensureRedirect"
+                target="_blank"
+                title="View live version"
+            />
+        </template>
+        <template #actions>
+            <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-            </div> -->
-            <div class="hidden gap-1 lg:flex">
-                <LButton
-                    type="button"
-                    @click="revertChanges"
-                    data-test="revert-changes-button"
-                    variant="secondary"
-                    :icon="ArrowUturnLeftIcon"
-                    v-if="isDirty && !newDocument"
-                >
-                    <template #tooltip>Revert changes made on this content</template>
-                </LButton>
-
-                <LButton
-                    v-if="
-                        isConnected &&
-                        selectedContent_Existing &&
-                        selectedContent_Existing.status == PublishStatus.Published
-                    "
-                    :icon="ArrowTopRightOnSquareIcon"
-                    iconRight
-                    variant="secondary"
-                    @click="ensureRedirect"
-                    target="_blank"
-                >
-                    <template #tooltip> View live version </template>
-                </LButton>
-
-                <LButton
-                    :icon="DocumentDuplicateIcon"
-                    data-test="duplicate-btn"
-                    @click="isDirty ? (showDuplicateModal = true) : duplicate()"
-                >
-                    <template #tooltip>Duplicate this {{ props.tagOrPostType }}</template>
-                </LButton>
-                <LButton
-                    type="button"
-                    @click="saveChanges"
-                    data-test="save-button"
-                    variant="primary"
-                    :icon="FolderArrowDownIcon"
-                >
-                    <template #tooltip>Save changes</template>
-                </LButton>
-
-                <LButton
-                    v-if="canDelete"
-                    type="button"
-                    @click="showDeleteModal = true"
-                    data-test="delete-button"
-                    variant="secondary"
-                    context="danger"
-                    :icon="TrashIcon"
-                >
-                    <template #tooltip>Delete this {{ props.tagOrPostType }}</template>
-                </LButton>
+                <div class="hidden gap-1 lg:flex">
+                    <LButton
+                        type="button"
+                        @click="revertChanges"
+                        data-test="revert-changes-button"
+                        variant="secondary"
+                        title="Revert Changes"
+                        :icon="ArrowUturnLeftIcon"
+                        v-if="isDirty && !newDocument"
+                    >
+                        Revert
+                    </LButton>
+                    <LButton
+                        type="button"
+                        @click="saveChanges"
+                        data-test="save-button"
+                        variant="primary"
+                        :icon="FolderArrowDownIcon"
+                    >
+                        Save
+                    </LButton>
+                    <LButton
+                        :icon="DocumentDuplicateIcon"
+                        title="Duplicate"
+                        data-test="duplicate-btn"
+                        @click="isDirty ? (showDuplicateModal = true) : duplicate()"
+                        >Duplicate</LButton
+                    >
+                    <LButton
+                        v-if="canDelete"
+                        type="button"
+                        @click="showDeleteModal = true"
+                        data-test="delete-button"
+                        variant="secondary"
+                        context="danger"
+                        :icon="TrashIcon"
+                    >
+                        Delete
+                    </LButton>
+                </div>
             </div>
         </template>
-        <div class="relative mb-5 grid min-h-full gap-2 sm:grid-cols-4 sm:gap-2">
+        <div class="relative mb-5 grid gap-[3px] sm:grid-cols-4 sm:gap-3">
             <!-- Sidebar -->
             <div
-                class="relative col-auto scrollbar-hide sm:max-h-[calc(100vh-10rem)] sm:overflow-y-auto md:col-span-1"
-                v-if="editableParent"
+                class="relative col-auto overflow-y-auto scrollbar-hide sm:max-h-[calc(100vh-10rem)] md:col-span-1"
             >
-                <div class="relative space-y-2">
+                <div class="relative space-y-[3px]">
                     <EditContentParent
                         v-if="editableParent"
                         :docType="props.docType"
@@ -776,26 +771,24 @@ watch(
                             @create-translation="(language) => createTranslation(language)"
                         />
                     </div>
-
-                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentBasic
+                    <EditContentStatus
                         v-model:content="selectedContent"
-                        :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
-                        :disable-publish="!canEditParent"
+                        :disablePublish="!canPublish"
                     />
+                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>
             </div>
-            <!-- main content -->
+
+            <!-- Text Content -->
             <div
-                class="col-span-full min-h-full overflow-y-auto scrollbar-hide sm:max-h-[calc(100vh-10rem)] md:col-span-3"
+                class="col-span-full overflow-y-auto scrollbar-hide sm:max-h-[calc(100vh-10rem)] md:col-span-3"
             >
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
                     title=""
-                    :description="`Please select a language to start editing
-                    `"
+                    :description="`Please select a language to start editing`"
                     data-test="no-content"
                     class="flex flex-col items-center"
                     ><LanguageSelector
@@ -806,13 +799,8 @@ watch(
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="mb-12 h-screen space-y-2">
-                    <EditContentText
-                        v-model:content="selectedContent"
-                        :selectedLanguage="selectedLanguage!"
-                        :disabled="!canTranslate"
-                        :disablePublish="!canPublish"
-                    />
+                <div v-else class="mb-12 space-y-[3px]">
+                    <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>
             </div>
         </div>

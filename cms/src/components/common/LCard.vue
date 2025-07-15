@@ -8,12 +8,14 @@ type Props = {
     padding?: "none" | "normal";
     collapsible?: boolean;
     defaultCollapsed?: boolean;
+    blurEffect?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     padding: "normal",
     collapsible: false,
     defaultCollapsed: false,
+    blurEffect: false,
 });
 
 // Optional v-model:collapsed support
@@ -45,6 +47,9 @@ function collapse() {
 <template>
     <div
         class="overflow-hidden border-y-2 border-zinc-200 px-2 shadow-sm shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
+        :class="{
+            ' border-red-300 backdrop-blur-md': blurEffect,
+        }"
     >
         <div
             v-if="title || icon"

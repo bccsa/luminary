@@ -73,18 +73,22 @@ const pinned = computed({
             :key="language?._id"
         />
 
+        <!-- Toggle for Publish Date Visibility -->
+        <div
+            class="mt-3 flex items-center justify-between"
+            :class="{ 'mb-3': docType !== DocType.Tag }"
+        >
+            <FormLabel>Show publish date</FormLabel>
+            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
+        </div>
+
         <div
             v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
             class="mt-3 flex items-center justify-between"
+            :class="{ 'my-3': docType == DocType.Tag }"
         >
             <FormLabel>Pinned</FormLabel>
             <LToggle v-model="pinned" :disabled="disabled" />
-        </div>
-
-        <!-- Toggle for Publish Date Visibility -->
-        <div class="mt-3 flex items-center justify-between">
-            <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
         </div>
     </LCard>
 </template>

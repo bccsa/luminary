@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDownIcon } from "@heroicons/vue/20/solid";
+// import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import LBadge from "@/components/common/LBadge.vue";
 import { type ContentDto, type ContentParentDto, type LanguageDto } from "luminary-shared";
 import { ArrowRightIcon } from "@heroicons/vue/16/solid";
@@ -26,7 +26,7 @@ onClickOutside(languagePopup, () => {
 </script>
 
 <template>
-    <div class="hidden md:block">
+    <!-- <div class="hidden md:block">
         <button
             @click="showSelector = !showSelector"
             data-test="language-selector"
@@ -35,7 +35,7 @@ onClickOutside(languagePopup, () => {
             Add translation
             <ChevronDownIcon class="h-4 w-4 text-zinc-600" />
         </button>
-    </div>
+    </div> -->
 
     <div ref="languagePopup" class="relative inline-block text-left" data-test="languagePopup">
         <transition

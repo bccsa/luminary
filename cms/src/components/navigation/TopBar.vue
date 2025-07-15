@@ -9,7 +9,9 @@ import OnlineIndicator from "../OnlineIndicator.vue";
         </div>
         <div class="flex items-center gap-2">
             <OnlineIndicator />
-            <slot name="contentActions" />
         </div>
+    </div>
+    <div>
+        <slot name="contentActions" />
     </div>
 </template>

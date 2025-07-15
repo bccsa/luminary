@@ -63,7 +63,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                         aria-hidden="true"
                     />
                     <ChevronLeftIcon
-                        class="h-6 w-6 lg:hidden"
+                        class="h-6 w-6"
                         :class="{ hidden: !isEditContentPage }"
                         aria-hidden="true"
                     />
@@ -74,16 +74,20 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
 
                 <TopBar>
                     <template #quickActions>
-                        <h1
-                            v-if="!$slots.actions"
-                            class="text-md flex items-center gap-2 font-semibold leading-7"
-                        >
-                            {{ title }}
-                        </h1>
-                        <slot name="pageNav"> </slot>
+                        <div :class="{ 'flex justify-between': $slots.pageNav }">
+                            <h1
+                                v-if="!$slots.actions"
+                                class="text-md flex items-center gap-2 font-semibold leading-7"
+                            >
+                                {{ title }}
+                            </h1>
+                            <slot name="pageNav"></slot>
+                        </div>
                     </template>
+
                     <template #contentActions>
-                        <slot name="topBarActions" />
+                        <slot name="topBarActionsMobile" />
+                        <slot name="topBarActionsDesktop" />
                     </template>
                 </TopBar>
             </div>
@@ -92,7 +96,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
             <div
                 v-if="!loading"
                 :class="isFullWidth ? 'mx-auto w-full' : 'min-w-full max-w-7xl'"
-                class="flex h-full flex-1 flex-col"
+                class="flex-1 flex-col"
             >
                 <RouterLink
                     v-if="backLinkLocation"
@@ -105,7 +109,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 <header
                     v-if="$slots.actions"
                     :class="[
-                        'flex items-center justify-between gap-4 py-4 pl-4 pr-8 sm:flex-row sm:items-center lg:pl-80',
+                        'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center lg:pl-80',
                         {
                             'sm:justify-center': centered,
                             'sm:justify-between': !centered,
@@ -118,7 +122,6 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                     >
                         <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
                         {{ title }}
-                        <slot name="postTitleSlot"></slot>
                     </h1>
 
                     <div v-if="$slots.actions">

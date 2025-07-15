@@ -13,6 +13,7 @@ import LTextToggle from "../forms/LTextToggle.vue";
 import LanguageSelector from "./LanguageSelector.vue";
 import { initLanguage } from "@/globalConfig";
 import RichTextEditor from "../editor/RichTextEditor.vue";
+import EditContentText from "./EditContentText.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -228,16 +229,18 @@ describe("EditContent.vue", () => {
         });
 
         const languageSelector = wrapper.findComponent(LanguageSelector);
-        const btn = languageSelector.find("[data-test='language-selector']");
-        await btn.trigger("click");
+        expect(languageSelector.exists()).toBe(true);
 
-        const languages = languageSelector.find("[data-test='languagePopup']");
+        // const btn = languageSelector.find("[data-test='language-selector']");
+        // await btn.trigger("click");
 
-        await waitForExpect(async () => {
-            expect(await languages.html()).toContain("English");
+        // const languages = languageSelector.find("[data-test='languagePopup']");
 
-            expect(await languages.html()).not.toContain("Français");
-            expect(await languages.html()).not.toContain("Swahili");
+        await waitForExpect(() => {
+            expect(languageSelector.html()).toContain("English");
+
+            expect(languageSelector.html()).not.toContain("Français");
+            expect(languageSelector.html()).not.toContain("Swahili");
         });
     });
 
@@ -525,7 +528,7 @@ describe("EditContent.vue", () => {
         });
 
         // Check that the publish button is disabled
-        const publishButton = wrapper.findComponent(LTextToggle);
+        const publishButton = wrapper.findAllComponents(LTextToggle)[1];
         expect(publishButton.exists()).toBe(true);
         expect(publishButton.props().disabled).toBe(true);
 
@@ -544,6 +547,7 @@ describe("EditContent.vue", () => {
             expect(saved?.title).toBe("Translated Title");
         });
     });
+
     it("correctly creates a duplicate of a document and all its translations", async () => {
         const notificationStore = useNotificationStore();
         const mockNotification = vi.spyOn(notificationStore, "addNotification");
@@ -613,7 +617,7 @@ describe("EditContent.vue", () => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true);
         });
 
-        const editContentBasic = wrapper.findComponent(EditContentBasic);
+        const editContentBasic = wrapper.findComponent(EditContentText);
         const richTextEditor = editContentBasic.findComponent(RichTextEditor);
         expect(richTextEditor.exists()).toBe(true);
 
@@ -659,15 +663,18 @@ describe("EditContent.vue", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
-        });
+        await waitForExpect(async () => {
+            // Edit the slug to trigger a redirect creation
+            const editContentBasic = wrapper.findComponent(EditContentBasic);
+            const toogle = editContentBasic.findAllComponents(LTextToggle)[0];
+            const visible = toogle.find('[data-test="text-toggle-left-value"]');
+            expect(visible.exists()).toBe(true);
 
-        // Edit the slug to trigger a redirect creation
-        expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
-        await wrapper.find('[data-test="editSlugButton"]').trigger("click");
-        await wrapper.find('[name="slug"]').setValue("new-slug");
-        await wrapper.find('[name="slug"]').trigger("change");
+            expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
+            await wrapper.find('[data-test="editSlugButton"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
 
         await waitForExpect(async () => {
             await wrapper.find('[data-test="save-button"]').trigger("click");
