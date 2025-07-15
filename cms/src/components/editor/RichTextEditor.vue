@@ -129,7 +129,7 @@ watch(showModal, async () => {
 
 <template>
     <div :class="$attrs.class" class="-mx-4 px-4">
-        <div class="mb-2 flex items-center gap-2">
+        <div class="flex items-center gap-2">
             <component v-if="props.icon" :is="props.icon" class="h-6 w-6 text-zinc-600" />
             <FormLabel v-if="props.title" :icon="props.icon">{{ title }}</FormLabel>
         </div>

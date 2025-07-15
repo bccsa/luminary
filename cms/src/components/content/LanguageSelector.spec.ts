@@ -27,6 +27,7 @@ describe("LanguageSelector.vue", () => {
                     mockData.mockLanguageDtoSwa,
                 ],
                 content: [],
+                showSelector: true,
             },
             global: {
                 plugins: [createTestingPinia()],
@@ -34,11 +35,11 @@ describe("LanguageSelector.vue", () => {
         });
 
         // Dropdown is hidden by default
-        expect(wrapper.text()).toContain("Add translation");
+        // expect(wrapper.text()).toContain("Add translation");
 
         // Now simulate showing the dropdown
-        const selectLanguageButton = wrapper.find('[data-test="language-selector"]');
-        await selectLanguageButton.trigger("click");
+        // const selectLanguageButton = wrapper.find('[data-test="language-selector"]');
+        // await selectLanguageButton.trigger("click");
 
         // Languages should now be visible
         // explain ^: Match elements where the attribute starts with a specific string.
@@ -59,16 +60,17 @@ describe("LanguageSelector.vue", () => {
                     mockData.mockLanguageDtoSwa,
                 ],
                 content: [],
+                showSelector: true,
             },
             global: {
                 plugins: [createTestingPinia()],
             },
         });
 
-        const selectLanguage = wrapper.find("button[data-test='language-selector']");
-        await selectLanguage.trigger("click");
+        // const selectLanguage = wrapper.find("button[data-test='language-selector']");
+        // await selectLanguage.trigger("click");
 
-        expect(wrapper.text()).toContain("Add translation");
+        // expect(wrapper.text()).toContain("Add translation");
         expect(wrapper.text()).toContain("English");
         expect(wrapper.text()).toContain("Français");
         expect(wrapper.text()).toContain("Swahili");

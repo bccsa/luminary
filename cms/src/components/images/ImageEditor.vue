@@ -172,7 +172,7 @@ defineExpose({
                     parent.imageData &&
                     (parent.imageData.fileCollections.length > 0 || parent.imageData.uploadData)
                 "
-                class="mx-2 pb-2 scrollbar-hide md:mx-0"
+                class="scrollbar-hide"
             >
                 <div
                     v-if="
@@ -180,7 +180,7 @@ defineExpose({
                         (parent.imageData.fileCollections.length > 0 ||
                             (parent.imageData.uploadData && parent.imageData.uploadData.length > 0))
                     "
-                    class="flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden scrollbar-hide"
+                    class="z-40 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden scrollbar-hide"
                     data-test="thumbnail-area"
                 >
                     <!-- File Collections -->

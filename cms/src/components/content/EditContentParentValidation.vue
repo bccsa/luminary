@@ -135,7 +135,7 @@ watch(
         v-model:collapsed="isCardCollapsed"
     >
         <template #actions>
-            <div class="relative flex flex-col items-end gap-2 md:hidden">
+            <div class="relative flex flex-col items-end gap-2">
                 <LButton
                     :icon="PlusIcon"
                     class="w-fit"
@@ -144,7 +144,7 @@ watch(
                     data-test="add-translation-button"
                 />
 
-                <div v-if="untranslatedLanguages.length > 0" class="absolute right-48 z-10 mt-2">
+                <div v-if="untranslatedLanguages.length > 0" class="absolute right-24 z-10 mt-2">
                     <LanguageSelector
                         :languages="untranslatedLanguages"
                         :parent="editableParent"
@@ -162,12 +162,7 @@ watch(
         </template>
 
         <template #persistent>
-            <div
-                class="flex flex-col gap-2"
-                :class="{
-                    'pb-2 pt-0': isCardCollapsed,
-                }"
-            >
+            <div class="flex flex-col gap-2" :class="{ 'mb-2': isCardCollapsed }">
                 <EditContentValidation
                     v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                     :editableContent="content"
@@ -225,7 +220,7 @@ watch(
                 </div>
             </div>
 
-            <div class="hidden flex-col items-center md:flex">
+            <!-- <div class="hidden flex-col items-center md:flex">
                 <LanguageSelector
                     v-if="untranslatedLanguages.length > 0"
                     :languages="untranslatedLanguages"
@@ -233,9 +228,8 @@ watch(
                     :content="editableContent"
                     :showSelector="showLanguageSelector"
                     @create-translation="(language) => emit('createTranslation', language)"
-                    class="hidden md:block"
                 />
-            </div>
+            </div> -->
         </div>
     </LCard>
 </template>
