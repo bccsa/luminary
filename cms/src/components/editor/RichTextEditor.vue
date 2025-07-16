@@ -46,7 +46,7 @@ const editor = useEditor({
     editable: (() => !disabled.value as boolean | undefined)(),
     editorProps: {
         attributes: {
-            class: "prose prose-zinc lg:prose-sm max-w-none p-3 h-screen ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
+            class: "prose prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
         },
         handlePaste(view, event) {
             const clipboardData = event.clipboardData;
@@ -128,7 +128,7 @@ watch(showModal, async () => {
 </script>
 
 <template>
-    <div :class="$attrs.class" class="-mx-4 px-4">
+    <div :class="$attrs.class" class="-mx-4 flex h-full flex-col px-4">
         <div class="flex items-center gap-2">
             <component v-if="props.icon" :is="props.icon" class="h-6 w-6 text-zinc-600" />
             <FormLabel v-if="props.title" :icon="props.icon">{{ title }}</FormLabel>
@@ -265,7 +265,9 @@ watch(showModal, async () => {
                 </button>
             </div>
         </div>
-        <EditorContent :editor="editor" class="bg-white" />
+        <div class="flex flex-1 flex-col">
+            <EditorContent :editor="editor" class="flex-1 bg-white" />
+        </div>
     </div>
     <LModal
         v-model:isVisible="showModal"
@@ -306,5 +308,31 @@ watch(showModal, async () => {
 <style>
 .tiptap[contenteditable="false"] {
     @apply bg-zinc-100 opacity-80 hover:ring-zinc-300;
+}
+
+/* Ensure the editor fills the container height */
+.ProseMirror-focused {
+    outline: none;
+}
+
+/* Force height inheritance through the TipTap component tree */
+div[data-tiptap-editor] {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+div[data-tiptap-editor] > div {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.ProseMirror {
+    height: 100%;
+    min-height: 200px;
+    box-sizing: border-box;
+    flex: 1;
+    overflow-y: auto;
 }
 </style>
