@@ -732,62 +732,61 @@ watch(
                 </LButton>
             </div>
         </template>
-        <div class="relative mb-5 grid min-h-full gap-2 sm:grid-cols-4 sm:gap-2">
-            <!-- <div
-                class="relative col-auto max-h-[calc(100vh-10rem)] scrollbar-hide sm:overflow-y-auto md:col-span-1"
-                v-if="editableParent"
-            >
-                <div class="relative space-y-2">
-                    <EditContentParent
-                        v-if="editableParent"
-                        :docType="props.docType"
-                        :tagOrPostType="props.tagOrPostType"
-                        :language="selectedLanguage"
-                        v-model:parent="editableParent"
-                        :disabled="!canEditParent"
-                    />
+        <div class="flex h-full gap-2 overflow-y-scroll scrollbar-hide">
+            <div class="w-84 h-full" v-if="editableParent">
+                <div class="max-h-screen overflow-scroll pb-16 scrollbar-hide">
+                    <div class="flex flex-col gap-2 pb-4">
+                        <EditContentParent
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :language="selectedLanguage"
+                            v-model:parent="editableParent"
+                            :disabled="!canEditParent"
+                        />
 
-                    <EditContentImage
-                        v-if="editableParent"
-                        :docType="props.docType"
-                        :tagOrPostType="props.tagOrPostType"
-                        :disabled="!canEditParent"
-                        v-model:parent="editableParent"
-                        class="mt-4"
-                    />
+                        <EditContentImage
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :disabled="!canEditParent"
+                            v-model:parent="editableParent"
+                        />
 
-                    <div class="sticky top-0 z-10">
-                        <EditContentParentValidation
-                            :tag-or-post-type="props.tagOrPostType"
-                            :can-translate="canTranslate"
-                            :can-delete="canDelete"
-                            :can-publish="canPublish"
-                            :can-edit="canEditParent"
-                            v-if="editableContent"
-                            v-model:editableParent="editableParent"
-                            v-model:editableContent="editableContent"
-                            :languages="cmsLanguages"
-                            :untranslatedLanguages="untranslatedLanguages"
-                            :dirty="isDirty"
-                            :existingContent="existingContent"
-                            :existingParent="existingParent"
-                            @updateIsValid="(val) => (isValid = val)"
-                            @create-translation="(language) => createTranslation(language)"
+                        <div class="sticky top-0 z-10">
+                            <EditContentParentValidation
+                                :tag-or-post-type="props.tagOrPostType"
+                                :can-translate="canTranslate"
+                                :can-delete="canDelete"
+                                :can-publish="canPublish"
+                                :can-edit="canEditParent"
+                                v-if="editableContent"
+                                v-model:editableParent="editableParent"
+                                v-model:editableContent="editableContent"
+                                :languages="cmsLanguages"
+                                :untranslatedLanguages="untranslatedLanguages"
+                                :dirty="isDirty"
+                                :existingContent="existingContent"
+                                :existingParent="existingParent"
+                                @updateIsValid="(val) => (isValid = val)"
+                                @create-translation="(language) => createTranslation(language)"
+                            />
+                        </div>
+
+                        <EditContentVideo
+                            v-model:content="selectedContent"
+                            :disabled="!canTranslate"
+                        />
+                        <EditContentBasic
+                            v-model:content="selectedContent"
+                            :selectedLanguage="selectedLanguage!"
+                            :disabled="!canTranslate"
+                            :disable-publish="!canEditParent"
                         />
                     </div>
-
-                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentBasic
-                        v-model:content="selectedContent"
-                        :selectedLanguage="selectedLanguage!"
-                        :disabled="!canTranslate"
-                        :disable-publish="!canEditParent"
-                    />
                 </div>
             </div>
-            <div
-                class="col-span-full max-h-[calc(100vh-10rem)] min-h-full overflow-y-auto scrollbar-hide md:col-span-3"
-            >
+            <div class="w-full">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
@@ -795,7 +794,7 @@ watch(
                     :description="`Please select a language to start editing
                     `"
                     data-test="no-content"
-                    class="flex flex-col items-center"
+                    class="flex flex-col items-center justify-center"
                     ><LanguageSelector
                         :parent="editableParent"
                         :content="editableContent"
@@ -804,15 +803,16 @@ watch(
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="mb-12 h-full space-y-2">
+                <div v-else class="">
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
                         :disablePublish="!canPublish"
+                        class="h-full"
                     />
                 </div>
-            </div> -->
+            </div>
         </div>
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />

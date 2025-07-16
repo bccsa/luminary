@@ -13,12 +13,11 @@ const content = defineModel<ContentDto>("content");
 
 <template>
     <div v-if="content">
-        <LCard :title="`${selectedLanguage.name}`" class="h-full bg-white">
+        <LCard :title="`${selectedLanguage.name}`" class="h-[calc(100vh-5rem)] bg-white">
             <RichTextEditor
                 v-model:text="content.text"
                 :disabled="disabled"
                 data-test="richTextEditor"
-                class="pb-1"
             />
         </LCard>
     </div>
