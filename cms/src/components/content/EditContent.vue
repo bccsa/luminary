@@ -614,8 +614,6 @@ watch(
         class="relative"
     >
         <template #pageNav>
-            <!-- add back button -->
-
             <h1 class="text-md font-semibold leading-7 lg:hidden">
                 {{ `Edit ${props.docType}` }}
             </h1>
@@ -732,10 +730,11 @@ watch(
                 </LButton>
             </div>
         </template>
-        <div class="flex h-full gap-2 overflow-y-scroll scrollbar-hide">
-            <div class="w-84 h-full" v-if="editableParent">
-                <div class="max-h-screen overflow-scroll pb-16 scrollbar-hide">
-                    <div class="flex flex-col gap-2 pb-4">
+        <div class="flex h-full flex-col gap-2 overflow-y-auto lg:flex-row lg:overflow-y-hidden">
+            <!-- sidebar -->
+            <div class="w-full flex-shrink-0 lg:w-[336px]" v-if="editableParent">
+                <div class="max-h-screen overflow-scroll scrollbar-hide sm:pb-16">
+                    <div class="flex flex-col gap-2 sm:pb-4">
                         <EditContentParent
                             v-if="editableParent"
                             :docType="props.docType"
@@ -786,6 +785,7 @@ watch(
                     </div>
                 </div>
             </div>
+            <!-- main content -->
             <div class="w-full">
                 <EmptyState
                     v-if="!selectedContent"
@@ -803,13 +803,12 @@ watch(
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="">
+                <div v-else>
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
                         :disablePublish="!canPublish"
-                        class="h-full"
                     />
                 </div>
             </div>
