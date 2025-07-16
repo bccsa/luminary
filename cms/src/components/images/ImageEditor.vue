@@ -180,14 +180,14 @@ defineExpose({
                         (parent.imageData.fileCollections.length > 0 ||
                             (parent.imageData.uploadData && parent.imageData.uploadData.length > 0))
                     "
-                    class="z-40 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden scrollbar-hide"
+                    class="z-40 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-2 scrollbar-hide"
                     data-test="thumbnail-area"
                 >
                     <!-- File Collections -->
                     <div
                         v-for="c in parent.imageData.fileCollections"
                         :key="c.aspectRatio"
-                        class="mb-1 mt-2 flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
+                        class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
                     >
                         <ImageEditorThumbnail
                             :imageFileCollection="c"

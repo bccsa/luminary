@@ -207,7 +207,7 @@ const clearExpiryDate = () => {
 </script>
 
 <template>
-    <LCard :title="selectedLanguage.name" collapsible v-if="content" class="bg-white">
+    <LCard :title="selectedLanguage.name" collapsible v-if="content" class="bg-white pb-1">
         <template #actions>
             <LTextToggle
                 v-model="currentToogle"
@@ -222,7 +222,7 @@ const clearExpiryDate = () => {
 
         <div v-if="currentToogle === 'visible'">
             <div class="flex flex-col gap-2">
-                <div v-if="currentToogle === 'visible'" class="flex flex-col items-center gap-2">
+                <!-- <div v-if="currentToogle === 'visible'" class="flex flex-col items-center gap-2">
                     <div class="pb-3 text-center text-xs text-zinc-700">
                         {{
                             content.status == PublishStatus.Draft
@@ -230,7 +230,7 @@ const clearExpiryDate = () => {
                                 : "This content could be visible in the app, depending on the publish and expiry dates"
                         }}
                     </div>
-                </div>
+                </div> -->
 
                 <div class="flex flex-col gap-4 text-center">
                     <!-- Warning message -->

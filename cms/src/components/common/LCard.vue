@@ -8,7 +8,6 @@ type Props = {
     padding?: "none" | "normal";
     collapsible?: boolean;
     defaultCollapsed?: boolean;
-    blurEffect?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -47,15 +46,12 @@ function collapse() {
 <template>
     <div
         class="overflow-hidden border-y-2 border-zinc-200 px-2 shadow-sm shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
-        :class="{
-            ' border-red-300 backdrop-blur-md': blurEffect,
-        }"
     >
         <div
             v-if="title || icon"
             :class="[
                 'flex items-center justify-between gap-4 px-2 py-3 sm:px-2',
-                { 'cursor-pointer': collapsible, 'pb-3': collapsed },
+                { 'cursor-pointer': collapsible },
             ]"
             @click="collapse"
         >

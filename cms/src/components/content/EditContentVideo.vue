@@ -44,6 +44,7 @@ watch(
             :icon="LinkIcon"
             placeholder="https://..."
             :disabled="disabled"
+            class="pb-1"
         />
     </LCard>
 </template>
