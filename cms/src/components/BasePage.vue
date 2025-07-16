@@ -6,6 +6,7 @@ import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import MobileSideBar from "./navigation/MobileSideBar.vue";
 import SideBar from "./navigation/SideBar.vue";
+import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     title?: string;
@@ -44,12 +45,13 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
 
         <div class="sticky top-0 z-20 lg:pl-72">
             <div
-                class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 sm:gap-x-6 sm:px-6 lg:px-8"
+                class="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 bg-white px-4 py-8 sm:gap-x-3 sm:px-6 lg:px-8"
                 :class="{ 'border-b border-zinc-200': !$slots.internalPageHeader }"
             >
                 <button
                     type="button"
-                    class="-m-2.5 p-2.5 text-zinc-700 lg:hidden"
+                    class="-m-2.5 p-2.5 text-zinc-700"
+                    :class="[{ 'lg:hidden': !isSmallScreen }]"
                     @click="
                         !isEditContentPage
                             ? (sidebarOpen = true)
@@ -58,7 +60,7 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 >
                     <span class="sr-only">Open sidebar</span>
                     <Bars3Icon
-                        class="h-6 w-6"
+                        class="h-6 w-6 lg:hidden"
                         :class="{ hidden: isEditContentPage }"
                         aria-hidden="true"
                     />
@@ -70,13 +72,22 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 </button>
 
                 <!-- Separator -->
-                <div class="h-6 w-px bg-zinc-900/10 lg:hidden" aria-hidden="true" />
+                <div
+                    class="h-6 w-px bg-zinc-900/10"
+                    :class="{ hidden: !isEditContentPage }"
+                    aria-hidden="true"
+                />
 
                 <TopBar>
                     <template #quickActions>
-                        <div :class="{ 'flex justify-between': $slots.pageNav }">
+                        <div
+                            :class="{
+                                'flex justify-between': !$slots.pageNav && title,
+                            }"
+                            class="flex w-full items-center justify-between gap-2 sm:gap-4 lg:gap-6"
+                        >
                             <h1
-                                v-if="!$slots.actions"
+                                v-if="title"
                                 class="text-md flex items-center gap-2 font-semibold leading-7"
                             >
                                 {{ title }}
