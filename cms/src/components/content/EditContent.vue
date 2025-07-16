@@ -672,9 +672,9 @@ watch(
         </template>
 
         <template #topBarActionsDesktop>
-            <!-- <div class="flex gap-2">
+            <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-            </div> -->
+            </div>
             <div class="hidden gap-1 lg:flex">
                 <LButton
                     type="button"
@@ -733,9 +733,8 @@ watch(
             </div>
         </template>
         <div class="relative mb-5 grid min-h-full gap-2 sm:grid-cols-4 sm:gap-2">
-            <!-- Sidebar -->
-            <div
-                class="relative col-auto scrollbar-hide sm:max-h-[calc(100vh-10rem)] sm:overflow-y-auto md:col-span-1"
+            <!-- <div
+                class="relative col-auto max-h-[calc(100vh-10rem)] scrollbar-hide sm:overflow-y-auto md:col-span-1"
                 v-if="editableParent"
             >
                 <div class="relative space-y-2">
@@ -786,9 +785,8 @@ watch(
                     />
                 </div>
             </div>
-            <!-- main content -->
             <div
-                class="col-span-full min-h-full overflow-y-auto scrollbar-hide sm:max-h-[calc(100vh-10rem)] md:col-span-3"
+                class="col-span-full max-h-[calc(100vh-10rem)] min-h-full overflow-y-auto scrollbar-hide md:col-span-3"
             >
                 <EmptyState
                     v-if="!selectedContent"
@@ -806,7 +804,7 @@ watch(
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="mb-12 h-screen space-y-2">
+                <div v-else class="mb-12 h-full space-y-2">
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"
@@ -814,7 +812,7 @@ watch(
                         :disablePublish="!canPublish"
                     />
                 </div>
-            </div>
+            </div> -->
         </div>
     </BasePage>
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent.deleteReq" />

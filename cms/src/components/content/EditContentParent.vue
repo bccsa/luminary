@@ -76,7 +76,7 @@ const pinned = computed({
         <!-- Toggle for Publish Date Visibility -->
         <div
             class="mt-3 flex items-center justify-between"
-            :class="{ 'mb-3': docType !== DocType.Tag }"
+            :class="{ 'mb-2': docType !== DocType.Tag }"
         >
             <FormLabel>Show publish date</FormLabel>
             <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />

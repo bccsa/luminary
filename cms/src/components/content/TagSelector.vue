@@ -105,6 +105,7 @@ const showEditModal = ref(false);
             v-model:selected-options="parent.tags"
             :selected-labels="selectedOptions"
             :show-selected-labels="true"
+            :showSelectedInDropdown="false"
             v-model:showEditModal="showEditModal"
         >
             <template #actions>

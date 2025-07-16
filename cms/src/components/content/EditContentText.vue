@@ -18,7 +18,7 @@ const content = defineModel<ContentDto>("content");
                 v-model:text="content.text"
                 :disabled="disabled"
                 data-test="richTextEditor"
-                class="-py-3 h-full"
+                class="pb-1"
             />
         </LCard>
     </div>
