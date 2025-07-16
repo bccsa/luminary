@@ -31,7 +31,7 @@ const hasStarted = ref<boolean>(false);
 const showAudioModeToggle = ref<boolean>(true);
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
-const keepAliveAudio = ref<HTMLAudioElement | null>(null);
+const keepAudioAlive = ref<HTMLAudioElement | null>(null);
 
 let timeout: any;
 function autoHidePlayerControls() {
@@ -77,8 +77,8 @@ function setAudioTrackLanguage(languageCode: string | null) {
     }
 }
 
-function syncKeepAliveAudioState() {
-    const audio = keepAliveAudio.value;
+function syncKeepAudioStateAlive() {
+    const audio = keepAudioAlive.value;
     if (!audioMode.value || !audio) return;
 
     // If the player is playing, play the silent audio to keep the audio context alive (especially for iOS/Safari)
@@ -95,10 +95,10 @@ function syncKeepAliveAudioState() {
     }
 }
 
-function stopKeepAliveAudio() {
-    if (keepAliveAudio.value) {
-        keepAliveAudio.value.pause();
-        keepAliveAudio.value.currentTime = 0;
+function stopKeepAudioAlive() {
+    if (keepAudioAlive.value) {
+        keepAudioAlive.value.pause();
+        keepAudioAlive.value.currentTime = 0;
     }
 }
 
@@ -212,7 +212,7 @@ onMounted(() => {
         if (audioMode.value) {
             // Ensures user interaction already happened
             requestAnimationFrame(() => {
-                syncKeepAliveAudioState();
+                syncKeepAudioStateAlive();
             });
         }
     });
@@ -249,7 +249,7 @@ onMounted(() => {
 
     player.on("ended", () => {
         if (!props.content.video) return;
-        stopKeepAliveAudio();
+        stopKeepAudioAlive();
 
         // Remove player progress on ended
         removeMediaProgress(props.content.video, props.content._id);
@@ -264,7 +264,7 @@ onMounted(() => {
     player.on("pause", () => {
         if (!props.content.video) return;
 
-        if (audioMode.value) syncKeepAliveAudioState();
+        if (audioMode.value) syncKeepAudioStateAlive();
         if (autoFullscreen)
             setTimeout(() => {
                 if (!player.paused()) return;
@@ -278,6 +278,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    stopKeepAudioAlive();
     player?.off(["mousemove", "click"], autoHidePlayerControls);
     player?.off("play", playerPlayEventHandler);
     player?.off(["useractive", "userinactive"], playerUserActiveEventHandler);
@@ -357,9 +358,9 @@ watch(audioMode, async (mode) => {
     });
 
     if (mode) {
-        syncKeepAliveAudioState();
+        syncKeepAudioStateAlive();
     } else {
-        stopKeepAliveAudio();
+        stopKeepAudioAlive();
     }
 });
 
@@ -404,7 +405,7 @@ watch(appLanguagesPreferredAsRef, (newLanguage) => {
         </div>
 
         <!-- audio tag to keep player alive -->
-        <audio ref="keepAliveAudio" loop muted preload="auto" style="display: none">
+        <audio ref="keepAudioAlive" loop muted preload="auto" style="display: none">
             <source src="../../assets/silence.wav" type="audio/wav" />
         </audio>
 
