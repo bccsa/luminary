@@ -360,8 +360,16 @@ const wasLangSwitch = ref(false);
 
 // Change language
 const onLanguageSelect = (languageId: Uuid) => {
-    markLanguageSwitch(); // reactive version
+    markLanguageSwitch(); // reactive version without argument
     selectedLanguageId.value = languageId;
+
+    // Prevent route change by not replacing the slug
+    const preferred = availableTranslations.value.find((c) => c.language === languageId);
+
+    if (preferred && preferred.slug !== content.value?.slug) {
+        // Update content without triggering a route change
+        content.value = preferred;
+    }
 };
 
 watch(
@@ -445,6 +453,13 @@ function onClickOutside(event: MouseEvent) {
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
 });
+
+// Convert selectedLanguageId to language code for VideoPlayer
+const selectedLanguageCode = computed(() => {
+    if (!selectedLanguageId.value || !languages.value.length) return null;
+    const selectedLang = languages.value.find((lang) => lang._id === selectedLanguageId.value);
+    return selectedLang?.languageCode || null;
+});
 </script>
 
 <template>
@@ -515,7 +530,11 @@ onMounted(() => {
             <div class="flex flex-grow justify-center">
                 <article class="w-full lg:w-3/4 lg:max-w-3xl" v-if="content">
                     <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
-                        <VideoPlayer v-if="content.video" :content="content" />
+                        <VideoPlayer
+                            v-if="content.video"
+                            :content="content"
+                            :language="selectedLanguageCode"
+                        />
                         <!-- Ensure content.parentId does not contain default content empty string -->
                         <LImage
                             v-else-if="content.parentId || content.parentImageData"
