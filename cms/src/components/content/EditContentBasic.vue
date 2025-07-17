@@ -20,7 +20,7 @@ import { Slug } from "@/util/slug";
 import { PencilIcon, ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 
 type Props = {
-    selectedLanguage: LanguageDto;
+    selectedLanguage?: LanguageDto;
     disabled: boolean;
     disablePublish: boolean;
 };
@@ -207,7 +207,12 @@ const clearExpiryDate = () => {
 </script>
 
 <template>
-    <LCard :title="selectedLanguage.name" collapsible v-if="content" class="bg-white pb-1">
+    <LCard
+        :title="selectedLanguage ? selectedLanguage.name : 'Content'"
+        collapsible
+        v-if="content"
+        class="bg-white pb-1"
+    >
         <template #actions>
             <LTextToggle
                 v-model="currentToogle"
