@@ -55,7 +55,7 @@ const imageElementError = ref(false);
 </script>
 
 <template>
-    <div>
+    <div :class="$attrs.class">
         <div class="group relative" @mouseover="hover = true" @mouseleave="hover = false">
             <img
                 v-if="!imageElementError"

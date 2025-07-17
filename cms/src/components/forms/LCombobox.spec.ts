@@ -292,4 +292,43 @@ describe("LCombobox", () => {
             expect(wrapper.findAll("[name='list-item']")[1].classes()).not.toContain("bg-zinc-100");
         });
     });
+
+    it("doesn't show the input search when the slot actions is set", async () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: [],
+            },
+            slots: {
+                actions: "<button>Action</button>",
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.find("[name='option-search']").exists()).toBe(false);
+        });
+    });
+
+    it("show the input search when the slot actions is not set", async () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Test Label 1", value: "test-1" },
+                    { id: 1, label: "Test Label 2", value: "test-2" },
+                    { id: 2, label: "Test Label 3", value: "test-3" },
+                ],
+                docType: DocType.Post,
+                selectedOptions: [],
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[name='option-search']").exists()).toBe(true);
+        });
+    });
 });

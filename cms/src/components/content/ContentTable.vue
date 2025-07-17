@@ -48,7 +48,7 @@ watch(contentDocs, (newValue) => {
                 :language-id="queryOptions.languageId"
                 :languages="languages"
                 :class="{
-                    'mb-20': contentDocs?.docs?.length
+                    'mb-48': contentDocs?.docs?.length
                         ? i === contentDocs?.docs?.length - 1
                         : false,
                 }"
