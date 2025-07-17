@@ -34,15 +34,6 @@ describe("LanguageSelector.vue", () => {
             },
         });
 
-        // Dropdown is hidden by default
-        // expect(wrapper.text()).toContain("Add translation");
-
-        // Now simulate showing the dropdown
-        // const selectLanguageButton = wrapper.find('[data-test="language-selector"]');
-        // await selectLanguageButton.trigger("click");
-
-        // Languages should now be visible
-        // explain ^: Match elements where the attribute starts with a specific string.
         const items = wrapper.findAll('[data-test^="select-language-"]');
         const visibleLanguages = items.map((item) => item.text());
 
@@ -67,10 +58,6 @@ describe("LanguageSelector.vue", () => {
             },
         });
 
-        // const selectLanguage = wrapper.find("button[data-test='language-selector']");
-        // await selectLanguage.trigger("click");
-
-        // expect(wrapper.text()).toContain("Add translation");
         expect(wrapper.text()).toContain("English");
         expect(wrapper.text()).toContain("Français");
         expect(wrapper.text()).toContain("Swahili");
