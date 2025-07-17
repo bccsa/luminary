@@ -231,17 +231,10 @@ describe("EditContent.vue", () => {
         const languageSelector = wrapper.findComponent(LanguageSelector);
         expect(languageSelector.exists()).toBe(true);
 
-        // const btn = languageSelector.find("[data-test='language-selector']");
-        // await btn.trigger("click");
+        expect(languageSelector.html()).toContain("English");
 
-        // const languages = languageSelector.find("[data-test='languagePopup']");
-
-        await waitForExpect(() => {
-            expect(languageSelector.html()).toContain("English");
-
-            expect(languageSelector.html()).not.toContain("Français");
-            expect(languageSelector.html()).not.toContain("Swahili");
-        });
+        expect(languageSelector.html()).not.toContain("Français");
+        expect(languageSelector.html()).not.toContain("Swahili");
     });
 
     it("renders an initial loading state", async () => {
