@@ -780,7 +780,7 @@ watch(
                             v-model:content="selectedContent"
                             :selectedLanguage="selectedLanguage!"
                             :disabled="!canTranslate"
-                            :disable-publish="!canEditParent"
+                            :disable-publish="!canPublish"
                         />
                     </div>
                 </div>
