@@ -219,17 +219,6 @@ watch(
                     </div>
                 </div>
             </div>
-
-            <!-- <div class="hidden flex-col items-center md:flex">
-                <LanguageSelector
-                    v-if="untranslatedLanguages.length > 0"
-                    :languages="untranslatedLanguages"
-                    :parent="editableParent"
-                    :content="editableContent"
-                    :showSelector="showLanguageSelector"
-                    @create-translation="(language) => emit('createTranslation', language)"
-                />
-            </div> -->
         </div>
     </LCard>
 </template>

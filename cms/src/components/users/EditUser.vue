@@ -21,7 +21,6 @@ import {
     type GroupDto,
 } from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
-// import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";
 import { ArrowUturnLeftIcon, FolderArrowDownIcon, TrashIcon } from "@heroicons/vue/24/solid";
@@ -237,15 +236,6 @@ const save = async () => {
                     :disabled="!canEditOrCreate"
                     data-test="userEmail"
                 />
-
-                <!-- <GroupSelector
-                    v-model:groups="editable.memberOf"
-                    :docType="DocType.User"
-                    :showIcon="false"
-                    data-test="groupSelector"
-                    :disabled="!canEditOrCreate"
-                    class="mb-4 w-full"
-                /> -->
 
                 <LCombobox
                     v-model:selected-options="editable.memberOf as string[]"
