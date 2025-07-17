@@ -32,6 +32,7 @@ describe("VideoPlayer", () => {
     it("renders the poster image", async () => {
         const wrapper = mount(VideoPlayer, {
             props: {
+                language: "lang-eng",
                 content: mockEnglishContentDto,
             },
         });
