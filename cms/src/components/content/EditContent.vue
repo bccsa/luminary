@@ -786,7 +786,7 @@ watch(
                 </div>
             </div>
             <!-- main content -->
-            <div class="w-full">
+            <div class="w-full scrollbar-hide">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
@@ -803,7 +803,7 @@ watch(
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else>
+                <div v-else class="mb-20">
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"
