@@ -226,15 +226,17 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
             },
+            slots: {},
         });
 
         const languageSelector = wrapper.findComponent(LanguageSelector);
-        expect(languageSelector.exists()).toBe(true);
+        const languages = languageSelector.find("[data-test='languagePopup']");
 
-        expect(languageSelector.html()).toContain("English");
-
-        expect(languageSelector.html()).not.toContain("Français");
-        expect(languageSelector.html()).not.toContain("Swahili");
+        await waitForExpect(() => {
+            expect(languages.html()).toContain("English");
+            expect(languages.html()).not.toContain("Français");
+            expect(languages.html()).not.toContain("Swahili");
+        });
     });
 
     it("renders an initial loading state", async () => {
