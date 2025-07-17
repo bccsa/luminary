@@ -65,7 +65,7 @@ const handleAuth0 = async (page: any) => {
     await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 });
 };
 
-test.skip("the client recieves the correct document types from the api", async ({ context }) => {
+test("the client recieves the correct document types from the api", async ({ context }) => {
     const page = await context.newPage();
     await handleAuth0(page);
 
@@ -123,7 +123,7 @@ test("the user can login to the cms client", async ({ context }) => {
     expect(currentUrl).toMatch(/dashboard/);
 });
 
-test("the user can create a new post document", async ({ context }) => {
+test("the user can create a new document", async ({ context }) => {
     const page = await context.newPage();
     await handleAuth0(page);
 
@@ -142,7 +142,10 @@ test("the user can create a new post document", async ({ context }) => {
     await page.locator('[data-test="select-language-en"]').click();
 
     await page.getByRole("textbox", { name: "Title Required" }).click();
-    await page.getByRole("textbox", { name: "Title Required" }).fill("E2ETest");
+
+    const newDocTitle = `E2ETest-${Math.floor(Math.random() * 999999999)}`;
+
+    await page.getByRole("textbox", { name: "Title Required" }).fill(newDocTitle);
 
     await page.locator('[data-test="save-button"]').click();
 
@@ -187,10 +190,15 @@ test("the user can create a new post document", async ({ context }) => {
 
     await waitForExpect(() => {
         expect(result).toBeDefined();
+
         const postDocs = result.filter((doc: any) => doc.type === "post");
         expect(postDocs.length).toBeGreaterThan(0);
-        const justCreatedDoc = postDocs.find((doc) => doc.title === "E2ETest");
+
+        const contentDocs = result.filter((doc: any) => doc.type === "content");
+        expect(contentDocs.length).toBeGreaterThan(0);
+
+        const justCreatedDoc = contentDocs.find((doc) => doc.title === newDocTitle);
         expect(justCreatedDoc).toBeDefined();
-        expect(justCreatedDoc.memberOf).toEqual(["Super Admins"]);
+        expect(justCreatedDoc.memberOf).toEqual(["group-super-admins"]);
     });
 });
