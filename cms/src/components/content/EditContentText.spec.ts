@@ -9,7 +9,7 @@ import { mount } from "@vue/test-utils";
 import EditContentText from "./EditContentText.vue";
 import waitForExpect from "wait-for-expect";
 
-describe("EditContentBasic.vue", () => {
+describe("EditContentText.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
