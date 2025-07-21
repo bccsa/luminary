@@ -53,6 +53,7 @@ jobs:
         run: |
           cp .env.example .env
           sed -i "s|^DB_CONNECTION_STRING.*$|DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}|" .env
+          echo "DB_CONNECTION_STRING=$(grep '^DB_CONNECTION_STRING=' .env)"
           sed -i "s|^JWT_MAPPING=.*$|JWT_MAPPING=${{ secrets.JWT_MAPPING }}|" .env
           sed -i "s|^JWT_SECRET=.*$|JWT_SECRET=${{ secrets.JWT_SECRET }}|" .env
           sed -i "s|^S3_ENDPOINT=.*$|S3_ENDPOINT=${{ secrets.S3_ENDPOINT }}|" .env
