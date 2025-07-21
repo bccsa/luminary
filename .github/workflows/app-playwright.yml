@@ -7,6 +7,7 @@ on:
       - app/**
       - shared/**
       - api/**
+      - cms/**
       - .github/workflows/playwright.yml
   push:
     branches: [main, master]
