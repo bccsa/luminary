@@ -43,12 +43,6 @@ jobs:
       - name: Create database in couchDB
         run: curl -X PUT http://admin:password@localhost:5984/luminary-local
 
-      - name: Setup API
-        run: |
-          npm install 
-          npm run seed
-        working-directory: api
-
       - name: Setup API Environment Variables
         run: |
           cp .env.example .env
@@ -59,6 +53,12 @@ jobs:
           sed -i "s|^S3_ENDPOINT=.*$|S3_ENDPOINT=${{ secrets.S3_ENDPOINT }}|" .env
           sed -i "s|^S3_USE_SSL=.*$|S3_USE_SSL=${{ secrets.S3_USE_SSL }}|" .env
           sed -i "s|CORS_ORIGIN=.*$|CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}|" .env
+        working-directory: api
+
+      - name: Setup API
+        run: |
+          npm install 
+          npm run seed
         working-directory: api
 
       - name: Start API
