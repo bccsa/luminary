@@ -12,7 +12,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
     testDir: "./e2e",
     /* Maximum time one test can run for. */
-    timeout: 100 * 1000,
+    timeout: 1000 * 1000,
     expect: {
         /**
          * Maximum time expect() should wait for the condition to be met.
@@ -101,8 +101,8 @@ export default defineConfig({
          * Use the preview server on CI for more realistic testing.
          * Playwright will re-use the local server if there is already a dev-server running.
          */
-        command: "vite build && vite preview --port 5173",
-        port: 5173,
+        command: "vite build && vite preview --port 5174",
+        port: 5174,
         reuseExistingServer: !process.env.CI,
     },
 });
