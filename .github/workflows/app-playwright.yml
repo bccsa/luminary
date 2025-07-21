@@ -49,6 +49,7 @@ jobs:
         working-directory: api
 
       - name: Setup API Environment Variables
+        environment: api-e2e
         run: |
           cp .env.example .env
           sed -i "s|^DB_CONNECTION_STRING.*$|DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}|" .env
@@ -68,6 +69,7 @@ jobs:
           npm ci --install-links
 
       - name: Setup APP Environment Variables
+        environment: app-e2e
         run: |
           cp .env.example .env
           sed -i "s|^VITE_API_URL=.*$|VITE_API_URL=${{ secrets.VITE_API_URL }}|" .env
