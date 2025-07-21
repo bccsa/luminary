@@ -44,6 +44,7 @@ jobs:
         run: curl -X PUT http://admin:password@localhost:5984/luminary-local
 
       - name: Setup API Environment Variables
+        working-directory: api
         run: |
           cp .env.example .env
           sed -i "s|^DB_CONNECTION_STRING.*$|DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}|" .env
@@ -52,13 +53,12 @@ jobs:
           sed -i "s|^S3_ENDPOINT=.*$|S3_ENDPOINT=${{ secrets.S3_ENDPOINT }}|" .env
           sed -i "s|^S3_USE_SSL=.*$|S3_USE_SSL=${{ secrets.S3_USE_SSL }}|" .env
           sed -i "s|CORS_ORIGIN=.*$|CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}|" .env
-        working-directory: api
 
       - name: Setup API
+        working-directory: api
         run: |
           npm install 
           npm run seed
-        working-directory: api
 
       - name: Start API
         run: |
@@ -83,6 +83,7 @@ jobs:
           npm ci --install-links
 
       - name: Setup APP Environment Variables
+        working-directory: app
         run: |
           cp .env.example .env
           sed -i "s|^VITE_API_URL=.*$|VITE_API_URL=${{ secrets.VITE_API_URL }}|" .env
@@ -90,12 +91,11 @@ jobs:
           sed -i "s|^VITE_AUTH0_AUDIENCE=.*$|VITE_AUTH0_AUDIENCE=${{ secrets.VITE_AUTH0_AUDIENCE }}|" .env
           sed -i "s|^VITE_AUTH0_DOMAIN=.*$|VITE_AUTH0_DOMAIN=${{ secrets.VITE_AUTH0_DOMAIN }}|" .env
           sed -i "s|^VITE_CLIENT_APP_URL=.*$|VITE_CLIENT_APP_URL=${{ secrets.VITE_CLIENT_APP_URL }}|" .env
-        working-directory: app
 
       - name: Install Playwright browsers
-        run: npx playwright install
         working-directory: app
+        run: npx playwright install
 
       - name: Run Playwright Tests
-        run: npm run test:e2e
         working-directory: app
+        run: npm run test:e2e
