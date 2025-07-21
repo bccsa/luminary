@@ -97,29 +97,25 @@ const navigateToLanguage = (language: LanguageDto) => {
 
 <template>
     <div
-        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 sm:rounded-md sm:border"
+        class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 sm:rounded-md sm:border"
+        @click="
+            () => {
+                if (verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)) {
+                    router.push({
+                        name: 'edit',
+                        params: {
+                            docType: parentType,
+                            tagOrPostType: contentDoc.parentTagType || contentDoc.parentPostType,
+                            id: contentDoc.parentId,
+                            languageCode: cmsDefaultLanguage?.languageCode,
+                        },
+                    });
+                }
+            }
+        "
     >
         <div class="relative flex cursor-pointer items-center justify-between py-1">
-            <div
-                data-test="content-title"
-                class="w-full"
-                @click="
-                    () => {
-                        if (verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)) {
-                            router.push({
-                                name: 'edit',
-                                params: {
-                                    docType: parentType,
-                                    tagOrPostType:
-                                        contentDoc.parentTagType || contentDoc.parentPostType,
-                                    id: contentDoc.parentId,
-                                    languageCode: cmsDefaultLanguage?.languageCode,
-                                },
-                            });
-                        }
-                    }
-                "
-            >
+            <div data-test="content-title" class="w-full">
                 <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
                     {{ contentDoc.title }}
                 </div>
@@ -133,6 +129,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                         v-for="language in accessibleLanguages"
                         :key="language._id"
                         :to="navigateToLanguage(language)"
+                        @click.stop
                     >
                         <LBadge
                             type="language"
@@ -155,6 +152,7 @@ const navigateToLanguage = (language: LanguageDto) => {
                 v-for="language in accessibleLanguages"
                 :key="language._id"
                 :to="navigateToLanguage(language)"
+                @click.stop
             >
                 <LBadge
                     type="language"
