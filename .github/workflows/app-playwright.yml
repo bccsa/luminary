@@ -17,9 +17,11 @@ permissions:
 
 env:
   CI: true
+
 jobs:
-  playwright:
+  api:
     runs-on: ubuntu-latest
+    environment: api-e2e
     services:
       couchdb:
         image: couchdb:latest
@@ -39,8 +41,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create database in couchDB
-        run: |
-          curl -X PUT http://admin:password@localhost:5984/luminary-local
+        run: curl -X PUT http://admin:password@localhost:5984/luminary-local
 
       - name: Setup API
         run: |
@@ -49,8 +50,6 @@ jobs:
         working-directory: api
 
       - name: Setup API Environment Variables
-        environment: api-e2e
-        working-directory: api
         run: |
           cp .env.example .env
           sed -i "s|^DB_CONNECTION_STRING.*$|DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}|" .env
@@ -59,6 +58,21 @@ jobs:
           sed -i "s|^S3_ENDPOINT=.*$|S3_ENDPOINT=${{ secrets.S3_ENDPOINT }}|" .env
           sed -i "s|^S3_USE_SSL=.*$|S3_USE_SSL=${{ secrets.S3_USE_SSL }}|" .env
           sed -i "s|CORS_ORIGIN=.*$|CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}|" .env
+        working-directory: api
+
+      - name: Start API
+        run: |
+          npm run start &
+          sleep 20
+        working-directory: api
+
+  app:
+    runs-on: ubuntu-latest
+    environment: app-e2e
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup app and shared library
         run: |
@@ -69,8 +83,6 @@ jobs:
           npm ci --install-links
 
       - name: Setup APP Environment Variables
-        environment: app-e2e
-        working-directory: app
         run: |
           cp .env.example .env
           sed -i "s|^VITE_API_URL=.*$|VITE_API_URL=${{ secrets.VITE_API_URL }}|" .env
@@ -78,15 +90,12 @@ jobs:
           sed -i "s|^VITE_AUTH0_AUDIENCE=.*$|VITE_AUTH0_AUDIENCE=${{ secrets.VITE_AUTH0_AUDIENCE }}|" .env
           sed -i "s|^VITE_AUTH0_DOMAIN=.*$|VITE_AUTH0_DOMAIN=${{ secrets.VITE_AUTH0_DOMAIN }}|" .env
           sed -i "s|^VITE_CLIENT_APP_URL=.*$|VITE_CLIENT_APP_URL=${{ secrets.VITE_CLIENT_APP_URL }}|" .env
+        working-directory: app
 
       - name: Install Playwright browsers
         run: npx playwright install
         working-directory: app
 
       - name: Run Playwright Tests
-        run: |
-          cd api
-          npm run start & # Start your API in the background
-          sleep 20         # Wait for the API to be ready
-          cd ../app
-          npm run test:e2e  # Run Playwright E2E tests
+        run: npm run test:e2e
+        working-directory: app
