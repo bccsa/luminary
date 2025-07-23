@@ -46,13 +46,23 @@ jobs:
       - name: Setup API Environment Variables
         working-directory: api
         run: |
-          cp .env.example .env
-          sed -i "s|^DB_CONNECTION_STRING.*$|DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}|" .env
-          sed -i "s|^JWT_MAPPING=.*$|JWT_MAPPING=${{ secrets.JWT_MAPPING }}|" .env
-          sed -i "s|^JWT_SECRET=.*$|JWT_SECRET=${{ secrets.JWT_SECRET }}|" .env
-          sed -i "s|^S3_ENDPOINT=.*$|S3_ENDPOINT=${{ secrets.S3_ENDPOINT }}|" .env
-          sed -i "s|^S3_USE_SSL=.*$|S3_USE_SSL=${{ secrets.S3_USE_SSL }}|" .env
-          sed -i "s|CORS_ORIGIN=.*$|CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}|" .env
+          touch .env
+          echo PORT="${{ vars.PORT }}" >> .env
+          echo CORS_ORIGIN="${{ secrets.CORS_ORIGIN }}" >> .env
+          echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
+          echo DB_CONNECTION_STRING="${{ secrets.DB_CONNECTION_STRING }}" >> .env
+          echo DB_DATABASE="luminary-local" >> .env
+          echo DB_MAX_SOCKETS="${{ vars.DB_MAX_SOCKETS }}" >> .env
+          echo SYNC_TOLERANCE="${{ vars.SYNC_TOLERANCE }}" >> .env
+          echo JWT_MAPPING="${{ vars.JWT_MAPPING }}" >> .env
+          echo S3_ENDPOINT="${{ secrets.S3_ENDPOINT }}" >> .env
+          echo S3_PORT="${{ secrets.S3_PORT }}" >> .env
+          echo S3_USE_SSL="${{ vars.S3_USE_SSL }}" >> .env
+          echo S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY }}" >> .env
+          echo S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY }}" >> .env
+          echo S3_IMG_BUCKET="${{ secrets.S3_IMG_BUCKET }}" >> .env
+          echo S3_IMG_QUALITY="${{ vars.S3_IMG_QUALITY }}" >> .env
+          echo SOCKETIO_MAX_HTTP_BUFFER_SIZE="${{ vars.SOCKETIO_MAX_HTTP_BUFFER_SIZE }}" >> .env
 
       - name: Setup API
         working-directory: api
@@ -85,12 +95,13 @@ jobs:
       - name: Setup APP Environment Variables
         working-directory: app
         run: |
-          cp .env.example .env
-          sed -i "s|^VITE_API_URL=.*$|VITE_API_URL=${{ secrets.VITE_API_URL }}|" .env
-          sed -i "s|^VITE_AUTH0_CLIENT_ID=.*$|VITE_AUTH0_CLIENT_ID=${{ secrets.VITE_AUTH0_CLIENT_ID }}|" .env
-          sed -i "s|^VITE_AUTH0_AUDIENCE=.*$|VITE_AUTH0_AUDIENCE=${{ secrets.VITE_AUTH0_AUDIENCE }}|" .env
-          sed -i "s|^VITE_AUTH0_DOMAIN=.*$|VITE_AUTH0_DOMAIN=${{ secrets.VITE_AUTH0_DOMAIN }}|" .env
-          sed -i "s|^VITE_CLIENT_APP_URL=.*$|VITE_CLIENT_APP_URL=${{ secrets.VITE_CLIENT_APP_URL }}|" .env
+          touch .env
+          echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
+          echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
+          echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
+          echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
+          echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
+          echo VITE_HIDE_EXPLORE="${{ vars.VITE_HIDE_EXPLORE }}" >> .env
 
       - name: Install Playwright browsers
         working-directory: app
