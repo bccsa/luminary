@@ -5,7 +5,7 @@ import App from "./App.vue";
 import * as auth0 from "@auth0/auth0-vue";
 import { ref } from "vue";
 import { createTestingPinia } from "@pinia/testing";
-import LoadingSpinner from "./components/LoadingSpinner.vue";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { setActivePinia } from "pinia";
 import { getSocket } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
@@ -35,7 +35,7 @@ describe("App", () => {
         vi.clearAllMocks();
     });
 
-    it("renders a loading spinner when not authenticated", () => {
+    it("renders a loading bar when not authenticated", () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isLoading: ref(false),
             isAuthenticated: ref(false),
@@ -44,7 +44,7 @@ describe("App", () => {
 
         const wrapper = mount(App);
 
-        expect(wrapper.findComponent(LoadingSpinner).exists()).toBe(true);
+        expect(wrapper.findComponent(LoadingBar).exists()).toBe(true);
     });
 
     it("displays notification when change request fails", async () => {
