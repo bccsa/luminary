@@ -297,10 +297,6 @@ onUnmounted(() => {
         // Pause the player first
         player.pause();
 
-        // Reset the source to stop any ongoing downloads
-        // This prevents live videos from continuing to download audio in the background
-        player.src({ type: "application/x-mpegURL", src: "" });
-
         // Remove all event listeners
         player.off(["mousemove", "click"], autoHidePlayerControls);
         player.off("play", playerPlayEventHandler);
