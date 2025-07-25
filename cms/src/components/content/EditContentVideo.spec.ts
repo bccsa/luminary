@@ -20,7 +20,7 @@ describe("EditContentVideo.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("display video field, when is defined", async () => {
+    it("displays the video field, when it is defined", async () => {
         const content = ref<ContentDto>({
             ...mockData.mockEnglishContentDto,
             video: "https://example.com/video.mp4",
