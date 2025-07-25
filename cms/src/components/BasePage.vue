@@ -6,7 +6,6 @@ import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import MobileSideBar from "./navigation/MobileSideBar.vue";
 import SideBar from "./navigation/SideBar.vue";
-import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     title?: string;
@@ -51,7 +50,6 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
                 <button
                     type="button"
                     class="-m-2.5 p-2.5 text-zinc-700"
-                    :class="[{ 'lg:hidden': !isSmallScreen }]"
                     @click="
                         !isEditContentPage
                             ? (sidebarOpen = true)
