@@ -292,9 +292,20 @@ onMounted(() => {
 
 onUnmounted(() => {
     stopKeepAudioAlive();
-    player?.off(["mousemove", "click"], autoHidePlayerControls);
-    player?.off("play", playerPlayEventHandler);
-    player?.off(["useractive", "userinactive"], playerUserActiveEventHandler);
+
+    if (player) {
+        // Pause the player first
+        player.pause();
+
+        // Remove all event listeners
+        player.off(["mousemove", "click"], autoHidePlayerControls);
+        player.off("play", playerPlayEventHandler);
+        player.off(["useractive", "userinactive"], playerUserActiveEventHandler);
+
+        // Dispose of the player completely
+        player.dispose();
+    }
+
     // emit event when player is Destroyed
     const playerDestroyEvent = new Event("vjsPlayerDestroyed");
     window.dispatchEvent(playerDestroyEvent);
