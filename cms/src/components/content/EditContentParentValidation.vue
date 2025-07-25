@@ -162,7 +162,7 @@ watch(
         </template>
 
         <template #persistent>
-            <div class="flex flex-col gap-2" :class="{ 'mb-2': isCardCollapsed }">
+            <div class="flex flex-col gap-2" :class="{ 'mb-1': isCardCollapsed }">
                 <EditContentValidation
                     v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                     :editableContent="content"
