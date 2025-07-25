@@ -180,7 +180,7 @@ defineExpose({
                         (parent.imageData.fileCollections.length > 0 ||
                             (parent.imageData.uploadData && parent.imageData.uploadData.length > 0))
                     "
-                    class="z-40 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-2 scrollbar-hide"
+                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide"
                     data-test="thumbnail-area"
                 >
                     <!-- File Collections -->
