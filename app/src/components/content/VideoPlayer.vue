@@ -19,7 +19,9 @@ import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 
 type Props = {
     content: ContentDto;
+    language: string | null | undefined;
 };
+
 const props = defineProps<Props>();
 
 const playerElement = ref<HTMLVideoElement>();
@@ -68,12 +70,23 @@ function setAudioTrackLanguage(languageCode: string | null) {
         return;
     }
 
+    let trackFound = false;
     for (let i = 0; i < audioTracks.length; i++) {
         const track = audioTracks[i];
 
-        track.enabled =
+        if (
             iso.iso6392TTo1[track.language] === languageCode ||
-            iso.iso6392BTo1[track.language] === languageCode;
+            iso.iso6392BTo1[track.language] === languageCode
+        ) {
+            track.enabled = true;
+            trackFound = true;
+        } else {
+            track.enabled = false;
+        }
+    }
+
+    if (!trackFound) {
+        console.warn(`No matching audio track found for language: ${languageCode}`);
     }
 }
 
@@ -364,13 +377,15 @@ watch(audioMode, async (mode) => {
     }
 });
 
-// Watch for changes in appLanguageAsRef
-watch(appLanguagesPreferredAsRef, (newLanguage) => {
-    if (player && newLanguage) {
-        setAudioTrackLanguage(newLanguage[0].languageCode || null);
-    }
-    return;
-});
+// Watch the language prop and update the audio track language dynamically
+watch(
+    () => props.language,
+    (newLanguage) => {
+        if (newLanguage) {
+            setAudioTrackLanguage(newLanguage);
+        }
+    },
+);
 </script>
 
 <style>
