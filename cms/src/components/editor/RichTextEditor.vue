@@ -46,7 +46,7 @@ const editor = useEditor({
     editable: (() => !disabled.value as boolean | undefined)(),
     editorProps: {
         attributes: {
-            class: "prose min-h-[calc(100vh-12rem)] max-h-[calc(100vh-12rem)] mb-1 prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
+            class: "prose min-h-[calc(100vh-12rem)] max-h-[calc(100vh-12rem)]  prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
         },
         handlePaste(view, event) {
             const clipboardData = event.clipboardData;
@@ -266,7 +266,7 @@ watch(showModal, async () => {
             </div>
         </div>
         <div class="flex flex-1 flex-col">
-            <EditorContent :editor="editor" class="flex-1 bg-white" />
+            <EditorContent :editor="editor" class="mb-1 flex-1 bg-white" />
         </div>
     </div>
     <LModal
