@@ -782,11 +782,38 @@ watch(
                             :disabled="!canTranslate"
                             :disable-publish="!canPublish"
                         />
+
+                        <!-- This is for mobile  -->
+                        <div class="mb-20 block w-full scrollbar-hide lg:hidden">
+                            <EmptyState
+                                v-if="!selectedContent"
+                                :icon="icon"
+                                title=""
+                                :description="`Please select a language to start editing`"
+                                data-test="no-content"
+                                class="flex flex-col items-center justify-center"
+                                ><LanguageSelector
+                                    :parent="editableParent"
+                                    :content="editableContent"
+                                    :languages="untranslatedLanguages"
+                                    v-model:show-selector="showLanguageSelector"
+                                    @create-translation="createTranslation"
+                            /></EmptyState>
+
+                            <div v-else>
+                                <EditContentText
+                                    v-model:content="selectedContent"
+                                    :selectedLanguage="selectedLanguage!"
+                                    :disabled="!canTranslate"
+                                    :disablePublish="!canPublish"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <!-- main content -->
-            <div class="w-full scrollbar-hide">
+            <!-- main content | This is for desktop-->
+            <div class="hidden w-full scrollbar-hide lg:block">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
@@ -809,6 +836,7 @@ watch(
                         :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
                         :disablePublish="!canPublish"
+                        class="hidden lg:block"
                     />
                 </div>
             </div>
