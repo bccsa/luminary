@@ -154,15 +154,14 @@ const deleteTranslation = () => {
             :class="[
                 'mx-1.5 rounded-md p-1.5 px-2 sm:px-1',
                 {
-                    'mb-1': isCardCollapsed,
-                    'cursor-default bg-yellow-100/40 shadow': isActive && !isCardCollapsed,
+                    'mb-0 cursor-default bg-yellow-100/40 shadow': isActive && !isCardCollapsed,
                     'border-1.5 cursor-default bg-white shadow': isActive && isCardCollapsed,
                     'border bg-white/80 hover:bg-white/100': !isActive,
                 },
             ]"
         >
             <div class="flex flex-col">
-                <span class="flex items-center justify-between text-sm text-zinc-900">
+                <span class="mx-1.5 flex items-center justify-between text-sm text-zinc-900">
                     <div class="flex h-8 w-full items-center justify-start">
                         {{ usedLanguage?.name }}
                     </div>
