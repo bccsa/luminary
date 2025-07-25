@@ -11,6 +11,18 @@ import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import waitForExpect from "wait-for-expect";
 import ContentTable from "../ContentTable.vue";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
+import { ref } from "vue";
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useRouter: () => ({
+            push: vi.fn(),
+            currentRoute: ref({ name: "edit" }),
+        }),
+    };
+});
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();

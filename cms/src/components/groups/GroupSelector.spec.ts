@@ -10,10 +10,10 @@ import {
 } from "@/tests/mockdata";
 
 import GroupSelector from "./GroupSelector.vue";
-import LTag from "../content/LTag.vue";
 import { accessMap, db, DocType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import LCombobox from "../forms/LCombobox.vue";
+import LTag from "../content/LTag.vue";
 
 describe("GroupSelector", () => {
     // Need to set the access map before starting the tests. When moving this to beforeAll, it fails for some or other reason.
@@ -43,10 +43,8 @@ describe("GroupSelector", () => {
         });
 
         await waitForExpect(() => {
-            const tagDiv = wrapper.findComponent(LCombobox).findComponent(LTag);
-
-            expect(tagDiv.text()).toContain("Public Content");
-            expect(tagDiv.text()).not.toContain("Private Content");
+            expect(wrapper.text()).toContain("Public Content");
+            expect(wrapper.text()).not.toContain("Private Content");
         });
     });
 
@@ -58,13 +56,17 @@ describe("GroupSelector", () => {
             },
         });
 
-        await wrapper.find("button").trigger("click"); // First button is the dropdown button
-
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Public Content");
-            expect(wrapper.text()).toContain("Public Users");
-            expect(wrapper.text()).toContain("Public Editors");
-            expect(wrapper.text()).toContain("Private Content");
+            const groups = wrapper
+                .findComponent(LCombobox)
+                .props("options")
+                .map((g: any) => g.label);
+
+            expect(groups).toHaveLength(4);
+            expect(groups[0]).toBe("Private Content");
+            expect(groups[1]).toBe("Public Content");
+            expect(groups[2]).toBe("Public Editors");
+            expect(groups[3]).toBe("Public Users");
         });
     });
 
@@ -80,9 +82,10 @@ describe("GroupSelector", () => {
             },
         });
 
-        await wrapper.find("button").trigger("click"); // First button is the dropdown button
+        await waitForExpect(async () => {
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+            await wrapper.find("[name='options-open-btn']").trigger("click");
 
-        await waitForExpect(() => {
             expect(wrapper.text()).toContain("Public Content");
             expect(wrapper.text()).toContain("Public Editors");
             expect(wrapper.text()).toContain("Private Content");
@@ -104,10 +107,13 @@ describe("GroupSelector", () => {
         //@ts-expect-error
         wrapper.vm.availableGroups = await db.docs.toArray();
 
+        // open the edit group modal
+        await wrapper.find("[data-test='edit-group']").trigger("click");
+
         const combobox = wrapper.findComponent(LCombobox);
         await combobox.find('[name="options-open-btn"]').trigger("click");
 
-        const groupLi = await combobox.findAll("li");
+        const groupLi = combobox.findAll("li");
         await groupLi[1].trigger("click");
 
         // Ensure the groups array is updated
@@ -132,6 +138,9 @@ describe("GroupSelector", () => {
             expect(wrapper.text()).toContain("Public Editors");
         });
 
+        // open the edit group modal
+        await wrapper.find("[data-test='edit-group']").trigger("click");
+
         await wrapper.find("button[data-test='removeTag']").trigger("click");
 
         await waitForExpect(async () => {
@@ -150,7 +159,9 @@ describe("GroupSelector", () => {
 
         await waitForExpect(() => {
             expect(wrapper.findComponent(LCombobox).props().disabled).toBe(true);
-            expect(wrapper.findComponent(LTag).props().disabled).toBe(true);
+
+            const editGroup = wrapper.find("[data-test='edit-group']").element as HTMLButtonElement;
+            expect(editGroup.disabled).toBe(true);
         });
     });
 
@@ -166,9 +177,10 @@ describe("GroupSelector", () => {
             },
         });
 
-        await wrapper.find("button").trigger("click");
+        await waitForExpect(async () => {
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+            await wrapper.find("[name='options-open-btn']").trigger("click");
 
-        await waitForExpect(() => {
             expect(wrapper.text()).toContain("Public Content");
             expect(wrapper.text()).toContain("Private Content");
 
@@ -190,11 +202,11 @@ describe("GroupSelector", () => {
             },
         });
 
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+
             const tag = wrapper.findComponent(LTag);
             expect(tag.props().disabled).toBe(true);
-
-            console.log(tag.props());
         });
     });
 });

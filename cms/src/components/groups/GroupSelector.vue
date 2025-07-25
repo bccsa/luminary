@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
     db,
     DocType,
@@ -9,14 +9,17 @@ import {
     AclPermission,
 } from "luminary-shared";
 import LCombobox, { type ComboboxOption } from "../forms/LCombobox.vue";
+import { ChevronRightIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 
 // Define props: docType (required) and disabled (optional)
 type Props = {
     disabled?: boolean;
     docType: DocType;
+    showIcon?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
+    showIcon: true,
 });
 
 // Bind the model for selected groups using Vue's defineModel
@@ -77,6 +80,7 @@ const selectedGroupOptions = computed<ComboboxOption[]>(() =>
         };
     }),
 );
+const showEditModal = ref(false);
 </script>
 
 <template>
@@ -84,12 +88,30 @@ const selectedGroupOptions = computed<ComboboxOption[]>(() =>
         <!-- Group selection component using LCombobox -->
         <LCombobox
             :disabled="disabled"
+            :labelIcon="UserGroupIcon"
             :options="groupList"
             label="Group Membership"
             :selectedOptions="groups"
             :selectedLabels="selectedGroupOptions"
             :showSelectedInDropdown="false"
-        />
+            badgeVariant="blue"
+            v-model:showEditModal="showEditModal"
+            :showIcon="props.showIcon"
+        >
+            <template #actions>
+                <button
+                    v-if="assignableGroups.length > 0"
+                    @click="showEditModal = true"
+                    type="button"
+                    :disabled="disabled"
+                    data-test="edit-group"
+                    class="flex items-center rounded-lg px-1 text-sm hover:bg-zinc-300/50"
+                >
+                    edit
+                    <ChevronRightIcon class="h-4 w-4 text-zinc-600" />
+                </button>
+            </template>
+        </LCombobox>
 
         <!-- Transition with fade/scale animation when no group is selected -->
         <Transition
@@ -100,7 +122,7 @@ const selectedGroupOptions = computed<ComboboxOption[]>(() =>
             leave-from-class="transform scale-100 opacity-100 absolute"
             leave-to-class="transform scale-90 opacity-0"
         >
-            <div v-if="selectedGroupOptions.length === 0" class="text-xs text-zinc-500">
+            <div v-if="selectedGroupOptions.length === 0" class="mt-1 text-xs italic text-zinc-500">
                 No group selected
             </div>
         </Transition>

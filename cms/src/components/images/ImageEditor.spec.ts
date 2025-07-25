@@ -45,4 +45,15 @@ describe("ImageEditor", () => {
             mockPostDto.imageData!.fileCollections[0].imageFiles[0].filename,
         );
     });
+
+    it("shows the empty message when no image is present", async () => {
+        const wrapper = mount(ImageEditor, {
+            props: {
+                parent: { ...mockPostDto, imageData: { fileCollections: [] } },
+                disabled: false,
+            },
+        });
+
+        expect(wrapper.text()).toContain("No images uploaded yet.");
+    });
 });

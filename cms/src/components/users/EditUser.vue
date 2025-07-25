@@ -16,15 +16,18 @@ import {
     type Uuid,
     getRest,
     AckStatus,
+    useDexieLiveQuery,
+    db,
+    type GroupDto,
 } from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
-import GroupSelector from "../groups/GroupSelector.vue";
 import _ from "lodash";
 import { useNotificationStore } from "@/stores/notification";
 import { ArrowUturnLeftIcon, FolderArrowDownIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
+import LCombobox from "../forms/LCombobox.vue";
 
 type Props = {
     id: Uuid;
@@ -60,6 +63,11 @@ const originalLoadedHandler = watch(original, () => {
 
     originalLoadedHandler();
 });
+
+const groups = useDexieLiveQuery(
+    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
+    { initialValue: [] as GroupDto[] },
+);
 
 // Check if the user is dirty (has unsaved changes)
 const isDirty = ref(false);
@@ -229,11 +237,20 @@ const save = async () => {
                     data-test="userEmail"
                 />
 
-                <GroupSelector
-                    v-model:groups="editable.memberOf"
-                    :docType="DocType.User"
-                    data-test="groupSelector"
+                <LCombobox
+                    v-model:selected-options="editable.memberOf as string[]"
+                    :label="`Group Membership`"
+                    :options="
+                        groups.map((group: GroupDto) => ({
+                            id: group._id,
+                            label: group.name,
+                            value: group._id,
+                        }))
+                    "
+                    :show-selected-in-dropdown="false"
+                    :showSelectedLabels="true"
                     :disabled="!canEditOrCreate"
+                    data-test="groupSelector"
                 />
             </LCard>
         </div>
