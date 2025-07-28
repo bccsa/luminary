@@ -104,6 +104,49 @@ jobs:
           cd ../app
           npm ci --install-links
 
+      - name: Install browser dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-0 \
+            libgtk-4-1 \
+            libasound2 \
+            libdrm2 \
+            libgbm1 \
+            libnss3 \
+            libxss1 \
+            libxtst6 \
+            libx11-xcb1 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxrandr2 \
+            libxshmfence1 \
+            libpci3 \
+            libwoff1 \
+            libwoff2-1 \
+            libvpx9 \
+            libopus0 \
+            libevent-2.1-7 \
+            libsecret-1-0 \
+            libavif16 \
+            libgraphene-1.0-0 \
+            libhyphen0 \
+            libmanette-0.2-0 \
+            libflite1 \
+            libflite1-plugins \
+            libgstallocators-1.0-0 \
+            libgstapp-1.0-0 \
+            libgstpbutils-1.0-0 \
+            libgstaudio-1.0-0 \
+            libgsttag-1.0-0 \
+            libgstvideo-1.0-0 \
+            libgstgl-1.0-0 \
+            libgstcodecparsers-1.0-0 \
+            libgstfft-1.0-0 \
+            libharfbuzz-icu0 \
+            libgles2 \
+            libx264-dev
+
       - name: Install Playwright browsers
         working-directory: app
         run: npx playwright install
