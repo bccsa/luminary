@@ -84,17 +84,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Print VITE_LOGO_FAVICON
+        run: echo "Favicon is: ${{ vars.VITE_LOGO_FAVICON }}"
+
       - name: Setup APP Environment Variables
         working-directory: app
         run: |
           touch .env
+          echo VITE_LOGO_FAVICON="${{ vars.VITE_LOGO_FAVICON }}" >> .env
           echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
           echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
           echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
           echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
           echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
           echo VITE_HIDE_EXPLORE="${{ vars.VITE_HIDE_EXPLORE }}" >> .env
-          echo VITE_LOGO_FAVICON="${{ vars.VITE_LOGO_FAVICON }}" >> .env
 
       - name: Setup app and shared library
         run: |
