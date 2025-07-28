@@ -84,14 +84,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup app and shared library
-        run: |
-          cd shared
-          npm install
-          npm run build
-          cd ../app
-          npm ci --install-links
-
       - name: Setup APP Environment Variables
         working-directory: app
         run: |
@@ -102,6 +94,14 @@ jobs:
           echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
           echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
           echo VITE_HIDE_EXPLORE="${{ vars.VITE_HIDE_EXPLORE }}" >> .env
+
+      - name: Setup app and shared library
+        run: |
+          cd shared
+          npm install
+          npm run build
+          cd ../app
+          npm ci --install-links
 
       - name: Install Playwright browsers
         working-directory: app
