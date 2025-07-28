@@ -104,12 +104,9 @@ jobs:
           cd ../app
           npm ci --install-links
 
-      - name: Install Playwright dependencies
-        uses: microsoft/playwright-github-action@v1
-
       - name: Install Playwright browsers
         working-directory: app
-        run: npx playwright install
+        run: npx playwright install --with-deps
 
       - name: Run Playwright Tests
         working-directory: app
