@@ -19,9 +19,10 @@ env:
   CI: true
 
 jobs:
-  api:
+  e2e-tests:
     runs-on: ubuntu-latest
-    environment: api-e2e
+    environment:
+      name: app-e2e
     services:
       couchdb:
         image: couchdb:latest
@@ -35,10 +36,12 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # --- Setup API ---
 
       - name: Create database in couchDB
         run: curl -X PUT http://admin:password@localhost:5984/luminary-local
@@ -47,7 +50,7 @@ jobs:
         working-directory: api
         run: |
           touch .env
-          echo PORT="${{ vars.PORT }}" >> .env
+          echo PORT="${{ vars.API_PORT }}" >> .env
           echo CORS_ORIGIN="${{ secrets.CORS_ORIGIN }}" >> .env
           echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
           echo DB_CONNECTION_STRING="${{ secrets.DB_CONNECTION_STRING }}" >> .env
@@ -64,25 +67,19 @@ jobs:
           echo S3_IMG_QUALITY="${{ vars.S3_IMG_QUALITY }}" >> .env
           echo SOCKETIO_MAX_HTTP_BUFFER_SIZE="${{ vars.SOCKETIO_MAX_HTTP_BUFFER_SIZE }}" >> .env
 
-      - name: Setup API
+      - name: Install and seed API
         working-directory: api
         run: |
-          npm install 
+          npm install
           npm run seed
 
-      - name: Start API
+      - name: Start API in background
+        working-directory: api
         run: |
           npm run start &
           sleep 20
-        working-directory: api
 
-  app:
-    runs-on: ubuntu-latest
-    environment: app-e2e
-    timeout-minutes: 15
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # --- Setup App ---
 
       - name: Setup APP Environment Variables
         working-directory: app
@@ -96,13 +93,15 @@ jobs:
           echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
           echo VITE_HIDE_EXPLORE="${{ vars.VITE_HIDE_EXPLORE }}" >> .env
 
-      - name: Setup app and shared library
+      - name: Install shared library
+        working-directory: shared
         run: |
-          cd shared
           npm install
           npm run build
-          cd ../app
-          npm ci --install-links
+
+      - name: Setup app
+        working-directory: app
+        run: npm ci --install-links
 
       - name: Install Playwright browsers
         working-directory: app
