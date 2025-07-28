@@ -663,7 +663,7 @@ const selectedLanguageCode = computed(() => {
     </LModal>
 
     <ImageModal
-        v-if="content?.parentImageData && enableZoom"
+        v-if="enableZoom"
         :content-parent-id="content.parentId"
         :image="content.parentImageData"
         aspectRatio="video"
