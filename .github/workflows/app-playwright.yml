@@ -84,11 +84,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Print VITE_LOGO_FAVICON
-        run: echo "Favicon is: $VITE_LOGO_FAVICON"
-        env:
-          VITE_LOGO_FAVICON: ${{ vars.VITE_LOGO_FAVICON }}
-
       - name: Setup APP Environment Variables
         working-directory: app
         run: |
