@@ -77,7 +77,7 @@ jobs:
         working-directory: api
         run: |
           npm run start &
-          sleep 20
+          sleep 50
 
       # --- Setup App ---
 
