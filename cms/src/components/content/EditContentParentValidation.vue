@@ -8,7 +8,7 @@ import {
     TagType,
     PostType,
 } from "luminary-shared";
-import { computed, ref, watch, watchEffect } from "vue";
+import { computed, ref, watch, watchEffect, onMounted, onUnmounted } from "vue";
 import { validate, type Validation } from "./ContentValidator";
 import LanguageSelector from "./LanguageSelector.vue";
 import {
@@ -21,6 +21,7 @@ import _ from "lodash";
 import LCard from "../common/LCard.vue";
 import LButton from "../button/LButton.vue";
 import { useRouter } from "vue-router";
+import { isSmallScreen } from "@/globalConfig";
 
 type Props = {
     languages: LanguageDto[];
@@ -44,6 +45,58 @@ const overallIsValid = ref(true);
 
 const showLanguageSelector = ref(false);
 const isCardCollapsed = ref(false);
+const cardRef = ref<HTMLElement>();
+const isSticky = ref(false);
+
+// Intersection Observer to detect when the card becomes sticky
+let observer: IntersectionObserver | null = null;
+let sentinel: HTMLElement | null = null;
+
+onMounted(() => {
+    if (!isSmallScreen.value) return;
+    setTimeout(() => {
+        if (cardRef.value) {
+            // Create a sentinel element to observe intersection changes
+            sentinel = document.createElement("div");
+            sentinel.style.position = "absolute";
+            sentinel.style.top = "-1px";
+            sentinel.style.height = "1px";
+            sentinel.style.width = "1px";
+            sentinel.style.visibility = "hidden";
+
+            // Insert sentinel before the card
+            cardRef.value.parentNode?.insertBefore(sentinel, cardRef.value);
+
+            // Create an observer to watch the sentinel
+            observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((entry) => {
+                        // When sentinel is not visible, the card is sticky
+                        const isNowSticky = !entry.isIntersecting;
+
+                        if (isNowSticky !== isSticky.value) {
+                            isSticky.value = isNowSticky;
+                            isCardCollapsed.value = isNowSticky;
+                        }
+                    });
+                },
+                {
+                    threshold: 0,
+                    rootMargin: "0px",
+                },
+            );
+
+            observer.observe(sentinel);
+        }
+    }, 100);
+});
+
+onUnmounted(() => {
+    if (observer) {
+        observer.disconnect();
+        observer = null;
+    }
+});
 
 const router = useRouter();
 const selectedLanguage = computed(() => {
@@ -127,99 +180,104 @@ watch(
 </script>
 
 <template>
-    <LCard
-        class="bg-white"
-        shadow="small"
-        title="Translations"
-        :icon="LanguageIcon"
-        collapsible
-        v-model:collapsed="isCardCollapsed"
-    >
-        <template #actions>
-            <div class="relative flex flex-col items-end gap-2">
-                <LButton
-                    :icon="PlusIcon"
-                    class="w-fit"
-                    variant="muted"
-                    @click.stop="showLanguageSelector = !showLanguageSelector"
-                    data-test="add-translation-button"
-                />
+    <div ref="cardRef">
+        <LCard
+            class="bg-white"
+            shadow="small"
+            title="Translations"
+            :icon="LanguageIcon"
+            collapsible
+            v-model:collapsed="isCardCollapsed"
+        >
+            <template #actions>
+                <div class="relative flex flex-col items-end gap-2">
+                    <LButton
+                        :icon="PlusIcon"
+                        class="w-fit"
+                        variant="muted"
+                        @click.stop="showLanguageSelector = !showLanguageSelector"
+                        data-test="add-translation-button"
+                    />
 
-                <div v-if="untranslatedLanguages.length > 0" class="absolute right-24 z-10 mt-2">
-                    <LanguageSelector
-                        :languages="untranslatedLanguages"
-                        :parent="editableParent"
-                        :content="editableContent"
-                        :showSelector="showLanguageSelector"
-                        @create-translation="
-                            (language) => {
-                                emit('createTranslation', language);
-                                showLanguageSelector = false;
-                            }
-                        "
+                    <div
+                        v-if="untranslatedLanguages.length > 0"
+                        class="absolute right-24 z-10 mt-2"
+                    >
+                        <LanguageSelector
+                            :languages="untranslatedLanguages"
+                            :parent="editableParent"
+                            :content="editableContent"
+                            :showSelector="showLanguageSelector"
+                            @create-translation="
+                                (language) => {
+                                    emit('createTranslation', language);
+                                    showLanguageSelector = false;
+                                }
+                            "
+                        />
+                    </div>
+                </div>
+            </template>
+
+            <template #persistent>
+                <div class="flex flex-col gap-2" :class="{ 'mb-1': isCardCollapsed }">
+                    <EditContentValidation
+                        v-for="content in editableContent?.filter((c) => !c.deleteReq)"
+                        :editableContent="content"
+                        :languages="lang"
+                        :key="content._id"
+                        @isValid="(val) => setOverallValidation(content._id, val)"
+                        :existingContent="existingContent?.find((c) => c._id == content._id)"
+                        :can-delete="canDelete"
+                        :isCardCollapsed="isCardCollapsed"
                     />
                 </div>
-            </div>
-        </template>
+            </template>
 
-        <template #persistent>
-            <div class="flex flex-col gap-2" :class="{ 'mb-1': isCardCollapsed }">
-                <EditContentValidation
-                    v-for="content in editableContent?.filter((c) => !c.deleteReq)"
-                    :editableContent="content"
-                    :languages="lang"
-                    :key="content._id"
-                    @isValid="(val) => setOverallValidation(content._id, val)"
-                    :existingContent="existingContent?.find((c) => c._id == content._id)"
-                    :can-delete="canDelete"
-                    :isCardCollapsed="isCardCollapsed"
-                />
-            </div>
-        </template>
-
-        <div class="flex flex-col gap-2">
-            <div
-                v-if="editableParent && !_.isEqual(editableParent, existingParent)"
-                class="flex items-center gap-2"
-            >
-                <p>
-                    <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-                </p>
-                <p class="text-xs text-zinc-700">
-                    Unsaved changes to {{ tagOrPostType }}'s settings.
-                </p>
-            </div>
-            <div
-                v-if="!(canTranslate || canPublish) || !canEdit"
-                class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
-            >
-                <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs text-zinc-600">
-                    <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
-                    translate permission</span
+            <div class="flex flex-col gap-2">
+                <div
+                    v-if="editableParent && !_.isEqual(editableParent, existingParent)"
+                    class="flex items-center gap-2"
                 >
-                <span v-if="!canPublish" class="mb-1 flex gap-1 text-xs text-zinc-600">
-                    <ExclamationCircleIcon class="h-4 w-4 text-red-400" />No publish
-                    permission</span
+                    <p>
+                        <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                    </p>
+                    <p class="text-xs text-zinc-700">
+                        Unsaved changes to {{ tagOrPostType }}'s settings.
+                    </p>
+                </div>
+                <div
+                    v-if="!(canTranslate || canPublish) || !canEdit"
+                    class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
                 >
-                <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
-                    <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No edit
-                    permission</span
-                >
-            </div>
-            <div v-if="!parentIsValid">
-                <div class="mb-1 mt-1 flex flex-col gap-0.5">
-                    <div
-                        v-for="validation in parentValidations.filter((v) => !v.isValid)"
-                        :key="validation.id"
-                        class="-mb-[1px] flex items-center gap-1"
+                    <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs text-zinc-600">
+                        <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
+                        translate permission</span
                     >
-                        <div class="flex items-center gap-2">
-                            <XCircleIcon class="h-[18px] w-[18px] min-w-[18px] text-red-400" />
-                            <span class="text-xs text-zinc-700">{{ validation.message }}</span>
+                    <span v-if="!canPublish" class="mb-1 flex gap-1 text-xs text-zinc-600">
+                        <ExclamationCircleIcon class="h-4 w-4 text-red-400" />No publish
+                        permission</span
+                    >
+                    <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
+                        <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
+                        edit permission</span
+                    >
+                </div>
+                <div v-if="!parentIsValid">
+                    <div class="mb-1 mt-1 flex flex-col gap-0.5">
+                        <div
+                            v-for="validation in parentValidations.filter((v) => !v.isValid)"
+                            :key="validation.id"
+                            class="-mb-[1px] flex items-center gap-1"
+                        >
+                            <div class="flex items-center gap-2">
+                                <XCircleIcon class="h-[18px] w-[18px] min-w-[18px] text-red-400" />
+                                <span class="text-xs text-zinc-700">{{ validation.message }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </LCard>
+        </LCard>
+    </div>
 </template>
