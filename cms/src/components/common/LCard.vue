@@ -6,11 +6,13 @@ type Props = {
     title?: string;
     icon?: string | Component | Function;
     padding?: "none" | "normal";
+    shadow?: "none" | "small";
     collapsible?: boolean;
     defaultCollapsed?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
+    shadow: "none",
     padding: "normal",
     collapsible: false,
     defaultCollapsed: false,
@@ -46,6 +48,11 @@ function collapse() {
 <template>
     <div
         class="overflow-hidden border-y-2 border-zinc-200 px-2 shadow-sm shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
+        :class="{
+            'shadow-none': props.shadow === 'none',
+            'shadow-sm': props.shadow === 'small',
+            'bg-zinc-50': collapsed,
+        }"
     >
         <div
             v-if="title || icon"

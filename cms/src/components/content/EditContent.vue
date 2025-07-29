@@ -752,7 +752,7 @@ watch(
                             v-model:parent="editableParent"
                         />
 
-                        <div class="sticky top-0 z-10">
+                        <div class="sticky -top-1 z-10">
                             <EditContentParentValidation
                                 :tag-or-post-type="props.tagOrPostType"
                                 :can-translate="canTranslate"
@@ -784,7 +784,7 @@ watch(
                         />
 
                         <!-- This is for mobile  -->
-                        <div class="mb-20 block w-full scrollbar-hide lg:hidden">
+                        <div class="block w-full scrollbar-hide lg:hidden">
                             <EmptyState
                                 v-if="!selectedContent"
                                 :icon="icon"
@@ -830,7 +830,7 @@ watch(
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="mb-20">
+                <div v-else class="">
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"

@@ -129,6 +129,7 @@ watch(
 <template>
     <LCard
         class="bg-white"
+        shadow="small"
         title="Translations"
         :icon="LanguageIcon"
         collapsible
