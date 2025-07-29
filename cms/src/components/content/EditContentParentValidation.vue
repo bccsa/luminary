@@ -53,7 +53,7 @@ let observer: IntersectionObserver | null = null;
 let sentinel: HTMLElement | null = null;
 
 onMounted(() => {
-    if (!isSmallScreen.value) return;
+    if (!isSmallScreen.value || import.meta.env.MODE == "test") return;
     setTimeout(() => {
         if (cardRef.value) {
             // Create a sentinel element to observe intersection changes
