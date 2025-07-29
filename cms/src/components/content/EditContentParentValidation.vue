@@ -54,6 +54,7 @@ let sentinel: HTMLElement | null = null;
 
 onMounted(() => {
     if (!isSmallScreen.value || import.meta.env.MODE == "test") return;
+
     setTimeout(() => {
         if (cardRef.value) {
             // Create a sentinel element to observe intersection changes
@@ -76,7 +77,18 @@ onMounted(() => {
 
                         if (isNowSticky !== isSticky.value) {
                             isSticky.value = isNowSticky;
-                            isCardCollapsed.value = isNowSticky;
+
+                            // Collapse when sticky, expand when not sticky
+                            if (isNowSticky) {
+                                // Small delay to prevent jarring during scroll transition
+                                setTimeout(() => {
+                                    if (isSticky.value) {
+                                        isCardCollapsed.value = true;
+                                    }
+                                }, 200);
+                            } else {
+                                isCardCollapsed.value = false;
+                            }
                         }
                     });
                 },
