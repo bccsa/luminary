@@ -8,8 +8,9 @@ import {
 } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import UserRow from "../users/UserRow.vue";
-import { ArrowPathIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import LoadingBar from "../LoadingBar.vue";
 
 const usersQuery = ref<ApiSearchQuery>({
     types: [DocType.User],
@@ -106,8 +107,7 @@ onBeforeUnmount(() => {
                     </tbody>
                 </table>
                 <div class="flex h-32 w-full items-center justify-center gap-2" v-if="isLoading">
-                    <ArrowPathIcon class="h-6 w-6 text-zinc-500" />
-                    <p class="text-sm text-zinc-500">Loading...</p>
+                    <LoadingBar class="h-5 w-20 text-zinc-500" />
                 </div>
                 <div class="flex h-32 w-full items-center justify-center gap-2" v-if="!isConnected">
                     <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
