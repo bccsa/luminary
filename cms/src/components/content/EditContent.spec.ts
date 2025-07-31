@@ -665,8 +665,8 @@ describe("EditContent.vue", () => {
             const visible = toogle.find('[data-test="text-toggle-left-value"]');
             expect(visible.exists()).toBe(true);
 
-            expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
-            await wrapper.find('[data-test="editSlugButton"]').trigger("click");
+            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
+            await wrapper.find('[data-test="slugSpan"]').trigger("click");
             await wrapper.find('[name="slug"]').setValue("new-slug");
             await wrapper.find('[name="slug"]').trigger("change");
         });
