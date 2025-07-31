@@ -17,7 +17,7 @@ import { DateTime } from "luxon";
 import { BackspaceIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "../forms/FormLabel.vue";
 import { Slug } from "@/util/slug";
-import { PencilIcon, ExclamationCircleIcon } from "@heroicons/vue/16/solid";
+import { ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 
 type Props = {
     selectedLanguage?: LanguageDto;
