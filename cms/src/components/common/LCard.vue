@@ -32,7 +32,7 @@ watch(modelCollapsed, (newVal) => {
     if (newVal !== undefined) collapsed.value = newVal;
 });
 watch(collapsed, (newVal) => {
-    if (modelCollapsed.value) modelCollapsed.value = newVal;
+    if (modelCollapsed.value !== undefined) modelCollapsed.value = newVal;
     emit("update:collapsed", newVal);
 });
 
