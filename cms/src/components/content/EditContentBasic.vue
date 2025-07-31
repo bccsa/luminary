@@ -226,8 +226,8 @@ const clearExpiryDate = () => {
         </template>
 
         <div v-if="currentToogle === 'visible'">
-            <div class="flex flex-col gap-2">
-                <div class="flex flex-col gap-4 text-center">
+            <div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+                <div class="col-span-2 flex flex-col gap-4 text-center">
                     <!-- Warning message -->
                     <div
                         v-show="showPublishDateWarning && !content.publishDate"
@@ -238,22 +238,19 @@ const clearExpiryDate = () => {
                 </div>
 
                 <!-- Title -->
-                <div class="flex items-center gap-2">
-                    <FormLabel class="w-16">Title</FormLabel>
-                    <LInput
-                        name="title"
-                        required
-                        :disabled="disabled"
-                        v-model="content.title"
-                        @blur="validateSlug"
-                        class="flex-1"
-                    />
-                </div>
+                <FormLabel>Title</FormLabel>
+                <LInput
+                    name="title"
+                    required
+                    :disabled="disabled"
+                    v-model="content.title"
+                    @blur="validateSlug"
+                />
 
                 <!-- Slug -->
+                <FormLabel class="self-start">Slug:</FormLabel>
                 <div class="flex flex-col gap-1">
-                    <div class="mt-0 flex items-center gap-2 align-top text-zinc-800">
-                        <FormLabel class="w-16">Slug:</FormLabel>
+                    <div class="flex items-center gap-2 align-top text-zinc-800">
                         <span
                             v-show="!isEditingSlug"
                             data-test="slugSpan"
@@ -286,187 +283,173 @@ const clearExpiryDate = () => {
                 </div>
 
                 <!-- Author -->
-                <div class="flex items-center gap-2">
-                    <FormLabel class="w-16">Author</FormLabel>
-                    <LInput
-                        name="author"
-                        v-model="content.author"
-                        placeholder="John Doe..."
-                        :disabled="disabled"
-                        inlineLabel
-                        class="flex-1"
-                    />
-                </div>
+                <FormLabel>Author</FormLabel>
+                <LInput
+                    name="author"
+                    v-model="content.author"
+                    placeholder="John Doe..."
+                    :disabled="disabled"
+                    inlineLabel
+                />
 
                 <!-- Summary -->
-                <div class="flex items-center gap-2">
-                    <FormLabel class="w-16">Summary</FormLabel>
-                    <LInput
-                        name="summary"
-                        :disabled="disabled"
-                        inputType="textarea"
-                        placeholder="A short summary of the content..."
-                        v-model="content.summary"
-                        class="min-h-2 flex-1"
-                    />
-                </div>
+                <FormLabel class="self-start">Summary</FormLabel>
+                <LInput
+                    name="summary"
+                    :disabled="disabled"
+                    inputType="textarea"
+                    placeholder="A short summary of the content..."
+                    v-model="content.summary"
+                    class="min-h-2"
+                />
 
                 <!-- Publish date -->
-                <div class="flex items-center gap-2">
-                    <FormLabel class="w-24">Publish date</FormLabel>
-                    <LInput
-                        name="publishDate"
-                        class="flex-1"
-                        type="datetime-local"
-                        :disabled="disabled"
-                        v-model="publishDateString"
-                    />
-                </div>
+                <FormLabel>Publish date</FormLabel>
+                <LInput
+                    name="publishDate"
+                    type="datetime-local"
+                    :disabled="disabled"
+                    v-model="publishDateString"
+                />
 
                 <!-- Expiry date -->
-                <div class="flex items-center gap-2">
-                    <FormLabel class="w-24 self-start pt-2">Expiry date</FormLabel>
-                    <LInput
-                        name="expiryDate"
-                        class="flex-1"
-                        type="datetime-local"
-                        :disabled="disabled"
-                        v-model="expiryDateString"
-                    />
-                </div>
-                <!-- Expiry date shortcut buttons -->
-                <div class="mb-1 flex flex-wrap gap-1 sm:flex-row">
-                    <LButton
-                        type="button"
-                        name="1"
-                        variant="secondary"
-                        class="min-w-[2.5rem] flex-1 basis-0"
-                        :class="{
-                            '!bg-black !text-white': selectedExpiryNumber === 1,
-                        }"
-                        @click="setExpiryNumber(1)"
-                        :disabled="disabled"
-                    >
-                        1
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="2"
-                        variant="secondary"
-                        class="min-w-[2.5rem] flex-1 basis-0"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
-                        @click="setExpiryNumber(2)"
-                        :disabled="disabled"
-                    >
-                        2
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="3"
-                        variant="secondary"
-                        class="min-w-[2.5rem] flex-1 basis-0"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
-                        @click="setExpiryNumber(3)"
-                        :disabled="disabled"
-                    >
-                        3
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="6"
-                        variant="secondary"
-                        class="min-w-[2.5rem] flex-1 basis-0"
-                        :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
-                        @click="setExpiryNumber(6)"
-                        :disabled="disabled"
-                    >
-                        6
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="W"
-                        variant="secondary"
-                        class="min-w-[2.5rem] flex-1 basis-0"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
-                        @click="setExpiryUnit('Week')"
-                        data-test="W"
-                        :disabled="disabled"
-                    >
-                        W
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="M"
-                        variant="secondary"
-                        class="min-w-[2.5rem] flex-1 basis-0"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
-                        @click="setExpiryUnit('Month')"
-                        :disabled="disabled"
-                    >
-                        M
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="Y"
-                        variant="secondary"
-                        class="min-w-[2.5rem] flex-1 basis-0"
-                        :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
-                        @click="setExpiryUnit('Year')"
-                        :disabled="disabled"
-                    >
-                        Y
-                    </LButton>
-                    <LButton
-                        type="button"
-                        name="clear"
-                        variant="secondary"
-                        :icon="BackspaceIcon"
-                        class="min-w-[2.5rem] flex-1 basis-0"
-                        @click="clearExpiryDate()"
-                        :disabled="disabled"
-                    />
-                </div>
+                <FormLabel class="self-start">Expiry date</FormLabel>
+                <LInput
+                    name="expiryDate"
+                    type="datetime-local"
+                    :disabled="disabled"
+                    v-model="expiryDateString"
+                />
 
-                <!-- Status -->
-                <div class="flex items-center justify-between gap-2">
-                    <FormLabel class="w-24 self-start py-2">Status</FormLabel>
-                    <LTextToggle
-                        v-model="content.status"
-                        leftLabel="Draft"
-                        :leftValue="PublishStatus.Draft"
-                        rightLabel="Publishable"
-                        :rightValue="PublishStatus.Published"
-                        :disabled="disabled || disablePublish"
-                    />
+                <!-- Expiry date shortcut buttons -->
+                <div class="col-span-2">
+                    <div class="mb-1 flex flex-wrap gap-1 sm:flex-row">
+                        <LButton
+                            type="button"
+                            name="1"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{
+                                '!bg-black !text-white': selectedExpiryNumber === 1,
+                            }"
+                            @click="setExpiryNumber(1)"
+                            :disabled="disabled"
+                        >
+                            1
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="2"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
+                            @click="setExpiryNumber(2)"
+                            :disabled="disabled"
+                        >
+                            2
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="3"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
+                            @click="setExpiryNumber(3)"
+                            :disabled="disabled"
+                        >
+                            3
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="6"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
+                            @click="setExpiryNumber(6)"
+                            :disabled="disabled"
+                        >
+                            6
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="W"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
+                            @click="setExpiryUnit('Week')"
+                            data-test="W"
+                            :disabled="disabled"
+                        >
+                            W
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="M"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
+                            @click="setExpiryUnit('Month')"
+                            :disabled="disabled"
+                        >
+                            M
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="Y"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
+                            @click="setExpiryUnit('Year')"
+                            :disabled="disabled"
+                        >
+                            Y
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="clear"
+                            variant="secondary"
+                            :icon="BackspaceIcon"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            @click="clearExpiryDate()"
+                            :disabled="disabled"
+                        />
+                    </div>
                 </div>
+            </div>
+
+            <!-- Status -->
+            <div class="mt-2 flex items-center justify-between gap-2">
+                <FormLabel class="self-start py-2">Status</FormLabel>
+                <LTextToggle
+                    v-model="content.status"
+                    leftLabel="Draft"
+                    :leftValue="PublishStatus.Draft"
+                    rightLabel="Publishable"
+                    :rightValue="PublishStatus.Published"
+                    :disabled="disabled || disablePublish"
+                />
             </div>
         </div>
 
         <div v-else-if="currentToogle === 'seo'">
-            <div class="flex flex-col gap-2">
+            <div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
                 <!-- Seo -->
-                <div class="flex items-center gap-2">
-                    <FormLabel class="w-16">Title</FormLabel>
-                    <LInput
-                        name="seo-title"
-                        :disabled="disabled"
-                        :placeholder="content.title"
-                        v-model="content.seoTitle"
-                        class="flex-1"
-                    />
-                </div>
+                <FormLabel>Title</FormLabel>
+                <LInput
+                    name="seo-title"
+                    :disabled="disabled"
+                    :placeholder="content.title"
+                    v-model="content.seoTitle"
+                />
 
                 <!-- Summary SEO -->
-                <div class="flex items-center gap-2">
-                    <FormLabel class="w-16">Summary</FormLabel>
-                    <LInput
-                        name="seo-summary"
-                        class="flex-1"
-                        :disabled="disabled"
-                        :placeholder="content.summary"
-                        v-model="content.seoString"
-                    />
-                </div>
+                <FormLabel>Summary</FormLabel>
+                <LInput
+                    name="seo-summary"
+                    :disabled="disabled"
+                    :placeholder="content.summary"
+                    v-model="content.seoString"
+                />
             </div>
         </div>
     </LCard>
