@@ -21,6 +21,7 @@ type Props = {
     tagOrPostType: TagType | PostType;
     language?: LanguageDto;
     disabled: boolean;
+    newDocument?: boolean;
 };
 defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
@@ -42,6 +43,7 @@ const pinned = computed({
     <LCard
         :title="`${capitaliseFirstLetter(tagOrPostType)} settings`"
         :icon="Cog6ToothIcon"
+        :collapsed="newDocument ? false : true"
         collapsible
         v-if="parent"
         class="bg-white"

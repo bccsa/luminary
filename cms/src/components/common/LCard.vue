@@ -60,7 +60,6 @@ function collapse() {
                 'flex items-center justify-between gap-4 px-2 py-3 sm:px-2',
                 { 'cursor-pointer': collapsible },
             ]"
-            @click="collapse"
         >
             <div class="flex items-center gap-2">
                 <component v-if="icon" :is="icon" class="h-4 w-4 text-zinc-600" />
@@ -74,11 +73,13 @@ function collapse() {
                         v-if="collapsed"
                         class="h-5 w-5 text-zinc-600"
                         title="Open card content"
+                        @click="collapse"
                     />
                     <ChevronUpIcon
                         v-if="!collapsed"
                         class="h-5 w-5 text-zinc-600"
                         title="Collapse card content"
+                        @click="collapse"
                     />
                 </button>
             </div>

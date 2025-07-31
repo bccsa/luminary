@@ -11,6 +11,7 @@ type Props = {
     docType: DocType;
     tagOrPostType: TagType | PostType;
     disabled: boolean;
+    newDocument?: boolean;
 };
 defineProps<Props>();
 
@@ -39,7 +40,14 @@ const handleFileChange = () => {
 </script>
 
 <template>
-    <LCard v-if="parent" title="Image" :icon="PhotoIcon" collapsible class="bg-white">
+    <LCard
+        v-if="parent"
+        title="Image"
+        :icon="PhotoIcon"
+        :collapsed="newDocument ? false : true"
+        collapsible
+        class="bg-white"
+    >
         <template #actions>
             <div>
                 <LButton
