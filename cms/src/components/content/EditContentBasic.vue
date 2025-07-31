@@ -257,7 +257,8 @@ const clearExpiryDate = () => {
                         <span
                             v-show="!isEditingSlug"
                             data-test="slugSpan"
-                            class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
+                            @click="startEditingSlug"
+                            class="inline-block min-h-4 min-w-6 rounded-md bg-zinc-200 px-1.5 py-0.5 text-sm"
                             >{{ content.slug }}</span
                         >
                         <LInput
@@ -273,15 +274,6 @@ const clearExpiryDate = () => {
                                 validateSlug();
                             "
                         />
-                        <button
-                            data-test="editSlugButton"
-                            v-if="!isEditingSlug && !disabled"
-                            @click="startEditingSlug"
-                            class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
-                            title="Edit slug"
-                        >
-                            <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
-                        </button>
                     </div>
                     <span
                         v-if="existingRedirectForSlug.length > 0"

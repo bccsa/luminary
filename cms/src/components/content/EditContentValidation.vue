@@ -23,6 +23,7 @@ import LDialog from "../common/LDialog.vue";
 type Props = {
     languages: LanguageDto[];
     existingContent?: ContentDto;
+    isLanguageSelectorSticky?: boolean;
     canDelete: boolean;
 };
 const props = defineProps<Props>();
@@ -147,6 +148,7 @@ const deleteTranslation = () => {
                     ?.languageCode,
             },
         }"
+        @click.prevent="if (isLanguageSelectorSticky) isCardCollapsed = true;"
         v-slot="{ isActive }"
     >
         <div

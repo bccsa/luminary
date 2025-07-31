@@ -44,68 +44,83 @@ const overallValidations = ref([] as Validation[]);
 const overallIsValid = ref(true);
 
 const showLanguageSelector = ref(false);
-const isCardCollapsed = ref(false);
-const cardRef = ref<HTMLElement>();
-const isSticky = ref(false);
+const isLanguageSelectorCollapsed = ref(false);
+const languageSelector = ref<HTMLElement>();
+const isLanguageSelectorSticky = ref(false);
 
-// Intersection Observer to detect when the card becomes sticky
-let observer: IntersectionObserver | null = null;
-let sentinel: HTMLElement | null = null;
+// Scroll-based detection instead of intersection observer
+let scrollContainer: HTMLElement | null = null;
+let stickyThreshold = 0;
+let isTransitioning = false;
+
+const checkStickyState = () => {
+    if (!scrollContainer || !languageSelector.value || isTransitioning) return;
+
+    const scrollTop = scrollContainer.scrollTop;
+
+    // Add hysteresis - different thresholds for collapsing vs expanding
+    const collapseThreshold = stickyThreshold;
+    const expandThreshold = stickyThreshold - 50; // 50px buffer
+
+    const shouldBeSticky = isLanguageSelectorSticky.value
+        ? scrollTop > expandThreshold
+        : scrollTop > collapseThreshold;
+
+    if (shouldBeSticky !== isLanguageSelectorSticky.value) {
+        isLanguageSelectorSticky.value = shouldBeSticky;
+        isTransitioning = true;
+
+        // Update collapse state based on sticky state
+        if (shouldBeSticky) {
+            setTimeout(() => {
+                if (isLanguageSelectorSticky.value) {
+                    isLanguageSelectorCollapsed.value = true;
+                    isTransitioning = false;
+                }
+            }, 150);
+        } else {
+            isLanguageSelectorCollapsed.value = false;
+            setTimeout(() => {
+                isTransitioning = false;
+            }, 150);
+        }
+    }
+};
 
 onMounted(() => {
     setTimeout(() => {
         if (!isSmallScreen.value || import.meta.env.MODE == "test") return;
-        if (cardRef.value) {
-            // Create a sentinel element to observe intersection changes
-            sentinel = document.createElement("div");
-            sentinel.style.position = "absolute";
-            sentinel.style.top = "-1px";
-            sentinel.style.height = "1px";
-            sentinel.style.width = "1px";
-            sentinel.style.visibility = "hidden";
+        if (languageSelector.value) {
+            scrollContainer = document.querySelector(".max-h-screen.overflow-scroll");
+            if (!scrollContainer) return;
 
-            // Insert sentinel before the card
-            cardRef.value.parentNode?.insertBefore(sentinel, cardRef.value);
+            // Find the element that's above this card to calculate where sticky should happen
+            const prevElement = languageSelector.value.previousElementSibling;
+            if (prevElement) {
+                const prevRect = prevElement.getBoundingClientRect();
+                const containerRect = scrollContainer.getBoundingClientRect();
 
-            // Create an observer to watch the sentinel
-            observer = new IntersectionObserver(
-                (entries) => {
-                    entries.forEach((entry) => {
-                        // When sentinel is not visible, the card is sticky
-                        const isNowSticky = !entry.isIntersecting;
+                stickyThreshold = prevRect.bottom - containerRect.top + scrollContainer.scrollTop;
+            } else {
+                const cardRect = languageSelector.value.getBoundingClientRect();
+                const containerRect = scrollContainer.getBoundingClientRect();
 
-                        if (isNowSticky !== isSticky.value) {
-                            isSticky.value = isNowSticky;
+                stickyThreshold = cardRect.top - containerRect.top + scrollContainer.scrollTop;
+            }
 
-                            // Collapse when sticky, expand when not sticky
-                            if (isNowSticky) {
-                                // Small delay to prevent jarring during scroll transition
-                                setTimeout(() => {
-                                    if (isSticky.value) {
-                                        isCardCollapsed.value = true;
-                                    }
-                                }, 200);
-                            } else {
-                                isCardCollapsed.value = false;
-                            }
-                        }
-                    });
-                },
-                {
-                    threshold: 0,
-                    rootMargin: "0px",
-                },
-            );
+            // Add scroll listener
+            scrollContainer.addEventListener("scroll", checkStickyState, { passive: true });
 
-            observer.observe(sentinel);
+            // Initial check
+            checkStickyState();
         }
     }, 100);
 });
 
 onUnmounted(() => {
-    if (observer) {
-        observer.disconnect();
-        observer = null;
+    if (scrollContainer) {
+        scrollContainer.removeEventListener("scroll", checkStickyState);
+        scrollContainer = null;
     }
 });
 
@@ -117,7 +132,7 @@ const selectedLanguage = computed(() => {
 });
 
 const lang = computed(() => {
-    return isCardCollapsed.value
+    return isLanguageSelectorCollapsed.value
         ? props.languages?.filter((l) => l._id == selectedLanguage.value?._id)
         : props.languages;
 });
@@ -191,14 +206,14 @@ watch(
 </script>
 
 <template>
-    <div ref="cardRef">
+    <div ref="languageSelector" :class="{ 'sticky top-0 z-10': isSmallScreen }">
         <LCard
             class="bg-white"
             shadow="small"
             title="Translations"
             :icon="LanguageIcon"
             collapsible
-            v-model:collapsed="isCardCollapsed"
+            v-model:collapsed="isLanguageSelectorCollapsed"
         >
             <template #actions>
                 <div class="relative flex flex-col items-end gap-2">
@@ -231,7 +246,7 @@ watch(
             </template>
 
             <template #persistent>
-                <div class="flex flex-col gap-2" :class="{ 'mb-1': isCardCollapsed }">
+                <div class="flex flex-col gap-2" :class="{ 'mb-1': isLanguageSelectorCollapsed }">
                     <EditContentValidation
                         v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                         :editableContent="content"
@@ -240,7 +255,8 @@ watch(
                         @isValid="(val) => setOverallValidation(content._id, val)"
                         :existingContent="existingContent?.find((c) => c._id == content._id)"
                         :can-delete="canDelete"
-                        :isCardCollapsed="isCardCollapsed"
+                        :isLanguageSelectorSticky="isLanguageSelectorSticky"
+                        :isCardCollapsed="isLanguageSelectorCollapsed"
                     />
                 </div>
             </template>
