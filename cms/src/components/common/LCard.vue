@@ -68,18 +68,16 @@ function collapse() {
 
             <div class="flex items-center gap-2">
                 <slot v-if="!collapsed" name="actions" />
-                <button v-if="collapsible">
+                <button @click="collapse" v-if="collapsible" data-test="collapse-button">
                     <ChevronDownIcon
                         v-if="collapsed"
                         class="h-5 w-5 text-zinc-600"
                         title="Open card content"
-                        @click="collapse"
                     />
                     <ChevronUpIcon
                         v-if="!collapsed"
                         class="h-5 w-5 text-zinc-600"
                         title="Collapse card content"
-                        @click="collapse"
                     />
                 </button>
             </div>

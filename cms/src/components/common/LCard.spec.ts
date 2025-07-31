@@ -28,7 +28,8 @@ describe("LCard", () => {
             slots: { default: "Card text", footer: "Card footer" },
         });
 
-        await wrapper.find("button").trigger("click");
+        // Click on the collapse button
+        await wrapper.find("[data-test='collapse-button']").trigger("click");
         const container = await wrapper.find("[data-test='collapsible-container']");
 
         expect(container.isVisible()).toBe(false);
