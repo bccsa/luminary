@@ -11,7 +11,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 <template>
     <label :for="props.for" class="flex gap-1 text-sm font-medium leading-6 text-zinc-900">
-        <span><slot /></span>
+        <span class="text-sm"><slot /></span>
         <span v-if="required">
             <span aria-hidden="true">*</span> <span class="sr-only">Required</span>
         </span>

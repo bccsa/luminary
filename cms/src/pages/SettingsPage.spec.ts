@@ -9,6 +9,18 @@ import * as mockData from "@/tests/mockdata";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
+import { ref } from "vue";
+
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useRouter: () => ({
+            push: vi.fn(),
+            currentRoute: ref({ name: "edit" }),
+        }),
+    };
+});
 
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
@@ -98,6 +110,7 @@ describe("purgeLocalDatabase", () => {
         await db.docs.clear();
         await db.localChanges.clear();
     });
+
     it("purges the local database when connected", async () => {
         const wrapper = mount(SettingsPage);
 

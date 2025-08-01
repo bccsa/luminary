@@ -1,15 +1,15 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { mount } from "@vue/test-utils";
+import { describe, vi, beforeAll, afterAll, it, expect } from "vitest";
 import { createTestingPinia } from "@pinia/testing";
-import { setActivePinia } from "pinia";
-import { ref } from "vue";
-import { type ContentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
+import { setActivePinia } from "pinia";
+import { accessMap, type ContentDto } from "luminary-shared";
+import { ref } from "vue";
+import { mount } from "@vue/test-utils";
 import EditContentText from "./EditContentText.vue";
 import waitForExpect from "wait-for-expect";
 
-describe("EditContentPreview.vue", () => {
+describe("EditContentText.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
 
@@ -35,19 +35,5 @@ describe("EditContentPreview.vue", () => {
         await waitForExpect(() => {
             expect(wrapper.html()).toContain(mockText);
         });
-    });
-
-    it("hide editor when text is not defined", async () => {
-        const content = ref<ContentDto>({ ...mockData.mockEnglishContentDto, text: undefined });
-        const wrapper = mount(EditContentText, {
-            props: {
-                disabled: true,
-                content: content.value,
-            },
-        });
-
-        const textContent = wrapper.find("div[data-test='textContent']");
-
-        expect(textContent.exists()).toBe(false);
     });
 });

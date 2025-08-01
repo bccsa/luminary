@@ -15,6 +15,7 @@ import { appName, isDevMode, logo } from "@/globalConfig";
 import { ref, watch } from "vue";
 import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
 import ProfileMenu from "./ProfileMenu.vue";
+import OnlineIndicator from "../OnlineIndicator.vue";
 
 const route = useRoute();
 
@@ -175,7 +176,8 @@ watch(route, (newRoute) => {
                 <li
                     class="flex w-full items-center justify-between rounded-md p-1 hover:bg-zinc-200"
                 >
-                    <div class="flex w-full items-center justify-center">
+                    <div class="flex w-full flex-col">
+                        <OnlineIndicator class="mb-4" />
                         <ProfileMenu />
                     </div>
                 </li>

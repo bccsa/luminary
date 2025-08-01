@@ -1,21 +1,28 @@
 <script setup lang="ts">
 import LInput from "@/components/forms/LInput.vue";
-import { PencilIcon, ExclamationCircleIcon } from "@heroicons/vue/16/solid";
-import {
-    db,
-    DocType,
-    PublishStatus,
-    type RedirectDto,
-    useDexieLiveQuery,
-    type ContentDto,
-} from "luminary-shared";
-import { nextTick, ref, watch } from "vue";
-import { Slug } from "@/util/slug";
+import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
-import LTabs from "@/components/common/LTabs.vue";
+import LTextToggle from "@/components/forms/LTextToggle.vue";
+import {
+    PublishStatus,
+    type ContentDto,
+    db,
+    type RedirectDto,
+    DocType,
+    useDexieLiveQuery,
+    type LanguageDto,
+} from "luminary-shared";
+import { computed, nextTick, ref, watch } from "vue";
+import { DateTime } from "luxon";
+import { BackspaceIcon } from "@heroicons/vue/20/solid";
+import FormLabel from "../forms/FormLabel.vue";
+import { Slug } from "@/util/slug";
+import { ExclamationCircleIcon } from "@heroicons/vue/16/solid";
 
 type Props = {
+    selectedLanguage?: LanguageDto;
     disabled: boolean;
+    disablePublish: boolean;
 };
 defineProps<Props>();
 const content = defineModel<ContentDto>("content");
@@ -88,11 +95,7 @@ const validateSlug = async () => {
 };
 
 // Tabs for Title & Summary
-const currentTab = ref("visible"); // Default tab key
-const tabs = [
-    { title: "Visible title & summary", key: "visible" },
-    { title: "SEO title & summary", key: "seo" },
-];
+const currentToogle = ref("visible"); // Default tab key
 
 // A Dexie live query to check if a redirect exists for the current slug
 // This is used to warn the user if they are editing a slug that already has a redirect
@@ -111,111 +114,343 @@ const existingRedirectForSlug = useDexieLiveQuery(
     },
     { initialValue: [] },
 );
+
+const publishDateString = computed({
+    get() {
+        if (!content.value || !content.value.publishDate) return;
+        return db.toIsoDateTime(content.value.publishDate) || undefined;
+    },
+    set(val) {
+        if (!content.value) return;
+        if (!val) {
+            content.value.publishDate = undefined;
+            return;
+        }
+        content.value.publishDate = db.fromIsoDateTime(val);
+    },
+});
+
+const expiryDateString = computed({
+    get() {
+        if (!content.value || !content.value.expiryDate) return;
+        return db.toIsoDateTime(content.value.expiryDate) || undefined;
+    },
+    set(val) {
+        if (!content.value) return;
+        if (!val) {
+            content.value.expiryDate = undefined;
+            return;
+        }
+        content.value.expiryDate = db.fromIsoDateTime(val);
+    },
+});
+
+const selectedExpiryNumber = ref<number | undefined>(undefined);
+const selectedExpiryUnit = ref<string | undefined>(undefined);
+const showPublishDateWarning = ref(false);
+
+const calculateExpiryDate = () => {
+    if (
+        !content.value ||
+        !content.value.publishDate ||
+        !selectedExpiryNumber.value ||
+        !selectedExpiryUnit.value
+    ) {
+        showPublishDateWarning.value = true; // Show warning if publish date is not set
+        return;
+    }
+
+    showPublishDateWarning.value = false; // Hide warning if publish date is set
+
+    switch (selectedExpiryUnit.value) {
+        case "Week":
+            content.value.expiryDate = DateTime.fromMillis(content.value.publishDate)
+                .plus({ weeks: selectedExpiryNumber.value })
+                .toMillis();
+            break;
+        case "Month":
+            content.value.expiryDate = DateTime.fromMillis(content.value.publishDate)
+                .plus({ months: selectedExpiryNumber.value })
+                .toMillis();
+            break;
+        case "Year":
+            content.value.expiryDate = DateTime.fromMillis(content.value.publishDate)
+                .plus({ years: selectedExpiryNumber.value })
+                .toMillis();
+            break;
+        default:
+            console.warn(`Unknown unit: ${selectedExpiryUnit.value}`);
+    }
+    clearExpirySelection();
+};
+
+const setExpiryNumber = (number: number | undefined) => {
+    selectedExpiryNumber.value = number;
+    calculateExpiryDate();
+};
+
+const setExpiryUnit = (unit: string | undefined) => {
+    selectedExpiryUnit.value = unit;
+    calculateExpiryDate();
+};
+
+const clearExpirySelection = () => {
+    selectedExpiryNumber.value = undefined;
+    selectedExpiryUnit.value = undefined;
+};
+
+const clearExpiryDate = () => {
+    if (content.value) content.value.expiryDate = undefined;
+    clearExpirySelection();
+    showPublishDateWarning.value = false; // Hide warning when clearing
+};
 </script>
 
 <template>
-    <div v-if="content">
-        <LCard title="Title & Summary" collapsible>
-            <!-- Tab Navigation using LTabs -->
-            <LTabs :tabs="tabs" :currentTab="currentTab" @update:currentTab="currentTab = $event" />
+    <LCard
+        :title="selectedLanguage ? selectedLanguage.name : 'Content'"
+        collapsible
+        v-if="content"
+        class="bg-white pb-1"
+    >
+        <template #actions>
+            <LTextToggle
+                v-model="currentToogle"
+                leftLabel="Visible"
+                :leftValue="'visible'"
+                rightLabel="SEO"
+                :rightValue="'seo'"
+                :disabled="disabled"
+                @click.stop
+            />
+        </template>
 
-            <!-- Tab Content -->
-            <div class="py-4">
-                <div v-if="currentTab === 'visible'">
-                    <!-- Title -->
-                    <LInput
-                        name="title"
-                        label="Title"
-                        required
-                        :disabled="disabled"
-                        v-model="content.title"
-                        @blur="validateSlug"
-                    />
-
-                    <!-- Slug -->
-                    <div class="flex flex-col gap-1">
-                        <div class="mt-2 flex gap-1 align-top text-xs text-zinc-800">
-                            <span class="py-0.5">Slug:</span>
-                            <span
-                                v-show="!isEditingSlug"
-                                data-test="slugSpan"
-                                class="inline-block rounded-md bg-zinc-200 px-1.5 py-0.5"
-                                >{{ content.slug }}</span
-                            >
-                            <LInput
-                                v-show="isEditingSlug"
-                                :disabled="disabled"
-                                ref="slugInput"
-                                name="slug"
-                                size="sm"
-                                class="w-full"
-                                v-model="content.slug"
-                                @blur="
-                                    isEditingSlug = false;
-                                    validateSlug();
-                                "
-                            />
-                            <button
-                                data-test="editSlugButton"
-                                v-if="!isEditingSlug && !disabled"
-                                @click="startEditingSlug"
-                                class="flex h-5 w-5 min-w-5 items-center justify-center rounded-md py-0.5 hover:bg-zinc-200 active:bg-zinc-300"
-                                title="Edit slug"
-                            >
-                                <component :is="PencilIcon" class="h-4 w-4 text-zinc-500" />
-                            </button>
-                        </div>
-                        <span
-                            v-if="existingRedirectForSlug.length > 0"
-                            :title="`This slug redirects to '/${existingRedirectForSlug[0].toSlug}'`"
-                            class="flex items-center gap-1 text-xs"
-                        >
-                            <ExclamationCircleIcon class="size-4 text-yellow-400" />
-                            A redirect exists for this slug
-                        </span>
+        <div v-if="currentToogle === 'visible'">
+            <div class="grid grid-cols-[auto_1fr] items-center gap-2">
+                <div class="col-span-2 flex flex-col gap-4 text-center">
+                    <!-- Warning message -->
+                    <div
+                        v-show="showPublishDateWarning && !content.publishDate"
+                        class="text-xs text-red-600"
+                    >
+                        Please set a publish date before using the expiry shortcut.
                     </div>
-
-                    <!-- Author -->
-                    <LInput
-                        name="author"
-                        label="Author"
-                        v-model="content.author"
-                        placeholder="John Doe..."
-                        :disabled="disabled"
-                        class="mt-4"
-                    />
-
-                    <!-- Summary -->
-                    <LInput
-                        name="summary"
-                        label="Summary"
-                        class="mt-4"
-                        :disabled="disabled"
-                        v-model="content.summary"
-                    />
                 </div>
 
-                <div v-else-if="currentTab === 'seo'">
-                    <!-- Title SEO -->
-                    <LInput
-                        name="seo-title"
-                        label="Title"
-                        :disabled="disabled"
-                        :placeholder="content.title"
-                        v-model="content.seoTitle"
-                    />
+                <!-- Title -->
+                <FormLabel>Title</FormLabel>
+                <LInput
+                    name="title"
+                    required
+                    :disabled="disabled"
+                    v-model="content.title"
+                    @blur="validateSlug"
+                />
 
-                    <!-- Summary SEO -->
-                    <LInput
-                        name="seo-summary"
-                        label="Summary"
-                        class="mt-4"
-                        :disabled="disabled"
-                        :placeholder="content.summary"
-                        v-model="content.seoString"
-                    />
+                <!-- Slug -->
+                <FormLabel class="self-start">Slug:</FormLabel>
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-2 align-top text-zinc-800">
+                        <span
+                            v-show="!isEditingSlug"
+                            data-test="slugSpan"
+                            @click="startEditingSlug"
+                            class="inline-block min-h-4 min-w-6 rounded-md bg-zinc-200 px-1.5 py-0.5 text-sm"
+                            >{{ content.slug }}</span
+                        >
+                        <LInput
+                            v-show="isEditingSlug"
+                            :disabled="disabled"
+                            ref="slugInput"
+                            name="slug"
+                            size="sm"
+                            class="flex-1"
+                            v-model="content.slug"
+                            @blur="
+                                isEditingSlug = false;
+                                validateSlug();
+                            "
+                        />
+                    </div>
+                    <span
+                        v-if="existingRedirectForSlug.length > 0"
+                        :title="`This slug redirects to '/${existingRedirectForSlug[0].toSlug}'`"
+                        class="flex items-center gap-1 text-xs"
+                    >
+                        <ExclamationCircleIcon class="size-4 text-yellow-400" />
+                        A redirect exists for this slug
+                    </span>
+                </div>
+
+                <!-- Author -->
+                <FormLabel>Author</FormLabel>
+                <LInput
+                    name="author"
+                    v-model="content.author"
+                    placeholder="John Doe..."
+                    :disabled="disabled"
+                    inlineLabel
+                />
+
+                <!-- Summary -->
+                <FormLabel class="self-start">Summary</FormLabel>
+                <LInput
+                    name="summary"
+                    :disabled="disabled"
+                    inputType="textarea"
+                    placeholder="A short summary of the content..."
+                    v-model="content.summary"
+                    class="min-h-2"
+                />
+
+                <!-- Publish date -->
+                <FormLabel>Publish date</FormLabel>
+                <LInput
+                    name="publishDate"
+                    type="datetime-local"
+                    :disabled="disabled"
+                    v-model="publishDateString"
+                />
+
+                <!-- Expiry date -->
+                <FormLabel class="self-start">Expiry date</FormLabel>
+                <LInput
+                    name="expiryDate"
+                    type="datetime-local"
+                    :disabled="disabled"
+                    v-model="expiryDateString"
+                />
+
+                <!-- Expiry date shortcut buttons -->
+                <div class="col-span-2">
+                    <div class="mb-1 flex flex-wrap gap-1 sm:flex-row">
+                        <LButton
+                            type="button"
+                            name="1"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{
+                                '!bg-black !text-white': selectedExpiryNumber === 1,
+                            }"
+                            @click="setExpiryNumber(1)"
+                            :disabled="disabled"
+                        >
+                            1
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="2"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
+                            @click="setExpiryNumber(2)"
+                            :disabled="disabled"
+                        >
+                            2
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="3"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
+                            @click="setExpiryNumber(3)"
+                            :disabled="disabled"
+                        >
+                            3
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="6"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
+                            @click="setExpiryNumber(6)"
+                            :disabled="disabled"
+                        >
+                            6
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="W"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
+                            @click="setExpiryUnit('Week')"
+                            data-test="W"
+                            :disabled="disabled"
+                        >
+                            W
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="M"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
+                            @click="setExpiryUnit('Month')"
+                            :disabled="disabled"
+                        >
+                            M
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="Y"
+                            variant="secondary"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
+                            @click="setExpiryUnit('Year')"
+                            :disabled="disabled"
+                        >
+                            Y
+                        </LButton>
+                        <LButton
+                            type="button"
+                            name="clear"
+                            variant="secondary"
+                            :icon="BackspaceIcon"
+                            class="min-w-[2.5rem] flex-1 basis-0"
+                            @click="clearExpiryDate()"
+                            :disabled="disabled"
+                        />
+                    </div>
                 </div>
             </div>
-        </LCard>
-    </div>
+
+            <!-- Status -->
+            <div class="mt-2 flex items-center justify-between gap-2">
+                <FormLabel class="self-start py-2">Status</FormLabel>
+                <LTextToggle
+                    v-model="content.status"
+                    leftLabel="Draft"
+                    :leftValue="PublishStatus.Draft"
+                    rightLabel="Publishable"
+                    :rightValue="PublishStatus.Published"
+                    :disabled="disabled || disablePublish"
+                />
+            </div>
+        </div>
+
+        <div v-else-if="currentToogle === 'seo'">
+            <div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+                <!-- Seo -->
+                <FormLabel>Title</FormLabel>
+                <LInput
+                    name="seo-title"
+                    :disabled="disabled"
+                    :placeholder="content.title"
+                    v-model="content.seoTitle"
+                />
+
+                <!-- Summary SEO -->
+                <FormLabel>Summary</FormLabel>
+                <LInput
+                    name="seo-summary"
+                    :disabled="disabled"
+                    :placeholder="content.summary"
+                    v-model="content.seoString"
+                />
+            </div>
+        </div>
+    </LCard>
 </template>

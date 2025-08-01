@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "cva";
 import { twMerge } from "tailwind-merge";
 
 const buttonClasses = cva({
-    base: "group inline-flex items-center justify-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default",
+    base: "group inline-flex items-center justify-center gap-x-1.5 rounded-md text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default relative",
     variants: {
         variant: {
             primary:
@@ -86,6 +86,13 @@ const iconVariants = {
     tertiary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
     muted: "",
 };
+
+const tooltipVariants = {
+    primary: "bg-zinc-900 text-white",
+    secondary: "bg-white text-zinc-900 border border-zinc-200",
+    tertiary: "bg-white text-zinc-900 border border-zinc-200",
+    muted: "bg-white text-zinc-600 border border-zinc-200",
+};
 </script>
 
 <template>
@@ -105,5 +112,15 @@ const iconVariants = {
             }"
         />
         <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']"><slot /></span>
+        <span
+            v-if="$slots.tooltip"
+            class="absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md px-2 py-1 text-xs shadow-sm group-hover:block"
+            :class="tooltipVariants[variant]"
+        >
+            <slot name="tooltip" />
+            <span
+                class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-inherit"
+            ></span>
+        </span>
     </component>
 </template>

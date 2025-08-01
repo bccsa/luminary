@@ -51,6 +51,8 @@ describe("TagSelector.vue", () => {
 
         // Wait for updates
         await waitForExpect(async () => {
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+
             expect(wrapper.find('[data-test="selected-labels"').text()).toContain("Category 1");
             expect(wrapper.find('[data-test="selected-labels"').text()).not.toContain("Category 2");
         });
@@ -65,9 +67,10 @@ describe("TagSelector.vue", () => {
             },
         });
 
-        await wrapper.find("button").trigger("click");
-
         await waitForExpect(async () => {
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+            await wrapper.find("[name='options-open-btn']").trigger("click");
+
             expect(wrapper.text()).toContain("Category 1");
             expect(wrapper.text()).toContain("Category 2");
             // This expect is not working. It can be that the fake indexeddb is not filtering the tags as expected, returing Topic A as well.
@@ -84,9 +87,10 @@ describe("TagSelector.vue", () => {
             },
         });
 
-        await wrapper.find("input").setValue("Category 1");
+        await waitForExpect(async () => {
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+            await wrapper.find("input").setValue("Category 1");
 
-        await waitForExpect(() => {
             expect(wrapper.text()).toContain("Category 1");
             expect(wrapper.text()).not.toContain("Category 2");
         });
@@ -117,10 +121,11 @@ describe("TagSelector.vue", () => {
             },
         });
 
-        await wrapper.find("input").setValue("Category 1");
-
         let tag;
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+            await wrapper.find("input").setValue("Category 1");
+
             tag = wrapper.find("li");
             expect(tag.exists()).toBe(true);
         });
@@ -139,14 +144,15 @@ describe("TagSelector.vue", () => {
             },
         });
 
-        await wrapper.find("button").trigger("click");
-
         // Wait for the list to be loaded
         await waitForExpect(async () => {
-            expect(wrapper.text()).toContain("Category 2");
-        });
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+            await wrapper.find("[name='options-open-btn']").trigger("click");
 
-        expect(wrapper.text()).not.toContain("Category 1");
+            // Expect category 1 to not be available for selection
+            expect(wrapper.text()).toContain("Category 2");
+            expect(wrapper.text()).not.toContain("Category 1");
+        });
     });
 
     it("disables remove for if the user doesn't have assign access", async () => {
@@ -164,10 +170,16 @@ describe("TagSelector.vue", () => {
                 language: mockData.mockLanguageDtoEng,
                 parent: parent,
             },
+            slots: {
+                actions: "<button>Remove</button>",
+            },
         });
 
         // Wait for the list to be loaded
         await waitForExpect(async () => {
+            // 0. Trigger the click to open the edit tag modal
+            await wrapper.find("[data-test='edit-group']").trigger("click");
+
             // 1. Expect the tag title to be displayed correctly
             expect(wrapper.text()).toContain("Category 2");
 

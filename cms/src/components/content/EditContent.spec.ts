@@ -13,6 +13,7 @@ import LTextToggle from "../forms/LTextToggle.vue";
 import LanguageSelector from "./LanguageSelector.vue";
 import { initLanguage } from "@/globalConfig";
 import RichTextEditor from "../editor/RichTextEditor.vue";
+import EditContentText from "./EditContentText.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -225,19 +226,16 @@ describe("EditContent.vue", () => {
                 docType: DocType.Post,
                 tagOrPostType: PostType.Blog,
             },
+            slots: {},
         });
 
         const languageSelector = wrapper.findComponent(LanguageSelector);
-        const btn = languageSelector.find("[data-test='language-selector']");
-        await btn.trigger("click");
-
         const languages = languageSelector.find("[data-test='languagePopup']");
 
-        await waitForExpect(async () => {
-            expect(await languages.html()).toContain("English");
-
-            expect(await languages.html()).not.toContain("Français");
-            expect(await languages.html()).not.toContain("Swahili");
+        await waitForExpect(() => {
+            expect(languages.html()).toContain("English");
+            expect(languages.html()).not.toContain("Français");
+            expect(languages.html()).not.toContain("Swahili");
         });
     });
 
@@ -282,7 +280,6 @@ describe("EditContent.vue", () => {
         // Wait for the component to fetch data
         await waitForExpect(() => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true); // EditContentBasic is rendered
-            expect(wrapper.html()).toContain("Text content"); // EditContentText is rendered
             expect(wrapper.html()).toContain("Video"); // EditContentVideo is rendered
             expect(wrapper.find('button[data-test="save-button"]').exists()).toBe(true); // EditContentParentValidation is rendered
         });
@@ -526,7 +523,7 @@ describe("EditContent.vue", () => {
         });
 
         // Check that the publish button is disabled
-        const publishButton = wrapper.findComponent(LTextToggle);
+        const publishButton = wrapper.findAllComponents(LTextToggle)[1];
         expect(publishButton.exists()).toBe(true);
         expect(publishButton.props().disabled).toBe(true);
 
@@ -545,6 +542,7 @@ describe("EditContent.vue", () => {
             expect(saved?.title).toBe("Translated Title");
         });
     });
+
     it("correctly creates a duplicate of a document and all its translations", async () => {
         const notificationStore = useNotificationStore();
         const mockNotification = vi.spyOn(notificationStore, "addNotification");
@@ -614,7 +612,8 @@ describe("EditContent.vue", () => {
             expect(wrapper.find('input[name="title"]').exists()).toBe(true);
         });
 
-        const richTextEditor = wrapper.findComponent(RichTextEditor);
+        const editContentBasic = wrapper.findComponent(EditContentText);
+        const richTextEditor = editContentBasic.findComponent(RichTextEditor);
         expect(richTextEditor.exists()).toBe(true);
 
         const authorInput = wrapper.find('input[name="author"]');
@@ -659,15 +658,18 @@ describe("EditContent.vue", () => {
             },
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.findComponent(EditContentBasic).exists()).toBe(true);
-        });
+        await waitForExpect(async () => {
+            // Edit the slug to trigger a redirect creation
+            const editContentBasic = wrapper.findComponent(EditContentBasic);
+            const toogle = editContentBasic.findAllComponents(LTextToggle)[0];
+            const visible = toogle.find('[data-test="text-toggle-left-value"]');
+            expect(visible.exists()).toBe(true);
 
-        // Edit the slug to trigger a redirect creation
-        expect(wrapper.find('[data-test="editSlugButton"]').exists()).toBe(true);
-        await wrapper.find('[data-test="editSlugButton"]').trigger("click");
-        await wrapper.find('[name="slug"]').setValue("new-slug");
-        await wrapper.find('[name="slug"]').trigger("change");
+            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
+            await wrapper.find('[data-test="slugSpan"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
 
         await waitForExpect(async () => {
             await wrapper.find('[data-test="save-button"]').trigger("click");

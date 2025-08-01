@@ -32,10 +32,10 @@ import {
     ArrowUturnLeftIcon,
     TrashIcon,
 } from "@heroicons/vue/24/solid";
+import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch } from "vue";
-import EditContentStatus from "@/components/content/EditContentStatus.vue";
-import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import EditContentText from "@/components/content/EditContentText.vue";
+import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -48,6 +48,8 @@ import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
+import EditContentImage from "./EditContentImage.vue";
 
 type Props = {
     id: Uuid;
@@ -539,6 +541,55 @@ const duplicate = async () => {
     });
 };
 const showLanguageSelector = ref(false);
+const showContentActionMenu = ref(false);
+
+const contentActions = [
+    {
+        name: "View live",
+        action: ensureRedirect,
+        icon: ArrowTopRightOnSquareIcon,
+        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+    },
+    {
+        name: "Save changes",
+        action: saveChanges,
+        icon: FolderArrowDownIcon,
+        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+    },
+    {
+        name: "Duplicate",
+        action: duplicate,
+        icon: DocumentDuplicateIcon,
+        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+    },
+    {
+        name: "Delete",
+        action: () => (showDeleteModal.value = true),
+        icon: TrashIcon,
+        iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+    },
+];
+
+// Watch for changes in dirty state and new document state to add or remove the revert action
+watch(
+    [isDirty, () => newDocument],
+    ([dirty, isNew]) => {
+        const revertActionIndex = contentActions.findIndex((a) => a.name === "Revert changes");
+        if (dirty && !isNew) {
+            if (revertActionIndex === -1) {
+                contentActions.unshift({
+                    name: "Revert changes",
+                    action: revertChanges as any,
+                    icon: ArrowUturnLeftIcon,
+                    iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+                });
+            }
+        } else if (revertActionIndex !== -1) {
+            contentActions.splice(revertActionIndex, 1);
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -546,16 +597,13 @@ const showLanguageSelector = ref(false);
         v-if="!newDocument && !editableParent?.updatedTimeUtc"
         class="relative flex items-center justify-center"
     >
-        <div class="flex flex-col items-center gap-4">
+        <div class="flex flex-col items-center gap-[3px]">
             <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
         </div>
     </div>
     <BasePage
-        :title="selectedContent ? selectedContent.title : `Edit ${props.tagOrPostType}`"
         :icon="icon"
         :loading="isLoading"
-        :backLinkLocation="{ name: 'overview' }"
-        :backLinkText="`${capitaliseFirstLetter(tagOrPostType)} overview`"
         :backLinkParams="{
             docType: docType,
             tagOrPostType: tagOrPostType,
@@ -565,102 +613,209 @@ const showLanguageSelector = ref(false);
         v-if="editableParent"
         class="relative"
     >
-        <template #postTitleSlot>
-            <LButton
-                v-if="
-                    isConnected &&
-                    selectedContent_Existing &&
-                    selectedContent_Existing.status == PublishStatus.Published
-                "
-                :icon="ArrowTopRightOnSquareIcon"
-                iconRight
-                class="cursor-pointer font-extralight text-zinc-600/[55%]"
-                variant="tertiary"
-                @click="ensureRedirect"
-                target="_blank"
-                title="View live version"
-            />
+        <template #pageNav>
+            <h1 class="text-md font-semibold leading-7 lg:hidden">
+                {{ `Edit ${props.docType}` }}
+            </h1>
+            <h1 class="text-md hidden font-semibold leading-7 lg:block">
+                {{ selectedContent?.title }}
+            </h1>
         </template>
-        <template #actions>
+
+        <template #topBarActionsMobile>
+            <Menu as="div" class="relative w-full">
+                <MenuButton class="flex w-full items-center justify-between">
+                    <EllipsisVerticalIcon
+                        class="ml-2 h-6 w-6 text-zinc-500 hover:text-zinc-700 lg:hidden"
+                        @click="showContentActionMenu = !showContentActionMenu"
+                    />
+                </MenuButton>
+
+                <transition
+                    enter-active-class="transition ease-out duration-100"
+                    enter-from-class="transform opacity-0 scale-95"
+                    enter-to-class="transform opacity-100 scale-100"
+                    leave-active-class="transition ease-in duration-75"
+                    leave-from-class="transform opacity-100 scale-100"
+                    leave-to-class="transform opacity-0 scale-95"
+                >
+                    <MenuItems
+                        class="absolute right-0 z-50 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
+                    >
+                        <MenuItem
+                            v-for="action in contentActions"
+                            :key="action.name"
+                            v-slot="{ active }"
+                        >
+                            <button
+                                :class="[
+                                    active ? 'bg-zinc-50' : '',
+                                    'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 ',
+                                ]"
+                                @click="action.action"
+                            >
+                                <component
+                                    :is="action.icon"
+                                    :class="action.iconClass"
+                                    aria-hidden="true"
+                                />
+                                <div class="flex flex-col text-nowrap leading-none">
+                                    {{ action.name }}
+                                </div>
+                            </button>
+                        </MenuItem>
+                    </MenuItems>
+                </transition>
+            </Menu>
+        </template>
+
+        <template #topBarActionsDesktop>
             <div class="flex gap-2">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-                <div class="flex gap-1">
-                    <LButton
-                        type="button"
-                        @click="revertChanges"
-                        data-test="revert-changes-button"
-                        variant="secondary"
-                        title="Revert Changes"
-                        :icon="ArrowUturnLeftIcon"
-                        v-if="isDirty && !newDocument"
-                    >
-                        Revert
-                    </LButton>
-                    <LButton
-                        type="button"
-                        @click="saveChanges"
-                        data-test="save-button"
-                        variant="primary"
-                        :icon="FolderArrowDownIcon"
-                    >
-                        Save
-                    </LButton>
-                    <LButton
-                        :icon="DocumentDuplicateIcon"
-                        title="Duplicate"
-                        data-test="duplicate-btn"
-                        @click="isDirty ? (showDuplicateModal = true) : duplicate()"
-                        >Duplicate</LButton
-                    >
-                    <LButton
-                        v-if="canDelete"
-                        type="button"
-                        @click="showDeleteModal = true"
-                        data-test="delete-button"
-                        variant="secondary"
-                        context="danger"
-                        :icon="TrashIcon"
-                    >
-                        Delete
-                    </LButton>
-                </div>
+            </div>
+            <div class="hidden gap-1 lg:flex">
+                <LButton
+                    type="button"
+                    @click="revertChanges"
+                    data-test="revert-changes-button"
+                    variant="secondary"
+                    :icon="ArrowUturnLeftIcon"
+                    v-if="isDirty && !newDocument"
+                >
+                    <template #tooltip>Revert changes made on this content</template>
+                </LButton>
+
+                <LButton
+                    v-if="
+                        isConnected &&
+                        selectedContent_Existing &&
+                        selectedContent_Existing.status == PublishStatus.Published
+                    "
+                    :icon="ArrowTopRightOnSquareIcon"
+                    iconRight
+                    variant="secondary"
+                    @click="ensureRedirect"
+                    target="_blank"
+                >
+                    <template #tooltip> View live version </template>
+                </LButton>
+
+                <LButton
+                    :icon="DocumentDuplicateIcon"
+                    data-test="duplicate-btn"
+                    @click="isDirty ? (showDuplicateModal = true) : duplicate()"
+                >
+                    <template #tooltip>Duplicate this {{ props.tagOrPostType }}</template>
+                </LButton>
+                <LButton
+                    type="button"
+                    @click="saveChanges"
+                    data-test="save-button"
+                    variant="primary"
+                    :icon="FolderArrowDownIcon"
+                >
+                    <template #tooltip>Save changes</template>
+                </LButton>
+
+                <LButton
+                    v-if="canDelete"
+                    type="button"
+                    @click="showDeleteModal = true"
+                    data-test="delete-button"
+                    variant="secondary"
+                    context="danger"
+                    :icon="TrashIcon"
+                >
+                    <template #tooltip>Delete this {{ props.tagOrPostType }}</template>
+                </LButton>
             </div>
         </template>
-        <div class="relative grid min-h-full grid-cols-3 gap-8">
-            <!-- Sidebar -->
-            <div class="relative col-span-3 md:col-span-1" v-if="editableParent">
-                <div class="relative size-full space-y-6">
-                    <EditContentParentValidation
-                        :tag-or-post-type="props.tagOrPostType"
-                        :can-translate="canTranslate"
-                        :can-delete="canDelete"
-                        :can-publish="canPublish"
-                        :can-edit="canEditParent"
-                        v-if="editableContent"
-                        v-model:editableParent="editableParent"
-                        v-model:editableContent="editableContent"
-                        :languages="cmsLanguages"
-                        :untranslatedLanguages="untranslatedLanguages"
-                        :dirty="isDirty"
-                        :existingContent="existingContent"
-                        :existingParent="existingParent"
-                        @updateIsValid="(val) => (isValid = val)"
-                        @create-translation="(language) => createTranslation(language)"
-                    />
-
-                    <div class="sticky top-0">
+        <div class="flex h-full flex-col gap-2 overflow-y-auto lg:flex-row lg:overflow-y-hidden">
+            <!-- sidebar -->
+            <div class="w-full flex-shrink-0 lg:w-[336px]" v-if="editableParent">
+                <div class="max-h-screen overflow-scroll scrollbar-hide sm:pb-16">
+                    <div class="flex flex-col gap-2 sm:pb-4">
                         <EditContentParent
                             v-if="editableParent"
                             :docType="props.docType"
                             :tagOrPostType="props.tagOrPostType"
                             :language="selectedLanguage"
                             v-model:parent="editableParent"
+                            :new-document="newDocument"
                             :disabled="!canEditParent"
                         />
+
+                        <EditContentImage
+                            v-if="editableParent"
+                            :docType="props.docType"
+                            :tagOrPostType="props.tagOrPostType"
+                            :disabled="!canEditParent"
+                            :newDocument="newDocument"
+                            v-model:parent="editableParent"
+                        />
+
+                        <div class="sticky -top-1 z-10">
+                            <EditContentParentValidation
+                                :tag-or-post-type="props.tagOrPostType"
+                                :can-translate="canTranslate"
+                                :can-delete="canDelete"
+                                :can-publish="canPublish"
+                                :can-edit="canEditParent"
+                                v-if="editableContent"
+                                v-model:editableParent="editableParent"
+                                v-model:editableContent="editableContent"
+                                :languages="cmsLanguages"
+                                :untranslatedLanguages="untranslatedLanguages"
+                                :dirty="isDirty"
+                                :existingContent="existingContent"
+                                :existingParent="existingParent"
+                                @updateIsValid="(val) => (isValid = val)"
+                                @create-translation="(language) => createTranslation(language)"
+                            />
+                        </div>
+
+                        <EditContentVideo
+                            v-model:content="selectedContent"
+                            :disabled="!canTranslate"
+                        />
+                        <EditContentBasic
+                            v-model:content="selectedContent"
+                            :selectedLanguage="selectedLanguage!"
+                            :disabled="!canTranslate"
+                            :disable-publish="!canPublish"
+                        />
+
+                        <!-- This is for mobile  -->
+                        <div class="block w-full scrollbar-hide lg:hidden">
+                            <EmptyState
+                                v-if="!selectedContent"
+                                :icon="icon"
+                                title=""
+                                :description="`Please select a language to start editing`"
+                                data-test="no-content"
+                                class="flex flex-col items-center justify-center"
+                                ><LanguageSelector
+                                    :parent="editableParent"
+                                    :content="editableContent"
+                                    :languages="untranslatedLanguages"
+                                    v-model:show-selector="showLanguageSelector"
+                                    @create-translation="createTranslation"
+                            /></EmptyState>
+
+                            <div v-else>
+                                <EditContentText
+                                    v-model:content="selectedContent"
+                                    :selectedLanguage="selectedLanguage!"
+                                    :disabled="!canTranslate"
+                                    :disablePublish="!canPublish"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-span-3 min-h-full md:col-span-2">
+            <!-- main content | This is for desktop-->
+            <div class="hidden w-full scrollbar-hide lg:block">
                 <EmptyState
                     v-if="!selectedContent"
                     :icon="icon"
@@ -668,7 +823,7 @@ const showLanguageSelector = ref(false);
                     :description="`Please select a language to start editing
                     `"
                     data-test="no-content"
-                    class="flex flex-col items-center"
+                    class="flex flex-col items-center justify-center"
                     ><LanguageSelector
                         :parent="editableParent"
                         :content="editableContent"
@@ -677,16 +832,14 @@ const showLanguageSelector = ref(false);
                         @create-translation="createTranslation"
                 /></EmptyState>
 
-                <div v-else class="mb-48 space-y-6">
-                    <EditContentStatus
+                <div v-else class="">
+                    <EditContentText
                         v-model:content="selectedContent"
+                        :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
                         :disablePublish="!canPublish"
+                        class="hidden lg:block"
                     />
-                    <EditContentBasic v-model:content="selectedContent" :disabled="!canTranslate" />
-
-                    <EditContentText v-model:content="selectedContent" :disabled="!canTranslate" />
-                    <EditContentVideo v-model:content="selectedContent" :disabled="!canTranslate" />
                 </div>
             </div>
         </div>

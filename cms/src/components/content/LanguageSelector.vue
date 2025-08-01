@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import LBadge from "@/components/common/LBadge.vue";
 import { type ContentDto, type ContentParentDto, type LanguageDto } from "luminary-shared";
 import { ArrowRightIcon } from "@heroicons/vue/16/solid";
@@ -9,7 +8,6 @@ import { ref } from "vue";
 type Props = {
     parent?: ContentParentDto;
     content?: ContentDto[];
-    languages: LanguageDto[];
 };
 
 defineProps<Props>();
@@ -17,6 +15,7 @@ defineProps<Props>();
 const emit = defineEmits(["createTranslation"]);
 
 const showSelector = defineModel<boolean>("showSelector");
+const languages = defineModel<LanguageDto[]>("languages");
 
 const languagePopup = ref();
 
@@ -26,17 +25,6 @@ onClickOutside(languagePopup, () => {
 </script>
 
 <template>
-    <div>
-        <button
-            @click="showSelector = !showSelector"
-            data-test="language-selector"
-            class="flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-200 hover:shadow-sm"
-        >
-            Add translation
-            <ChevronDownIcon class="h-4 w-4 text-zinc-600" />
-        </button>
-    </div>
-
     <div ref="languagePopup" class="relative inline-block text-left" data-test="languagePopup">
         <transition
             enter-active-class="transition ease-out duration-100"
@@ -47,7 +35,7 @@ onClickOutside(languagePopup, () => {
             leave-to-class="transform opacity-0 scale-95"
         >
             <ul
-                v-if="showSelector"
+                v-show="showSelector"
                 class="absolute z-10 w-56 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:-right-28 sm:left-auto sm:origin-top-right"
             >
                 <div class="py-1">

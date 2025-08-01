@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, toRaw } from "vue";
-import LButton from "../button/LButton.vue";
-import {
-    ArrowUpOnSquareIcon,
-    ExclamationCircleIcon,
-    QuestionMarkCircleIcon,
-} from "@heroicons/vue/24/outline";
+import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import {
     type ImageUploadDto,
@@ -26,14 +21,8 @@ const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 const uploadInput = ref<typeof HTMLInputElement | undefined>(undefined);
 const isDragging = ref(false);
 const dragCounter = ref(0);
-const showHelp = ref(false);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
-
-const showFilePicker = () => {
-    // @ts-ignore - it seems as if the type definition for showPicker is missing in the file input element.
-    uploadInput.value!.showPicker();
-};
 
 const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -119,12 +108,17 @@ const handleDrop = (e: DragEvent) => {
     isDragging.value = false;
     handleFiles(e.dataTransfer?.files || null);
 };
+
+defineExpose({
+    handleFiles,
+    uploadInput,
+});
 </script>
 
 <template>
-    <div class="flex-col overflow-y-auto">
-        <div :disabled="disabled" class="flex justify-between">
-            <span class="text-sm font-medium leading-6 text-zinc-900">Image</span>
+    <div class="flex flex-col overflow-x-auto">
+        <!-- Header with error message toggle -->
+        <div :disabled="disabled" class="flex justify-between px-4">
             <div class="flex">
                 <button
                     v-if="failureMessage"
@@ -134,53 +128,31 @@ const handleDrop = (e: DragEvent) => {
                 >
                     <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
                 </button>
-                <button
-                    class="flex cursor-pointer items-center gap-1 rounded-md"
-                    @click="showHelp = !showHelp"
-                >
-                    <QuestionMarkCircleIcon class="h-5 w-5" />
-                </button>
             </div>
         </div>
 
-        <!-- Description and Instructions -->
-        <div v-if="showFailureMessage">
+        <!-- Error Message -->
+        <div v-if="showFailureMessage" class="px-4">
             <p class="my-2 text-xs text-red-600">
                 {{ failureMessage }}
             </p>
         </div>
-        <div v-if="showHelp">
-            <p class="my-2 text-xs">
-                You can upload several files in different aspect ratios. The most suitable image
-                will automatically be displayed based on the aspect ratio of the image element where
-                the image is displayed.
-            </p>
-            <p class="mb-2 text-xs">
-                Uploaded images are automatically scaled for various screen and display sizes.
-            </p>
-        </div>
 
-        <!-- Drag and Drop Area or File Picker -->
+        <!-- Full-width Drag and Drop Area -->
         <div
-            class="mb-4 mt-2 flex min-h-36 flex-col justify-center rounded-md border-2 border-dashed border-gray-300 p-3 transition duration-150 ease-in-out"
+            class="-mx-4 flex w-screen flex-col justify-center bg-white transition duration-150 ease-in-out scrollbar-hide sm:mx-0 sm:w-full"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"
             @drop="handleDrop"
             :class="{
-                ' border-blue-500 bg-blue-50': isDragging,
+                'border-blue-500 bg-blue-50': isDragging,
             }"
         >
-            <div class="flex flex-col items-center justify-center">
+            <!-- Drop instructions -->
+            <div class="hidden flex-col items-center justify-center md:flex">
                 <p v-if="isDragging" class="text-sm">Drop your files here</p>
                 <div v-else>
-                    <LButton
-                        :disabled="disabled"
-                        :icon="ArrowUpOnSquareIcon"
-                        @click="showFilePicker"
-                    >
-                        Drop image file or click to Upload
-                    </LButton>
                     <input
                         ref="uploadInput"
                         type="file"
@@ -193,34 +165,55 @@ const handleDrop = (e: DragEvent) => {
                 </div>
             </div>
 
+            <!-- Thumbnails -->
             <div
                 v-if="
                     parent &&
                     parent.imageData &&
                     (parent.imageData.fileCollections.length > 0 || parent.imageData.uploadData)
                 "
+                class="scrollbar-hide"
             >
-                <div v-if="!isDragging">
-                    <div class="flex flex-1 flex-wrap gap-2 pt-5" data-test="thumbnail-area">
-                        <!-- Display file collections as thumbnails -->
+                <div
+                    v-if="
+                        !isDragging &&
+                        (parent.imageData.fileCollections.length > 0 ||
+                            (parent.imageData.uploadData && parent.imageData.uploadData.length > 0))
+                    "
+                    class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide"
+                    data-test="thumbnail-area"
+                >
+                    <!-- File Collections -->
+                    <div
+                        v-for="c in parent.imageData.fileCollections"
+                        :key="c.aspectRatio"
+                        class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
+                    >
                         <ImageEditorThumbnail
-                            v-for="c in parent.imageData.fileCollections"
                             :imageFileCollection="c"
                             @deleteFileCollection="removeFileCollection"
-                            :key="c.aspectRatio"
                             :disabled="!disabled"
                         />
+                    </div>
 
-                        <!-- Display uploaded image data as thumbnails -->
+                    <!-- Upload Data -->
+                    <div
+                        v-for="u in parent.imageData.uploadData"
+                        :key="u.filename"
+                        class="flex shrink-0 items-center justify-center rounded text-xs shadow"
+                    >
                         <ImageEditorThumbnail
-                            v-for="u in parent.imageData.uploadData"
                             :imageUploadData="u"
                             @deleteUploadData="removeFileUploadData"
-                            :key="u.filename"
                             :disabled="!disabled"
                         />
                     </div>
                 </div>
+            </div>
+
+            <!-- No images fallback -->
+            <div v-else class="my-4 text-center italic">
+                <p class="text-sm text-gray-500">No images uploaded yet.</p>
             </div>
         </div>
     </div>
