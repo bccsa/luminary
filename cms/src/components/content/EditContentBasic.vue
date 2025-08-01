@@ -226,7 +226,7 @@ const clearExpiryDate = () => {
         </template>
 
         <div v-if="currentToogle === 'visible'">
-            <div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+            <div class="grid grid-cols-[auto_1fr] items-center gap-2">
                 <div class="col-span-2 flex flex-col gap-4 text-center">
                     <!-- Warning message -->
                     <div

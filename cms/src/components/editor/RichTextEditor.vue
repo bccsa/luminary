@@ -46,7 +46,7 @@ const editor = useEditor({
     editable: (() => !disabled.value as boolean | undefined)(),
     editorProps: {
         attributes: {
-            class: "prose sm:min-h-[calc(100vh-10rem)] sm:max-h-[calc(100vh-10rem)] max-h-96 overflow-hide prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
+            class: "prose sm:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-20rem)] max-h-[calc(100vh-20rem)] sm:max-h-[calc(100vh-10rem)]  overflow-hide prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
         },
         handlePaste(view, event) {
             const clipboardData = event.clipboardData;
