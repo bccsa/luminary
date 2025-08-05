@@ -598,7 +598,7 @@ watch(
         class="relative flex items-center justify-center"
     >
         <div class="flex flex-col items-center gap-4">
-            <div class="flex items-center gap-2 text-lg"><LoadingBar /> Loading...</div>
+            <div class="flex items-center gap-2 text-lg"><LoadingBar /></div>
         </div>
     </div>
     <BasePage
