@@ -391,6 +391,7 @@ watch(
 
         // Consume the language switch flag only once to determine if the user switched language via dropdown
         if (!hasConsumedLangSwitch.value) {
+            markLanguageSwitch();
             wasLangSwitch.value = consumeLanguageSwitchFlag();
             hasConsumedLangSwitch.value = true;
         }
