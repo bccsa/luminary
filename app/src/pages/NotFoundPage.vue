@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
-import { useAuth0 } from "@auth0/auth0-vue";
 import { useI18n } from "vue-i18n";
+import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 
-const { isAuthenticated, loginWithRedirect } = useAuth0();
+const { isAuthenticated, loginWithRedirect } = useAuthWithPrivacyPolicy();
 
 const { t } = useI18n();
 </script>
