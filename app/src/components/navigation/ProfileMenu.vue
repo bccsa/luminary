@@ -7,7 +7,6 @@ import {
     ArrowLeftEndOnRectangleIcon,
 } from "@heroicons/vue/20/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
-import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 import { computed, ref, type ComputedRef } from "vue";
 import {
@@ -23,8 +22,9 @@ import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
+import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 
-const { user, logout, loginWithRedirect, isAuthenticated } = useAuth0();
+const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
 
 const showThemeSelector = ref(false);
