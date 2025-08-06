@@ -1,7 +1,8 @@
 import { describe, expect, beforeEach, test } from "vitest";
+import waitForExpect from "wait-for-expect";
 import { ref, nextTick, Ref } from "vue";
 import { createEditable } from "./createEditable";
-import { BaseDocumentDto } from "../../types";
+import { BaseDocumentDto } from "../types";
 
 type TestDoc = BaseDocumentDto & {
     value: number;
@@ -162,5 +163,70 @@ describe("createEditable", () => {
         revert("nonexistent");
 
         expect(editable.value.length).toBe(originalLength); // Length should remain unchanged
+    });
+
+    test("filterFn applies to editable items", () => {
+        // Create a filter function that changes the value of an item from 3 to 2
+        const filterFn = (item: TestDoc) => (item.value == 3 ? { ...item, value: 2 } : item);
+        const e = createEditable(source, { filterFn });
+
+        // Change all items with value 2 to 3
+        e.editable.value = e.editable.value.map((item) =>
+            item.value === 2 ? { ...item, value: 3 } : item,
+        );
+
+        // The filter function modifies the value internally to 2, and as such the isEdited function should return false.
+        expect(e.isEdited.value("b")).toBe(false);
+        expect(e.isModified.value("b")).toBe(false);
+    });
+
+    test("modifyFn applies to editable items", () => {
+        // Create a modify function that changes the value of an item from 2 to 3
+        const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
+        const e = createEditable(source, { modifyFn });
+
+        expect(e.editable.value[1].value).toBe(3); // The modify function modifies the value internally to 3
+    });
+
+    test("modifyFn is applied to changes to the source array", async () => {
+        // Create a modify function that changes the value of an item from 2 to 3
+        const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
+        const e = createEditable(source, { modifyFn });
+
+        // add a new item to the source array
+        source.value.push(makeDoc("c", 2));
+
+        await nextTick();
+
+        expect(e.editable.value[2].value).toBe(3); // The modify function should update the new item to have value 3
+    });
+
+    test("modifyFn is applied to revert changes", async () => {
+        // Create a modify function that changes the value of an item from 2 to 3
+        const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
+        const e = createEditable(source, { modifyFn });
+
+        // Change the value of the second item
+        e.editable.value[1].value = 42;
+
+        // Revert the change
+        e.revert("b");
+
+        expect(e.editable.value[1].value).toBe(3); // The modify function should update the reverted item to have value 3
+    });
+
+    test("modifyFn is applied to new items added to the editable array", async () => {
+        // Create a modify function that changes the value of an item from 2 to 3
+        const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
+        const e = createEditable(source, { modifyFn });
+
+        // Add a new item to the editable array
+        e.editable.value.push(makeDoc("d", 2));
+
+        await nextTick();
+
+        await waitForExpect(() => {
+            expect(e.editable.value[2].value).toBe(3); // The modify function should update the new item to have value 3
+        });
     });
 });

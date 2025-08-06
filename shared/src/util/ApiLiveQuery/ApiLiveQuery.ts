@@ -1,16 +1,13 @@
 import { computed, ComputedRef, Ref, ref, watch } from "vue";
-import { ApiSearchQuery, ChangeRequestQuery, getRest } from "../../rest/RestApi";
+import { ApiSearchQuery, getRest } from "../../rest/RestApi";
 import { getSocket, isConnected } from "../../socket/socketio";
-import { AckStatus, ApiQueryResult, BaseDocumentDto, Uuid } from "../../types";
+import { ApiQueryResult, BaseDocumentDto } from "../../types";
 import { applySocketData } from "./applySocketData";
-import { createEditable } from "./createEditable";
 import _ from "lodash";
 
 export type ApiLiveQueryOptions<T> = {
     /** Provide an initial value while waiting for the API response */
     initialValue?: Array<T>;
-    /** Enable an editable copy of the live data with state management */
-    enableEditable?: boolean;
 };
 
 /**
@@ -23,21 +20,14 @@ export type ApiLiveQueryOptions<T> = {
  * automatically when the data changes in the database.
  */
 export class ApiLiveQuery<T extends BaseDocumentDto> {
-    private _sourceData: Ref<Array<T>>;
-    private _firstItem: ComputedRef<T | undefined>;
-    private _liveData: ComputedRef<Array<T>>;
+    protected _sourceData: Ref<Array<T>>;
+    protected _firstItem: ComputedRef<T | undefined>;
+    protected _liveData: ComputedRef<Array<T>>;
     private _socketOnCallback: ((data: ApiQueryResult<T>) => void) | undefined = undefined;
     private _unwatch;
     private _isLoading = ref(true);
-    private _editable: Ref<Array<T>> | undefined = undefined;
-    private _isEdited: ComputedRef<(id: Uuid) => boolean> | undefined;
-    private _isModified: ComputedRef<(id: Uuid) => boolean> | undefined;
-    private _revert: ((id: Uuid) => void) | undefined;
 
     constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<T>) {
-        // Bind async methods to the class instance
-        this.save = this.save.bind(this);
-
         // Validate the query
         if (query.value.groups) {
             throw new Error("groups are not supported in ApiLiveQuery");
@@ -50,14 +40,6 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
         this._sourceData = ref((options?.initialValue as Array<T>) ?? ([] as Array<T>)) as Ref<
             Array<T>
         >;
-
-        if (options?.enableEditable) {
-            const editable = createEditable<T>(this._sourceData);
-            this._editable = editable.editable;
-            this._isEdited = editable.isEdited;
-            this._isModified = editable.isModified;
-            this._revert = editable.revert;
-        }
 
         this._firstItem = computed(() => {
             if (!this._sourceData || !this._sourceData.value || !this._sourceData.value.length)
@@ -165,86 +147,5 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
     private unsubscribeLiveData() {
         if (this._socketOnCallback) getSocket().off("data", this._socketOnCallback);
         this._socketOnCallback = undefined;
-    }
-
-    /**
-     * Get a Vue ref that contains the editable version of the data. This allows you to modify the data but does not save it to the database.
-     */
-    public get editable() {
-        if (!this._editable) {
-            throw new Error(
-                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
-            );
-        }
-        return this._editable as Ref<Array<T>>;
-    }
-
-    /**
-     * Save the current state of an editable item to the database.
-     * This method will not save the item if it has not been modified.
-     * @param id - The _id of the item to save.
-     */
-    public async save(id: Uuid) {
-        if (!this._isEdited || !this._editable) {
-            throw new Error(
-                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
-            );
-        }
-
-        if (!this._isEdited.value(id)) return { ack: AckStatus.Accepted };
-
-        const item = this._editable.value.find((i) => i._id === id);
-        if (!item) return { ack: AckStatus.Rejected, message: "Item not found" };
-
-        // Send the change request to the API
-        const res = await getRest().changeRequest({
-            id: 10, // TODO: The ID field is not used in the API, but it is still required by the API. This can be removed in the future.
-            doc: item,
-        } as ChangeRequestQuery);
-
-        if (res && res.ack == AckStatus.Accepted) {
-            // Update the shadow copy
-            const index = this._editable.value.findIndex((i) => i._id === id);
-            if (index !== -1) this._editable.value[index] = item;
-        }
-
-        return res; // TODO: Add type for the response. This will involve adding a type for the API response.
-    }
-
-    /**
-     * Revert an item to its original state from the source data.
-     * @param id - The _id of the item to revert.
-     */
-    public get revert() {
-        if (!this._revert) {
-            throw new Error(
-                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
-            );
-        }
-        return this._revert;
-    }
-
-    /**
-     * Check if an item is in the edited state.
-     * @returns a computed function giving true if the passed item has been edited, false otherwise.
-     */
-    public get isEdited() {
-        if (!this._isEdited)
-            throw new Error(
-                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
-            );
-        return this._isEdited;
-    }
-
-    /**
-     * Check if an item is in the modified state. The modified state means that the item has been edited by the user and has also been modified in the source array.
-     * @returns a computed function giving true if the passed item has been modified, false otherwise.
-     */
-    public get isModified() {
-        if (!this._isModified)
-            throw new Error(
-                "Editable data is not available. The class should be instantiated with the option `enableEditable: true`.",
-            );
-        return this._isModified;
     }
 }

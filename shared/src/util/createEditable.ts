@@ -1,20 +1,44 @@
 import { computed, Ref, ref, toRaw, watch } from "vue";
-import { BaseDocumentDto, Uuid } from "../../types";
+import { BaseDocumentDto, Uuid } from "../types";
 import _ from "lodash";
+
+export type CreateEditableOptions<T> = {
+    /**
+     * @param filterFn Optional filter function to apply to the editable array before comparing or saving.
+     * This is useful if e.g. empty items should be ignored. The filter function is applied on each item of the editable array before comparing it to the source array.
+     */
+    filterFn?: (item: T) => T;
+    /**
+     *
+     * @param item Optional function to modify the item before it is added to the editable array. This can be used to add default values or modify the item in some way. The function should return the modified item.
+     * This is useful if you want to add default values to the item before it is added
+     * @returns
+     */
+    modifyFn?: (item: T) => T;
+};
 
 /**
  * Creates an editable version of the source array, allowing modifications while keeping track of user and source modifications.
  * The editable array is kept up to date with changes to the source array, unless the user has made modifications.
  * @param source
+ * @param options Optional options to customize the behavior of the editable array.
  * @returns
  */
-export function createEditable<T extends BaseDocumentDto>(source: Ref<Array<T>> | undefined) {
+export function createEditable<T extends BaseDocumentDto>(
+    source: Ref<Array<T>> | undefined,
+    options: CreateEditableOptions<T> = {},
+) {
     if (!source || !Array.isArray(source.value)) {
         throw new Error("Source must be a ref of an array of BaseDocumentDto");
     }
 
     const editable = ref<Array<T>>(_.cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
     const shadow = ref<Array<T>>(_.cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
+
+    const editable_filtered = computed(() => {
+        if (!options.filterFn) return editable.value;
+        return editable.value.map(options.filterFn).filter((item) => item !== undefined);
+    });
 
     /**
      * Check if an item has been edited by the user.
@@ -23,7 +47,7 @@ export function createEditable<T extends BaseDocumentDto>(source: Ref<Array<T>> 
      */
     const isEdited = computed(() => (id: Uuid) => {
         const shadowItem = shadow.value.find((s) => s._id === id);
-        const editableItem = editable.value.find((e) => e._id === id);
+        const editableItem = editable_filtered.value.find((e) => e._id === id);
         if (!editableItem) return false; // If the item is not in the editable array, it cannot be edited
         if (!shadowItem) return true; // If the item is not in the shadow array but it is in the edited array, it is considered edited
         return !_.isEqual(
@@ -58,7 +82,10 @@ export function createEditable<T extends BaseDocumentDto>(source: Ref<Array<T>> 
         // Revert the item to its original state from the source data
         const originalItem = source.value.find((i) => i._id === id);
         if (originalItem) {
-            editable.value[index] = _.cloneDeep(originalItem);
+            // If a modify function is provided, apply it to the original item
+            options.modifyFn
+                ? (editable.value[index] = options.modifyFn(_.cloneDeep(originalItem)))
+                : (editable.value[index] = _.cloneDeep(originalItem));
             shadow.value[index] = _.cloneDeep(originalItem);
         } else {
             console.warn(`Item with id ${id} not found in source data. Cannot revert.`);
@@ -120,6 +147,32 @@ export function createEditable<T extends BaseDocumentDto>(source: Ref<Array<T>> 
                     return updatedItem ? _.cloneDeep(updatedItem as T) : e;
                 });
             }
+        },
+        { deep: true, immediate: true },
+    );
+
+    // monitor the editable array for new items and run the modify function if provided
+    let oldValue: Array<T> | undefined;
+    watch(
+        editable,
+        (newValue) => {
+            // Get the items that were added
+            const addedItems = newValue.filter(
+                (item) => !oldValue?.some((oldItem) => oldItem._id === item._id),
+            );
+
+            if (!addedItems.length) return;
+            if (!options.modifyFn) return;
+
+            // Modify the added items if a modify function is provided
+            for (const addedItem of addedItems) {
+                const index = newValue.findIndex((item) => item._id === addedItem._id);
+                if (index !== -1) {
+                    newValue[index] = options.modifyFn(addedItem);
+                }
+            }
+
+            oldValue = [...newValue]; // Update oldValue to the current state of editable
         },
         { deep: true, immediate: true },
     );
