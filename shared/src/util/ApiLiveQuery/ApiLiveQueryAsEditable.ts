@@ -1,4 +1,4 @@
-import { ComputedRef, Ref } from "vue";
+import { Ref } from "vue";
 import { ApiSearchQuery, ChangeRequestQuery, getRest } from "../../rest/RestApi";
 import { AckStatus, BaseDocumentDto, Uuid } from "../../types";
 import { createEditable } from "../createEditable";
