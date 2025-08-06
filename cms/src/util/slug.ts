@@ -9,10 +9,15 @@ export class Slug {
      * Converts a string to a slug without uniqueness validation
      */
     static generateNonUnique(text: string) {
-        return slugify(text, {
+        const slug = slugify(text, {
             lowercase: true,
             separator: "-",
         });
+
+        // Remove trailing dashes and clean up multiple consecutive dashes
+        // This ensures this only happens after the user has finished typing
+        // and not while they are typing.
+        return slug.replace(/-+/g, "-").replace(/^-+|-+$/g, "");
     }
 
     /**
