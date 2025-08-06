@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
-import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import LoadingBar from "@/components/LoadingBar.vue";
 import { computed } from "vue";
 import { appName } from "@/globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
@@ -38,7 +38,7 @@ const routeKey = computed(() => {
     <div v-else class="absolute flex h-full w-full items-center justify-center">
         <div class="flex flex-col items-center gap-4">
             <img class="w-72" src="@/assets/logo.svg" :alt="appName" />
-            <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
+            <div class="flex items-center gap-2 text-lg"><LoadingBar /></div>
         </div>
     </div>
 

@@ -39,7 +39,7 @@ import EditContentBasic from "@/components/content/EditContentBasic.vue";
 import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import LoadingBar from "@/components/LoadingBar.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import * as _ from "lodash";
 import router from "@/router";
@@ -597,8 +597,8 @@ watch(
         v-if="!newDocument && !editableParent?.updatedTimeUtc"
         class="relative flex items-center justify-center"
     >
-        <div class="flex flex-col items-center gap-[3px]">
-            <div class="flex items-center gap-2 text-lg"><LoadingSpinner /> Loading...</div>
+        <div class="flex flex-col items-center gap-4">
+            <div class="flex items-center gap-2 text-lg"><LoadingBar /></div>
         </div>
     </div>
     <BasePage
