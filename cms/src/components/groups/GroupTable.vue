@@ -1,38 +1,43 @@
 <script setup lang="ts">
-import { ApiLiveQuery, DocType, type ApiSearchQuery, type GroupDto } from "luminary-shared";
+import { ApiLiveQueryAsEditable, type GroupDto } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import GroupRow from "./GroupRow.vue";
-import { ref, watch } from "vue";
 
-const groups = ref<GroupDto[] | undefined>([]);
-const accessToGroup = ref<GroupDto[]>([]);
+// const groups = ref<GroupDto[] | undefined>([]);
+// const accessToGroup = ref<GroupDto[]>([]);
 
-const groupsQuery = ref<ApiSearchQuery>({
-    types: [DocType.Group],
-});
-const apiGroup = new ApiLiveQuery<GroupDto>(groupsQuery);
+type Props = {
+    groupsQuery: ApiLiveQueryAsEditable<GroupDto>;
+};
+const props = defineProps<Props>();
 
-const apiGroupResults = apiGroup.toArrayAsRef();
+const { liveData } = props.groupsQuery;
 
-watch(
-    apiGroupResults,
-    () => {
-        if (!apiGroupResults.value) {
-            return;
-        }
+defineEmits<{
+    (e: "save", group: GroupDto): void;
+    (e: "delete", group: GroupDto): void;
+    (e: "duplicate", group: GroupDto): void;
+}>();
 
-        groups.value = apiGroupResults.value;
+// watch(
+//     apiGroupResults,
+//     () => {
+//         if (!apiGroupResults.value) {
+//             return;
+//         }
 
-        // Step 1: Collect all unique groupIds from ACLs
-        const aclGroupIds = new Set(
-            groups.value.flatMap((group) => group.acl.map((a) => a.groupId)).filter(Boolean),
-        );
+//         groups.value = apiGroupResults.value;
 
-        // Step 2: Filter groups that are referenced in the ACLs
-        accessToGroup.value = groups.value.filter((group) => aclGroupIds.has(group._id));
-    },
-    { immediate: true },
-);
+//         // Step 1: Collect all unique groupIds from ACLs
+//         const aclGroupIds = new Set(
+//             groups.value.flatMap((group) => group.acl.map((a) => a.groupId)).filter(Boolean),
+//         );
+
+//         // Step 2: Filter groups that are referenced in the ACLs
+//         accessToGroup.value = groups.value.filter((group) => aclGroupIds.has(group._id));
+//     },
+//     { immediate: true },
+// );
 </script>
 
 <template>
@@ -75,12 +80,15 @@ watch(
                             ></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 bg-white">
+                    <tbody class="divide-y divide-zinc-200 bg-white" v-if="liveData.length">
                         <GroupRow
-                            v-for="group in groups"
+                            v-for="group in liveData"
                             :key="group._id"
-                            :groupsDoc="group"
-                            :accessToGroup="accessToGroup"
+                            :group="group"
+                            :groupQuery="groupsQuery"
+                            @save="$emit('save', $event)"
+                            @delete="$emit('delete', $event)"
+                            @duplicate="$emit('duplicate', $event)"
                         />
                     </tbody>
                 </table>
