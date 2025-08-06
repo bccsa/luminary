@@ -240,7 +240,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it.only("renders an initial loading state", async () => {
+    it("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
