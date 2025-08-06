@@ -5,13 +5,11 @@ import MobileMenu from "./navigation/MobileMenu.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
 import NotificationToastManager from "./notifications/NotificationToastManager.vue";
 import PrivacyPolicyModal from "./navigation/PrivacyPolicyModal.vue";
-import { usePrivacyPolicyModal } from "@/composables/usePrivacyPolicyModal";
+import { showPrivacyPolicyModal } from "@/composables/usePrivacyPolicyModal";
 
 defineProps<{
     showBackButton?: boolean;
 }>();
-
-const { showPrivacyPolicyModal } = usePrivacyPolicyModal();
 
 const main = ref<HTMLElement | undefined>(undefined);
 

@@ -387,7 +387,7 @@ watch(
             return;
         }
 
-        // Consume flag ONCE
+        markLanguageSwitch(); // Mark the language switch only if the slug is different
 
         // Consume the language switch flag only once to determine if the user switched language via dropdown
         if (!hasConsumedLangSwitch.value) {
@@ -402,23 +402,21 @@ watch(
             );
 
             if (preferredContent) {
-                setTimeout(() => {
-                    useNotificationStore().addNotification({
-                        id: "content-available",
-                        title: t("notification.translation_available.title"),
-                        description: t("notification.translation_available.description", {
-                            language: appLanguageAsRef.value?.name,
-                        }),
-                        state: "info",
-                        type: "banner",
-                        closable: true,
-                        link: {
-                            name: "content",
-                            params: { slug: preferredContent.slug },
-                        },
-                        openLink: true,
-                    });
-                }, 3000);
+                useNotificationStore().addNotification({
+                    id: "content-available",
+                    title: t("notification.translation_available.title"),
+                    description: t("notification.translation_available.description", {
+                        language: appLanguageAsRef.value?.name,
+                    }),
+                    state: "info",
+                    type: "banner",
+                    closable: true,
+                    link: {
+                        name: "content",
+                        params: { slug: preferredContent.slug },
+                    },
+                    openLink: true,
+                });
             }
         }
 
