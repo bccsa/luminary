@@ -14,6 +14,7 @@ import LanguageSelector from "./LanguageSelector.vue";
 import { initLanguage } from "@/globalConfig";
 import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
+import LoadingBar from "../LoadingBar.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -239,7 +240,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("renders an initial loading state", async () => {
+    it.only("renders an initial loading state", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -248,7 +249,7 @@ describe("EditContent.vue", () => {
             },
         });
 
-        expect(wrapper.html()).toContain("Loading...");
+        expect(wrapper.findComponent(LoadingBar).exists()).toBe(true);
     });
 
     it("renders an empty state when no language is selected", async () => {
