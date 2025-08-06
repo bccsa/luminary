@@ -180,6 +180,21 @@ describe("createEditable", () => {
         expect(e.isModified.value("b")).toBe(false);
     });
 
+    test("filterFn applies to source changes", async () => {
+        // Create a filter function that changes the value of an item from 3 to 2
+        const filterFn = (item: TestDoc) => (item.value == 3 ? { ...item, value: 2 } : item);
+        const e = createEditable(source, { filterFn });
+
+        // Change all in the source with value 2 to 3
+        source.value = source.value.map((item) =>
+            item.value === 2 ? { ...item, value: 3 } : item,
+        );
+
+        // The filter function modifies the value internally to 2, and as such the isModified function should return false.
+        expect(e.isEdited.value("b")).toBe(false);
+        expect(e.isModified.value("b")).toBe(false);
+    });
+
     test("modifyFn applies to editable items", () => {
         // Create a modify function that changes the value of an item from 2 to 3
         const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);

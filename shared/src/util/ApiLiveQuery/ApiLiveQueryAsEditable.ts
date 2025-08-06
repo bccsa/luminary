@@ -1,8 +1,10 @@
-import { Ref } from "vue";
+import { Ref, toRaw } from "vue";
 import { ApiSearchQuery, ChangeRequestQuery, getRest } from "../../rest/RestApi";
 import { AckStatus, BaseDocumentDto, Uuid } from "../../types";
-import { createEditable } from "../createEditable";
+import { createEditable, CreateEditableOptions } from "../createEditable";
 import { ApiLiveQuery, ApiLiveQueryOptions } from "./ApiLiveQuery";
+
+export type ApiLiveQueryAsEditablOptions<T> = ApiLiveQueryOptions<T> & CreateEditableOptions<T>;
 
 /**
  * This class extends ApiLiveQuery to provide an editable array with state management.
@@ -17,13 +19,21 @@ export class ApiLiveQueryAsEditable<T extends BaseDocumentDto> extends ApiLiveQu
     revert;
     editable;
 
-    constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryOptions<T>) {
+    private _filterFn?: (item: T) => T;
+
+    constructor(query: Ref<ApiSearchQuery>, options?: ApiLiveQueryAsEditablOptions<T>) {
         super(query, options);
         // Bind async methods to the class instance
         this.save = this.save.bind(this);
 
-        // Map createEditable functions and properties to class properties
-        const editableFunctions = createEditable<T>(this._sourceData);
+        this._filterFn = options?.filterFn;
+
+        const editableOptions: CreateEditableOptions<T> = {
+            filterFn: options?.filterFn,
+            modifyFn: options?.modifyFn,
+        };
+
+        const editableFunctions = createEditable<T>(this._sourceData, editableOptions);
         this.isEdited = editableFunctions.isEdited;
         this.isModified = editableFunctions.isModified;
         this.revert = editableFunctions.revert;
@@ -33,13 +43,17 @@ export class ApiLiveQueryAsEditable<T extends BaseDocumentDto> extends ApiLiveQu
     /**
      * Save the current state of an editable item to the database.
      * This method will not save the item if it has not been modified.
+     * The passed filter function (if any) will be applied to the item before saving.
      * @param id - The _id of the item to save.
      */
     public async save(id: Uuid) {
         if (!this.isEdited.value(id)) return { ack: AckStatus.Accepted };
 
-        const item = this.editable.value.find((i) => i._id === id);
+        let item = toRaw(this.editable.value.find((i) => i._id === id));
         if (!item) return { ack: AckStatus.Rejected, message: "Item not found" };
+
+        // Apply the filter function if it exists
+        if (this._filterFn) item = this._filterFn(item);
 
         // Send the change request to the API
         const res = await getRest().changeRequest({

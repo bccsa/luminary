@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { getRest } from "../../rest/RestApi";
 import { BaseDocumentDto, DocType } from "../../types";
 import waitForExpect from "wait-for-expect";
@@ -108,5 +108,39 @@ describe("ApiLiveQueryAsEditable", () => {
         const res = await liveQuery.save("1");
         expect(changeRequestMock).not.toHaveBeenCalled();
         expect(res).toEqual({ ack: "accepted" });
+    });
+
+    it("applies filter function when saving", async () => {
+        type TestDocType = BaseDocumentDto & { val: string };
+        const query = ref({ types: [DocType.Post] });
+        const mockDocs = [{ _id: "1", type: DocType.Post, val: "test" } as TestDocType];
+
+        const changeRequestMock = vi.fn().mockResolvedValue({ ack: 1 });
+        vi.mocked(getRest).mockReturnValue({
+            search: vi.fn().mockResolvedValue({ docs: mockDocs }),
+            changeRequest: changeRequestMock,
+        } as any);
+
+        const filterFn = (item: TestDocType) => ({ ...item, val: item.val.toUpperCase() });
+
+        const liveQuery = new ApiLiveQueryAsEditable<TestDocType>(query, { filterFn });
+
+        // Access editable to initialize
+        await waitForExpect(() => {
+            expect(liveQuery.editable.value).toEqual(mockDocs);
+        });
+
+        // Change the value to simulate an edit
+        liveQuery.editable.value[0].val = "updated";
+
+        const res = await liveQuery.save("1");
+
+        waitForExpect(() => {
+            expect(changeRequestMock).toHaveBeenCalledWith({
+                id: 10,
+                doc: { _id: "1", type: DocType.Post, val: "UPDATED" },
+            });
+            expect(res).toEqual({ ack: 1 });
+        });
     });
 });
