@@ -35,10 +35,50 @@ export function createEditable<T extends BaseDocumentDto>(
     const editable = ref<Array<T>>(_.cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
     const shadow = ref<Array<T>>(_.cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
 
-    const editable_filtered = computed(() => {
-        if (!options.filterFn) return editable.value;
-        return editable.value.map(options.filterFn).filter((item) => item !== undefined);
-    });
+    const source_filtered = ref<Array<T>>([]);
+    watch(
+        source,
+        () => {
+            if (!options.filterFn) {
+                source_filtered.value = source.value;
+                return;
+            }
+            source_filtered.value = source.value
+                .map((item) => (options.filterFn ? options.filterFn(toRaw(item)) : item))
+                .filter((item) => item !== undefined);
+        },
+        { deep: true, immediate: true },
+    );
+
+    const editable_filtered = ref<Array<T>>([]);
+    watch(
+        editable,
+        () => {
+            if (!options.filterFn) {
+                editable_filtered.value = editable.value;
+                return;
+            }
+            editable_filtered.value = editable.value
+                .map((item) => (options.filterFn ? options.filterFn(toRaw(item)) : item))
+                .filter((item) => item !== undefined);
+        },
+        { deep: true, immediate: true },
+    );
+
+    const shadow_filtered = ref<Array<T>>([]);
+    watch(
+        shadow,
+        () => {
+            if (!options.filterFn) {
+                shadow_filtered.value = shadow.value;
+                return;
+            }
+            shadow_filtered.value = shadow.value
+                .map((item) => (options.filterFn ? options.filterFn(toRaw(item)) : item))
+                .filter((item) => item !== undefined);
+        },
+        { deep: true, immediate: true },
+    );
 
     /**
      * Check if an item has been edited by the user.
@@ -46,14 +86,11 @@ export function createEditable<T extends BaseDocumentDto>(
      * @returns a computed function giving true if the item has been edited, false otherwise.
      */
     const isEdited = computed(() => (id: Uuid) => {
-        const shadowItem = shadow.value.find((s) => s._id === id);
-        const editableItem = editable_filtered.value.find((e) => e._id === id);
+        const shadowItem = toRaw(shadow_filtered.value.find((s) => s._id === id));
+        const editableItem = toRaw(editable_filtered.value.find((e) => e._id === id));
         if (!editableItem) return false; // If the item is not in the editable array, it cannot be edited
         if (!shadowItem) return true; // If the item is not in the shadow array but it is in the edited array, it is considered edited
-        return !_.isEqual(
-            { ...shadowItem, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
-            { ...editableItem, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
-        );
+        return !isEqualBase(shadowItem, editableItem);
     });
 
     /**
@@ -62,14 +99,11 @@ export function createEditable<T extends BaseDocumentDto>(
      * @returns a computed function giving true if the item has been modified, false otherwise.
      */
     const isModified = computed(() => (id: Uuid) => {
-        const shadowItem = shadow.value.find((s) => s._id === id);
-        const sourceItem = source.value.find((e) => e._id === id);
+        const shadowItem = shadow_filtered.value.find((s) => s._id === id);
+        const sourceItem = source_filtered.value.find((e) => e._id === id);
         if (!sourceItem) return false; // If the item is not in the source array, it cannot be modified
         if (!shadowItem) return true; // This condition should not happen as the shadow array is updated with the source array when source items are added or removed
-        return !_.isEqual(
-            { ...shadowItem, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
-            { ...sourceItem, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
-        );
+        return !isEqualBase(sourceItem, shadowItem);
     });
 
     /**
@@ -84,8 +118,8 @@ export function createEditable<T extends BaseDocumentDto>(
         if (originalItem) {
             // If a modify function is provided, apply it to the original item
             options.modifyFn
-                ? (editable.value[index] = options.modifyFn(_.cloneDeep(originalItem)))
-                : (editable.value[index] = _.cloneDeep(originalItem));
+                ? (editable.value[index] = options.modifyFn(_.cloneDeep(toRaw(originalItem))))
+                : (editable.value[index] = _.cloneDeep(toRaw(originalItem)));
             shadow.value[index] = _.cloneDeep(originalItem);
         } else {
             console.warn(`Item with id ${id} not found in source data. Cannot revert.`);
@@ -123,18 +157,9 @@ export function createEditable<T extends BaseDocumentDto>(
                 if (!shadowItem) return false; // this condition should not happen as the shadow array is updated with the source array when source items are added or removed
 
                 // If the item is modified by the user, it should be excluded the updated list
-                if (
-                    !_.isEqual(
-                        { ...shadowItem, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
-                        { ...editableItem, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
-                    )
-                )
-                    return false;
+                if (!isEqualBase(shadowItem, editableItem)) return false;
 
-                return !_.isEqual(
-                    { ...shadowItem, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
-                    { ...sourceItem, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
-                );
+                return !isEqualBase(shadowItem, sourceItem);
             });
 
             if (sourceUpdated.length > 0) {
@@ -168,7 +193,7 @@ export function createEditable<T extends BaseDocumentDto>(
             for (const addedItem of addedItems) {
                 const index = newValue.findIndex((item) => item._id === addedItem._id);
                 if (index !== -1) {
-                    newValue[index] = options.modifyFn(addedItem);
+                    newValue[index] = options.modifyFn(toRaw(addedItem));
                 }
             }
 
@@ -178,4 +203,11 @@ export function createEditable<T extends BaseDocumentDto>(
     );
 
     return { editable, isEdited, isModified, revert };
+}
+
+function isEqualBase<T>(obj1: T, obj2: T): boolean {
+    return _.isEqual(
+        { ...obj1, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
+        { ...obj2, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
+    );
 }
