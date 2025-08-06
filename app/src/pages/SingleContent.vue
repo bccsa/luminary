@@ -465,7 +465,7 @@ const selectedLanguageCode = computed(() => {
 <template>
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
-            <div class="relative mt-1 w-auto">
+            <div class="relative w-auto">
                 <button
                     v-show="availableTranslations.length > 1"
                     name="translationSelector"
