@@ -7,12 +7,9 @@ import { computed, watch } from "vue";
 import LModal from "@/components/form/LModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import { useI18n } from "vue-i18n";
-import { usePrivacyPolicyModal } from "@/composables/usePrivacyPolicyModal";
 const { t } = useI18n();
 
-const { openPrivacyPolicyModal } = usePrivacyPolicyModal();
-
-const show = defineModel<boolean>("show", { default: false });
+const show = defineModel<boolean>("show");
 
 // Set the privacy policy status to "updated" if the policy has changed and the user previously accepted it
 const privacyPolicy = useDexieLiveQuery(
@@ -79,7 +76,7 @@ setTimeout(() => {
                     title: t("privacy_policy.banner.title"),
                     description: bannerMessageMap[status],
                     icon: ShieldCheckIcon,
-                    link: openPrivacyPolicyModal,
+                    link: () => (show.value = true),
                     closable: false,
                 });
                 return;
