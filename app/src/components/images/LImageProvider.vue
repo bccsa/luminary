@@ -17,7 +17,6 @@ type Props = {
     rounded?: boolean;
     parentWidth: number;
     parentId: Uuid;
-    highQuality?: boolean; // New prop for zoom mode
 };
 
 const aspectRatiosCSS = {
@@ -46,7 +45,6 @@ const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
     rounded: true,
-    highQuality: false, // Default to normal quality filtering
 });
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
@@ -64,64 +62,17 @@ const calcImageLoadingTime = (imageFile: ImageFileDto) => {
 };
 
 // Filter out images that would take more than 1 second to load on mobile devices or that are bigger than the parent element width plus 50%
-// In high quality mode (zoom), bypass most filtering to get the best available images
 const filteredFileCollections = computed(() => {
     const res: Array<ImageFileCollectionDto> = [];
     if (!props.image?.fileCollections) return res;
 
-    if (props.highQuality) {
-        console.log(
-            "High quality mode - connection speed:",
-            connectionSpeed,
-            "isDesktop:",
-            isDesktop,
-        );
-    }
-
     props.image.fileCollections.forEach((collection) => {
-        let images: ImageFileDto[];
-
-        if (props.highQuality) {
-            // In high quality mode, prioritize the best images available
-            if (isDesktop) {
-                // On desktop, be very permissive - allow up to 20s load time for best quality
-                images = collection.imageFiles.filter(
-                    (imgFile) =>
-                        !isConnected || // Bypass filtering when not connected
-                        calcImageLoadingTime(imgFile) < 20, // Very generous threshold for desktop zoom
-                );
-            } else {
-                // On mobile, still be generous but more reasonable
-                images = collection.imageFiles.filter(
-                    (imgFile) =>
-                        !isConnected || // Bypass filtering when not connected
-                        calcImageLoadingTime(imgFile) < 5, // Allow up to 5s on mobile for zoom
-                );
-            }
-
-            // If no images pass the filter, include at least the largest image
-            if (images.length === 0 && collection.imageFiles.length > 0) {
-                images = [collection.imageFiles.reduce((a, b) => (a.width > b.width ? a : b))];
-            }
-
-            if (props.highQuality) {
-                console.log("High quality filtering results for collection:", {
-                    aspectRatio: collection.aspectRatio,
-                    totalImages: collection.imageFiles.length,
-                    filteredImages: images.length,
-                    imageWidths: collection.imageFiles.map((f) => f.width).sort((a, b) => b - a),
-                    selectedWidths: images.map((f) => f.width).sort((a, b) => b - a),
-                });
-            }
-        } else {
-            // Normal filtering for regular display
-            images = collection.imageFiles.filter(
-                (imgFile) =>
-                    !isConnected || // Bypass filtering when not connected
-                    ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                        imgFile.width <= (props.parentWidth * 1.5 || 180)),
-            );
-        }
+        const images = collection.imageFiles.filter(
+            (imgFile) =>
+                !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
+                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
+                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
+        );
 
         // add the smallest image from collection.imageFiles to images if images is empty
         if (images.length == 0) {
@@ -166,19 +117,10 @@ const srcset1 = computed(() => {
     return filteredFileCollections.value
         .filter((collection) => collection.aspectRatio == closestAspectRatio)
         .map((collection) => {
-            if (props.highQuality) {
-                // In high quality mode, sort images largest first to prioritize them in srcset
-                return collection.imageFiles
-                    .sort((a, b) => b.width - a.width)
-                    .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                    .join(", ");
-            } else {
-                // Normal mode - ascending sort as before
-                return collection.imageFiles
-                    .sort((a, b) => a.width - b.width)
-                    .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                    .join(", ");
-            }
+            return collection.imageFiles
+                .sort((a, b) => a.width - b.width)
+                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                .join(", ");
         })
         .join(", ");
 });
@@ -213,16 +155,6 @@ const showImageElement2 = computed(
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
-// Computed sizes attribute to help browser choose the right image
-const imageSizes = computed(() => {
-    if (props.highQuality) {
-        // In high quality mode, tell the browser we want a large image
-        return "100vw";
-    }
-    // Normal mode - let the CSS size classes determine
-    return undefined;
-});
-
 const loadFallbackImage = async () => {
     const randomImage = (await fallbackImageUrls)[
         Math.floor(new Rand(props.parentId).next() * (await fallbackImageUrls).length)
@@ -239,7 +171,6 @@ onBeforeMount(async () => {
     <img
         v-if="srcset1 && showImageElement1"
         :srcset="srcset1"
-        :sizes="imageSizes"
         :class="[
             aspectRatiosCSS[aspectRatio],
             sizes[size],
@@ -255,7 +186,6 @@ onBeforeMount(async () => {
         v-else-if="showImageElement2 && srcset2"
         src=""
         :srcset="srcset2"
-        :sizes="imageSizes"
         :class="[
             aspectRatiosCSS[aspectRatio],
             sizes[size],
