@@ -10,6 +10,12 @@ export const isDevMode = import.meta.env.DEV;
 const isTestEnv = import.meta.env.MODE === "test";
 
 /**
+ * We want to only show one privacy policy modal per session.
+ * This is used to track one singular instance of the modal being shown.
+ */
+export const showPrivacyPolicyModal = ref(false);
+
+/**
  * Gets client's connection speed in Mbps.
  */
 export const getConnectionSpeed = () => {
