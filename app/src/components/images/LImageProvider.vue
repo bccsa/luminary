@@ -69,16 +69,50 @@ const filteredFileCollections = computed(() => {
     const res: Array<ImageFileCollectionDto> = [];
     if (!props.image?.fileCollections) return res;
 
+    if (props.highQuality) {
+        console.log(
+            "High quality mode - connection speed:",
+            connectionSpeed,
+            "isDesktop:",
+            isDesktop,
+        );
+    }
+
     props.image.fileCollections.forEach((collection) => {
         let images: ImageFileDto[];
 
         if (props.highQuality) {
-            // In high quality mode, allow longer loading times to get better quality images
-            images = collection.imageFiles.filter(
-                (imgFile) =>
-                    !isConnected || // Bypass filtering when not connected
-                    calcImageLoadingTime(imgFile) < 2, // Allow 2 seconds loading time for zooming to get better quality images
-            );
+            // In high quality mode, prioritize the best images available
+            if (isDesktop) {
+                // On desktop, be very permissive - allow up to 20s load time for best quality
+                images = collection.imageFiles.filter(
+                    (imgFile) =>
+                        !isConnected || // Bypass filtering when not connected
+                        calcImageLoadingTime(imgFile) < 20, // Very generous threshold for desktop zoom
+                );
+            } else {
+                // On mobile, still be generous but more reasonable
+                images = collection.imageFiles.filter(
+                    (imgFile) =>
+                        !isConnected || // Bypass filtering when not connected
+                        calcImageLoadingTime(imgFile) < 5, // Allow up to 5s on mobile for zoom
+                );
+            }
+
+            // If no images pass the filter, include at least the largest image
+            if (images.length === 0 && collection.imageFiles.length > 0) {
+                images = [collection.imageFiles.reduce((a, b) => (a.width > b.width ? a : b))];
+            }
+
+            if (props.highQuality) {
+                console.log("High quality filtering results for collection:", {
+                    aspectRatio: collection.aspectRatio,
+                    totalImages: collection.imageFiles.length,
+                    filteredImages: images.length,
+                    imageWidths: collection.imageFiles.map((f) => f.width).sort((a, b) => b - a),
+                    selectedWidths: images.map((f) => f.width).sort((a, b) => b - a),
+                });
+            }
         } else {
             // Normal filtering for regular display
             images = collection.imageFiles.filter(
