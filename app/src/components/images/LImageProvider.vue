@@ -17,6 +17,7 @@ type Props = {
     rounded?: boolean;
     parentWidth: number;
     parentId: Uuid;
+    highQuality?: boolean; // New prop for zoom mode
 };
 
 const aspectRatiosCSS = {
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
     rounded: true,
+    highQuality: false, // Default to normal quality filtering
 });
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
@@ -62,17 +64,30 @@ const calcImageLoadingTime = (imageFile: ImageFileDto) => {
 };
 
 // Filter out images that would take more than 1 second to load on mobile devices or that are bigger than the parent element width plus 50%
+// In high quality mode (zoom), bypass most filtering to get the best available images
 const filteredFileCollections = computed(() => {
     const res: Array<ImageFileCollectionDto> = [];
     if (!props.image?.fileCollections) return res;
 
     props.image.fileCollections.forEach((collection) => {
-        const images = collection.imageFiles.filter(
-            (imgFile) =>
-                !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
-                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
-        );
+        let images: ImageFileDto[];
+
+        if (props.highQuality) {
+            // In high quality mode, allow longer loading times to get better quality images
+            images = collection.imageFiles.filter(
+                (imgFile) =>
+                    !isConnected || // Bypass filtering when not connected
+                    calcImageLoadingTime(imgFile) < 2, // Allow 2 seconds loading time for zooming to get better quality images
+            );
+        } else {
+            // Normal filtering for regular display
+            images = collection.imageFiles.filter(
+                (imgFile) =>
+                    !isConnected || // Bypass filtering when not connected
+                    ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
+                        imgFile.width <= (props.parentWidth * 1.5 || 180)),
+            );
+        }
 
         // add the smallest image from collection.imageFiles to images if images is empty
         if (images.length == 0) {
