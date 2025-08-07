@@ -23,15 +23,13 @@ import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
-import { usePrivacyPolicyModal } from "@/composables/usePrivacyPolicyModal";
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuth0();
 const router = useRouter();
 
-const { openPrivacyPolicyModal } = usePrivacyPolicyModal();
-
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
+const showPrivacyPolicyModal = ref(false);
 const showLogoutDialog = ref(false);
 
 const { t } = useI18n();
@@ -91,7 +89,7 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
         {
             name: t("profile_menu.privacy_policy"),
             icon: ShieldCheckIcon,
-            action: openPrivacyPolicyModal,
+            action: () => (showPrivacyPolicyModal.value = true),
         },
     ];
 });
@@ -216,6 +214,7 @@ const userNavigation = computed(() => {
 
         <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
         <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
+        <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
 
         <LDialog
             v-model:open="showLogoutDialog"
