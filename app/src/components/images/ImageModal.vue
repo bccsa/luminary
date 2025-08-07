@@ -262,6 +262,7 @@ onBeforeUnmount(() => {
                 :aspectRatio="aspectRatio"
                 :size="size"
                 :rounded="rounded"
+                :highQuality="true"
                 class="pointer-events-none min-h-full min-w-full object-contain"
             />
         </div>
