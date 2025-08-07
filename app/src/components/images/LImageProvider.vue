@@ -166,10 +166,19 @@ const srcset1 = computed(() => {
     return filteredFileCollections.value
         .filter((collection) => collection.aspectRatio == closestAspectRatio)
         .map((collection) => {
-            return collection.imageFiles
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                .join(", ");
+            if (props.highQuality) {
+                // In high quality mode, sort images largest first to prioritize them in srcset
+                return collection.imageFiles
+                    .sort((a, b) => b.width - a.width)
+                    .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                    .join(", ");
+            } else {
+                // Normal mode - ascending sort as before
+                return collection.imageFiles
+                    .sort((a, b) => a.width - b.width)
+                    .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+                    .join(", ");
+            }
         })
         .join(", ");
 });
@@ -204,6 +213,16 @@ const showImageElement2 = computed(
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
+// Computed sizes attribute to help browser choose the right image
+const imageSizes = computed(() => {
+    if (props.highQuality) {
+        // In high quality mode, tell the browser we want a large image
+        return "100vw";
+    }
+    // Normal mode - let the CSS size classes determine
+    return undefined;
+});
+
 const loadFallbackImage = async () => {
     const randomImage = (await fallbackImageUrls)[
         Math.floor(new Rand(props.parentId).next() * (await fallbackImageUrls).length)
@@ -220,6 +239,7 @@ onBeforeMount(async () => {
     <img
         v-if="srcset1 && showImageElement1"
         :srcset="srcset1"
+        :sizes="imageSizes"
         :class="[
             aspectRatiosCSS[aspectRatio],
             sizes[size],
@@ -235,6 +255,7 @@ onBeforeMount(async () => {
         v-else-if="showImageElement2 && srcset2"
         src=""
         :srcset="srcset2"
+        :sizes="imageSizes"
         :class="[
             aspectRatiosCSS[aspectRatio],
             sizes[size],
