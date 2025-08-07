@@ -4,8 +4,6 @@ import TopBar from "./navigation/TopBar.vue";
 import MobileMenu from "./navigation/MobileMenu.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
 import NotificationToastManager from "./notifications/NotificationToastManager.vue";
-import PrivacyPolicyModal from "./navigation/PrivacyPolicyModal.vue";
-import { showPrivacyPolicyModal } from "@/composables/usePrivacyPolicyModal";
 
 defineProps<{
     showBackButton?: boolean;
@@ -56,8 +54,5 @@ onUnmounted(() => {
         <MobileMenu
             class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
         />
-
-        <!-- Global Privacy Policy Modal -->
-        <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
     </div>
 </template>
