@@ -10,13 +10,11 @@ type Props = {
     aspectRatio?: keyof typeof aspectRatiosCSS;
     size?: keyof typeof sizes;
     rounded?: boolean;
-    highQuality?: boolean; // New prop for zoom mode
 };
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
     rounded: true,
-    highQuality: false, // Default to normal quality
 });
 
 const aspectRatiosCSS = {
@@ -69,7 +67,6 @@ onMounted(() => {
                 :aspect-ratio="props.aspectRatio"
                 :rounded="props.rounded"
                 :size="props.size"
-                :high-quality="props.highQuality"
             />
             <div class="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center">
                 <slot name="imageOverlay"></slot>
