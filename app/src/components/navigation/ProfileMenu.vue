@@ -19,18 +19,17 @@ import {
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
-import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
+import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuth0();
 const router = useRouter();
 
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
-const showPrivacyPolicyModal = ref(false);
 const showLogoutDialog = ref(false);
 
 const { t } = useI18n();
@@ -90,7 +89,7 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
         {
             name: t("profile_menu.privacy_policy"),
             icon: ShieldCheckIcon,
-            action: () => (showPrivacyPolicyModal.value = true),
+            action: () => ( = true),
         },
     ];
 });
@@ -215,7 +214,6 @@ const userNavigation = computed(() => {
 
         <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
         <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
-        <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
 
         <LDialog
             v-model:open="showLogoutDialog"
