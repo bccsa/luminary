@@ -6,8 +6,12 @@ import { LanguageDto } from "../../dto/LanguageDto";
  * Process Language DTO
  * @param doc
  * @param db
+ * @returns warnings (currently none for language processing)
  */
-export default async function processLanguageDto(doc: LanguageDto, db: DbService) {
+export default async function processLanguageDto(
+    doc: LanguageDto,
+    db: DbService,
+): Promise<string[]> {
     // Reject if a language document is deleted with the default language field set
     if (doc.deleteReq && doc.default) {
         throw new Error("Cannot delete the default language document");
@@ -32,4 +36,6 @@ export default async function processLanguageDto(doc: LanguageDto, db: DbService
             );
         }
     }
+
+    return []; // No warnings for language processing currently
 }
