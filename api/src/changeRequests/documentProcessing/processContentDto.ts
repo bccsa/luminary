@@ -9,9 +9,8 @@ import { DocType, PublishStatus, Uuid } from "../../enums";
  * Process Content DTO
  * @param doc
  * @param db
- * @returns warnings (currently none for content processing)
  */
-export default async function processContentDto(doc: ContentDto, db: DbService): Promise<string[]> {
+export default async function processContentDto(doc: ContentDto, db: DbService) {
     doc.slug = await validateSlug(doc.slug, doc._id, db);
 
     const parentQuery = await db.getDoc(doc.parentId);
@@ -55,6 +54,4 @@ export default async function processContentDto(doc: ContentDto, db: DbService):
         t.availableTranslations = availableTranslations;
         await db.upsertDoc(t);
     }
-
-    return []; // No warnings for content processing currently
 }
