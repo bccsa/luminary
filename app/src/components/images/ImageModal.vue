@@ -11,6 +11,7 @@ import {
 } from "vue";
 import LImage from "./LImage.vue";
 import type { ImageDto, Uuid } from "luminary-shared";
+import { XCircleIcon } from "@heroicons/vue/24/outline";
 
 // Props
 type Props = {
@@ -247,6 +248,12 @@ onBeforeUnmount(() => {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
+        <div>
+            <XCircleIcon
+                class="absolute right-4 top-4 h-10 w-10 cursor-pointer text-white hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100"
+                @click.stop="closeModal"
+            />
+        </div>
         <div
             ref="container"
             class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg bg-gray-900"
