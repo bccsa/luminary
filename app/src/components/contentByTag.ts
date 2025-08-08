@@ -35,20 +35,20 @@ export const contentByTag = (
         tags.value.forEach((tag) => {
             const sorted = content.value
                 .filter((c) => c.publishDate && c.parentTags.includes(tag.parentId))
-                .sort((a, b) => (a.publishDate ?? 0) - (b.publishDate ?? 0));
+                .sort((a, b) => (b.publishDate ?? 0) - (a.publishDate ?? 0));
 
             if (sorted.length) {
                 const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
 
                 if (index !== -1) {
                     Object.assign(result.tagged.value[index], {
-                        newestContentDate: sorted[sorted.length - 1].publishDate || 0,
+                        newestContentDate: sorted[0].publishDate || 0,
                         content: sorted,
                     });
                 } else {
                     result.tagged.value.push({
                         tag,
-                        newestContentDate: sorted[sorted.length - 1].publishDate || 0,
+                        newestContentDate: sorted[0].publishDate || 0,
                         content: sorted,
                     });
                 }
