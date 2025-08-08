@@ -387,21 +387,20 @@ watch(
             return;
         }
 
-        // Consume flag ONCE
-
         // Consume the language switch flag only once to determine if the user switched language via dropdown
         if (!hasConsumedLangSwitch.value) {
             wasLangSwitch.value = consumeLanguageSwitchFlag();
             hasConsumedLangSwitch.value = true;
         }
 
-        // Show banner only if it wasn't from dropdown
+        // Show banner only if it wasn't from dropdown AND there's actually a different slug to navigate to
         if (content.value.language !== appLanguagePreferredIdAsRef.value && !wasLangSwitch.value) {
             const preferredContent = availableTranslations.value.find(
                 (c) => c.language === appLanguagePreferredIdAsRef.value,
             );
 
-            if (preferredContent) {
+            // Only show banner if there's a preferred language version with a DIFFERENT slug
+            if (preferredContent && preferredContent.slug !== content.value.slug) {
                 setTimeout(() => {
                     useNotificationStore().addNotification({
                         id: "content-available",
