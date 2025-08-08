@@ -18,12 +18,11 @@ import {
     SunIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
-import { appLanguageAsRef } from "@/globalConfig";
+import { appLanguageAsRef, showPrivacyPolicyModal } from "@/globalConfig";
 import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
-import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuth0();
 const router = useRouter();
@@ -89,7 +88,7 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
         {
             name: t("profile_menu.privacy_policy"),
             icon: ShieldCheckIcon,
-            action: () => ( = true),
+            action: () => (showPrivacyPolicyModal.value = true),
         },
     ];
 });

@@ -59,7 +59,6 @@ switch (props.notification.state) {
 
 const handleNotificationClick = (notification: Notification) => {
     if (typeof notification.link === "function") {
-        console.info("Executing custom link function");
         notification.link(); // Executes custom function
     } else if (typeof notification.link === "object") {
         router.push(notification.link); // Navigates to route

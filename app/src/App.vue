@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
-import { computed, onErrorCaptured, ref, watch } from "vue";
+import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { userPreferencesAsRef } from "./globalConfig";
+import { showPrivacyPolicyModal, userPreferencesAsRef } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
@@ -81,8 +81,6 @@ onErrorCaptured((err) => {
     console.error(err);
     Sentry.captureException(err);
 });
-
-const showPrivacyPolicyModal = ref(false);
 </script>
 
 <template>
