@@ -75,21 +75,6 @@ const availableTranslations = ref<ContentDto[]>([]);
 const languages = ref<LanguageDto[]>([]);
 
 const currentImageIndex = ref(0);
-const mainAspectRatio = 1.78; // 16:9 aspect ratio, used for video and most images
-
-/**
- * Computes the index of the main image in the fileCollections array based on the closest aspect ratio match to mainAspectRatio.
- * If no matching collection is found, defaults to index 0.
- *
- * @returns {number} Index of the image with aspect ratio closest to mainAspectRatio, or 0 if not found.
- */
-const mainImageIndex = computed(() => {
-    return (
-        content.value?.parentImageData?.fileCollections?.findIndex(
-            (collection) => Math.abs(collection.aspectRatio - mainAspectRatio) < 0.01,
-        ) ?? 0
-    );
-});
 
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
@@ -576,7 +561,7 @@ const selectedLanguageCode = computed(() => {
                             }"
                             @click="
                                 () => {
-                                    currentImageIndex = mainImageIndex;
+                                    currentImageIndex = 0;
                                     enableZoom = true;
                                 }
                             "
