@@ -4,6 +4,7 @@ import { getRest } from "./RestApi";
 import { ChangeReqAckDto, LocalChangeDto } from "../types";
 import { db } from "../db/database";
 import { LFormData } from "../util/LFormData";
+import { changeReqErrors, changeReqWarnings } from "../config";
 
 /**
  * Lock to prevent multiple change requests from being processed at the same time
@@ -18,6 +19,10 @@ export const processChangeReqLock = ref(true);
  * @param localChanges the local changes from db as Ref to keep reactivity
  */
 async function handleAck(ack: ChangeReqAckDto, localChanges: Ref<LocalChangeDto[]>) {
+    // Clear previous warnings and errors
+    changeReqWarnings.value = [];
+    changeReqErrors.value = [];
+
     await db.applyLocalChangeAck(ack);
 
     //Update localChanges with changes made after acknowledgements was applied to localChanges

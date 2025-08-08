@@ -1,5 +1,5 @@
 import "./assets/main.css";
-import { createApp } from "vue";
+import { createApp, watch } from "vue";
 import { createPinia } from "pinia";
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
@@ -8,6 +8,7 @@ import { DocType, getSocket, init } from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
 import auth from "./auth";
 import { useNotificationStore } from "./stores/notification";
+import { changeReqWarnings, changeReqErrors } from "luminary-shared";
 
 const app = createApp(App);
 
@@ -81,15 +82,26 @@ async function Startup() {
         await auth.loginRedirect(oauth);
     });
 
-    // Show notification if a change request was rejected
-    socket.on("changeRequestAck", (data: any) => {
-        if (data.ack == "rejected") {
+    // Show notification if a change request was rejected or accepted but has warnings
+    watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {
+        if (warnings.length > 0) {
             useNotificationStore().addNotification({
-                title: "Saving changes to server failed.",
-                description: `Your recent request to save changes has failed. The changes have been reverted. Error message: ${data.message}`,
+                title: "Change Request Warnings",
+                description: warnings.join("\n"),
+                state: "warning",
+                timer: 60000,
+            });
+            changeReqWarnings.value = [];
+        }
+
+        if (errors.length > 0) {
+            useNotificationStore().addNotification({
+                title: "Change Request Errors",
+                description: errors.join("\n"),
                 state: "error",
                 timer: 60000,
             });
+            changeReqErrors.value = [];
         }
     });
 

@@ -19,9 +19,9 @@ export async function processChangeRequest(
     groupMembership: Array<Uuid>,
     db: DbService,
     s3: S3Service,
-) {
+): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
-    const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
+    const validationResult = await validateChangeRequest(changeRequest, groupMembership, db, s3);
 
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
@@ -36,13 +36,19 @@ export async function processChangeRequest(
     // Check if the document has changed
     if (isEqualDoc(doc, prevDoc)) {
         return {
-            ok: true,
-            message: "Document is identical to the one in the database",
-        } as DbUpsertResult;
+            result: {
+                ok: true,
+                message: "Document is identical to the one in the database",
+            } as DbUpsertResult,
+            warnings: validationResult.warnings,
+        };
     }
 
     // insert user id into the change request document, so that we can keep a record of who made the change
     doc.updatedBy = userId;
+
+    // Collect warnings from validation and processing
+    const allWarnings: string[] = [...(validationResult.warnings || [])];
 
     const docProcessMap = {
         [DocType.Post]: () => processPostTagDto(doc as PostDto, prevDoc as PostDto, db, s3),
@@ -51,10 +57,19 @@ export async function processChangeRequest(
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
     };
 
-    docProcessMap[doc.type] && (await docProcessMap[doc.type]());
+    if (docProcessMap[doc.type]) {
+        const processingResult = await docProcessMap[doc.type]();
+        // Only Post and Tag processing returns warnings currently
+        if (Array.isArray(processingResult)) {
+            allWarnings.push(...processingResult);
+        }
+    }
 
     // Insert / update the document in the database
     const upsertResult = await db.upsertDoc(doc);
 
-    return upsertResult;
+    return {
+        result: upsertResult,
+        warnings: allWarnings.length > 0 ? allWarnings : undefined,
+    };
 }

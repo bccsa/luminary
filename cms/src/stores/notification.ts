@@ -5,7 +5,7 @@ export type Notification = {
     id?: number;
     title: string;
     description?: string;
-    state?: "success" | "error" | "info";
+    state?: "success" | "error" | "info" | "warning";
     timer?: number;
 };
 
