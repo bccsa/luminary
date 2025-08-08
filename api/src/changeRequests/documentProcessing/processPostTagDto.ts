@@ -37,7 +37,9 @@ export default async function processPostTagDto(
                 prevDoc?.imageData,
                 s3,
             );
-            warnings.push(...imageWarnings);
+            if (imageWarnings && imageWarnings.length > 0) {
+                warnings.push(...imageWarnings);
+            }
         }
 
         return warnings; // no need to process further
@@ -46,7 +48,9 @@ export default async function processPostTagDto(
     // Process image uploads
     if (doc.imageData) {
         const imageWarnings = await processImage(doc.imageData, prevDoc?.imageData, s3);
-        warnings.push(...imageWarnings);
+        if (imageWarnings && imageWarnings.length > 0) {
+            warnings.push(...imageWarnings);
+        }
         delete (doc as any).image; // Remove the legacy image field
     }
 
