@@ -166,6 +166,7 @@ export type ChangeReqAckDto = {
     id: number;
     ack: AckStatus;
     message?: string;
+    warnings?: string[];
     docs?: any[];
 };
 

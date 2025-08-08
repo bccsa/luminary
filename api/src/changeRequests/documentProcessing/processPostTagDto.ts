@@ -9,14 +9,19 @@ import { S3Service } from "../../s3/s3.service";
 /**
  * Process Post / Tag DTO
  * @param doc
+ * @param prevDoc
  * @param db
+ * @param s3
+ * @returns warnings from image processing
  */
 export default async function processPostTagDto(
     doc: PostDto | TagDto,
     prevDoc: PostDto | TagDto,
     db: DbService,
     s3: S3Service,
-) {
+): Promise<string[]> {
+    const warnings: string[] = [];
+
     // Cascade delete for Post and Tag documents to content documents
     if (doc.deleteReq) {
         const contentDocs = await db.getContentByParentId(doc._id);
@@ -26,14 +31,26 @@ export default async function processPostTagDto(
         }
 
         // Remove images from S3
-        if (doc.imageData) await processImage({ fileCollections: [] }, prevDoc?.imageData, s3);
+        if (doc.imageData) {
+            const imageWarnings = await processImage(
+                { fileCollections: [] },
+                prevDoc?.imageData,
+                s3,
+            );
+            if (imageWarnings && imageWarnings.length > 0) {
+                warnings.push(...imageWarnings);
+            }
+        }
 
-        return; // no need to process further
+        return warnings; // no need to process further
     }
 
     // Process image uploads
     if (doc.imageData) {
-        await processImage(doc.imageData, prevDoc?.imageData, s3);
+        const imageWarnings = await processImage(doc.imageData, prevDoc?.imageData, s3);
+        if (imageWarnings && imageWarnings.length > 0) {
+            warnings.push(...imageWarnings);
+        }
         delete (doc as any).image; // Remove the legacy image field
     }
 
@@ -94,4 +111,6 @@ export default async function processPostTagDto(
 
         await db.upsertDoc(d);
     }
+
+    return warnings;
 }
