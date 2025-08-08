@@ -72,8 +72,8 @@ describe("processChangeRequest", () => {
             s3,
         );
         await waitForExpect(() => {
-            expect(processResult.message).toBe("Document is identical to the one in the database");
-            expect(processResult.changes).toBeUndefined();
+            expect(processResult.result.message).toBe("Document is identical to the one in the database");
+            expect(processResult.result.changes).toBeUndefined();
         });
     });
 });

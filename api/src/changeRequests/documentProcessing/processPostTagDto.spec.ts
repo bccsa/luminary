@@ -73,7 +73,7 @@ describe("processPostTagDto", () => {
             s3,
         );
 
-        expect(processResult.ok).toBe(true);
+        expect(processResult.result.ok).toBe(true);
     });
 
     it("accepts a change request for a post with postType 'page'", async () => {
@@ -98,7 +98,7 @@ describe("processPostTagDto", () => {
             s3,
         );
 
-        expect(processResult.ok).toBe(true);
+        expect(processResult.result.ok).toBe(true);
     });
 
     it("can store the id's of tagged documents to the taggedDocs / parentTaggedDocs property of the tag document and it's content documents", async () => {
