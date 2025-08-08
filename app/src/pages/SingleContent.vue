@@ -48,7 +48,7 @@ import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
-import { CheckCircleIcon } from "@heroicons/vue/20/solid";
+import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { markLanguageSwitch, consumeLanguageSwitchFlag } from "@/util/isLangSwitch";
 
 const router = useRouter();
@@ -64,6 +64,8 @@ const enableZoom = ref(false);
 const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
 const availableTranslations = ref<ContentDto[]>([]);
 const languages = ref<LanguageDto[]>([]);
+
+const currentImageIndex = ref(0);
 
 const defaultContent: ContentDto = {
     // set to initial content (loading state)
@@ -536,14 +538,37 @@ const selectedLanguageCode = computed(() => {
                             :language="selectedLanguageCode"
                         />
                         <!-- Ensure content.parentId does not contain default content empty string -->
-                        <LImage
+                        <div
                             v-else-if="content.parentId || content.parentImageData"
-                            :image="content.parentImageData"
-                            :content-parent-id="content.parentId"
-                            aspectRatio="video"
-                            size="post"
-                            @click="enableZoom = true"
-                        />
+                            class="relative"
+                            :class="{
+                                'cursor-pointer':
+                                    content.parentImageData &&
+                                    content.parentImageData.fileCollections.length > 0,
+                            }"
+                            @click="
+                                () => {
+                                    currentImageIndex = 0;
+                                    enableZoom = true;
+                                }
+                            "
+                        >
+                            <!-- Main Image -->
+                            <LImage
+                                :image="content.parentImageData"
+                                :content-parent-id="content.parentId"
+                                aspectRatio="video"
+                                size="post"
+                            />
+
+                            <!-- Icon to indicate multiple images -->
+                            <div
+                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                class="absolute bottom-2 right-2 flex items-center gap-1"
+                            >
+                                <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
+                            </div>
+                        </div>
                     </IgnorePagePadding>
 
                     <div class="flex w-full flex-col items-center">
@@ -663,11 +688,16 @@ const selectedLanguageCode = computed(() => {
     </LModal>
 
     <ImageModal
-        v-if="content && enableZoom"
+        v-if="
+            content?.parentImageData &&
+            content.parentImageData.fileCollections.length > 0 &&
+            enableZoom
+        "
         :content-parent-id="content.parentId"
-        :image="content.parentImageData"
-        aspectRatio="video"
-        size="post"
+        :imageCollections="content.parentImageData.fileCollections"
+        :currentIndex="currentImageIndex"
+        aspectRatio="original"
+        @update:index="currentImageIndex = $event"
         @close="enableZoom = false"
     />
 </template>
