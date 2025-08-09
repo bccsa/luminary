@@ -205,19 +205,19 @@ const canCreateGroup = computed(() => {
                         </thead>
                         <tbody class="divide-y divide-zinc-200 bg-white">
                             <GroupRow
-                                v-for="group in editable"
+                                v-for="(group, index) in editable"
                                 :key="group._id"
-                                :group="group"
+                                v-model:group="editable[index]"
                                 :groupQuery="groupQuery"
-                                @update:group="
+                            />
+                            <!-- @update:group="
                                     (updatedGroup) => {
                                         const index = editable.findIndex(
                                             (g) => g._id === updatedGroup._id,
                                         );
                                         if (index !== -1) editable[index] = updatedGroup;
                                     }
-                                "
-                            />
+                                " -->
                         </tbody>
                     </table>
                 </div>
