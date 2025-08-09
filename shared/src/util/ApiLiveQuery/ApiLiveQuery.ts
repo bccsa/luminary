@@ -3,7 +3,6 @@ import { ApiSearchQuery, getRest } from "../../rest/RestApi";
 import { getSocket, isConnected } from "../../socket/socketio";
 import { ApiQueryResult, BaseDocumentDto } from "../../types";
 import { applySocketData } from "./applySocketData";
-import _ from "lodash";
 
 export type ApiLiveQueryOptions<T> = {
     /** Provide an initial value while waiting for the API response */
