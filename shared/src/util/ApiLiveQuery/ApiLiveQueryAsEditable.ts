@@ -17,6 +17,7 @@ export class ApiLiveQueryAsEditable<T extends BaseDocumentDto> extends ApiLiveQu
     isEdited;
     isModified;
     revert;
+    private updateShadow;
     editable;
 
     private _filterFn?: (item: T) => T;
@@ -37,6 +38,7 @@ export class ApiLiveQueryAsEditable<T extends BaseDocumentDto> extends ApiLiveQu
         this.isEdited = editableFunctions.isEdited;
         this.isModified = editableFunctions.isModified;
         this.revert = editableFunctions.revert;
+        this.updateShadow = editableFunctions.updateShadow;
         this.editable = editableFunctions.editable;
     }
 
@@ -64,7 +66,7 @@ export class ApiLiveQueryAsEditable<T extends BaseDocumentDto> extends ApiLiveQu
         if (res && res.ack == AckStatus.Accepted) {
             // Update the shadow copy
             const index = this.editable.value.findIndex((i) => i._id === id);
-            if (index !== -1) this.editable.value[index] = item;
+            if (index !== -1) this.updateShadow(id);
         }
 
         return res; // TODO: Add type for the response. This will involve adding a type for the API response.

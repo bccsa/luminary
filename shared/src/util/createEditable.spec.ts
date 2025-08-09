@@ -142,6 +142,7 @@ describe("createEditable", () => {
 
         revert("a");
 
+        await nextTick();
         expect(editable.value[0].value).toBe(1); // Should revert to original value
         expect(isEdited.value("a")).toBe(false);
     });
@@ -238,10 +239,22 @@ describe("createEditable", () => {
         // Add a new item to the editable array
         e.editable.value.push(makeDoc("d", 2));
 
-        await nextTick();
-
         await waitForExpect(() => {
             expect(e.editable.value[2].value).toBe(3); // The modify function should update the new item to have value 3
+        });
+    });
+
+    test.only("modifyFn is applied to updated items in the editable array", async () => {
+        // Create a modify function that changes the value of an item from 2 to 3
+        const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
+        const e = createEditable(source, { modifyFn });
+        await nextTick();
+
+        // Change the value of the first item
+        e.editable.value[0].value = 2;
+
+        await waitForExpect(() => {
+            expect(e.editable.value[0].value).toBe(3); // The value should be 3
         });
     });
 });
