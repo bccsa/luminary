@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch, inject, defineEmits, type Ref } from "vue";
+import { computed, nextTick, ref, toRaw, watch, inject, type Ref } from "vue";
 import {
     AclPermission,
     db,
@@ -315,13 +315,12 @@ const discardChanges = () => {
 };
 
 const addAssignedGroup = (selectedGroup: GroupDto) => {
-    group.value.acl.push(
-        ...validDocTypes.map((docType) => ({
-            groupId: selectedGroup._id,
-            type: docType,
-            permission: [],
-        })),
-    );
+    // Add one empty ACL entry with the group ID. The ApiLiveQueryAsEditable's modifyFn function will populate it with the needed empty entries.
+    group.value.acl.push({
+        groupId: selectedGroup._id,
+        type: DocType.Group,
+        permission: [],
+    });
 };
 
 const duplicateGroup = async () => {
