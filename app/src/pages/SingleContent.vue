@@ -472,6 +472,27 @@ const selectedLanguageCode = computed(() => {
     const selectedLang = languages.value.find((lang) => lang._id === selectedLanguageId.value);
     return selectedLang?.languageCode || null;
 });
+
+// Compute the index of the active image collection for LImage
+const activeImageCollectionIndex = computed(() => {
+    if (!content.value?.parentImageData?.fileCollections?.length) return 0;
+
+    const fileCollections = content.value.parentImageData.fileCollections;
+    const aspectRatio = 1.78; // 'video' aspect ratio as defined in LImage (default)
+
+    // Find the collection with the closest aspect ratio to 'video' (1.78)
+    const aspectRatios = fileCollections.map((collection) => collection.aspectRatio);
+    const closestAspectRatio = aspectRatios.reduce((acc, cur) => {
+        return Math.abs(cur - aspectRatio) < Math.abs(acc - aspectRatio) ? cur : acc;
+    }, aspectRatios[0] || 0);
+
+    // Return the index of the collection with the closest aspect ratio
+    const index = fileCollections.findIndex(
+        (collection) => collection.aspectRatio === closestAspectRatio,
+    );
+
+    return index >= 0 ? index : 0;
+});
 </script>
 
 <template>
@@ -561,7 +582,7 @@ const selectedLanguageCode = computed(() => {
                             }"
                             @click="
                                 () => {
-                                    currentImageIndex = 0;
+                                    currentImageIndex = activeImageCollectionIndex;
                                     enableZoom = true;
                                 }
                             "
