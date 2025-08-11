@@ -403,18 +403,29 @@ describe("SingleContent", () => {
     it("shows the notification when the content is available in the preferred language", async () => {
         await initLanguage();
 
+        // Clear any language switch flag from previous tests
+        // This ensures the notification will show when viewing non-preferred language content
+        const { consumeLanguageSwitchFlag } = await import("@/util/isLangSwitch");
+        consumeLanguageSwitchFlag(); // Reset the flag to false
+
+        appLanguageIdsAsRef.value = ["lang-eng", "lang-fra"];
+
+        // Set the CMS languages so that the preferred language computation works
+        const { cmsLanguages } = await import("@/globalConfig");
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+
+        // Navigate to French content (not the preferred language)
         const wrapper = mount(SingleContent, {
             props: {
-                slug: mockEnglishContentDto.slug,
+                slug: mockFrenchContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
         });
 
         await waitForExpect(() => {
-            appLanguageIdsAsRef.value = ["lang-fra"];
             expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
                 expect.objectContaining({
                     id: "content-available",
