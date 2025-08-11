@@ -35,17 +35,17 @@ describe("contentByTag", () => {
         await nextTick();
         expect(result.tagged.value).toEqual([
             {
-                tag: { _id: "a", parentId: "a" },
-                newestContentDate: 3,
-                content: [
-                    { _id: "3", publishDate: 3, parentTags: ["a"] },
-                    { _id: "1", publishDate: 1, parentTags: ["a"] },
-                ],
-            },
-            {
                 tag: { _id: "b", parentId: "b" },
                 newestContentDate: 2,
                 content: [{ _id: "2", publishDate: 2, parentTags: ["b"] }],
+            },
+            {
+                tag: { _id: "a", parentId: "a" },
+                newestContentDate: 1,
+                content: [
+                    { _id: "1", publishDate: 1, parentTags: ["a"] },
+                    { _id: "3", publishDate: 3, parentTags: ["a"] },
+                ],
             },
         ]);
 
