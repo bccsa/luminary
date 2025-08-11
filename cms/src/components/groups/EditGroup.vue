@@ -55,91 +55,6 @@ const isDirty = computed(() => {
 //     (e: "save", group: GroupDto): void;
 // }>();
 
-// Clear ACL's with no permissions from "editable" and save to "editableGroupWithoutEmpty"
-// watch(
-//     editable,
-//     (current) => {
-//         editableGroupWithoutEmpty.value = {
-//             ...current,
-//             acl: compactAclEntries(current.acl),
-//         };
-//     },
-//     { deep: true, immediate: true },
-// );
-
-// Clear ACL's with no permissions from the passed group and save to "originalGroupWithoutEmpty"
-// watch(
-//     () => props.group,
-//     (current) => {
-//         originalGroupWithoutEmpty.value = {
-//             ...current,
-//             acl: compactAclEntries(current.acl),
-//         };
-//     },
-//     { deep: true, immediate: true },
-// );
-
-// Keep editable up to date with upstream changes to the passed group
-// watch(
-//     () => props.group,
-//     (current, previous) => {
-//         if (previous.name == editable.value.name) {
-//             editable.value.name = current.name;
-//         }
-
-//         // Update / add permissions to editable
-//         current.acl.forEach((currentAcl) => {
-//             let editableAcl = editable.value.acl.find(
-//                 (a) => a.groupId == currentAcl.groupId && a.type == currentAcl.type,
-//             );
-//             const previousAcl = previous.acl.find(
-//                 (a) => a.groupId == currentAcl.groupId && a.type == currentAcl.type,
-//             );
-
-//             Object.values(AclPermission).forEach((permission) => {
-//                 const editableHasPermission = editableAcl?.permission.includes(permission) || false;
-//                 const currentHasPermission = currentAcl.permission.includes(permission) || false;
-//                 const previousHasPermission = previousAcl?.permission.includes(permission) || false;
-
-//                 // Do not update permissions that were added by the user
-//                 if (editableHasPermission != previousHasPermission) {
-//                     return;
-//                 }
-
-//                 // The editable already has the same permission as the current
-//                 if (currentHasPermission == editableHasPermission) {
-//                     return;
-//                 }
-
-//                 // Create a new ACL entry if it does not exist in the editable group
-//                 if (!editableAcl) {
-//                     editableAcl = {
-//                         groupId: currentAcl.groupId,
-//                         type: currentAcl.type,
-//                         permission: [],
-//                     };
-//                     editable.value.acl.push(editableAcl);
-//                 }
-
-//                 // Update the permission
-//                 if (currentHasPermission) {
-//                     editableAcl.permission.push(permission);
-//                 } else {
-//                     editableAcl.permission = editableAcl?.permission.filter((p) => p != permission);
-//                 }
-//             });
-//         });
-
-//         // Clear permissions from ACL entries that are no longer present in the current group
-//         editable.value.acl
-//             .filter((a) => !current.acl.some((c) => c.groupId == a.groupId && c.type == a.type))
-//             .forEach((aclEntry) => {
-//                 aclEntry.permission = [];
-//             });
-//     },
-//     { deep: true },
-// );
-
 const isEditingGroupName = ref(false);
 const groupNameInput = ref<HTMLInputElement>();
 
@@ -153,61 +68,6 @@ const assignedGroups = computed(() => {
         });
 });
 
-// Add empty aclEntries to "editable" per assigned group for a complete visual overview
-// watch(
-//     assignedGroups,
-//     (newAssignedGroups, oldAssignedGroups) => {
-//         // Get unique IDs of assigned groups not available to the user
-//         const unavailableGroupsIds = [
-//             ...Array.from(
-//                 new Set(
-//                     group.value.acl
-//                         .map((a) => a.groupId)
-//                         .filter((g) => !liveData.value.some((gr) => gr._id == g)),
-//                 ),
-//             ),
-//         ];
-
-//         // Create placeholder GroupDto's for the unavailable groups
-//         const unavailableGroups: GroupDto[] = unavailableGroupsIds.map((g) => ({
-//             _id: g,
-//             type: DocType.Group,
-//             updatedTimeUtc: 0,
-//             name: g,
-//             acl: [],
-//         }));
-
-//         // get newly assigned groups
-//         let newGroups = newAssignedGroups;
-
-//         // Add unavailable assigned groups to the list of assigned groups
-//         newGroups.push(...unavailableGroups);
-
-//         if (oldAssignedGroups) {
-//             newGroups = newAssignedGroups.filter(
-//                 (g) => !oldAssignedGroups.some((o) => o._id == g._id),
-//             );
-//         }
-
-//         // Add missing ACL entries
-//         newGroups.forEach((assignedGroup) => {
-//             validDocTypes.forEach((docType) => {
-//                 const aclEntry = group.value.acl.find(
-//                     (acl) => acl.groupId == assignedGroup._id && acl.type == docType,
-//                 );
-//                 if (!aclEntry) {
-//                     group.value.acl.push({
-//                         groupId: assignedGroup._id,
-//                         type: docType,
-//                         permission: [],
-//                     });
-//                 }
-//             });
-//         });
-//     },
-//     { immediate: true },
-// );
-
 const availableGroups = computed(() => {
     return liveData.value.filter((g) => {
         if (group.value.acl.some((acl) => acl.groupId == g._id)) return false;
@@ -215,14 +75,6 @@ const availableGroups = computed(() => {
         return verifyAccess([g._id], DocType.Group, AclPermission.Assign);
     });
 });
-
-// const isDirty = computed(() => {
-//     // if (props.newGroups.find((g) => g._id == props.group._id)) return true;
-//     return !_.isEqual(
-//         { ...toRaw(originalGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "", updatedBy: "" },
-//         { ...toRaw(editableGroupWithoutEmpty.value), updatedTimeUtc: 0, _rev: "", updatedBy: "" },
-//     );
-// });
 
 // const hasChangedGroupName = computed(() => editable.value.name != props.group.name);
 const original = computed(() => {
@@ -305,13 +157,6 @@ const finishEditingGroupName = () => {
 
 const discardChanges = () => {
     revert(group.value._id);
-    // group.value.name = props.group.name;
-    // group.value.acl.forEach((acl) => {
-    //     acl.permission = _.cloneDeep(
-    //         props.group.acl.find((a) => a.groupId == acl.groupId && a.type == acl.type)
-    //             ?.permission || [],
-    //     );
-    // });
 };
 
 const addAssignedGroup = (selectedGroup: GroupDto) => {
@@ -343,26 +188,26 @@ const copyGroupId = (group: GroupDto) => {
 
 const saveChanges = async () => {
     const res = await save(group.value._id);
-    console.log(res);
+
     // // TODO: Move to GroupOverview
     // const res = await getRest().changeRequest({
     //     id: 10,
     //     doc: editableGroupWithoutEmpty.value,
     // } as ChangeRequestQuery);
 
-    // // res && res.ack == AckStatus.Accepted && liveData.value.set(res.doc._id, res.doc);
+    // res && res.ack == AckStatus.Accepted && liveData.value.set(res.doc._id, res.doc);
 
-    // addNotification({
-    //     title:
-    //         res && res.ack == AckStatus.Accepted
-    //             ? `${editableGroupWithoutEmpty.value.name} changes saved`
-    //             : "Error saving changes",
-    //     description:
-    //         res && res.ack == AckStatus.Accepted
-    //             ? "All changes are saved"
-    //             : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
-    //     state: res && res.ack == AckStatus.Accepted ? "success" : "error",
-    // });
+    addNotification({
+        title:
+            res && res.ack == AckStatus.Accepted
+                ? `${group.value.name} changes saved`
+                : "Error saving changes",
+        description:
+            res && res.ack == AckStatus.Accepted
+                ? "All changes are saved"
+                : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
+        state: res && res.ack == AckStatus.Accepted ? "success" : "error",
+    });
 
     // if (res && res.ack == AckStatus.Accepted) {
     //     emit("save", editable.value);
