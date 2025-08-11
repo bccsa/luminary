@@ -70,7 +70,7 @@ const handleNotificationClick = (notification: Notification) => {
     <div v-if="show" class="inset-x-0 text-zinc-900" :class="color">
         <div
             class="flex items-center justify-between px-6 py-1"
-            @click="notification.link && handleNotificationClick(notification)"
+            @click="() => handleNotificationClick(notification)"
             :class="{ 'cursor-pointer': notification.link }"
         >
             <!-- Conditional rendering for RouterLink or div -->
@@ -83,7 +83,7 @@ const handleNotificationClick = (notification: Notification) => {
                         ? notification.link
                         : undefined
                 "
-                @click="handleNotificationClick(notification)"
+                @click.stop="() => handleNotificationClick(notification)"
                 class="flex w-3/4 items-center gap-2"
                 :class="{ 'cursor-pointer': notification.link }"
             >
