@@ -38,8 +38,8 @@ describe("contentByTag", () => {
                 tag: { _id: "a", parentId: "a" },
                 newestContentDate: 3,
                 content: [
-                    { _id: "1", publishDate: 1, parentTags: ["a"] },
                     { _id: "3", publishDate: 3, parentTags: ["a"] },
+                    { _id: "1", publishDate: 1, parentTags: ["a"] },
                 ],
             },
             {
