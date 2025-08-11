@@ -6,6 +6,7 @@ import LModal from "../form/LModal.vue";
 import { ArrowDownIcon, ArrowUpIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { PlusCircleIcon } from "@heroicons/vue/24/outline";
+import { markLanguageSwitch } from "@/util/isLangSwitch";
 
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
@@ -26,6 +27,7 @@ const defaultLanguage = computed(() => languages.value.find((lang) => lang.defau
 const setLanguage = (id: string) => {
     if (!new Set(appLanguageIdsAsRef.value).has(id)) {
         appLanguageIdsAsRef.value.push(id);
+        markLanguageSwitch();
     }
 };
 
@@ -35,6 +37,7 @@ const indexLanguageUp = (id: string) => {
         const temp = appLanguageIdsAsRef.value[index - 1];
         appLanguageIdsAsRef.value[index - 1] = appLanguageIdsAsRef.value[index];
         appLanguageIdsAsRef.value[index] = temp;
+        markLanguageSwitch();
     }
 };
 
@@ -44,6 +47,7 @@ const indexLanguageDown = (id: string) => {
         const temp = appLanguageIdsAsRef.value[index + 1];
         appLanguageIdsAsRef.value[index + 1] = appLanguageIdsAsRef.value[index];
         appLanguageIdsAsRef.value[index] = temp;
+        markLanguageSwitch();
     }
 };
 
@@ -74,6 +78,7 @@ const removeFromSelected = (id: string) => {
     }
 
     appLanguageIdsAsRef.value.splice(appLanguageIdsAsRef.value.indexOf(id), 1);
+    markLanguageSwitch();
 };
 </script>
 
