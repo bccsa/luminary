@@ -244,7 +244,7 @@ describe("createEditable", () => {
         });
     });
 
-    test.only("modifyFn is applied to updated items in the editable array", async () => {
+    test("modifyFn is applied to updated items in the editable array", async () => {
         // Create a modify function that changes the value of an item from 2 to 3
         const modifyFn = (item: TestDoc) => (item.value == 2 ? { ...item, value: 3 } : item);
         const e = createEditable(source, { modifyFn });
