@@ -35,7 +35,11 @@ export const contentByTag = (
         tags.value.forEach((tag) => {
             const sorted = content.value
                 .filter((c) => c.publishDate && c.parentTags.includes(tag.parentId))
-                .sort((a, b) => (b.publishDate ?? 0) - (a.publishDate ?? 0));
+                .sort((a, b) =>
+                    tag.pinned
+                        ? (b.publishDate ?? 0) - (a.publishDate ?? 0)
+                        : (a.publishDate ?? 0) - (b.publishDate ?? 0),
+                );
 
             if (sorted.length) {
                 const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
