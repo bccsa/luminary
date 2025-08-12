@@ -83,7 +83,8 @@ export function createEditable<T extends BaseDocumentDto>(
 
             if (added.length > 0) {
                 shadow.value.push(..._.cloneDeep(added));
-                editable.value.push(..._.cloneDeep(added).map((item) => _applyModifier(item)));
+                if (!editable.value.find((e) => e._id === added[0]._id))
+                    editable.value.push(..._.cloneDeep(added).map((item) => _applyModifier(item)));
             }
 
             if (removed.length > 0) {
@@ -193,16 +194,17 @@ export function createEditable<T extends BaseDocumentDto>(
      * @param id - The _id of the item to revert.
      */
     const revert = (id: Uuid) => {
-        const index = editable.value.findIndex((i) => i._id === id);
-        if (index === -1) return; // If the item is not found in the editable array, do nothing
-        // Revert the item to its original state from the source data
-        const originalItem = source.value.find((i) => i._id === id);
-        if (originalItem) {
+        const editableIndex = editable.value.findIndex((i) => i._id === id);
+        if (editableIndex === -1) return; // If the item is not found in the editable array, do nothing
+
+        const shadowItem = shadow.value.find((i) => i._id === id);
+        if (shadowItem) {
+            // Revert the item to its original state from the shadow data
             // If a modify function is provided, apply it to the original item
-            editable.value[index] = _applyModifier(_.cloneDeep(toRaw(originalItem)));
-            shadow.value[index] = _.cloneDeep(originalItem);
+            editable.value[editableIndex] = _applyModifier(_.cloneDeep(toRaw(shadowItem)));
         } else {
-            console.warn(`Item with id ${id} not found in source data. Cannot revert.`);
+            // Item not found in shadow, so it's a new item. Remove it from editable.
+            editable.value.splice(editableIndex, 1);
         }
     };
 
@@ -212,11 +214,14 @@ export function createEditable<T extends BaseDocumentDto>(
      * @returns
      */
     const updateShadow = (id: Uuid) => {
-        const index = shadow.value.findIndex((i) => i._id === id);
-        if (index === -1) return; // If the item is not found in the shadow array, do nothing
-        // Update the shadow item with the current editable item
         const editableItem = editable.value.find((i) => i._id === id);
-        if (editableItem) {
+        if (!editableItem) return;
+
+        const index = shadow.value.findIndex((i) => i._id === id);
+        if (index === -1) {
+            // If the item is not found in the shadow array, add it. This is for new items to improve dirty checking accuracy
+            shadow.value.push(_.cloneDeep(toRaw(editableItem)));
+        } else {
             shadow.value[index] = _.cloneDeep(toRaw(editableItem));
         }
     };

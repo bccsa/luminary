@@ -76,8 +76,9 @@ export class ApiLiveQuery<T extends BaseDocumentDto> {
                     });
 
                 // Listen for updates from the socket
-                this._socketOnCallback = (data) =>
+                this._socketOnCallback = (data) => {
                     applySocketData<T>(data, this._sourceData, query.value);
+                };
                 getSocket().on("data", this._socketOnCallback);
             },
             { immediate: true },
