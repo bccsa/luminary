@@ -71,4 +71,17 @@ export class ApiLiveQueryAsEditable<T extends BaseDocumentDto> extends ApiLiveQu
 
         return res; // TODO: Add type for the response. This will involve adding a type for the API response.
     }
+
+    /**
+     * Duplicates an item in the editable array.
+     * @param id - The _id of the item to duplicate.
+     */
+    public async duplicate(doc: T) {
+        const res = await getRest().changeRequest({
+            id: 10,
+            doc: doc,
+        } as ChangeRequestQuery);
+
+        return res;
+    }
 }
