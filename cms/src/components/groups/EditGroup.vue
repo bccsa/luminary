@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch, inject, type Ref } from "vue";
+import { computed, nextTick, ref, toRaw } from "vue";
 import {
     AclPermission,
-    db,
     DocType,
     verifyAccess,
     AckStatus,
-    type ChangeRequestQuery,
     type GroupDto,
     isConnected,
-    getRest,
     ApiLiveQueryAsEditable,
+    db,
 } from "luminary-shared";
-import { DocumentDuplicateIcon, RectangleStackIcon } from "@heroicons/vue/20/solid";
+import { RectangleStackIcon } from "@heroicons/vue/20/solid";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import EditAclByGroup from "./EditAclByGroup.vue";
@@ -20,8 +18,7 @@ import { useNotificationStore } from "@/stores/notification";
 import LBadge from "@/components/common/LBadge.vue";
 import AddGroupAclButton from "./AddGroupAclButton.vue";
 import LInput from "../forms/LInput.vue";
-import _ from "lodash";
-import { compactAclEntries, validDocTypes } from "./permissions";
+import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 
 const { addNotification } = useNotificationStore();
 
@@ -33,7 +30,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const group = defineModel<GroupDto>("group", { required: true });
-const { liveData, isEdited, revert, save } = props.groupQuery;
+const { liveData, isEdited, revert, save, duplicate } = props.groupQuery;
 
 const isDirty = computed(() => {
     // Check if the group has been modified
@@ -169,10 +166,32 @@ const addAssignedGroup = (selectedGroup: GroupDto) => {
 };
 
 const duplicateGroup = async () => {
-    // TODO
-    // const duplicatedGroup = { ...toRaw(props.group), _id: db.uuid() };
-    // duplicatedGroup.name = `${duplicatedGroup.name} - copy`;
-    // emit("duplicate", duplicatedGroup);
+    if (!original.value) {
+        addNotification({
+            title: "Error duplicating group",
+            description: "Please try saving before duplicating this group",
+            state: "error",
+        });
+
+        return;
+    }
+
+    const duplicatedGroup: GroupDto = { ...toRaw(original.value), _id: db.uuid() };
+    duplicatedGroup.name = `${duplicatedGroup.name} - copy`;
+
+    const res = await duplicate(duplicatedGroup);
+
+    addNotification({
+        title:
+            res && res.ack == AckStatus.Accepted
+                ? `${group.value.name} duplicated`
+                : "Error duplicating group",
+        description:
+            res && res.ack == AckStatus.Accepted
+                ? `${group.value.name} duplicated as ${duplicatedGroup.name}}`
+                : `Failed to duplicate group with error: ${res ? res.message : "Unknown error"}`,
+        state: res && res.ack == AckStatus.Accepted ? "success" : "error",
+    });
 };
 
 const copyGroupId = (group: GroupDto) => {
@@ -298,15 +317,21 @@ const saveChanges = async () => {
                 <LBadge v-if="!isConnected" variant="warning" withIcon>
                     Saving disabled: Unable to save while offline
                 </LBadge>
-                <!-- <LButton
-                    v-if="groups && groups.length > 0 && !isDirty && !disabled && !isNewGroup"
+                <LButton
+                    v-if="
+                        groupQuery.editable &&
+                        groupQuery.editable.value.length > 0 &&
+                        !isDirty &&
+                        !disabled &&
+                        !isNewGroup
+                    "
                     variant="muted"
                     size="sm"
                     title="Duplicate"
                     :icon="DocumentDuplicateIcon"
                     @click="duplicateGroup"
                     data-test="duplicateGroup"
-                /> -->
+                />
             </div>
         </div>
         <div class="space-y-6">
