@@ -86,7 +86,7 @@ async function Startup() {
     watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {
         if (warnings.length > 0) {
             useNotificationStore().addNotification({
-                title: "Change Request Warnings",
+                title: "Warning",
                 description: warnings.join("\n"),
                 state: "warning",
                 timer: 60000,
@@ -96,7 +96,7 @@ async function Startup() {
 
         if (errors.length > 0) {
             useNotificationStore().addNotification({
-                title: "Change Request Errors",
+                title: "Error",
                 description: errors.join("\n"),
                 state: "error",
                 timer: 60000,

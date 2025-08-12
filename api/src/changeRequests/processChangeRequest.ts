@@ -21,7 +21,7 @@ export async function processChangeRequest(
     s3: S3Service,
 ): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
-    const validationResult = await validateChangeRequest(changeRequest, groupMembership, db, s3);
+    const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
 
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
