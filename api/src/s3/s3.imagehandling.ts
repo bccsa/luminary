@@ -89,6 +89,111 @@ export async function processImage(
     return warnings;
 }
 
+const imageFailureMessage = "Image upload failed:\n";
+
+/**
+ * Validate existing images in file collections
+ */
+async function validateImagesInContent(
+    fileCollections: any[],
+    s3Service: S3Service,
+    warnings: string[] = [],
+): Promise<void> {
+    try {
+        const allFilenames = fileCollections.flatMap(
+            (collection) => collection.imageFiles?.map((file: any) => file.filename) || [],
+        );
+
+        if (allFilenames.length > 0) {
+            const inaccessibleImages = await s3Service.checkImageAccessibility(
+                s3Service.imageBucket,
+                allFilenames,
+            );
+            if (inaccessibleImages.length > 0) {
+                warnings.push(`Some images are not accessible: ${inaccessibleImages.join(", ")}`);
+            }
+        }
+    } catch (error) {
+        warnings.push(`Failed to validate existing images: ${error.message}`);
+    }
+}
+
+/**
+ * Validate a single image upload
+ */
+async function validateSingleImage(
+    uploadData: ImageUploadDto,
+    warnings: string[],
+    imageFailureMessage: string,
+): Promise<void> {
+    try {
+        if (!uploadData.fileData || uploadData.fileData.byteLength === 0) {
+            warnings.push(imageFailureMessage + "Image data is empty or invalid\n");
+            return;
+        }
+
+        // Try to process a test version to ensure the image data is valid
+        // This doesn't actually upload, just validates the data can be processed
+        const metadata = await sharp(uploadData.fileData).metadata();
+
+        if (!metadata.width || !metadata.height) {
+            warnings.push(imageFailureMessage + "Invalid image: unable to determine dimensions\n");
+        }
+
+        if (metadata.width < 100 || metadata.height < 100) {
+            warnings.push(
+                imageFailureMessage +
+                    `Image is very small (${metadata.width}x${metadata.height}px). Consider using a larger image for better quality.`,
+            );
+        }
+    } catch (error) {
+        warnings.push(imageFailureMessage + `Image processing failed: ${error.message}`);
+    }
+}
+
+/**
+ * Validate image processing without failing the document validation
+ */
+async function validateImageProcessing(
+    doc: any,
+    s3Service: S3Service,
+    warnings: string[],
+): Promise<void> {
+    try {
+        // Check if S3/Minio is connected
+        const isConnected = await s3Service.checkConnection();
+        if (!isConnected) {
+            warnings.push(
+                imageFailureMessage +
+                    "Image storage is not connected. Images will not be processed.\n",
+            );
+        }
+
+        // Check if image bucket exists
+        const bucketExists = await s3Service.bucketExists(s3Service.imageBucket);
+        if (!bucketExists) {
+            warnings.push(
+                imageFailureMessage +
+                    `Image bucket '${s3Service.imageBucket}' does not exist. Images will not be processed.`,
+            );
+        }
+
+        // Validate each image upload
+        if (doc.imageData && doc.imageData.uploadData) {
+            for (const uploadData of doc.imageData.uploadData) {
+                await validateSingleImage(uploadData, warnings, imageFailureMessage);
+            }
+        }
+
+        // Validate existing images if any
+        if (doc.imageData && doc.imageData.fileCollections) {
+            await validateImagesInContent(doc.imageData.fileCollections, s3Service);
+        }
+    } catch (error) {
+        warnings.push(`Image validation failed: ${error.message}`);
+    }
+}
+
 async function processImageUploadSafe(
     uploadData: ImageUploadDto,
     s3: S3Service,
@@ -110,6 +215,8 @@ async function processImageUploadSafe(
         }
 
         const promises: Promise<any>[] = [];
+
+        await validateImageProcessing(uploadData, s3, warnings);
 
         const metadata = await sharp(uploadData.fileData).metadata();
 
