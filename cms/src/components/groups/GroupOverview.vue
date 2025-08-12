@@ -17,20 +17,22 @@ import { computed, ref } from "vue";
 import LCard from "@/components/common/LCard.vue";
 import GroupRow from "@/components/groups/GroupRow.vue";
 import { validDocTypes } from "./permissions";
+import EditGroup from "./EditGroup.vue";
+import LModal from "../modals/LModal.vue";
 
 const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
     ref<ApiSearchQuery>({
         types: [DocType.Group],
     }),
     {
-        filterFn: (group) => {
+        filterFn: (group: GroupDto) => {
             // Filter out empty acl entries for comparison and saving
             const filteredAcl = group.acl
                 .filter((aclEntry) => aclEntry.permission.length > 0)
                 .sort((a, b) => a.type.localeCompare(b.type));
             return { ...group, acl: filteredAcl };
         },
-        modifyFn: (group) => {
+        modifyFn: (group: GroupDto) => {
             // Populate the acl with empty entries for types that are not set in the acl. Sort by type name.
             const aclGroupIDs = [...new Set(group.acl.map((aclEntry) => aclEntry.groupId))];
             aclGroupIDs.forEach((aclGroupId) => {
@@ -116,22 +118,21 @@ const isLoading = groupQuery.isLoading;
 
 const showModal = ref(false);
 
-// const newGroupId = ref("");
+const newGroupId = ref("");
 // const newGroup = computed(() => {
 //     return combinedGroups.value.find((g) => g._id === newGroupId.value);
 // });
-
 const createGroup = async () => {
     const newGroup = {
         _id: db.uuid(),
         type: DocType.Group,
         name: "New group",
-        acl: [],
+        acl: [] as GroupAclEntryDto[],
         updatedTimeUtc: Date.now(),
     } as GroupDto;
 
-    // newGroups.value.push(newGroup);
-    // newGroupId.value = newGroup._id;
+    editable.value.push(newGroup);
+    newGroupId.value = newGroup._id;
     showModal.value = true;
 };
 
@@ -210,14 +211,6 @@ const canCreateGroup = computed(() => {
                                 v-model:group="editable[index]"
                                 :groupQuery="groupQuery"
                             />
-                            <!-- @update:group="
-                                    (updatedGroup) => {
-                                        const index = editable.findIndex(
-                                            (g) => g._id === updatedGroup._id,
-                                        );
-                                        if (index !== -1) editable[index] = updatedGroup;
-                                    }
-                                " -->
                         </tbody>
                     </table>
                 </div>
@@ -225,13 +218,13 @@ const canCreateGroup = computed(() => {
         </LCard>
     </BasePage>
 
-    <!-- <LModal v-model:isVisible="showModal" adaptiveSize noPadding>
+    <LModal v-model:isVisible="showModal" adaptiveSize noPadding>
         <EditGroup
-            v-if="groups && newGroup"
-            :group="newGroup"
-            :groups="groups"
+            v-if="showModal"
+            :group="editable.find((g) => g._id === newGroupId)!"
+            :groups="editable"
             :hasEditPermission="canCreateGroup"
-            @save="updateNewGroups($event)"
+            :group-query="groupQuery"
         />
-    </LModal> -->
+    </LModal>
 </template>
