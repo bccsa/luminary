@@ -162,14 +162,14 @@ const srcset2 = computed(() => {
     const effectiveWidth = props.parentWidth > 0 ? props.parentWidth : 400;
 
     return props.image.fileCollections
-        .filter((collection) => collection?.aspectRatio !== closestAspectRatio)
+        .filter((collection) => collection.aspectRatio !== closestAspectRatio)
         .map((collection) => {
-            if (!collection?.imageFiles?.length) return "";
-            return collection.imageFiles
-                .filter((imgFile) => imgFile.width <= effectiveWidth)
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                .join(", ");
+            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth);
+            // fallback: smallest image if all are too large
+            const files = images.length
+                ? images
+                : [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
+            return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
         })
         .join(", ");
 });
