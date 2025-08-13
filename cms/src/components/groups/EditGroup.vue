@@ -153,6 +153,7 @@ const finishEditingGroupName = () => {
 };
 
 const discardChanges = () => {
+    console.log("Discarding changes");
     revert(group.value._id);
 };
 
@@ -298,6 +299,7 @@ const saveChanges = async () => {
                     >
                         Discard changes
                     </LButton>
+
                     <LButton
                         v-if="hasEditPermission && isConnected"
                         size="sm"
