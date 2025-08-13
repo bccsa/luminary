@@ -17,7 +17,7 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
@@ -32,6 +32,9 @@ import {
     isDarkTheme,
     theme,
     appLanguageAsRef,
+    setReadingProgress,
+    getReadingProgress,
+    removeReadingProgress,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -447,16 +450,120 @@ watch(
 );
 
 const showDropdown = ref(false);
-// Simple dropdown close on click outside using Vue's global event
-function onClickOutside(event: MouseEvent) {
-    const dropdown = document.querySelector("[name='translationSelector']");
-    if (showDropdown.value && dropdown && !dropdown.contains(event.target as Node)) {
-        showDropdown.value = false;
-    }
-}
 
+// Scroll tracking
+const scrollPosition = ref(0); // Tracks the current scroll position
+const maxScrollPosition = ref(0); // Tracks the maximum scroll position reached
+const scrollContainer = ref<HTMLElement | Window>(window); // Reference to the scroll container (default is window)
+let ticking = false; // Flag to prevent multiple scroll updates in a single frame
+
+// Calculate localStorage key for storing scroll position
+const storedScrollKey = computed(() => `scrollPosition-${content.value?._id}`);
+
+// Restore the scroll position from localStorage or reading progress
+const restoreScrollPosition = () => {
+    if (!content.value) return; // Exit if no content is available
+    const percent = getReadingProgress(content.value._id); // Get the saved reading progress percentage
+    if (percent && percent < 100) {
+        setTimeout(() => {
+            const maxScroll =
+                scrollContainer.value === window
+                    ? document.documentElement.scrollHeight - window.innerHeight // Calculate max scroll for window
+                    : (scrollContainer.value as HTMLElement).scrollHeight -
+                      (scrollContainer.value as HTMLElement).clientHeight; // Calculate max scroll for container
+
+            const targetY = Math.round((percent / 100) * maxScroll); // Calculate target scroll position based on percentage
+
+            if (scrollContainer.value === window) {
+                window.scrollTo({ top: targetY }); // Scroll window to target position
+            } else {
+                (scrollContainer.value as HTMLElement).scrollTo({ top: targetY }); // Scroll container to target position
+            }
+
+            // Initialize maxScrollPosition to avoid overwriting
+            maxScrollPosition.value = targetY;
+        }, 300); // Delay to ensure DOM is ready
+    }
+};
+
+// Update the scroll position and save progress
+const updateScrollPosition = () => {
+    const scrollY =
+        scrollContainer.value === window
+            ? window.scrollY // Get scroll position for window
+            : (scrollContainer.value as HTMLElement).scrollTop; // Get scroll position for container
+
+    scrollPosition.value = scrollY; // Update current scroll position
+
+    if (scrollY > maxScrollPosition.value) {
+        maxScrollPosition.value = scrollY; // Update max scroll position if current scroll exceeds it
+    }
+
+    if (!ticking) {
+        window.requestAnimationFrame(() => {
+            if (content.value && content.value._id) {
+                const maxScroll =
+                    scrollContainer.value === window
+                        ? document.documentElement.scrollHeight - window.innerHeight // Calculate max scroll for window
+                        : (scrollContainer.value as HTMLElement).scrollHeight -
+                          (scrollContainer.value as HTMLElement).clientHeight; // Calculate max scroll for container
+
+                const percentScrolled =
+                    maxScroll > 0 ? (maxScrollPosition.value / maxScroll) * 100 : 0; // Calculate percentage scrolled
+                const rounded = Math.round(percentScrolled); // Round percentage to nearest integer
+
+                if (rounded < 100) {
+                    setReadingProgress(content.value._id, rounded); // Save reading progress
+                    localStorage.setItem(storedScrollKey.value, maxScrollPosition.value.toString()); // Save max scroll position in localStorage
+                } else {
+                    removeReadingProgress(content.value._id); // Remove reading progress if fully scrolled
+                    localStorage.removeItem(storedScrollKey.value); // Remove scroll position from localStorage
+                }
+            }
+            ticking = false; // Reset ticking flag
+        });
+        ticking = true; // Set ticking flag to prevent multiple updates
+    }
+};
+
+// Set the scroll container based on the page layout
+const setScrollContainer = () => {
+    const basePage = document.querySelector("main, .scroll-container, [data-scroll-container]"); // Find scrollable container
+    scrollContainer.value =
+        basePage && basePage.scrollHeight > basePage.clientHeight
+            ? (basePage as HTMLElement) // Use container if it has scrollable content
+            : window; // Default to window
+};
+
+// Add scroll listener to track scroll events
+const addScrollListener = () => {
+    scrollContainer.value.addEventListener("scroll", updateScrollPosition, { passive: true }); // Add scroll event listener
+};
+
+// Remove scroll listener to stop tracking scroll events
+const removeScrollListener = () => {
+    scrollContainer.value.removeEventListener("scroll", updateScrollPosition); // Remove scroll event listener
+};
+
+// Lifecycle hook: Initialize scroll tracking on component mount
 onMounted(() => {
-    window.addEventListener("click", onClickOutside);
+    setScrollContainer(); // Set the scroll container
+    addScrollListener(); // Add scroll listener
+    restoreScrollPosition(); // Restore scroll position from saved progress
+
+    // Watch for changes in content and reset scroll tracking
+    watch(content, () => {
+        removeScrollListener(); // Remove existing scroll listener
+        setScrollContainer(); // Reset scroll container
+        addScrollListener(); // Add new scroll listener
+        maxScrollPosition.value = 0; // Reset max scroll position
+        restoreScrollPosition(); // Restore scroll position for new content
+    });
+});
+
+// Lifecycle hook: Clean up scroll tracking on component unmount
+onUnmounted(() => {
+    removeScrollListener(); // Remove scroll listener
 });
 
 // Convert selectedLanguageId to language code for VideoPlayer

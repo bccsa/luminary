@@ -18,7 +18,14 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
+import {
+    appLanguageIdsAsRef,
+    appName,
+    getReadingProgress,
+    initLanguage,
+    setReadingProgress,
+    userPreferencesAsRef,
+} from "@/globalConfig";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
@@ -436,5 +443,21 @@ describe("SingleContent", () => {
                 }),
             );
         }, 3000);
+    });
+
+    it("restores reading progress", async () => {
+        setReadingProgress(mockEnglishContentDto._id, 60);
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(getReadingProgress(mockEnglishContentDto._id)).toBeGreaterThanOrEqual(60);
+        });
+
+        wrapper.unmount();
     });
 });

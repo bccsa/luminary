@@ -336,3 +336,64 @@ watch(
 );
 
 export const fallbackImageUrls = loadFallbackImageUrls();
+
+/** */
+export type ReadingProgress = {
+    contentId: Uuid;
+    progress: number; // Progress in percentage (0–100)
+};
+
+export const readingProgressAsRef = ref<ReadingProgress[]>([]);
+
+const _readingProgress = JSON.parse(
+    localStorage.getItem("readingProgress") || "[]",
+) as ReadingProgress[];
+
+/**
+ * Get the reading progress of a content item.
+ * @param contentId - The content document ID.
+ * @returns - Reading progress in percentage (0–100)
+ */
+export const getReadingProgress = (contentId: Uuid): number => {
+    const entry = _readingProgress.find((p) => p.contentId === contentId);
+    return entry ? entry.progress : 0;
+};
+
+/**
+ * Set the reading progress of a content item.
+ * If it already exists, update it; otherwise, insert it.
+ * @param contentId - The content document ID.
+ * @param progress - Progress percentage (0–100)
+ */
+export const setReadingProgress = (contentId: Uuid, progress: number) => {
+    const clampedProgress = Math.min(Math.max(progress, 0), 100);
+    const index = _readingProgress.findIndex((p) => p.contentId === contentId);
+
+    if (index !== -1) {
+        _readingProgress[index].progress = clampedProgress;
+    } else {
+        _readingProgress.push({ contentId, progress: clampedProgress });
+    }
+
+    readingProgressAsRef.value = [..._readingProgress];
+
+    // Persist to localStorage
+    localStorage.setItem("readingProgress", JSON.stringify(_readingProgress));
+};
+
+/**
+ * Remove reading progress for a given content.
+ */
+export const removeReadingProgress = (contentId: Uuid) => {
+    // Remove from _readingProgress
+    const index = _readingProgress.findIndex((p) => p.contentId === contentId);
+    if (index !== -1) {
+        _readingProgress.splice(index, 1);
+    }
+
+    // Remove from reactive ref
+    readingProgressAsRef.value = _readingProgress;
+
+    // Sync localStorage
+    localStorage.setItem("readingProgress", JSON.stringify(_readingProgress));
+};

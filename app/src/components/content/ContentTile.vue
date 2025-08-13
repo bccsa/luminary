@@ -12,13 +12,11 @@ type Props = {
     showPublishDate?: boolean;
     aspectRatio?: typeof LImage.aspectRatios;
     titlePosition?: "bottom" | "center";
-    showProgress?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
     aspectRatio: "video",
     titlePosition: "bottom",
-    showProgress: false,
 });
 
 const media = ref<{ progress: number; duration: number }>({
@@ -121,11 +119,11 @@ const openContent = () => {
                             v-else
                             class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm font-semibold"
                         >
-                            <p class="absolute m-2 text-pretty text-center text-black blur-sm">
+                            <p class="absolute m-2 text-center text-pretty text-black blur-sm">
                                 {{ content.title }}
                             </p>
                             <p
-                                class="absolute m-2 text-pretty text-center text-white dark:text-slate-200"
+                                class="absolute m-2 text-center text-pretty text-white dark:text-slate-200"
                             >
                                 {{ content.title }}
                             </p>
@@ -133,8 +131,8 @@ const openContent = () => {
 
                         <!-- Bottom overlay: progress bar + duration on same line -->
                         <div
-                            v-if="showProgress && content.video && hasProgress"
-                            class="absolute bottom-2 left-0 right-0 z-10 mx-1 rounded-md bg-black/50 px-1"
+                            v-if="content.video && hasProgress"
+                            class="absolute right-0 bottom-2 left-0 z-10 mx-1 rounded-md bg-black/50 px-1"
                         >
                             <div class="flex h-4 w-full items-center gap-2">
                                 <!-- Progress bar -->
@@ -142,13 +140,13 @@ const openContent = () => {
                                     class="relative h-2 flex-1 overflow-hidden rounded bg-zinc-600"
                                 >
                                     <div
-                                        class="absolute left-0 top-0 h-full bg-white"
+                                        class="absolute top-0 left-0 h-full bg-white"
                                         :style="{ width: `${media.progress}%` }"
                                     ></div>
                                 </div>
 
                                 <!-- Duration text -->
-                                <span class="whitespace-nowrap text-xs text-white">
+                                <span class="text-xs whitespace-nowrap text-white">
                                     {{ durationText }}
                                 </span>
                             </div>
