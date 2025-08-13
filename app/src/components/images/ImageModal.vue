@@ -336,6 +336,14 @@ onBeforeUnmount(() => {
         class="fixed inset-0 z-50 flex w-full items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
+        <div class="absolute top-36 z-20">
+            <div class="flex-1"></div>
+            <XCircleIcon
+                class="h-10 w-10 cursor-pointer text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100"
+                @click.stop="closeModal"
+            />
+            <div class="flex-1"></div>
+        </div>
         <!-- Responsive wrapper -->
         <div class="relative flex w-full max-w-[1300px] items-center justify-center">
             <div class="relative flex w-full items-center justify-center">
@@ -354,14 +362,6 @@ onBeforeUnmount(() => {
                 />
 
                 <!-- Zoomable image -->
-                <div class="absolute top-36 z-20">
-                    <div class="flex-1"></div>
-                    <XCircleIcon
-                        class="h-10 w-10 cursor-pointer text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100"
-                        @click.stop="closeModal"
-                    />
-                    <div class="flex-1"></div>
-                </div>
                 <div
                     ref="container"
                     class="touch-none select-none overflow-hidden rounded-lg bg-gray-900"
