@@ -14,7 +14,7 @@ import { isConnected } from "luminary-shared";
             }"
         >
             <component :is="isConnected ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
-            <span class="hidden sm:block">{{ isConnected ? "Online" : "Offline" }}</span>
+            <span class="block">{{ isConnected ? "Connected" : "Disconnected" }}</span>
         </PopoverButton>
 
         <transition
@@ -26,10 +26,10 @@ import { isConnected } from "luminary-shared";
             leave-to-class="transform opacity-0 scale-95"
         >
             <PopoverPanel
-                class="absolute z-10 w-screen max-w-40 -translate-x-1/2 lg:left-0 lg:max-w-72 lg:translate-x-0"
+                class="absolute bottom-full left-1/2 z-10 mb-2 w-40 max-w-40 origin-bottom -translate-x-1/2 lg:max-w-72"
             >
                 <div
-                    class="mt-2 rounded-md bg-white px-4 py-3 text-xs shadow-lg ring-1 ring-inset ring-zinc-900/5"
+                    class="rounded-md bg-white px-4 py-3 text-xs shadow-lg ring-1 ring-inset ring-zinc-900/5"
                 >
                     {{
                         isConnected

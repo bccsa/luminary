@@ -72,7 +72,7 @@ onMounted(() => {
 
 <template>
     <Menu as="div" class="relative w-full">
-        <MenuButton class="flex w-full items-center justify-between">
+        <MenuButton class="flex w-full items-center">
             <div class="flex-none">
                 <span class="sr-only">Open user menu</span>
                 <img
@@ -89,7 +89,7 @@ onMounted(() => {
                 </div>
             </div>
 
-            <div class="ml-2 flex-1 truncate">
+            <div class="ml-2 truncate">
                 <span class="text-sm font-semibold leading-6 text-zinc-900">
                     {{ user?.name }}
                 </span>
@@ -105,7 +105,7 @@ onMounted(() => {
             leave-to-class="transform opacity-0 scale-95"
         >
             <MenuItems
-                class="absolute bottom-0 right-0 z-50 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
+                class="absolute bottom-10 right-0 z-50 mt-2.5 w-32 origin-bottom rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
             >
                 <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
                     <button
