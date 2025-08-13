@@ -51,6 +51,7 @@ const selectGroup = (group: GroupDto) => {
                             v-slot="{ active }"
                             v-for="group in groups.sort(sortByName)"
                             :key="group._id"
+                            data-test="group-items"
                         >
                             <button
                                 :class="[
