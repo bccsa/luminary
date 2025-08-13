@@ -25,7 +25,7 @@ const mockImage = {
 
 describe("LImageProvider", () => {
     // The fallback image classic-100.webp has been removed in a PR probably.
-    it.skip("renders the smallest image in srcset2 if all are too large for the tile", async () => {
+    it("renders the smallest image in srcset2 if all are too large for the tile", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
                 parentId: "test-id",
