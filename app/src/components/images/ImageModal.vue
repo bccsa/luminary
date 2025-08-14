@@ -271,6 +271,7 @@ onBeforeUnmount(() => {
                 :aspectRatio="aspectRatio"
                 :size="size"
                 :rounded="rounded"
+                :is-modal="true"
                 class="pointer-events-none min-h-full min-w-full object-contain"
             />
         </div>

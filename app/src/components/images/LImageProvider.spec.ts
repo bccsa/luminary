@@ -66,4 +66,24 @@ describe("LImageProvider", () => {
             expect(fallbackImg.attributes("src")).toContain("webp");
         });
     });
+
+    it("does not filter out higher quality images when isModal is true", async () => {
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-modal",
+                parentWidth: 50, // Smaller than larger images to ensure filtering would normally occur
+                image: mockImage,
+                aspectRatio: "video",
+                isModal: true, // Set isModal to true
+            },
+        });
+        await wrapper.vm.$nextTick();
+
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        expect(img1.exists()).toBe(true);
+
+        // Expect the srcset to contain larger images that would normally be filtered out
+        expect(img1.attributes("srcset")).toContain("video-300.webp");
+        expect(img1.attributes("srcset")).toContain("video-600.webp");
+    });
 });

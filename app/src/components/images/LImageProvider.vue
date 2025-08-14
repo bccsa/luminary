@@ -17,6 +17,7 @@ type Props = {
     rounded?: boolean;
     parentWidth: number;
     parentId: Uuid;
+    isModal?: boolean;
 };
 
 const aspectRatiosCSS = {
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "video",
     size: "post",
     rounded: true,
+    isModal: false,
 });
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
@@ -65,6 +67,10 @@ const calcImageLoadingTime = (imageFile: ImageFileDto) => {
 const filteredFileCollections = computed(() => {
     const res: Array<ImageFileCollectionDto> = [];
     if (!props.image?.fileCollections) return res;
+
+    // When displayed in a modal, we should not filter the images based on size
+    // to ensure high quality on zoom.
+    if (props.isModal) return props.image.fileCollections;
 
     props.image.fileCollections.forEach((collection) => {
         const images = collection.imageFiles.filter(
