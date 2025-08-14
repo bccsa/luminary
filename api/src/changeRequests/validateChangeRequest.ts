@@ -30,6 +30,9 @@ const DocTypeMap = {
 /**
  * Validates a change request received from a CMS / client
  * @param data
+ * @param groupMembership
+ * @param dbService
+ * @param s3Service
  */
 export async function validateChangeRequest(
     data: any,
@@ -89,8 +92,20 @@ export async function validateChangeRequest(
     // Replace the included document in the change request with the validated document
     changeRequest.doc = doc;
 
-    // Validate access and return result
-    return validateChangeRequestAccess(changeRequest, groupMembership, dbService);
+    // Validate access
+    const accessValidationResult = await validateChangeRequestAccess(
+        changeRequest,
+        groupMembership,
+        dbService,
+    );
+    if (!accessValidationResult.validated) {
+        return accessValidationResult;
+    }
+
+    return {
+        validated: true,
+        validatedData: changeRequest.doc,
+    };
 }
 
 async function dtoValidate(data: any, message: string): Promise<ValidationResult> {

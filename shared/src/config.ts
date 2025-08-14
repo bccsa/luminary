@@ -1,6 +1,9 @@
-import { Ref } from "vue";
+import { ref, Ref } from "vue";
 import { Uuid } from "./types";
 import { ApiSyncQuery } from "./rest/RestApi";
+
+export const changeReqWarnings = ref<string[]>([]);
+export const changeReqErrors = ref<string[]>([]);
 
 /**
  * Shared configuration object

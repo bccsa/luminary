@@ -38,12 +38,19 @@ export class ChangeRequestService {
             this.db,
             this.s3,
         )
-            .then(async () => {
-                return await this.upsertDocAck(
+            .then(async (result) => {
+                const ack = await this.upsertDocAck(
                     changeRequest,
                     AckStatus.Accepted,
                     userDetails.groups,
                 );
+
+                // Add warnings to the acknowledgment if any
+                if (result.warnings && result.warnings.length > 0) {
+                    ack.warnings = result.warnings;
+                }
+
+                return ack;
             })
             .catch(async (err) => {
                 return await this.upsertDocAck(
