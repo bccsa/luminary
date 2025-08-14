@@ -20,7 +20,7 @@ import {
 
 // Props
 type Props = {
-    imageCollections: ImageFileCollectionDto[];
+    imageCollections?: ImageFileCollectionDto[];
     currentIndex: number;
     contentParentId: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
@@ -36,6 +36,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits(["close", "update:index"]);
 
 const currentImage = computed(() => {
+    if (!props.imageCollections) return;
     return {
         fileCollections: [props.imageCollections[props.currentIndex]],
     } as ImageDto;
@@ -219,11 +220,12 @@ function onDblClick(e: MouseEvent | TouchEvent) {
 }
 
 function onSwipe(direction: "left" | "right") {
+    if (!props.imageCollections || props.imageCollections.length <= 1) return;
+
     // reset zoom and position when swiping
     scale.value = 1;
     translateX.value = 0;
     translateY.value = 0;
-
     const total = props.imageCollections.length;
     const newIndex =
         direction === "left"
@@ -275,7 +277,7 @@ watch(
 onMounted(() => {
     const el = container.value;
     const isMobile = window.innerWidth <= 768;
-    if (isMobile && props.imageCollections.length == 1) {
+    if (isMobile && props.imageCollections && props.imageCollections.length == 1) {
         MAX_SCALE.value = 3;
         if (scale.value === 1) {
             scale.value = 1.4;
@@ -379,7 +381,7 @@ onBeforeUnmount(() => {
 
         <!-- Dot Indicators -->
         <div
-            v-if="imageCollections.length > 1"
+            v-if="imageCollections && imageCollections.length > 1"
             class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
         >
             <span
