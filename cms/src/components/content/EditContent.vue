@@ -99,6 +99,7 @@ watch(liveParent, (parent) => {
         !parent.imageData?.uploadData
     ) {
         editableParent.value.imageData = (parent as ContentParentDto).imageData;
+        existingParent.value = _.cloneDeep(editableParent.value);
         waitForUpdate.value = false;
     }
 });
