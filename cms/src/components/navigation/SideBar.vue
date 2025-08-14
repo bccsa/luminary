@@ -98,7 +98,7 @@ watch(route, (newRoute) => {
         @scroll.stop
         class="flex max-h-screen grow flex-col gap-y-5 overflow-y-auto border-r border-zinc-200 bg-zinc-100 px-6 pb-4"
     >
-        <div class="flex h-16 shrink-0 items-center">
+        <div class="flex h-16 shrink-0 items-center justify-center gap-2">
             <img class="h-8" :src="logo" :alt="appName" />
             <span
                 v-if="isDevMode"
@@ -173,12 +173,10 @@ watch(route, (newRoute) => {
                         </li>
                     </ul>
                 </li>
-                <li
-                    class="flex w-full items-center justify-between rounded-md p-1 hover:bg-zinc-200"
-                >
-                    <div class="flex w-full flex-col">
-                        <OnlineIndicator class="mb-4" />
+                <li class="flex w-full items-center justify-between rounded-md p-1">
+                    <div class="flex w-full items-center">
                         <ProfileMenu />
+                        <OnlineIndicator />
                     </div>
                 </li>
             </ul>
