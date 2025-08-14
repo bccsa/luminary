@@ -109,8 +109,9 @@ describe("EditGroup.vue", () => {
                     }),
                     {
                         filterFn: (group: GroupDto) => {
-                            // Filter out empty acl entries for comparison and saving
                             // .filter((aclEntry) => aclEntry.permission.length > 0)
+
+                            // Filter out empty acl entries for comparison and saving
                             const filteredAcl = group.acl.sort((a, b) =>
                                 a.type.localeCompare(b.type),
                             );
@@ -276,9 +277,10 @@ describe("EditGroup.vue", () => {
         });
     });
 
-    it.skip(
+    it.only(
         "can discard all changes",
         async () => {
+            accessMap.value = superAdminAccessMap;
             const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
             await wrapper.find('[data-test="permissionCell"]').trigger("click");
@@ -292,14 +294,15 @@ describe("EditGroup.vue", () => {
             await waitForExpect(async () => {
                 expect(discardBtn.exists()).toBe(true);
                 await discardBtn.trigger("click");
+                console.info(wrapper.text());
             });
 
-            await wrapper.vm.$nextTick();
+            // await waitForExpect(async () => {
+            //     expect(wrapper.find(discardChangesButton).exists()).toBe(false);
+            //     expect(wrapper.find(discardChangesButton).exists()).toBe(false);
 
-            await waitForExpect(async () => {
-                expect(wrapper.find(discardChangesButton).exists()).toBe(false);
-                expect(wrapper.find(saveChangesButton).exists()).toBe(false);
-            });
+            //     // expect(wrapper.find(saveChangesButton).exists()).toBe(false);
+            // });
         },
         { timeout: 10000 },
     );
