@@ -9,14 +9,14 @@ describe("OnlineIndicator", async () => {
         const wrapper = mount(OnlineIndicator);
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.html()).not.toContain("Online");
-        expect(wrapper.html()).toContain("Offline");
+        expect(wrapper.html()).not.toContain("Connected");
+        expect(wrapper.html()).toContain("Disconnected");
 
         isConnected.value = true;
 
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.html()).toContain("Online");
-        expect(wrapper.html()).not.toContain("Offline");
+        expect(wrapper.html()).toContain("Connected");
+        expect(wrapper.html()).not.toContain("Disconnected");
     });
 });
