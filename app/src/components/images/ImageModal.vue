@@ -17,7 +17,7 @@ import { XCircleIcon } from "@heroicons/vue/24/outline";
 
 // Props
 type Props = {
-    imageCollections: ImageFileCollectionDto[];
+    imageCollections?: ImageFileCollectionDto[];
     currentIndex: number;
     contentParentId: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
@@ -33,6 +33,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits(["close", "update:index"]);
 
 const currentImage = computed(() => {
+    if (!props.imageCollections) return;
     return {
         fileCollections: [props.imageCollections[props.currentIndex]],
     } as ImageDto;
@@ -226,11 +227,12 @@ function onDblClick(e: MouseEvent | TouchEvent) {
 }
 
 function onSwipe(direction: "left" | "right") {
+    if (!props.imageCollections || props.imageCollections.length <= 1) return;
+
     // reset zoom and position when swiping
     scale.value = 1;
     translateX.value = 0;
     translateY.value = 0;
-
     const total = props.imageCollections.length;
     const newIndex =
         direction === "left"
@@ -282,7 +284,7 @@ watch(
 onMounted(() => {
     const el = container.value;
     const isMobile = window.innerWidth <= 768;
-    if (isMobile && props.imageCollections.length == 1) {
+    if (isMobile && props.imageCollections && props.imageCollections.length == 1) {
         MAX_SCALE.value = 3;
         if (scale.value === 1) {
             scale.value = 1.4;
@@ -349,13 +351,13 @@ onBeforeUnmount(() => {
             <div class="relative flex w-full items-center justify-center">
                 <!-- Mobile arrows overlayed -->
                 <ArrowLeftCircleIcon
-                    v-if="imageCollections.length > 1"
+                    v-if="imageCollections && imageCollections.length > 1"
                     class="absolute left-2 top-1/2 z-40 -translate-y-1/2 cursor-pointer text-white drop-shadow-lg transition hover:scale-110 sm:left-4 md:left-[-64px]"
                     :class="arrowSizeClass"
                     @click="onSwipe('right')"
                 />
                 <ArrowRightCircleIcon
-                    v-if="imageCollections.length > 1"
+                    v-if="imageCollections && imageCollections.length > 1"
                     class="absolute right-2 top-1/2 z-40 -translate-y-1/2 cursor-pointer text-white drop-shadow-lg transition hover:scale-110 sm:right-4 md:right-[-64px]"
                     :class="arrowSizeClass"
                     @click="onSwipe('left')"
@@ -386,7 +388,7 @@ onBeforeUnmount(() => {
 
         <!-- Dot Indicators -->
         <div
-            v-if="imageCollections.length > 1"
+            v-if="imageCollections && imageCollections.length > 1"
             class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
         >
             <span
