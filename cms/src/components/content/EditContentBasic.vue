@@ -29,6 +29,7 @@ const content = defineModel<ContentDto>("content");
 
 // Slug generation
 const isEditingSlug = ref(false);
+const isEditingTitle = ref(false);
 const slugInput = ref<HTMLInputElement | undefined>(undefined);
 
 const startEditingSlug = () => {
@@ -40,10 +41,14 @@ const startEditingSlug = () => {
 
 let previousTitle: string = content.value?.title || "";
 let previousSlug: string = content.value?.slug || "";
+
 watch(
     content,
-    async () => {
+    () => {
         if (!content.value) return;
+
+        // Don't interfere if user is actively editing the slug field specifically
+        if (isEditingSlug.value) return;
 
         const titleChanged = previousTitle != content.value.title;
         const slugChanged = previousSlug != content.value.slug;
@@ -74,12 +79,11 @@ watch(
             content.value.slug.replace(/-[0-9]*$/g, "") ==
                 Slug.generateNonUnique(previousTitle).replace(/-[0-9]*$/g, "")
         ) {
-            // TODO: This sometimes creates a race condition
             content.value.slug = Slug.generateNonUnique(content.value.title);
         }
 
-        // Validate slug
-        if (slugChanged) {
+        // Validate slug (but only if slug changed and user is not editing it)
+        if (slugChanged && !isEditingSlug.value) {
             content.value.slug = Slug.generateNonUnique(content.value.slug);
         }
 
@@ -244,7 +248,11 @@ const clearExpiryDate = () => {
                     required
                     :disabled="disabled"
                     v-model="content.title"
-                    @blur="validateSlug"
+                    @focus="isEditingTitle = true"
+                    @blur="
+                        isEditingTitle = false;
+                        validateSlug();
+                    "
                 />
 
                 <!-- Slug -->
@@ -267,6 +275,10 @@ const clearExpiryDate = () => {
                             class="flex-1"
                             v-model="content.slug"
                             @blur="
+                                isEditingSlug = false;
+                                validateSlug();
+                            "
+                            @keydown.enter="
                                 isEditingSlug = false;
                                 validateSlug();
                             "

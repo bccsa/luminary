@@ -9,10 +9,28 @@ export class Slug {
      * Converts a string to a slug without uniqueness validation
      */
     static generateNonUnique(text: string) {
-        return slugify(text, {
+        // Pre-process: normalize whitespace and handle special cases
+        const processed = text
+            .trim() // Remove leading/trailing whitespace
+            .replace(/\s+/g, " ") // Normalize multiple whitespace to single space
+            .replace(/[.,:;!?()[\]{}'"]/g, "") // Remove common punctuation
+            .replace(/[&]/g, "and") // Convert & to "and"
+            .replace(/[@#$%^*+=|\\/<>]/g, ""); // Remove special symbols
+
+        const slug = slugify(processed, {
             lowercase: true,
             separator: "-",
+            replace: [
+                [/\s+/g, "-"], // Replace any remaining whitespace with dashes
+                [/[^\w-]/g, ""], // Remove any non-word characters except dashes
+            ],
         });
+
+        // Post-process: clean up the result
+        return slug
+            .replace(/_/g, "-") // Convert underscores to dashes
+            .replace(/-+/g, "-") // Replace multiple dashes with single dash
+            .replace(/^-+|-+$/g, ""); // Remove leading and trailing dashes
     }
 
     /**

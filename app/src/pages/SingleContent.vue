@@ -49,7 +49,11 @@ import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
-import { markLanguageSwitch, consumeLanguageSwitchFlag } from "@/util/isLangSwitch";
+import {
+    markLanguageSwitch,
+    consumeLanguageSwitchFlag,
+    isLanguageSwitchRef,
+} from "@/util/isLangSwitch";
 
 const router = useRouter();
 
@@ -356,7 +360,6 @@ watch(content, () => {
 });
 
 const hasConsumedLangSwitch = ref(false);
-const wasLangSwitch = ref(false);
 
 // Change language
 const onLanguageSelect = (languageId: Uuid) => {
@@ -387,21 +390,23 @@ watch(
             return;
         }
 
-        // Consume flag ONCE
-
         // Consume the language switch flag only once to determine if the user switched language via dropdown
         if (!hasConsumedLangSwitch.value) {
-            wasLangSwitch.value = consumeLanguageSwitchFlag();
+            isLanguageSwitchRef.value = consumeLanguageSwitchFlag();
             hasConsumedLangSwitch.value = true;
         }
 
-        // Show banner only if it wasn't from dropdown
-        if (content.value.language !== appLanguagePreferredIdAsRef.value && !wasLangSwitch.value) {
+        // Show banner only if it wasn't from dropdown AND there's actually a different slug to navigate to
+        if (
+            content.value.language !== appLanguagePreferredIdAsRef.value &&
+            !isLanguageSwitchRef.value
+        ) {
             const preferredContent = availableTranslations.value.find(
                 (c) => c.language === appLanguagePreferredIdAsRef.value,
             );
 
-            if (preferredContent) {
+            // Only show banner if there's a preferred language version with a *different* slug
+            if (preferredContent && preferredContent.slug !== content.value.slug) {
                 setTimeout(() => {
                     useNotificationStore().addNotification({
                         id: "content-available",
@@ -465,7 +470,7 @@ const selectedLanguageCode = computed(() => {
 <template>
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
-            <div class="relative mt-1 w-auto">
+            <div class="relative w-auto">
                 <button
                     v-show="availableTranslations.length > 1"
                     name="translationSelector"
