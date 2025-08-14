@@ -356,8 +356,10 @@ describe("SingleContent", () => {
 
             // expect ImageModal to have the correct image source and correct props
             const imageModal = wrapper.findComponent(ImageModal);
-            expect(imageModal.props("image")).toEqual(mockEnglishContentDto.parentImageData);
-            expect(imageModal.props("aspectRatio")).toBe("video");
+            expect(imageModal.props("imageCollections")).toEqual(
+                mockEnglishContentDto.parentImageData?.fileCollections,
+            );
+            expect(imageModal.props("aspectRatio")).toBe("original");
             expect(imageModal.props("size")).toBe("post");
         });
     });
