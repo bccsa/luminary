@@ -1,6 +1,6 @@
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
-import * as _ from "lodash";
+import isEqual from "lodash/isEqual";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 
 export const appName = import.meta.env.VITE_APP_NAME;
@@ -93,7 +93,7 @@ export const appLanguageAsRef = ref<LanguageDto | undefined>();
 watch(appLanguagesPreferredAsRef, (newVal) => {
     if (!newVal || !newVal.length) return;
     // Prevent updating the value if the language is the same
-    if (_.isEqual(toRaw(appLanguageAsRef.value), toRaw(newVal[0]))) return;
+    if (isEqual(toRaw(appLanguageAsRef.value), toRaw(newVal[0]))) return;
     appLanguageAsRef.value = newVal[0];
 });
 
@@ -124,7 +124,7 @@ export const initLanguage = () => {
                 const defaultLang = newVal.find((l) => l.default === 1);
 
                 // Prevent updating the value if the language is the same
-                if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
+                if (isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
 
                 cmsDefaultLanguage.value = defaultLang;
             },
