@@ -16,7 +16,8 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
+import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
@@ -53,9 +54,6 @@ import {
     consumeLanguageSwitchFlag,
     isLanguageSwitchRef,
 } from "@/util/isLangSwitch";
-
-const VideoPlayer = () =>
-    defineAsyncComponent(() => import("@/components/content/VideoPlayer.vue"));
 
 const router = useRouter();
 
