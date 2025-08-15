@@ -113,6 +113,7 @@ useInfiniteScroll(
                     <ContentTile
                         v-for="content in infiniteScrollData"
                         :key="content._id"
+                        v-memo="[content]"
                         :content="content"
                         :aspectRatio="aspectRatio"
                         :show-publish-date="showPublishDate"
