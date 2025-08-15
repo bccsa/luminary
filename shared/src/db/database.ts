@@ -24,7 +24,7 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import { changeReqErrors, changeReqWarnings } from "../config";
-import cloneDeep from "lodash/cloneDeep";
+import { cloneDeep } from "lodash-es";
 
 const dbName: string = "luminary-db";
 
