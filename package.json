@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@types/videojs-mobile-ui": "^0.8.3"
+  }
+}
