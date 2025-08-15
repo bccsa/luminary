@@ -3,7 +3,8 @@ import { DocType } from "../types";
 import { db, SyncMap, syncMap, SyncMapEntry } from "../db/database";
 import { accessMap } from "../permissions/permissions";
 import { ref, watch } from "vue";
-import _ from "lodash";
+import { cloneDeep, isEqual, difference } from "lodash-es";
+
 import { config } from "../config";
 import { isConnected } from "../socket/socketio";
 
@@ -26,7 +27,7 @@ export class Sync {
      * @param options - Options
      */
     constructor() {
-        let langListPrev: string[] | undefined = _.cloneDeep(
+        let langListPrev: string[] | undefined = cloneDeep(
             config.appLanguageIdsAsRef?.value,
         )?.sort();
 
@@ -36,7 +37,7 @@ export class Sync {
                 config.appLanguageIdsAsRef,
                 async (langIds) => {
                     // Only trigger if language ID's have been added / removed. (Ignore if order has changed)
-                    if (!_.isEqual(langListPrev, _.cloneDeep(langIds)?.sort())) {
+                    if (!isEqual(langListPrev, cloneDeep(langIds)?.sort())) {
                         syncRestartCounter.value++;
 
                         // Identify language IDs to delete
@@ -50,7 +51,7 @@ export class Sync {
                         }
                     }
 
-                    langListPrev = _.cloneDeep(langIds).sort();
+                    langListPrev = cloneDeep(langIds).sort();
                 },
                 { deep: true },
             );
@@ -334,7 +335,7 @@ export class Sync {
                     f.contentOnly == contentOnly &&
                     f.syncPriority == syncPriority &&
                     f.skipWaitForLanguageSync == skipWaitForLanguageSync &&
-                    !_.isEqual(f, entry),
+                    !isEqual(f, entry),
             );
 
             if (!parent) return;
@@ -345,10 +346,10 @@ export class Sync {
             );
 
             syncMap.value.set(parent.id, {
-                ..._.cloneDeep(parent),
-                groups: _.cloneDeep(newGroups),
-                types: _.cloneDeep(newTypes),
-                languages: _.cloneDeep(newLanguages),
+                ...cloneDeep(parent),
+                groups: cloneDeep(newGroups),
+                types: cloneDeep(newTypes),
+                languages: cloneDeep(newLanguages),
             });
             syncMap.value.delete(id);
         }
@@ -468,9 +469,9 @@ export class Sync {
         });
         const currentGtl = Array.from(typeSet);
 
-        if (!_.isEqual(gtl, currentGtl)) {
-            const newT = _.difference(gtl || [], currentGtl);
-            const removeT = _.difference(currentGtl, gtl || []);
+        if (!isEqual(gtl, currentGtl)) {
+            const newT = difference(gtl || [], currentGtl);
+            const removeT = difference(currentGtl, gtl || []);
 
             const _id = this.syncMapEntryKey(k.syncPriority, k.contentOnly || false);
 
@@ -479,15 +480,15 @@ export class Sync {
                 newT.length > 0 &&
                 !Object.values(_sm).find(
                     (v) =>
-                        _.isEqual(v[key], newT) &&
+                        isEqual(v[key], newT) &&
                         k.syncPriority == v.syncPriority &&
                         k.contentOnly == v.contentOnly,
                 )
             )
                 syncMap.value.set(_id, {
-                    ..._.cloneDeep(k),
+                    ...cloneDeep(k),
                     id: _id,
-                    [key]: _.cloneDeep(newT),
+                    [key]: cloneDeep(newT),
                     blocks: [{ blockStart: 0, blockEnd: 0 }],
                 });
 
@@ -495,8 +496,8 @@ export class Sync {
                 const _F = k[key] as Array<string>;
                 const _T = _F.filter((g) => !removeT.includes(g));
                 syncMap.value.set(k.id, {
-                    ..._.cloneDeep(k),
-                    [key]: _.cloneDeep(_T),
+                    ...cloneDeep(k),
+                    [key]: cloneDeep(_T),
                 });
             }
         }
