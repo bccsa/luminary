@@ -4,6 +4,7 @@ import vue from "@vitejs/plugin-vue";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import util from "util";
 import child_process from "child_process";
+import { visualizer } from "rollup-plugin-visualizer";
 
 const exec = util.promisify(child_process.exec);
 const env = loadEnv("", process.cwd());
@@ -11,6 +12,7 @@ const env = loadEnv("", process.cwd());
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
+        visualizer({ open: true }),
         vue(),
         viteStaticCopy({
             targets: [
