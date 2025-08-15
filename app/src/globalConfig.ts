@@ -1,6 +1,6 @@
 import { db, DocType, useDexieLiveQuery, type LanguageDto, type Uuid } from "luminary-shared";
 import { computed, ref, toRaw, watch } from "vue";
-import isEqual from "lodash/isEqual";
+import { isEqual } from "lodash-es";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 
 export const appName = import.meta.env.VITE_APP_NAME;

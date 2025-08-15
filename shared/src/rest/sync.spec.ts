@@ -9,7 +9,7 @@ import express from "express";
 import { ApiSearchQuery } from "./RestApi";
 import waitForExpect from "wait-for-expect";
 import { ref } from "vue";
-import _ from "lodash";
+import { isEqual } from "lodash-es";
 import { config, initConfig } from "../config";
 import { isConnected } from "../socket/socketio";
 import { mockFrenchContentDto, mockLanguageDtoFra } from "../tests/mockdata";
@@ -105,8 +105,8 @@ app.get("/search", (req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.end(
         JSON.stringify(
-            _.isEqual(a.types, b.types) &&
-                _.isEqual(a.groups, b.groups) &&
+            isEqual(a.types, b.types) &&
+                isEqual(a.groups, b.groups) &&
                 a.contentOnly == b.contentOnly &&
                 mockApiRecursiveResponse.length > 0
                 ? mockApiRecursiveResponse.pop()
@@ -213,7 +213,7 @@ describe("rest", () => {
             syncMap.value.set("test-start-sync", syncMapEntry);
 
             mockApiCheckFor = (res) => {
-                if (_.isEqual(res.types, ["post"]) && _.isEqual(res.groups, ["group-super-admins"]))
+                if (isEqual(res.types, ["post"]) && isEqual(res.groups, ["group-super-admins"]))
                     mockApiCheckForRes = res;
             };
 
@@ -221,15 +221,15 @@ describe("rest", () => {
 
             await waitForExpect(() => {
                 const req = mockApiCheckForRes;
-                expect(_.isEqual(req.types, ["post"])).toBe(true);
-                expect(_.isEqual(req.groups, ["group-super-admins"])).toBe(true);
+                expect(isEqual(req.types, ["post"])).toBe(true);
+                expect(isEqual(req.groups, ["group-super-admins"])).toBe(true);
                 expect(req.includeDeleteCmds).toBe(true);
             });
         });
 
         it("will only request delete commands if it is not the initial sync", async () => {
             mockApiCheckFor = (res) => {
-                if (_.isEqual(res.types, ["post"])) mockApiCheckForRes = res;
+                if (isEqual(res.types, ["post"])) mockApiCheckForRes = res;
             };
 
             syncMap.value.clear();
@@ -359,7 +359,7 @@ describe("rest", () => {
 
                 const _sm = Object.fromEntries(syncMap.value);
                 const post = Object.values(_sm).find((e: any) =>
-                    _.isEqual(e.groups, ["group-re-calc-sync-map"]),
+                    isEqual(e.groups, ["group-re-calc-sync-map"]),
                 );
 
                 expect(post).toBeDefined();
@@ -379,7 +379,7 @@ describe("rest", () => {
 
             const _sm1 = Object.fromEntries(syncMap.value);
             const _post1 = Object.values(_sm1).find((e: any) =>
-                _.isEqual(e.groups, ["group-public-users"]),
+                isEqual(e.groups, ["group-public-users"]),
             );
             // added group
             expect(_post1).toBeDefined();
@@ -446,10 +446,10 @@ describe("rest", () => {
 
             const _sm1 = Object.fromEntries(syncMap.value);
             const _post10 = Object.values(_sm1).find(
-                (e: any) => _.isEqual(e.types, [DocType.Tag]) && e.syncPriority == 10,
+                (e: any) => isEqual(e.types, [DocType.Tag]) && e.syncPriority == 10,
             );
             const _post9 = Object.values(_sm1).find(
-                (e: any) => _.isEqual(e.types, [DocType.Tag]) && e.syncPriority == 9,
+                (e: any) => isEqual(e.types, [DocType.Tag]) && e.syncPriority == 9,
             );
             const _otherPost = Object.values(_sm1).find(
                 (e: any) =>
@@ -489,15 +489,15 @@ describe("rest", () => {
             const _sm1 = Object.fromEntries(syncMap.value);
             const _post10 = Object.values(_sm1).find(
                 (e: any) =>
-                    _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 10 && !e.contentOnly,
+                    isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 10 && !e.contentOnly,
             );
             const _post10_content = Object.values(_sm1).find(
                 (e: any) =>
-                    _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 10 && e.contentOnly,
+                    isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 10 && e.contentOnly,
             );
             const _post9 = Object.values(_sm1).find(
                 (e: any) =>
-                    _.isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 9 && !e.contentOnly,
+                    isEqual(e.languages, ["lang-ger"]) && e.syncPriority == 9 && !e.contentOnly,
             );
             const _otherPost = Object.values(_sm1).find(
                 (e: any) =>
@@ -695,7 +695,7 @@ describe("rest", () => {
 
             expect(_post?.id).toBe("2_syncMap_main");
             expect(
-                _.isEqual(_post?.groups, ["group-super-admins", "group-sync-map-merge-test"]),
+                isEqual(_post?.groups, ["group-super-admins", "group-sync-map-merge-test"]),
             ).toBeTruthy();
         });
 
@@ -719,7 +719,7 @@ describe("rest", () => {
             const _post = syncMap.value.get("2_syncMap_main");
 
             expect(_post?.id).toBe("2_syncMap_main");
-            expect(_.isEqual(_post?.types, [DocType.Post, DocType.Tag])).toBeTruthy();
+            expect(isEqual(_post?.types, [DocType.Post, DocType.Tag])).toBeTruthy();
         });
 
         it("can merge 2 syncMap entries, if they have the same priority and the same contentOnly flag, and one of them us completed sync (languages)", async () => {
@@ -742,7 +742,7 @@ describe("rest", () => {
             const _post = syncMap.value.get("2_syncMap_main");
 
             expect(_post?.id).toBe("2_syncMap_main");
-            expect(_.isEqual(_post?.languages, ["lang-eng", "lang-ger"])).toBeTruthy();
+            expect(isEqual(_post?.languages, ["lang-eng", "lang-ger"])).toBeTruthy();
         });
 
         it("can remove old values from the syncMap that is not valid anymore", async () => {
