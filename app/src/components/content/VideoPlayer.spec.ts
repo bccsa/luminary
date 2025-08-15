@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
+import waitForExpect from "wait-for-expect";
 
 const posterMock = vi.hoisted(() => vi.fn());
 const srcMock = vi.hoisted(() => vi.fn());
@@ -37,15 +38,21 @@ describe("VideoPlayer", () => {
             },
         });
 
-        expect(srcMock).toHaveBeenCalledWith(
-            expect.objectContaining({ src: mockEnglishContentDto.video }),
-        );
+        await waitForExpect(() => {
+            expect(srcMock).toHaveBeenCalledWith(
+                expect.objectContaining({ src: mockEnglishContentDto.video }),
+            );
+        });
 
-        // Check that the default poster image is set to a transparent pixel
-        expect(posterMock).toHaveBeenCalledWith("/src/components/content/px.png");
+        await waitForExpect(() => {
+            // Check that the default poster image is set to a transparent pixel
+            expect(posterMock).toHaveBeenCalledWith("/src/components/content/px.png");
+        });
 
-        expect(wrapper.html()).toContain(
-            mockEnglishContentDto.parentImageData?.fileCollections[0].imageFiles[0].filename,
-        );
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain(
+                mockEnglishContentDto.parentImageData?.fileCollections[0].imageFiles[0].filename,
+            );
+        });
     });
 });
