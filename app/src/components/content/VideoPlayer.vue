@@ -116,7 +116,6 @@ function stopKeepAudioAlive() {
 
 onMounted(async () => {
     const videojs = (await import("video.js")).default;
-    await import("videojs-mobile-ui");
 
     let options = {
         fluid: false,
