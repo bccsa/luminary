@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
+import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
