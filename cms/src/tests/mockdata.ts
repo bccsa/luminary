@@ -1,3 +1,4 @@
+import { DocAttrStep } from "@tiptap/pm/transform";
 import {
     DocType,
     type ContentDto,
