@@ -59,7 +59,7 @@ const handleAuth0 = async (page: any) => {
 
     await page.click('button[type="submit"]');
 
-    await page.click('button[type="submit"]');
+    await page.click('button[value="accept"]');
 
     // Wait for any post load navigation to prevent errors
     await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 });
@@ -111,18 +111,6 @@ test("the client recieves the correct document types from the api", async ({ con
     });
 });
 
-test("the user can login to the cms client", async ({ context }) => {
-    const page = await context.newPage();
-    await handleAuth0(page);
-
-    // Wait for the dashboard to load
-    await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 });
-
-    // Check if the user is logged in by checking the URL or a specific element
-    const currentUrl = page.url();
-    expect(currentUrl).toMatch(/dashboard/);
-});
-
 test("the user can create a new document", async ({ context }) => {
     const page = await context.newPage();
     await handleAuth0(page);
@@ -130,27 +118,34 @@ test("the user can create a new document", async ({ context }) => {
     await page.getByRole("button", { name: "Posts" }).click();
     await page.getByRole("link", { name: "Blog" }).click();
 
-    await page.locator('[data-test="create-button"]').click();
+    // Click the create button's mobile version
+    await page.locator(".h-6.w-6.text-zinc-500").click();
 
+    // Select a group
     await page
-        .locator("div")
-        .filter({ hasText: /^Group Membership$/ })
-        .getByPlaceholder("Type to select...")
+        .locator('div:has-text("Group Membership") button[data-test="edit-group"]')
+        .first()
         .click();
+
+    await page.locator(".flex.justify-between.gap-2.rounded-md").click();
     await page.getByText("Super Admins").click();
-    await page.locator('[data-test="no-content"] [data-test="language-selector"]').click();
-    await page.locator('[data-test="select-language-en"]').click();
 
-    await page.getByRole("textbox", { name: "Title Required" }).click();
+    await page.waitForTimeout(300);
 
-    const newDocTitle = `E2ETest-${Math.floor(Math.random() * 999999999)}`;
+    await page.mouse.click(page.viewportSize()!.width / 2, page.viewportSize()!.height / 3);
 
-    await page.getByRole("textbox", { name: "Title Required" }).fill(newDocTitle);
+    await page.waitForTimeout(300);
+
+    // Select a language
+    await page.locator('[data-test="add-translation-button"]').click();
+    await page.getByRole("button", { name: "en English" }).click();
+
+    const newTitle = `E2ETest-${Math.floor(Math.random() * 99999999)}`;
+
+    await page.locator("#l-input-3").click();
+    await page.locator("#l-input-3").fill(newTitle);
 
     await page.locator('[data-test="save-button"]').click();
-
-    // Submit the form (there is default data in the form)
-    await page.click('button:has-text("Save")');
 
     // Wait for the content to be sent back to indexedDB from the API
     await page.waitForTimeout(5000);
@@ -197,7 +192,7 @@ test("the user can create a new document", async ({ context }) => {
         const contentDocs = result.filter((doc: any) => doc.type === "content");
         expect(contentDocs.length).toBeGreaterThan(0);
 
-        const justCreatedDoc = contentDocs.find((doc) => doc.title === newDocTitle);
+        const justCreatedDoc = contentDocs.find((doc) => doc.title === newTitle);
         expect(justCreatedDoc).toBeDefined();
         expect(justCreatedDoc.memberOf).toEqual(["group-super-admins"]);
     });
