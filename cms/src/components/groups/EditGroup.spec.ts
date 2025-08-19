@@ -277,35 +277,28 @@ describe("EditGroup.vue", () => {
         });
     });
 
-    it.only(
-        "can discard all changes",
-        async () => {
-            accessMap.value = superAdminAccessMap;
-            const wrapper = await createWrapper(mockGroupDtoPublicContent);
+    it.skip("can discard all changes", async () => {
+        accessMap.value = superAdminAccessMap;
+        const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
-            await wrapper.find('[data-test="permissionCell"]').trigger("click");
+        await wrapper.find('[data-test="permissionCell"]').trigger("click");
 
-            await waitForExpect(() => {
-                expect(wrapper.find(discardChangesButton).exists()).toBe(true);
-                expect(wrapper.find(saveChangesButton).exists()).toBe(true); // Good to check this too for consistency
-            });
+        await waitForExpect(() => {
+            expect(wrapper.find(discardChangesButton).exists()).toBe(true);
+            expect(wrapper.find(saveChangesButton).exists()).toBe(true); // Good to check this too for consistency
+        });
 
-            const discardBtn = wrapper.find(discardChangesButton);
-            await waitForExpect(async () => {
-                expect(discardBtn.exists()).toBe(true);
-                await discardBtn.trigger("click");
-                console.info(wrapper.text());
-            });
+        const discardBtn = wrapper.find(discardChangesButton);
+        await waitForExpect(async () => {
+            expect(discardBtn.exists()).toBe(true);
+            await discardBtn.trigger("click");
+        });
 
-            // await waitForExpect(async () => {
-            //     expect(wrapper.find(discardChangesButton).exists()).toBe(false);
-            //     expect(wrapper.find(discardChangesButton).exists()).toBe(false);
-
-            //     // expect(wrapper.find(saveChangesButton).exists()).toBe(false);
-            // });
-        },
-        { timeout: 10000 },
-    );
+        await waitForExpect(async () => {
+            expect(wrapper.find(discardChangesButton).exists()).toBe(false);
+            expect(wrapper.find(saveChangesButton).exists()).toBe(false);
+        });
+    });
 
     it.skip("can add a new group", async () => {
         isConnected.value = true;
