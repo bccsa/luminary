@@ -2,6 +2,20 @@ import { Auth0Plugin, createAuth0 } from "@auth0/auth0-vue";
 import { type App, watch } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
+import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
+
+// Use your appId as the scheme (must match iOS URL Types)
+// I need to find a way to get this from capacitor.config.ts or maybe from the package.json file
+const APP_SCHEME = "africa.activechristianity.app";
+
+const isNative = Capacitor.isNativePlatform();
+const redirectUri = isNative
+    ? `${APP_SCHEME}://bccsa.us.auth0.com/capacitor/${APP_SCHEME}/callback`
+    : window.location.origin;
+
+const baseReturnTo = isNative ? `${APP_SCHEME}://` : window.location.origin;
 
 export type AuthPlugin = Auth0Plugin & {
     logout: (retrying?: boolean) => Promise<void>;
@@ -12,7 +26,6 @@ export type AuthPlugin = Auth0Plugin & {
  */
 async function setupAuth(app: App<Element>, router: Router) {
     app.config.globalProperties.$auth = null; // Clear existing auth
-    const web_origin = window.location.origin;
 
     const oauth = createAuth0(
         {
@@ -24,7 +37,7 @@ async function setupAuth(app: App<Element>, router: Router) {
             authorizationParams: {
                 audience: import.meta.env.VITE_AUTH0_AUDIENCE,
                 scope: "openid profile email offline_access",
-                redirect_uri: web_origin,
+                redirect_uri: redirectUri,
             },
         },
         {
@@ -67,13 +80,42 @@ async function setupAuth(app: App<Element>, router: Router) {
 
     app.use(oauth);
 
-    // Handle login
-    await redirectCallback(location.href);
+    // --- NATIVE callback handler (iOS/Android) ---
+    if (isNative) {
+        CapApp.addListener("appUrlOpen", async ({ url }) => {
+            // Only handle our scheme
+            if (!url || !url.startsWith(`${APP_SCHEME}://`)) return;
+
+            try {
+                // Exchange code for tokens
+                await oauth.handleRedirectCallback(url);
+            } catch (e) {
+                console.error("Auth0 handleRedirectCallback(native) failed", e);
+                Sentry.captureException(e);
+            } finally {
+                // Close the in-app browser if it's still open
+                try {
+                    await Browser.close();
+                } catch {
+                    // Ignore errors if the browser is already closed
+                    console.warn("Browser was already closed or not open.");
+                }
+            }
+
+            // Navigate to the intended route after login
+            const to = getRedirectTo() || "/";
+            router.replace(to);
+        });
+    } else {
+        // Web: handle code/state on page load
+        await redirectCallback(location.href);
+    }
 
     // Handle logout
     const _Logout = oauth.logout;
     (oauth as AuthPlugin).logout = (retrying = false) => {
-        let returnTo = web_origin;
+        let returnTo = baseReturnTo;
+
         if (!retrying) returnTo += "?loggedOut";
 
         return _Logout({
@@ -120,7 +162,7 @@ async function loginRedirect(oauth: AuthPlugin) {
         await loginWithRedirect({
             authorizationParams: {
                 connection: usedConnection ? usedConnection : undefined,
-                redirect_uri: window.location.origin,
+                redirect_uri: redirectUri,
             },
         });
         return;
