@@ -53,5 +53,13 @@ export default defineConfig({
         target: "es2015",
         sourcemap: true,
         minify: env.VITE_BYPASS_MINIFY !== "true",
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    vendor: ["vue", "vue-router", "pinia"],
+                    utils: ["lodash-es", "luxon"],
+                },
+            },
+        },
     },
 });
