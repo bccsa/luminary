@@ -111,7 +111,7 @@ describe("useAuthWithPrivacyPolicy", () => {
 
     it("cancelPendingLogin clears pending login and closes modal", async () => {
         const { loginWithRedirect, cancelPendingLogin } = useAuthWithPrivacyPolicy();
-        loginWithRedirect(); // Set up pending login
+        loginWithRedirect();
         cancelPendingLogin();
 
         await waitForExpect(async () => {
