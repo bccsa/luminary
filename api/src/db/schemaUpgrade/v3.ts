@@ -35,7 +35,7 @@ export default async function (db: DbService, s3: S3Service) {
                     try {
                         // @ts-expect-error - image is not defined in the dto, but it might still be in the database
                         const res = await fetch(d.image);
-                        const buffer = Buffer.from(await res.arrayBuffer()) as ArrayBuffer;
+                        const buffer = Buffer.from(await res.arrayBuffer());
                         d.imageData = new ImageDto();
                         d.imageData.uploadData = [];
                         d.imageData.uploadData.push({
