@@ -32,9 +32,7 @@ describe("S3ImageHandler", () => {
         const image = new ImageDto();
         image.uploadData = [
             {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
-                ) as ArrayBuffer,
+                fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
                 preset: "default",
             },
         ];
@@ -56,9 +54,7 @@ describe("S3ImageHandler", () => {
         const image = new ImageDto();
         image.uploadData = [
             {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
-                ) as ArrayBuffer,
+                fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
                 preset: "default",
             },
         ];
@@ -84,9 +80,7 @@ describe("S3ImageHandler", () => {
         const image = new ImageDto();
         image.uploadData = [
             {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
-                ) as ArrayBuffer,
+                fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
                 preset: "default",
             },
         ];
@@ -109,9 +103,7 @@ describe("S3ImageHandler", () => {
         const image = new ImageDto();
         image.uploadData = [
             {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../test/" + "testImage.jpg"),
-                ) as ArrayBuffer,
+                fileData: fs.readFileSync(path.resolve(__dirname + "/../test/" + "testImage.jpg")),
                 preset: "default",
             },
         ];
