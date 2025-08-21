@@ -5,6 +5,12 @@ import { useRouter } from "vue-router";
 import DesktopMenu from "./DesktopMenu.vue";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 
+// Logos imports
+import logoLight from "@/assets/logo.svg";
+import logoDark from "@/assets/logo-dark.svg";
+import logoSmallLight from "@/assets/logo-small.svg";
+import logoSmallDark from "@/assets/logo-small.svg";
+
 type Props = {
     showBackButton?: boolean;
 };
@@ -14,21 +20,22 @@ withDefaults(defineProps<Props>(), {
 });
 
 const router = useRouter();
-const LOGO = import.meta.env.VITE_LOGO;
-const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL;
-const LOGO_DARK = import.meta.env.VITE_LOGO_DARK;
-const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK;
 
 const logoWidth = ref();
 const logoContainer = ref<HTMLElement | undefined>(undefined);
 const isSmallScreen = ref(false);
 
-const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL : LOGO));
-const logoDark = computed(() => (isSmallScreen.value ? LOGO_SMALL_DARK : LOGO_DARK));
+const logo = computed(() => (isSmallScreen.value ? logoSmallLight : logoLight));
+const logoDarkComputed = computed(() => (isSmallScreen.value ? logoSmallDark : logoDark));
 
 // Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js)
 const logoCss = computed(
-    () => "--image-url: url(" + logo.value + "); --image-url-dark: url(" + logoDark.value + ");",
+    () =>
+        "--image-url: url(" +
+        logo.value +
+        "); --image-url-dark: url(" +
+        logoDarkComputed.value +
+        ");",
 );
 
 // Detect screen size on load and window resize
@@ -41,7 +48,7 @@ const updateScreenSize = () => {
 onMounted(() => {
     if (!logoWidth.value) {
         const img = new Image();
-        img.src = LOGO;
+        img.src = logoLight;
         img.onload = () => {
             if (!logoContainer.value) return;
             logoWidth.value = (img.width * 32) / img.height; // 32px = tailwind h-8

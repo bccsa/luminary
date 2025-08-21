@@ -69,7 +69,7 @@ const handleNotificationClick = (notification: Notification) => {
 <template>
     <div v-if="show" class="inset-x-0 text-zinc-900" :class="color">
         <div
-            class="flex items-center justify-between px-6 py-1"
+            class="flex items-center justify-between px-5 py-1"
             @click="() => handleNotificationClick(notification)"
             :class="{ 'cursor-pointer': notification.link }"
         >
@@ -84,13 +84,13 @@ const handleNotificationClick = (notification: Notification) => {
                         : undefined
                 "
                 @click.stop="() => handleNotificationClick(notification)"
-                class="flex w-3/4 items-center gap-2"
+                class="flex flex-1 items-center gap-1"
                 :class="{ 'cursor-pointer': notification.link }"
             >
-                <component :is="icon" class="h-5 w-5 min-w-5" />
-                <div class="flex flex-col md:inline-block md:align-middle">
+                <component :is="icon" class="mr-4 h-5 w-5 min-w-5" />
+                <div class="flex flex-1 flex-col">
                     <span class="text-md md:text-sm">{{ notification.title }}</span>
-                    <span v-if="notification.description" class="text-xs md:ml-3">
+                    <span v-if="notification.description" class="w-full break-words text-xs">
                         {{ notification.description }}
                     </span>
                 </div>
@@ -100,7 +100,7 @@ const handleNotificationClick = (notification: Notification) => {
             <button
                 type="button"
                 @click.stop="notification.id ? removeNotification(notification.id) : (show = false)"
-                class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
+                class="ml-4 h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
                 data-test="banner-close-button"
                 v-if="notification.closable"
             >
