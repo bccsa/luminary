@@ -41,7 +41,7 @@ export default async function (db: DbService, s3: S3Service) {
                         d.imageData.uploadData.push({
                             fileData: buffer,
                             preset: "photo",
-                        } as ImageUploadDto);
+                        } as unknown as ImageUploadDto);
                     } catch (e) {
                         // @ts-expect-error - image is not defined in the dto, but it might still be in the database
                         console.error(`Unable to download image ${d.image} for ${d._id}: ${e}`);
