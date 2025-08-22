@@ -46,13 +46,19 @@ export const contentByTag = (
 
                 if (index !== -1) {
                     Object.assign(result.tagged.value[index], {
-                        newestContentDate: sorted[0].publishDate || 0,
+                        newestContentDate:
+                            (sorted[0].pinned
+                                ? sorted[0].publishDate
+                                : sorted[sorted.length - 1].publishDate) || 0,
                         content: sorted,
                     });
                 } else {
                     result.tagged.value.push({
                         tag,
-                        newestContentDate: sorted[0].publishDate || 0,
+                        newestContentDate:
+                            (sorted[0].pinned
+                                ? sorted[0].publishDate
+                                : sorted[sorted.length - 1].publishDate) || 0,
                         content: sorted,
                     });
                 }
