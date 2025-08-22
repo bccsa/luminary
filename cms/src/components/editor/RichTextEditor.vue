@@ -56,16 +56,21 @@ const editor = useEditor({
             if (!html) return false;
 
             html = html
+                .replace(/[\r\n\u2028\u2029]+/g, " ") // Remove all line breaks that get added by text editors like word
+                .replace(/<br\s*\/?>/gi, " ");
+
+            html = html.replace(/\u00AD/g, "");
+            html = html
                 .replace(/>\s+</g, "><") // Remove spaces between tags
                 .replace(/<br\s*\/?>/gi, "") // Remove standalone <br>
                 .replace(/<p>\s*<\/p>/gi, "") // Remove empty paragraphs
                 .replace(/&nbsp;/gi, " ") // Clean non breaking spaces
                 // Clean heading tags
-                .replace(/<h([1-5])([^>]*)>/gi, (match, level, attrs) => {
+                .replace(/<h([1-6])([^>]*)>/gi, (match, level, attrs) => {
                     const newLevel = Math.min(parseInt(level) + 1, 6);
                     return `<h${newLevel}${attrs}>`;
                 })
-                .replace(/<\/h([1-5])>/gi, (match, level) => {
+                .replace(/<\/h([1-6])>/gi, (match, level) => {
                     const newLevel = Math.min(parseInt(level) + 1, 6);
                     return `</h${newLevel}>`;
                 });
@@ -331,6 +336,7 @@ div[data-tiptap-editor] > div {
 .ProseMirror {
     height: 100%;
     width: 100%;
+    margin: 0 auto;
     box-sizing: border-box;
     flex: 1;
     overflow-y: auto;
