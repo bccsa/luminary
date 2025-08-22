@@ -67,11 +67,11 @@ const editor = useEditor({
                 .replace(/&nbsp;/gi, " ") // Clean non breaking spaces
                 // Clean heading tags
                 .replace(/<h([1-6])([^>]*)>/gi, (match, level, attrs) => {
-                    const newLevel = Math.min(parseInt(level) + 1, 5);
+                    const newLevel = Math.min(parseInt(level) + 1, 6);
                     return `<h${newLevel}${attrs}>`;
                 })
                 .replace(/<\/h([1-6])>/gi, (match, level) => {
-                    const newLevel = Math.min(parseInt(level) + 1, 5);
+                    const newLevel = Math.min(parseInt(level) + 1, 6);
                     return `</h${newLevel}>`;
                 });
             editor.value?.commands.insertContent(html);
@@ -340,5 +340,10 @@ div[data-tiptap-editor] > div {
     box-sizing: border-box;
     flex: 1;
     overflow-y: auto;
+}
+
+.prose h5 {
+    font-size: 1.125rem; /* 18px */
+    font-weight: 600;
 }
 </style>
