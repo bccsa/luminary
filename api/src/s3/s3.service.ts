@@ -48,7 +48,7 @@ export class S3Service {
         const metadata = {
             "Content-Type": mimetype,
         };
-        return this.client.putObject(bucket, key, file, Buffer.byteLength(file), metadata);
+        return this.client.putObject(bucket, key, file, file.length, metadata);
     }
 
     /**
@@ -91,5 +91,69 @@ export class S3Service {
      */
     public async listObjects(bucket: string) {
         return this.client.listObjects(bucket);
+    }
+
+    /**
+     * Check if the S3/Minio service is available
+     */
+    public async checkConnection(): Promise<boolean> {
+        try {
+            await this.client.listBuckets();
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if an object exists in a bucket
+     */
+    public async objectExists(bucket: string, key: string): Promise<boolean> {
+        try {
+            await this.client.statObject(bucket, key);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Validate image upload and accessibility
+     */
+    public async validateImageUpload(
+        bucket: string,
+        key: string,
+    ): Promise<{ success: boolean; error?: string }> {
+        try {
+            // Check if bucket exists
+            const bucketExists = await this.bucketExists(bucket);
+            if (!bucketExists) {
+                return { success: false, error: `Bucket '${bucket}' does not exist` };
+            }
+
+            // Try to get object info to verify it was uploaded successfully
+            await this.client.statObject(bucket, key);
+
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: `Image validation failed: ${error.message}` };
+        }
+    }
+
+    /**
+     * Check if uploaded images are accessible
+     */
+    public async checkImageAccessibility(bucket: string, keys: string[]): Promise<string[]> {
+        const inaccessibleImages: string[] = [];
+
+        for (const key of keys) {
+            try {
+                await this.client.statObject(bucket, key);
+            } catch (error) {
+                inaccessibleImages.push(key);
+            }
+        }
+
+        return inaccessibleImages;
     }
 }

@@ -27,9 +27,10 @@ const show = ref(true);
                         v-if="notification.state == 'success'"
                     />
                     <ExclamationCircleIcon
-                        class="h-6 w-6 text-red-400"
+                        class="h-6 w-6"
                         aria-hidden="true"
-                        v-if="notification.state == 'error'"
+                        :class="notification.state == 'error' ? 'text-red-400' : 'text-yellow-400'"
+                        v-if="notification.state == 'error' || notification.state == 'warning'"
                     />
                 </div>
                 <div class="ml-3 w-0 flex-1 pt-0.5">

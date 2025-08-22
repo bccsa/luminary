@@ -24,6 +24,7 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
 import _ from "lodash";
+import { changeReqErrors, changeReqWarnings } from "../config";
 
 const dbName: string = "luminary-db";
 
@@ -653,6 +654,7 @@ class Database extends Dexie {
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto) {
         if (ack.ack == "rejected") {
+            changeReqErrors.value.push(ack.message || "Unknown error occured");
             if (ack.docs && Array.isArray(ack.docs)) {
                 // Replace our local copy(s) with the provided database version
                 await this.docs.bulkPut(ack.docs);
@@ -664,6 +666,10 @@ class Database extends Dexie {
                     await this.docs.delete(change.doc._id);
                 }
             }
+        }
+
+        if (ack.ack == "accepted" && ack.warnings && ack.warnings.length > 0) {
+            changeReqWarnings.value = ack.warnings;
         }
 
         await this.localChanges.delete(ack.id);
