@@ -173,10 +173,10 @@ watch(route, (newRoute) => {
                         </li>
                     </ul>
                 </li>
-                <li class="flex w-full items-center justify-between rounded-md p-1">
+                <li class="flex w-full flex-col items-center justify-between gap-2 rounded-md p-1">
+                    <OnlineIndicator />
                     <div class="flex w-full items-center">
                         <ProfileMenu />
-                        <OnlineIndicator />
                     </div>
                 </li>
             </ul>
