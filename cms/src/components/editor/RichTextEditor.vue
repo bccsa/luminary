@@ -342,8 +342,9 @@ div[data-tiptap-editor] > div {
     overflow-y: auto;
 }
 
-.prose h5 {
-    font-size: 1.125rem; /* 18px */
+h5 {
+    font-size: 1.25rem;
     font-weight: 600;
+    margin-bottom: 0.5rem;
 }
 </style>
