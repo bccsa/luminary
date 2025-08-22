@@ -40,15 +40,11 @@ export async function processChangeRequest(
                 ok: true,
                 message: "Document is identical to the one in the database",
             } as DbUpsertResult,
-            warnings: validationResult.warnings,
         };
     }
 
     // insert user id into the change request document, so that we can keep a record of who made the change
     doc.updatedBy = userId;
-
-    // Collect warnings from validation and processing
-    const allWarnings: string[] = [...(validationResult.warnings || [])];
 
     const docProcessMap = {
         [DocType.Post]: () => processPostTagDto(doc as PostDto, prevDoc as PostDto, db, s3),
@@ -59,9 +55,8 @@ export async function processChangeRequest(
 
     if (docProcessMap[doc.type]) {
         const processingResult = await docProcessMap[doc.type]();
-        // Only Post and Tag processing returns warnings currently
         if (Array.isArray(processingResult)) {
-            allWarnings.push(...processingResult);
+            validationResult.warnings.push(...processingResult);
         }
     }
 
@@ -70,6 +65,6 @@ export async function processChangeRequest(
 
     return {
         result: upsertResult,
-        warnings: allWarnings.length > 0 ? allWarnings : undefined,
+        warnings: validationResult.warnings || [],
     };
 }
