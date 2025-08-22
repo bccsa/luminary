@@ -56,8 +56,8 @@ const editor = useEditor({
             if (!html) return false;
 
             html = html
-                .replace(/[\r\n\u2028\u2029]+/g, " ") // Remove all line breaks that get added by text editors like word before processing
-                .replace(/<br\s*\/?>/gi, " ");
+                .replace(/[\r\n\u2028\u2029]+/g, "") // Remove all line breaks that get added by text editors like word before processing
+                .replace(/<br\s*\/?>/gi, "");
 
             html = html.replace(/\u00AD/g, "");
             html = html
@@ -67,11 +67,11 @@ const editor = useEditor({
                 .replace(/&nbsp;/gi, " ") // Clean non breaking spaces
                 // Clean heading tags
                 .replace(/<h([1-6])([^>]*)>/gi, (match, level, attrs) => {
-                    const newLevel = Math.min(parseInt(level) + 1, 6);
+                    const newLevel = Math.min(parseInt(level) + 1, 5);
                     return `<h${newLevel}${attrs}>`;
                 })
                 .replace(/<\/h([1-6])>/gi, (match, level) => {
-                    const newLevel = Math.min(parseInt(level) + 1, 6);
+                    const newLevel = Math.min(parseInt(level) + 1, 5);
                     return `</h${newLevel}>`;
                 });
             editor.value?.commands.insertContent(html);
