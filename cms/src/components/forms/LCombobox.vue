@@ -262,6 +262,17 @@ const toggleDropdown = () => {
             >
                 No options selected yet.
             </div>
+            <template #footer>
+                <slot name="footer">
+                    <button
+                        v-if="showEditModal"
+                        class="mt-2 w-full rounded-md bg-zinc-950 px-4 py-2 text-white hover:bg-zinc-800"
+                        @click="showEditModal = false"
+                    >
+                        Close
+                    </button>
+                </slot>
+            </template>
         </component>
     </div>
 </template>
