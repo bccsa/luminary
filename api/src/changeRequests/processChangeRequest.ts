@@ -22,6 +22,7 @@ export async function processChangeRequest(
 ): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
+    validationResult.warnings = validationResult.warnings || []; // Ensure warnings is initialized
 
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
@@ -65,6 +66,6 @@ export async function processChangeRequest(
 
     return {
         result: upsertResult,
-        warnings: validationResult.warnings || [],
+        warnings: validationResult.warnings,
     };
 }
