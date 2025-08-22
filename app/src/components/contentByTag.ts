@@ -44,21 +44,20 @@ export const contentByTag = (
             if (sorted.length) {
                 const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
 
+                const newestContentDate =
+                    (sorted[0].pinned
+                        ? sorted[0].publishDate
+                        : sorted[sorted.length - 1].publishDate) || 0;
+
                 if (index !== -1) {
                     Object.assign(result.tagged.value[index], {
-                        newestContentDate:
-                            (sorted[0].pinned
-                                ? sorted[0].publishDate
-                                : sorted[sorted.length - 1].publishDate) || 0,
+                        newestContentDate,
                         content: sorted,
                     });
                 } else {
                     result.tagged.value.push({
                         tag,
-                        newestContentDate:
-                            (sorted[0].pinned
-                                ? sorted[0].publishDate
-                                : sorted[sorted.length - 1].publishDate) || 0,
+                        newestContentDate,
                         content: sorted,
                     });
                 }
