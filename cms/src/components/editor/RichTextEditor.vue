@@ -56,7 +56,7 @@ const editor = useEditor({
             if (!html) return false;
 
             html = html
-                .replace(/[\r\n\u2028\u2029]+/g, " ") // Remove all line breaks that get added by text editors like word
+                .replace(/[\r\n\u2028\u2029]+/g, " ") // Remove all line breaks that get added by text editors like word before processing
                 .replace(/<br\s*\/?>/gi, " ");
 
             html = html.replace(/\u00AD/g, "");
