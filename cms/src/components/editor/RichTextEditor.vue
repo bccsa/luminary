@@ -332,7 +332,7 @@ div[data-tiptap-editor] > div {
 
 /* ProseMirror is not always correctly parsing the all browser's elements, so we can give some custom styling that it works */
 .ProseMirror h5 {
-    font-size: 1.25rem;
+    font-size: 0.83em;
     font-weight: 600;
     margin-bottom: 0.5rem;
 }
