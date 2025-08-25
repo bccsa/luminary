@@ -46,7 +46,7 @@ const editor = useEditor({
     editable: (() => !disabled.value as boolean | undefined)(),
     editorProps: {
         attributes: {
-            class: "prose sm:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-20rem)] max-h-[calc(100vh-20rem)] sm:max-h-[calc(100vh-10rem)]  overflow-hide prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
+            class: "prose sm:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-20rem)] max-h-[calc(100vh-20rem)] sm:max-h-[calc(100vh-10rem)] overflow-hidden prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
         },
         handlePaste(view, event) {
             const clipboardData = event.clipboardData;
@@ -57,15 +57,11 @@ const editor = useEditor({
 
             html = html
                 .replace(/[\r\n\u2028\u2029]+/g, "") // Remove all line breaks that get added by text editors like word before processing
-                .replace(/<br\s*\/?>/gi, "");
-
-            html = html.replace(/\u00AD/g, "");
-            html = html
+                .replace(/\u00AD/g, "")
                 .replace(/>\s+</g, "><") // Remove spaces between tags
                 .replace(/<br\s*\/?>/gi, "") // Remove standalone <br>
                 .replace(/<p>\s*<\/p>/gi, "") // Remove empty paragraphs
-                .replace(/&nbsp;/gi, " ") // Clean non breaking spaces
-                // Clean heading tags
+                .replace(/&nbsp;/g, " ") // Clean non breaking spaces
                 .replace(/<h([1-6])([^>]*)>/gi, (match, level, attrs) => {
                     const newLevel = Math.min(parseInt(level) + 1, 6);
                     return `<h${newLevel}${attrs}>`;
@@ -342,7 +338,11 @@ div[data-tiptap-editor] > div {
     overflow-y: auto;
 }
 
-h5 {
+.ProseMirror > :first-child {
+    margin-top: 0;
+}
+
+.ProseMirror h5 {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
