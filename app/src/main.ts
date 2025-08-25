@@ -1,7 +1,6 @@
 import "./assets/main.css";
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 import auth from "./auth";
@@ -21,12 +20,32 @@ if (import.meta.env.VITE_FAV_ICON) {
     }
 }
 
+async function reportError(error: any, message?: string) {
+    if (import.meta.env.PROD) {
+        try {
+            const Sentry = await import("@sentry/vue");
+            if (message) {
+                Sentry.captureMessage(message);
+            }
+            Sentry.captureException(error);
+        } catch (e) {
+            console.error("Failed to load Sentry:", e);
+        }
+    }
+}
+
 if (import.meta.env.PROD) {
-    Sentry.init({
-        app,
-        dsn: import.meta.env.VITE_SENTRY_DSN,
-        integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
-    });
+    import("@sentry/vue")
+        .then((Sentry) => {
+            Sentry.init({
+                app,
+                dsn: import.meta.env.VITE_SENTRY_DSN,
+                integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
+            });
+        })
+        .catch((e) => {
+            console.error("Failed to initialize Sentry:", e);
+        });
 }
 
 async function Startup() {
@@ -52,13 +71,13 @@ async function Startup() {
         ],
     }).catch((err) => {
         console.error(err);
-        Sentry.captureException(err);
+        reportError(err);
     });
 
     // Redirect to login if the API authentication fails
     getSocket().on("apiAuthFailed", async () => {
         console.error("API authentication failed, redirecting to login");
-        Sentry.captureMessage("API authentication failed, redirecting to login");
+        reportError("API authentication failed, redirecting to login");
         await auth.loginRedirect(oauth);
     });
 

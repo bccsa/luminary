@@ -23,7 +23,7 @@ import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
-import _ from "lodash";
+import { cloneDeep } from "lodash-es";
 
 const dbName: string = "luminary-db";
 
@@ -188,7 +188,7 @@ class Database extends Dexie {
     async setSyncMap() {
         return await this.setLuminaryInternals(
             "syncMap",
-            _.cloneDeep(Object.fromEntries(syncMap.value)),
+            cloneDeep(Object.fromEntries(syncMap.value)),
         );
     }
 
