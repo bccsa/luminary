@@ -13,6 +13,7 @@ import LInput from "../forms/LInput.vue";
 import LButton from "../button/LButton.vue";
 import { LinkSlashIcon, LinkIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "../forms/FormLabel.vue";
+import formatPastedHtml from "@/util/formatPastedHtml";
 
 type Props = {
     title?: string;
@@ -48,28 +49,15 @@ const editor = useEditor({
         attributes: {
             class: "prose sm:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-20rem)] max-h-[calc(100vh-20rem)] sm:max-h-[calc(100vh-10rem)] overflow-hidden prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950",
         },
-        handlePaste(view, event) {
+        handlePaste(_, event) {
             const clipboardData = event.clipboardData;
             if (!clipboardData) return false;
 
             let html = clipboardData.getData("text/html");
             if (!html) return false;
 
-            html = html
-                .replace(/[\r\n\u2028\u2029]+/g, "") // Remove all line breaks that get added by text editors like word before processing
-                .replace(/\u00AD/g, "")
-                .replace(/>\s+</g, "><") // Remove spaces between tags
-                .replace(/<br\s*\/?>/gi, "") // Remove standalone <br>
-                .replace(/<p>\s*<\/p>/gi, "") // Remove empty paragraphs
-                .replace(/&nbsp;/g, " ") // Clean non breaking spaces
-                .replace(/<h([1-6])([^>]*)>/gi, (match, level, attrs) => {
-                    const newLevel = Math.min(parseInt(level) + 1, 6);
-                    return `<h${newLevel}${attrs}>`;
-                })
-                .replace(/<\/h([1-6])>/gi, (match, level) => {
-                    const newLevel = Math.min(parseInt(level) + 1, 6);
-                    return `</h${newLevel}>`;
-                });
+            html = formatPastedHtml(html);
+
             editor.value?.commands.insertContent(html);
             return true;
         },
@@ -342,6 +330,7 @@ div[data-tiptap-editor] > div {
     margin-top: 0;
 }
 
+/* ProseMirror is not always correctly parsing the all browser's elements, so we can give some custom styling that it works */
 .ProseMirror h5 {
     font-size: 1.25rem;
     font-weight: 600;
