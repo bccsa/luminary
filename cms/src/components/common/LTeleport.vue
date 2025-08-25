@@ -6,15 +6,13 @@ type Props = {
     to?: string | Component;
 };
 
-withDefaults(defineProps<Props>(), {
-    to: App,
-});
+defineProps<Props>();
 
 const isTestEnviroment = import.meta.env.MODE === "test";
 </script>
 
 <template>
-    <Teleport v-if="isTestEnviroment" :to="to">
+    <Teleport v-if="isTestEnviroment" :to="to ?? App">
         <div>
             <slot />
         </div>

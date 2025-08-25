@@ -10,7 +10,7 @@ const isVisible = defineModel<boolean>("isVisible");
 </script>
 
 <template>
-    <LTeleport>
+    <LTeleport v-if="isVisible">
         <div @click="isVisible = false">
             <div class="fixed inset-0 z-50 bg-zinc-800 bg-opacity-50 backdrop-blur-sm"></div>
             <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">

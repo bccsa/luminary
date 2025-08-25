@@ -6,7 +6,8 @@ import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import { onClickOutside } from "@vueuse/core";
 import LBadge, { type variants } from "../common/LBadge.vue";
-import LModal from "../modals/LModal.vue";
+import LDialog from "../common/LDialog.vue";
+import { isSmallScreen } from "@/globalConfig";
 
 const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
@@ -121,8 +122,11 @@ const toggleDropdown = () => {
         </div>
 
         <component
-            :is="$slots.actions ? LModal : 'div'"
-            v-model:isVisible="showEditModal"
+            :is="$slots.actions ? LDialog : 'div'"
+            :primaryAction="() => (showEditModal = false)"
+            primaryButtonText="Close"
+            title="Edit Selection"
+            v-model:open="showEditModal"
             :heading="label"
         >
             <div
@@ -147,6 +151,9 @@ const toggleDropdown = () => {
                         v-model="query"
                         ref="inputElement"
                         class="z-0 h-[38px] flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
+                        :class="{
+                            'w-96': $slots.actions && !isSmallScreen,
+                        }"
                         placeholder="Type to select..."
                         name="option-search"
                         autocomplete="off"
@@ -204,7 +211,10 @@ const toggleDropdown = () => {
             <div
                 ref="dropdown"
                 v-if="showDropdown || query.trim().length > 0"
-                class="absolute z-10 mt-1 max-h-48 w-96 overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
+                class="absolute z-10 mt-1 max-h-48 w-11/12 overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
+                :class="{
+                    'w-96': $slots.actions && !isSmallScreen,
+                }"
                 data-test="options"
             >
                 <li
@@ -212,7 +222,7 @@ const toggleDropdown = () => {
                     v-for="option in filtered"
                     :key="option.id"
                     :disabled="option.selected"
-                    class="w-full list-none text-sm hover:bg-zinc-100"
+                    class="w-full list-none text-start text-sm hover:bg-zinc-100"
                     :class="[
                         'relative cursor-default select-none py-2 pl-3 pr-9',
                         {
@@ -262,17 +272,6 @@ const toggleDropdown = () => {
             >
                 No options selected yet.
             </div>
-            <template #footer>
-                <slot name="footer">
-                    <button
-                        v-if="showEditModal"
-                        class="mt-2 w-full rounded-md bg-zinc-950 px-4 py-2 text-white hover:bg-zinc-800"
-                        @click="showEditModal = false"
-                    >
-                        Close
-                    </button>
-                </slot>
-            </template>
         </component>
     </div>
 </template>
