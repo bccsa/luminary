@@ -14,7 +14,7 @@ export default function formatPastedHtml(html: string) {
         .replace(/<p>\s*<\/p>/gi, "") // Remove empty paragraphs
         .replace(/&nbsp;/g, " "); // Clean non breaking spaces
 
-    // Only patch headings when an h1 is present to preserve hierarchy.
+    // Only demote headings when an h1 is present to preserve hierarchy. The editor supports h2-h5.
     if (/<h1/i.test(html)) {
         html = html
             .replace(/<h([1-6])([^>]*)>/gi, (_, level, attrs) => {
@@ -27,9 +27,8 @@ export default function formatPastedHtml(html: string) {
             });
     }
 
-    if (html.includes("<h6>")) {
-        html = html.replace(/<h6([^>]*)>/gi, "").replace(/<\/h6>/gi, "");
-    }
-
-    return html;
+    // Convert any non-supported headings (h6-h9) to paragraphs to preserve their content.
+    return html
+        .replace(/<h([6-9]|\d{2,})([^>]*)>/gi, "<p$2>")
+        .replace(/<\/h([6-9]|\d{2,})>/gi, "</p>");
 }
