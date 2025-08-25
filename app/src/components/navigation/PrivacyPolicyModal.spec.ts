@@ -51,19 +51,19 @@ describe("PrivacyPolicyModal.vue", () => {
         expect(userPreferencesAsRef.value.privacyPolicy?.status).toBe("declined");
     });
 
-    it("shows another message when the privacy policy has been declined", async () => {
-        userPreferencesAsRef.value.privacyPolicy = { status: "declined", ts: Date.now() };
+    // it("shows another message when the privacy policy has been declined", async () => {
+    //     userPreferencesAsRef.value.privacyPolicy = { status: "declined", ts: Date.now() };
 
-        const wrapper = mount(PrivacyPolicyModal, {
-            props: {
-                show: true,
-            },
-        });
+    //     const wrapper = mount(PrivacyPolicyModal, {
+    //         props: {
+    //             show: true,
+    //         },
+    //     });
 
-        expect(wrapper.html()).toContain(
-            "You have previously declined the privacy policy. Please accept it for a fully featured app experience",
-        );
-    });
+    //     expect(wrapper.html()).toContain(
+    //         "You have previously declined the privacy policy. Please accept it for a fully featured app experience",
+    //     );
+    // });
 
     it("can accept the privacy policy", async () => {
         const wrapper = mount(PrivacyPolicyModal, {

@@ -83,8 +83,18 @@ setTimeout(() => {
     );
 }, 5100);
 
-// Add userId to analytics if privacy policy has been accepted
+// Watch for changes in user preferences to update analytics userId
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
+    // Remove userId from analytics if privacy policy is not accepted or only necessary cookies are allowed
+    if (
+        !userPreferencesAsRef.value.privacyPolicy?.status ||
+        userPreferencesAsRef.value.privacyPolicy?.status == "necessaryOnly"
+    ) {
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        window._paq && user && user.value && window._paq.push(["setUserId", ""]);
+    }
+
+    // Add userId to analytics if privacy policy has been accepted
     if (userPreferencesAsRef.value.privacyPolicy?.status == "accepted") {
         // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
         window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
