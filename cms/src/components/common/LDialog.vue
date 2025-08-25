@@ -21,12 +21,12 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <LTeleport>
+    <LTeleport v-if="open">
         <div v-if="open" @click="open = false">
             <div class="fixed inset-0 z-50 bg-zinc-500 bg-opacity-75 transition-opacity"></div>
             <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">
                 <div
-                    class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl sm:my-8 sm:w-full sm:max-w-lg sm:p-6"
+                    class="relative transform overflow-visible rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl sm:my-8 sm:w-full sm:max-w-lg sm:p-6"
                     @click.stop
                 >
                     <div class="sm:flex sm:items-start">
@@ -49,10 +49,11 @@ withDefaults(defineProps<Props>(), {
                                 {{ title }}
                             </h3>
 
-                            <div class="mt-2" v-if="description">
-                                <p class="text-sm text-zinc-500">
+                            <div class="mt-2">
+                                <p v-if="description" class="text-sm text-zinc-500">
                                     {{ description }}
                                 </p>
+                                <slot v-else />
                             </div>
                         </div>
                     </div>
