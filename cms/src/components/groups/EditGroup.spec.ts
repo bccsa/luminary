@@ -28,12 +28,21 @@ import {
 import waitForExpect from "wait-for-expect";
 import EditGroup from "./EditGroup.vue";
 
-vi.mock("vue-router", () => ({
-    useRouter: vi.fn().mockImplementation(() => ({
-        push: vi.fn(),
-    })),
-    onBeforeRouteLeave: vi.fn(),
-}));
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        createRouter: () => ({
+            push: vi.fn(),
+            beforeEach: vi.fn(),
+            afterEach: vi.fn(),
+        }),
+        useRouter: () => ({
+            push: vi.fn(),
+        }),
+        onBeforeRouteLeave: vi.fn(),
+    };
+});
 
 // ============================
 // Mock api
