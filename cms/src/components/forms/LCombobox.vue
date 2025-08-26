@@ -106,7 +106,6 @@ const toggleDropdown = () => {
             </div>
             <slot name="actions" v-if="$slots.actions" />
         </div>
-        {{ showEditModal }}
         <div
             v-if="$slots.actions && showSelectedLabels && selectedLabels.length > 0"
             class="mt-1 flex gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide sm:flex-wrap sm:overflow-visible sm:whitespace-normal"

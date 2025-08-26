@@ -11,7 +11,6 @@ const isVisible = defineModel<boolean>("isVisible");
 
 <template>
     <LTeleport v-if="isVisible">
-        <!-- Single backdrop div with click.self -->
         <div
             class="fixed inset-0 z-40 flex items-center justify-center bg-zinc-800 bg-opacity-50 p-2 backdrop-blur-sm"
             @click.self="isVisible = false"
