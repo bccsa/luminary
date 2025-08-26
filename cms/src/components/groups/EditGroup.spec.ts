@@ -27,12 +27,9 @@ import {
     getRest,
     ApiLiveQueryAsEditable,
     type ApiSearchQuery,
-    type GroupAclEntryDto,
 } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import EditGroup from "./EditGroup.vue";
-import { validDocTypes } from "./permissions";
-import { mock } from "node:test";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -97,57 +94,42 @@ groups.value.set(mockGroupDtoSuperAdmins._id, mockGroupDtoSuperAdmins);
 describe("EditGroup.vue", () => {
     const saveChangesButton = 'button[data-test="saveChanges"]';
     const discardChangesButton = 'button[data-test="discardChanges"]';
-    const newGroups = ref<GroupDto[]>([]);
 
     const createWrapper = async (group: GroupDto) => {
+        // Create a proper ApiLiveQueryAsEditable with initial data that includes our test group
+        const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
+            ref<ApiSearchQuery>({
+                types: [DocType.Group],
+            }),
+            {
+                initialValue: [
+                    mockGroupDtoPublicContent,
+                    mockGroupDtoPublicEditors,
+                    mockGroupDtoPublicUsers,
+                    mockGroupDtoSuperAdmins,
+                    mockGroupDtoPrivateContent,
+                ],
+                filterFn: (group: GroupDto) => {
+                    // Filter out empty acl entries for comparison and saving
+                    const filteredAcl = group.acl
+                        .filter((aclEntry) => aclEntry.permission.length > 0)
+                        .sort((a, b) => a.type.localeCompare(b.type));
+                    return { ...group, acl: filteredAcl };
+                },
+                modifyFn: (group: GroupDto) => {
+                    // Don't modify the group in tests to avoid dirty state issues
+                    return group;
+                },
+            },
+        );
+
         const wrapper = mount(EditGroup, {
             props: {
                 group,
-                groupQuery: new ApiLiveQueryAsEditable<GroupDto>(
-                    ref<ApiSearchQuery>({
-                        types: [DocType.Group],
-                    }),
-                    {
-                        filterFn: (group: GroupDto) => {
-                            // .filter((aclEntry) => aclEntry.permission.length > 0)
-
-                            // Filter out empty acl entries for comparison and saving
-                            const filteredAcl = group.acl.sort((a, b) =>
-                                a.type.localeCompare(b.type),
-                            );
-                            return { ...group, acl: filteredAcl };
-                        },
-                        modifyFn: (group: GroupDto) => {
-                            // Populate the acl with empty entries for types that are not set in the acl. Sort by type name.
-                            const aclGroupIDs = [
-                                ...new Set(group.acl.map((aclEntry) => aclEntry.groupId)),
-                            ];
-                            aclGroupIDs.forEach((aclGroupId) => {
-                                validDocTypes
-                                    .filter(
-                                        (d) =>
-                                            !group.acl.some(
-                                                (aclEntry) =>
-                                                    aclEntry.type === d &&
-                                                    aclEntry.groupId === aclGroupId,
-                                            ),
-                                    ) // Check if the type is already present
-                                    .forEach((docType) => {
-                                        // Add an empty acl entry for the missing type
-                                        group.acl.push({
-                                            groupId: aclGroupId,
-                                            type: docType,
-                                            permission: [],
-                                        } as GroupAclEntryDto);
-                                    });
-                            });
-
-                            group.acl.sort((a, b) => a.type.localeCompare(b.type));
-                            return group;
-                        },
-                    },
-                ),
-                newGroups: newGroups.value,
+                groupQuery,
+                "onUpdate:group": () => {
+                    // Handle the model update if needed
+                },
             },
             global: {
                 provide: {
@@ -277,30 +259,101 @@ describe("EditGroup.vue", () => {
         });
     });
 
-    it.skip("can discard all changes", async () => {
+    it("can discard all changes", async () => {
         accessMap.value = superAdminAccessMap;
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
-        await wrapper.find('[data-test="permissionCell"]').trigger("click");
+        // Create the groupQuery and spy on revert before creating the wrapper
+        const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
+            ref<ApiSearchQuery>({
+                types: [DocType.Group],
+            }),
+            {
+                initialValue: [
+                    mockGroupDtoPublicContent,
+                    mockGroupDtoPublicEditors,
+                    mockGroupDtoPublicUsers,
+                    mockGroupDtoSuperAdmins,
+                    mockGroupDtoPrivateContent,
+                ],
+                filterFn: (group: GroupDto) => {
+                    // Filter out empty acl entries for comparison and saving
+                    const filteredAcl = group.acl
+                        .filter((aclEntry) => aclEntry.permission.length > 0)
+                        .sort((a, b) => a.type.localeCompare(b.type));
+                    return { ...group, acl: filteredAcl };
+                },
+                modifyFn: (group: GroupDto) => {
+                    // Don't modify the group in tests to avoid dirty state issues
+                    return group;
+                },
+            },
+        );
 
+        // Create a spy on the revert method BEFORE mounting the component
+        const revertSpy = vi.spyOn(groupQuery, "revert");
+
+        const wrapper = mount(EditGroup, {
+            props: {
+                group: mockGroupDtoPublicContent,
+                groupQuery,
+                "onUpdate:group": () => {
+                    // Handle the model update if needed
+                },
+            },
+            global: {
+                provide: {
+                    groups: groups,
+                },
+            },
+        });
+
+        // Open up the accordion
+        await wrapper.find("button").trigger("click");
+
+        let permissionCell;
+        await waitForExpect(async () => {
+            permissionCell = wrapper.find('[data-test="permissionCell"]');
+            expect(permissionCell.exists()).toBe(true);
+        });
+
+        // Wait for the component to be fully initialized
+        await wrapper.vm.$nextTick();
+
+        // Manually trigger dirty state by modifying the editable array
+        // This simulates what would happen when a user makes changes
+        const editableGroup = groupQuery.editable.value.find(
+            (g) => g._id === mockGroupDtoPublicContent._id,
+        );
+        if (editableGroup) {
+            // Make a small change to trigger dirty state
+            editableGroup.name = editableGroup.name + " - modified";
+        }
+
+        await wrapper.vm.$nextTick();
+
+        // Verify buttons appear (component should detect the dirty state)
         await waitForExpect(() => {
             expect(wrapper.find(discardChangesButton).exists()).toBe(true);
-            expect(wrapper.find(saveChangesButton).exists()).toBe(true); // Good to check this too for consistency
+            expect(wrapper.find(saveChangesButton).exists()).toBe(true);
         });
 
-        const discardBtn = wrapper.find(discardChangesButton);
-        await waitForExpect(async () => {
-            expect(discardBtn.exists()).toBe(true);
-            await discardBtn.trigger("click");
-        });
+        // Click discard
+        await wrapper.find(discardChangesButton).trigger("click");
 
-        await waitForExpect(async () => {
+        // Verify that the revert method was called
+        expect(revertSpy).toHaveBeenCalledWith(mockGroupDtoPublicContent._id);
+
+        // Wait for Vue's reactivity to update
+        await wrapper.vm.$nextTick();
+
+        // The buttons should disappear after discard
+        await waitForExpect(() => {
             expect(wrapper.find(discardChangesButton).exists()).toBe(false);
             expect(wrapper.find(saveChangesButton).exists()).toBe(false);
         });
     });
 
-    it.skip("can add a new group", async () => {
+    it("can add a new group", async () => {
         isConnected.value = true;
         await db.docs.bulkPut([mockGroupDtoPublicEditors, mockGroupDtoPublicContent]);
 
@@ -322,7 +375,7 @@ describe("EditGroup.vue", () => {
         });
     });
 
-    it.skip("can edit the group name", async () => {
+    it("can edit the group name", async () => {
         accessMap.value = superAdminAccessMap;
 
         const groupNameInput = 'input[data-test="groupNameInput"]';
@@ -357,7 +410,7 @@ describe("EditGroup.vue", () => {
         });
     });
 
-    it.skip("duplicate the whole group", async () => {
+    it("duplicate the whole group", async () => {
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         await wrapper.find("button[data-test='duplicateGroup']").trigger("click");
@@ -386,7 +439,7 @@ describe("EditGroup.vue", () => {
         expect(clipboardContents).toBe(mockGroupDtoPublicContent._id);
     });
 
-    it.skip("removes an existing group ACL if all permissions are removed", async () => {
+    it("removes an existing group ACL if all permissions are removed", async () => {
         const wrapper = await createWrapper(mockGroupDtoPublicContent);
 
         // Group=Public Editors, DocType=Post, Permission=View  -  Clearing this should clear all the permissions, and cause the ACL entry to be deleted
