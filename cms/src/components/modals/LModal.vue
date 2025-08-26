@@ -7,10 +7,6 @@ type Props = {
 defineProps<Props>();
 
 const isVisible = defineModel<boolean>("isVisible");
-
-const closeModal = () => {
-    isVisible.value = false;
-};
 </script>
 
 <template>
