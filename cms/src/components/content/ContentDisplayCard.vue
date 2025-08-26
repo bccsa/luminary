@@ -14,9 +14,10 @@ import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
 import { DateTime } from "luxon";
-import { ClockIcon, TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { ClockIcon, TagIcon, UserGroupIcon, UserIcon } from "@heroicons/vue/24/outline";
 import router from "@/router";
 import { cmsDefaultLanguage, isSmallScreen } from "@/globalConfig";
+import { _baseDto } from "@/src/dto/_baseDto";
 
 type Props = {
     groups: GroupDto[];
@@ -24,6 +25,7 @@ type Props = {
     parentType: DocType.Post | DocType.Tag;
     languageId: Uuid;
     languages: LanguageDto[];
+    document: _baseDto;
 };
 
 const props = defineProps<Props>();
@@ -93,6 +95,14 @@ const navigateToLanguage = (language: LanguageDto) => {
         },
     };
 };
+
+const displayUpdatedBy = computed(() => {
+    if (!props.document) return null;
+
+    // Check if updatedBy exists on the document object at runtime
+    const docWithUpdatedBy = props.document as any;
+    return docWithUpdatedBy.updatedBy?.id || "unknown user";
+});
 </script>
 
 <template>
@@ -226,6 +236,8 @@ const navigateToLanguage = (language: LanguageDto) => {
                 <span title="Last Updated">{{
                     renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
                 }}</span>
+                <UserIcon class="ml-2 mr-1 h-4 w-4 text-zinc-400" />
+                <span class="updated-by"> {{ displayUpdatedBy }} </span>
             </div>
         </div>
     </div>
