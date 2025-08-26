@@ -14,6 +14,7 @@ export const apiUrl = import.meta.env.VITE_API_URL;
 export const clientAppUrl = ref(import.meta.env.VITE_CLIENT_APP_URL);
 export const logo = import.meta.env.VITE_LOGO;
 export const isDevMode = import.meta.env.DEV;
+export const isTestEnviroment = import.meta.env.MODE === "test";
 
 const windowWidth = ref(window.innerWidth);
 window.addEventListener("resize", () => {

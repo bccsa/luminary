@@ -15,12 +15,21 @@ const onBeforeRouteLeave = vi.hoisted(() =>
     vi.fn().mockImplementation(() => (cb: Function) => cb()),
 );
 
-vi.mock("vue-router", () => ({
-    useRouter: () => ({
-        push: vi.fn(),
-    }),
-    onBeforeRouteLeave,
-}));
+vi.mock("vue-router", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        createRouter: () => ({
+            push: vi.fn(),
+            beforeEach: vi.fn(),
+            afterEach: vi.fn(),
+        }),
+        useRouter: () => ({
+            push: vi.fn(),
+        }),
+        onBeforeRouteLeave,
+    };
+});
 
 describe("ConfirmBeforeLeavingModal", () => {
     afterEach(() => {
