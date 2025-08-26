@@ -7,12 +7,14 @@
 
 export default function formatPastedHtml(html: string) {
     html = html
-        .replace(/([\r\n\u2028\u2029]+)(?!^)/g, " ") // Remove line breaks except if at the start
+        .trim() // Remove leading and trailing whitespace first
+        .replace(/[\r\n\u2028\u2029]+/g, " ") // Remove all line breaks that get added by text editors like word before processing
         .replace(/\u00AD/g, "") // remove soft hyphens
         .replace(/>\s+</g, "><") // Remove spaces between tags
         .replace(/<br\s*\/?>/gi, "") // Remove standalone <br>
         .replace(/<p>\s*<\/p>/gi, "") // Remove empty paragraphs
-        .replace(/&nbsp;/g, " "); // Clean non breaking spaces
+        .replace(/&nbsp;/g, " ") // Clean non breaking spaces
+        .replace(/^\s+|\s+$/g, ""); // Remove leading and trailing whitespace after all processing
 
     // Only demote headings when an h1 is present to preserve hierarchy. The editor supports h2-h5.
     if (/<h1/i.test(html)) {
@@ -30,5 +32,6 @@ export default function formatPastedHtml(html: string) {
     // Convert any non-supported headings (h6-h9) to paragraphs to preserve their content.
     return html
         .replace(/<h([6-9]|\d{2,})([^>]*)>/gi, "<p$2>")
-        .replace(/<\/h([6-9]|\d{2,})>/gi, "</p>");
+        .replace(/<\/h([6-9]|\d{2,})>/gi, "</p>")
+        .trim(); // Remove leading and trailing whitespace
 }
