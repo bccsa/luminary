@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, ref, type FunctionalComponent } from "vue";
+import { computed, ref, type FunctionalComponent, type VNode } from "vue";
 import type { RouteLocationNamedRaw } from "vue-router";
 
 export type Notification = {
@@ -10,7 +10,7 @@ export type Notification = {
     title: string;
     description?: string;
     state: "success" | "error" | "info" | "warning";
-    type: "toast" | "banner";
+    type: "toast" | "banner" | "bottom";
     icon?: FunctionalComponent;
     /**
      * Optional router link or function to call when the notification is clicked.
@@ -23,6 +23,7 @@ export type Notification = {
      */
     priority?: number;
     openLink?: boolean;
+    actions?: FunctionalComponent | VNode | VNode[];
 };
 
 export const useNotificationStore = defineStore("notification", () => {
@@ -67,9 +68,13 @@ export const useNotificationStore = defineStore("notification", () => {
         return notifications.value.filter((n) => n.type == "banner");
     });
 
+    const bottomBanners = computed(() => {
+        return notifications.value.filter((n) => n.type == "bottom");
+    });
+
     const removeNotification = (notificationId: number | string) => {
         notifications.value = notifications.value.filter((n) => n.id !== notificationId);
     };
 
-    return { notifications, banners, addNotification, removeNotification };
+    return { notifications, banners, bottomBanners, addNotification, removeNotification };
 });
