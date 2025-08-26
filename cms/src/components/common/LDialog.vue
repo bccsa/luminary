@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
-import LTeleport from "./LTeleport.vue";
+import LModal from "../modals/LModal.vue";
 
 type Props = {
     title: string;
@@ -21,64 +21,39 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <LTeleport v-if="open">
-        <div v-if="open" @click="open = false">
-            <div class="fixed inset-0 z-50 bg-zinc-500 bg-opacity-75 transition-opacity"></div>
-            <div class="fixed inset-0 z-50 flex items-center justify-center rounded-lg p-2">
+    <LModal v-model:isVisible="open" :heading="title">
+        <template #header>
+            <div class="flex items-center">
                 <div
-                    class="relative transform overflow-visible rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl sm:my-8 sm:w-full sm:max-w-lg sm:p-6"
-                    @click.stop
+                    v-if="context === 'danger'"
+                    class="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-100"
                 >
-                    <div class="sm:flex sm:items-start">
-                        <div
-                            class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
-                            v-if="context == 'danger'"
-                        >
-                            <ExclamationTriangleIcon
-                                class="h-6 w-6 text-red-600"
-                                aria-hidden="true"
-                            />
-                        </div>
-                        <div
-                            :class="[
-                                'mt-3 text-center sm:mt-0 sm:text-left',
-                                { 'sm:ml-4': context != 'default' },
-                            ]"
-                        >
-                            <h3 class="text-base font-semibold leading-6 text-zinc-900">
-                                {{ title }}
-                            </h3>
-
-                            <div class="mt-2">
-                                <p v-if="description" class="text-sm text-zinc-500">
-                                    {{ description }}
-                                </p>
-                                <slot v-else />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                        <span class="block sm:ml-3">
-                            <LButton
-                                @click="primaryAction()"
-                                variant="primary"
-                                class="inline-flex w-full sm:w-auto"
-                                :context="context"
-                                data-test="modal-primary-button"
-                            >
-                                {{ primaryButtonText }}
-                            </LButton>
-                        </span>
-                        <LButton
-                            @click="secondaryAction()"
-                            class="inline-flex w-full sm:w-auto"
-                            v-if="secondaryAction && secondaryButtonText"
-                        >
-                            {{ secondaryButtonText }}
-                        </LButton>
-                    </div>
+                    <ExclamationTriangleIcon class="h-5 w-5 text-red-600" aria-hidden="true" />
                 </div>
+                <h3 class="text-lg font-medium leading-6 text-gray-900">{{ title }}</h3>
             </div>
-        </div>
-    </LTeleport>
+        </template>
+
+        <p class="mt-2 text-sm text-gray-500">{{ description }}</p>
+        <slot />
+
+        <template #footer>
+            <LButton
+                @click="primaryAction()"
+                variant="primary"
+                :context="context"
+                data-test="modal-primary-button"
+            >
+                {{ primaryButtonText }}
+            </LButton>
+            <LButton
+                @click="secondaryAction()"
+                variant="secondary"
+                data-test="modal-secondary-button"
+                v-if="secondaryAction && secondaryButtonText"
+            >
+                {{ secondaryButtonText }}
+            </LButton>
+        </template>
+    </LModal>
 </template>

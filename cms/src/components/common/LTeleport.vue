@@ -11,7 +11,7 @@ defineProps<Props>();
 </script>
 
 <template>
-    <Teleport v-if="!isTestEnviroment" :to="to ?? App">
+    <Teleport v-if="!isTestEnviroment" :to="to ?? 'body'">
         <div>
             <slot />
         </div>
