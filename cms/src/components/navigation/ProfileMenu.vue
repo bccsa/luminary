@@ -105,7 +105,7 @@ onMounted(() => {
             leave-to-class="transform opacity-0 scale-95"
         >
             <MenuItems
-                class="absolute bottom-10 right-0 z-50 mt-2.5 w-32 origin-bottom rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
+                class="absolute bottom-10 right-0 z-50 mt-2.5 w-48 origin-top-left rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
             >
                 <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
                     <button
