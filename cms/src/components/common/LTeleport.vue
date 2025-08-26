@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import App from "@/App.vue";
+import { isTestEnviroment } from "@/globalConfig";
 import { Component } from "vue";
 
 type Props = {
@@ -7,12 +8,10 @@ type Props = {
 };
 
 defineProps<Props>();
-
-const isTestEnviroment = import.meta.env.MODE === "test";
 </script>
 
 <template>
-    <Teleport v-if="isTestEnviroment" :to="to ?? App">
+    <Teleport v-if="!isTestEnviroment" :to="to ?? App">
         <div>
             <slot />
         </div>
