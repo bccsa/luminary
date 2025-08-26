@@ -1,17 +1,37 @@
 <script setup lang="ts">
-import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { showPrivacyPolicyModal, userPreferencesAsRef } from "./globalConfig";
+import { userPreferencesAsRef } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
 import { ExclamationCircleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
-import PrivacyPolicyModal from "./components/navigation/PrivacyPolicyModal.vue";
+import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
+import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 
 const router = useRouter();
-const { isAuthenticated, user, loginWithRedirect } = useAuth0();
+const {
+    isAuthenticated,
+    user,
+    loginWithRedirect,
+    isPrivacyPolicyAccepted,
+    showPrivacyPolicyModal,
+    completePendingLogin,
+    cancelPendingLogin,
+} = useAuthWithPrivacyPolicy();
+
+// Watch for privacy policy acceptance to complete pending login
+watch(isPrivacyPolicyAccepted, (accepted) => {
+    if (accepted) {
+        completePendingLogin();
+    }
+});
+
+// Handle modal close
+const handleModalClose = () => {
+    cancelPendingLogin();
+};
 
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
@@ -54,6 +74,7 @@ setTimeout(() => {
                     link: () => loginWithRedirect(),
                 });
             }
+
             if (!isConnected.value || isAuthenticated.value) {
                 useNotificationStore().removeNotification("accountBanner");
             }
@@ -62,8 +83,18 @@ setTimeout(() => {
     );
 }, 5100);
 
-// Add userId to analytics if privacy policy has been accepted
+// Watch for changes in user preferences to update analytics userId
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
+    // Remove userId from analytics if privacy policy is not accepted or only necessary cookies are allowed
+    if (
+        !userPreferencesAsRef.value.privacyPolicy?.status ||
+        userPreferencesAsRef.value.privacyPolicy?.status == "necessaryOnly"
+    ) {
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        window._paq && user && user.value && window._paq.push(["setUserId", ""]);
+    }
+
+    // Add userId to analytics if privacy policy has been accepted
     if (userPreferencesAsRef.value.privacyPolicy?.status == "accepted") {
         // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
         window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
@@ -89,5 +120,7 @@ onErrorCaptured((err) => {
             <component :is="Component" :key="routeKey" />
         </KeepAlive>
     </RouterView>
-    <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" />
+
+    <!-- Privacy Policy Modal for authentication flow -->
+    <PrivacyPolicyModal v-model:show="showPrivacyPolicyModal" @close="handleModalClose" />
 </template>
