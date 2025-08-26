@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import App from "@/App.vue";
 import { isTestEnviroment } from "@/globalConfig";
-import { Component } from "vue";
+import { type Component } from "vue";
 
 type Props = {
     to?: string | Component;
