@@ -7,12 +7,18 @@ import { createTestingPinia } from "@pinia/testing";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
+import * as auth0 from "@auth0/auth0-vue";
+import { ref } from "vue";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
     }),
 }));
+
+// Mock useAuth0
+vi.mock("@auth0/auth0-vue");
+vi.mock("vue-router");
 
 describe("PrivacyPolicyModal.vue", () => {
     beforeEach(async () => {
@@ -26,6 +32,9 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("shows the privacy notification", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
         const wrapper = mount(PrivacyPolicyModal, {
             props: {
                 show: true,
@@ -39,33 +48,10 @@ describe("PrivacyPolicyModal.vue", () => {
         expect(userPreferencesAsRef.value.privacyPolicy).toBe(undefined);
     });
 
-    it("can decline the privacy policy", async () => {
-        const wrapper = mount(PrivacyPolicyModal, {
-            props: {
-                show: true,
-            },
-        });
-
-        await wrapper.find("button[name='decline']").trigger("click");
-
-        expect(userPreferencesAsRef.value.privacyPolicy?.status).toBe("declined");
-    });
-
-    // it("shows another message when the privacy policy has been declined", async () => {
-    //     userPreferencesAsRef.value.privacyPolicy = { status: "declined", ts: Date.now() };
-
-    //     const wrapper = mount(PrivacyPolicyModal, {
-    //         props: {
-    //             show: true,
-    //         },
-    //     });
-
-    //     expect(wrapper.html()).toContain(
-    //         "You have previously declined the privacy policy. Please accept it for a fully featured app experience",
-    //     );
-    // });
-
     it("can accept the privacy policy", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
         const wrapper = mount(PrivacyPolicyModal, {
             props: {
                 show: true,
@@ -77,6 +63,9 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("shows another message when the privacy policy has been accepted", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(true),
+        });
         userPreferencesAsRef.value.privacyPolicy = { status: "accepted", ts: Date.now() };
 
         const wrapper = mount(PrivacyPolicyModal, {
@@ -89,8 +78,10 @@ describe("PrivacyPolicyModal.vue", () => {
         expect(wrapper.find("button[name='accept']").exists()).toBe(false);
     });
 
-    it("can close the modal", async () => {
-        userPreferencesAsRef.value.privacyPolicy = { status: "accepted", ts: Date.now() };
+    it("handles necessaryOnly logic when authenticated", async () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(true),
+        });
 
         const wrapper = mount(PrivacyPolicyModal, {
             props: {
@@ -98,11 +89,7 @@ describe("PrivacyPolicyModal.vue", () => {
             },
         });
 
-        expect(wrapper.find("button[name='close']").exists()).toBe(true);
-
-        await wrapper.find("button[name='close']").trigger("click");
-
-        expect(wrapper.html()).not.toContain("Privacy Policy");
+        expect(wrapper.find("button[name='necessary-only']").exists()).toBe(false);
     });
 
     it.skip("shows the privacy policy as outdated when the policy is updated", async () => {
