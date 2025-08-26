@@ -7,7 +7,7 @@
 
 export default function formatPastedHtml(html: string) {
     html = html
-        .replace(/[\r\n\u2028\u2029]+/g, "") // Remove all line breaks that get added by text editors like word before processing
+        .replace(/[\r\n\u2028\u2029]+/g, " ") // Remove all line breaks that get added by text editors like word before processing
         .replace(/\u00AD/g, "") // remove soft hyphens
         .replace(/>\s+</g, "><") // Remove spaces between tags
         .replace(/<br\s*\/?>/gi, "") // Remove standalone <br>
