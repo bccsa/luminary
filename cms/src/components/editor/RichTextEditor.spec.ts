@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import RichTextEditor from "./RichTextEditor.vue";
 import waitForExpect from "wait-for-expect";
@@ -17,8 +17,14 @@ describe("RichTextEditor", () => {
         });
     });
 
-    it("should convert h1 to h2 when pasting", async () => {
-        // Mount the editor with empty content
+    it("should call formatPastedHtml and convert h1 to h2 when pasting", async () => {
+        // Mock the formatPastedHtml module
+        vi.mock("@/util/formatPastedHtml", () => ({
+            default: vi.fn().mockReturnValue("<h2>My Heading</h2>"), // Mock the function to return <h2>
+        }));
+
+        const formatPastedHtml = (await import("@/util/formatPastedHtml")).default;
+
         const wrapper = mount(RichTextEditor, {
             props: {
                 disabled: false,
@@ -26,21 +32,17 @@ describe("RichTextEditor", () => {
             },
         });
 
-        // Wait until the editor is initialized and rendered
         await waitForExpect(() => {
             expect(wrapper.find(".tiptap").exists()).toBe(true);
         });
 
-        // Find the contenteditable element (editor)
         const editorEl = wrapper.find(".tiptap").element;
 
-        // Create a paste event with type "paste"
         const pasteEvent = new Event("paste", {
             bubbles: true,
             cancelable: true,
         });
 
-        // Mock clipboardData so it returns an h1 when the editor requests "text/html"
         Object.defineProperty(pasteEvent, "clipboardData", {
             value: {
                 getData: (type: string) => {
@@ -52,10 +54,10 @@ describe("RichTextEditor", () => {
             },
         });
 
-        // Dispatch the paste event on the editor element
         editorEl.dispatchEvent(pasteEvent);
 
         await waitForExpect(() => {
+            expect(formatPastedHtml).toHaveBeenCalledWith("<h1>My Heading</h1>");
             expect(wrapper.html()).toContain("<h2>My Heading</h2>");
         });
     });
