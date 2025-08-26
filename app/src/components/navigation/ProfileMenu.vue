@@ -17,7 +17,8 @@ import {
     SunIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
-import { appLanguageAsRef, showPrivacyPolicyModal } from "@/globalConfig";
+import { appLanguageAsRef } from "@/globalConfig";
+import { showPrivacyPolicyModal } from "@/composables/useAuthWithPrivacyPolicy";
 import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
