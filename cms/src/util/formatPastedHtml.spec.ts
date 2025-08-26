@@ -5,7 +5,7 @@ describe("formatPastedHtml", () => {
     it("removes line breaks and special characters", () => {
         const html = "Line1\nLine2\r\nLine3\u2028Line4\u2029Line5";
         const formatted = formatPastedHtml(html);
-        expect(formatted).toBe("Line1Line2Line3Line4Line5");
+        expect(formatted).toBe("Line1 Line2 Line3 Line4 Line5");
     });
 
     it("removes soft hyphens", () => {
@@ -68,7 +68,7 @@ describe("formatPastedHtml", () => {
     `;
         const formatted = formatPastedHtml(html);
         expect(formatted.trim()).toBe(
-            "<h2>Main Title</h2><p>Paragraph withline break</p><h3>Subtitle</h3><p> Spaced text </p><p>Invalid heading</p>",
+            "<h2>Main Title</h2><p>Paragraph with line break</p><h3>Subtitle</h3><p> Spaced text </p><p>Invalid heading</p>",
         );
     });
 });
