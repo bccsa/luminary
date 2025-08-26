@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import App from "@/App.vue";
 import { isTestEnviroment } from "@/globalConfig";
 import { type Component } from "vue";
 
