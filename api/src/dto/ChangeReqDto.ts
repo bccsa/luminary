@@ -20,3 +20,9 @@ export class ChangeReqDto {
     @Expose()
     doc: any; // Object containing full submitted / updated document
 }
+
+export function processChangeRequest(change) {
+    console.log("[processChangeRequest] Triggered with:", change); // ⭐
+    // existing logic...
+    return change;
+}

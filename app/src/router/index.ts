@@ -84,13 +84,4 @@ const router = createRouter({
     ],
 });
 
-router.beforeEach((to, from, next) => {
-    // If the route is not home, redirect to home
-    if (to.path !== "/") {
-        next({ name: "home" });
-    } else {
-        next();
-    }
-});
-
 export default router;
