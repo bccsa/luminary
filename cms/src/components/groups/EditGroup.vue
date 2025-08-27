@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw } from "vue";
+import { computed, nextTick, ref, toRaw, watch } from "vue";
 import {
     AclPermission,
     DocType,
@@ -37,21 +37,6 @@ const isDirty = computed(() => {
     return isEdited.value(group.value._id);
 });
 
-// const groups = inject("groups") as Ref<Map<string, GroupDto>>;
-// let _groups: GroupDto[] = Object.values(Object.fromEntries(groups.value));
-// watch([groups.value], () => {
-//     _groups = Object.values(Object.fromEntries(groups.value));
-// });
-
-// const editable = ref<GroupDto>(_.cloneDeep(toRaw(props.group)));
-// const editableGroupWithoutEmpty = ref<GroupDto>(group.value);
-// const originalGroupWithoutEmpty = ref<GroupDto>(props.group);
-
-// const emit = defineEmits<{
-//     (e: "duplicate", group: GroupDto): void;
-//     (e: "save", group: GroupDto): void;
-// }>();
-
 const isEditingGroupName = ref(false);
 const groupNameInput = ref<HTMLInputElement>();
 
@@ -73,7 +58,6 @@ const availableGroups = computed(() => {
     });
 });
 
-// const hasChangedGroupName = computed(() => editable.value.name != props.group.name);
 const original = computed(() => {
     return liveData.value.find((g) => g._id == group.value._id);
 });
@@ -84,7 +68,6 @@ const hasChangedGroupName = computed(() => {
     return original.value.name != group.value.name;
 });
 
-// const isEmpty = computed(() => editableGroupWithoutEmpty.value.acl.length == 0);
 const isEmpty = computed(() => {
     return (
         group.value.acl.length == 0 || group.value.acl.every((acl) => acl.permission.length == 0)
@@ -206,33 +189,25 @@ const copyGroupId = (group: GroupDto) => {
     });
 };
 
+let res = ref<undefined | any>(undefined);
+
 const saveChanges = async () => {
-    const res = await save(group.value._id);
-
-    // // TODO: Move to GroupOverview
-    // const res = await getRest().changeRequest({
-    //     id: 10,
-    //     doc: editableGroupWithoutEmpty.value,
-    // } as ChangeRequestQuery);
-
-    // res && res.ack == AckStatus.Accepted && liveData.value.set(res.doc._id, res.doc);
+    res.value = await save(group.value._id);
 
     addNotification({
         title:
-            res && res.ack == AckStatus.Accepted
+            res.value && res.value.ack == AckStatus.Accepted
                 ? `${group.value.name} changes saved`
                 : "Error saving changes",
         description:
-            res && res.ack == AckStatus.Accepted
+            res.value && res.value.ack == AckStatus.Accepted
                 ? "All changes are saved"
-                : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
-        state: res && res.ack == AckStatus.Accepted ? "success" : "error",
+                : `Failed to save changes with error: ${res.value ? res.value.message : "Unknown error"}`,
+        state: res.value && res.value.ack == AckStatus.Accepted ? "success" : "error",
     });
-
-    // if (res && res.ack == AckStatus.Accepted) {
-    //     emit("save", editable.value);
-    // }
 };
+
+watch(res, () => console.log(res.value));
 </script>
 
 <template>
