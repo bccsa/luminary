@@ -11,7 +11,11 @@ import {
 } from "vue";
 import LImage from "./LImage.vue";
 import type { ImageDto, Uuid } from "luminary-shared";
-import { XCircleIcon } from "@heroicons/vue/24/outline";
+import {
+    XCircleIcon,
+    MagnifyingGlassMinusIcon,
+    MagnifyingGlassPlusIcon,
+} from "@heroicons/vue/24/outline";
 
 // Props
 type Props = {
@@ -37,6 +41,7 @@ const translateY = ref(0);
 const MAX_SCALE = ref(2); // default desktop
 const MIN_SCALE = 1;
 const PADDING = 50;
+const ZOOM_STEP = 0.2; // Incremental zoom step for +/-
 
 let lastDistance = 0;
 let initialScale = 1;
@@ -80,6 +85,17 @@ function clampTranslation() {
 
     translateX.value = clamp(translateX.value, -maxX, maxX);
     translateY.value = clamp(translateY.value, -maxY, maxY);
+}
+
+// Zoom controls
+function zoomIn() {
+    scale.value = clamp(scale.value + ZOOM_STEP, MIN_SCALE, MAX_SCALE.value);
+    clampTranslation();
+}
+
+function zoomOut() {
+    scale.value = clamp(scale.value - ZOOM_STEP, MIN_SCALE, MAX_SCALE.value);
+    clampTranslation();
 }
 
 // Touch events
@@ -248,13 +264,19 @@ onBeforeUnmount(() => {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
-        <div class="absolute top-36 z-20">
-            <div class="flex-1"></div>
-            <XCircleIcon
-                class="h-10 w-10 cursor-pointer text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100"
-                @click.stop="closeModal"
+        <XCircleIcon
+            class="fixed right-8 top-8 z-40 h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
+            @click.stop="closeModal"
+        />
+        <div class="fixed bottom-8 right-8 z-40 flex flex-row gap-2">
+            <MagnifyingGlassMinusIcon
+                class="h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
+                @click.stop="zoomOut"
             />
-            <div class="flex-1"></div>
+            <MagnifyingGlassPlusIcon
+                class="h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
+                @click.stop="zoomIn"
+            />
         </div>
         <div
             ref="container"
