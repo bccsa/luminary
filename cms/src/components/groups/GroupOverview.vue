@@ -65,57 +65,6 @@ const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
 const editable = groupQuery.editable;
 const isLoading = groupQuery.isLoading;
 
-// const groupsQuery: ApiSearchQuery = {
-//     types: [DocType.Group],
-// };
-
-// const groups = ref<Map<string, GroupDto>>(new Map());
-// provide("groups", groups);
-
-// const getDbGroups = async () => {
-//     const _s = Object.fromEntries(groups.value);
-//     const latest = Object.values(_s).reduce((acc, curr) => {
-//         return curr.updatedTimeUtc > acc ? curr.updatedTimeUtc : acc;
-//     }, 0);
-
-//     latest ? (groupsQuery.from = latest) : delete groupsQuery.from;
-//     const _q = await getRest().search(groupsQuery);
-//     _q &&
-//         _q.docs &&
-//         _q.docs.forEach((d: GroupDto) => {
-//             groups.value.set(d._id, d);
-//         });
-// };
-// getDbGroups();
-// // poll api every 5 seconds for updates
-// setInterval(getDbGroups, 5000);
-
-// const newGroups = ref<GroupDto[]>([]);
-
-// const duplicateGroup = (group: GroupDto) => {
-//     newGroups.value.push(group);
-// };
-
-// const combinedGroups = computed(() => {
-//     if (!groups.value) return newGroups.value;
-//     return newGroups.value.concat(groups.value);
-// });
-
-// // Remove saved new groups from newGroups
-// watch(
-//     [newGroups, groups],
-//     async () => {
-//         if (!groups.value) return;
-//         const duplicates = newGroups.value.filter((g) =>
-//             groups.value?.some((dbG) => dbG._id === g._id),
-//         );
-//         for (const duplicate of duplicates) {
-//             newGroups.value.splice(newGroups.value.indexOf(duplicate), 1);
-//         }
-//     },
-//     { deep: true },
-// );
-
 const showModal = ref(false);
 
 const newGroupId = ref("");
@@ -139,15 +88,6 @@ const createGroup = async () => {
 const canCreateGroup = computed(() => {
     return hasAnyPermission(DocType.Group, AclPermission.Assign);
 });
-
-// const updateNewGroups = async (group: GroupDto) => {
-//     const index = newGroups.value.findIndex((g) => g._id === group._id);
-//     if (index !== -1) {
-//         newGroups.value[index] = group;
-//     } else {
-//         newGroups.value.push(group);
-//     }
-// };
 </script>
 
 <template>
