@@ -1,8 +1,8 @@
+import HomePage from "@/pages/HomePage.vue";
 import { createRouter, createWebHistory } from "vue-router";
 
 // Preload components as separate chunks
 const preloadedComponents = {
-    HomePage: () => import("@/pages/HomePage.vue"),
     ExplorePage: () => import("@/pages/ExplorePage.vue"),
     VideoPage: () => import("@/pages/VideoPage.vue"),
     SettingsPage: () => import("@/pages/SettingsPage.vue"),
@@ -28,7 +28,7 @@ const router = createRouter({
     routes: [
         {
             path: "/",
-            component: preloadedComponents.HomePage,
+            component: HomePage,
             name: "home",
             meta: {
                 title: "title.home",
