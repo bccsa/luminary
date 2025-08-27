@@ -20,23 +20,12 @@ if (import.meta.env.VITE_FAV_ICON) {
     }
 }
 
-async function reportError(error: any, message?: string) {
-    if (import.meta.env.PROD) {
-        try {
-            const Sentry = await import("@sentry/vue");
-            if (message) {
-                Sentry.captureMessage(message);
-            }
-            Sentry.captureException(error);
-        } catch (e) {
-            console.error("Failed to load Sentry:", e);
-        }
-    }
-}
+let Sentry: typeof import("@sentry/vue") | null = null;
 
 if (import.meta.env.PROD) {
     import("@sentry/vue")
-        .then((Sentry) => {
+        .then((sentryModule) => {
+            Sentry = sentryModule;
             Sentry.init({
                 app,
                 dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -71,13 +60,13 @@ async function Startup() {
         ],
     }).catch((err) => {
         console.error(err);
-        reportError(err);
+        Sentry?.captureException(err);
     });
 
     // Redirect to login if the API authentication fails
     getSocket().on("apiAuthFailed", async () => {
         console.error("API authentication failed, redirecting to login");
-        reportError("API authentication failed, redirecting to login");
+        Sentry?.captureMessage("API authentication failed, redirecting to login");
         await auth.loginRedirect(oauth);
     });
 

@@ -1,5 +1,21 @@
 import { createRouter, createWebHistory } from "vue-router";
 
+// Preload components as separate chunks
+const preloadedComponents = {
+    HomePage: () => import("@/pages/HomePage.vue"),
+    ExplorePage: () => import("@/pages/ExplorePage.vue"),
+    VideoPage: () => import("@/pages/VideoPage.vue"),
+    SettingsPage: () => import("@/pages/SettingsPage.vue"),
+    BookmarksPage: () => import("@/pages/BookmarksPage.vue"),
+    SingleContent: () => import("@/pages/SingleContent.vue"),
+    NotFoundPage: () => import("@/pages/NotFoundPage.vue"),
+};
+
+// Start preloading all components immediately
+Object.values(preloadedComponents).forEach((loader) => {
+    loader();
+});
+
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     scrollBehavior(to, from, savedPosition) {
@@ -12,7 +28,7 @@ const router = createRouter({
     routes: [
         {
             path: "/",
-            component: () => import("@/pages/HomePage.vue"),
+            component: preloadedComponents.HomePage,
             name: "home",
             meta: {
                 title: "title.home",
@@ -21,7 +37,7 @@ const router = createRouter({
         },
         {
             path: "/explore",
-            component: () => import("@/pages/ExplorePage.vue"),
+            component: preloadedComponents.ExplorePage,
             name: "explore",
             meta: {
                 title: "title.explore",
@@ -29,7 +45,7 @@ const router = createRouter({
         },
         {
             path: "/watch",
-            component: () => import("@/pages/VideoPage.vue"),
+            component: preloadedComponents.VideoPage,
             name: "watch",
             meta: {
                 title: "title.watch",
@@ -37,7 +53,7 @@ const router = createRouter({
         },
         {
             path: "/settings",
-            component: () => import("@/pages/SettingsPage.vue"),
+            component: preloadedComponents.SettingsPage,
             name: "settings",
             meta: {
                 title: "title.settings",
@@ -47,7 +63,7 @@ const router = createRouter({
 
         {
             path: "/bookmarks",
-            component: () => import("@/pages/BookmarksPage.vue"),
+            component: preloadedComponents.BookmarksPage,
             name: "bookmarks",
             meta: {
                 title: "title.bookmarks",
@@ -58,7 +74,7 @@ const router = createRouter({
         // to prevent wrongly configured slugs from taking over pages
         {
             path: "/:slug",
-            component: () => import("@/pages/SingleContent.vue"),
+            component: preloadedComponents.SingleContent,
             name: "content",
             props: true,
         },
@@ -66,7 +82,7 @@ const router = createRouter({
         {
             path: "/:pathMatch(.*)*",
             name: "404",
-            component: () => import("@/pages/NotFoundPage.vue"),
+            component: preloadedComponents.NotFoundPage,
             meta: {
                 analyticsIgnore: true,
             },
