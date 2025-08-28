@@ -55,7 +55,7 @@ export async function processChangeRequest(
 
     if (docProcessMap[doc.type]) {
         const processingResult = await docProcessMap[doc.type]();
-        if (Array.isArray(processingResult)) {
+        if (Array.isArray(processingResult) && validationResult.warnings) {
             validationResult.warnings.push(...processingResult);
         }
     }
