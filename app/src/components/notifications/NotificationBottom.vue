@@ -52,14 +52,14 @@ switch (props.notification.state) {
 
 <template>
     <div
-        class="flex flex-col items-start justify-between border-t-2 border-t-zinc-100/25 bg-zinc-100/50 px-4 py-4 dark:border-t-slate-700/50 dark:bg-slate-800/80 md:flex-row md:items-center"
+        class="flex flex-col items-start justify-between space-x-4 border-t-2 border-t-zinc-100/25 bg-zinc-100/50 px-4 py-4 dark:border-t-slate-700/50 dark:bg-slate-800/80 md:flex-row md:items-center"
     >
         <div class="flex-col md:mb-0">
             <p class="mb-2 font-bold">{{ props.notification.title }}</p>
 
             <p class="text-sm">{{ props.notification.description }}</p>
         </div>
-        <div class="w-full md:w-auto">
+        <div class="w-full text-nowrap md:w-auto">
             <!-- Render actions slot or dynamic actions from props -->
             <slot v-if="$slots.actions" name="actions" />
             <component :is="props.notification.actions" v-else-if="props.notification.actions" />
