@@ -37,8 +37,8 @@ export const contentByTag = (
                 .filter((c) => c.publishDate && c.parentTags.includes(tag.parentId))
                 .sort((a, b) =>
                     tag.pinned
-                        ? (a.publishDate ?? 0) - (b.publishDate ?? 0)
-                        : (b.publishDate ?? 0) - (a.publishDate ?? 0),
+                        ? (b.publishDate ?? 0) - (a.publishDate ?? 0)
+                        : (a.publishDate ?? 0) - (b.publishDate ?? 0),
                 );
 
             if (sorted.length) {
@@ -46,8 +46,8 @@ export const contentByTag = (
 
                 const newestContentDate =
                     (sorted[0].pinned
-                        ? sorted[0].publishDate
-                        : sorted[sorted.length - 1].publishDate) || 0;
+                        ? sorted[sorted.length - 1].publishDate) || 0
+                        : sorted[0].publishDate;
 
                 if (index !== -1) {
                     Object.assign(result.tagged.value[index], {
