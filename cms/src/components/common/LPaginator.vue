@@ -113,7 +113,9 @@ watch(openPageSizeSelect, (newValue) => {
 </script>
 
 <template>
-    <div class="relative flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div
+        class="relative flex h-10 w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+    >
         <div class="flex w-full sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:justify-center">
             <div class="flex w-full flex-wrap items-center justify-center gap-1">
                 <LButton
