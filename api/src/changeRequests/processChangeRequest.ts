@@ -54,9 +54,10 @@ export async function processChangeRequest(
     };
 
     if (docProcessMap[doc.type]) {
-        const processingResult = await docProcessMap[doc.type]();
-        if (Array.isArray(processingResult) && validationResult.warnings) {
-            validationResult.warnings.push(...processingResult);
+        const processingWarnings = await docProcessMap[doc.type]();
+        if (Array.isArray(processingWarnings)) {
+            if (!validationResult.warnings) validationResult.warnings = [];
+            validationResult.warnings.push(...processingWarnings);
         }
     }
 
