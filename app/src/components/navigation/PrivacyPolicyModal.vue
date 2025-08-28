@@ -150,14 +150,18 @@ setTimeout(() => {
                                                       "privacy-policy-banner",
                                                   );
                                               },
+                                              style: isAuthenticated.value
+                                                  ? {}
+                                                  : { display: "none" },
                                           },
-                                          () => "Deny",
+                                          () => t("privacy_policy.modal.button_logOut"),
                                       ),
                                       h(
                                           LButton,
                                           {
                                               variant: "secondary",
                                               name: "more-info",
+
                                               onClick: () => {
                                                   router.push({
                                                       name: "content",
@@ -165,7 +169,7 @@ setTimeout(() => {
                                                   });
                                               },
                                           },
-                                          () => "More info",
+                                          () => t("privacy_policy.modal.button_readMore"),
                                       ),
                                   ]
                                 : [
@@ -200,17 +204,19 @@ setTimeout(() => {
                                                       "privacy-policy-banner",
                                                   );
                                               },
-                                              style: necessaryOnlyLogic.value
-                                                  ? {}
-                                                  : { display: "none" },
+                                              style:
+                                                  !isAuthenticated.value && necessaryOnlyLogic.value
+                                                      ? {}
+                                                      : { display: "none" },
                                           },
-                                          () => "Necessary only",
+                                          () => t("privacy_policy.modal.button_necessaryOnly"),
                                       ),
                                       h(
                                           LButton,
                                           {
                                               variant: "secondary",
                                               name: "more-info",
+                                              class: "text-nowrap",
                                               onClick: () => {
                                                   router.push({
                                                       name: "content",
@@ -218,7 +224,7 @@ setTimeout(() => {
                                                   });
                                               },
                                           },
-                                          () => "More info",
+                                          () => t("privacy_policy.modal.button_readMore"),
                                       ),
                                   ],
                         ),
