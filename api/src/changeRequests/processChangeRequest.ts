@@ -19,7 +19,7 @@ export async function processChangeRequest(
     groupMembership: Array<Uuid>,
     db: DbService,
     s3: S3Service,
-) {
+): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
 
@@ -36,9 +36,11 @@ export async function processChangeRequest(
     // Check if the document has changed
     if (isEqualDoc(doc, prevDoc)) {
         return {
-            ok: true,
-            message: "Document is identical to the one in the database",
-        } as DbUpsertResult;
+            result: {
+                ok: true,
+                message: "Document is identical to the one in the database",
+            } as DbUpsertResult,
+        };
     }
 
     // insert user id into the change request document, so that we can keep a record of who made the change
@@ -51,10 +53,24 @@ export async function processChangeRequest(
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
     };
 
-    docProcessMap[doc.type] && (await docProcessMap[doc.type]());
+    if (docProcessMap[doc.type]) {
+        const processingWarnings = await docProcessMap[doc.type]();
+        if (Array.isArray(processingWarnings)) {
+            if (!validationResult.warnings) validationResult.warnings = [];
+            validationResult.warnings.push(...processingWarnings);
+        }
+    }
 
     // Insert / update the document in the database
     const upsertResult = await db.upsertDoc(doc);
 
-    return upsertResult;
+    const res: { result: DbUpsertResult; warnings?: string[] } = {
+        result: upsertResult,
+    };
+
+    if (validationResult.warnings && validationResult.warnings.length > 0) {
+        res.warnings = validationResult.warnings;
+    }
+
+    return res;
 }

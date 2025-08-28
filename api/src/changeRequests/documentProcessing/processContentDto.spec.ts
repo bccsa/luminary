@@ -30,7 +30,7 @@ describe("processContentDto", () => {
         const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
-        expect(res.ok).toBe(true);
+        expect(res.result.ok).toBe(true);
         expect(dbDoc.docs[0].slug).toBe("this-is-a-test-slug");
     });
 
@@ -44,7 +44,7 @@ describe("processContentDto", () => {
         const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
-        expect(res.ok).toBe(true);
+        expect(res.result.ok).toBe(true);
         expect(dbDoc.docs[0].slug).toBe("this-is-a-test-slug");
     });
 
@@ -65,7 +65,7 @@ describe("processContentDto", () => {
         const res = await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest2.doc._id);
 
-        expect(res.ok).toBe(true);
+        expect(res.result.ok).toBe(true);
         expect(dbDoc.docs[0].slug).toMatch(/this-is-a-test-slug-[0-9](0-9)*/);
     });
 
@@ -78,7 +78,7 @@ describe("processContentDto", () => {
         const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
-        expect(res.ok).toBe(true);
+        expect(res.result.ok).toBe(true);
         expect(dbDoc.docs[0].slug).toBe("invalid-slug-123-wu-xiao-de-bor-ikke-vaere-tilladt");
     });
 
@@ -198,7 +198,7 @@ describe("processContentDto", () => {
         const dbDocFr = await db.getDoc("content-fr");
 
         // Check that the availableTranslations field is updated correctly
-        expect(processResult.ok).toBe(true);
+        expect(processResult.result.ok).toBe(true);
         expect(dbDocEn.docs[0].availableTranslations).toEqual(
             expect.arrayContaining(["lang-eng", "lang-fra"]),
         );
@@ -235,7 +235,7 @@ describe("processContentDto", () => {
         const dbDocFr1 = await db.getDoc("content-fr");
 
         // Check that the availableTranslations field is updated correctly (should show both languages)
-        expect(processResult.ok).toBe(true);
+        expect(processResult.result.ok).toBe(true);
         expect(dbDocEn1.docs[0].availableTranslations).toEqual(
             expect.arrayContaining(["lang-eng", "lang-fra"]),
         );
