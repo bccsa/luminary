@@ -22,7 +22,6 @@ export async function processChangeRequest(
 ): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
-    validationResult.warnings = validationResult.warnings || []; // Ensure warnings is initialized
 
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
@@ -64,8 +63,13 @@ export async function processChangeRequest(
     // Insert / update the document in the database
     const upsertResult = await db.upsertDoc(doc);
 
-    return {
+    const res: { result: DbUpsertResult; warnings?: string[] } = {
         result: upsertResult,
-        warnings: validationResult.warnings,
     };
+
+    if (validationResult.warnings && validationResult.warnings.length > 0) {
+        res.warnings = validationResult.warnings;
+    }
+
+    return res;
 }
