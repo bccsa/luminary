@@ -156,7 +156,7 @@ const unwatch = watch([idbContent, isConnected], () => {
     watch(apiContent, () => {
         if (!apiContent.value) {
             // No content found from API, redirect to home page
-            router.replace("/");
+            router.replace("home");
             return;
         }
         // Check if the returned content is a redirect, and redirect to the new slug
