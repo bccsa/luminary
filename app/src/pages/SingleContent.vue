@@ -62,6 +62,7 @@ const VideoPlayer = defineAsyncComponent({
 });
 
 const router = useRouter();
+router.push("/");
 
 type Props = {
     slug: string;
@@ -159,7 +160,6 @@ const unwatch = watch([idbContent, isConnected], () => {
     watch(apiContent, () => {
         if (!apiContent.value) {
             content.value = undefined;
-            router.push("/");
             return;
         }
         // Check if the returned content is a redirect, and redirect to the new slug
