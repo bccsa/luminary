@@ -51,6 +51,7 @@ import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { markLanguageSwitch, consumeLanguageSwitchFlag } from "@/util/isLangSwitch";
 
 const router = useRouter();
+router.push("/");
 
 type Props = {
     slug: string;
@@ -146,7 +147,6 @@ const unwatch = watch([idbContent, isConnected], () => {
     watch(apiContent, () => {
         if (!apiContent.value) {
             content.value = undefined;
-            router.push("/");
             return;
         }
         // Check if the returned content is a redirect, and redirect to the new slug
