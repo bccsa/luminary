@@ -86,8 +86,10 @@ setTimeout(() => {
 // Add userId to analytics if privacy policy has been accepted
 const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
     if (userPreferencesAsRef.value.privacyPolicy?.status == "accepted") {
-        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-        window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
+        if (isAuthenticated.value) {
+            // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+            window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
+        }
     }
 
     // Stop watcher if the privacy policy is accepted or declined
