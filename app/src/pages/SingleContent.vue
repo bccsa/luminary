@@ -17,13 +17,13 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onMounted, ref, watch, onBeforeUnmount } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import {
     appLanguageIdsAsRef,
     appName,
@@ -463,9 +463,9 @@ function onClickOutside(event: MouseEvent) {
     }
 }
 
-let popHandler: ((e: PopStateEvent) => void) | null = null;
+const route = useRoute();
 
-function fromExternal(): boolean {
+function externalCatch(): boolean {
     const ref = document.referrer;
     try {
         return !ref || new URL(ref).host !== window.location.host;
@@ -476,17 +476,23 @@ function fromExternal(): boolean {
 
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
-    if (fromExternal()) {
-        popHandler = (event: PopStateEvent) => {
-            event.preventDefault();
-            router.replace({ name: "home" });
-        };
-        window.addEventListener("popstate", popHandler, { once: true });
-    }
-});
 
-onBeforeUnmount(() => {
-    if (popHandler) window.removeEventListener("popstate", popHandler);
+    if (externalCatch()) {
+        // Replace the current route with itself but add a flag
+        router.replace({
+            name: route.name as string,
+            params: route.params,
+            query: { ...route.query, fromExternal: "1" },
+        });
+    }
+
+    // Watch for back navigation
+    router.afterEach((to, from) => {
+        if (from.query.fromExternal === "1" && to.fullPath === "/") {
+            // User tried to go "back" from external entry → force them home
+            router.replace({ name: "home" });
+        }
+    });
 });
 
 // Convert selectedLanguageId to language code for VideoPlayer
