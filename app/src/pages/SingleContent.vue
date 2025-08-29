@@ -51,7 +51,6 @@ import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { markLanguageSwitch, consumeLanguageSwitchFlag } from "@/util/isLangSwitch";
 
 const router = useRouter();
-router.push("/");
 
 type Props = {
     slug: string;
