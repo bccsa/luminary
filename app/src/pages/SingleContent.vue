@@ -466,15 +466,8 @@ function onClickOutside(event: MouseEvent) {
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
 
-    if (window.history !== undefined) {
-        window.history.pushState({ goHome: true }, "", window.location.href);
-
-        window.addEventListener("popstate", (event) => {
-            // Only handle the fake state we inserted
-            if (event.state && event.state.goHome) {
-                router.push({ name: "home" }); // Navigate to Home when Back is pressed
-            }
-        });
+    if (window.history.length === 1) {
+        router.replace("/");
     }
 });
 
