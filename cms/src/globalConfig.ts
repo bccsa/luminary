@@ -84,8 +84,7 @@ export async function initLanguage() {
     );
 
     watch(_cmsLanguages, (languages) => {
-        cmsLanguages.value.slice(0, cmsLanguages.value.length);
-        cmsLanguages.value.push(...languages);
+        cmsLanguages.value.splice(0, cmsLanguages.value.length, ...languages);
 
         const defaultLang = languages.find((l) => l.default === 1);
 
