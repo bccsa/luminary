@@ -33,21 +33,21 @@ export const contentByTag = (
 
         // Add new tags to the result
         tags.value.forEach((tag) => {
-            const sorted = content.value
-                .filter((c) => c.publishDate && c.parentTags.includes(tag.parentId))
-                .sort((a, b) =>
-                    tag.pinned
-                        ? (b.publishDate ?? 0) - (a.publishDate ?? 0)
-                        : (a.publishDate ?? 0) - (b.publishDate ?? 0),
-                );
+            const filtered = content.value.filter(
+                (c) => c.publishDate && c.parentTags.includes(tag.parentId),
+            );
+
+            const sorted = filtered.sort((a, b) =>
+                tag.pinned
+                    ? (b.publishDate ?? 0) - (a.publishDate ?? 0)
+                    : (a.publishDate ?? 0) - (b.publishDate ?? 0),
+            );
 
             if (sorted.length) {
                 const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
 
-                const newestContentDate =
-                    (sorted[0].pinned
-                        ? sorted[sorted.length - 1].publishDate) || 0
-                        : sorted[0].publishDate;
+                // For newestContentDate, always use the actual newest (highest) date
+                const newestContentDate = Math.max(...filtered.map((c) => c.publishDate ?? 0));
 
                 if (index !== -1) {
                     Object.assign(result.tagged.value[index], {
