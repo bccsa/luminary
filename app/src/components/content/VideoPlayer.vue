@@ -247,9 +247,8 @@ onMounted(() => {
     player.on("timeupdate", () => {
         const currentTime = player.currentTime() || 0;
         const durationTime = player.duration() || 0;
-        const isLive = player.duration() === Infinity || player.options_.liveui === true;
 
-        if (isLive || !props.content.video || currentTime < 60) return;
+        if (durationTime == Infinity || !props.content.video || currentTime < 60) return;
         setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
     });
 
