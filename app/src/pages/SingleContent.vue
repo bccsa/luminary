@@ -464,39 +464,31 @@ function onClickOutside(event: MouseEvent) {
     }
 }
 
+let injected = false;
 let popHandler: ((e: PopStateEvent) => void) | null = null;
 
-function cameFromOutside(): boolean {
-    // Prefer Navigation Timing v2
-    const nav = (performance.getEntriesByType("navigation") as PerformanceNavigationTiming[])[0];
-    const navType = nav?.type ?? (performance as any).navigation?.type; // legacy fallback (0 == TYPE_NAVIGATE)
-    const isInitialNavigation =
-        !window.history.state && (navType === "navigate" || navType === "reload");
-
-    // Check referrer is not our host
+function fromExternal(): boolean {
     const ref = document.referrer;
-    let externalRef = true;
     try {
-        externalRef = !ref || new URL(ref).host !== window.location.host;
+        return !ref || new URL(ref).host !== window.location.host;
     } catch {
-        externalRef = true;
+        return true;
     }
-
-    return isInitialNavigation && externalRef;
 }
 
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
-    if (cameFromOutside()) {
-        // 1) Replace current history entry with Home (no visual navigation)
-        const homeHref = router.resolve({ name: "home" }).href;
+    if (fromExternal() && !injected) {
+        injected = true;
+
+        // 1) Save current location
         const currentHref = window.location.href;
+        // 2) Push a Home entry behind the current one
+        router.replace({ name: "home" }).then(() => {
+            router.push(currentHref); // immediately go back to the doc
+        });
 
-        window.history.replaceState({ injectedHome: true }, "", homeHref);
-        // 2) Push the original page back on top (user stays where they are)
-        window.history.pushState({}, "", currentHref);
-
-        // 3) On first Back, send them to Home
+        // 3) On Back, send them to Home
         popHandler = () => {
             router.replace({ name: "home" });
         };
@@ -507,6 +499,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     if (popHandler) window.removeEventListener("popstate", popHandler);
 });
+
 // Convert selectedLanguageId to language code for VideoPlayer
 const selectedLanguageCode = computed(() => {
     if (!selectedLanguageId.value || !languages.value.length) return null;
