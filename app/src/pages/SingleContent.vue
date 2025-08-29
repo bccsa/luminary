@@ -161,6 +161,10 @@ const unwatch = watch([idbContent, isConnected], () => {
             content.value = undefined;
             return;
         }
+        if (!apiContent.value) {
+            router.replace({ name: "home" });
+            return;
+        }
         // Check if the returned content is a redirect, and redirect to the new slug
         if (apiContent.value?.type == DocType.Redirect) {
             const redirect = apiContent.value as unknown as RedirectDto;
@@ -465,18 +469,6 @@ function onClickOutside(event: MouseEvent) {
 
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
-
-    const isExternalReferrer =
-        !document.referrer || !document.referrer.includes(window.location.host);
-
-    if (isExternalReferrer) {
-        // Push a dummy history state so that back button goes to "/"
-        window.history.pushState(null, "", window.location.href);
-
-        window.addEventListener("popstate", () => {
-            router.replace("/"); // Redirect to homepage on back
-        });
-    }
 });
 
 // Convert selectedLanguageId to language code for VideoPlayer
