@@ -466,9 +466,14 @@ function onClickOutside(event: MouseEvent) {
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
 
-    if (window.history.length === 0) {
-        router.replace("/");
-    }
+    router.beforeEach((to, from, next) => {
+        const isExternalNavigation = from.name === null && to.name === "content";
+        if (isExternalNavigation) {
+            next("/");
+        } else {
+            next();
+        }
+    });
 });
 
 // Convert selectedLanguageId to language code for VideoPlayer
