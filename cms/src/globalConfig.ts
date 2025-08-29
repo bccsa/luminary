@@ -52,15 +52,23 @@ export async function initLanguage() {
         .where({ type: DocType.Language })
         .toArray()) as LanguageDto[];
 
-    // Ensure the browser languages can be retrieved in all cases, eg. where a browser language is 'en' or 'en-US'
-    const browserPreferredLanguage = languages.find((lang) => {
-        const languageCode = lang.languageCode.toLowerCase();
-        return navigator.languages.some((lang) => lang.toLowerCase().startsWith(languageCode));
-    });
+    // Check for the browser preferred language in the list of available content languages
+    const browserLanguages = navigator.languages.map((l) => l.toLowerCase());
 
-    if (browserPreferredLanguage) {
+    const matchedBrowserLanguage = browserLanguages
+        .map((browserLang) =>
+            languages.find(
+                (cmsLang) =>
+                    browserLang === cmsLang.languageCode.toLowerCase() ||
+                    // Ensure the browser languages can be retrieved in all cases, eg. where a browser language is 'en' or 'en-US'
+                    browserLang.startsWith(cmsLang.languageCode.toLowerCase()),
+            ),
+        )
+        .find((lang) => !!lang);
+
+    if (matchedBrowserLanguage) {
         // Set the language ID to the browser preferred language
-        cmsLanguageIdAsRef.value = browserPreferredLanguage?._id;
+        cmsLanguageIdAsRef.value = matchedBrowserLanguage._id;
     } else {
         // Find the default language and set it as the selected language
         const defaultLang = languages.find((lang) => lang.default === 1);
@@ -74,6 +82,7 @@ export async function initLanguage() {
             db.docs.where("type").equals("language").toArray() as unknown as Promise<LanguageDto[]>,
         { initialValue: [] as LanguageDto[] },
     );
+
     watch(_cmsLanguages, (languages) => {
         cmsLanguages.value.slice(0, cmsLanguages.value.length);
         cmsLanguages.value.push(...languages);
