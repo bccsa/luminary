@@ -449,7 +449,6 @@ function onClickOutside(event: MouseEvent) {
     }
 }
 
-let injected = false;
 let popHandler: ((e: PopStateEvent) => void) | null = null;
 
 function fromExternal(): boolean {
@@ -463,18 +462,9 @@ function fromExternal(): boolean {
 
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
-    if (fromExternal() && !injected) {
-        injected = true;
-
-        // 1) Save current location
-        const currentHref = window.location.href;
-        // 2) Push a Home entry behind the current one
-        router.replace({ name: "home" }).then(() => {
-            router.push(currentHref); // immediately go back to the doc
-        });
-
-        // 3) On Back, send them to Home
-        popHandler = () => {
+    if (fromExternal()) {
+        popHandler = (event: PopStateEvent) => {
+            event.preventDefault();
             router.replace({ name: "home" });
         };
         window.addEventListener("popstate", popHandler, { once: true });
