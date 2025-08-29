@@ -61,7 +61,6 @@ const VideoPlayer = defineAsyncComponent({
 });
 
 const router = useRouter();
-router.push("/");
 
 type Props = {
     slug: string;
