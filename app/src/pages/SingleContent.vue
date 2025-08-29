@@ -463,21 +463,18 @@ function onClickOutside(event: MouseEvent) {
     }
 }
 
-function externalCatch(): boolean {
-    const ref = document.referrer;
-    try {
-        return !ref || new URL(ref).origin !== window.location.origin;
-    } catch {
-        return true;
-    }
-}
-
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
 
-    if (externalCatch()) {
-        // Replace the current route with itself but add a flag
-        router.push("home");
+    if (window.history !== undefined) {
+        window.history.pushState({ goHome: true }, "", window.location.href);
+
+        window.addEventListener("popstate", (event) => {
+            // Only handle the fake state we inserted
+            if (event.state && event.state.goHome) {
+                router.push({ name: "home" }); // Navigate to Home when Back is pressed
+            }
+        });
     }
 });
 
