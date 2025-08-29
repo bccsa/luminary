@@ -158,8 +158,7 @@ const unwatch = watch([idbContent, isConnected], () => {
 
     watch(apiContent, () => {
         if (!apiContent.value) {
-            // No content found from API, redirect to home page
-            router.replace("home");
+            content.value = undefined;
             return;
         }
         // Check if the returned content is a redirect, and redirect to the new slug
@@ -466,6 +465,18 @@ function onClickOutside(event: MouseEvent) {
 
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
+
+    const isExternalReferrer =
+        !document.referrer || !document.referrer.includes(window.location.host);
+
+    if (isExternalReferrer) {
+        // Push a dummy history state so that back button goes to "/"
+        window.history.pushState(null, "", window.location.href);
+
+        window.addEventListener("popstate", () => {
+            router.replace("/"); // Redirect to homepage on back
+        });
+    }
 });
 
 // Convert selectedLanguageId to language code for VideoPlayer
