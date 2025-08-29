@@ -37,12 +37,13 @@ export const contentByTag = (
                 (c) => c.publishDate && c.parentTags.includes(tag.parentId),
             );
 
-            const sorted = filtered.sort(
-                (a, b) =>
-                    a.parentPinned
-                        ? (b.publishDate ?? 0) - (a.publishDate ?? 0) // Pinned: descending (newest first)
-                        : (a.publishDate ?? 0) - (b.publishDate ?? 0), // Unpinned: ascending (oldest first)
-            );
+            const sorted = filtered.sort((a, b) => {
+                // Check if this tag/category is pinned (parentPinned > 0)
+                const isPinned = tag.parentPinned && tag.parentPinned > 0;
+                return isPinned
+                    ? (b.publishDate ?? 0) - (a.publishDate ?? 0) // Pinned: descending (newest first)
+                    : (a.publishDate ?? 0) - (b.publishDate ?? 0); // Unpinned: ascending (oldest first)
+            });
 
             if (sorted.length) {
                 const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
