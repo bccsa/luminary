@@ -463,7 +463,7 @@ function onClickOutside(event: MouseEvent) {
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
 
-    if (window.history.length === 1) {
+    if (window.history.length === 0) {
         router.replace("/");
     }
 });
