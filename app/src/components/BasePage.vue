@@ -4,6 +4,7 @@ import TopBar from "./navigation/TopBar.vue";
 import MobileMenu from "./navigation/MobileMenu.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
 import NotificationToastManager from "./notifications/NotificationToastManager.vue";
+import NotificationBottomManager from "./notifications/NotificationBottomManager.vue";
 
 defineProps<{
     showBackButton?: boolean;
@@ -49,6 +50,7 @@ onUnmounted(() => {
         <!-- slot for footer -->
         <div class="sticky bottom-0">
             <slot name="footer" />
+            <NotificationBottomManager />
         </div>
 
         <MobileMenu

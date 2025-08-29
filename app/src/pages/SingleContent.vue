@@ -655,9 +655,10 @@ const selectedLanguageCode = computed(() => {
                 :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
             />
         </div>
-        <template #footer>
+
+        <IgnorePagePadding ignoreBottom>
             <CopyrightBanner />
-        </template>
+        </IgnorePagePadding>
     </BasePage>
 
     <LModal
