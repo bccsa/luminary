@@ -17,7 +17,7 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch, onBeforeUnmount } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -464,10 +464,49 @@ function onClickOutside(event: MouseEvent) {
     }
 }
 
+let popHandler: ((e: PopStateEvent) => void) | null = null;
+
+function cameFromOutside(): boolean {
+    // Prefer Navigation Timing v2
+    const nav = (performance.getEntriesByType("navigation") as PerformanceNavigationTiming[])[0];
+    const navType = nav?.type ?? (performance as any).navigation?.type; // legacy fallback (0 == TYPE_NAVIGATE)
+    const isInitialNavigation =
+        !window.history.state && (navType === "navigate" || navType === "reload");
+
+    // Check referrer is not our host
+    const ref = document.referrer;
+    let externalRef = true;
+    try {
+        externalRef = !ref || new URL(ref).host !== window.location.host;
+    } catch {
+        externalRef = true;
+    }
+
+    return isInitialNavigation && externalRef;
+}
+
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
+    if (cameFromOutside()) {
+        // 1) Replace current history entry with Home (no visual navigation)
+        const homeHref = router.resolve({ name: "home" }).href;
+        const currentHref = window.location.href;
+
+        window.history.replaceState({ injectedHome: true }, "", homeHref);
+        // 2) Push the original page back on top (user stays where they are)
+        window.history.pushState({}, "", currentHref);
+
+        // 3) On first Back, send them to Home
+        popHandler = () => {
+            router.replace({ name: "home" });
+        };
+        window.addEventListener("popstate", popHandler, { once: true });
+    }
 });
 
+onBeforeUnmount(() => {
+    if (popHandler) window.removeEventListener("popstate", popHandler);
+});
 // Convert selectedLanguageId to language code for VideoPlayer
 const selectedLanguageCode = computed(() => {
     if (!selectedLanguageId.value || !languages.value.length) return null;
