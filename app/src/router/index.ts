@@ -1,11 +1,13 @@
-import { createRouter, createWebHistory } from "vue-router";
-import NotFoundPage from "@/pages/NotFoundPage.vue";
 import HomePage from "@/pages/HomePage.vue";
-import SettingsPage from "@/pages/SettingsPage.vue";
-import SingleContent from "@/pages/SingleContent.vue";
-import ExplorePage from "@/pages/ExplorePage.vue";
-import BookmarksPage from "@/pages/BookmarksPage.vue";
-import VideoPage from "@/pages/VideoPage.vue";
+import { createRouter, createWebHistory } from "vue-router";
+
+// Preload all route components immediately as separate chunks
+const ExplorePage = import("@/pages/ExplorePage.vue");
+const VideoPage = import("@/pages/VideoPage.vue");
+const SettingsPage = import("@/pages/SettingsPage.vue");
+const BookmarksPage = import("@/pages/BookmarksPage.vue");
+const SingleContent = import("@/pages/SingleContent.vue");
+const NotFoundPage = import("@/pages/NotFoundPage.vue");
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,7 +30,7 @@ const router = createRouter({
         },
         {
             path: "/explore",
-            component: ExplorePage,
+            component: () => ExplorePage,
             name: "explore",
             meta: {
                 title: "title.explore",
@@ -36,7 +38,7 @@ const router = createRouter({
         },
         {
             path: "/watch",
-            component: VideoPage,
+            component: () => VideoPage,
             name: "watch",
             meta: {
                 title: "title.watch",
@@ -44,7 +46,7 @@ const router = createRouter({
         },
         {
             path: "/settings",
-            component: SettingsPage,
+            component: () => SettingsPage,
             name: "settings",
             meta: {
                 title: "title.settings",
@@ -54,7 +56,7 @@ const router = createRouter({
 
         {
             path: "/bookmarks",
-            component: BookmarksPage,
+            component: () => BookmarksPage,
             name: "bookmarks",
             meta: {
                 title: "title.bookmarks",
@@ -65,7 +67,7 @@ const router = createRouter({
         // to prevent wrongly configured slugs from taking over pages
         {
             path: "/:slug",
-            component: SingleContent,
+            component: () => SingleContent,
             name: "content",
             props: true,
         },
@@ -73,7 +75,7 @@ const router = createRouter({
         {
             path: "/:pathMatch(.*)*",
             name: "404",
-            component: NotFoundPage,
+            component: () => NotFoundPage,
             meta: {
                 analyticsIgnore: true,
             },

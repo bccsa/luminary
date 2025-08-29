@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import videojs from "video.js";
-import "videojs-mobile-ui";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
+import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
@@ -26,7 +25,7 @@ const props = defineProps<Props>();
 
 const playerElement = ref<HTMLVideoElement>();
 const audioModeToggle = ref<typeof AudioVideoToggle>();
-let player: Player;
+let player: Player | null = null;
 
 const audioMode = ref<boolean>(false);
 const hasStarted = ref<boolean>(false);
@@ -39,18 +38,18 @@ let timeout: any;
 function autoHidePlayerControls() {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
-        player.userActive(false);
+        player?.userActive(false);
     }, 3000);
 }
 
 function playerPlayEventHandler() {
     hasStarted.value = true;
     playerUserActiveEventHandler();
-    if (autoFullscreen) player.requestFullscreen();
+    if (autoFullscreen) player?.requestFullscreen();
 }
 
 function playerUserActiveEventHandler() {
-    if (audioMode.value || player.userActive() || !hasStarted.value || player.paused()) {
+    if (audioMode.value || player?.userActive() || !hasStarted.value || player?.paused()) {
         showAudioModeToggle.value = true;
     } else {
         showAudioModeToggle.value = false;
@@ -95,7 +94,7 @@ function syncKeepAudioStateAlive() {
     if (!audioMode.value || !audio) return;
 
     // If the player is playing, play the silent audio to keep the audio context alive (especially for iOS/Safari)
-    if (!player.paused()) {
+    if (!player?.paused()) {
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             playPromise.catch((e) => {
@@ -115,7 +114,9 @@ function stopKeepAudioAlive() {
     }
 }
 
-onMounted(() => {
+onMounted(async () => {
+    const videojs = (await import("video.js")).default;
+
     let options = {
         fluid: false,
         html5: {
@@ -188,7 +189,7 @@ onMounted(() => {
     let lastLanguageSet: string | null = null;
 
     player.on("fullscreenchange", () => {
-        if (player.isFullscreen()) {
+        if (player?.isFullscreen()) {
             const currentLanguage = appLanguagesPreferredAsRef.value[0].languageCode || null;
             if (lastLanguageSet !== currentLanguage) {
                 setAudioTrackLanguage(currentLanguage);
@@ -199,14 +200,14 @@ onMounted(() => {
 
     // Handle the "waiting" event, which occurs when the player is buffering
     player.on("waiting", () => {
-        const currentTime = player.currentTime() || 0; // Get the current playback time
+        const currentTime = player?.currentTime() || 0; // Get the current playback time
         setTimeout(() => {
             // Check if the player is still stalled after 2 seconds
-            if (player.currentTime() === currentTime && !player.paused()) {
+            if (player?.currentTime() === currentTime && !player?.paused()) {
                 console.warn("Player stalled, attempting to refresh buffer");
 
                 // Slightly adjust the current time to refresh the buffer
-                player.currentTime(currentTime + 0.001);
+                player?.currentTime(currentTime + 0.001);
 
                 // Reapply the preferred audio track language
                 setAudioTrackLanguage(appLanguagesPreferredAsRef.value[0].languageCode || null);
@@ -245,9 +246,9 @@ onMounted(() => {
 
     // Save player progress if greater than 60 seconds
     player.on("timeupdate", () => {
-        const currentTime = player.currentTime() || 0;
-        const durationTime = player.duration() || 0;
-        const isLive = player.duration() === Infinity || player.options_.liveui === true;
+        const currentTime = player?.currentTime() || 0;
+        const durationTime = player?.duration() || 0;
+        const isLive = player?.duration() === Infinity || player?.options_.liveui === true;
 
         if (isLive || !props.content.video || currentTime < 60) return;
         setMediaProgress(props.content.video, props.content._id, currentTime, durationTime);
@@ -257,7 +258,7 @@ onMounted(() => {
     player.on("ready", () => {
         if (!props.content.video) return;
         const progress = getMediaProgress(props.content.video, props.content._id);
-        if (progress > 60) player.currentTime(progress - 30);
+        if (progress > 60) player?.currentTime(progress - 30);
     });
 
     player.on("ended", () => {
@@ -268,7 +269,7 @@ onMounted(() => {
         removeMediaProgress(props.content.video, props.content._id);
 
         try {
-            player.exitFullscreen();
+            player?.exitFullscreen();
         } catch {
             // Do nothing
         }
@@ -280,9 +281,9 @@ onMounted(() => {
         if (audioMode.value) syncKeepAudioStateAlive();
         if (autoFullscreen)
             setTimeout(() => {
-                if (!player.paused()) return;
+                if (!player?.paused()) return;
                 try {
-                    player.exitFullscreen();
+                    player?.exitFullscreen();
                 } catch {
                     // Do nothing
                 }
@@ -314,11 +315,11 @@ onUnmounted(() => {
 watch(audioMode, async (mode) => {
     player?.audioOnlyMode(mode);
     player?.audioPosterMode(mode);
-    player.userActive(true);
+    player?.userActive(true);
     playerUserActiveEventHandler();
 
     // Save current time and selected track label/language
-    const currentTime = player.currentTime() || 0;
+    const currentTime = player?.currentTime() || 0;
 
     let selectedTrackInfo: { label?: string; language?: string } | null = null;
     const tracks = (player as any).audioTracks?.();
@@ -352,17 +353,17 @@ watch(audioMode, async (mode) => {
     audioOnlyPlaylistUrl = `data:application/x-mpegURL;base64,${base64}`;
 
     // Set the player source based on the mode status
-    player.src({
+    player?.src({
         type: "application/x-mpegURL",
         src: mode ? audioOnlyPlaylistUrl : props.content.video,
     });
 
-    player.ready(() => {
-        player.currentTime(currentTime);
-        player.play();
+    player?.ready(() => {
+        player?.currentTime(currentTime);
+        player?.play();
 
         // Wait for tracks to be available
-        player.on("loadedmetadata", () => {
+        player?.on("loadedmetadata", () => {
             const newTracks = (player as any).audioTracks?.();
 
             if (!newTracks || !selectedTrackInfo) return;
