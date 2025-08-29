@@ -37,10 +37,11 @@ export const contentByTag = (
                 (c) => c.publishDate && c.parentTags.includes(tag.parentId),
             );
 
-            const sorted = filtered.sort((a, b) =>
-                tag.pinned
-                    ? (b.publishDate ?? 0) - (a.publishDate ?? 0)
-                    : (a.publishDate ?? 0) - (b.publishDate ?? 0),
+            const sorted = filtered.sort(
+                (a, b) =>
+                    tag.pinned
+                        ? (b.publishDate ?? 0) - (a.publishDate ?? 0) // Pinned: descending (newest first)
+                        : (a.publishDate ?? 0) - (b.publishDate ?? 0), // Unpinned: ascending (oldest first)
             );
 
             if (sorted.length) {
