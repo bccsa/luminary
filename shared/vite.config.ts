@@ -8,7 +8,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 export default defineConfig({
     // dts is used to generate typescript declaration files
     // autoExternal is used to exclude dependencies from the bundle
-    plugins: [dts(), autoExternal(), visualizer({ open: true })],
+    plugins: [dts(), autoExternal(), visualizer({ open: false })], // Open visualiser when reviewing build bundle size
     build: {
         lib: {
             entry: resolve(__dirname, "src/index.ts"),

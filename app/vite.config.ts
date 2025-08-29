@@ -12,7 +12,7 @@ const env = loadEnv("", process.cwd());
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
-        visualizer({ open: true }),
+        visualizer({ open: false }), // Open visualiser when reviewing build bundle size
         vue(),
         viteStaticCopy({
             targets: [

@@ -30,7 +30,7 @@ const router = createRouter({
         },
         {
             path: "/explore",
-            component: () => ExplorePage,
+            component: ExplorePage,
             name: "explore",
             meta: {
                 title: "title.explore",
@@ -38,7 +38,7 @@ const router = createRouter({
         },
         {
             path: "/watch",
-            component: () => VideoPage,
+            component: VideoPage,
             name: "watch",
             meta: {
                 title: "title.watch",
@@ -46,7 +46,7 @@ const router = createRouter({
         },
         {
             path: "/settings",
-            component: () => SettingsPage,
+            component: SettingsPage,
             name: "settings",
             meta: {
                 title: "title.settings",
@@ -56,7 +56,7 @@ const router = createRouter({
 
         {
             path: "/bookmarks",
-            component: () => BookmarksPage,
+            component: BookmarksPage,
             name: "bookmarks",
             meta: {
                 title: "title.bookmarks",
@@ -67,7 +67,7 @@ const router = createRouter({
         // to prevent wrongly configured slugs from taking over pages
         {
             path: "/:slug",
-            component: () => SingleContent,
+            component: SingleContent,
             name: "content",
             props: true,
         },
@@ -75,7 +75,7 @@ const router = createRouter({
         {
             path: "/:pathMatch(.*)*",
             name: "404",
-            component: () => NotFoundPage,
+            component: NotFoundPage,
             meta: {
                 analyticsIgnore: true,
             },
