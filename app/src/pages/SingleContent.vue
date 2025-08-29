@@ -23,7 +23,7 @@ import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { DateTime } from "luxon";
-import { useRouter, useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 import {
     appLanguageIdsAsRef,
     appName,
@@ -463,12 +463,10 @@ function onClickOutside(event: MouseEvent) {
     }
 }
 
-const route = useRoute();
-
 function externalCatch(): boolean {
     const ref = document.referrer;
     try {
-        return !ref || new URL(ref).host !== window.location.host;
+        return !ref || new URL(ref).origin !== window.location.origin;
     } catch {
         return true;
     }
@@ -479,20 +477,8 @@ onMounted(() => {
 
     if (externalCatch()) {
         // Replace the current route with itself but add a flag
-        router.replace({
-            name: route.name as string,
-            params: route.params,
-            query: { ...route.query, fromExternal: "1" },
-        });
+        router.push("home");
     }
-
-    // Watch for back navigation
-    router.afterEach((to, from) => {
-        if (from.query.fromExternal === "1" && to.fullPath === "/") {
-            // User tried to go "back" from external entry → force them home
-            router.replace({ name: "home" });
-        }
-    });
 });
 
 // Convert selectedLanguageId to language code for VideoPlayer
