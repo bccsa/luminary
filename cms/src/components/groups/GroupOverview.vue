@@ -60,17 +60,12 @@ const groupQuery = new ApiLiveQueryAsEditable<GroupDto>(
     },
 );
 
-// const groups = groupQuery.liveData;
-// const { isLoading, liveData, isEdited, isModified } = groupQuery;
 const editable = groupQuery.editable;
 const isLoading = groupQuery.isLoading;
 
 const showModal = ref(false);
 
 const newGroupId = ref("");
-// const newGroup = computed(() => {
-//     return combinedGroups.value.find((g) => g._id === newGroupId.value);
-// });
 const createGroup = async () => {
     const newGroup = {
         _id: db.uuid(),

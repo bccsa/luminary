@@ -42,59 +42,9 @@ const showEditModal = ref(false);
 /**
  * Check if the user will have permission to edit the group
  */
-// const canEdit = computed(() => {
-//     // Bypass this check if the group is not in edit mode
-
-//     // Check if the user will have inherited permissions to edit the group (exclude self-assigned permissions)
-//     const hasInheritedPermissions = verifyAccess(
-//         [
-//             ...Array.from(
-//                 new Set(props.group.acl.map((a) => a.groupId).filter((g) => g != props.group._id)),
-//             ),
-//         ],
-//         DocType.Group,
-//         AclPermission.Edit,
-//     );
-
-//     // Check if the ACL includes group edit permissions.
-//     // We here rely on the available groups already being filtered with groups to which the user has assign permissions
-//     const canEdit2 = props.group.acl.some(
-//         (a) => a.type == DocType.Group && a.permission.includes(AclPermission.Edit),
-//     );
-
-//     return hasInheritedPermissions || canEdit2;
-// });
-
 const canEdit = computed(() => {
     return verifyAccess([group.value._id], DocType.Group, AclPermission.Edit);
 });
-
-// const handleDuplicateGroup = async (duplicatedGroup: GroupDto) => {
-//     console.log("Duplicated group:", duplicatedGroup); // Debug log
-//     try {
-//         const res = await getRest().changeRequest({
-//             id: 10, // Adjust ID as needed
-//             doc: duplicatedGroup,
-//         } as ChangeRequestQuery);
-//         if (res && res.ack === AckStatus.Accepted) {
-//             console.log("Duplicated group saved:", res.doc);
-//             openModal.value = false; // Close the modal after saving
-
-//             // Optionally show a notification
-//             useNotificationStore().addNotification({
-//                 title: "Group duplicated",
-//                 description: `The group ${res.doc.name} has been duplicated successfully.`,
-//                 state: "success",
-//             });
-//         } else {
-//             console.error("Failed to save duplicated group:", res?.message);
-//             // Optionally show a notification
-//             // addNotification({ title: "Error", description: res?.message, state: "error" });
-//         }
-//     } catch (error) {
-//         console.error("Error duplicating group:", error);
-//     }
-// };
 
 // Calculate the groups which has access to this group
 const accessGroupNames = computed(() => {

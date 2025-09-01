@@ -3,9 +3,6 @@ import { ApiLiveQueryAsEditable, type GroupDto } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import GroupRow from "./GroupRow.vue";
 
-// const groups = ref<GroupDto[] | undefined>([]);
-// const accessToGroup = ref<GroupDto[]>([]);
-
 type Props = {
     groupsQuery: ApiLiveQueryAsEditable<GroupDto>;
 };
@@ -18,26 +15,6 @@ defineEmits<{
     (e: "delete", group: GroupDto): void;
     (e: "duplicate", group: GroupDto): void;
 }>();
-
-// watch(
-//     apiGroupResults,
-//     () => {
-//         if (!apiGroupResults.value) {
-//             return;
-//         }
-
-//         groups.value = apiGroupResults.value;
-
-//         // Step 1: Collect all unique groupIds from ACLs
-//         const aclGroupIds = new Set(
-//             groups.value.flatMap((group) => group.acl.map((a) => a.groupId)).filter(Boolean),
-//         );
-
-//         // Step 2: Filter groups that are referenced in the ACLs
-//         accessToGroup.value = groups.value.filter((group) => aclGroupIds.has(group._id));
-//     },
-//     { immediate: true },
-// );
 </script>
 
 <template>
