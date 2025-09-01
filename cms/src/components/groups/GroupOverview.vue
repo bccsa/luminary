@@ -152,7 +152,7 @@ const canCreateGroup = computed(() => {
         </LCard>
     </BasePage>
 
-    <LModal v-model:isVisible="showModal" adaptiveSize noPadding>
+    <LModal heading="Edit Group" v-model:isVisible="showModal" adaptiveSize noPadding>
         <EditGroup
             v-if="showModal"
             :group="editable.find((g) => g._id === newGroupId)!"

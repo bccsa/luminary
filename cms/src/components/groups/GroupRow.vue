@@ -94,7 +94,7 @@ const accessGroupNames = computed(() => {
         </td>
     </tr>
 
-    <LModal v-model:isVisible="showEditModal" adaptiveSize noPadding>
+    <LModal heading="Edit Group" v-model:isVisible="showEditModal" adaptiveSize noPadding>
         <EditGroup v-model:group="group" :groupQuery="groupQuery" />
     </LModal>
 </template>

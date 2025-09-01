@@ -484,12 +484,15 @@ const selectedLanguageCode = computed(() => {
                     data-test="translationSelector"
                 >
                     <span class="hidden sm:inline">
-                        {{ languages.find((lang) => lang._id === selectedLanguageId)?.name }}
+                        {{
+                            languages.find((lang: LanguageDto) => lang._id === selectedLanguageId)
+                                ?.name
+                        }}
                     </span>
                     <span class="inline sm:hidden">
                         {{
                             languages
-                                .find((lang) => lang._id === selectedLanguageId)
+                                .find((lang: LanguageDto) => lang._id === selectedLanguageId)
                                 ?.languageCode.toUpperCase()
                         }}
                     </span>
@@ -652,7 +655,11 @@ const selectedLanguageCode = computed(() => {
             <RelatedContent
                 v-if="content && tags.length"
                 :selectedContent="content"
-                :tags="tags.filter((t) => t && t.parentTagType && t.parentTagType == TagType.Topic)"
+                :tags="
+                    tags.filter(
+                        (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
+                    )
+                "
             />
         </div>
         <template #footer>

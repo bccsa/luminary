@@ -2,46 +2,28 @@
 import LTeleport from "../common/LTeleport.vue";
 
 type Props = {
-    heading?: string;
-    adaptiveSize?: boolean;
-    noPadding?: boolean;
+    heading: string;
 };
 defineProps<Props>();
 
 const isVisible = defineModel<boolean>("isVisible");
-const isTestEnvironment = import.meta.env.MODE === "test";
 </script>
 
 <template>
-    <div
-        v-if="isVisible"
-        v-bind="isTestEnvironment ? {} : { teleport: { to: App } }"
-        @click="isVisible = false"
-    >
-        <!-- Overlay -->
-        <div class="fixed inset-0 z-50 bg-zinc-800 bg-opacity-50 backdrop-blur-sm"></div>
-        <!-- Modal Container -->
+    <LTeleport v-if="isVisible">
         <div
-            class="fixed inset-0 z-50 flex items-center justify-center"
-            :class="{ 'p-2': !noPadding }"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-800 bg-opacity-50 p-2 backdrop-blur-sm"
+            @click.self="isVisible = false"
         >
+            <!-- Modal content at higher z-index -->
             <div
-                :class="[
-                    'w-full rounded-lg bg-white/90 shadow-xl',
-                    adaptiveSize
-                        ? 'max-h-[90vh] min-h-[200px] min-w-[320px] max-w-[90vw] overflow-y-auto'
-                        : 'max-h-screen max-w-md',
-                    noPadding ? 'p-0' : 'p-5',
-                ]"
-                @click.stop
+                class="relative z-50 max-h-screen w-full max-w-md rounded-lg bg-white/90 p-5 shadow-xl"
             >
-                <h2 v-if="heading" :class="['text-lg font-semibold', noPadding ? 'm-0' : 'mb-4']">
-                    {{ heading }}
-                </h2>
-                <div :class="{ 'divide-y divide-zinc-200': !noPadding }">
+                <h2 class="mb-4 text-lg font-semibold">{{ heading }}</h2>
+                <div class="divide-y divide-zinc-200">
                     <slot></slot>
                 </div>
-                <div :class="{ 'mt-4': !noPadding }">
+                <div class="mt-4">
                     <slot name="footer"></slot>
                 </div>
             </div>
