@@ -27,7 +27,7 @@ export const router = createRouter({
         {
             path: "/",
             beforeEnter: authGuard,
-            redirect: { name: "dashboard" },
+            redirect: { path: import.meta.env.VITE_INITIAL_PAGE || "dashboard" },
             children: [
                 {
                     path: "sandbox",
@@ -61,7 +61,8 @@ export const router = createRouter({
                 {
                     path: ":docType/overview/:tagOrPostType/:languageCode?",
                     name: "overview",
-                    component: () => import("../components/content/ContentOverview/ContentOverview.vue"),
+                    component: () =>
+                        import("../components/content/ContentOverview/ContentOverview.vue"),
                     props: true,
                 },
                 {
