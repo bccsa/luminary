@@ -15,6 +15,7 @@ import {
     type RedirectDto,
     type Uuid,
     type LanguageDto,
+    type TagDto,
 } from "luminary-shared";
 import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
@@ -54,6 +55,7 @@ import {
     isLanguageSwitchRef,
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
