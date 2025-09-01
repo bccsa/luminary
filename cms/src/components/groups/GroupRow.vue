@@ -17,7 +17,6 @@ import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import { computed, ref } from "vue";
 import LModal from "../modals/LModal.vue";
 import EditGroup from "./EditGroup.vue";
-// import { useNotificationStore } from "@/stores/notification";
 
 type Props = {
     groupQuery: ApiLiveQueryAsEditable<GroupDto>;
@@ -36,7 +35,6 @@ defineEmits<{
     (e: "duplicate", group: GroupDto): void;
 }>();
 
-// const isLocalChanges = db.isLocalChangeAsRef(props.group._id);
 const showEditModal = ref(false);
 
 /**

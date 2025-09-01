@@ -12,7 +12,6 @@ import {
     type GroupAclEntryDto,
     type GroupDto,
 } from "luminary-shared";
-// import EditGroup from "@/components/groups/EditGroup.vue";
 import { computed, ref } from "vue";
 import LCard from "@/components/common/LCard.vue";
 import GroupRow from "@/components/groups/GroupRow.vue";
