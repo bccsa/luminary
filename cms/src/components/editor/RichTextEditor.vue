@@ -117,15 +117,20 @@ watch(showModal, async () => {
 
 watch(text, (newText) => {
     // By default the text is only updated at initialisation. This makes it reactively update the text to the relevant language
-    if (!newText && !editor.value) return;
+    if (!editor.value) return; // Editor not ready
+    if (newText === null || newText === undefined || newText === "") {
+        // If newText is empty/null, clear the editor content
+        editor.value.commands.setContent("");
+        return;
+    }
     try {
-        const parsed = JSON.parse(newText || "");
-        if (JSON.stringify(parsed) !== JSON.stringify(editor.value?.getJSON())) {
-            editor.value?.commands.setContent(parsed);
+        const parsed = JSON.parse(newText);
+        if (JSON.stringify(parsed) !== JSON.stringify(editor.value.getJSON())) {
+            editor.value.commands.setContent(parsed);
         }
     } catch {
-        if (newText !== editor.value?.getText()) {
-            editor.value?.commands.setContent(newText || "");
+        if (newText !== editor.value.getText()) {
+            editor.value.commands.setContent(newText);
         }
     }
 });
