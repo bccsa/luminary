@@ -116,7 +116,7 @@ watch(showModal, async () => {
 });
 
 watch(text, (newText) => {
-    // By default the text is only updated at initialisation. This makes it reactivly update the text to the relevant language
+    // By default the text is only updated at initialisation. This makes it reactively update the text to the relevant language
     if (!newText && !editor.value) return;
     try {
         const parsed = JSON.parse(newText || "");
