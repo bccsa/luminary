@@ -61,6 +61,6 @@ export default () =>
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as S3Config,
         socketIo: {
-            maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
+            maxHttpBufferSize: parseInt(process.env.SOCKETIO_MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
     }) as Configuration;

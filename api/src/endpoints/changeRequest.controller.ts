@@ -19,13 +19,7 @@ export class ChangeRequestController {
 
     @Post()
     @UseGuards(AuthGuard)
-    @UseInterceptors(
-        AnyFilesInterceptor({
-            limits: {
-                fileSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
-            },
-        }),
-    )
+    @UseInterceptors(AnyFilesInterceptor())
     async handleChangeRequest(
         @UploadedFiles() files,
         @Body() body,

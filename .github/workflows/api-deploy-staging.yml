@@ -47,7 +47,6 @@ jobs:
           echo "S3_IMG_BUCKET='$( echo '${{ secrets.S3_IMG_BUCKET }}' )'" >> .env
           echo "CORS_ORIGIN='$( echo '${{ vars.CORS_ORIGIN }}' )'" >> .env
           echo "JWT_MAPPINGS='$( echo '${{ vars.JWT_MAPPINGS }}' )'" >> .env
-          echo "MAX_HTTP_BUFFER_SIZE='$( echo '${{ vars.MAX_HTTP_BUFFER_SIZE }}' )'" >> .env
 
         working-directory: api
 

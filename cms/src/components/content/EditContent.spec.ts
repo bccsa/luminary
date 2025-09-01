@@ -233,14 +233,6 @@ describe("EditContent.vue", () => {
         const languageSelector = wrapper.findComponent(LanguageSelector);
         const languages = languageSelector.find("[data-test='languagePopup']");
 
-        // Wait for the popup to be rendered and languages to load
-        await waitForExpect(() => {
-            expect(languages.exists()).toBe(true);
-            // Ensure the language list is populated (e.g., check for at least one language)
-            expect(languages.text()).toContain("English"); // Or any expected language
-        });
-
-        // Now check the specific assertions
         await waitForExpect(() => {
             expect(languages.html()).toContain("English");
             expect(languages.html()).not.toContain("Français");
