@@ -88,9 +88,12 @@ const handleNotificationClick = (notification: Notification) => {
                 :class="{ 'cursor-pointer': notification.link }"
             >
                 <component :is="icon" class="h-5 w-5 min-w-5" />
-                <div class="flex flex-col md:inline-block md:align-middle">
-                    <span class="text-md md:text-sm">{{ notification.title }}</span>
-                    <span v-if="notification.description" class="text-xs md:ml-3">
+                <div class="flex flex-col lg:flex-row lg:items-center">
+                    <span
+                        class="text-md lg:text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-xs lg:max-w-sm">
+                        {{ notification.title }}
+                    </span>
+                    <span v-if="notification.description" class="text-xs lg:ml-3 lg:block lg:w-auto">
                         {{ notification.description }}
                     </span>
                 </div>
