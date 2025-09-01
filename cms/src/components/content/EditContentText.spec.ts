@@ -88,6 +88,6 @@ describe("EditContentText.vue", () => {
         });
 
         // Verify language display
-        expect(wrapper.text()).toContain("fr");
+        expect(wrapper.text()).toContain("H2  H3  H4  H5 French content");
     });
 });
