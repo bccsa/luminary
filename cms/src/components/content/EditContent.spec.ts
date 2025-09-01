@@ -1,7 +1,15 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, type ContentDto, accessMap, PostType, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    type ContentDto,
+    accessMap,
+    PostType,
+    PublishStatus,
+    isConnected,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -127,6 +135,23 @@ describe("EditContent.vue", () => {
             expect((titleInput.element as HTMLTextAreaElement).value).toBe(
                 mockData.mockEnglishContentDto.title,
             );
+        });
+    });
+
+    it("doesn't show view live button if not connected", async () => {
+        isConnected.value = false;
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[namet="view-live"]').exists()).toBe(false);
         });
     });
 
