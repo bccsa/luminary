@@ -33,22 +33,34 @@ export const contentByTag = (
 
         // Add new tags to the result
         tags.value.forEach((tag) => {
-            const sorted = content.value
-                .filter((c) => c.publishDate && c.parentTags.includes(tag.parentId))
-                .sort((a, b) => (a.publishDate ?? 0) - (b.publishDate ?? 0));
+            const filtered = content.value.filter(
+                (c) => c.publishDate && c.parentTags.includes(tag.parentId),
+            );
+
+            const isPinned = tag.parentPinned && tag.parentPinned > 0;
+
+            const sorted = filtered.sort((a, b) => {
+                // Check if this tag/category is pinned (parentPinned > 0)
+                return isPinned
+                    ? (b.publishDate ?? 0) - (a.publishDate ?? 0) // Pinned: descending (newest first)
+                    : (a.publishDate ?? 0) - (b.publishDate ?? 0); // Unpinned: ascending (oldest first)
+            });
 
             if (sorted.length) {
                 const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
 
+                // For newestContentDate, always use the actual newest (highest) date
+                const newestContentDate = Math.max(...filtered.map((c) => c.publishDate ?? 0));
+
                 if (index !== -1) {
                     Object.assign(result.tagged.value[index], {
-                        newestContentDate: sorted[sorted.length - 1].publishDate || 0,
+                        newestContentDate,
                         content: sorted,
                     });
                 } else {
                     result.tagged.value.push({
                         tag,
-                        newestContentDate: sorted[sorted.length - 1].publishDate || 0,
+                        newestContentDate,
                         content: sorted,
                     });
                 }
