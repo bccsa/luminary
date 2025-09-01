@@ -96,7 +96,7 @@ const toggleDropdown = () => {
         :style="$attrs['style'] as StyleValue"
     >
         <div class="flex justify-between">
-            <div class="flex items-center gap-1">
+            <div class="mb-2 flex items-center gap-1">
                 <component
                     :is="props.labelIcon"
                     class="h-5 w-5 text-zinc-400"
