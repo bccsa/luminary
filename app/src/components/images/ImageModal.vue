@@ -11,17 +11,20 @@ import {
     computed,
 } from "vue";
 import LImage from "./LImage.vue";
-import type { ImageDto, Uuid } from "luminary-shared";
+import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
 import {
     XCircleIcon,
     MagnifyingGlassMinusIcon,
     MagnifyingGlassPlusIcon,
+    ArrowLeftCircleIcon,
+    ArrowRightCircleIcon,
 } from "@heroicons/vue/24/outline";
 
 // Props
 type Props = {
     imageCollections?: ImageFileCollectionDto[];
-    currentIndex: number;
+    currentIndex?: number;
+    image?: ImageDto; // for single image mode
     contentParentId: Uuid;
     aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
@@ -31,15 +34,20 @@ type Props = {
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "classic",
     size: "post",
+    currentIndex: 0,
 });
 
 const emit = defineEmits(["close", "update:index"]);
 
+const hasMultiple = computed(() => props.imageCollections && props.imageCollections.length > 1);
+
 const currentImage = computed(() => {
-    if (!props.imageCollections) return;
-    return {
-        fileCollections: [props.imageCollections[props.currentIndex]],
-    } as ImageDto;
+    if (props.imageCollections) {
+        return {
+            fileCollections: [props.imageCollections[props.currentIndex]],
+        } as ImageDto;
+    }
+    return props.image;
 });
 
 const container = ref<HTMLDivElement | null>(null);
@@ -50,7 +58,7 @@ const translateY = ref(0);
 const MAX_SCALE = ref(2); // default desktop
 const MIN_SCALE = 1;
 const PADDING = 50;
-const ZOOM_STEP = 0.2; // Incremental zoom step for +/-
+const ZOOM_STEP = 0.2;
 
 let lastDistance = 0;
 let initialScale = 1;
@@ -65,7 +73,6 @@ let swipeStartX = 0;
 let swipeEndX = 0;
 const swipeThreshold = 50;
 let pinchZooming = false;
-let draggingImage = false;
 
 const closeModal = () => emit("close");
 
@@ -101,6 +108,26 @@ function clampTranslation() {
     translateX.value = clamp(translateX.value, -maxX, maxX);
     translateY.value = clamp(translateY.value, -maxY, maxY);
 }
+
+function zoomIn() {
+    scale.value = clamp(scale.value + ZOOM_STEP, MIN_SCALE, MAX_SCALE.value);
+    clampTranslation();
+}
+
+function zoomOut() {
+    scale.value = clamp(scale.value - ZOOM_STEP, MIN_SCALE, MAX_SCALE.value);
+    clampTranslation();
+}
+
+function handleSwipeGesture() {
+    if (!hasMultiple.value || scale.value > 1) return;
+    const deltaX = swipeEndX - swipeStartX;
+    if (Math.abs(deltaX) > swipeThreshold) {
+        if (deltaX > 0) onSwipe("right");
+        else onSwipe("left");
+    }
+}
+
 // Touch events
 function onTouchStart(e: TouchEvent) {
     if (e.touches.length === 1) {
@@ -151,6 +178,22 @@ function onTouchEnd(e: TouchEvent) {
     isTouchDragging = false;
 }
 
+// Double-tap support
+let lastTap = 0;
+function onTouchEndWithDoubleTap(e: TouchEvent) {
+    const now = Date.now();
+    const isDoubleTap = now - lastTap < 400;
+    lastTap = now;
+
+    if (isDoubleTap) {
+        e.preventDefault();
+        onDblClick(e);
+        lastTap = 0;
+    } else {
+        onTouchEnd(e);
+    }
+}
+
 // Mouse events
 function onMouseDown(e: MouseEvent) {
     if (scale.value <= 1) return;
@@ -190,14 +233,12 @@ function onDblClick(e: MouseEvent | TouchEvent) {
     let clientX: number, clientY: number;
 
     if (e instanceof TouchEvent) {
-        const touch = e.changedTouches[0]; // ← changedTouches instead of touches
+        const touch = e.changedTouches[0];
         clientX = touch.clientX;
         clientY = touch.clientY;
-    } else if (e instanceof MouseEvent) {
+    } else {
         clientX = e.clientX;
         clientY = e.clientY;
-    } else {
-        return;
     }
 
     if (scale.value > 1) {
@@ -221,8 +262,6 @@ function onDblClick(e: MouseEvent | TouchEvent) {
 
 function onSwipe(direction: "left" | "right") {
     if (!props.imageCollections || props.imageCollections.length <= 1) return;
-
-    // reset zoom and position when swiping
     scale.value = 1;
     translateX.value = 0;
     translateY.value = 0;
@@ -234,36 +273,15 @@ function onSwipe(direction: "left" | "right") {
     emit("update:index", newIndex);
 }
 
-// Double-tap support for mobile
-let lastTap = 0;
-function onTouchEndWithDoubleTap(e: TouchEvent) {
-    const now = Date.now();
-    const isDoubleTap = now - lastTap < 400;
-    lastTap = now;
-
-    if (isDoubleTap) {
-        e.preventDefault();
-        onDblClick(e);
-        lastTap = 0;
-    } else {
-        onTouchEnd(e); // This handles swipe logic
-    }
-    onTouchEnd(e);
-}
-
 function onKeyDown(event: KeyboardEvent) {
     if (event.key === "ArrowLeft") onSwipe("right");
     else if (event.key === "ArrowRight") onSwipe("left");
     else if (event.key === "Escape") closeModal();
 }
 
-const arrowSizeClass = computed(() => {
-    return "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14";
-});
-
-// Watch image change
+// Reset state on image change
 watch(
-    () => currentImage,
+    () => currentImage.value,
     () => {
         scale.value = 1;
         translateX.value = 0;
@@ -273,11 +291,10 @@ watch(
     { immediate: true },
 );
 
-// Setup on mount
 onMounted(() => {
     const el = container.value;
     const isMobile = window.innerWidth <= 768;
-    if (isMobile && props.imageCollections && props.imageCollections.length == 1) {
+    if (isMobile) {
         MAX_SCALE.value = 3;
         if (scale.value === 1) {
             scale.value = 1.4;
@@ -286,7 +303,6 @@ onMounted(() => {
             clampTranslation();
         }
     }
-
     if (!el) return;
 
     el.addEventListener("touchstart", onTouchStart, { passive: false });
@@ -299,7 +315,6 @@ onMounted(() => {
     window.addEventListener("mouseup", onMouseUp);
 
     el.addEventListener("wheel", handleWheel, { passive: false });
-
     el.addEventListener("dblclick", onDblClick);
 
     window.addEventListener("keydown", onKeyDown);
@@ -319,7 +334,6 @@ onBeforeUnmount(() => {
     window.removeEventListener("mouseup", onMouseUp);
 
     el.removeEventListener("wheel", handleWheel);
-
     el.removeEventListener("dblclick", onDblClick);
 
     window.removeEventListener("keydown", onKeyDown);
@@ -328,13 +342,16 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex w-full items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
+        <!-- Close -->
         <XCircleIcon
             class="fixed right-8 top-8 z-40 h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
             @click.stop="closeModal"
         />
+
+        <!-- Zoom controls -->
         <div class="fixed bottom-8 right-8 z-40 flex flex-row gap-2">
             <MagnifyingGlassMinusIcon
                 class="h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
@@ -367,7 +384,7 @@ onBeforeUnmount(() => {
                 class="pointer-events-none"
             />
 
-            <div v-if="imageCollections.length > 1">
+            <div v-if="imageCollections && imageCollections.length > 1">
                 <ArrowLeftCircleIcon
                     class="absolute left-1 top-1/2 z-40 h-12 w-12 -translate-y-1/2 cursor-pointer text-zinc-300 sm:block"
                     @click="onSwipe('right')"
@@ -378,10 +395,11 @@ onBeforeUnmount(() => {
                     @click="onSwipe('left')"
                 />
             </div>
+        </div>
 
-        <!-- Dot Indicators -->
+        <!-- Dots -->
         <div
-            v-if="imageCollections && imageCollections.length > 1"
+            v-if="hasMultiple"
             class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
         >
             <span
@@ -394,7 +412,6 @@ onBeforeUnmount(() => {
                 ]"
                 @click="
                     () => {
-                        // Reset zoom and position when switching images
                         scale = 1;
                         translateX = 0;
                         translateY = 0;
