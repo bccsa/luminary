@@ -544,41 +544,56 @@ const duplicate = async () => {
 const showLanguageSelector = ref(false);
 const showContentActionMenu = ref(false);
 
-const contentActions = [
-    {
-        name: "View live",
-        action: ensureRedirect,
-        icon: ArrowTopRightOnSquareIcon,
-        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-    },
-    {
-        name: "Save changes",
-        action: saveChanges,
-        icon: FolderArrowDownIcon,
-        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-    },
-    {
-        name: "Duplicate",
-        action: duplicate,
-        icon: DocumentDuplicateIcon,
-        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-    },
-    {
-        name: "Delete",
-        action: () => (showDeleteModal.value = true),
-        icon: TrashIcon,
-        iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
-    },
-];
+const contentActions = computed(() => {
+    const actions = [];
+
+    if (
+        isConnected.value &&
+        selectedContent_Existing.value &&
+        selectedContent_Existing.value.status === PublishStatus.Published
+    ) {
+        actions.push({
+            name: "View live",
+            action: ensureRedirect,
+            icon: ArrowTopRightOnSquareIcon,
+            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+        });
+    }
+
+    actions.push(
+        {
+            name: "Save changes",
+            action: saveChanges,
+            icon: FolderArrowDownIcon,
+            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+        },
+        {
+            name: "Duplicate",
+            action: duplicate,
+            icon: DocumentDuplicateIcon,
+            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+        },
+        {
+            name: "Delete",
+            action: () => (showDeleteModal.value = true),
+            icon: TrashIcon,
+            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+        },
+    );
+
+    return actions;
+});
 
 // Watch for changes in dirty state and new document state to add or remove the revert action
 watch(
     [isDirty, () => newDocument],
     ([dirty, isNew]) => {
-        const revertActionIndex = contentActions.findIndex((a) => a.name === "Revert changes");
+        const revertActionIndex = contentActions.value.findIndex(
+            (a) => a.name === "Revert changes",
+        );
         if (dirty && !isNew) {
             if (revertActionIndex === -1) {
-                contentActions.unshift({
+                contentActions.value.unshift({
                     name: "Revert changes",
                     action: revertChanges as any,
                     icon: ArrowUturnLeftIcon,
@@ -586,7 +601,7 @@ watch(
                 });
             }
         } else if (revertActionIndex !== -1) {
-            contentActions.splice(revertActionIndex, 1);
+            contentActions.value.splice(revertActionIndex, 1);
         }
     },
     { immediate: true },
@@ -624,7 +639,10 @@ watch(
         </template>
 
         <template #topBarActionsMobile>
-            <Menu as="div" class="relative w-full">
+            <Menu as="div" class="relative flex">
+                <LBadge v-if="isLocalChange" variant="warning" class="text-nowrap lg:hidden"
+                    >Offline changes</LBadge
+                >
                 <MenuButton class="flex w-full items-center justify-between">
                     <EllipsisVerticalIcon
                         class="ml-2 h-6 w-6 text-zinc-500 hover:text-zinc-700 lg:hidden"
@@ -671,10 +689,11 @@ watch(
         </template>
 
         <template #topBarActionsDesktop>
-            <div class="flex gap-2">
-                <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-            </div>
             <div class="hidden gap-1 lg:flex">
+                <LBadge v-if="isLocalChange" variant="warning" class="hidden lg:inline-flex"
+                    >Offline changes</LBadge
+                >
+
                 <LButton
                     type="button"
                     @click="revertChanges"
@@ -697,6 +716,7 @@ watch(
                     variant="secondary"
                     @click="ensureRedirect"
                     target="_blank"
+                    name="view-live"
                 >
                     <template #tooltip> View live version </template>
                 </LButton>
