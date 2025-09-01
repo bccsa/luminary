@@ -114,6 +114,21 @@ watch(showModal, async () => {
 
     editor.value?.commands.focus();
 });
+
+watch(text, (newText) => {
+    // By default the text is only updated at initialisation. This makes it reactivly update the text to the relevant language
+    if (!newText && !editor.value) return;
+    try {
+        const parsed = JSON.parse(newText || "");
+        if (JSON.stringify(parsed) !== JSON.stringify(editor.value?.getJSON())) {
+            editor.value?.commands.setContent(parsed);
+        }
+    } catch {
+        if (newText !== editor.value?.getText()) {
+            editor.value?.commands.setContent(newText || "");
+        }
+    }
+});
 </script>
 
 <template>
