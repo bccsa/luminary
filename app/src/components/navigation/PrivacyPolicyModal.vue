@@ -35,19 +35,9 @@ const privacyPolicy = useDexieLiveQuery(
             .first() as unknown as ContentDto | undefined,
 );
 
+// Logic for showing the "Necessary only" button
 const necessaryOnlyLogic = computed(() => {
-    if (
-        !isAuthenticated.value &&
-        userPreferencesAsRef.value.privacyPolicy?.status == "necessaryOnly"
-    )
-        return false;
-
-    if (!userPreferencesAsRef.value.privacyPolicy?.status) return true;
-    if (!isAuthenticated.value && userPreferencesAsRef.value.privacyPolicy?.status) return true;
-
-    if (isAuthenticated.value && !userPreferencesAsRef.value.privacyPolicy?.status) return false;
-
-    return false;
+    return !isAuthenticated.value && status.value === "outdated";
 });
 
 const modalMessageMap = {
@@ -112,27 +102,49 @@ setTimeout(() => {
                             {
                                 class: "flex flex-col items-stretch space-y-2 mt-2 md:flex-row md:items-center md:space-y-0 md:space-x-2",
                             },
-                            status === "outdated" &&
-                                userPreferencesAsRef.value.privacyPolicy?.status === "accepted"
-                                ? [
-                                      h(
-                                          LButton,
-                                          {
-                                              variant: "primary",
-                                              name: "accept",
-                                              onClick: () => {
-                                                  userPreferencesAsRef.value.privacyPolicy = {
-                                                      status: "accepted",
-                                                      ts: Date.now(),
-                                                  };
-                                                  useNotificationStore().removeNotification(
-                                                      "privacy-policy-banner",
-                                                  );
-                                              },
-                                          },
-                                          () => t("privacy_policy.modal.button_accept"),
-                                      ),
-                                      h(
+                            [
+                                // Accept Button
+                                h(
+                                    LButton,
+                                    {
+                                        variant: "primary",
+                                        name: "accept",
+                                        onClick: () => {
+                                            userPreferencesAsRef.value.privacyPolicy = {
+                                                status: "accepted",
+                                                ts: Date.now(),
+                                            };
+                                            useNotificationStore().removeNotification(
+                                                "privacy-policy-banner",
+                                            );
+                                        },
+                                    },
+                                    () => t("privacy_policy.modal.button_accept"),
+                                ),
+                                // Necessary Only Button (shown only when necessaryOnlyLogic is true)
+                                h(
+                                    LButton,
+                                    {
+                                        variant: "secondary",
+                                        name: "necessary-only",
+                                        onClick: () => {
+                                            userPreferencesAsRef.value.privacyPolicy = {
+                                                status: "necessaryOnly",
+                                                ts: Date.now(),
+                                            };
+                                            useNotificationStore().removeNotification(
+                                                "privacy-policy-banner",
+                                            );
+                                        },
+                                        style: necessaryOnlyLogic.value ? {} : { display: "none" },
+                                    },
+                                    () => t("privacy_policy.modal.button_necessaryOnly"),
+                                ),
+                                // Log Out Button (shown only for authenticated users when status is outdated and previously accepted)
+                                status === "outdated" &&
+                                userPreferencesAsRef.value.privacyPolicy?.status === "accepted" &&
+                                isAuthenticated.value
+                                    ? h(
                                           LButton,
                                           {
                                               variant: "secondary",
@@ -140,7 +152,6 @@ setTimeout(() => {
                                               onClick: () => {
                                                   userPreferencesAsRef.value.privacyPolicy =
                                                       undefined;
-
                                                   logout({
                                                       logoutParams: {
                                                           returnTo: window.location.origin,
@@ -150,83 +161,27 @@ setTimeout(() => {
                                                       "privacy-policy-banner",
                                                   );
                                               },
-                                              style: isAuthenticated.value
-                                                  ? {}
-                                                  : { display: "none" },
                                           },
                                           () => t("privacy_policy.modal.button_logOut"),
-                                      ),
-                                      h(
-                                          LButton,
-                                          {
-                                              variant: "secondary",
-                                              name: "more-info",
-
-                                              onClick: () => {
-                                                  router.push({
-                                                      name: "content",
-                                                      params: { slug: "privacy-policy" },
-                                                  });
-                                              },
-                                          },
-                                          () => t("privacy_policy.modal.button_readMore"),
-                                      ),
-                                  ]
-                                : [
-                                      h(
-                                          LButton,
-                                          {
-                                              variant: "primary",
-                                              name: "accept",
-                                              onClick: () => {
-                                                  userPreferencesAsRef.value.privacyPolicy = {
-                                                      status: "accepted",
-                                                      ts: Date.now(),
-                                                  };
-                                                  useNotificationStore().removeNotification(
-                                                      "privacy-policy-banner",
-                                                  );
-                                              },
-                                          },
-                                          () => t("privacy_policy.modal.button_accept"),
-                                      ),
-                                      h(
-                                          LButton,
-                                          {
-                                              variant: "secondary",
-                                              name: "necessary-only",
-                                              onClick: () => {
-                                                  userPreferencesAsRef.value.privacyPolicy = {
-                                                      status: "necessaryOnly",
-                                                      ts: Date.now(),
-                                                  };
-                                                  useNotificationStore().removeNotification(
-                                                      "privacy-policy-banner",
-                                                  );
-                                              },
-                                              style:
-                                                  !isAuthenticated.value && necessaryOnlyLogic.value
-                                                      ? {}
-                                                      : { display: "none" },
-                                          },
-                                          () => t("privacy_policy.modal.button_necessaryOnly"),
-                                      ),
-                                      h(
-                                          LButton,
-                                          {
-                                              variant: "secondary",
-                                              name: "more-info",
-                                              class: "text-nowrap",
-                                              onClick: () => {
-                                                  router.push({
-                                                      name: "content",
-                                                      params: { slug: "privacy-policy" },
-                                                  });
-                                              },
-                                          },
-                                          () => t("privacy_policy.modal.button_readMore"),
-                                      ),
-                                  ],
+                                      )
+                                    : null,
+                                // More Info Button
+                                h(
+                                    LButton,
+                                    {
+                                        variant: "secondary",
+                                        name: "more-info",
+                                        class: "text-nowrap",
+                                        onClick: () => {
+                                            router.push({
+                                                name: "content",
+                                                params: { slug: "privacy-policy" },
+                                            });
+                                        },
+                                    },
+                                    () => t("privacy_policy.modal.button_readMore"),
+                                ),
+                            ].filter(Boolean), // Remove null values from the array
                         ),
                 });
                 return;
@@ -252,7 +207,11 @@ setTimeout(() => {
         <template #footer>
             <div class="flex justify-end space-x-2">
                 <LButton
-                    v-if="!userPreferencesAsRef.privacyPolicy?.status || status === 'necessaryOnly'"
+                    v-if="
+                        !userPreferencesAsRef.privacyPolicy?.status ||
+                        status === 'outdated' ||
+                        status === 'necessaryOnly'
+                    "
                     variant="primary"
                     name="accept"
                     @click="
@@ -262,7 +221,24 @@ setTimeout(() => {
                         };
                         show = false;
                     "
-                    >{{ t("privacy_policy.modal.button_accept") }}
+                >
+                    {{ t("privacy_policy.modal.button_accept") }}
+                </LButton>
+
+                <LButton
+                    v-if="
+                        status === 'outdated' &&
+                        userPreferencesAsRef.privacyPolicy?.status === 'accepted' &&
+                        isAuthenticated
+                    "
+                    @click="
+                        userPreferencesAsRef.privacyPolicy = undefined;
+                        logout();
+                        useNotificationStore().removeNotification('privacy-policy-banner');
+                        show = false;
+                    "
+                >
+                    {{ t("privacy_policy.modal.button_logOut") }}
                 </LButton>
 
                 <LButton
@@ -277,17 +253,17 @@ setTimeout(() => {
                         show = false;
                     "
                 >
-                    Necessary only
+                    {{ t("privacy_policy.modal.button_necessaryOnly") }}
                 </LButton>
                 <LButton
                     variant="secondary"
-                    name="decline"
+                    name="more-info"
                     @click="
                         router.push({ name: 'content', params: { slug: 'privacy-policy' } });
                         show = false;
                     "
                 >
-                    More info
+                    {{ t("privacy_policy.modal.button_readMore") }}
                 </LButton>
             </div>
         </template>
