@@ -38,22 +38,24 @@ withDefaults(defineProps<Props>(), {
         <slot />
 
         <template #footer>
-            <LButton
-                @click="primaryAction()"
-                variant="primary"
-                :context="context"
-                data-test="modal-primary-button"
-            >
-                {{ primaryButtonText }}
-            </LButton>
-            <LButton
-                @click="secondaryAction()"
-                variant="secondary"
-                data-test="modal-secondary-button"
-                v-if="secondaryAction && secondaryButtonText"
-            >
-                {{ secondaryButtonText }}
-            </LButton>
+            <div class="flex justify-end gap-2">
+                <LButton
+                    @click="primaryAction()"
+                    variant="primary"
+                    :context="context"
+                    data-test="modal-primary-button"
+                >
+                    {{ primaryButtonText }}
+                </LButton>
+                <LButton
+                    @click="secondaryAction()"
+                    variant="secondary"
+                    data-test="modal-secondary-button"
+                    v-if="secondaryAction && secondaryButtonText"
+                >
+                    {{ secondaryButtonText }}
+                </LButton>
+            </div>
         </template>
     </LModal>
 </template>
