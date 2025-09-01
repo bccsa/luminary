@@ -15,7 +15,6 @@ import {
     type RedirectDto,
     type Uuid,
     type LanguageDto,
-    type TagDto,
 } from "luminary-shared";
 import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
 import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
