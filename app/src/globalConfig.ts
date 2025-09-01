@@ -193,9 +193,19 @@ export type mediaProgressEntry = {
     duration: number;
 };
 
-const _mediaProgress = JSON.parse(
-    localStorage.getItem("mediaProgress") || "[]",
+const _mediaProgress = JSON.parse(localStorage.getItem("mediaProgress") || "[]").filter(
+    (item: mediaProgressEntry) => item.duration !== Infinity,
 ) as mediaProgressEntry[];
+
+watch(_mediaProgress, (newVal) => {
+    // Filter out Infinity durations in case they were added
+    const filteredVal = newVal.filter((item) => item.duration !== Infinity);
+    if (filteredVal.length !== newVal.length) {
+        // Update _mediaProgress only if entries were removed
+        _mediaProgress.splice(0, _mediaProgress.length, ...filteredVal);
+    }
+    localStorage.setItem("mediaProgress", JSON.stringify(filteredVal));
+});
 
 /**
  * Get the playback progress of a media item.
