@@ -36,6 +36,8 @@ const editorText = computed(() => {
     }
 });
 
+const textLanguage = defineModel("textLanguage", { required: true });
+
 const editor = useEditor({
     content: editorText.value,
     extensions: [
@@ -114,6 +116,26 @@ watch(showModal, async () => {
 
     editor.value?.commands.focus();
 });
+
+watch(
+    () => textLanguage.value,
+    (newLang, oldLang) => {
+        if (newLang === oldLang) return;
+        if (!editor.value) return;
+        // Always update editor content when language changes
+        if (!text.value) {
+            editor.value.commands.setContent("");
+            return;
+        }
+        try {
+            const parsed = JSON.parse(text.value);
+            editor.value.commands.setContent(parsed);
+        } catch {
+            // If parsing fails just use the previous text
+            editor.value.commands.setContent(text.value);
+        }
+    },
+);
 </script>
 
 <template>
