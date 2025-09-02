@@ -63,6 +63,7 @@ describe("EditContentText.vue", () => {
             props: {
                 disabled: false,
                 content: initialContent,
+                textLanguage: initialContent.language,
             },
         });
 
@@ -81,6 +82,7 @@ describe("EditContentText.vue", () => {
 
         // Update content prop (simulating language switch)
         await wrapper.setProps({ content: updatedContent });
+        wrapper.vm.textLanguage = updatedContent.language;
 
         // Wait for the watcher in RichTextEditor to update
         await waitForExpect(() => {
