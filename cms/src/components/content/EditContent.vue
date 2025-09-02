@@ -762,7 +762,6 @@ watch(
                             :tagOrPostType="props.tagOrPostType"
                             :language="selectedLanguage"
                             v-model:parent="editableParent"
-                            :new-document="newDocument"
                             :disabled="!canEditParent"
                         />
 
