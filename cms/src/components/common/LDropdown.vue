@@ -10,7 +10,7 @@ withDefaults(defineProps<Props>(), {
     padding: "medium",
 });
 
-const shouldShowDropdown = defineModel<boolean>("shouldShowDropdown", { required: true });
+const show = defineModel<boolean>("show", { required: true });
 const dropdownElementRef = ref<HTMLElement | null>(null);
 
 onClickOutside(dropdownElementRef, () => {
@@ -19,7 +19,7 @@ onClickOutside(dropdownElementRef, () => {
 </script>
 
 <template>
-    <div v-show="shouldShowDropdown" ref="dropdownElementRef" class="z-50">
+    <div v-show="show" ref="dropdownElementRef" class="z-50">
         <div
             class="w-48 rounded-md border bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
             :class="[
