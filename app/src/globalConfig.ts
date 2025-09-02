@@ -193,8 +193,8 @@ export type mediaProgressEntry = {
     duration: number;
 };
 
-const _mediaProgress = JSON.parse(
-    localStorage.getItem("mediaProgress") || "[]",
+const _mediaProgress = JSON.parse(localStorage.getItem("mediaProgress") || "[]").filter(
+    (item: mediaProgressEntry) => item.duration !== Infinity,
 ) as mediaProgressEntry[];
 
 /**
@@ -236,6 +236,8 @@ export const setMediaProgress = (
     progress: number,
     duration: number,
 ) => {
+    if (duration === Infinity) return;
+
     const index = _mediaProgress.findIndex(
         (p) => p.mediaId === mediaId && p.contentId === contentId,
     );
