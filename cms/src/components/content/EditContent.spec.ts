@@ -15,7 +15,6 @@ import { initLanguage } from "@/globalConfig";
 import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
-import { l } from "node_modules/vite/dist/node/types.d-aGj9QkWt";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
