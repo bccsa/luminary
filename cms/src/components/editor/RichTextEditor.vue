@@ -36,6 +36,8 @@ const editorText = computed(() => {
     }
 });
 
+const textLanguage = defineModel("textLanguage", { required: true });
+
 const editor = useEditor({
     content: editorText.value,
     extensions: [
@@ -115,23 +117,19 @@ watch(showModal, async () => {
     editor.value?.commands.focus();
 });
 
-watch(text, (newText) => {
-    // By default the text is only updated at initialisation. This makes it reactively update the text to the relevant language
-    if (!editor.value) return; // Editor not ready
-    if (newText === null || newText === undefined || newText === "") {
-        // If newText is empty/null, clear the editor content
+watch(textLanguage, (newLang) => {
+    if (textLanguage.value === newLang) return;
+    if (!editor.value) return;
+    if (!text.value) {
         editor.value.commands.setContent("");
         return;
     }
     try {
-        const parsed = JSON.parse(newText);
-        if (JSON.stringify(parsed) !== JSON.stringify(editor.value.getJSON())) {
-            editor.value.commands.setContent(parsed);
-        }
+        const parsed = JSON.parse(text.value);
+        editor.value.commands.setContent(parsed);
     } catch {
-        if (newText !== editor.value.getText()) {
-            editor.value.commands.setContent(newText);
-        }
+        // If parsing fails just use the previous text
+        editor.value.commands.setContent(text.value);
     }
 });
 </script>

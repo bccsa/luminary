@@ -17,6 +17,7 @@ const content = defineModel<ContentDto>("content");
             <RichTextEditor
                 class="mb-16"
                 v-model:text="content.text"
+                v-model:text-language="content.language"
                 :disabled="disabled"
                 data-test="richTextEditor"
             />
