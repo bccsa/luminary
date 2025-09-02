@@ -26,36 +26,38 @@ onClickOutside(languagePopup, () => {
 </script>
 
 <template>
-    <LDropdown data-test="languagePopup" :should-show-dropdown="showSelector">
-        <ul>
-            <div class="py-1">
-                <li v-for="language in languages" :key="language.languageCode">
-                    <button
-                        @click="
-                            () => {
-                                emit('createTranslation', language);
-                                showSelector = false;
-                            }
-                        "
-                        class="text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
-                        :class="[
-                            'group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm',
-                        ]"
-                        :data-test="`select-language-${language.languageCode}`"
-                    >
-                        <span class="flex items-center gap-2">
-                            <LBadge type="language">
-                                {{ language.languageCode }}
-                            </LBadge>
-                            {{ language.name }}
-                        </span>
+    <div class="relative">
+        <LDropdown data-test="languagePopup" :should-show-dropdown="showSelector">
+            <ul>
+                <div class="py-1">
+                    <li v-for="language in languages" :key="language.languageCode">
+                        <button
+                            @click="
+                                () => {
+                                    emit('createTranslation', language);
+                                    showSelector = false;
+                                }
+                            "
+                            class="text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                            :class="[
+                                'group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm',
+                            ]"
+                            :data-test="`select-language-${language.languageCode}`"
+                        >
+                            <span class="flex items-center gap-2">
+                                <LBadge type="language">
+                                    {{ language.languageCode }}
+                                </LBadge>
+                                {{ language.name }}
+                            </span>
 
-                        <ArrowRightIcon
-                            class="hidden h-4 w-4 text-zinc-600 sm:group-hover:inline-block sm:group-active:inline-block"
-                        />
-                    </button>
-                </li>
-            </div>
-        </ul>
-    </LDropdown>
+                            <ArrowRightIcon
+                                class="hidden h-4 w-4 text-zinc-600 sm:group-hover:inline-block sm:group-active:inline-block"
+                            />
+                        </button>
+                    </li>
+                </div>
+            </ul>
+        </LDropdown>
+    </div>
 </template>
