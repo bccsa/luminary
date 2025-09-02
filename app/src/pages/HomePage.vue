@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { type ContentDto, DocType, db } from "luminary-shared";
-import { useAuth0 } from "@auth0/auth0-vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
@@ -9,8 +8,9 @@ import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import { isPublished } from "@/util/isPublished";
 import BasePage from "@/components/BasePage.vue";
 import ContinueWatching from "@/components/HomePage/ContinueWatching.vue";
+import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 
-const { isAuthenticated, loginWithRedirect } = useAuth0();
+const { isAuthenticated, loginWithRedirect } = useAuthWithPrivacyPolicy();
 
 const hasPosts = db.toRef<boolean>(
     () =>
