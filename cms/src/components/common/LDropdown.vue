@@ -11,7 +11,7 @@ onClickOutside(dropdownElementRef, () => {
 </script>
 
 <template>
-    <div ref="dropdownElementRef" class="absolute z-50">
+    <div ref="dropdownElementRef" class="fixed z-50">
         <div
             class="w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
         >
