@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { onClickOutside } from "@vueuse/core";
 import { ref } from "vue";
+import LTeleport from "./LTeleport.vue";
 
 const shouldShowDropdown = defineModel<boolean>("shouldShowDropdown", { required: true });
 const dropdownElementRef = ref<HTMLElement | null>(null);
@@ -11,12 +12,14 @@ onClickOutside(dropdownElementRef, () => {
 </script>
 
 <template>
-    <div ref="dropdownElementRef">
-        <div
-            v-show="shouldShowDropdown"
-            class="w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-        >
-            <slot />
+    <LTeleport>
+        <div ref="dropdownElementRef">
+            <div
+                v-show="shouldShowDropdown"
+                class="w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+            >
+                <slot />
+            </div>
         </div>
-    </div>
+    </LTeleport>
 </template>
