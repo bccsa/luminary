@@ -20,6 +20,7 @@ import LButton from "@/components/button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import { onClickOutside } from "@vueuse/core";
 import LTag from "../LTag.vue";
+import LDropdown from "@/components/common/LDropdown.vue";
 
 type Props = {
     translationOptions: any[];
@@ -101,18 +102,15 @@ onClickOutside(sortOptionsMenu, () => {
                     :icon="UserGroupIcon"
                 />
 
-                <LButton
-                    @click="() => (showSortOptions = !showSortOptions)"
-                    data-test="sort-toggle-btn"
-                >
+                <LButton @click="showSortOptions = !showSortOptions" data-test="sort-toggle-btn">
                     <ArrowsUpDownIcon class="h-full w-4" />
                 </LButton>
 
-                <div
+                <LDropdown
                     ref="sortOptionsMenu"
-                    class="absolute right-0 top-full mt-[2px] h-max w-40 rounded-lg bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-                    v-if="showSortOptions"
+                    :should-show-dropdown="showSortOptions"
                     data-test="sort-options-display"
+                    class="absolute right-0 top-full mt-1"
                 >
                     <div class="flex flex-col">
                         <LRadio
@@ -164,8 +162,7 @@ onClickOutside(sortOptionsMenu, () => {
                             >Descending</LButton
                         >
                     </div>
-                </div>
-
+                </LDropdown>
                 <LButton @click="reset()" class="w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />
                 </LButton>
