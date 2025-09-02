@@ -15,7 +15,7 @@ import {
     mockTopicContentDto,
     mockTopicDto,
     mockRedirectDto,
-} from "@/tests/mockdata";
+} from "../tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
@@ -40,6 +40,7 @@ vi.mock("vue-router", async (importOriginal) => {
             }),
             replace: routeReplaceMock,
             back: vi.fn(),
+            beforeEach: vi.fn(),
         })),
     };
 });
@@ -279,7 +280,7 @@ describe("SingleContent", () => {
             const metaDescription = document.head.querySelector("meta[name='description']");
 
             expect(document.title).toBe(`${mockEnglishContentDto.seoTitle} - ${appName}`);
-            expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoString);
+            expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoTitle);
         });
     });
 
