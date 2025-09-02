@@ -26,7 +26,7 @@ onClickOutside(languagePopup, () => {
 </script>
 
 <template>
-    <div class="relative">
+    <div ref="languagePopup" v-if="showSelector" class="relative">
         <LDropdown data-test="languagePopup" :should-show-dropdown="showSelector">
             <ul>
                 <div class="py-1">
