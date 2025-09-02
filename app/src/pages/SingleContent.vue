@@ -16,7 +16,6 @@ import {
     type Uuid,
     type LanguageDto,
 } from "luminary-shared";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
