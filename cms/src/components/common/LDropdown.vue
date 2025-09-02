@@ -12,10 +12,9 @@ onClickOutside(dropdownElementRef, () => {
 </script>
 
 <template>
-    <LTeleport>
+    <LTeleport v-show="shouldShowDropdown">
         <div ref="dropdownElementRef">
             <div
-                v-show="shouldShowDropdown"
                 class="w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
             >
                 <slot />
