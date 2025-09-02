@@ -4,6 +4,7 @@ import { type ContentDto, type ContentParentDto, type LanguageDto } from "lumina
 import { ArrowRightIcon } from "@heroicons/vue/16/solid";
 import { onClickOutside } from "@vueuse/core";
 import { ref } from "vue";
+import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
     parent?: ContentParentDto;
@@ -14,7 +15,7 @@ defineProps<Props>();
 
 const emit = defineEmits(["createTranslation"]);
 
-const showSelector = defineModel<boolean>("showSelector");
+const showSelector = defineModel<boolean>("showSelector", { required: true });
 const languages = defineModel<LanguageDto[]>("languages");
 
 const languagePopup = ref();
@@ -25,19 +26,9 @@ onClickOutside(languagePopup, () => {
 </script>
 
 <template>
-    <div ref="languagePopup" class="relative inline-block text-left" data-test="languagePopup">
-        <transition
-            enter-active-class="transition ease-out duration-100"
-            enter-from-class="transform opacity-0 scale-95"
-            enter-to-class="transform opacity-100 scale-100"
-            leave-active-class="transition ease-in duration-75"
-            leave-from-class="transform opacity-100 scale-100"
-            leave-to-class="transform opacity-0 scale-95"
-        >
-            <ul
-                v-show="showSelector"
-                class="absolute z-10 w-56 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:-right-28 sm:left-auto sm:origin-top-right"
-            >
+    <div ref="languagePopup" data-test="languagePopup" v-show="showSelector" class="relative">
+        <LDropdown data-test="languagePopup" :should-show-dropdown="showSelector">
+            <ul>
                 <div class="py-1">
                     <li v-for="language in languages" :key="language.languageCode">
                         <button
@@ -67,6 +58,6 @@ onClickOutside(languagePopup, () => {
                     </li>
                 </div>
             </ul>
-        </transition>
+        </LDropdown>
     </div>
 </template>

@@ -204,7 +204,13 @@ describe("EditContent.vue", () => {
 
     it("only displays languages the user has Translate access to in languageSelector", async () => {
         await db.docs.clear();
-        await db.docs.bulkPut([mockData.mockPostDto, mockData.mockEnglishContentDto]);
+        await db.docs.bulkPut([
+            mockData.mockPostDto,
+            mockData.mockEnglishContentDto,
+            mockData.mockLanguageDtoEng,
+            mockData.mockLanguageDtoFra,
+            mockData.mockLanguageDtoSwa,
+        ]);
 
         accessMap.value = { ...mockData.translateAccessToAllContentMap };
         accessMap.value["group-public-content"].language = {
@@ -230,10 +236,19 @@ describe("EditContent.vue", () => {
             slots: {},
         });
 
+        const languageSelector = wrapper.findComponent(LanguageSelector);
+
         await waitForExpect(() => {
-            const languageSelector = wrapper.findComponent(LanguageSelector);
             expect(languageSelector.exists()).toBe(true);
-            const languages = languageSelector.find("[data-test='languagePopup']");
+        });
+
+        const languages = languageSelector.find("[data-test='languagePopup']");
+
+        await waitForExpect(() => {
+            expect(languages.exists()).toBe(true);
+        });
+
+        await waitForExpect(() => {
             expect(languages.html()).toContain("English");
             expect(languages.html()).not.toContain("Français");
             expect(languages.html()).not.toContain("Swahili");

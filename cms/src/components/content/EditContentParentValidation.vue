@@ -224,16 +224,12 @@ watch(
                         @click.stop="showLanguageSelector = !showLanguageSelector"
                         data-test="add-translation-button"
                     />
-
-                    <div
-                        v-if="untranslatedLanguages.length > 0"
-                        class="absolute right-24 z-10 mt-2"
-                    >
+                    <div v-if="untranslatedLanguages.length > 0" class="absolute right-0 z-50 mt-5">
                         <LanguageSelector
                             :languages="untranslatedLanguages"
                             :parent="editableParent"
                             :content="editableContent"
-                            :showSelector="showLanguageSelector"
+                            :show-selector="showLanguageSelector"
                             @create-translation="
                                 (language) => {
                                     emit('createTranslation', language);
