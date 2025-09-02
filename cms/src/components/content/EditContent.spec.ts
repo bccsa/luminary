@@ -230,10 +230,10 @@ describe("EditContent.vue", () => {
             slots: {},
         });
 
-        const languageSelector = wrapper.findComponent(LanguageSelector);
-        const languages = languageSelector.find("[data-test='languagePopup']");
-
         await waitForExpect(() => {
+            const languageSelector = wrapper.findComponent(LanguageSelector);
+            expect(languageSelector.exists()).toBe(true);
+            const languages = languageSelector.find("[data-test='languagePopup']");
             expect(languages.html()).toContain("English");
             expect(languages.html()).not.toContain("Français");
             expect(languages.html()).not.toContain("Swahili");
