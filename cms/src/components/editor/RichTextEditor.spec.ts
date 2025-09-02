@@ -69,6 +69,7 @@ describe("RichTextEditor", () => {
                     type: "doc",
                     content: [{ type: "paragraph", content: [{ type: "text", text: "Test" }] }],
                 }),
+                textLanguage: "lang-eng",
             },
         });
 
