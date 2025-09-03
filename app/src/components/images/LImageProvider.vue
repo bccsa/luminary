@@ -51,8 +51,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
-let closestAspectRatio = 0;
-
 const connectionSpeed = getConnectionSpeed();
 const isDesktop = window.innerWidth >= 768;
 
@@ -95,6 +93,24 @@ const filteredFileCollections = computed(() => {
     return res;
 });
 
+// Calculate the closest aspect ratio to the desired one
+const closestAspectRatio = computed(() => {
+    if (!filteredFileCollections.value.length) return 0;
+
+    const aspectRatios = filteredFileCollections.value
+        .map((collection) => collection.aspectRatio)
+        .reduce((acc, cur) => {
+            if (!acc.includes(cur)) acc.push(cur);
+            return acc;
+        }, [] as number[])
+        .sort((a, b) => a - b);
+
+    const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
+    return aspectRatios.reduce((acc, cur) => {
+        return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
+    }, aspectRatios[0]);
+});
+
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
     if (props.image?.uploadData && props.image.uploadData.length > 0) {
@@ -107,21 +123,8 @@ const srcset1 = computed(() => {
 
     if (!filteredFileCollections.value.length) return "";
 
-    const aspectRatios = filteredFileCollections.value
-        .map((collection) => collection.aspectRatio)
-        .reduce((acc, cur) => {
-            if (!acc.includes(cur)) acc.push(cur);
-            return acc;
-        }, [] as number[])
-        .sort((a, b) => a - b);
-
-    const desiredAspectRatio = aspectRatioNumbers[props.aspectRatio];
-    closestAspectRatio = aspectRatios.reduce((acc, cur) => {
-        return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
-    }, aspectRatios[0]);
-
     return filteredFileCollections.value
-        .filter((collection) => collection.aspectRatio == closestAspectRatio)
+        .filter((collection) => collection.aspectRatio == closestAspectRatio.value)
         .map((collection) => {
             return collection.imageFiles
                 .sort((a, b) => a.width - b.width)
@@ -133,9 +136,9 @@ const srcset1 = computed(() => {
 
 // Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
-    if (!props.image?.fileCollections || props.image.fileCollections?.length == 0) return "";
-    return props.image.fileCollections
-        .filter((collection) => collection.aspectRatio != closestAspectRatio)
+    if (!filteredFileCollections.value.length) return "";
+    return filteredFileCollections.value
+        .filter((collection) => collection.aspectRatio != closestAspectRatio.value)
         .map((collection) => {
             let images = collection.imageFiles;
 
