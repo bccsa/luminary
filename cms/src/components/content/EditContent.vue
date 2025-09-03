@@ -821,17 +821,18 @@ watch(
                     v-if="!selectedContent"
                     :icon="icon"
                     title=""
-                    :description="`Please select a language to start editing
-                    `"
+                    :description="`Please select a language to start editing`"
                     data-test="no-content"
                     class="flex flex-col items-center justify-center"
-                    ><LanguageSelector
+                >
+                    <LanguageSelector
                         :parent="editableParent"
                         :content="editableContent"
                         :languages="untranslatedLanguages"
                         v-model:show-selector="showLanguageSelector"
                         @create-translation="createTranslation"
-                /></EmptyState>
+                    />
+                </EmptyState>
 
                 <div v-else class="">
                     <EditContentText
