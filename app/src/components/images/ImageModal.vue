@@ -279,6 +279,8 @@ function onKeyDown(event: KeyboardEvent) {
     else if (event.key === "Escape") closeModal();
 }
 
+const arrowSizeClass = computed(() => "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14");
+
 // Reset state on image change
 watch(
     () => currentImage.value,
@@ -347,18 +349,18 @@ onBeforeUnmount(() => {
     >
         <!-- Close -->
         <XCircleIcon
-            class="fixed right-8 top-8 z-40 h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg transition-transform duration-150 ease-out hover:scale-110 hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
+            class="fixed right-8 top-8 z-40 h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
             @click.stop="closeModal"
         />
 
         <!-- Zoom controls -->
         <div class="fixed bottom-8 right-8 z-40 flex flex-row gap-2">
             <MagnifyingGlassMinusIcon
-                class="h-10 w-10 -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg transition-transform duration-150 ease-out hover:scale-110 hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
+                class="h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
                 @click.stop="zoomOut"
             />
             <MagnifyingGlassPlusIcon
-                class="h-10 w-10 -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg transition-transform duration-150 ease-out hover:scale-110 hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
+                class="h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
                 @click.stop="zoomIn"
             />
         </div>
