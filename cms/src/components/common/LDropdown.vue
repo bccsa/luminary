@@ -14,7 +14,7 @@ const show = defineModel<boolean>("show", { required: true });
 const dropdownElementRef = ref<HTMLElement | null>(null);
 
 onClickOutside(dropdownElementRef, () => {
-    shouldShowDropdown.value = false;
+    show.value = false;
 });
 </script>
 
