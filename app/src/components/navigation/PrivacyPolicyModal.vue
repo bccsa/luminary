@@ -37,23 +37,26 @@ const privacyPolicy = useDexieLiveQuery(
 
 // Logic for showing the "Necessary only" button
 const necessaryOnlyLogic = computed(() => {
-    return !isAuthenticated.value && status.value === "outdated";
+    if (!userPreferencesAsRef.value.privacyPolicy?.status && !isAuthenticated.value) return true;
+    if (status.value == "outdated" && !isAuthenticated.value) return true;
+    if (userPreferencesAsRef.value.privacyPolicy?.status == "accepted" && !isAuthenticated.value)
+        return true;
+
+    return false;
 });
 
 const modalMessageMap = {
     accepted: t("privacy_policy.modal.message_map.accepted"),
     outdated: t("privacy_policy.modal.message_map.outdated"),
     unaccepted: t("privacy_policy.modal.message_map.unaccepted"),
-    necessaryOnly:
-        "You have chosen to accept only necessary cookies. if you want a better experience, please click on accept.",
+    necessaryOnly: t("privacy_policy.banner.message_map.necessaryOnly"),
 };
 
 const bannerMessageMap = {
     ...modalMessageMap,
     outdated: t("privacy_policy.banner.message_map.outdated"),
     unaccepted: t("privacy_policy.banner.message_map.unaccepted"),
-    necessaryOnly:
-        "You have chosen to accept only necessary cookies. if you want a better experience, please click on accept.",
+    necessaryOnly: t("privacy_policy.banner.message_map.necessaryOnly"),
 };
 
 const status: ComputedRef<"accepted" | "outdated" | "unaccepted" | "necessaryOnly"> = computed(
@@ -70,7 +73,7 @@ const status: ComputedRef<"accepted" | "outdated" | "unaccepted" | "necessaryOnl
             privacyPolicy.value.publishDate &&
             (userPreferencesAsRef.value.privacyPolicy.status == "accepted" ||
                 userPreferencesAsRef.value.privacyPolicy.status == "necessaryOnly") &&
-            privacyPolicy.value.publishDate > userPreferencesAsRef.value.privacyPolicy.ts
+            privacyPolicy.value.updatedTimeUtc > userPreferencesAsRef.value.privacyPolicy.ts
         )
             return "outdated";
 
@@ -91,7 +94,10 @@ setTimeout(() => {
                     id: "privacy-policy-banner",
                     type: "bottom",
                     state: "info",
-                    title: t("privacy_policy.banner.title"),
+                    title:
+                        status == "outdated"
+                            ? t("privacy_policy.banner.title_map.outdated")
+                            : t("privacy_policy.banner.title"),
                     description: bannerMessageMap[status],
                     icon: ShieldCheckIcon,
                     link: () => (show.value = true),
@@ -191,7 +197,7 @@ setTimeout(() => {
         },
         { immediate: true },
     );
-}, 3000);
+}, 2000);
 </script>
 
 <template>
