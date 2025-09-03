@@ -280,7 +280,7 @@ onBeforeUnmount(() => {
         </div>
         <div
             ref="container"
-            class="relative flex max-h-[calc(100vh-8rem)] max-w-[calc(100vw-8rem)] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
+            class="relative flex max-h-[calc(100vh-8rem)] w-max max-w-[calc(100vw-8rem)] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
                 transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
@@ -294,7 +294,7 @@ onBeforeUnmount(() => {
                 :size="size"
                 :rounded="rounded"
                 :is-modal="true"
-                class="pointer-events-none max-h-full max-w-full"
+                class="pointer-events-none h-max w-max"
             />
         </div>
     </div>
