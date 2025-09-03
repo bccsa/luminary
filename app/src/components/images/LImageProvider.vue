@@ -187,7 +187,7 @@ onBeforeMount(async () => {
         v-if="srcset1 && showImageElement1"
         :srcset="srcset1"
         :class="[
-            aspectRatiosCSS[aspectRatio],
+            !isModal && aspectRatiosCSS[aspectRatio],
             sizes[size],
             'bg-cover bg-center object-cover object-center',
         ]"
@@ -202,7 +202,7 @@ onBeforeMount(async () => {
         src=""
         :srcset="srcset2"
         :class="[
-            aspectRatiosCSS[aspectRatio],
+            !isModal && aspectRatiosCSS[aspectRatio],
             sizes[size],
             'bg-cover bg-center object-cover object-center',
         ]"
@@ -216,7 +216,7 @@ onBeforeMount(async () => {
         v-else
         :src="fallbackImageUrl"
         :class="[
-            aspectRatiosCSS[aspectRatio],
+            !isModal && aspectRatiosCSS[aspectRatio],
             sizes[size],
             'bg-cover bg-center object-cover object-center',
         ]"
