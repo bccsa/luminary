@@ -280,7 +280,7 @@ onBeforeUnmount(() => {
         </div>
         <div
             ref="container"
-            class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg bg-gray-900"
+            class="relative flex max-h-[1100px] w-max max-w-[1300px] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg bg-gray-900"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
                 transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
