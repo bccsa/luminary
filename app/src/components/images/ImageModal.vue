@@ -385,6 +385,21 @@ onBeforeUnmount(() => {
                 :is-modal="true"
                 class="pointer-events-none"
             />
+        <!-- Content -->
+        <div class="relative flex w-full max-w-[1350px] items-center justify-center">
+            <!-- Arrows -->
+            <ArrowLeftCircleIcon
+                v-if="hasMultiple"
+                class="absolute left-2 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 sm:left-4 md:left-[-64px] md:block"
+                :class="arrowSizeClass"
+                @click="onSwipe('right')"
+            />
+            <ArrowRightCircleIcon
+                v-if="hasMultiple"
+                class="absolute right-2 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 sm:right-4 md:right-[-64px] md:block"
+                :class="arrowSizeClass"
+                @click="onSwipe('left')"
+            />
 
             <div v-if="imageCollections && imageCollections.length > 1">
                 <ArrowLeftCircleIcon
