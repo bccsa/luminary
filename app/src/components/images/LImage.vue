@@ -59,7 +59,7 @@ onMounted(() => {
             :class="[
                 aspectRatiosCSS[aspectRatio],
                 rounded ? rounding[size] : '',
-                'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
+                'relative w-max overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
             <LImageProvider
