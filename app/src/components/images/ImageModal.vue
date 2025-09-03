@@ -294,7 +294,7 @@ onBeforeUnmount(() => {
                 :size="size"
                 :rounded="rounded"
                 :is-modal="true"
-                class="pointer-events-none max-h-[80vh] max-w-[80vw]"
+                class="pointer-events-none"
             />
         </div>
     </div>
