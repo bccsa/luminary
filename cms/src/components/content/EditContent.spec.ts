@@ -227,6 +227,27 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("routes back to overview if parent is not found in the database", async () => {
+        const notificationStore = useNotificationStore();
+        mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: { ...mockData.mockPostDto, _id: "post-post5" }._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: "Parent not found",
+                    description: "The parent document was not found in the database",
+                }),
+            );
+        });
+    });
+
     it("only displays languages the user has Translate access to in languageSelector", async () => {
         await db.docs.clear();
         await db.docs.bulkPut([
