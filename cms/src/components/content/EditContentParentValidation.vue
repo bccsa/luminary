@@ -165,14 +165,6 @@ watch(
         if (!_editableParent) return;
 
         validate(
-            "At least one group membership is required",
-            "groups",
-            parentValidations.value,
-            _editableParent,
-            () => _editableParent.memberOf.length > 0,
-        );
-
-        validate(
             "At least one translation is required",
             "translations",
             parentValidations.value,
@@ -259,7 +251,7 @@ watch(
             <div class="flex flex-col gap-2">
                 <div
                     v-if="!(canTranslate || canPublish) || !canEdit"
-                    class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
+                    class="mb-1 rounded-md bg-zinc-50 p-2 shadow"
                 >
                     <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs text-zinc-600">
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
@@ -275,7 +267,7 @@ watch(
                     >
                 </div>
                 <div v-if="!parentIsValid">
-                    <div class="mb-1 mt-1 flex flex-col gap-0.5">
+                    <div class="my-1 flex flex-col gap-0.5">
                         <div
                             v-for="validation in parentValidations.filter((v) => !v.isValid)"
                             :key="validation.id"

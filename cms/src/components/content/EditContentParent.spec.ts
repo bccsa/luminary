@@ -113,4 +113,20 @@ describe("EditContentParent.vue", () => {
 
         expect(wrapper.html()).not.toContain("Unsaved changes");
     });
+
+    it("fails validation if no groups are set", async () => {
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+                parent: { ...mockData.mockPostDto, memberOf: [] },
+                language: mockData.mockLanguageDtoEng,
+                disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockPostDto,
+            },
+        });
+
+        expect(wrapper.html()).toContain("At least one group membership is required");
+    });
 });

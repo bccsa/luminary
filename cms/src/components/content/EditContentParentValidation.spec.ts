@@ -42,10 +42,9 @@ describe("EditContentParentValidation.vue", () => {
                 dirty: true,
                 editableParent: {
                     ...mockData.mockPostDto,
-                    memberOf: [],
                     imageData: { fileCollections: [], uploadData: [] },
                 },
-                editableContent: [mockData.mockEnglishContentDto],
+                editableContent: [],
                 localChange: false,
                 existingParent: mockData.mockPostDto,
                 existingContent: [mockData.mockEnglishContentDto],
@@ -59,7 +58,7 @@ describe("EditContentParentValidation.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("At least one group membership is required");
+            expect(wrapper.html()).toContain("At least one translation is required");
         });
     });
 
@@ -126,39 +125,11 @@ describe("EditContentParentValidation.vue", () => {
             });
 
             await waitForExpect(() => {
-                expect(wrapper.html()).not.toContain("At least one group membership is required");
                 expect(wrapper.html()).not.toContain("At least one translation is required");
             });
         },
         { timeout: 10000000 },
     );
-
-    it("fails validation if no groups are set", async () => {
-        const wrapper = mount(EditContentParentValidation, {
-            props: {
-                tagOrPostType: PostType.Blog,
-                languages: [
-                    mockData.mockLanguageDtoEng,
-                    mockData.mockLanguageDtoFra,
-                    mockData.mockLanguageDtoSwa,
-                ],
-                dirty: true,
-                editableParent: { ...mockData.mockPostDto, memberOf: [] },
-                editableContent: [],
-                localChange: false,
-                existingParent: mockData.mockPostDto,
-                existingContent: [mockData.mockEnglishContentDto],
-                canEdit: true,
-                canTranslateOrPublish: true,
-                canTranslate: true,
-                canPublish: true,
-                untranslatedLanguages: [],
-                canDelete: true,
-            },
-        });
-
-        expect(wrapper.html()).toContain("At least one group membership is required");
-    });
 
     it("fails validation if no translations are set", async () => {
         const wrapper = mount(EditContentParentValidation, {
