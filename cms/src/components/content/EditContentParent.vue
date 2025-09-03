@@ -15,11 +15,14 @@ import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
+import _ from "lodash";
+import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
 
 type Props = {
     docType: DocType;
     tagOrPostType: TagType | PostType;
     language?: LanguageDto;
+    existingParent: ContentParentDto | undefined;
     disabled: boolean;
 };
 defineProps<Props>();
@@ -46,6 +49,19 @@ const pinned = computed({
         v-if="parent"
         class="bg-white"
     >
+        <template #persistent>
+            <div
+                v-if="parent && !_.isEqual(parent, existingParent)"
+                class="mb-2 flex items-center gap-2"
+            >
+                <p>
+                    <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                </p>
+                <p class="text-xs text-zinc-700">
+                    Unsaved changes to {{ tagOrPostType }}'s settings.
+                </p>
+            </div>
+        </template>
         <GroupSelector
             v-model:groups="parent.memberOf"
             :disabled="disabled"

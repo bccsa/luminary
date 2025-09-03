@@ -780,6 +780,7 @@ watch(
                             :language="selectedLanguage"
                             v-model:parent="editableParent"
                             :disabled="!canEditParent"
+                            :existingParent="existingParent"
                         />
 
                         <EditContentImage

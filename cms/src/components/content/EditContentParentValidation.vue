@@ -17,7 +17,6 @@ import {
     PlusIcon,
     XCircleIcon,
 } from "@heroicons/vue/20/solid";
-import _ from "lodash";
 import LCard from "../common/LCard.vue";
 import LButton from "../button/LButton.vue";
 import { useRouter } from "vue-router";
@@ -258,17 +257,6 @@ watch(
             </template>
 
             <div class="flex flex-col gap-2">
-                <div
-                    v-if="editableParent && !_.isEqual(editableParent, existingParent)"
-                    class="flex items-center gap-2"
-                >
-                    <p>
-                        <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
-                    </p>
-                    <p class="text-xs text-zinc-700">
-                        Unsaved changes to {{ tagOrPostType }}'s settings.
-                    </p>
-                </div>
                 <div
                     v-if="!(canTranslate || canPublish) || !canEdit"
                     class="mb-1 rounded-md bg-zinc-50 p-4 shadow"
