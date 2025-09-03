@@ -188,8 +188,10 @@ onBeforeMount(async () => {
         :srcset="srcset1"
         :class="[
             !isModal && aspectRatiosCSS[aspectRatio],
-            sizes[size],
-            'bg-cover bg-center object-cover object-center',
+            !isModal && sizes[size],
+            isModal
+                ? 'max-h-full max-w-full object-contain'
+                : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element1"
@@ -203,8 +205,10 @@ onBeforeMount(async () => {
         :srcset="srcset2"
         :class="[
             !isModal && aspectRatiosCSS[aspectRatio],
-            sizes[size],
-            'bg-cover bg-center object-cover object-center',
+            !isModal && sizes[size],
+            isModal
+                ? 'max-h-full max-w-full object-contain'
+                : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element2"
@@ -217,8 +221,10 @@ onBeforeMount(async () => {
         :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatiosCSS[aspectRatio],
-            sizes[size],
-            'bg-cover bg-center object-cover object-center',
+            !isModal && sizes[size],
+            isModal
+                ? 'max-h-full max-w-full object-contain'
+                : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element2"
