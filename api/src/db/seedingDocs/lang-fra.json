@@ -62,6 +62,8 @@
         "privacy_policy.modal.message_map.unaccepted": "Veuillez accepter notre politique de confidentialité pour profiter pleinement des fonctionnalités de l'application",
         "privacy_policy.banner.message_map.outdated": "Nous avons mis à jour notre politique de confidentialité. Cliquez ici pour l'accepter et profiter pleinement des fonctionnalités de l'application",
         "privacy_policy.banner.message_map.unaccepted": "Cliquez ici pour accepter notre politique de confidentialité et profiter pleinement des fonctionnalités de l'application",
+        "privacy_policy.banner.title_map.outdated": "Politique de confidentialité mise à jour",
+        "privacy_policy.banner.message_map.necessaryOnly": "Vous avez choisi d'accepter uniquement les cookies nécessaires. Si vous souhaitez une meilleure expérience, veuillez cliquer sur accepter.",
         "privacy_policy.banner.title": "Politique de confidentialité",
         "privacy_policy.modal.link_text_1": "Cliquez",
         "privacy_policy.modal.link_text_2": "ici",
