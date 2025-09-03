@@ -122,6 +122,23 @@ if (newDocument) {
 } else {
     // Get a copy of the parent document from IndexedDB, and host it as a local ref.
     db.get<PostDto | TagDto>(parentId).then((p) => {
+        if (!p) {
+            addNotification({
+                title: "Parent not found",
+                description: "The parent document was not found in the database",
+                state: "error",
+                timer: 5000,
+            });
+
+            router.push({
+                name: "overview",
+                params: {
+                    docType: props.docType,
+                    tagOrPostType: props.tagOrPostType,
+                },
+            });
+        }
+
         editableParent.value = _.cloneDeep(p);
         existingParent.value = _.cloneDeep(p);
     });
