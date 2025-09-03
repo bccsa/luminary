@@ -110,7 +110,7 @@ onClickOutside(sortOptionsMenu, () => {
                     ref="sortOptionsMenu"
                     :show="showSortOptions"
                     data-test="sort-options-display"
-                    class="absolute right-0 top-full mt-1"
+                    padding="medium"
                 >
                     <div class="flex flex-col">
                         <LRadio
