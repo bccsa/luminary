@@ -280,13 +280,11 @@ onBeforeUnmount(() => {
         </div>
         <div
             ref="container"
-            class="relative flex w-max origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
+            class="relative w-max origin-center touch-none select-none overflow-hidden rounded-lg"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
                 transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
                 cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
-                maxHeight: 'calc(100vh - 8rem)',
-                maxWidth: 'calc(100vw - 8rem)',
             }"
         >
             <LImage
@@ -296,7 +294,7 @@ onBeforeUnmount(() => {
                 :size="size"
                 :rounded="rounded"
                 :is-modal="true"
-                class="pointer-events-none block"
+                class="pointer-events-none"
             />
         </div>
     </div>
