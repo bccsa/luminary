@@ -137,9 +137,15 @@ const srcset2 = computed(() => {
     return props.image.fileCollections
         .filter((collection) => collection.aspectRatio != closestAspectRatio)
         .map((collection) => {
-            let images = collection.imageFiles.filter(
-                (imgFile) => imgFile.width <= props.parentWidth,
-            );
+            let images = collection.imageFiles;
+
+            // Only filter by parent width if not in modal mode
+            if (!props.isModal) {
+                images = collection.imageFiles.filter(
+                    (imgFile) => imgFile.width <= props.parentWidth,
+                );
+            }
+
             if (images.length === 0 && collection.imageFiles.length > 0) {
                 images = [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
             }
