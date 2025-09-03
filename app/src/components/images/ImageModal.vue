@@ -261,7 +261,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex w-max items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <XCircleIcon
@@ -280,7 +280,7 @@ onBeforeUnmount(() => {
         </div>
         <div
             ref="container"
-            class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
+            class="relative flex max-h-[calc(100vh-8rem)] max-w-[calc(100vw-8rem)] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
                 transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
@@ -294,7 +294,7 @@ onBeforeUnmount(() => {
                 :size="size"
                 :rounded="rounded"
                 :is-modal="true"
-                class="pointer-events-none block"
+                class="pointer-events-none max-h-full max-w-full"
             />
         </div>
     </div>
