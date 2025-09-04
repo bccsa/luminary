@@ -10,7 +10,6 @@ import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
-import { checkForUpdate } from "./util/updateManager";
 
 export const app = createApp(App);
 
@@ -84,12 +83,3 @@ async function Startup() {
 }
 
 Startup();
-
-// Initial delayed check & interval
-setTimeout(() => checkForUpdate(), 200);
-// Re-check every 5 minutes (configurable via env later if needed)
-setInterval(() => checkForUpdate(), 1000);
-
-// Optional: expose manual trigger (for debugging in console)
-// @ts-ignore
-window.__checkUpdate = checkForUpdate;

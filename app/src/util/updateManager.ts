@@ -7,7 +7,21 @@ import { useI18n } from "vue-i18n";
 const VERSION_STORAGE_KEY = "app_version";
 let updateNotified = false;
 
-// const { t } = useI18n();
+// Note: useI18n() must be called within a component setup context.
+// We'll lazily resolve a translator function when first invoked from a component.
+let translator: ((k: string) => string) | null = null;
+function getT() {
+    try {
+        if (!translator) {
+            const { t } = useI18n();
+            translator = t;
+        }
+    } catch {
+        // Fallback if called before i18n plugin is ready
+        translator = (k: string) => k;
+    }
+    return translator!;
+}
 
 export async function checkForUpdate(showIfSame = false) {
     try {
@@ -18,15 +32,16 @@ export async function checkForUpdate(showIfSame = false) {
         const current = localStorage.getItem(VERSION_STORAGE_KEY);
         if (current && current !== data.hash && !updateNotified) {
             updateNotified = true;
+            const t = getT();
             useNotificationStore().addNotification({
-                title: "Update available",
-                description:
-                    "Good news! A new version of the app is ready. Refresh or click the button to apply the update.",
+                title: t("new_update.available.title"),
+                description: t("new_update.available.description"),
                 state: "warning",
-                timeout: 200,
+                timeout: 60000,
                 priority: 0,
                 type: "bottom",
                 actions: () => {
+                    const t2 = getT();
                     return h(
                         "div",
                         {
@@ -40,7 +55,7 @@ export async function checkForUpdate(showIfSame = false) {
                                     name: "reload",
                                     onClick: () => location.reload(),
                                 },
-                                () => "Reload",
+                                () => t2("new_update.available.reload_button") || "Reload",
                             ),
                         ],
                     );
