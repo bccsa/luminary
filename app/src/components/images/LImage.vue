@@ -56,12 +56,11 @@ onMounted(() => {
 <template>
     <div ref="parentRef" :class="isModal ? '' : sizes[size]">
         <div
+            v-if="!isModal"
             :class="[
-                !isModal && aspectRatiosCSS[aspectRatio],
+                aspectRatiosCSS[aspectRatio],
                 rounded ? rounding[size] : '',
-                isModal
-                    ? 'relative overflow-clip shadow'
-                    : 'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
+                'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
             <LImageProvider
@@ -77,6 +76,18 @@ onMounted(() => {
                 <slot name="imageOverlay"></slot>
             </div>
         </div>
+
+        <!-- Modal mode: no container constraints -->
+        <LImageProvider
+            v-else
+            :parent-id="contentParentId"
+            :parent-width="parentWidth"
+            :image="props.image"
+            :aspect-ratio="props.aspectRatio"
+            :rounded="props.rounded"
+            :size="props.size"
+            :is-modal="props.isModal"
+        />
 
         <slot></slot>
     </div>

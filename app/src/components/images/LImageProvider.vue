@@ -189,9 +189,7 @@ onBeforeMount(async () => {
         :class="[
             !isModal && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
-            isModal
-                ? 'max-h-full max-w-full object-contain'
-                : 'bg-cover bg-center object-cover object-center',
+            isModal ? 'object-contain' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element1"
@@ -206,9 +204,7 @@ onBeforeMount(async () => {
         :class="[
             !isModal && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
-            isModal
-                ? 'max-h-full max-w-full object-contain'
-                : 'bg-cover bg-center object-cover object-center',
+            isModal ? 'object-contain' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element2"
@@ -222,9 +218,7 @@ onBeforeMount(async () => {
         :class="[
             !isModal && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
-            isModal
-                ? 'max-h-full max-w-full object-contain'
-                : 'bg-cover bg-center object-cover object-center',
+            isModal ? 'object-contain' : 'bg-cover bg-center object-cover object-center',
         ]"
         alt=""
         data-test="image-element2"
