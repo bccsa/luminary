@@ -17,7 +17,6 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
-import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -460,9 +459,20 @@ function onClickOutside(event: MouseEvent) {
     }
 }
 
+const isExternalNavigation = ref(false);
 onMounted(() => {
     window.addEventListener("click", onClickOutside);
+
+    isExternalNavigation.value = window.history.length <= 1;
 });
+
+function handleBack() {
+    if (isExternalNavigation.value) {
+        router.replace("/"); // Go to app's home page
+    } else {
+        router.back(); // Normal back navigation
+    }
+}
 
 // Convert selectedLanguageId to language code for VideoPlayer
 const selectedLanguageCode = computed(() => {
@@ -529,12 +539,12 @@ const selectedLanguageCode = computed(() => {
 
         <div class="absolute hidden lg:block">
             <div
-                @click="router.back()"
+                @click="
+                    router.back();
+                    handleBack();
+                "
                 class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
-            >
-                <ArrowLeftIcon class="h-4 w-4" />
-                Back
-            </div>
+            ></div>
         </div>
 
         <NotFoundPage v-if="is404" />
