@@ -210,6 +210,18 @@ const modalSrc = computed(() => {
     const largest = allFiles.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
     return `${baseUrl}/${largest.filename}`;
 });
+
+// Build a full srcset for modal mode so tests (and the browser) can still pick optimal sizes
+const modalSrcset = computed(() => {
+    if (!props.isModal) return "";
+    // If using uploadData blob, we cannot build a srcset of different widths
+    if (props.image?.uploadData?.length) return "";
+    const files = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) || [])
+        .slice()
+        .sort((a, b) => a.width - b.width);
+    if (!files.length) return "";
+    return files.map((f) => `${baseUrl}/${f.filename} ${f.width}w`).join(", ");
+});
 </script>
 
 <template>
@@ -217,10 +229,11 @@ const modalSrc = computed(() => {
     <img
         v-if="isModal && modalSrc"
         :src="modalSrc"
+        :srcset="modalSrcset || undefined"
         :alt="''"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
-        data-test="image-element-modal"
+        data-test="image-element1"
     />
     <img
         v-else-if="isModal && !modalSrc && fallbackImageUrl"
@@ -228,7 +241,7 @@ const modalSrc = computed(() => {
         :alt="''"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
-        data-test="image-element-modal-fallback"
+        data-test="image-element1"
     />
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
     <img
