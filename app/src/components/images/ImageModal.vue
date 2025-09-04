@@ -261,7 +261,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex w-full items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
         <XCircleIcon
@@ -280,21 +280,24 @@ onBeforeUnmount(() => {
         </div>
         <div
             ref="container"
-            class="relative flex max-h-[1100px] max-w-[1300px] origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg bg-gray-900"
+            class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
                 transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
                 cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
+                width: 'fit-content',
+                height: 'fit-content',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
             }"
         >
             <LImage
                 :contentParentId="contentParentId"
                 :image="image"
-                :aspectRatio="aspectRatio"
                 :size="size"
-                :rounded="rounded"
+                :rounded="false"
                 :is-modal="true"
-                class="pointer-events-none min-h-full min-w-full object-contain"
+                class="pointer-events-none"
             />
         </div>
     </div>
