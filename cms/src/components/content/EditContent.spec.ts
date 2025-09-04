@@ -23,6 +23,7 @@ import { initLanguage } from "@/globalConfig";
 import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
+import EditContentVideo from "./EditContentVideo.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -529,6 +530,23 @@ describe("EditContent.vue", () => {
 
         await waitForExpect(async () => {
             expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(false);
+        });
+    });
+
+    it("enables content editing when no groups are set", async () => {
+        await db.docs.bulkPut([{ ...mockData.mockPostDto, memberOf: [] }]);
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.findComponent(EditContentBasic).props().disabled).toBe(false);
+            expect(wrapper.findComponent(EditContentVideo).props().disabled).toBe(false);
         });
     });
 
