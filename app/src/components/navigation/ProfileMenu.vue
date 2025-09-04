@@ -18,12 +18,14 @@ import {
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
-import { showPrivacyPolicyModal } from "@/composables/useAuthWithPrivacyPolicy";
+import {
+    showPrivacyPolicyModal,
+    useAuthWithPrivacyPolicy,
+} from "@/composables/useAuthWithPrivacyPolicy";
 import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
-import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
 const router = useRouter();
