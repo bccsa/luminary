@@ -683,6 +683,7 @@ const selectedLanguageCode = computed(() => {
         v-if="content && enableZoom"
         :content-parent-id="content.parentId"
         :image="content.parentImageData"
+        aspectRatio="video"
         size="post"
         @close="enableZoom = false"
     />

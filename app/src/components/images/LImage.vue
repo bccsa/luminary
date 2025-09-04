@@ -54,12 +54,14 @@ onMounted(() => {
 </script>
 
 <template>
-    <div ref="parentRef" :class="sizes[size]">
+    <div ref="parentRef" :class="isModal ? '' : sizes[size]">
         <div
             :class="[
                 !isModal && aspectRatiosCSS[aspectRatio],
                 rounded ? rounding[size] : '',
-                'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
+                isModal
+                    ? 'relative overflow-clip bg-cover bg-center object-cover shadow'
+                    : 'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
             <LImageProvider
