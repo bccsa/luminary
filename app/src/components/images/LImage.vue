@@ -60,7 +60,7 @@ onMounted(() => {
                 !isModal && aspectRatiosCSS[aspectRatio],
                 rounded ? rounding[size] : '',
                 isModal
-                    ? 'relative overflow-clip bg-cover bg-center object-cover shadow'
+                    ? 'relative overflow-clip shadow'
                     : 'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
         >
