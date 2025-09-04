@@ -97,6 +97,11 @@ const filteredFileCollections = computed(() => {
 const closestAspectRatio = computed(() => {
     if (!filteredFileCollections.value.length) return 0;
 
+    // In modal mode, don't filter by aspect ratio - use the first available
+    if (props.isModal && filteredFileCollections.value.length > 0) {
+        return filteredFileCollections.value[0].aspectRatio;
+    }
+
     const aspectRatios = filteredFileCollections.value
         .map((collection) => collection.aspectRatio)
         .reduce((acc, cur) => {
@@ -123,8 +128,14 @@ const srcset1 = computed(() => {
 
     if (!filteredFileCollections.value.length) return "";
 
-    return filteredFileCollections.value
-        .filter((collection) => collection.aspectRatio == closestAspectRatio.value)
+    // In modal mode, use all available images without aspect ratio filtering
+    const collectionsToUse = props.isModal
+        ? filteredFileCollections.value
+        : filteredFileCollections.value.filter(
+              (collection) => collection.aspectRatio == closestAspectRatio.value,
+          );
+
+    return collectionsToUse
         .map((collection) => {
             return collection.imageFiles
                 .sort((a, b) => a.width - b.width)
