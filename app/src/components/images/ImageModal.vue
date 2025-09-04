@@ -290,9 +290,8 @@ onBeforeUnmount(() => {
             <LImage
                 :contentParentId="contentParentId"
                 :image="image"
-                :aspectRatio="aspectRatio"
                 :size="size"
-                :rounded="rounded"
+                :rounded="false"
                 :is-modal="true"
                 class="pointer-events-none"
             />

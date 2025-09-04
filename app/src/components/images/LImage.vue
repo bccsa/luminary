@@ -13,7 +13,6 @@ type Props = {
     isModal?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
-    aspectRatio: "video",
     size: "post",
     rounded: true,
     isModal: false,
@@ -58,7 +57,7 @@ onMounted(() => {
         <div
             v-if="!isModal"
             :class="[
-                aspectRatiosCSS[aspectRatio],
+                aspectRatio ? aspectRatiosCSS[aspectRatio] : '',
                 rounded ? rounding[size] : '',
                 'relative w-full overflow-clip bg-cover bg-center object-cover shadow',
             ]"
