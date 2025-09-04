@@ -277,7 +277,7 @@ type Bookmark = {
 
 export type UserPreferences = {
     bookmarks?: Array<Bookmark>;
-    privacyPolicy?: { status: "accepted" | "declined"; ts: number };
+    privacyPolicy?: { status: "accepted" | "necessaryOnly"; ts: number };
 };
 
 /**

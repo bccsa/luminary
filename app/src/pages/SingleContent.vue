@@ -662,9 +662,10 @@ const selectedLanguageCode = computed(() => {
                 "
             />
         </div>
-        <template #footer>
+
+        <IgnorePagePadding ignoreBottom>
             <CopyrightBanner />
-        </template>
+        </IgnorePagePadding>
     </BasePage>
 
     <LModal
