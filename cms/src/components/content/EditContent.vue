@@ -225,6 +225,7 @@ const createTranslation = (language: LanguageDto) => {
 };
 
 const canTranslate = computed(() => {
+    if (editableParent.value.memberOf.length === 0) return true;
     if (!editableParent.value || !selectedLanguage.value) return false;
     if (!canPublish.value && selectedContent.value?.status == PublishStatus.Published) return false;
     if (!verifyAccess(editableParent.value.memberOf, props.docType, AclPermission.Translate))
