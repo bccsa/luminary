@@ -152,7 +152,7 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.find('[namet="view-live"]').exists()).toBe(false);
+            expect(wrapper.find('[name="view-live"]').exists()).toBe(false);
         });
     });
 
