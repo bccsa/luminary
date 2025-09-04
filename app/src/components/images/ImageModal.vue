@@ -218,14 +218,6 @@ onMounted(() => {
             translateY.value = 0;
             clampTranslation();
         }
-    } else {
-        // On desktop, also start with a slight zoom to ensure natural aspect ratio
-        if (scale.value === 1) {
-            scale.value = 1.4; // Same as mobile since that works
-            translateX.value = 0;
-            translateY.value = 0;
-            clampTranslation();
-        }
     }
 
     if (!el) return;
