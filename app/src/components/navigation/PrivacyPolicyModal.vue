@@ -73,7 +73,7 @@ const status: ComputedRef<"accepted" | "outdated" | "unaccepted" | "necessaryOnl
             privacyPolicy.value.publishDate &&
             (userPreferencesAsRef.value.privacyPolicy.status == "accepted" ||
                 userPreferencesAsRef.value.privacyPolicy.status == "necessaryOnly") &&
-            privacyPolicy.value.updatedTimeUtc > userPreferencesAsRef.value.privacyPolicy.ts
+            privacyPolicy.value.publishDate > userPreferencesAsRef.value.privacyPolicy.ts
         )
             return "outdated";
 
