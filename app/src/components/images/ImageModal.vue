@@ -218,6 +218,14 @@ onMounted(() => {
             translateY.value = 0;
             clampTranslation();
         }
+    } else {
+        // On desktop, also start with a slight zoom to ensure natural aspect ratio
+        if (scale.value === 1) {
+            scale.value = 1.1;
+            translateX.value = 0;
+            translateY.value = 0;
+            clampTranslation();
+        }
     }
 
     if (!el) return;
@@ -280,11 +288,15 @@ onBeforeUnmount(() => {
         </div>
         <div
             ref="container"
-            class="relative origin-center touch-none select-none overflow-hidden rounded-lg"
+            class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
             :style="{
                 transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
                 transition: isMouseDragging || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
                 cursor: scale > 1 ? (isMouseDragging ? 'grabbing' : 'grab') : 'default',
+                width: 'fit-content',
+                height: 'fit-content',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
             }"
         >
             <LImage
