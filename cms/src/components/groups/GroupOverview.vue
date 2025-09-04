@@ -98,7 +98,6 @@ const canCreateGroup = computed(() => {
             </LButton>
         </template>
 
-        <!--GroupTable :groups="editable" /-->
         <LCard padding="none">
             <div class="overflow-x-auto rounded-md">
                 <div class="inline-block min-w-full align-middle">
