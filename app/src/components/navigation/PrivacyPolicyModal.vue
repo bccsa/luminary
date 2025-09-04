@@ -84,7 +84,7 @@ const status: ComputedRef<"accepted" | "outdated" | "unaccepted" | "necessaryOnl
     },
 );
 
-// Wait 3 seconds before showing the privacy policy banner
+// Wait 2 seconds before showing the privacy policy banner
 setTimeout(() => {
     watch(
         status,
