@@ -8,20 +8,25 @@ import {
     defineProps,
     defineEmits,
     nextTick,
+    computed,
 } from "vue";
 import LImage from "./LImage.vue";
-import type { ImageDto, Uuid } from "luminary-shared";
+import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
 import {
     XCircleIcon,
     MagnifyingGlassMinusIcon,
     MagnifyingGlassPlusIcon,
+    ArrowLeftCircleIcon,
+    ArrowRightCircleIcon,
 } from "@heroicons/vue/24/outline";
 
 // Props
 type Props = {
-    image?: ImageDto;
+    imageCollections?: ImageFileCollectionDto[];
+    currentIndex?: number;
+    image?: ImageDto; // for single image mode
     contentParentId: Uuid;
-    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic";
+    aspectRatio?: "video" | "square" | "vertical" | "wide" | "classic" | "original";
     size?: "small" | "thumbnail" | "post";
     rounded?: boolean;
 };
@@ -29,9 +34,21 @@ type Props = {
 const props = withDefaults(defineProps<Props>(), {
     aspectRatio: "classic",
     size: "post",
+    currentIndex: 0,
 });
 
-const emit = defineEmits(["close"]);
+const emit = defineEmits(["close", "update:index"]);
+
+const hasMultiple = computed(() => props.imageCollections && props.imageCollections.length > 1);
+
+const currentImage = computed(() => {
+    if (props.imageCollections) {
+        return {
+            fileCollections: [props.imageCollections[props.currentIndex]],
+        } as ImageDto;
+    }
+    return props.image;
+});
 
 const container = ref<HTMLDivElement | null>(null);
 const scale = ref(1);
@@ -41,7 +58,7 @@ const translateY = ref(0);
 const MAX_SCALE = ref(2); // default desktop
 const MIN_SCALE = 1;
 const PADDING = 50;
-const ZOOM_STEP = 0.2; // Incremental zoom step for +/-
+const ZOOM_STEP = 0.2;
 
 let lastDistance = 0;
 let initialScale = 1;
@@ -51,6 +68,11 @@ let lastTouch = { x: 0, y: 0 };
 
 let isMouseDragging = false;
 let lastMouse = { x: 0, y: 0 };
+
+let swipeStartX = 0;
+let swipeEndX = 0;
+const swipeThreshold = 50;
+let pinchZooming = false;
 
 const closeModal = () => emit("close");
 
@@ -87,7 +109,6 @@ function clampTranslation() {
     translateY.value = clamp(translateY.value, -maxY, maxY);
 }
 
-// Zoom controls
 function zoomIn() {
     scale.value = clamp(scale.value + ZOOM_STEP, MIN_SCALE, MAX_SCALE.value);
     clampTranslation();
@@ -98,12 +119,26 @@ function zoomOut() {
     clampTranslation();
 }
 
+function handleSwipeGesture() {
+    if (!hasMultiple.value || scale.value > 1) return;
+    const deltaX = swipeEndX - swipeStartX;
+    if (Math.abs(deltaX) > swipeThreshold) {
+        if (deltaX > 0) onSwipe("right");
+        else onSwipe("left");
+    }
+}
+
 // Touch events
 function onTouchStart(e: TouchEvent) {
+    if (e.touches.length === 1) {
+        swipeStartX = e.touches[0].clientX;
+    }
+
     if (e.touches.length === 2) {
         lastDistance = getDistance(e.touches);
         initialScale = scale.value;
         isTouchDragging = false;
+        pinchZooming = true;
     } else if (e.touches.length === 1 && scale.value > 1) {
         lastTouch = {
             x: e.touches[0].clientX - translateX.value,
@@ -129,8 +164,34 @@ function onTouchMove(e: TouchEvent) {
     }
 }
 
-function onTouchEnd() {
+function onTouchEnd(e: TouchEvent) {
+    if (pinchZooming) {
+        pinchZooming = false;
+        return; // Don't swipe after a pinch gesture
+    }
+
+    if (e.changedTouches?.[0]) {
+        swipeEndX = e.changedTouches[0].clientX;
+        handleSwipeGesture();
+    }
+
     isTouchDragging = false;
+}
+
+// Double-tap support
+let lastTap = 0;
+function onTouchEndWithDoubleTap(e: TouchEvent) {
+    const now = Date.now();
+    const isDoubleTap = now - lastTap < 400;
+    lastTap = now;
+
+    if (isDoubleTap) {
+        e.preventDefault();
+        onDblClick(e);
+        lastTap = 0;
+    } else {
+        onTouchEnd(e);
+    }
 }
 
 // Mouse events
@@ -165,9 +226,20 @@ function handleWheel(e: WheelEvent) {
     }
 }
 
-function onDblClick(e: MouseEvent) {
+function onDblClick(e: MouseEvent | TouchEvent) {
     const el = container.value;
     if (!el) return;
+
+    let clientX: number, clientY: number;
+
+    if (e instanceof TouchEvent) {
+        const touch = e.changedTouches[0];
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
 
     if (scale.value > 1) {
         scale.value = 1;
@@ -179,8 +251,8 @@ function onDblClick(e: MouseEvent) {
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
 
-        const offsetX = e.clientX - rect.left - centerX;
-        const offsetY = e.clientY - rect.top - centerY;
+        const offsetX = clientX - rect.left - centerX;
+        const offsetY = clientY - rect.top - centerY;
 
         translateX.value = -offsetX * (MAX_SCALE.value - 1);
         translateY.value = -offsetY * (MAX_SCALE.value - 1);
@@ -188,15 +260,30 @@ function onDblClick(e: MouseEvent) {
     }
 }
 
-function onKeyDown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
-        closeModal();
-    }
+function onSwipe(direction: "left" | "right") {
+    if (!props.imageCollections || props.imageCollections.length <= 1) return;
+    scale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    const total = props.imageCollections.length;
+    const newIndex =
+        direction === "left"
+            ? (props.currentIndex + 1) % total
+            : (props.currentIndex - 1 + total) % total;
+    emit("update:index", newIndex);
 }
 
-// Watch image change
+function onKeyDown(event: KeyboardEvent) {
+    if (event.key === "ArrowLeft") onSwipe("right");
+    else if (event.key === "ArrowRight") onSwipe("left");
+    else if (event.key === "Escape") closeModal();
+}
+
+const arrowSizeClass = computed(() => "h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14");
+
+// Reset state on image change
 watch(
-    () => props.image,
+    () => currentImage.value,
     () => {
         scale.value = 1;
         translateX.value = 0;
@@ -206,7 +293,6 @@ watch(
     { immediate: true },
 );
 
-// Setup on mount
 onMounted(() => {
     const el = container.value;
     const isMobile = window.innerWidth <= 768;
@@ -219,20 +305,18 @@ onMounted(() => {
             clampTranslation();
         }
     }
-
     if (!el) return;
 
     el.addEventListener("touchstart", onTouchStart, { passive: false });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
-    el.addEventListener("touchcancel", onTouchEnd);
+    el.addEventListener("touchend", onTouchEndWithDoubleTap);
+    el.addEventListener("touchcancel", onTouchEndWithDoubleTap);
 
     el.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
 
     el.addEventListener("wheel", handleWheel, { passive: false });
-
     el.addEventListener("dblclick", onDblClick);
 
     window.addEventListener("keydown", onKeyDown);
@@ -244,15 +328,14 @@ onBeforeUnmount(() => {
 
     el.removeEventListener("touchstart", onTouchStart);
     el.removeEventListener("touchmove", onTouchMove);
-    el.removeEventListener("touchend", onTouchEnd);
-    el.removeEventListener("touchcancel", onTouchEnd);
+    el.removeEventListener("touchend", onTouchEndWithDoubleTap);
+    el.removeEventListener("touchcancel", onTouchEndWithDoubleTap);
 
     el.removeEventListener("mousedown", onMouseDown);
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
 
     el.removeEventListener("wheel", handleWheel);
-
     el.removeEventListener("dblclick", onDblClick);
 
     window.removeEventListener("keydown", onKeyDown);
@@ -261,13 +344,16 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="fixed inset-0 z-50 flex w-full items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm dark:bg-slate-800 dark:bg-opacity-50"
         @click.self="closeModal"
     >
+        <!-- Close -->
         <XCircleIcon
             class="fixed right-8 top-8 z-40 h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
             @click.stop="closeModal"
         />
+
+        <!-- Zoom controls -->
         <div class="fixed bottom-8 right-8 z-40 flex flex-row gap-2">
             <MagnifyingGlassMinusIcon
                 class="h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
@@ -278,6 +364,27 @@ onBeforeUnmount(() => {
                 @click.stop="zoomIn"
             />
         </div>
+
+        <!-- Content -->
+        <div v-if="imageCollections && imageCollections.length > 1">
+            <!-- Left Arrow -->
+            <ArrowLeftCircleIcon
+                v-if="hasMultiple"
+                class="fixed left-24 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 md:block"
+                :class="arrowSizeClass"
+                @click="onSwipe('right')"
+            />
+
+            <!-- Right Arrow -->
+            <ArrowRightCircleIcon
+                v-if="hasMultiple"
+                class="fixed right-24 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 md:block"
+                :class="arrowSizeClass"
+                @click="onSwipe('left')"
+            />
+        </div>
+
+        <!-- Image Container -->
         <div
             ref="container"
             class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
@@ -293,20 +400,36 @@ onBeforeUnmount(() => {
         >
             <LImage
                 :contentParentId="contentParentId"
-                :image="image"
+                :image="currentImage"
                 :size="size"
                 :rounded="false"
                 :is-modal="true"
                 class="pointer-events-none"
             />
         </div>
+
+        <!-- Dots -->
+        <div
+            v-if="hasMultiple"
+            class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
+        >
+            <span
+                v-for="(img, idx) in imageCollections"
+                :key="idx"
+                class="h-2 w-2 rounded-full"
+                :class="[
+                    idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
+                    'cursor-pointer transition-all duration-300',
+                ]"
+                @click="
+                    () => {
+                        scale = 1;
+                        translateX = 0;
+                        translateY = 0;
+                        emit('update:index', idx);
+                    }
+                "
+            ></span>
+        </div>
     </div>
 </template>
-
-<style scoped>
-html,
-body {
-    touch-action: none;
-    overscroll-behavior: contain;
-}
-</style>
