@@ -191,11 +191,48 @@ const loadFallbackImage = async () => {
 onBeforeMount(async () => {
     await loadFallbackImage();
 });
+
+// In modal mode we want the largest available original image (no aspect ratio coercion)
+const modalSrc = computed(() => {
+    // If we have local upload data (e.g. unsaved/new image), prefer the last blob (likely highest quality)
+    if (props.isModal && props.image?.uploadData?.length) {
+        return URL.createObjectURL(
+            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
+                type: "image/*",
+            }),
+        );
+    }
+    if (!props.isModal) return undefined;
+    const allFiles = (props.image?.fileCollections?.flatMap((fc) => fc.imageFiles) ||
+        []) as ImageFileDto[];
+    if (!allFiles.length) return fallbackImageUrl.value;
+    // Pick the file with the largest area (width * height) to preserve detail for zooming
+    const largest = allFiles.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
+    return `${baseUrl}/${largest.filename}`;
+});
 </script>
 
 <template>
+    <!-- Modal mode: single <img> honoring natural dimensions (no forced aspect ratio) -->
     <img
-        v-if="srcset1 && showImageElement1"
+        v-if="isModal && modalSrc"
+        :src="modalSrc"
+        :alt="''"
+        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
+        draggable="false"
+        data-test="image-element-modal"
+    />
+    <img
+        v-else-if="isModal && !modalSrc && fallbackImageUrl"
+        :src="fallbackImageUrl"
+        :alt="''"
+        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
+        draggable="false"
+        data-test="image-element-modal-fallback"
+    />
+    <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
+    <img
+        v-else-if="srcset1 && showImageElement1"
         :srcset="srcset1"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
