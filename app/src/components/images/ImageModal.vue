@@ -364,6 +364,27 @@ onBeforeUnmount(() => {
                 @click.stop="zoomIn"
             />
         </div>
+
+        <!-- Content -->
+        <div v-if="imageCollections && imageCollections.length > 1">
+            <!-- Left Arrow -->
+            <ArrowLeftCircleIcon
+                v-if="hasMultiple"
+                class="fixed left-24 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 md:block"
+                :class="arrowSizeClass"
+                @click="onSwipe('right')"
+            />
+
+            <!-- Right Arrow -->
+            <ArrowRightCircleIcon
+                v-if="hasMultiple"
+                class="fixed right-24 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 md:block"
+                :class="arrowSizeClass"
+                @click="onSwipe('left')"
+            />
+        </div>
+
+        <!-- Image Container -->
         <div
             ref="container"
             class="relative flex origin-center touch-none select-none items-center justify-center overflow-hidden rounded-lg"
@@ -385,48 +406,30 @@ onBeforeUnmount(() => {
                 :is-modal="true"
                 class="pointer-events-none"
             />
-            <!-- Content -->
-            <div class="relative flex w-full max-w-[1350px] items-center justify-center">
-                <div v-if="imageCollections && imageCollections.length > 1">
-                    <!-- Arrows -->
-                    <ArrowLeftCircleIcon
-                        v-if="hasMultiple"
-                        class="absolute left-2 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 sm:left-4 md:left-[-64px] md:block"
-                        :class="arrowSizeClass"
-                        @click="onSwipe('right')"
-                    />
-                    <ArrowRightCircleIcon
-                        v-if="hasMultiple"
-                        class="absolute right-2 top-1/2 z-40 hidden -translate-y-1/2 cursor-pointer rounded-full bg-gray-900 text-white drop-shadow-lg transition hover:scale-110 sm:right-4 md:right-[-64px] md:block"
-                        :class="arrowSizeClass"
-                        @click="onSwipe('left')"
-                    />
-                </div>
-            </div>
+        </div>
 
-            <!-- Dots -->
-            <div
-                v-if="hasMultiple"
-                class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
-            >
-                <span
-                    v-for="(img, idx) in imageCollections"
-                    :key="idx"
-                    class="h-2 w-2 rounded-full"
-                    :class="[
-                        idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
-                        'cursor-pointer transition-all duration-300',
-                    ]"
-                    @click="
-                        () => {
-                            scale = 1;
-                            translateX = 0;
-                            translateY = 0;
-                            emit('update:index', idx);
-                        }
-                    "
-                ></span>
-            </div>
+        <!-- Dots -->
+        <div
+            v-if="hasMultiple"
+            class="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-2"
+        >
+            <span
+                v-for="(img, idx) in imageCollections"
+                :key="idx"
+                class="h-2 w-2 rounded-full"
+                :class="[
+                    idx === props.currentIndex ? 'h-3 w-3 bg-white' : 'bg-gray-500',
+                    'cursor-pointer transition-all duration-300',
+                ]"
+                @click="
+                    () => {
+                        scale = 1;
+                        translateX = 0;
+                        translateY = 0;
+                        emit('update:index', idx);
+                    }
+                "
+            ></span>
         </div>
     </div>
 </template>
