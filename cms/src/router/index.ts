@@ -27,7 +27,9 @@ export const router = createRouter({
         {
             path: "/",
             beforeEnter: authGuard,
-            redirect: { path: import.meta.env.VITE_INITIAL_PAGE || "dashboard" },
+            redirect: import.meta.env.VITE_INITIAL_PAGE
+                ? { path: import.meta.env.VITE_INITIAL_PAGE }
+                : { name: "dashboard" },
             children: [
                 {
                     path: "sandbox",
