@@ -82,7 +82,6 @@ onMounted(() => {
             :parent-id="contentParentId"
             :parent-width="parentWidth"
             :image="props.image"
-            :aspect-ratio="props.aspectRatio"
             :rounded="props.rounded"
             :size="props.size"
             :is-modal="props.isModal"
