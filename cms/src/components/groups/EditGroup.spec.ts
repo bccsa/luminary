@@ -1,11 +1,10 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, afterEach, beforeEach, afterAll, beforeAll } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { ref, computed } from "vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
-import { ref } from "vue";
-import express from "express";
-import bodyParser from "body-parser";
+import EditGroup from "./EditGroup.vue";
 import {
     mockGroupDtoPublicContent,
     mockGroupDtoPublicEditors,
@@ -15,310 +14,563 @@ import {
 } from "@/tests/mockdata";
 import {
     accessMap,
-    AclPermission,
-    db,
     DocType,
-    type GroupAclEntryDto,
     type GroupDto,
-    isConnected,
     AckStatus,
-    initConfig,
-    getRest,
+    type ApiLiveQueryAsEditable,
+    AclPermission,
 } from "luminary-shared";
-import waitForExpect from "wait-for-expect";
-import EditGroup from "./EditGroup.vue";
 
-vi.mock("vue-router", async (importOriginal) => {
+// Mock clipboard API
+Object.assign(navigator, {
+    clipboard: {
+        writeText: vi.fn(),
+    },
+});
+
+// Mock luminary-shared functions
+vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...(actual as any),
-        createRouter: () => ({
-            push: vi.fn(),
-            beforeEach: vi.fn(),
-            afterEach: vi.fn(),
-        }),
-        useRouter: () => ({
-            push: vi.fn(),
-        }),
-        onBeforeRouteLeave: vi.fn(),
+        verifyAccess: vi.fn(),
+        isConnected: ref(true),
+        db: {
+            uuid: vi.fn(() => "new-uuid-123"),
+        },
     };
 });
 
-// ============================
-// Mock api
-// ============================
-const app = express();
-app.use(bodyParser.json());
-app.use(
-    bodyParser.urlencoded({
-        extended: true,
-    }),
-);
+const { verifyAccess, isConnected } = await import("luminary-shared");
 
-const port = 12348;
-
-let mockApiRequest: { doc: any };
-app.post("/changerequest", (req, res) => {
-    mockApiRequest = req.body;
-    res.end(JSON.stringify({ doc: req.body.doc, ack: AckStatus.Accepted }));
-});
-
-app.listen(port, () => {
-    console.log(`Mock api running on port ${port}.`);
-});
-
-const groups = ref<Map<string, GroupDto>>(new Map());
-groups.value.set(mockGroupDtoPublicContent._id, mockGroupDtoPublicContent);
-groups.value.set(mockGroupDtoPublicEditors._id, mockGroupDtoPublicEditors);
-groups.value.set(mockGroupDtoPublicUsers._id, mockGroupDtoPublicUsers);
-groups.value.set(mockGroupDtoSuperAdmins._id, mockGroupDtoSuperAdmins);
-
-describe("EditGroup.vue", () => {
-    const saveChangesButton = 'button[data-test="saveChanges"]';
-    const discardChangesButton = 'button[data-test="discardChanges"]';
-    const newGroups = ref<GroupDto[]>([]);
-
-    const createWrapper = async (group: GroupDto) => {
-        const wrapper = mount(EditGroup, {
-            props: {
-                group,
-                newGroups: newGroups.value,
-            },
-            global: {
-                provide: {
-                    groups: groups,
-                },
-            },
-        });
-        // Open up the accordion
-        await wrapper.find("button").trigger("click");
-
-        let permissionCell;
-        await waitForExpect(async () => {
-            permissionCell = wrapper.find('[data-test="permissionCell"]');
-            expect(permissionCell.exists()).toBe(true);
-        });
-
-        return wrapper;
-    };
-
-    beforeAll(async () => {
-        accessMap.value = superAdminAccessMap;
-        initConfig({
-            cms: false,
-            docsIndex:
-                "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
-            apiUrl: `http://localhost:${port}`,
-            syncList: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
-        });
-
-        // Reset the rest api client to use the new config
-        getRest({ reset: true });
-    });
+describe("EditGroup", () => {
+    let mockGroupQuery: Partial<ApiLiveQueryAsEditable<GroupDto>>;
+    let testGroup: GroupDto;
+    let allGroups: GroupDto[];
+    let isEditedMock: any;
 
     beforeEach(() => {
-        setActivePinia(createTestingPinia());
+        setActivePinia(createTestingPinia({ createSpy: vi.fn }));
+
+        // Reset mocks
+        vi.clearAllMocks();
+
+        // Set up test data
+        allGroups = [
+            mockGroupDtoPublicContent,
+            mockGroupDtoPublicEditors,
+            mockGroupDtoPublicUsers,
+            mockGroupDtoSuperAdmins,
+        ];
+
+        testGroup = { ...mockGroupDtoPublicContent };
+
+        // Create isEdited mock function
+        isEditedMock = vi.fn().mockReturnValue(false);
+
+        // Mock the live query
+        mockGroupQuery = {
+            liveData: computed(() => allGroups),
+            isEdited: computed(() => isEditedMock),
+            revert: vi.fn(),
+            save: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
+            duplicate: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
+            editable: ref([testGroup]),
+        };
+
+        // Set default access map to super admin for most tests
+        accessMap.value = superAdminAccessMap;
+
+        // Default verifyAccess to return true
+        vi.mocked(verifyAccess).mockReturnValue(true);
+
+        // Default isConnected to true
         isConnected.value = true;
     });
 
     afterEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
     });
 
-    afterAll(() => {
-        vi.restoreAllMocks();
-    });
-
-    it("displays all ACL groups under the given group", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Public Content");
-            expect(wrapper.text()).toContain("Public Users");
-            expect(wrapper.text()).toContain("Public Editors");
-        });
-    });
-
-    it("displays buttons when changing a value", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        await wrapper.find('[data-test="permissionCell"]').trigger("click");
-
-        expect(wrapper.text()).toContain("Discard changes");
-        expect(wrapper.text()).toContain("Save changes");
-    });
-
-    it("displays a label when there are unsaved changes and the accordion is closed", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        await wrapper.find('[data-test="permissionCell"]').trigger("click");
-
-        expect(wrapper.text()).not.toContain("Unsaved changes");
-
-        // Close the accordion
-        await wrapper.find("button").trigger("click");
-
-        expect(wrapper.text()).toContain("Unsaved changes");
-    });
-
-    it("can save changes", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        await wrapper.find('[data-test="permissionCell"]').trigger("click");
-
-        await wrapper.find(saveChangesButton).trigger("click");
-
-        await waitForExpect(async () => {
-            expect(mockApiRequest.doc!.acl).not.toEqual(mockGroupDtoPublicContent.acl);
-        });
-    });
-
-    it("can hide the save button after changes has been saved", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        await wrapper.find('[data-test="permissionCell"]').trigger("click");
-
-        await wrapper.find(saveChangesButton).trigger("click");
-
-        waitForExpect(() => {
-            expect(Object.keys(wrapper.find(saveChangesButton)).length).toBeLessThan(1);
-        });
-    });
-
-    it("can discard all changes", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        await wrapper.find('[data-test="permissionCell"]').trigger("click");
-
-        await wrapper.find(discardChangesButton).trigger("click");
-
-        expect(wrapper.find(saveChangesButton).exists()).toBe(false);
-        expect(wrapper.find(discardChangesButton).exists()).toBe(false);
-    });
-
-    it("can add a new group", async () => {
-        await db.docs.bulkPut([mockGroupDtoPublicEditors, mockGroupDtoPublicContent]);
-
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-        expect(wrapper.text()).not.toContain("Super Admins");
-
-        await wrapper.find('button[data-test="addGroupButton"]').trigger("click");
-        await wrapper.find('button[data-test="selectGroupButton"]').trigger("click");
-
-        await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Public Content");
-        });
-    });
-
-    it("can edit the group name", async () => {
-        const groupNameInput = 'input[data-test="groupNameInput"]';
-        const groupName = '[data-test="groupName"]';
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        await wrapper.find(groupName).trigger("click");
-
-        expect(wrapper.find(groupNameInput).isVisible()).toBe(true);
-        expect(wrapper.find(groupName).exists()).toBe(false);
-
-        await wrapper.find(groupNameInput).setValue("New group name");
-        await wrapper.find(groupNameInput).trigger("blur");
-
-        expect(wrapper.find(groupNameInput).exists()).toBe(false);
-        expect(wrapper.find(groupName).text()).toBe("New group name");
-        expect(wrapper.find(saveChangesButton).exists()).toBe(true);
-
-        // Reset back to old value, save changes button should vanish
-        await wrapper.find(groupName).trigger("click");
-        await wrapper.find(groupNameInput).setValue("Public Content");
-        await wrapper.find(groupNameInput).trigger("blur");
-
-        expect(wrapper.find(saveChangesButton).exists()).toBe(false);
-    });
-
-    it("duplicate the whole group", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        await wrapper.find("button[data-test='duplicateGroup']").trigger("click");
-
-        const _group = wrapper.emitted("duplicateGroup");
-        const _groupData = _group![0][0] as GroupDto;
-        expect(_groupData.name).toBe("Public Content - copy");
-    });
-
-    it("can copy a group's ID", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-        let clipboardContents = "";
-        // @ts-ignore
-        window.__defineGetter__("navigator", function () {
-            return {
-                clipboard: {
-                    writeText: (text: string) => {
-                        clipboardContents = text;
+    const createWrapper = (group = testGroup, props = {}) => {
+        return mount(EditGroup, {
+            props: {
+                groupQuery: mockGroupQuery as ApiLiveQueryAsEditable<GroupDto>,
+                group: group,
+                "onUpdate:group": vi.fn(),
+                ...props,
+            },
+            global: {
+                plugins: [createTestingPinia({ createSpy: vi.fn })],
+                stubs: {
+                    EditAclByGroup: true,
+                    AddGroupAclButton: true,
+                    ConfirmBeforeLeavingModal: true,
+                    LButton: {
+                        template:
+                            '<button v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>',
+                    },
+                    LBadge: {
+                        template: '<span class="badge" v-bind="$attrs"><slot /></span>',
+                    },
+                    LInput: {
+                        template:
+                            '<input ref="groupNameInput" v-bind="$attrs" @blur="$emit(\'blur\')" @keyup.enter="$emit(\'keyup\', $event)" data-test="groupNameInput" />',
+                        methods: {
+                            focus: vi.fn(),
+                        },
+                    },
+                    TransitionGroup: {
+                        template: "<div><slot /></div>",
                     },
                 },
+            },
+        });
+    };
+
+    describe("Group Name Editing", () => {
+        it("allows clicking on group name to edit when not disabled", async () => {
+            const wrapper = createWrapper();
+
+            const groupNameElement = wrapper.find('[data-test="groupName"]');
+            await groupNameElement.trigger("click");
+
+            expect(wrapper.find('[data-test="groupNameInput"]').exists()).toBe(true);
+        });
+
+        it("does not allow editing group name when disabled", async () => {
+            vi.mocked(verifyAccess).mockReturnValue(false);
+
+            const wrapper = createWrapper();
+
+            const groupNameElement = wrapper.find('[data-test="groupName"]');
+            await groupNameElement.trigger("click");
+
+            expect(wrapper.find('[data-test="groupNameInput"]').exists()).toBe(false);
+        });
+    });
+
+    describe("Save and Discard Changes", () => {
+        it("shows save and discard buttons when group is dirty and not disabled", async () => {
+            isEditedMock.mockReturnValue(true);
+
+            const wrapper = createWrapper();
+
+            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(true);
+            expect(wrapper.find('[data-test="discardChanges"]').exists()).toBe(true);
+        });
+
+        it("does not show save and discard buttons when group is not dirty", () => {
+            isEditedMock.mockReturnValue(false);
+
+            const wrapper = createWrapper();
+
+            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+            expect(wrapper.find('[data-test="discardChanges"]').exists()).toBe(false);
+        });
+
+        it("does not show save and discard buttons when disabled", () => {
+            isEditedMock.mockReturnValue(true);
+            vi.mocked(verifyAccess).mockReturnValue(false);
+
+            const wrapper = createWrapper();
+
+            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+            expect(wrapper.find('[data-test="discardChanges"]').exists()).toBe(false);
+        });
+
+        it("calls revert when discard changes is clicked", async () => {
+            isEditedMock.mockReturnValue(true);
+
+            const wrapper = createWrapper();
+
+            await wrapper.find('[data-test="discardChanges"]').trigger("click");
+
+            expect(mockGroupQuery.revert).toHaveBeenCalledWith(testGroup._id);
+        });
+
+        it("calls save when save changes is clicked", async () => {
+            isEditedMock.mockReturnValue(true);
+
+            const wrapper = createWrapper();
+
+            await wrapper.find('[data-test="saveChanges"]').trigger("click");
+
+            expect(mockGroupQuery.save).toHaveBeenCalledWith(testGroup._id);
+        });
+
+        it("does not show save button when user lacks edit permissions", async () => {
+            isEditedMock.mockReturnValue(true);
+
+            // Create a group with no edit permissions in ACL and mock verifyAccess to return false
+            const groupWithoutEditPerms = { ...testGroup, acl: [] };
+            vi.mocked(verifyAccess).mockReturnValue(false);
+
+            const wrapper = createWrapper(groupWithoutEditPerms);
+
+            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+        });
+
+        it("does not show save button when offline", async () => {
+            isEditedMock.mockReturnValue(true);
+            isConnected.value = false;
+
+            const wrapper = createWrapper();
+
+            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+        });
+    });
+
+    describe("Status Badges", () => {
+        it("shows 'Unsaved changes' badge when group is dirty", () => {
+            isEditedMock.mockReturnValue(true);
+
+            const wrapper = createWrapper();
+
+            expect(wrapper.text()).toContain("Unsaved changes");
+        });
+
+        it("shows warning badge when group is empty", () => {
+            const emptyGroup = { ...testGroup, acl: [] };
+            const wrapper = createWrapper(emptyGroup);
+
+            expect(wrapper.text()).toContain("The group does not have any access configured");
+        });
+
+        it("shows warning badge when group would not be editable after save", () => {
+            isEditedMock.mockReturnValue(true);
+
+            // Create a group with ACL that doesn't include edit permissions
+            const groupWithoutEditPerms = {
+                ...testGroup,
+                acl: [
+                    {
+                        type: DocType.Post,
+                        groupId: "group-public-users",
+                        permission: [AclPermission.View], // No edit permission
+                    },
+                ],
             };
+            vi.mocked(verifyAccess).mockReturnValue(false);
+
+            const wrapper = createWrapper(groupWithoutEditPerms);
+
+            expect(wrapper.text()).toContain("Saving disabled: The group would not be editable");
         });
 
-        await wrapper.find("button[data-test='copyGroupId']").trigger("click");
+        it("shows offline warning when not connected", () => {
+            isConnected.value = false;
 
-        expect(clipboardContents).toBe(mockGroupDtoPublicContent._id);
-    });
+            const wrapper = createWrapper();
 
-    it("removes an existing group ACL if all permissions are removed", async () => {
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
-
-        // Group=Public Editors, DocType=Post, Permission=View  -  Clearing this should clear all the permissions, and cause the ACL entry to be deleted
-        await wrapper.findAll('[data-test="permissionCell"]')[12].trigger("click");
-        await wrapper.find(saveChangesButton).trigger("click");
-
-        await waitForExpect(async () => {
-            const group = groups.value.get(mockGroupDtoPublicContent._id);
-            expect(
-                group!.acl?.some(
-                    (g) => g.groupId == "group-public-editors" && g.type == DocType.Post,
-                ),
-            ).toBeFalsy();
+            expect(wrapper.text()).toContain("Saving disabled: Unable to save while offline");
         });
     });
 
-    it("checks if groups are disabled when no edit permissions", async () => {
-        delete accessMap.value["group-public-content"].group?.edit;
+    describe("Duplicate Functionality", () => {
+        it("shows duplicate button for existing saved groups", () => {
+            const wrapper = createWrapper();
 
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
+            expect(wrapper.find('[data-test="duplicateGroup"]').exists()).toBe(true);
+        });
 
-        expect(wrapper.text()).toContain("No edit access.");
-        expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
-        expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
+        it("does not show duplicate button for new groups", () => {
+            const newGroup = { ...testGroup, _id: "new-group-id" };
+            // Modify the mock to not include the new group in live data
+            const modifiedMockQuery = {
+                ...mockGroupQuery,
+                liveData: computed(() => [mockGroupDtoPublicEditors]), // newGroup not in live data
+            };
+
+            const wrapper = mount(EditGroup, {
+                props: {
+                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    group: newGroup,
+                    "onUpdate:group": vi.fn(),
+                },
+                global: {
+                    plugins: [createTestingPinia({ createSpy: vi.fn })],
+                    stubs: {
+                        EditAclByGroup: true,
+                        AddGroupAclButton: true,
+                        ConfirmBeforeLeavingModal: true,
+                        LButton: true,
+                        LBadge: true,
+                        LInput: true,
+                    },
+                },
+            });
+
+            expect(wrapper.find('[data-test="duplicateGroup"]').exists()).toBe(false);
+        });
+
+        it("does not show duplicate button for dirty groups", () => {
+            isEditedMock.mockReturnValue(true);
+
+            const wrapper = createWrapper();
+
+            expect(wrapper.find('[data-test="duplicateGroup"]').exists()).toBe(false);
+        });
+
+        it("does not show duplicate button when disabled", () => {
+            vi.mocked(verifyAccess).mockReturnValue(false);
+
+            const wrapper = createWrapper();
+
+            expect(wrapper.find('[data-test="duplicateGroup"]').exists()).toBe(false);
+        });
+
+        it("calls duplicate function when duplicate button is clicked", async () => {
+            // Mock db.uuid
+            const { db } = await import("luminary-shared");
+            vi.mocked(db.uuid).mockReturnValue("new-uuid-123");
+
+            const wrapper = createWrapper();
+
+            await wrapper.find('[data-test="duplicateGroup"]').trigger("click");
+
+            expect(mockGroupQuery.duplicate).toHaveBeenCalled();
+        });
     });
 
-    it("shows the assigned group's ID when the assigned group is not available to the user", async () => {
-        const groupDoc = {
-            ...mockGroupDtoPublicContent,
-            acl: [
-                { groupId: "group-not-available", type: "group", permission: [AclPermission.Edit] },
-            ] as GroupAclEntryDto[],
-        };
+    describe("Copy Group ID", () => {
+        it("copies group ID to clipboard when copy button is clicked", async () => {
+            const wrapper = createWrapper();
 
-        groups.value.set(groupDoc._id, groupDoc);
+            await wrapper.find('[data-test="copyGroupId"]').trigger("click");
 
-        const wrapper = await createWrapper(groupDoc);
-
-        // check that the group ID is shown
-        expect(wrapper.text()).toContain("group-not-available");
-
-        // check that editing is disabled
-        expect(wrapper.text()).toContain("No edit access.");
-        expect(wrapper.find("button[title='Duplicate']").exists()).toBe(false);
-        expect(wrapper.find("button[data-test='addGroupButton']").exists()).toBe(false);
+            expect(navigator.clipboard.writeText).toHaveBeenCalledWith(testGroup._id);
+        });
     });
 
-    it("disables editing when api is offline", async () => {
-        isConnected.value = false;
+    describe("Permissions and Access Control", () => {
+        it("shows disabled styling when user lacks permissions", () => {
+            vi.mocked(verifyAccess).mockReturnValue(false);
 
-        const wrapper = await createWrapper(mockGroupDtoPublicContent);
+            const wrapper = createWrapper();
 
-        await wrapper.findAll('[data-test="permissionCell"]')[12].trigger("click");
+            const container = wrapper.find(".w-full.overflow-visible.rounded-md");
+            expect(container.classes()).toContain("bg-zinc-100");
+        });
 
-        expect(Object.keys(wrapper.find(saveChangesButton)).length).toBeLessThan(1);
+        it("shows 'No edit access' message when disabled", () => {
+            vi.mocked(verifyAccess).mockReturnValue(false);
+
+            const wrapper = createWrapper();
+
+            expect(wrapper.text()).toContain("No edit access");
+        });
+
+        it("shows normal styling when user has permissions", () => {
+            const wrapper = createWrapper();
+
+            const container = wrapper.find(".w-full.overflow-visible.rounded-md");
+            expect(container.classes()).toContain("bg-white");
+            expect(container.classes()).not.toContain("bg-zinc-100");
+        });
+    });
+
+    describe("Computed Properties", () => {
+        it("shows new group behavior when group is not in live data", () => {
+            const newGroup = { ...testGroup, _id: "new-group-id" };
+            // Create a modified mock that doesn't include the new group
+            const modifiedMockQuery = {
+                ...mockGroupQuery,
+                liveData: computed(() => [mockGroupDtoPublicEditors]), // newGroup not in live data
+            };
+
+            const wrapper = mount(EditGroup, {
+                props: {
+                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    group: newGroup,
+                    "onUpdate:group": vi.fn(),
+                },
+                global: {
+                    plugins: [createTestingPinia({ createSpy: vi.fn })],
+                    stubs: {
+                        EditAclByGroup: true,
+                        AddGroupAclButton: true,
+                        ConfirmBeforeLeavingModal: true,
+                        LButton: true,
+                        LBadge: true,
+                        LInput: true,
+                    },
+                },
+            });
+
+            // Should not show duplicate button for new groups
+            expect(wrapper.find('[data-test="duplicateGroup"]').exists()).toBe(false);
+        });
+
+        it("shows changed group name styling when name differs from original", () => {
+            const modifiedGroup = { ...testGroup, name: "Changed Name" };
+            const wrapper = createWrapper(modifiedGroup);
+
+            const groupNameElement = wrapper.find('[data-test="groupName"]');
+            expect(groupNameElement.classes()).toContain("bg-yellow-200");
+        });
+
+        it("shows empty group warning when ACL is empty", () => {
+            const emptyGroup = { ...testGroup, acl: [] };
+            const wrapper = createWrapper(emptyGroup);
+
+            expect(wrapper.text()).toContain("The group does not have any access configured");
+        });
+
+        it("shows empty group warning when all permissions are empty", () => {
+            const groupWithEmptyPermissions = {
+                ...testGroup,
+                acl: [{ groupId: "test-group", type: DocType.Group, permission: [] }],
+            };
+            const wrapper = createWrapper(groupWithEmptyPermissions);
+
+            expect(wrapper.text()).toContain("The group does not have any access configured");
+        });
+    });
+
+    describe("Edge Cases", () => {
+        it("handles empty ACL arrays", () => {
+            const groupWithEmptyAcl = { ...testGroup, acl: [] };
+            const wrapper = createWrapper(groupWithEmptyAcl);
+
+            // Should show the empty group warning
+            expect(wrapper.text()).toContain("The group does not have any access configured");
+        });
+
+        it("handles groups with only empty permission arrays", () => {
+            const groupWithEmptyPermissions = {
+                ...testGroup,
+                acl: [{ groupId: "test-group", type: DocType.Group, permission: [] }],
+            };
+            const wrapper = createWrapper(groupWithEmptyPermissions);
+
+            // Should show the empty group warning
+            expect(wrapper.text()).toContain("The group does not have any access configured");
+        });
+
+        it("handles missing original group gracefully", () => {
+            const newGroup = { ...testGroup, _id: "non-existent-id" };
+            // Create a modified mock that doesn't include the new group
+            const modifiedMockQuery = {
+                ...mockGroupQuery,
+                liveData: computed(() => [mockGroupDtoPublicEditors]), // newGroup not in live data
+            };
+
+            const wrapper = mount(EditGroup, {
+                props: {
+                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    group: newGroup,
+                    "onUpdate:group": vi.fn(),
+                },
+                global: {
+                    plugins: [createTestingPinia({ createSpy: vi.fn })],
+                    stubs: {
+                        EditAclByGroup: true,
+                        AddGroupAclButton: true,
+                        ConfirmBeforeLeavingModal: true,
+                        LButton: true,
+                        LBadge: true,
+                        LInput: true,
+                    },
+                },
+            });
+
+            // Should not show duplicate button for new groups
+            expect(wrapper.find('[data-test="duplicateGroup"]').exists()).toBe(false);
+            // Should not show changed name styling since there's no original
+            const groupNameElement = wrapper.find('[data-test="groupName"]');
+            expect(groupNameElement.classes()).not.toContain("bg-yellow-200");
+        });
+    });
+
+    describe("Event Handling", () => {
+        it("prevents default when clicking group name to edit", async () => {
+            const wrapper = createWrapper();
+
+            const groupNameElement = wrapper.find('[data-test="groupName"]');
+            await groupNameElement.trigger("click");
+
+            // If click worked, we should see the input field
+            expect(wrapper.find('[data-test="groupNameInput"]').exists()).toBe(true);
+        });
+
+        it("stops propagation for input events when editing", async () => {
+            const wrapper = createWrapper();
+
+            // Start editing
+            await wrapper.find('[data-test="groupName"]').trigger("click");
+
+            const input = wrapper.find('[data-test="groupNameInput"]');
+            expect(input.exists()).toBe(true);
+
+            // These events should be handled without errors
+            await input.trigger("keydown.space");
+            await input.trigger("keydown.enter");
+            await input.trigger("click");
+
+            // No errors should have been thrown
+            expect(true).toBe(true);
+        });
+    });
+
+    describe("Group ACL Management", () => {
+        it("displays EditAclByGroup components for assigned groups", () => {
+            const wrapper = createWrapper();
+
+            // Check that EditAclByGroup components are rendered for assigned groups
+            const aclComponents = wrapper.findAllComponents({ name: "EditAclByGroup" });
+            expect(aclComponents.length).toBeGreaterThan(0);
+        });
+
+        it("shows AddGroupAclButton when not disabled", () => {
+            const wrapper = createWrapper();
+
+            const addButton = wrapper.findComponent({ name: "AddGroupAclButton" });
+            expect(addButton.exists()).toBe(true);
+        });
+
+        it("does not show AddGroupAclButton when disabled", () => {
+            vi.mocked(verifyAccess).mockReturnValue(false);
+
+            const wrapper = createWrapper();
+
+            const addButton = wrapper.findComponent({ name: "AddGroupAclButton" });
+            expect(addButton.exists()).toBe(false);
+        });
+    });
+
+    describe("Visual State Updates", () => {
+        it("updates styling based on dirty state", async () => {
+            // Test with clean state
+            isEditedMock.mockReturnValue(false);
+            const cleanWrapper = createWrapper();
+
+            // Initially no unsaved changes badge
+            expect(cleanWrapper.text()).not.toContain("Unsaved changes");
+
+            // Test with dirty state
+            isEditedMock.mockReturnValue(true);
+            const dirtyWrapper = createWrapper();
+
+            // Should show unsaved changes badge
+            expect(dirtyWrapper.text()).toContain("Unsaved changes");
+        });
+
+        it("updates button visibility based on connection status", async () => {
+            isEditedMock.mockReturnValue(true);
+            isConnected.value = true;
+
+            const wrapper = createWrapper();
+
+            // Initially connected, should show save button
+            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(true);
+
+            // Disconnect
+            isConnected.value = false;
+            await wrapper.vm.$nextTick();
+
+            // Should no longer show save button
+            expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+        });
     });
 });

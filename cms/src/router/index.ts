@@ -77,7 +77,7 @@ export const router = createRouter({
                         {
                             path: "",
                             name: "groups.index",
-                            component: () => import("../pages/groups/GroupOverview.vue"),
+                            component: () => import("../components/groups/GroupOverview.vue"),
                             meta: {
                                 title: "Groups",
                                 canAccess: {

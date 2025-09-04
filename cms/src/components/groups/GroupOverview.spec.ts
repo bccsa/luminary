@@ -12,7 +12,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, DocType, getRest, initConfig } from "luminary-shared";
+import { accessMap, DocType, getRest, initConfig, isConnected } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { ref } from "vue";
 
@@ -101,6 +101,7 @@ describe("GroupOverview", () => {
     });
 
     it("displays all groups", async () => {
+        isConnected.value = true;
         const wrapper = mount(GroupOverview);
 
         await waitForExpect(() => {
