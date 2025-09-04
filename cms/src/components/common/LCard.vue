@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // Optional v-model:collapsed support
-const modelCollapsed = defineModel<boolean>("collapsed");
+const modelCollapsed = defineModel<boolean>("collapsed", { default: false });
 const collapsed = ref(modelCollapsed?.value ?? props.defaultCollapsed);
 
 const emit = defineEmits<{
