@@ -28,8 +28,8 @@ describe("LanguageRow.vue", () => {
             },
         });
 
-        expect(wrapper.html()).toContain("English");
-        expect(wrapper.html()).toContain("ENG");
+        expect(wrapper.html()).toContain(mockLanguageDtoEng.name);
+        expect(wrapper.html()).toContain(mockLanguageDtoEng.languageCode.toUpperCase());
 
         // check if the updated time is formatted correctly according the systems settings
         expect(wrapper.html()).toContain(
