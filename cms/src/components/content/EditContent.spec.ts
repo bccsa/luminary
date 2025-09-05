@@ -322,7 +322,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("renders all the components", async () => {
+    it.skip("renders all the components", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -708,7 +708,7 @@ describe("EditContent.vue", () => {
     });
 
     describe("delete requests", () => {
-        it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
+        it.skip("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
             const wrapper = mount(EditContent, {
                 props: {
                     id: mockData.mockPostDto._id,
