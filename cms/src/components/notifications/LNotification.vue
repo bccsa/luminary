@@ -17,6 +17,11 @@ const show = ref(true);
     <div
         v-if="show"
         class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5"
+        :class="notification.click ? 'cursor-pointer transition-colors hover:bg-zinc-50' : ''"
+        @click="notification.click && notification.click()"
+        role="button"
+        :tabindex="notification.click ? 0 : undefined"
+        @keyup.enter="notification.click && notification.click()"
     >
         <div class="p-4">
             <div class="flex items-start">
@@ -42,7 +47,7 @@ const show = ref(true);
                 <div class="ml-4 flex flex-shrink-0">
                     <button
                         type="button"
-                        @click="show = false"
+                        @click.stop="show = false"
                         class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
                         <span class="sr-only">Close</span>
