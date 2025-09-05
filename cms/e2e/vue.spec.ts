@@ -127,7 +127,7 @@ test("the user can create a new document", async ({ context }) => {
         .first()
         .click();
 
-    await page.locator(".flex.justify-between.gap-2.rounded-md").click();
+    await page.locator('button[name="options-open-btn"]').click();
     await page.getByText("Super Admins").click();
 
     await page.waitForTimeout(300);
