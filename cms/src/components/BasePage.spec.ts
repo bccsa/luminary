@@ -40,13 +40,27 @@ describe("BasePage", () => {
         expect(wrapper.text()).toContain("Default slot content");
     });
 
-    it.skip("renders the back link", async () => {
+    it("renders the back link", async () => {
         const wrapper = mount(BasePage, {
             props: { backLinkLocation: { name: "posts.index" }, backLinkText: "Posts" },
+            global: {
+                // Stub out other components that render their own RouterLinks so we only assert on the back link
+                stubs: {
+                    RouterLink: RouterLinkStub,
+                    SideBar: { template: "<div />" },
+                    TopBar: {
+                        template:
+                            '<div><slot name="quickActions" /><slot name="contentActions" /></div>',
+                    },
+                    MobileSideBar: { template: "<div />" },
+                },
+            },
         });
 
-        const routerLink = await wrapper.findComponent(RouterLinkStub);
-        expect(routerLink.props().to).toEqual({ name: "posts.index" });
+        // Now the only RouterLink should be the back link
+        const routerLinks = wrapper.findAllComponents(RouterLinkStub);
+        expect(routerLinks.length).toBe(1);
+        expect(routerLinks[0].props().to).toEqual({ name: "posts.index" });
         expect(wrapper.text()).toContain("Posts");
     });
 });
