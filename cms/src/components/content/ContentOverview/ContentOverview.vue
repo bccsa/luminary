@@ -151,6 +151,7 @@ const createNew = () => {
                     v-else-if="canCreateNew && isSmallScreen"
                     class="h-6 w-6 text-zinc-500"
                     @click="createNew"
+                    data-test="create-button"
                 />
             </div>
         </template>
