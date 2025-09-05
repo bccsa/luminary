@@ -62,7 +62,6 @@ jobs:
           touch .env
           echo PORT="${{ vars.API_PORT }}" >> .env
           echo CORS_ORIGIN="${{ vars.CORS_ORIGIN }}" >> .env
-          echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
           echo DB_CONNECTION_STRING="${{ vars.DB_CONNECTION_STRING }}" >> .env
           echo DB_DATABASE="luminary-local" >> .env
           echo DB_MAX_SOCKETS="${{ vars.DB_MAX_SOCKETS }}" >> .env
@@ -83,6 +82,8 @@ jobs:
           npm run seed
 
       - name: Start API in background
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         working-directory: api
         run: |
           npm run start &
