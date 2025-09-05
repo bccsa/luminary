@@ -40,11 +40,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node (API/App/CMS)
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: 'npm'
+          cache-dependency-path: |
+            api/package-lock.json
+            app/package-lock.json
+            cms/package-lock.json
+            shared/package-lock.json
 
       # --- Setup API (shared for App & CMS) ---
       - name: Create database in couchDB
@@ -70,7 +75,6 @@ jobs:
           echo S3_IMG_BUCKET="${{ vars.S3_IMG_BUCKET }}" >> .env
           echo S3_IMG_QUALITY="${{ vars.S3_IMG_QUALITY }}" >> .env
           echo SOCKETIO_MAX_HTTP_BUFFER_SIZE="${{ vars.SOCKETIO_MAX_HTTP_BUFFER_SIZE }}" >> .env
-
       - name: Install and seed API
         working-directory: api
         run: |
@@ -110,6 +114,8 @@ jobs:
           echo VITE_COPYRIGHT_ID="page-copyright" >> .env
           echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL || 'http://localhost:9000/images' }}" >> .env
           echo VITE_SENTRY_DSN="${{ secrets.VITE_SENTRY_DSN }}" >> .env
+          echo VITE_PLUGINS="${{ vars.VITE_PLUGINS }}" >> .env
+          echo VITE_PLUGIN_PATH="${{ vars.VITE_PLUGIN_PATH }}" >> .env
           echo VITE_BYPASS_MINIFY="${{ vars.VITE_BYPASS_MINIFY || 'false' }}" >> .env
 
       - name: Setup app
@@ -138,15 +144,16 @@ jobs:
           echo VITE_AUTH0_CLIENT_ID="${{ secrets.CMS_VITE_AUTH0_CLIENT_ID }}" >> .env
           echo VITE_AUTH0_AUDIENCE="${{ secrets.CMS_VITE_AUTH0_AUDIENCE }}" >> .env
           echo VITE_AUTH0_DOMAIN="${{ secrets.CMS_VITE_AUTH0_DOMAIN }}" >> .env
+          echo VITE_SENTRY_DSN="${{ secrets.CMS_VITE_SENTRY_DSN }}" >> .env
 
       - name: Setup CMS
         working-directory: cms
         run: npm ci --install-links
 
-      - name: Install Playwright browsers (CMS)
-        working-directory: cms
-        run: npx playwright install --with-deps
+          - name: Install Playwright browsers (CMS)
+            working-directory: cms
+            run: npx playwright install --with-deps
 
-      - name: Run Playwright Tests (CMS)
-        working-directory: cms
-        run: npm run test:e2e
+          - name: Run Playwright Tests (CMS)
+            working-directory: cms
+            run: npm run test:e2e
