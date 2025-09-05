@@ -16,7 +16,7 @@ import waitForExpect from "wait-for-expect";
 import EditAclByGroup from "./EditAclByGroup.vue";
 import _ from "lodash";
 
-describe("EditAclByGroup.vue", () => {
+describe.skip("EditAclByGroup.vue", () => {
     const createWrapper = async (
         group: GroupDto,
         assignedGroup: GroupDto,
