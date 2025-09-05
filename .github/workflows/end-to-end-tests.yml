@@ -1,0 +1,152 @@
+name: App & CMS Playwright Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - app/**
+      - shared/**
+      - api/**
+      - cms/**
+      - .github/workflows/end-to-end-tests.yml
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    environment: end-to-end-testing
+    services:
+      couchdb:
+        image: couchdb:latest
+        env:
+          COUCHDB_USER: admin
+          COUCHDB_PASSWORD: password
+        ports:
+          - 5984:5984
+        options: >-
+          --health-cmd="curl -f http://localhost:5984/_up"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # --- Setup API (shared for App & CMS) ---
+      - name: Create database in couchDB
+        run: curl -X PUT http://admin:password@localhost:5984/luminary-local
+
+      - name: Setup API Environment Variables
+        working-directory: api
+        run: |
+          touch .env
+          echo PORT="${{ vars.API_PORT }}" >> .env
+          echo CORS_ORIGIN="${{ vars.CORS_ORIGIN }}" >> .env
+          echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
+          echo DB_CONNECTION_STRING="${{ vars.DB_CONNECTION_STRING }}" >> .env
+          echo DB_DATABASE="luminary-local" >> .env
+          echo DB_MAX_SOCKETS="${{ vars.DB_MAX_SOCKETS }}" >> .env
+          echo SYNC_TOLERANCE="${{ vars.SYNC_TOLERANCE }}" >> .env
+          echo JWT_MAPPING="${{ vars.JWT_MAPPING }}" >> .env
+          echo S3_ENDPOINT="${{ vars.S3_ENDPOINT }}" >> .env
+          echo S3_PORT="${{ vars.S3_PORT }}" >> .env
+          echo S3_USE_SSL="${{ vars.S3_USE_SSL }}" >> .env
+          echo S3_ACCESS_KEY="${{ vars.S3_ACCESS_KEY }}" >> .env
+          echo S3_SECRET_KEY="${{ vars.S3_SECRET_KEY }}" >> .env
+          echo S3_IMG_BUCKET="${{ vars.S3_IMG_BUCKET }}" >> .env
+          echo S3_IMG_QUALITY="${{ vars.S3_IMG_QUALITY }}" >> .env
+          echo SOCKETIO_MAX_HTTP_BUFFER_SIZE="${{ vars.SOCKETIO_MAX_HTTP_BUFFER_SIZE }}" >> .env
+
+      - name: Install and seed API
+        working-directory: api
+        run: |
+          npm install
+          npm run seed
+
+      - name: Start API in background
+        working-directory: api
+        run: |
+          npm run start &
+          sleep 50
+
+      # --- Shared library ---
+      - name: Install shared library
+        working-directory: shared
+        run: |
+          npm install
+          npm run build
+
+      # --- Setup App ---
+      - name: Setup APP Environment Variables
+        working-directory: app
+        run: |
+          touch .env
+          echo VITE_LOGO_FAVICON="${{ vars.VITE_LOGO_FAVICON }}" >> .env
+          echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
+          echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
+          echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
+          echo VITE_AUTH0_AUDIENCE="${{ secrets.VITE_AUTH0_AUDIENCE }}" >> .env
+          echo VITE_AUTH0_DOMAIN="${{ secrets.VITE_AUTH0_DOMAIN }}" >> .env
+          echo VITE_HIDE_EXPLORE="${{ vars.VITE_HIDE_EXPLORE }}" >> .env
+          echo VITE_LOGO="../src/assets/logo.svg" >> .env
+          echo VITE_LOGO_DARK="../src/assets/logo-dark.svg" >> .env
+          echo VITE_LOGO_SMALL="../src/assets/logo-small.svg" >> .env
+          echo VITE_LOGO_SMALL_DARK="../src/assets/logo-small.svg" >> .env
+          echo VITE_PRIVACY_POLICY_ID="page-privacy-policy" >> .env
+          echo VITE_COPYRIGHT_ID="page-copyright" >> .env
+          echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL || 'http://localhost:9000/images' }}" >> .env
+          echo VITE_SENTRY_DSN="${{ secrets.VITE_SENTRY_DSN }}" >> .env
+          echo VITE_BYPASS_MINIFY="${{ vars.VITE_BYPASS_MINIFY || 'false' }}" >> .env
+
+      - name: Setup app
+        working-directory: app
+        run: npm ci --install-links
+
+      - name: Install Playwright browsers (App)
+        working-directory: app
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright Tests (App)
+        working-directory: app
+        run: npm run test:e2e
+
+      # --- Setup CMS ---
+      - name: Setup CMS Environment Variables
+        working-directory: cms
+        run: |
+          touch .env
+          echo VITE_APP_NAME="${{ vars.CMS_VITE_APP_NAME }}" >> .env
+          echo VITE_API_URL="${{ vars.CMS_VITE_API_URL }}" >> .env
+          echo VITE_CLIENT_APP_URL="${{ vars.CMS_VITE_CLIENT_APP_URL }}" >> .env
+          echo VITE_CLIENT_IMAGES_URL="${{ vars.CMS_VITE_CLIENT_IMAGES_URL }}" >> .env
+          echo VITE_LOGO_FAVICON="${{ vars.CMS_VITE_LOGO_FAVICON }}" >> .env
+          echo VITE_LOGO="${{ vars.CMS_VITE_LOGO }}" >> .env
+          echo VITE_AUTH0_CLIENT_ID="${{ secrets.CMS_VITE_AUTH0_CLIENT_ID }}" >> .env
+          echo VITE_AUTH0_AUDIENCE="${{ secrets.CMS_VITE_AUTH0_AUDIENCE }}" >> .env
+          echo VITE_AUTH0_DOMAIN="${{ secrets.CMS_VITE_AUTH0_DOMAIN }}" >> .env
+
+      - name: Setup CMS
+        working-directory: cms
+        run: npm ci --install-links
+
+      - name: Install Playwright browsers (CMS)
+        working-directory: cms
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright Tests (CMS)
+        working-directory: cms
+        run: npm run test:e2e
