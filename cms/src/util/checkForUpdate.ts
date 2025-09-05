@@ -20,7 +20,7 @@ export async function checkForUpdate(showIfSame = false) {
                 timer: 60000,
                 click: () => {
                     // Persist new version and reload
-                    localStorage.setItem(VERSION_STORAGE_KEY, data.hash!);
+                    data.hash && localStorage.setItem(VERSION_STORAGE_KEY, data.hash);
                     location.reload();
                 },
             });
