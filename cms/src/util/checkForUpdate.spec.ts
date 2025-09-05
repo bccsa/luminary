@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { useNotificationStore } from "./stores/notification";
+import { useNotificationStore } from "../stores/notification";
 
 // We import the main file indirectly by extracting the function via dynamic import pattern.
 // Instead of refactoring production code right now, we replicate the logic here for test isolation.

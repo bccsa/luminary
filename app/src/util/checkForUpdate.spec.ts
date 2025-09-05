@@ -16,7 +16,7 @@ describe("App updateManager checkForUpdate", () => {
         setActivePinia(createPinia());
         window.localStorage.clear();
         // Dynamically import after resetting modules so updateNotified is fresh
-        ({ checkForUpdate } = await import("./updateManager"));
+        ({ checkForUpdate } = await import("./checkForUpdate"));
     });
 
     afterEach(() => {

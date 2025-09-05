@@ -9,7 +9,7 @@ import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
-import { checkForUpdate } from "./util/updateManager";
+import { checkForUpdate } from "./util/checkForUpdate";
 
 const router = useRouter();
 const {
@@ -107,9 +107,9 @@ onErrorCaptured((err) => {
 });
 
 // Initial delayed check & interval
-setTimeout(() => checkForUpdate(), 4000);
+setTimeout(() => checkForUpdate(), 1000);
 // Re-check every 5 minutes (configurable via env later if needed)
-setInterval(() => checkForUpdate(), 200);
+setInterval(() => checkForUpdate(), 5 * 60 * 1000);
 
 // Optional: expose manual trigger (for debugging in console)
 // @ts-ignore
