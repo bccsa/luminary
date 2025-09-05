@@ -1,6 +1,7 @@
 name: App & CMS Playwright Tests
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main, master]
     paths:
@@ -10,7 +11,7 @@ on:
       - cms/**
       - .github/workflows/end-to-end-tests.yml
   push:
-    branches: [main, master]
+    branches: ["**"]
 
 permissions:
   contents: read
@@ -44,7 +45,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: |
             api/package-lock.json
             app/package-lock.json
@@ -149,11 +150,10 @@ jobs:
       - name: Setup CMS
         working-directory: cms
         run: npm ci --install-links
+      - name: Install Playwright browsers (CMS)
+        working-directory: cms
+        run: npx playwright install --with-deps
 
-          - name: Install Playwright browsers (CMS)
-            working-directory: cms
-            run: npx playwright install --with-deps
-
-          - name: Run Playwright Tests (CMS)
-            working-directory: cms
-            run: npm run test:e2e
+      - name: Run Playwright Tests (CMS)
+        working-directory: cms
+        run: npm run test:e2e
