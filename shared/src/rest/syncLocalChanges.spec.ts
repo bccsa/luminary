@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { AckStatus, ChangeReqDto, DocType, LocalChangeDto } from "../types";
 import { db, initDatabase } from "../db/database";
@@ -94,9 +94,7 @@ describe("localChanges", () => {
         await db.localChanges.clear();
     });
 
-    beforeEach(() => {
-        processChangeReqLock.value = false;
-    });
+    // No global lock mutation; let implementation manage it.
 
     it("sends a change request if there are local changes", async () => {
         // Simulate server connection
@@ -104,7 +102,6 @@ describe("localChanges", () => {
             socket.emit("clientConfig", {});
         });
         getSocket({ reconnect: true });
-        processChangeReqLock.value = false;
 
         // Add a local change
         const localChange = {
@@ -112,21 +109,13 @@ describe("localChanges", () => {
             doc: { _id: "test-doc", type: DocType.Post, updatedTimeUtc: 1234 },
         };
 
-        vi.spyOn(RestApi, "getRest").mockReturnValue({
-            changeRequest: changeRequestMock,
-        } as unknown as any);
-
-        // Initialize syncLocalChanges since we're mocking getRest()
-        const localChanges = useDexieLiveQuery(
-            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
-            { initialValue: [] as unknown as LocalChangeDto[] },
-        );
-        syncLocalChanges(localChanges);
+        // Ack response so item removed
+        changeRequestMock.mockResolvedValueOnce({ id: 1234, ack: AckStatus.Accepted });
 
         await db.localChanges.put(localChange);
 
         // Assert that the changeRequestMock was called with the correct data
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
             expect(changeRequestMock).toHaveBeenCalled();
 
             const formData = changeRequestMock.mock.calls[0][0] as FormData;
@@ -144,10 +133,7 @@ describe("localChanges", () => {
     });
 
     it("handles acks for changes", async () => {
-        vi.spyOn(RestApi.getRest(), "changeRequest").mockResolvedValueOnce({
-            id: 1234,
-            ack: AckStatus.Accepted,
-        });
+        changeRequestMock.mockResolvedValueOnce({ id: 1234, ack: AckStatus.Accepted });
 
         // Create a local change
         await db.localChanges.put({
@@ -169,6 +155,7 @@ describe("localChanges", () => {
             // Check if the local change was removed
             const res = await db.localChanges.get(1234);
             expect(res).toBeUndefined();
+            expect(await db.localChanges.count()).toBe(0);
         });
     });
 
@@ -187,14 +174,16 @@ describe("localChanges", () => {
         };
 
         // Create a local change
+        changeRequestMock.mockResolvedValueOnce({ id: localChange.id, ack: AckStatus.Accepted });
         await db.localChanges.put(localChange);
 
         await waitForExpect(async () => {
             expect(changeRequestMock).toHaveBeenCalled();
+            expect(await db.localChanges.count()).toBe(0);
         });
 
         // Check if the server received the change request
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
             const formData = changeRequestMock.mock.calls[0][0] as any;
             const entries = [...formData.entries()];
             expect(entries).toEqual(
@@ -217,6 +206,7 @@ describe("localChanges", () => {
         };
 
         // Store while offline
+        changeRequestMock.mockResolvedValueOnce({ id: localChange.id, ack: AckStatus.Accepted });
         await db.localChanges.put(localChange);
         const stored = await db.localChanges.get(1234);
         expect(stored).toBeDefined();
@@ -229,7 +219,7 @@ describe("localChanges", () => {
         getSocket({ reconnect: true });
 
         // Wait and validate sync
-        await waitForExpect(() => {
+        await waitForExpect(async () => {
             expect(changeRequestMock).toHaveBeenCalled();
 
             const formData = changeRequestMock.mock.calls[0][0] as any;
@@ -240,6 +230,7 @@ describe("localChanges", () => {
                     ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
                 ]),
             );
+            expect(await db.localChanges.count()).toBe(0);
         });
     });
 
@@ -264,6 +255,79 @@ describe("localChanges", () => {
 
         // Check that the server should not receive the second localChange, but only the first
         await wait(2000);
-        expect(changeRequestMock).not.toHaveBeenCalledWith({ id: 1235 });
+        await waitForExpect(async () => {
+            expect(changeRequestMock).not.toHaveBeenCalledWith({ id: 1235 });
+        });
+    });
+
+    it("syncs pending offline change after reconnect via lock dependency re-run", async () => {
+        // Arrange: simulate prior state with lock engaged while offline
+        getSocket().disconnect();
+        processChangeReqLock.value = true;
+
+        const localChange = {
+            id: 7777,
+            doc: { _id: "race-doc", type: DocType.Post, updatedTimeUtc: Date.now() },
+        } as ChangeReqDto;
+        changeRequestMock.mockResolvedValueOnce({ id: localChange.id, ack: AckStatus.Accepted });
+        await db.localChanges.put(localChange);
+        expect(await db.localChanges.get(localChange.id)).toBeDefined();
+
+        // Act: reconnect (isConnected watcher unlocks; combined watcher observes lock change)
+        socketServer.on("connection", (socket) => {
+            socket.emit("clientConfig", {});
+        });
+        getSocket({ reconnect: true });
+
+        await waitForExpect(async () => {
+            expect(changeRequestMock).toHaveBeenCalled();
+            const formData = changeRequestMock.mock.calls[0][0] as FormData;
+            const entries = [...formData.entries()];
+            expect(entries).toEqual(
+                expect.arrayContaining([
+                    ["changeRequestId", localChange.id.toString()],
+                    ["changeRequestDoc-JSON", JSON.stringify(localChange.doc)],
+                ]),
+            );
+            expect(await db.localChanges.count()).toBe(0);
+        });
+    });
+
+    it("processes multiple queued changes sequentially", async () => {
+        // Arrange
+        getSocket().disconnect();
+        processChangeReqLock.value = true; // simulate offline queued state
+
+        // Mock changeRequest to ack each submitted change with its own id
+        changeRequestMock.mockImplementation((formData: FormData) => {
+            const id = Number(formData.get("changeRequestId"));
+            return Promise.resolve({ id, ack: AckStatus.Accepted });
+        });
+
+        const changes: ChangeReqDto[] = [10, 20, 30].map((id) => ({
+            id,
+            doc: { _id: `doc-${id}`, type: DocType.Post, updatedTimeUtc: Date.now() },
+        })) as ChangeReqDto[];
+
+        await db.localChanges.bulkPut(changes);
+        expect(await db.localChanges.count()).toBe(3);
+
+        // Reconnect triggers unlocking then sequential processing
+        socketServer.on("connection", (socket) => {
+            socket.emit("clientConfig", {});
+        });
+        getSocket({ reconnect: true });
+
+        await waitForExpect(async () => {
+            expect(await db.localChanges.count()).toBe(0);
+            expect(changeRequestMock).toHaveBeenCalledTimes(3);
+            const ids = changeRequestMock.mock.calls.map((c) =>
+                Number((c[0] as FormData).get("changeRequestId")),
+            );
+            expect(ids).toEqual([10, 20, 30]);
+        });
+
+        // Ensure lock released after final ack
+        expect(processChangeReqLock.value).toBe(false);
     });
 });
