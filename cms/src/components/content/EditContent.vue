@@ -22,7 +22,7 @@ import {
     RedirectType,
     useDexieLiveQuery,
 } from "luminary-shared";
-import { DocumentIcon, TagIcon, TrashIcon } from "@heroicons/vue/24/solid";
+import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
