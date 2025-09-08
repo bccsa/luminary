@@ -45,7 +45,7 @@ async function pushLocalChange(localChange: LocalChangeDto) {
 }
 
 export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
-    const tryProcess = () => {
+    const attemptSync = () => {
         if (!isConnected.value) return;
         if (localChanges.value.length === 0) return;
         if (processChangeReqLock.value) return; // already processing a change request
@@ -54,7 +54,7 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
         pushLocalChange(localChanges.value[0]);
     };
 
-    watch([isConnected, localChanges, processChangeReqLock], tryProcess, { immediate: true });
+    watch([isConnected, localChanges, processChangeReqLock], attemptSync, { immediate: true });
 
     watch(isConnected, (connected) => {
         if (!connected) {
@@ -64,6 +64,6 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>) {
         }
         // When coming online, allow processing and attempt immediately
         processChangeReqLock.value = false;
-        tryProcess();
+        attemptSync();
     });
 }

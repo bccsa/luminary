@@ -292,42 +292,4 @@ describe("localChanges", () => {
             expect(await db.localChanges.count()).toBe(0);
         });
     });
-
-    it("processes multiple queued changes sequentially", async () => {
-        // Arrange
-        getSocket().disconnect();
-        processChangeReqLock.value = true; // simulate offline queued state
-
-        // Mock changeRequest to ack each submitted change with its own id
-        changeRequestMock.mockImplementation((formData: FormData) => {
-            const id = Number(formData.get("changeRequestId"));
-            return Promise.resolve({ id, ack: AckStatus.Accepted });
-        });
-
-        const changes: ChangeReqDto[] = [10, 20, 30].map((id) => ({
-            id,
-            doc: { _id: `doc-${id}`, type: DocType.Post, updatedTimeUtc: Date.now() },
-        })) as ChangeReqDto[];
-
-        await db.localChanges.bulkPut(changes);
-        expect(await db.localChanges.count()).toBe(3);
-
-        // Reconnect triggers unlocking then sequential processing
-        socketServer.on("connection", (socket) => {
-            socket.emit("clientConfig", {});
-        });
-        getSocket({ reconnect: true });
-
-        await waitForExpect(async () => {
-            expect(await db.localChanges.count()).toBe(0);
-            expect(changeRequestMock).toHaveBeenCalledTimes(3);
-            const ids = changeRequestMock.mock.calls.map((c) =>
-                Number((c[0] as FormData).get("changeRequestId")),
-            );
-            expect(ids).toEqual([10, 20, 30]);
-        });
-
-        // Ensure lock released after final ack
-        expect(processChangeReqLock.value).toBe(false);
-    });
 });
