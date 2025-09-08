@@ -33,7 +33,7 @@ import {
     ArrowUturnLeftIcon,
     TrashIcon,
 } from "@heroicons/vue/24/solid";
-import { ChevronDownIcon } from "@heroicons/vue/24/outline";
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
@@ -570,58 +570,33 @@ const duplicate = async () => {
     });
 };
 const showLanguageSelector = ref(false);
-const showContentActionMenu = ref(false);
+const showContentActionMenuMobile = ref(false);
+const showContentActionMenuDesktop = ref(false);
 
-const contentActions = computed(() => {
-    const actions = [];
-
-    if (
-        isConnected.value &&
-        selectedContent_Existing.value &&
-        selectedContent_Existing.value.status === PublishStatus.Published
-    ) {
-        actions.push({
-            name: "View live",
-            action: ensureRedirect,
-            icon: ArrowTopRightOnSquareIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-        });
-    }
-
-    actions.push(
-        {
-            name: "Save changes",
-            action: saveChanges,
-            icon: FolderArrowDownIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-        },
-        {
-            name: "Duplicate",
-            action: duplicate,
-            icon: DocumentDuplicateIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-        },
-        {
-            name: "Delete",
-            action: () => (showDeleteModal.value = true),
-            icon: TrashIcon,
-            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
-        },
-    );
-
-    return actions;
-});
+const contentActions = ref([
+    {
+        name: "Duplicate",
+        action: duplicate,
+        icon: DocumentDuplicateIcon,
+        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+    },
+    {
+        name: "Delete",
+        action: () => (showDeleteModal.value = true),
+        icon: TrashIcon,
+        iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+    },
+]);
 
 // Watch for changes in dirty state and new document state to add or remove the revert action
 watch(
     [isDirty, () => newDocument],
     ([dirty, isNew]) => {
-        const revertActionIndex = contentActions.value.findIndex(
-            (a) => a.name === "Revert changes",
-        );
+        const list = contentActions.value;
+        const revertActionIndex = list.findIndex((a) => a.name === "Revert changes");
         if (dirty && !isNew) {
             if (revertActionIndex === -1) {
-                contentActions.value.unshift({
+                list.unshift({
                     name: "Revert changes",
                     action: revertChanges as any,
                     icon: ArrowUturnLeftIcon,
@@ -629,7 +604,7 @@ watch(
                 });
             }
         } else if (revertActionIndex !== -1) {
-            contentActions.value.splice(revertActionIndex, 1);
+            list.splice(revertActionIndex, 1);
         }
     },
     { immediate: true },
@@ -666,65 +641,13 @@ watch(
             </h1>
         </template>
 
-        <!-- <template #topBarActionsMobile>
-            <Menu as="div" class="relative flex">
-                <LBadge v-if="isLocalChange" variant="warning" class="text-nowrap lg:hidden"
-                    >Offline changes</LBadge
-                >
-                <MenuButton class="flex w-full items-center justify-between">
-                    <EllipsisVerticalIcon
-                        class="ml-2 h-6 w-6 text-zinc-500 hover:text-zinc-700 lg:hidden"
-                        @click="showContentActionMenu = !showContentActionMenu"
-                    />
-                </MenuButton>
-
-                <transition
-                    enter-active-class="transition ease-out duration-100"
-                    enter-from-class="transform opacity-0 scale-95"
-                    enter-to-class="transform opacity-100 scale-100"
-                    leave-active-class="transition ease-in duration-75"
-                    leave-from-class="transform opacity-100 scale-100"
-                    leave-to-class="transform opacity-0 scale-95"
-                >
-                    <MenuItems
-                        class="absolute right-0 z-50 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
-                    >
-                        <MenuItem
-                            v-for="action in contentActions"
-                            :key="action.name"
-                            v-slot="{ active }"
-                        >
-                            <button
-                                :class="[
-                                    active ? 'bg-zinc-50' : '',
-                                    'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 ',
-                                ]"
-                                @click="action.action"
-                            >
-                                <component
-                                    :is="action.icon"
-                                    :class="action.iconClass"
-                                    aria-hidden="true"
-                                />
-                                <div class="flex flex-col text-nowrap leading-none">
-                                    {{ action.name }}
-                                </div>
-                            </button>
-                        </MenuItem>
-                    </MenuItems>
-                </transition>
-            </Menu>
-        </template> -->
-
         <template #topBarActionsMobile>
             <div class="flex items-center gap-2 lg:hidden">
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
 
                 <LButton
                     v-if="
-                        isConnected &&
-                        selectedContent_Existing &&
-                        selectedContent_Existing.status == PublishStatus.Published
+                        isConnected && selectedContent_Existing?.status === PublishStatus.Published
                     "
                     :icon="ArrowTopRightOnSquareIcon"
                     iconLeft
@@ -754,39 +677,43 @@ watch(
                         <CloudArrowUpIcon class="size-5" />
                     </span>
                     <template #right>
-                        <span
-                            @click.stop="showContentActionMenu = !showContentActionMenu"
-                            class="flex size-full items-center justify-center"
-                            role="button"
-                            aria-haspopup="menu"
-                            :aria-expanded="showContentActionMenu ? 'true' : 'false'"
+                        <LDropdown
+                            v-model:show="showContentActionMenuMobile"
+                            padding="small"
+                            placement="bottom-end"
                         >
-                            <ChevronDownIcon class="size-5" />
-                        </span>
+                            <template #trigger>
+                                <ChevronDownIcon
+                                    v-if="!showContentActionMenuMobile"
+                                    class="size-5"
+                                />
+                                <ChevronUpIcon v-else class="size-5" />
+                            </template>
+                            <ul>
+                                <li
+                                    role="menuitem"
+                                    tabindex="-1"
+                                    v-for="action in contentActions"
+                                    :key="action.name"
+                                    @click="
+                                        action.action();
+                                        showContentActionMenuMobile = false;
+                                    "
+                                    class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                                >
+                                    <component
+                                        :is="action.icon"
+                                        :class="action.iconClass"
+                                        aria-hidden="true"
+                                    />
+                                    <div class="flex flex-col text-nowrap leading-none">
+                                        {{ action.name }}
+                                    </div>
+                                </li>
+                            </ul>
+                        </LDropdown>
                     </template>
                 </LButton>
-                <LDropdown padding="small" v-model:show="showContentActionMenu">
-                    <ul>
-                        <li
-                            v-for="action in contentActions"
-                            :key="action.name"
-                            @click="
-                                action.action();
-                                showContentActionMenu = false;
-                            "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50"
-                        >
-                            <component
-                                :is="action.icon"
-                                :class="action.iconClass"
-                                aria-hidden="true"
-                            />
-                            <div class="flex flex-col text-nowrap leading-none">
-                                {{ action.name }}
-                            </div>
-                        </li>
-                    </ul>
-                </LDropdown>
             </div>
         </template>
 
@@ -797,9 +724,7 @@ watch(
             <div class="hidden items-center gap-1 lg:flex">
                 <LButton
                     v-if="
-                        isConnected &&
-                        selectedContent_Existing &&
-                        selectedContent_Existing.status == PublishStatus.Published
+                        isConnected && selectedContent_Existing?.status === PublishStatus.Published
                     "
                     :icon="ArrowTopRightOnSquareIcon"
                     iconLeft
@@ -833,39 +758,43 @@ watch(
                         Save
                     </span>
                     <template #right>
-                        <span
-                            @click.stop="showContentActionMenu = !showContentActionMenu"
-                            class="flex size-full items-center justify-center"
-                            role="button"
-                            aria-haspopup="menu"
-                            :aria-expanded="showContentActionMenu ? 'true' : 'false'"
+                        <LDropdown
+                            v-model:show="showContentActionMenuDesktop"
+                            padding="small"
+                            placement="bottom-end"
                         >
-                            <ChevronDownIcon class="size-5" />
-                        </span>
+                            <template #trigger>
+                                <ChevronDownIcon
+                                    v-if="!showContentActionMenuDesktop"
+                                    class="size-5"
+                                />
+                                <ChevronUpIcon v-else class="size-5" />
+                            </template>
+                            <ul>
+                                <li
+                                    role="menuitem"
+                                    tabindex="-1"
+                                    v-for="action in contentActions"
+                                    :key="action.name"
+                                    @click="
+                                        action.action();
+                                        showContentActionMenuDesktop = false;
+                                    "
+                                    class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
+                                >
+                                    <component
+                                        :is="action.icon"
+                                        :class="action.iconClass"
+                                        aria-hidden="true"
+                                    />
+                                    <div class="flex flex-col text-nowrap leading-none">
+                                        {{ action.name }}
+                                    </div>
+                                </li>
+                            </ul>
+                        </LDropdown>
                     </template>
                 </LButton>
-                <LDropdown padding="small" v-model:show="showContentActionMenu">
-                    <ul>
-                        <li
-                            v-for="action in contentActions"
-                            :key="action.name"
-                            @click="
-                                action.action();
-                                showContentActionMenu = false;
-                            "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50"
-                        >
-                            <component
-                                :is="action.icon"
-                                :class="action.iconClass"
-                                aria-hidden="true"
-                            />
-                            <div class="flex flex-col text-nowrap leading-none">
-                                {{ action.name }}
-                            </div>
-                        </li>
-                    </ul>
-                </LDropdown>
             </div>
         </template>
         <div class="flex h-full flex-col gap-2 overflow-y-auto lg:flex-row lg:overflow-y-hidden">
