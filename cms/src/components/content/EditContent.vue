@@ -262,6 +262,9 @@ const isValid = ref(true);
 const createRedirect = async () => {
     if (!selectedContent.value || !selectedContent_Existing.value) return;
 
+    // Only create a redirect when we're working with the SAME content document.
+    if (selectedContent.value._id !== selectedContent_Existing.value._id) return;
+
     // If the slug is the same or if the user does not have edit access to redirects, do not create a redirect
     if (
         selectedContent.value.slug === selectedContent_Existing.value.slug ||
