@@ -1,5 +1,5 @@
 import { computed, Ref, ref, toRaw, watch } from "vue";
-import { BaseDocumentDto, Uuid } from "../types";
+import { BaseDocumentDto, Uuid } from "../../types";
 import _ from "lodash";
 
 export type CreateEditableOptions<T> = {
