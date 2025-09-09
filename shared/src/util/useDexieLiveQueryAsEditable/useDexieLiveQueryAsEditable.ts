@@ -30,7 +30,7 @@ import { db, UpsertOptions } from "../../db/database";
  *   - `isEdited` - Function to check if an item has been modified
  *   - `updateShadow` - Function to update the shadow copy after saving
  *   - `save` - Async function to save changes for a specific item by ID
- *  - `isLocalChange` - Function to check if there are local changes for a specific item by ID
+ *  - `isLocalChange` - Returns a reactive ref that indicates whether there are local changes for a specific item by ID
  *
  * @example
  * ```typescript
