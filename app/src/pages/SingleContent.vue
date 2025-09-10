@@ -531,7 +531,7 @@ const selectedLanguageCode = computed(() => {
 
         <div class="absolute hidden lg:block">
             <div
-                @click="router.back();"
+                @click="router.back()"
                 class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
             ></div>
         </div>
