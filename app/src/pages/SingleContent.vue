@@ -466,8 +466,6 @@ onMounted(() => {
     window.addEventListener("click", onClickOutside);
 });
 
-
-
 // Convert selectedLanguageId to language code for VideoPlayer
 const selectedLanguageCode = computed(() => {
     if (!selectedLanguageId.value || !languages.value.length) return null;
