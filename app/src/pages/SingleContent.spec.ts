@@ -40,6 +40,7 @@ vi.mock("vue-router", async (importOriginal) => {
             }),
             replace: routeReplaceMock,
             back: vi.fn(),
+            
         })),
     };
 });
