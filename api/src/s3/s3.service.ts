@@ -97,10 +97,12 @@ export class S3Service {
      * Check if the S3/Minio service is available
      */
     public async checkConnection(): Promise<boolean> {
+        // Treat connection as healthy only if the configured image bucket exists.
+        // If the bucket is missing or any error occurs, return false so the caller can react.
+        if (!this.imageBucket) return false;
         try {
-            await this.client.listBuckets();
-            return true;
-        } catch (error) {
+            return await this.client.bucketExists(this.imageBucket);
+        } catch (_) {
             return false;
         }
     }
