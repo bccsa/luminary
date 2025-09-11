@@ -47,7 +47,7 @@ function collapse() {
 
 <template>
     <div
-        class="overflow-hidden border-y-2 border-zinc-200 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
+        class="overflow-visible border-y-2 border-zinc-200 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
         :class="{
             'shadow-none': props.shadow === 'none',
             'shadow-sm': props.shadow === 'small',

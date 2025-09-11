@@ -2,6 +2,7 @@
 import BasePage from "../BasePage.vue";
 import LBadge from "../common/LBadge.vue";
 import LButton from "../button/LButton.vue";
+import LCard from "../common/LCard.vue";
 import LInput from "../forms/LInput.vue";
 import {
     AclPermission,
@@ -215,7 +216,7 @@ const save = async () => {
         <span v-if="isLoading">Loading...</span>
         <span v-else-if="!isConnected">Offline...</span>
         <div v-else class="space-y-2">
-            <div class="rounded-lg border-2 border-zinc-200 bg-white px-2 py-1.5">
+            <LCard class="rounded-lg bg-white shadow-lg">
                 <LInput
                     label="Name"
                     name="userName"
@@ -251,7 +252,7 @@ const save = async () => {
                     :disabled="!canEditOrCreate"
                     data-test="groupSelector"
                 />
-            </div>
+            </LCard>
         </div>
     </BasePage>
 
