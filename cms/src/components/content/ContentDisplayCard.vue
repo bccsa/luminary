@@ -132,7 +132,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 
             <div class="flex items-center justify-end">
                 <div v-if="!isSmallScreen" class="flex gap-1">
-                    <LBadge v-if="isLocalChange" variant="warning" class="flex text-nowrap">
+                    <LBadge v-if="isLocalChange" variant="warning" class="flex whitespace-nowrap">
                         Offline changes
                     </LBadge>
                     <RouterLink
