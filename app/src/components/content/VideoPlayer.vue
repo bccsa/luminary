@@ -34,6 +34,8 @@ const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 const keepAudioAlive = ref<HTMLAudioElement | null>(null);
 
+const AUDIO_MODE_TIME_ADJUSTMENT = 0.25;
+
 let timeout: any;
 function autoHidePlayerControls() {
     if (timeout) clearTimeout(timeout);
@@ -362,7 +364,7 @@ watch(audioMode, async (mode) => {
          * When switching between audio and video modes, the player may introduce slight delays or offsets due to internal buffering, seeking, or reinitializing the media source.
          * A small adjustment like 0.25 seconds helps ensure that the playback position remains consistent and avoids noticeable jumps forward or backward.
          */
-        const adjustedTime = Math.max(0, currentTime - (mode ? 0.25 : 0));
+        const adjustedTime = Math.max(0, currentTime - (mode ? AUDIO_MODE_TIME_ADJUSTMENT : 0));
         player?.currentTime(adjustedTime);
 
         player?.play();
