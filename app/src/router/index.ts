@@ -83,4 +83,15 @@ const router = createRouter({
     ],
 });
 
+router.beforeEach((to, from, next) => {
+    if (!from.name && to.name !== "home") {
+        router.replace({ name: "home" }).then(() => {
+            router.push(to.fullPath);
+        });
+        return;
+    }
+    next();
+});
+
+
 export default router;

@@ -17,7 +17,6 @@ import {
     type LanguageDto,
 } from "luminary-shared";
 import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
-import { ArrowLeftIcon } from "@heroicons/vue/16/solid";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import { BookmarkIcon as BookmarkIconOutline, MoonIcon } from "@heroicons/vue/24/outline";
 import { generateHTML } from "@tiptap/html";
@@ -529,17 +528,7 @@ const selectedLanguageCode = computed(() => {
                 <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
             </div>
         </template>
-
-        <div class="absolute hidden lg:block">
-            <div
-                @click="router.back()"
-                class="-mx-2 mb-1 inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-zinc-500 dark:hover:text-zinc-50 dark:active:bg-zinc-400"
-            >
-                <ArrowLeftIcon class="h-4 w-4" />
-                Back
-            </div>
-        </div>
-
+        
         <NotFoundPage v-if="is404" />
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
