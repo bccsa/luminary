@@ -186,15 +186,25 @@ watch([content, isConnected], async () => {
         db.docs.where("type").equals(DocType.Language).toArray(),
     ]);
 
-    //
+    // Set available translations if more than one
     if (translations.length > 1) {
         availableTranslations.value = translations as ContentDto[];
-
-        // Filter languages based on available translations
-        languages.value = (langs as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((translation) => translation.language === lang._id),
-        );
     }
+
+    // Filter languages to only those that have available translations
+    const filtered = (langs as LanguageDto[]).filter((lang) =>
+        availableTranslations.value.some((translation) => translation.language === lang._id),
+    );
+
+    // Remove duplicates and maintain the order of availableTranslations
+    languages.value = Array.from(
+        new Map(
+            availableTranslations.value
+                .map((t) => filtered.find((l) => l._id === t.language))
+                .filter(Boolean)
+                .map((lang) => [lang!._id, lang!] as const),
+        ).values(),
+    );
 
     if (isConnected.value) {
         // If online, do API call to get list of available languages and update dropdown
@@ -221,16 +231,22 @@ watch([content, isConnected], async () => {
             if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
                 const apiLanguages = apiLanguage.value as LanguageDto[];
 
-                // Merge languages from API with those from IndexedDB, filtering out duplicates
-                const mergedLanguages = [
-                    ...languages.value,
-                    ...apiLanguages.filter(
-                        (apiLang) =>
-                            !languages.value.some((localLang) => localLang._id === apiLang._id),
+                // Filter API languages to only those with available translations
+                const filteredApi = apiLanguages.filter((apiLang) =>
+                    availableTranslations.value.some(
+                        (translation) => translation.language === apiLang._id,
                     ),
-                ];
+                );
 
-                languages.value = mergedLanguages;
+                // Remove duplicates and maintain the order of availableTranslations
+                languages.value = Array.from(
+                    new Map(
+                        availableTranslations.value
+                            .map((t) => filteredApi.find((l) => l._id === t.language))
+                            .filter(Boolean)
+                            .map((lang) => [lang!._id, lang!] as const),
+                    ).values(),
+                );
             }
         });
     }
