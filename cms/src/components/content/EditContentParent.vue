@@ -9,22 +9,65 @@ import {
     type ContentParentDto,
     PostType,
 } from "luminary-shared";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import TagSelector from "./TagSelector.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
+import _ from "lodash";
+import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { validate, type Validation } from "./ContentValidator";
 
 type Props = {
     docType: DocType;
     tagOrPostType: TagType | PostType;
     language?: LanguageDto;
+    existingParent: ContentParentDto | undefined;
     disabled: boolean;
-    newDocument?: boolean;
 };
 defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
+
+// Parent validation
+const parentValidations = ref([] as Validation[]);
+const parentIsValid = ref(true);
+const overallValidations = ref([] as Validation[]);
+const overallIsValid = ref(true);
+
+watch(
+    [parent],
+    ([_editableParent]) => {
+        if (!_editableParent) return;
+
+        validate(
+            "At least one group membership is required",
+            "groups",
+            parentValidations.value,
+            _editableParent,
+            () => _editableParent.memberOf.length > 0,
+        );
+
+        parentIsValid.value = parentValidations.value.every((v) => v.isValid);
+
+        // Update overall validation
+        let parentOverallValidation = overallValidations.value.find(
+            (v) => v.id == _editableParent._id,
+        );
+        if (!parentOverallValidation) {
+            parentOverallValidation = {
+                id: _editableParent._id,
+                isValid: parentIsValid.value,
+                message: "",
+            };
+            overallValidations.value.push(parentOverallValidation);
+        } else {
+            parentOverallValidation.isValid = parentIsValid.value;
+        }
+        overallIsValid.value = overallValidations.value.every((v) => v.isValid);
+    },
+    { immediate: true, deep: true },
+);
 
 // Convert the pinned property to a boolean for the toggle
 const pinned = computed({
@@ -43,11 +86,39 @@ const pinned = computed({
     <LCard
         :title="`${capitaliseFirstLetter(tagOrPostType)} settings`"
         :icon="Cog6ToothIcon"
-        :collapsed="newDocument ? false : true"
         collapsible
         v-if="parent"
         class="bg-white"
     >
+        <template #persistent>
+            <div class="flex flex-col gap-1 px-2 py-1.5">
+                <div
+                    v-if="parent && !_.isEqual(parent, existingParent)"
+                    class="flex items-center gap-2"
+                >
+                    <p>
+                        <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                    </p>
+                    <p class="text-xs text-zinc-700">
+                        Unsaved changes to {{ tagOrPostType }}'s settings.
+                    </p>
+                </div>
+                <div v-if="!parentIsValid">
+                    <div class="flex flex-col gap-0.5 pb-1">
+                        <div
+                            v-for="validation in parentValidations.filter((v) => !v.isValid)"
+                            :key="validation.id"
+                            class="-mb-[1px] flex items-center gap-1"
+                        >
+                            <div class="flex items-center gap-2">
+                                <XCircleIcon class="size-[18px] min-w-[18px] text-red-400" />
+                                <span class="text-xs text-zinc-700">{{ validation.message }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
         <GroupSelector
             v-model:groups="parent.memberOf"
             :disabled="disabled"
