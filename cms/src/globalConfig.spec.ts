@@ -35,7 +35,7 @@ describe("globalConfig.ts", () => {
         });
     });
 
-    it.skip("can return the matching browser language", async () => {
+    it("can return the matching browser language", async () => {
         // Simulate browser pref = French
         Object.defineProperty(global.navigator, "languages", {
             get: () => ["fr-FR"],
@@ -79,7 +79,7 @@ describe("globalConfig.ts", () => {
         });
     });
 
-    it.skip("can return the first language if no matching browser and no default language", async () => {
+    it("can return the first language if no matching browser and no default language", async () => {
         // Simulate browser pref = Spanish (not available)
         Object.defineProperty(global.navigator, "languages", {
             value: ["nb-NO"],
