@@ -51,7 +51,11 @@ function playerPlayEventHandler() {
 }
 
 function playerUserActiveEventHandler() {
-    if (audioMode.value || player?.userActive() || !hasStarted.value || player?.paused()) {
+    if (audioMode.value) {
+        // Always show controls and toggle in audio-only mode
+        showAudioModeToggle.value = true;
+        player?.userActive(true);
+    } else if (player?.userActive() || !hasStarted.value || player?.paused()) {
         showAudioModeToggle.value = true;
     } else {
         showAudioModeToggle.value = false;
