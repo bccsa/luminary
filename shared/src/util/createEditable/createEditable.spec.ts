@@ -2,7 +2,7 @@ import { describe, expect, beforeEach, test } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { ref, nextTick, Ref } from "vue";
 import { createEditable } from "./createEditable";
-import { BaseDocumentDto } from "../types";
+import { BaseDocumentDto } from "../../types";
 
 type TestDoc = BaseDocumentDto & {
     value: number;
