@@ -358,7 +358,13 @@ watch(audioMode, async (mode) => {
     });
 
     player?.ready(() => {
-        player?.currentTime(currentTime);
+        /**
+         * When switching between audio and video modes, the player may introduce slight delays or offsets due to internal buffering, seeking, or reinitializing the media source.
+         * A small adjustment like 0.25 seconds helps ensure that the playback position remains consistent and avoids noticeable jumps forward or backward.
+         */
+        const adjustedTime = Math.max(0, currentTime - (mode ? 0.25 : 0));
+        player?.currentTime(adjustedTime);
+
         player?.play();
 
         // Wait for tracks to be available
