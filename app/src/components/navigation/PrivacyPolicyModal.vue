@@ -63,6 +63,11 @@ const status: ComputedRef<"accepted" | "outdated" | "unaccepted" | "necessaryOnl
     () => {
         if (!userPreferencesAsRef.value.privacyPolicy) return "unaccepted";
         if (
+            userPreferencesAsRef.value.privacyPolicy.status !== "accepted" &&
+            !isAuthenticated.value
+        )
+            return "unaccepted";
+        if (
             privacyPolicy.value &&
             privacyPolicy.value.publishDate &&
             privacyPolicy.value.publishDate > userPreferencesAsRef.value.privacyPolicy.ts
@@ -216,7 +221,9 @@ setTimeout(() => {
                     v-if="
                         !userPreferencesAsRef.privacyPolicy?.status ||
                         status === 'outdated' ||
-                        status === 'necessaryOnly'
+                        status === 'necessaryOnly' ||
+                        (userPreferencesAsRef.privacyPolicy?.status !== 'accepted' &&
+                            !isAuthenticated)
                     "
                     variant="primary"
                     name="accept"
