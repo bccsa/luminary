@@ -64,6 +64,7 @@ const status: ComputedRef<"accepted" | "outdated" | "unaccepted" | "necessaryOnl
         if (!userPreferencesAsRef.value.privacyPolicy) return "unaccepted";
         if (
             userPreferencesAsRef.value.privacyPolicy.status !== "accepted" &&
+            userPreferencesAsRef.value.privacyPolicy.status !== "necessaryOnly" &&
             !isAuthenticated.value
         )
             return "unaccepted";
