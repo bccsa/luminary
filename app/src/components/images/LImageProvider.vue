@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
+import { getCachedImageUrl, preloadImages } from "@/util/imageCache";
 import {
     isConnected,
     type ImageDto,
@@ -8,7 +9,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import Rand from "rand-seed";
-import { computed, onBeforeMount, ref } from "vue";
+import { computed, onBeforeMount, ref, watch } from "vue";
 
 type Props = {
     image?: ImageDto;
@@ -120,24 +121,47 @@ const closestAspectRatio = computed(() => {
 
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
-    if (props.aspectRatio == "original") return "";
+    if (!props.image?.fileCollections?.length) return "";
 
-    if (props.image?.uploadData && props.image.uploadData.length > 0) {
-        return URL.createObjectURL(
-            new Blob([props.image.uploadData[props.image.uploadData.length - 1].fileData], {
-                type: "image/*",
-            }),
-        );
+    // When offline, include all possible images so browser can use any cached version
+    if (!isConnected.value) {
+        return props.image.fileCollections
+            .flatMap((collection) => collection.imageFiles)
+            .sort((a, b) => a.width - b.width)
+            .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+            .join(", ");
     }
 
-    if (!filteredFileCollections.value.length) return "";
+    const collectionsToUse = filteredFileCollections.value.filter(
+        (collection) => collection.aspectRatio === closestAspectRatio.value,
+    );
 
-    // In modal mode, use all available images without aspect ratio filtering
-    const collectionsToUse = props.isModal
-        ? filteredFileCollections.value
-        : filteredFileCollections.value.filter(
-              (collection) => collection.aspectRatio == closestAspectRatio.value,
-          );
+    if (!collectionsToUse.length) return "";
+
+    // Filter images by parent width.
+    collectionsToUse.forEach((collection) => {
+        // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
+        // 400 is a conservative default that avoids excluding all images due to 0 width,
+        // and works well across mobile, modal, and early-render scenarios.
+        const effectiveWidth = props.parentWidth > 0 ? props.parentWidth : 400;
+
+        collection.imageFiles = collection.imageFiles.filter(
+            (img) => img.width <= effectiveWidth + effectiveWidth * 0.5,
+        );
+
+        // If no image files are left after filtering, include the smallest image as a fallback
+        if (!collection.imageFiles.length && props.image) {
+            const originalCollection = props.image.fileCollections.find(
+                (c) => c.aspectRatio === collection.aspectRatio,
+            );
+            if (originalCollection) {
+                const smallestImage = originalCollection.imageFiles.reduce((a, b) =>
+                    a.width < b.width ? a : b,
+                );
+                collection.imageFiles = [smallestImage];
+            }
+        }
+    });
 
     return collectionsToUse
         .map((collection) => {
@@ -152,6 +176,15 @@ const srcset1 = computed(() => {
 // Source set for the secondary image element (used if the primary image element fails to load)
 const srcset2 = computed(() => {
     if (!props.image?.fileCollections?.length) return "";
+
+    // When offline, include all possible images so browser can use any cached version
+    if (!isConnected.value) {
+        return props.image.fileCollections
+            .flatMap((collection) => collection.imageFiles)
+            .sort((a, b) => a.width - b.width)
+            .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
+            .join(", ");
+    }
 
     // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
     // 400 is a conservative default that avoids excluding all images due to 0 width,
@@ -174,15 +207,56 @@ const srcset2 = computed(() => {
 const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
-const showImageElement1 = computed(
-    () => props.aspectRatio != "original" && !imageElement1Error.value && srcset1.value != "",
-);
-const showImageElement2 = computed(
-    () =>
+// Cached image URLs for offline use
+const cachedImageUrl1 = ref<string | null>(null);
+const cachedImageUrl2 = ref<string | null>(null);
+
+// Function to extract URLs from srcset
+const extractUrlsFromSrcset = (srcset: string): string[] => {
+    return srcset
+        .split(", ")
+        .map((item) => {
+            const parts = item.trim().split(" ");
+            return parts[0]; // First part is the URL
+        })
+        .filter((url) => url && url.includes("/")); // Any URL with a path
+};
+
+// Preload images when online and get cached versions when offline
+const setupImageCaching = async () => {
+    if (isConnected.value) {
+        // When online, preload images for caching
+        const urls1 = extractUrlsFromSrcset(srcset1.value);
+        const urls2 = extractUrlsFromSrcset(srcset2.value);
+
+        if (urls1.length > 0) preloadImages(urls1);
+        if (urls2.length > 0) preloadImages(urls2);
+    } else {
+        // When offline, try to get cached versions
+        const urls1 = extractUrlsFromSrcset(srcset1.value);
+        const urls2 = extractUrlsFromSrcset(srcset2.value);
+
+        if (urls1.length > 0) {
+            cachedImageUrl1.value = await getCachedImageUrl(urls1);
+        }
+        if (urls2.length > 0) {
+            cachedImageUrl2.value = await getCachedImageUrl(urls2);
+        }
+    }
+};
+
+const showImageElement1 = computed(() => {
+    if (!isConnected.value && cachedImageUrl1.value) return true;
+    return props.aspectRatio != "original" && !imageElement1Error.value && srcset1.value != "";
+});
+const showImageElement2 = computed(() => {
+    if (!isConnected.value && cachedImageUrl2.value) return true;
+    return (
         (props.aspectRatio == "original" || imageElement1Error.value) &&
         !imageElement2Error.value &&
-        srcset2.value != "",
-);
+        srcset2.value != ""
+    );
+});
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
@@ -195,6 +269,12 @@ const loadFallbackImage = async () => {
 
 onBeforeMount(async () => {
     await loadFallbackImage();
+    await setupImageCaching();
+});
+
+// Watch for changes in connection state or srcsets
+watch([isConnected, srcset1, srcset2], async () => {
+    await setupImageCaching();
 });
 
 // In modal mode we want the largest available original image (no aspect ratio coercion)
@@ -251,7 +331,8 @@ const modalSrcset = computed(() => {
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
     <img
         v-else-if="srcset1 && showImageElement1"
-        :srcset="srcset1"
+        :srcset="!isConnected && cachedImageUrl1 ? undefined : srcset1"
+        :src="!isConnected && cachedImageUrl1 ? cachedImageUrl1 : undefined"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -266,8 +347,8 @@ const modalSrcset = computed(() => {
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
-        src=""
-        :srcset="srcset2"
+        :srcset="!isConnected && cachedImageUrl2 ? undefined : srcset2"
+        :src="!isConnected && cachedImageUrl2 ? cachedImageUrl2 : undefined"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
