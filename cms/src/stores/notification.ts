@@ -7,6 +7,7 @@ export type Notification = {
     description?: string;
     state?: "success" | "error" | "info" | "warning";
     timer?: number;
+    click?: () => void; // click handler (e.g., reload on update)
 };
 
 export const useNotificationStore = defineStore("notification", () => {
