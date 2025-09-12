@@ -96,12 +96,20 @@ const filteredFileCollections = computed(() => {
     if (props.isModal) return props.image.fileCollections;
 
     props.image.fileCollections.forEach((collection) => {
-        const images = collection.imageFiles.filter(
-            (imgFile) =>
-                !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
-                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
-        );
+        let images: ImageFileDto[];
+
+        if (!isConnected) {
+            // When offline, use ALL available images to maximize cache hit probability
+            // The browser will automatically select cached versions from the srcset
+            images = [...collection.imageFiles];
+        } else {
+            // When online, apply the original filtering logic
+            images = collection.imageFiles.filter(
+                (imgFile) =>
+                    (isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
+                    imgFile.width <= (props.parentWidth * 1.5 || 180),
+            );
+        }
 
         // add the smallest image from collection.imageFiles to images if images is empty
         if (images.length == 0) {
@@ -140,7 +148,6 @@ const closestAspectRatio = computed(() => {
         return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
     }, aspectRatios[0]);
 });
-
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
     if (props.aspectRatio == "original") return "";
