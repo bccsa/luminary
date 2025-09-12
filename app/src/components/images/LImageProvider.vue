@@ -1,30 +1,7 @@
-<script lang="ts">
-export const activeImageCollection = computed(() => (content: ContentDto) => {
-    if (!content.parentImageData?.fileCollections?.length) return 0;
-
-    const fileCollections = content.parentImageData.fileCollections;
-    const aspectRatio = 1.78; // 'video' aspect ratio as defined in LImage (default)
-
-    // Find the collection with the closest aspect ratio to 'video' (1.78)
-    const aspectRatios = fileCollections.map((collection) => collection.aspectRatio);
-    const closestAspectRatio = aspectRatios.reduce((acc, cur) => {
-        return Math.abs(cur - aspectRatio) < Math.abs(acc - aspectRatio) ? cur : acc;
-    }, aspectRatios[0] || 0);
-
-    // Return the index of the collection with the closest aspect ratio
-    const index = fileCollections.findIndex(
-        (collection) => collection.aspectRatio === closestAspectRatio,
-    );
-
-    return index >= 0 ? index : 0; // Return 0 if no suitable collection is found
-});
-</script>
-
 <script setup lang="ts">
 import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
 import {
     isConnected,
-    type ContentDto,
     type ImageDto,
     type ImageFileCollectionDto,
     type ImageFileDto,
@@ -96,20 +73,12 @@ const filteredFileCollections = computed(() => {
     if (props.isModal) return props.image.fileCollections;
 
     props.image.fileCollections.forEach((collection) => {
-        let images: ImageFileDto[];
-
-        if (!isConnected) {
-            // When offline, use ALL available images to maximize cache hit probability
-            // The browser will automatically select cached versions from the srcset
-            images = [...collection.imageFiles];
-        } else {
-            // When online, apply the original filtering logic
-            images = collection.imageFiles.filter(
-                (imgFile) =>
-                    (isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                    imgFile.width <= (props.parentWidth * 1.5 || 180),
-            );
-        }
+        const images = collection.imageFiles.filter(
+            (imgFile) =>
+                !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
+                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
+                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
+        );
 
         // add the smallest image from collection.imageFiles to images if images is empty
         if (images.length == 0) {
@@ -148,6 +117,7 @@ const closestAspectRatio = computed(() => {
         return Math.abs(cur - desiredAspectRatio) < Math.abs(acc - desiredAspectRatio) ? cur : acc;
     }, aspectRatios[0]);
 });
+
 // Source set for the primary image element with the closest aspect ratio
 const srcset1 = computed(() => {
     if (props.aspectRatio == "original") return "";

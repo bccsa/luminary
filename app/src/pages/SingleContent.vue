@@ -53,7 +53,7 @@ import {
     isLanguageSwitchRef,
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
-import { activeImageCollection } from "@/components/images/LImageProvider.vue";
+import { activeImageCollection } from "@/util/activeImageCollection";
 
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
@@ -528,7 +528,7 @@ const selectedLanguageCode = computed(() => {
                 <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
             </div>
         </template>
-        
+
         <NotFoundPage v-if="is404" />
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
