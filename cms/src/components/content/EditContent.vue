@@ -29,7 +29,6 @@ import {
     DocumentIcon,
     TagIcon,
     CloudArrowUpIcon,
-    FolderArrowDownIcon,
     ArrowUturnLeftIcon,
     TrashIcon,
 } from "@heroicons/vue/24/solid";
@@ -587,28 +586,6 @@ const contentActions = ref([
         iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
     },
 ]);
-
-// Watch for changes in dirty state and new document state to add or remove the revert action
-watch(
-    [isDirty, () => newDocument],
-    ([dirty, isNew]) => {
-        const list = contentActions.value;
-        const revertActionIndex = list.findIndex((a) => a.name === "Revert changes");
-        if (dirty && !isNew) {
-            if (revertActionIndex === -1) {
-                list.unshift({
-                    name: "Revert changes",
-                    action: revertChanges as any,
-                    icon: ArrowUturnLeftIcon,
-                    iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-                });
-            }
-        } else if (revertActionIndex !== -1) {
-            list.splice(revertActionIndex, 1);
-        }
-    },
-    { immediate: true },
-);
 </script>
 
 <template>
