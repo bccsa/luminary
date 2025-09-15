@@ -208,15 +208,16 @@ const showImageElement2 = computed(
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
-const loadFallbackImage = async () => {
-    const randomImage = (await fallbackImageUrls)[
-        Math.floor(new Rand(props.parentId).next() * (await fallbackImageUrls).length)
+const loadFallbackImage = () => {
+    const images = fallbackImageUrls as string[];
+    const randomImage = images[
+        Math.floor(new Rand(props.parentId).next() * images.length)
     ] as string;
     fallbackImageUrl.value = randomImage;
 };
 
-onBeforeMount(async () => {
-    await loadFallbackImage();
+onBeforeMount(() => {
+    loadFallbackImage();
 });
 
 // In modal mode we want the largest available original image (no aspect ratio coercion)
