@@ -98,7 +98,7 @@ const filteredFileCollections = computed(() => {
         const images = collection.imageFiles.filter(
             (imgFile) =>
                 (isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                imgFile.width <= (props.parentWidth * 1.5 || 180),
+                imgFile.width <= (props.parentWidth * 2 || 400), // Include larger images to increase cache hit chance
         );
 
         // add the smallest image from collection.imageFiles to images if images is empty
@@ -182,7 +182,8 @@ const srcset2 = computed(() => {
     return props.image.fileCollections
         .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
         .map((collection) => {
-            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth);
+            // Include more images to increase chance of cache hits
+            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth * 2);
             // fallback: smallest image if all are too large
             const files = images.length
                 ? images
@@ -273,6 +274,7 @@ const modalSrcset = computed(() => {
     <img
         v-else-if="srcset1 && showImageElement1"
         :srcset="srcset1"
+        :src="srcset1.split(',')[0]?.split(' ')[0] || undefined"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -288,6 +290,7 @@ const modalSrcset = computed(() => {
     <img
         v-else-if="showImageElement2 && srcset2"
         :srcset="srcset2"
+        :src="srcset2.split(',')[0]?.split(' ')[0] || undefined"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
