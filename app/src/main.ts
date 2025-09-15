@@ -10,7 +10,6 @@ import { appLanguageIdsAsRef, initLanguage } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
-import { registerSW } from "virtual:pwa-register";
 
 export const app = createApp(App);
 
@@ -82,11 +81,5 @@ async function Startup() {
     initAppTitle(i18n);
     initAnalytics();
 }
-
-registerSW({
-    immediate: true,
-    onNeedRefresh() {},
-    onOfflineReady() {},
-});
 
 Startup();
