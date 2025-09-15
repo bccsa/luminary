@@ -208,16 +208,25 @@ const showImageElement2 = computed(
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
-const loadFallbackImage = () => {
-    const images = fallbackImageUrls as string[];
-    const randomImage = images[
-        Math.floor(new Rand(props.parentId).next() * images.length)
-    ] as string;
-    fallbackImageUrl.value = randomImage;
+const loadFallbackImage = async () => {
+    try {
+        // Handle both sync and async cases
+        const images = await Promise.resolve(fallbackImageUrls);
+        if (Array.isArray(images) && images.length > 0) {
+            const randomImage = images[
+                Math.floor(new Rand(props.parentId).next() * images.length)
+            ] as string;
+            fallbackImageUrl.value = randomImage;
+        } else {
+            console.warn("No fallback images available:", images);
+        }
+    } catch (error) {
+        console.error("Failed to load fallback image:", error);
+    }
 };
 
-onBeforeMount(() => {
-    loadFallbackImage();
+onBeforeMount(async () => {
+    await loadFallbackImage();
 });
 
 // In modal mode we want the largest available original image (no aspect ratio coercion)
@@ -312,7 +321,7 @@ const modalSrcset = computed(() => {
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt=""
+        alt="Should show fallback image"
         data-test="image-element2"
         loading="eager"
         draggable="false"

@@ -17,8 +17,19 @@ export const loadFallbackImageUrls = () => {
         });
     });
 
-    // Use allSettled to not fail if one image fails to load
-    Promise.allSettled(preloadPromises).then(() => {});
+    // Use allSettled to not fail if one image fails to load - don't wait for completion
+    Promise.allSettled(preloadPromises).then((results) => {
+        const successful = results.filter((result) => result.status === "fulfilled").length;
+        const failed = results.filter((result) => result.status === "rejected").length;
+        console.log(`Fallback images preloaded: ${successful} successful, ${failed} failed`);
+
+        if (failed > 0) {
+            const failedResults = results.filter(
+                (result) => result.status === "rejected",
+            ) as PromiseRejectedResult[];
+            failedResults.forEach((result) => console.warn("Failed to preload:", result.reason));
+        }
+    });
 
     return fallbackImages;
 };
