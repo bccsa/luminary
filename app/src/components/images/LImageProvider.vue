@@ -289,7 +289,6 @@ const modalSrcset = computed(() => {
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
-        src=""
         :srcset="srcset2"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
