@@ -16,34 +16,31 @@ export default defineConfig({
         VitePWA({
             registerType: "autoUpdate",
             injectRegister: "inline",
+            manifest: {
+                name: "Luminary App",
+                short_name: "Luminary",
+                start_url: ".",
+                display: "standalone",
+                background_color: "#ffffff",
+                theme_color: "#1e293b",
+                icons: [
+                    {
+                        src: "/logo.svg",
+                        sizes: "192x192",
+                        type: "image/svg+xml",
+                    },
+                    {
+                        src: "/logo.svg",
+                        sizes: "512x512",
+                        type: "image/svg+xml",
+                    },
+                ],
+            },
             workbox: {
                 cleanupOutdatedCaches: true,
                 globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,jpg,jpeg,woff2}"],
                 navigateFallback: "index.html",
                 runtimeCaching: [
-                    // Cache navigations (HTML) so the app shell works offline
-                    {
-                        urlPattern: ({ request }) => request.mode === "navigate",
-                        handler: "NetworkFirst",
-                        options: {
-                            cacheName: "pages",
-                            expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
-                            cacheableResponse: { statuses: [0, 200] },
-                        },
-                    },
-                    // Cache JS, CSS, and workers
-                    {
-                        urlPattern: ({ request }) =>
-                            request.destination === "script" ||
-                            request.destination === "style" ||
-                            request.destination === "worker",
-                        handler: "StaleWhileRevalidate",
-                        options: {
-                            cacheName: "assets",
-                            expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
-                            cacheableResponse: { statuses: [0, 200] },
-                        },
-                    },
                     // Cache images
                     {
                         urlPattern: ({ request }) => request.destination === "image",
@@ -54,30 +51,7 @@ export default defineConfig({
                             cacheableResponse: { statuses: [0, 200] },
                         },
                     },
-                    // Cache same-origin JSON/API GET requests
-                    {
-                        urlPattern: ({ request, url }) =>
-                            request.method === "GET" &&
-                            (request.destination === "" || request.destination === "document") &&
-                            request.mode === "same-origin" &&
-                            url.pathname.startsWith("/api/"),
-                        handler: "NetworkFirst",
-                        options: {
-                            cacheName: "api",
-                            expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
-                            cacheableResponse: { statuses: [0, 200] },
-                        },
-                    },
-                    // Cache cross-origin requests (e.g., CDN images)
-                    {
-                        urlPattern: ({ url }) => url.origin !== "same-origin",
-                        handler: "StaleWhileRevalidate",
-                        options: {
-                            cacheName: "cross-origin",
-                            expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
-                            cacheableResponse: { statuses: [0, 200] },
-                        },
-                    },
+
                 ],
             },
             devOptions: {
@@ -92,6 +66,10 @@ export default defineConfig({
                 {
                     src: "src/analytics/service-worker.js",
                     dest: "./src/analytics/",
+                },
+                {
+                    src: "src/assets/fallbackImages/*",
+                    dest: "assets/fallbackImages/",
                 },
             ],
         }),
