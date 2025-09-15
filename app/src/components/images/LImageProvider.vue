@@ -274,7 +274,6 @@ const modalSrcset = computed(() => {
     <img
         v-else-if="srcset1 && showImageElement1"
         :srcset="srcset1"
-        :src="srcset1.split(',')[0]?.split(' ')[0] || undefined"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -290,7 +289,6 @@ const modalSrcset = computed(() => {
     <img
         v-else-if="showImageElement2 && srcset2"
         :srcset="srcset2"
-        :src="srcset2.split(',')[0]?.split(' ')[0] || undefined"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -314,7 +312,6 @@ const modalSrcset = computed(() => {
         alt=""
         data-test="image-element2"
         loading="eager"
-        @error="imageElement2Error = true"
         draggable="false"
         :key="parentId"
     />
