@@ -1,4 +1,4 @@
-export const loadFallbackImageUrls = async () => {
+export const loadFallbackImageUrls = () => {
     const images = import.meta.glob("@/assets/fallbackImages/*.{png,jpg,jpeg,webp}", {
         eager: true,
         import: "default",
@@ -7,6 +7,7 @@ export const loadFallbackImageUrls = async () => {
     const fallbackImages = Object.values(images) as string[];
 
     // Preload all fallback images into browser cache to ensure offline availability
+    // Do this asynchronously without blocking the function return
     const preloadPromises = fallbackImages.map((url: string) => {
         return new Promise<void>((resolve, reject) => {
             const img = new Image();
@@ -17,8 +18,7 @@ export const loadFallbackImageUrls = async () => {
     });
 
     // Use allSettled to not fail if one image fails to load
-    await Promise.allSettled(preloadPromises);
-    console.log("Fallback images preloaded into browser cache");
+    Promise.allSettled(preloadPromises);
 
     return fallbackImages;
 };
