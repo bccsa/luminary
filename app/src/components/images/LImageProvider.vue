@@ -302,7 +302,6 @@ const modalSrcset = computed(() => {
         draggable="false"
     />
     <img
-        v-else
         :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
@@ -311,7 +310,7 @@ const modalSrcset = computed(() => {
         ]"
         alt=""
         data-test="image-element2"
-        loading="lazy"
+        loading="eager"
         @error="imageElement2Error = true"
         draggable="false"
         :key="parentId"
