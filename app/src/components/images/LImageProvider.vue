@@ -23,7 +23,6 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 <script setup lang="ts">
 import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
 import {
-    isConnected,
     type ContentDto,
     type ImageDto,
     type ImageFileCollectionDto,
@@ -98,9 +97,8 @@ const filteredFileCollections = computed(() => {
     props.image.fileCollections.forEach((collection) => {
         const images = collection.imageFiles.filter(
             (imgFile) =>
-                !isConnected.value || // Bypass filtering when not connected, allowing the image element to select any available image from cache
-                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
+                (isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
+                imgFile.width <= (props.parentWidth * 1.5 || 180),
         );
 
         // add the smallest image from collection.imageFiles to images if images is empty
@@ -182,15 +180,10 @@ const srcset2 = computed(() => {
     const effectiveWidth = props.parentWidth > 0 ? props.parentWidth : 400;
 
     return props.image.fileCollections
-        .filter(
-            (collection) =>
-                !isConnected.value || collection.aspectRatio !== closestAspectRatio.value,
-        )
+        .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
         .map((collection) => {
-            const images = !isConnected.value
-                ? collection.imageFiles // When offline, include all images to allow browser cache lookup
-                : collection.imageFiles.filter((img) => img.width <= effectiveWidth);
-            // fallback: smallest image if all are too large (only applies when online)
+            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth);
+            // fallback: smallest image if all are too large
             const files = images.length
                 ? images
                 : [collection.imageFiles.reduce((a, b) => (a.width < b.width ? a : b))];
