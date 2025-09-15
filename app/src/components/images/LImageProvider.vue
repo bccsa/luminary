@@ -275,6 +275,7 @@ const modalSrcset = computed(() => {
     <img
         v-else-if="srcset1 && showImageElement1"
         :srcset="srcset1"
+        :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -289,8 +290,8 @@ const modalSrcset = computed(() => {
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
-        src=""
         :srcset="srcset2"
+        :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -302,7 +303,7 @@ const modalSrcset = computed(() => {
         @error="imageElement2Error = true"
         draggable="false"
     />
-    <img
+    <!-- <img
         v-else
         :src="fallbackImageUrl"
         :class="[
@@ -316,5 +317,5 @@ const modalSrcset = computed(() => {
         @error="imageElement2Error = true"
         draggable="false"
         :key="parentId"
-    />
+    /> -->
 </template>
