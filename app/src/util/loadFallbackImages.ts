@@ -1,11 +1,18 @@
 export const loadFallbackImageUrls = async () => {
-  // Try to fetch a JSON index; fallback to hardcoded if not found
-  try {
-    const res = await fetch("/public/fallbackImages/index.json");
-    const files: string[] = await res.json();
-    return files.map(f => `/public/fallbackImages/${f}`);
-  } catch {
-    // fallback if no index.json exists
-    return [];
-  }
+    const images = import.meta.glob<string>("@/assets/fallbackImages/*.{png,jpg,jpeg,webp}", {
+        eager: true,
+        import: "default",
+    });
+
+    const fallbackImages: string[] = Object.values(images);
+
+    const preloadImage = (src: string) => {
+      const img = new Image();
+      img.src = src;
+    };
+
+    // Preload all fallback images
+    fallbackImages.forEach(preloadImage);
+
+    return fallbackImages;
 };
