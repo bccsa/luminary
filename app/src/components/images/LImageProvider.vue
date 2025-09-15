@@ -23,6 +23,7 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 <script setup lang="ts">
 import { fallbackImageUrls, getConnectionSpeed } from "@/globalConfig";
 import {
+    isConnected,
     type ContentDto,
     type ImageDto,
     type ImageFileCollectionDto,
@@ -97,8 +98,9 @@ const filteredFileCollections = computed(() => {
     props.image.fileCollections.forEach((collection) => {
         const images = collection.imageFiles.filter(
             (imgFile) =>
-                (isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
-                imgFile.width <= (props.parentWidth * 2 || 400), // Include larger images to increase cache hit chance
+                !isConnected || // Bypass filtering when not connected, allowing the image element to select any available image from cache
+                ((isDesktop || calcImageLoadingTime(imgFile) < 1) && // Connection speed detection is not reliable on desktop
+                    imgFile.width <= (props.parentWidth * 1.5 || 180)),
         );
 
         // add the smallest image from collection.imageFiles to images if images is empty
@@ -182,8 +184,7 @@ const srcset2 = computed(() => {
     return props.image.fileCollections
         .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
         .map((collection) => {
-            // Include more images to increase chance of cache hits
-            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth * 2);
+            const images = collection.imageFiles.filter((img) => img.width <= effectiveWidth);
             // fallback: smallest image if all are too large
             const files = images.length
                 ? images
@@ -197,31 +198,22 @@ const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
 const showImageElement1 = computed(
-    () => props.aspectRatio != "original" && !imageElement1Error.value,
+    () => props.aspectRatio != "original" && !imageElement1Error.value && srcset1.value != "",
 );
 const showImageElement2 = computed(
     () =>
-        (props.aspectRatio == "original" || imageElement1Error.value) && !imageElement2Error.value,
+        (props.aspectRatio == "original" || imageElement1Error.value) &&
+        !imageElement2Error.value &&
+        srcset2.value != "",
 );
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
 
 const loadFallbackImage = async () => {
-    try {
-        // Handle both sync and async cases
-        const images = await Promise.resolve(fallbackImageUrls);
-
-        if (Array.isArray(images) && images.length > 0) {
-            const randomImage = images[
-                Math.floor(new Rand(props.parentId).next() * images.length)
-            ] as string;
-            fallbackImageUrl.value = randomImage;
-        } else {
-            console.warn("No fallback images available:", images);
-        }
-    } catch (error) {
-        console.error("Failed to load fallback image:", error);
-    }
+    const randomImage = (await fallbackImageUrls)[
+        Math.floor(new Rand(props.parentId).next() * (await fallbackImageUrls).length)
+    ] as string;
+    fallbackImageUrl.value = randomImage;
 };
 
 onBeforeMount(async () => {
@@ -281,9 +273,8 @@ const modalSrcset = computed(() => {
     />
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
     <img
-        v-else-if="showImageElement1"
-        :srcset="srcset1 || undefined"
-        :src="fallbackImageUrl"
+        v-else-if="srcset1 && showImageElement1"
+        :srcset="srcset1"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -297,9 +288,9 @@ const modalSrcset = computed(() => {
     />
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
-        v-else-if="showImageElement2"
-        :srcset="srcset2 || undefined"
-        :src="fallbackImageUrl"
+        v-else-if="showImageElement2 && srcset2"
+        src=""
+        :srcset="srcset2"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -311,7 +302,6 @@ const modalSrcset = computed(() => {
         @error="imageElement2Error = true"
         draggable="false"
     />
-    <!-- Final fallback when no conditions match
     <img
         v-else
         :src="fallbackImageUrl"
@@ -320,10 +310,11 @@ const modalSrcset = computed(() => {
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt="Final fallback image"
+        alt=""
         data-test="image-element2"
-        loading="eager"
+        loading="lazy"
+        @error="imageElement2Error = true"
         draggable="false"
         :key="parentId"
-    /> -->
+    />
 </template>
