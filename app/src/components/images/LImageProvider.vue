@@ -275,6 +275,7 @@ const modalSrcset = computed(() => {
     <img
         v-else-if="srcset1 && showImageElement1"
         :srcset="srcset1"
+        :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -290,6 +291,7 @@ const modalSrcset = computed(() => {
     <img
         v-else-if="showImageElement2 && srcset2"
         :srcset="srcset2"
+        :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
