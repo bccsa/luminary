@@ -255,17 +255,9 @@ const modalSrcset = computed(() => {
 <template>
     <!-- Modal mode: single <img> honoring natural dimensions (no forced aspect ratio) -->
     <img
-        v-if="isModal && modalSrc"
-        :src="modalSrc"
+        v-if="isModal"
         :srcset="modalSrcset || undefined"
-        :alt="''"
-        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
-        draggable="false"
-        data-test="image-element1"
-    />
-    <img
-        v-else-if="isModal && !modalSrc && fallbackImageUrl"
-        :src="fallbackImageUrl"
+        :src="modalSrc || fallbackImageUrl"
         :alt="''"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
