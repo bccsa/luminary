@@ -18,7 +18,7 @@ export const loadFallbackImageUrls = () => {
     });
 
     // Use allSettled to not fail if one image fails to load
-    Promise.allSettled(preloadPromises);
+    Promise.allSettled(preloadPromises).then(() => {});
 
     return fallbackImages;
 };
