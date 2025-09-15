@@ -255,9 +255,17 @@ const modalSrcset = computed(() => {
 <template>
     <!-- Modal mode: single <img> honoring natural dimensions (no forced aspect ratio) -->
     <img
-        v-if="isModal"
+        v-if="isModal && modalSrc"
+        :src="modalSrc"
         :srcset="modalSrcset || undefined"
-        :src="modalSrc || fallbackImageUrl"
+        :alt="''"
+        class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
+        draggable="false"
+        data-test="image-element1"
+    />
+    <img
+        v-else-if="isModal && !modalSrc && fallbackImageUrl"
+        :src="fallbackImageUrl"
         :alt="''"
         class="h-auto max-h-[90vh] w-auto max-w-[90vw] select-none object-contain"
         draggable="false"
@@ -265,9 +273,8 @@ const modalSrcset = computed(() => {
     />
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
     <img
-        v-else-if="showImageElement1"
+        v-else-if="srcset1 && showImageElement1"
         :srcset="srcset1"
-        :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -281,9 +288,9 @@ const modalSrcset = computed(() => {
     />
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
-        v-else-if="showImageElement2"
+        v-else-if="showImageElement2 && srcset2"
+        src=""
         :srcset="srcset2"
-        :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -295,7 +302,7 @@ const modalSrcset = computed(() => {
         @error="imageElement2Error = true"
         draggable="false"
     />
-    <!-- <img
+    <img
         v-else
         :src="fallbackImageUrl"
         :class="[
@@ -309,5 +316,5 @@ const modalSrcset = computed(() => {
         @error="imageElement2Error = true"
         draggable="false"
         :key="parentId"
-    /> -->
+    />
 </template>
