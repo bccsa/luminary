@@ -311,7 +311,7 @@ const modalSrcset = computed(() => {
         @error="imageElement2Error = true"
         draggable="false"
     />
-    <!-- Final fallback when no conditions match -->
+    <!-- Final fallback when no conditions match
     <img
         v-else
         :src="fallbackImageUrl"
@@ -325,5 +325,5 @@ const modalSrcset = computed(() => {
         loading="eager"
         draggable="false"
         :key="parentId"
-    />
+    /> -->
 </template>
