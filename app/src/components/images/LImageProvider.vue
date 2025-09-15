@@ -197,13 +197,11 @@ const imageElement1Error = ref(false);
 const imageElement2Error = ref(false);
 
 const showImageElement1 = computed(
-    () => props.aspectRatio != "original" && !imageElement1Error.value && srcset1.value != "",
+    () => props.aspectRatio != "original" && !imageElement1Error.value,
 );
 const showImageElement2 = computed(
     () =>
-        (props.aspectRatio == "original" || imageElement1Error.value) &&
-        !imageElement2Error.value &&
-        srcset2.value != "",
+        (props.aspectRatio == "original" || imageElement1Error.value) && !imageElement2Error.value,
 );
 
 const fallbackImageUrl = ref<string | undefined>(undefined);
@@ -212,6 +210,7 @@ const loadFallbackImage = async () => {
     try {
         // Handle both sync and async cases
         const images = await Promise.resolve(fallbackImageUrls);
+
         if (Array.isArray(images) && images.length > 0) {
             const randomImage = images[
                 Math.floor(new Rand(props.parentId).next() * images.length)
@@ -282,8 +281,8 @@ const modalSrcset = computed(() => {
     />
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
     <img
-        v-else-if="srcset1 && showImageElement1"
-        :srcset="srcset1"
+        v-else-if="showImageElement1"
+        :srcset="srcset1 || undefined"
         :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
@@ -298,8 +297,8 @@ const modalSrcset = computed(() => {
     />
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
-        v-else-if="showImageElement2 && srcset2"
-        :srcset="srcset2"
+        v-else-if="showImageElement2"
+        :srcset="srcset2 || undefined"
         :src="fallbackImageUrl"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
@@ -312,7 +311,7 @@ const modalSrcset = computed(() => {
         @error="imageElement2Error = true"
         draggable="false"
     />
-
+    <!-- Final fallback when no conditions match -->
     <img
         v-else
         :src="fallbackImageUrl"
@@ -321,7 +320,7 @@ const modalSrcset = computed(() => {
             !isModal && sizes[size],
             isModal ? 'block' : 'bg-cover bg-center object-cover object-center',
         ]"
-        alt="Should show fallback image"
+        alt="Final fallback image"
         data-test="image-element2"
         loading="eager"
         draggable="false"
