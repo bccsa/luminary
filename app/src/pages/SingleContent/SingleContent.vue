@@ -54,6 +54,7 @@ import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
+import AudioPlayer from "@/components/content/AudioPlayer.vue";
 
 const router = useRouter();
 
@@ -755,6 +756,10 @@ const quickLanguageSwitch = (languageId: string) => {
                 "
             />
         </div>
+
+        <template #footer>
+            <AudioPlayer v-if="content" :content="content" class="z-40" />
+        </template>
 
         <IgnorePagePadding ignoreBottom>
             <CopyrightBanner />
