@@ -265,7 +265,7 @@ const modalSrcset = computed(() => {
     />
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
     <img
-        v-else-if="srcset1 && showImageElement1"
+        v-else-if="showImageElement1"
         :srcset="srcset1"
         :src="fallbackImageUrl"
         :class="[
@@ -281,7 +281,7 @@ const modalSrcset = computed(() => {
     />
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
-        v-else-if="showImageElement2 && srcset2"
+        v-else-if="showImageElement2"
         :srcset="srcset2"
         :src="fallbackImageUrl"
         :class="[
