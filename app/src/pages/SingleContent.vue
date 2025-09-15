@@ -54,6 +54,7 @@ import {
 } from "@/util/isLangSwitch";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
+import AudioPlayer from "@/components/content/AudioPlayer.vue";
 
 const VideoPlayer = defineAsyncComponent({
     loader: () => import("@/components/content/VideoPlayer.vue"),
@@ -669,6 +670,10 @@ const selectedLanguageCode = computed(() => {
                 "
             />
         </div>
+
+        <template #footer>
+            <AudioPlayer v-if="content" :content="content" class="z-40" />
+        </template>
 
         <IgnorePagePadding ignoreBottom>
             <CopyrightBanner />
