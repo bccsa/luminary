@@ -4,10 +4,10 @@ import { type ContentDto, db } from "luminary-shared";
 import {
     PlayIcon,
     PauseIcon,
-    ArrowUturnRightIcon,
-    ArrowUturnLeftIcon,
     ChevronDownIcon,
     EllipsisVerticalIcon,
+    ForwardIcon,
+    BackwardIcon,
 } from "@heroicons/vue/20/solid";
 import { SpeakerXMarkIcon, SpeakerWaveIcon } from "@heroicons/vue/24/outline";
 import LImage from "@/components/images/LImage.vue";
@@ -127,9 +127,9 @@ const onPointerUp = () => {
 
         <!-- Minimal Player -->
         <div
-            v-if="!isExpanded"
+            v-show="!isExpanded"
             @click="toggleExpand"
-            class="flex w-full cursor-pointer items-center justify-between bg-amber-50 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
+            class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
         >
             <div class="flex min-w-0 flex-1 items-center space-x-2">
                 <LImage
@@ -186,7 +186,6 @@ const onPointerUp = () => {
             >
                 <div>
                     <!-- Swipe-down handle (drag area only) -->
-                    <!-- should be hidden on desktop -->
                     <div
                         class="flex cursor-grab justify-center pt-1 active:cursor-grabbing lg:hidden"
                         @pointerdown.stop="onPointerDown"
@@ -211,7 +210,7 @@ const onPointerUp = () => {
 
                     <!-- Cover Image -->
                     <div
-                        class="flex justify-center py-2 opacity-100 transition-opacity duration-500 ease-out"
+                        class="flex justify-center pt-2 opacity-100 transition-opacity duration-500 ease-out"
                     >
                         <LImage
                             v-if="content.parentImageData"
@@ -223,12 +222,12 @@ const onPointerUp = () => {
                         />
                     </div>
 
-                    <div class="p-2 pb-6">
+                    <div class="p-2 pb-4">
                         <!-- Title and Author -->
-                        <div class="pb-6 pt-2 text-center">
+                        <div class="space-y-1 text-center">
                             <span
                                 v-if="content.author"
-                                class="block min-w-0 truncate py-1.5 text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600"
+                                class="block min-w-0 truncate text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600"
                             >
                                 {{ content.author }}
                             </span>
@@ -251,7 +250,7 @@ const onPointerUp = () => {
                         </div>
 
                         <!-- Progress bar -->
-                        <div class="flex flex-col px-2">
+                        <div class="flex flex-col px-2 pt-2">
                             <div
                                 class="inline-block h-[6px] w-full cursor-pointer rounded-[10px] bg-zinc-400"
                                 @click="
@@ -283,17 +282,25 @@ const onPointerUp = () => {
                         <!-- Controls -->
                         <div class="my-1">
                             <div
-                                class="flex items-center justify-center space-x-14 text-black dark:text-white"
+                                class="flex items-center justify-center space-x-12 text-black dark:text-white"
                             >
-                                <button @click="skip(-10)">
-                                    <ArrowUturnLeftIcon class="h-6 w-6" />
+                                <button class="flex items-center space-x-0" @click="skip(-10)">
+                                    <BackwardIcon class="h-6 w-6" />
+                                    <span
+                                        class="rounded-2xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black"
+                                        >10</span
+                                    >
                                 </button>
                                 <button @click="togglePlay" class="rounded-full p-3">
                                     <PlayIcon v-if="!isPlaying" class="h-8 w-8" />
                                     <PauseIcon v-else class="h-8 w-8" />
                                 </button>
-                                <button @click="skip(10)">
-                                    <ArrowUturnRightIcon class="h-6 w-6" />
+                                <button class="flex items-center space-x-0" @click="skip(10)">
+                                    <span
+                                        class="rounded-3xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black"
+                                        >10</span
+                                    >
+                                    <ForwardIcon class="h-6 w-6" />
                                 </button>
                             </div>
                         </div>
@@ -302,7 +309,7 @@ const onPointerUp = () => {
                         <div
                             class="mt-2 flex items-center space-x-2 px-20 text-black dark:text-white"
                         >
-                            <SpeakerXMarkIcon class="h-8 w-8" />
+                            <SpeakerXMarkIcon class="h-8 w-8 cursor-pointer" @click="volume = 0" />
 
                             <!-- Custom volume slider -->
                             <div
@@ -327,11 +334,11 @@ const onPointerUp = () => {
                                 <!-- Optional thumb -->
                                 <div
                                     class="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-yellow-500"
-                                    :style="{ left: volume * 100 + '%' }"
+                                    :style="{ left: volume * 90 + '%' }"
                                 ></div>
                             </div>
 
-                            <SpeakerWaveIcon class="h-8 w-8" />
+                            <SpeakerWaveIcon class="h-8 w-8 cursor-pointer" @click="volume = 1" />
                         </div>
                     </div>
                 </div>
