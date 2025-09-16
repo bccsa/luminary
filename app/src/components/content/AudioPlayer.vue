@@ -9,9 +9,9 @@ import {
     ChevronDownIcon,
     EllipsisVerticalIcon,
 } from "@heroicons/vue/20/solid";
+import { SpeakerXMarkIcon, SpeakerWaveIcon } from "@heroicons/vue/24/outline";
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
-// import music from "@/assets/7 - Når jeg i de stille stunder ser tilbake - Vekkelsessanger.mp3";
 
 const isExpanded = ref(false);
 const isPlaying = ref(false);
@@ -59,6 +59,15 @@ const formatTime = (time: number) => {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 };
 
+const volume = ref(1); // default 100%
+
+// Watch volume changes and apply to audio element
+const updateVolume = (val: number) => {
+    if (audioElement.value) {
+        audioElement.value.volume = val;
+    }
+};
+
 onMounted(() => {
     if (audioElement.value) {
         const el = audioElement.value;
@@ -81,6 +90,34 @@ onUnmounted(() => {
         audioElement.value.pause();
     }
 });
+
+const startY = ref(0);
+const currentY = ref(0);
+const isDragging = ref(false);
+
+const onPointerDown = (e: PointerEvent) => {
+    startY.value = e.clientY;
+    isDragging.value = false;
+};
+
+const onPointerMove = (e: PointerEvent) => {
+    const deltaY = e.clientY - startY.value;
+
+    if (deltaY > 0) {
+        // Only prevent scrolling if dragging downward enough
+        e.preventDefault();
+        isDragging.value = true;
+        currentY.value = deltaY;
+    }
+};
+
+const onPointerUp = () => {
+    if (isDragging.value && currentY.value > 80) {
+        toggleExpand(); // collapse the player
+    }
+    currentY.value = 0;
+    isDragging.value = false;
+};
 </script>
 
 <template>
@@ -140,97 +177,161 @@ onUnmounted(() => {
         <!-- Expanded Player -->
         <transition name="slide-up">
             <div
-                v-if="isExpanded"
-                class="flex w-full flex-col bg-amber-50 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-2xl"
+                v-show="isExpanded"
+                class="expanded-player z-50 flex w-full flex-col rounded-t-3xl bg-amber-100 dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:w-80 lg:rounded-2xl"
+                :style="{
+                    transform: currentY ? `translateY(${currentY}px)` : 'none',
+                    transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+                }"
             >
-                <!-- Header -->
-                <div
-                    class="flex items-center justify-between border-b border-zinc-400 p-2 dark:border-slate-400"
-                >
-                    <button @click="toggleExpand" class="p-0.5">
-                        <ChevronDownIcon class="h-9 w-9" />
-                    </button>
-                    <EllipsisVerticalIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
-                </div>
-
-                <!-- Cover Image -->
-                <LImage
-                    v-if="content.parentImageData"
-                    :image="content.parentImageData"
-                    :contentParentId="content.parentId"
-                    :rounded="false"
-                    size="post"
-                />
-
-                <div class="p-2">
-                    <!-- Title and Author -->
-                    <div class="pb-6 pt-2 text-center">
-                        <span
-                            v-if="content.author"
-                            class="block min-w-0 truncate py-1.5 text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600"
-                        >
-                            {{ content.author }}
-                        </span>
-                        <span
-                            class="block min-w-0 truncate text-lg font-bold text-zinc-600 dark:text-slate-300"
-                        >
-                            {{ content.title }}
-                        </span>
-                        <span class="block min-w-0 truncate text-xs font-semibold text-zinc-400">
-                            {{
-                                content.publishDate
-                                    ? db
-                                          .toDateTime(content.publishDate)
-                                          .toLocaleString(DateTime.DATETIME_MED)
-                                    : ""
-                            }}
-                        </span>
+                <div>
+                    <!-- Swipe-down handle (drag area only) -->
+                    <!-- should be hidden on desktop -->
+                    <div
+                        class="flex cursor-grab justify-center pt-1 active:cursor-grabbing lg:hidden"
+                        @pointerdown.stop="onPointerDown"
+                        @pointermove="onPointerMove"
+                        @pointerup="onPointerUp"
+                        @pointercancel="onPointerUp"
+                    >
+                        <div
+                            class="mt-1 h-1.5 w-32 rounded-full bg-zinc-400 opacity-50 dark:bg-slate-400"
+                        ></div>
                     </div>
 
-                    <!-- Progress bar (simplified) -->
-                    <div class="flex flex-col">
-                        <div
-                            class="inline-block h-[6px] w-full cursor-pointer rounded-[10px] bg-zinc-400"
-                            @click="
-                                (e) => {
-                                    // Calculate new time based on click position
-                                    const rect = (e.target as HTMLElement).getBoundingClientRect();
-                                    const clickX = e.clientX - rect.left;
-                                    const newTime = (clickX / rect.width) * duration;
-                                    if (audioElement) audioElement.currentTime = newTime;
-                                }
-                            "
-                        >
+                    <!-- Header -->
+                    <div
+                        class="flex items-center justify-between border-b border-zinc-400 px-2 dark:border-slate-400"
+                    >
+                        <button @click="toggleExpand" class="p-0.5">
+                            <ChevronDownIcon class="h-9 w-9" />
+                        </button>
+                        <EllipsisVerticalIcon class="h-6 w-6 text-gray-600 dark:text-zinc-300" />
+                    </div>
+
+                    <!-- Cover Image -->
+                    <div
+                        class="flex justify-center py-2 opacity-100 transition-opacity duration-500 ease-out"
+                    >
+                        <LImage
+                            v-if="content.parentImageData"
+                            :image="content.parentImageData"
+                            :contentParentId="content.parentId"
+                            :rounded="true"
+                            size="thumbnail"
+                            aspectRatio="square"
+                        />
+                    </div>
+
+                    <div class="p-2 pb-6">
+                        <!-- Title and Author -->
+                        <div class="pb-6 pt-2 text-center">
+                            <span
+                                v-if="content.author"
+                                class="block min-w-0 truncate py-1.5 text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600"
+                            >
+                                {{ content.author }}
+                            </span>
+                            <span
+                                class="block min-w-0 truncate text-lg font-bold text-zinc-600 dark:text-slate-300"
+                            >
+                                {{ content.title }}
+                            </span>
+                            <span
+                                class="block min-w-0 truncate text-xs font-semibold text-zinc-400"
+                            >
+                                {{
+                                    content.publishDate
+                                        ? db
+                                              .toDateTime(content.publishDate)
+                                              .toLocaleString(DateTime.DATETIME_MED)
+                                        : ""
+                                }}
+                            </span>
+                        </div>
+
+                        <!-- Progress bar -->
+                        <div class="flex flex-col px-2">
                             <div
-                                class="h-full rounded-[10px] bg-yellow-500"
-                                :style="{ width: (currentTime / duration) * 100 + '%' }"
-                            ></div>
+                                class="inline-block h-[6px] w-full cursor-pointer rounded-[10px] bg-zinc-400"
+                                @click="
+                                    (e) => {
+                                        const rect = (
+                                            e.target as HTMLElement
+                                        ).getBoundingClientRect();
+                                        const clickX = e.clientX - rect.left;
+                                        const newTime = (clickX / rect.width) * duration;
+                                        if (audioElement) audioElement.currentTime = newTime;
+                                    }
+                                "
+                            >
+                                <div
+                                    class="h-full rounded-[10px] bg-yellow-500"
+                                    :style="{ width: (currentTime / duration) * 100 + '%' }"
+                                ></div>
+                            </div>
+                            <div class="mt-1 flex justify-between">
+                                <span class="text-xs text-gray-400 dark:text-zinc-300">
+                                    {{ formatTime(currentTime) }}
+                                </span>
+                                <span class="text-xs text-gray-400 dark:text-zinc-300">
+                                    {{ formatTime(duration) }}
+                                </span>
+                            </div>
                         </div>
-                        <div class="mt-1 flex justify-between">
-                            <span class="text-xs text-gray-400 dark:text-zinc-300">{{
-                                formatTime(currentTime)
-                            }}</span>
-                            <span class="text-xs text-gray-400 dark:text-zinc-300">{{
-                                formatTime(duration)
-                            }}</span>
-                        </div>
-                    </div>
 
-                    <!-- Custom Controls -->
-                    <div class="my-1">
+                        <!-- Controls -->
+                        <div class="my-1">
+                            <div
+                                class="flex items-center justify-center space-x-14 text-black dark:text-white"
+                            >
+                                <button @click="skip(-10)">
+                                    <ArrowUturnLeftIcon class="h-6 w-6" />
+                                </button>
+                                <button @click="togglePlay" class="rounded-full p-3">
+                                    <PlayIcon v-if="!isPlaying" class="h-8 w-8" />
+                                    <PauseIcon v-else class="h-8 w-8" />
+                                </button>
+                                <button @click="skip(10)">
+                                    <ArrowUturnRightIcon class="h-6 w-6" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Volume Control -->
                         <div
-                            class="flex items-center justify-center space-x-14 text-black dark:text-white"
+                            class="mt-2 flex items-center space-x-2 px-20 text-black dark:text-white"
                         >
-                            <button @click="skip(-10)">
-                                <ArrowUturnLeftIcon class="h-6 w-6" />
-                            </button>
-                            <button @click="togglePlay" class="rounded-full p-3">
-                                <PlayIcon v-if="!isPlaying" class="h-8 w-8" />
-                                <PauseIcon v-else class="h-8 w-8" />
-                            </button>
-                            <button @click="skip(10)">
-                                <ArrowUturnRightIcon class="h-6 w-6" />
-                            </button>
+                            <SpeakerXMarkIcon class="h-8 w-8" />
+
+                            <!-- Custom volume slider -->
+                            <div
+                                class="relative h-1.5 w-full cursor-pointer rounded-[10px] bg-zinc-400"
+                                @click="
+                                    (e) => {
+                                        if (!e.currentTarget) return;
+                                        const rect = (
+                                            e.currentTarget as HTMLElement
+                                        ).getBoundingClientRect();
+                                        const clickX = e.clientX - rect.left;
+                                        const newVolume = clickX / rect.width;
+                                        volume = newVolume;
+                                        updateVolume(newVolume);
+                                    }
+                                "
+                            >
+                                <div
+                                    class="absolute left-0 top-0 h-full rounded-[10px] bg-yellow-500"
+                                    :style="{ width: volume * 100 + '%' }"
+                                ></div>
+                                <!-- Optional thumb -->
+                                <div
+                                    class="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-yellow-500"
+                                    :style="{ left: volume * 100 + '%' }"
+                                ></div>
+                            </div>
+
+                            <SpeakerWaveIcon class="h-8 w-8" />
                         </div>
                     </div>
                 </div>
@@ -238,3 +339,29 @@ onUnmounted(() => {
         </transition>
     </div>
 </template>
+
+<style scoped>
+.slide-up-enter-active,
+.slide-up-leave-active {
+    transition:
+        transform 0.3s ease-out,
+        opacity 0.3s ease-out;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+    transform: translateY(100%);
+    opacity: 0;
+}
+.slide-up-enter-to,
+.slide-up-leave-from {
+    transform: translateY(0%);
+    opacity: 1;
+}
+
+/* Make sure the div allows vertical drag */
+.expanded-player {
+    touch-action: pan-x; /* only block horizontal gestures; vertical scroll allowed */
+    user-select: none;
+    overscroll-behavior: contain; /* prevent scroll chaining to parent while dragging */
+}
+</style>
