@@ -125,55 +125,6 @@ const onPointerUp = () => {
         <!-- Hidden audio element -->
         <audio ref="audioElement" :src="content.audio" preload="auto" class="hidden" />
 
-        <!-- Minimal Player -->
-        <div
-            v-show="!isExpanded"
-            @click="toggleExpand"
-            class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
-        >
-            <div class="flex min-w-0 flex-1 items-center space-x-2">
-                <LImage
-                    v-if="content.parentImageData"
-                    :image="content.parentImageData"
-                    :contentParentId="content.parentId"
-                    size="small"
-                    class="flex-shrink-0 rounded-md object-cover"
-                />
-
-                <div class="flex min-w-0 flex-col">
-                    <span class="block min-w-0 truncate text-sm font-semibold">
-                        {{ content.title }}
-                    </span>
-                    <span
-                        v-if="content.author || content.summary"
-                        class="block min-w-0 truncate text-xs text-zinc-600 dark:text-slate-400"
-                    >
-                        {{ content.author || content.summary }}
-                    </span>
-                    <span
-                        v-else
-                        class="block min-w-0 truncate text-xs text-zinc-400 dark:text-slate-300"
-                    >
-                        {{
-                            content.publishDate
-                                ? db
-                                      .toDateTime(content.publishDate)
-                                      .toLocaleString(DateTime.DATETIME_MED)
-                                : ""
-                        }}
-                    </span>
-                </div>
-            </div>
-
-            <button
-                @click.stop="togglePlay"
-                class="ml-2 flex-shrink-0 rounded-full bg-transparent p-2"
-            >
-                <PlayIcon v-if="!isPlaying" class="h-7 w-7" />
-                <PauseIcon v-else class="h-7 w-7" />
-            </button>
-        </div>
-
         <!-- Expanded Player -->
         <transition name="slide-up">
             <div
@@ -344,6 +295,55 @@ const onPointerUp = () => {
                 </div>
             </div>
         </transition>
+
+        <!-- Minimal Player -->
+        <div
+            v-if="!isExpanded"
+            @click="toggleExpand"
+            class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
+        >
+            <div class="flex min-w-0 flex-1 items-center space-x-2">
+                <LImage
+                    v-if="content.parentImageData"
+                    :image="content.parentImageData"
+                    :contentParentId="content.parentId"
+                    size="small"
+                    class="flex-shrink-0 rounded-md object-cover"
+                />
+
+                <div class="flex min-w-0 flex-col">
+                    <span class="block min-w-0 truncate text-sm font-semibold">
+                        {{ content.title }}
+                    </span>
+                    <span
+                        v-if="content.author || content.summary"
+                        class="block min-w-0 truncate text-xs text-zinc-600 dark:text-slate-400"
+                    >
+                        {{ content.author || content.summary }}
+                    </span>
+                    <span
+                        v-else
+                        class="block min-w-0 truncate text-xs text-zinc-400 dark:text-slate-300"
+                    >
+                        {{
+                            content.publishDate
+                                ? db
+                                      .toDateTime(content.publishDate)
+                                      .toLocaleString(DateTime.DATETIME_MED)
+                                : ""
+                        }}
+                    </span>
+                </div>
+            </div>
+
+            <button
+                @click.stop="togglePlay"
+                class="ml-2 flex-shrink-0 rounded-full bg-transparent p-2"
+            >
+                <PlayIcon v-if="!isPlaying" class="h-7 w-7" />
+                <PauseIcon v-else class="h-7 w-7" />
+            </button>
+        </div>
     </div>
 </template>
 
