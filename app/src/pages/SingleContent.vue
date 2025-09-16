@@ -221,16 +221,12 @@ watch([content, isConnected], async () => {
             if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
                 const apiLanguages = apiLanguage.value as LanguageDto[];
 
-                // Merge languages from API with those from IndexedDB, filtering out duplicates
-                const mergedLanguages = [
-                    ...languages.value,
-                    ...apiLanguages.filter(
-                        (apiLang) =>
-                            !languages.value.some((localLang) => localLang._id === apiLang._id),
+                // Keep only languages that have a translation
+                languages.value = apiLanguages.filter((lang) =>
+                    availableTranslations.value.some(
+                        (translation) => translation.language === lang._id,
                     ),
-                ];
-
-                languages.value = mergedLanguages;
+                );
             }
         });
     }
