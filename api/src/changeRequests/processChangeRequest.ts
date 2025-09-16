@@ -12,6 +12,7 @@ import { _baseDto } from "src/dto/_baseDto";
 import processPostTagDto from "./documentProcessing/processPostTagDto";
 import processContentDto from "./documentProcessing/processContentDto";
 import processLanguageDto from "./documentProcessing/processLanguageDto";
+import { Socketio } from "src/socketio";
 
 export async function processChangeRequest(
     userId: string,
@@ -19,6 +20,7 @@ export async function processChangeRequest(
     groupMembership: Array<Uuid>,
     db: DbService,
     s3: S3Service,
+    socketio?: Socketio,
 ): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
@@ -70,6 +72,10 @@ export async function processChangeRequest(
 
     if (validationResult.warnings && validationResult.warnings.length > 0) {
         res.warnings = validationResult.warnings;
+    }
+
+    if (socketio) {
+        socketio.triggerCdnUpdate(doc.slug || doc._id);
     }
 
     return res;

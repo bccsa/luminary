@@ -51,6 +51,8 @@ type EmitEvents = {
     version: (d: number) => void;
     clientConfig: (e: ClientConfig) => void;
     apiAuthFailed: () => void;
+    cdnUpdate: (c: { slug: string }) => boolean; // boolean for state of event?
+    cdnStaticUploader: (c: { slugs: Array<string> }) => boolean; // boolean for state of event?
 };
 
 /**
@@ -84,6 +86,8 @@ type ClientSocket = Socket<ReceiveEvents, EmitEvents, InterServerEvents, SocketD
 @Injectable()
 export class Socketio implements OnGatewayInit {
     config: Configuration;
+    private server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>;
+    private isrSocketId: string;
 
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
@@ -93,8 +97,16 @@ export class Socketio implements OnGatewayInit {
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
+        this.server = server;
         // Handle authentication
         server.use(async (socket, next) => {
+            if (socket.handshake.query.isrHandshakeToken === "random-test-token-for-now") {
+                this.isrSocketId = socket.id;
+                socket.data.userDetails = { groups: [], accessMap: {} } as JwtUserDetails;
+                next();
+                return;
+            }
+
             // Get automatically assigned group access
             const userDetails = await processJwt(socket.handshake.auth.token, this.db, this.logger);
 
@@ -156,6 +168,41 @@ export class Socketio implements OnGatewayInit {
                     version: update.updatedTimeUtc ? update.updatedTimeUtc : undefined,
                 });
         });
+    }
+
+    triggerCdnUpdate(slug: string) {
+        if (!this.isrSocketId) return false;
+        this.server.to(this.isrSocketId).emit("cdnUpdate", { slug });
+        return true;
+    }
+
+    async triggerCdnStaticUpload() {
+        if (!this.isrSocketId) return false;
+
+        const result = await this.db.executeFindQuery({
+            selector: {
+                type: { $eq: "content" },
+                slug: { $exists: true },
+            },
+            fields: ["slug"],
+            limit: 100000,
+        });
+
+        if (!result || !Array.isArray(result.docs)) {
+            return false;
+        }
+        const slugs = result.docs
+            .map((d: any) => d?.slug)
+            .filter((s: any) => typeof s === "string");
+
+        this.server.to(this.isrSocketId).emit("cdnStaticUploader", { slugs });
+        return true;
+    }
+
+    @SubscribeMessage("registerISRClient")
+    registerISRClient(@ConnectedSocket() socket: Socket) {
+        console.log("Registered ISR client:", socket.id);
+        this.triggerCdnStaticUpload();
     }
 
     /**
