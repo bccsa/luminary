@@ -4,6 +4,8 @@ import { plainToClass } from "class-transformer";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateChangeRequestAccess } from "./validateChangeRequestAccess";
 import { createTestingModule } from "../test/testingModule";
+import { DocType } from "../enums";
+import { LanguageDto } from "src/dto/LanguageDto";
 import * as _ from "lodash";
 
 describe("validateChangeRequestAccess", () => {
@@ -15,7 +17,7 @@ describe("validateChangeRequestAccess", () => {
         const res: any = await db.getGroups();
         PermissionSystem.upsertGroups(res.docs);
 
-        // Wait a little bit for the permission system to update
+        // Wait a little bit for theadd-tests-for-pr-465 permission system to update
         function timeout() {
             return new Promise((resolve) => {
                 setTimeout(resolve, 500);
@@ -702,6 +704,56 @@ describe("validateChangeRequestAccess", () => {
                 db,
             );
             expect(res.validated).toBe(true);
+        });
+    });
+    describe("Language documents", () => {
+        it.only("Can reject if Edit Access to all languages is required to change default language", async () => {
+            PermissionSystem.upsertGroups([
+                {
+                    _id: "group-private-content",
+                    type: "group",
+                    name: "Private Content",
+                    acl: [
+                        {
+                            type: "language",
+                            groupId: "group-languages",
+                            permission: ["view"],
+                        },
+                    ],
+                },
+            ]);
+
+            const language: LanguageDto = {
+                _id: "200",
+                name: "lang-test",
+                languageCode: "eng",
+                memberOf: ["group-languages"],
+                type: DocType.Language,
+                default: 0,
+                //@ts-expect-error Makes an error go away to have this field here.
+                translations: [""],
+            };
+
+            await db.upsertDoc(language);
+
+            const testChangeRequest_Language = {
+                id: 44,
+                doc: {
+                    ...language,
+                    default: 1,
+                },
+            };
+
+            const res = await validateChangeRequestAccess(
+                testChangeRequest_Language,
+                ["group-private-content"],
+                db,
+            );
+
+            expect(res.validated).toBe(false);
+            expect(res.error).toBe(
+                "Edit access to all languages is required to change the default language",
+            );
         });
     });
 });
