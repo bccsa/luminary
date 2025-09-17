@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type ContentDto, type GroupDto, type LanguageDto, DocType, db } from "luminary-shared";
+import { type ContentDto, type GroupDto } from "luminary-shared";
 import {
     contentOverviewQuery,
     loadingContentOverviewContent,
@@ -9,6 +9,7 @@ import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import ContentDisplayCard from "./ContentDisplayCard.vue";
 import { ref, watch } from "vue";
 import LoadingSpinner from "../LoadingSpinner.vue";
+import { cmsLanguages } from "@/globalConfig";
 
 type Props = {
     queryOptions: ContentOverviewQueryOptions;
@@ -16,8 +17,6 @@ type Props = {
     contentDocsTotal?: number;
 };
 const props = defineProps<Props>();
-
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
 const contentDocs = contentOverviewQuery(props.queryOptions);
 
@@ -46,7 +45,7 @@ watch(contentDocs, (newValue) => {
                 :content-doc="contentDoc as ContentDto"
                 :parent-type="queryOptions.parentType"
                 :language-id="queryOptions.languageId"
-                :languages="languages"
+                :languages="cmsLanguages"
                 :class="{
                     'mb-48': contentDocs?.docs?.length
                         ? i === contentDocs?.docs?.length - 1
