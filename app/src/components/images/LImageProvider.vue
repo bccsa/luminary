@@ -142,8 +142,6 @@ const closestAspectRatio = computed(() => {
 });
 
 // Source set for the primary image element with the closest aspect ratio
-
-// Updated srcset1: When offline, use any available cached image from any collection
 const srcset1 = computed(() => {
     if (props.aspectRatio == "original") return "";
 
@@ -156,22 +154,6 @@ const srcset1 = computed(() => {
     }
 
     if (!filteredFileCollections.value.length) return "";
-
-    // If offline, use any available cached image from any collection
-    if (!isConnected) {
-        // Flatten all imageFiles from all collections
-        const allFiles = filteredFileCollections.value.flatMap(
-            (collection) => collection.imageFiles,
-        );
-        if (allFiles.length) {
-            // Use srcset with all available images
-            return allFiles
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                .join(", ");
-        }
-        return "";
-    }
 
     // In modal mode, use all available images without aspect ratio filtering
     const collectionsToUse = props.isModal
@@ -191,22 +173,8 @@ const srcset1 = computed(() => {
 });
 
 // Source set for the secondary image element (used if the primary image element fails to load)
-
-// Updated srcset2: When offline, use any available cached image not used in srcset1
 const srcset2 = computed(() => {
     if (!props.image?.fileCollections?.length) return "";
-
-    // If offline, use any available cached image not used in srcset1
-    if (!isConnected) {
-        const allFiles = props.image.fileCollections.flatMap((collection) => collection.imageFiles);
-        if (allFiles.length) {
-            return allFiles
-                .sort((a, b) => a.width - b.width)
-                .map((f) => `${baseUrl}/${f.filename} ${f.width}w`)
-                .join(", ");
-        }
-        return "";
-    }
 
     // Use a fallback width if parentWidth is 0 (e.g. before DOM is mounted or measured).
     // 400 is a conservative default that avoids excluding all images due to 0 width,
