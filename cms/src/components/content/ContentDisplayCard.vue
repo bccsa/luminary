@@ -178,8 +178,8 @@ const navigateToLanguage = (language: LanguageDto) => {
             </RouterLink>
         </div>
 
-        <div class="flex w-full items-center gap-2 py-1 text-xs">
-            <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
+        <div class="flex w-full items-center justify-between gap-2 py-1 text-xs">
+            <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1">
                 <div>
                     <TagIcon class="h-4 w-4 text-zinc-400" />
                 </div>
@@ -189,10 +189,16 @@ const navigateToLanguage = (language: LanguageDto) => {
                     </LBadge>
                 </div>
             </div>
-            <span class="flex w-1/2 items-center gap-1 text-xs text-zinc-400" v-else>
+            <span class="flex items-center gap-1 text-xs text-zinc-400" v-else>
                 <TagIcon class="h-4 w-4 text-zinc-300" />
                 No tags set
             </span>
+            <div class="flex items-center justify-end text-zinc-400">
+                <ClockIcon class="text-zinc-340 mr-[1px] h-4 w-4" />
+                <span title="Last Updated">{{
+                    renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
+                }}</span>
+            </div>
         </div>
 
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
@@ -221,10 +227,11 @@ const navigateToLanguage = (language: LanguageDto) => {
                     {{ group.name }}
                 </LBadge>
             </div>
-            <div class="flex items-center justify-end text-zinc-400">
-                <ClockIcon class="text-zinc-340 mr-[1px] h-4 w-4" />
-                <span title="Last Updated">{{
-                    renderDate("default", "Last updated", contentDoc.updatedTimeUtc)
+
+            <div class="flex items-center gap-1 text-xs text-zinc-400">
+                <UserIcon class="h-4 w-4 text-zinc-400" />
+                <span title="Last Updated By">{{
+                    `Last Updated By: ${contentDoc.updatedBy || "Unknown"}`
                 }}</span>
             </div>
         </div>
