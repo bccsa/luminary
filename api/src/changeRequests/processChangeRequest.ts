@@ -12,7 +12,7 @@ import { _baseDto } from "src/dto/_baseDto";
 import processPostTagDto from "./documentProcessing/processPostTagDto";
 import processContentDto from "./documentProcessing/processContentDto";
 import processLanguageDto from "./documentProcessing/processLanguageDto";
-import { Socketio } from "src/socketio";
+import { Socketio } from "../socketio";
 
 export async function processChangeRequest(
     userId: string,
