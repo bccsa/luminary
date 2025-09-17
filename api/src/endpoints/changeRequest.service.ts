@@ -10,7 +10,7 @@ import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { S3Service } from "../s3/s3.service";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { Socketio } from "src/socketio";
+import { Socketio } from "../socketio";
 
 @Injectable()
 export class ChangeRequestService {

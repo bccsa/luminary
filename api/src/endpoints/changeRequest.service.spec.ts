@@ -3,10 +3,12 @@ import { createTestingModule } from "../test/testingModule";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AckStatus } from "../enums";
 import { changeRequest_post } from "../test/changeRequestDocuments";
+import { Socketio } from "../socketio";
 
 describe("ChangeRequest service", () => {
     const oldEnv = process.env;
     let service: DbService;
+    let socket: Socketio;
     let changeRequestService: ChangeRequestService;
 
     beforeAll(async () => {
@@ -22,7 +24,7 @@ describe("ChangeRequest service", () => {
         }`;
 
         service = (await createTestingModule("changereq-service")).dbService;
-        changeRequestService = new ChangeRequestService(undefined, service, undefined);
+        changeRequestService = new ChangeRequestService(undefined, service, undefined, socket);
     });
 
     afterAll(async () => {
