@@ -5,6 +5,7 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 import util from "util";
 import child_process from "child_process";
 import { visualizer } from "rollup-plugin-visualizer";
+import { VitePWA } from "vite-plugin-pwa";
 
 const exec = util.promisify(child_process.exec);
 const env = loadEnv("", process.cwd());
@@ -39,6 +40,13 @@ export default defineConfig({
                 }
             },
         },
+        VitePWA({
+            registerType: "autoUpdate",
+            includeAssets: ["src/assets"],
+            workbox: {
+                globPatterns: ["**/*.{ico,png,webp,jpg,jpeg}"],
+            },
+        }),
     ],
     resolve: {
         alias: {
