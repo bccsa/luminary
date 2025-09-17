@@ -45,7 +45,7 @@ describe("LImageProvider", () => {
         expect(img2.attributes("srcset")).toContain("classic-100.webp");
     });
 
-    it.skip("renders fallback image when no main images are available", async () => {
+    it("renders fallback image when no main images are available", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
                 parentId: "test-id",
