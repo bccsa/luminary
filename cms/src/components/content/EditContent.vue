@@ -89,7 +89,13 @@ const liveParent = useDexieLiveQuery(
 
 const editableContent = ref<ContentDto[]>([]);
 const existingContent = ref<ContentDto[]>(); // Previous version of the content documents for dirty check
+const liveContent = useDexieLiveQuery(async () => db.whereParent(parentId, props.docType), {
+    initialValue: editableContent.value,
+});
+
 const showDeleteModal = ref(false);
+
+const saveWasCalled = ref(false);
 
 watch(liveParent, (parent) => {
     if (
@@ -101,6 +107,58 @@ watch(liveParent, (parent) => {
         editableParent.value.imageData = (parent as ContentParentDto).imageData;
         existingParent.value = _.cloneDeep(editableParent.value);
         waitForUpdate.value = false;
+    }
+});
+
+const isLocalChange = db.isLocalChangeAsRef(parentId);
+
+const networkChanges = computed(() => {
+    if (isLocalChange.value || saveWasCalled.value) return false;
+
+    // Only show network changes if the change did not originate from this client
+    if (!liveParent.value || !liveContent.value || !existingParent.value || !existingContent.value)
+        return false;
+
+    // Compare parent, ignoring volatile fields
+    const parentChanged = !_.isEqual(
+        (() => {
+            const parent = { ...liveParent.value } as any;
+            delete parent._rev;
+            delete parent.updatedTimeUtc;
+            return parent;
+        })(),
+        (() => {
+            const existing = { ...existingParent.value } as any;
+            delete existing._rev;
+            delete existing.updatedTimeUtc;
+            return existing;
+        })(),
+    );
+
+    // Check if the current existing (from DB/server) content is different from what was initially loaded
+    const contentChanged = !_.isEqual(
+        existingContent.value.map((c) => {
+            // Create a copy of each content and delete values that can reduce data quality for accuracy
+            const content = { ...c } as any;
+            delete content._rev;
+            delete content.updatedTimeUtc;
+            return content;
+        }),
+        liveContent.value.map((c) => {
+            // Create a copy of each content and delete values that can reduce data quality for accuracy
+            const content = { ...c } as any;
+            delete content._rev;
+            delete content.updatedTimeUtc;
+            return content;
+        }),
+    );
+
+    return contentChanged || parentChanged;
+});
+
+watch(networkChanges, (newVal) => {
+    if (newVal) {
+        saveWasCalled.value = false;
     }
 });
 
@@ -375,6 +433,7 @@ const saveChanges = async () => {
 };
 
 const save = async () => {
+    saveWasCalled.value = true;
     if (
         existingParent.value?.imageData?.uploadData !== editableParent.value.imageData?.uploadData
     ) {
@@ -408,6 +467,8 @@ const save = async () => {
 
         await Promise.all(pList);
     }
+
+    saveWasCalled.value = false;
 };
 
 const revertChanges = () => {
@@ -464,8 +525,6 @@ const deleteParent = async () => {
         params: { docType: props.docType, tagOrPostType: props.tagOrPostType },
     });
 };
-
-const isLocalChange = db.isLocalChangeAsRef(parentId);
 
 router.currentRoute.value.meta.title = `Edit ${props.tagOrPostType}`;
 
@@ -675,6 +734,12 @@ watch(
 
         <template #topBarActionsDesktop>
             <div class="flex gap-2">
+                <LBadge
+                    v-if="networkChanges"
+                    variant="warning"
+                    title="Updates found on server. Refresh to keep your changes safe"
+                    >Changes Detected</LBadge
+                >
                 <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
             </div>
             <div class="hidden gap-1 lg:flex">
