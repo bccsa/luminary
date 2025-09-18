@@ -30,7 +30,6 @@ import {
     isDarkTheme,
     theme,
     appLanguageAsRef,
-    cmsLanguages,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -473,19 +472,17 @@ const selectedLanguageCode = computed(() => {
     <BasePage :showBackButton="true">
         <template #quickControls v-if="!is404">
             <div class="relative w-auto">
-                <!-- Using v-show here caused the button to flicker on language change -->
                 <button
+                    v-show="availableTranslations.length > 1"
                     name="translationSelector"
                     @click="showDropdown = !showDropdown"
                     class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
                     data-test="translationSelector"
                 >
-                    <!-- Display the current content's language -->
+                    <!-- Display the current content's language if no other language is available -->
                     <span class="hidden sm:inline">
                         {{
                             languages.find((lang: LanguageDto) => lang._id === selectedLanguageId)
-                                ?.name ||
-                            languages.find((lang: LanguageDto) => lang._id === content?.language)
                                 ?.name
                         }}
                     </span>
@@ -493,9 +490,6 @@ const selectedLanguageCode = computed(() => {
                         {{
                             languages
                                 .find((lang: LanguageDto) => lang._id === selectedLanguageId)
-                                ?.languageCode.toUpperCase() ||
-                            languages
-                                .find((lang: LanguageDto) => lang._id === content?.language)
                                 ?.languageCode.toUpperCase()
                         }}
                     </span>
@@ -504,13 +498,6 @@ const selectedLanguageCode = computed(() => {
                     v-if="showDropdown"
                     class="absolute right-0 z-10 mt-1 w-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-700"
                 >
-                    <div
-                        class="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm leading-6 text-zinc-800 hover:bg-zinc-50 dark:text-white dark:hover:bg-slate-600"
-                        data-test="translationOption"
-                    >
-                        No other language translated yet. Please check back later.
-                    </div>
-
                     <div
                         v-for="language in languages"
                         :key="language._id"

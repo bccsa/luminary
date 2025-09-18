@@ -18,13 +18,7 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import {
-    appLanguageIdsAsRef,
-    appLanguagePreferredIdAsRef,
-    appName,
-    initLanguage,
-    userPreferencesAsRef,
-} from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, initLanguage, userPreferencesAsRef } from "@/globalConfig";
 import NotFoundPage from "./NotFoundPage.vue";
 import { ref } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
