@@ -1,61 +1,63 @@
 name: "Build & Deploy CMS to staging"
+permissions:
+  contents: read
 
 on:
-    push:
-        branches: [main]
-        paths:
-            - cms/**
-            - .github/workflows/cms-deploy-staging.yml
-            - shared/**
-    workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - cms/**
+      - .github/workflows/cms-deploy-staging.yml
+      - shared/**
+  workflow_dispatch:
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
-    CI: true
+  CI: true
 
 jobs:
-    test-cms:
-        uses: ./.github/workflows/cms-unit-tests.yml
+  test-cms:
+    uses: ./.github/workflows/cms-unit-tests.yml
 
-    test-shared:
-        uses: ./.github/workflows/shared-unit-tests.yml
+  test-shared:
+    uses: ./.github/workflows/shared-unit-tests.yml
 
-    deploy:
-        needs: [test-cms, test-shared]
-        runs-on: [self-hosted, ac]
-        environment: cms-staging
+  deploy:
+    needs: [test-cms, test-shared]
+    runs-on: [self-hosted, ac]
+    environment: cms-staging
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Create .env file
-              run: |
-                  touch .env
-                  echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
-                  echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
-                  echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
-                  echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
-                  echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
-                  echo VITE_CLIENT_APP_URL="${{ vars.VITE_CLIENT_APP_URL }}" >> .env
-                  echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
-                  echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
-                  echo VITE_LOGO_FAVICON=${{vars.VITE_LOGO_FAVICON}} >> .env
-              working-directory: cms
+      - name: Create .env file
+        run: |
+          touch .env
+          echo VITE_AUTH0_CLIENT_ID="${{ secrets.VITE_AUTH0_CLIENT_ID }}" >> .env
+          echo VITE_AUTH0_DOMAIN="${{ vars.VITE_AUTH0_DOMAIN }}" >> .env
+          echo VITE_AUTH0_AUDIENCE="${{ vars.VITE_AUTH0_AUDIENCE }}" >> .env
+          echo VITE_APP_NAME="${{ vars.VITE_APP_NAME }}" >> .env
+          echo VITE_API_URL="${{ vars.VITE_API_URL }}" >> .env
+          echo VITE_CLIENT_APP_URL="${{ vars.VITE_CLIENT_APP_URL }}" >> .env
+          echo VITE_CLIENT_IMAGES_URL="${{ vars.VITE_CLIENT_IMAGES_URL }}" >> .env
+          echo VITE_LOGO="${{ vars.VITE_LOGO }}" >> .env
+          echo VITE_LOGO_FAVICON=${{vars.VITE_LOGO_FAVICON}} >> .env
+        working-directory: cms
 
-            - name: Build Docker container
-              run: docker build -f ./cms/Dockerfile . -t ${{ vars.DOCKER_IMAGE }}
-              working-directory: ./
+      - name: Build Docker container
+        run: docker build -f ./cms/Dockerfile . -t ${{ vars.DOCKER_IMAGE }}
+        working-directory: ./
 
-            - name: Stop and remove old Docker container
-              run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
+      - name: Stop and remove old Docker container
+        run: docker stop ${{ vars.DOCKER_CONTAINER }} || true && docker rm ${{ vars.DOCKER_CONTAINER }} || true
 
-            - name: Run Docker container
-              run: >
-                  docker run -d -p "${{ vars.DOCKER_PORT }}":80 
-                  --restart unless-stopped 
-                  --name=${{ vars.DOCKER_CONTAINER }} 
-                  ${{ vars.DOCKER_IMAGE }}
+      - name: Run Docker container
+        run: >
+          docker run -d -p "${{ vars.DOCKER_PORT }}":80 
+          --restart unless-stopped 
+          --name=${{ vars.DOCKER_CONTAINER }} 
+          ${{ vars.DOCKER_IMAGE }}
