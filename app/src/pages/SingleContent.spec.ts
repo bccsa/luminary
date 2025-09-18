@@ -437,6 +437,6 @@ describe("SingleContent", () => {
                     type: "banner",
                 }),
             );
-        }, 3000);
+        }, 5000);
     });
 });

@@ -180,18 +180,14 @@ const unwatch = watch([idbContent, isConnected], () => {
 watch([content, isConnected], async () => {
     if (!content.value) return;
 
-    // Load from IndexedDB
-    const [translations, langs] = await Promise.all([
+    const [availableContentTranslations, availableLanguages] = await Promise.all([
         db.docs.where("parentId").equals(content.value.parentId).toArray(),
         db.docs.where("type").equals(DocType.Language).toArray(),
     ]);
+    if (availableContentTranslations.length > 1) {
+        availableTranslations.value = availableContentTranslations as ContentDto[];
 
-    //
-    if (translations.length > 1) {
-        availableTranslations.value = translations as ContentDto[];
-
-        // Filter languages based on available translations
-        languages.value = (langs as LanguageDto[]).filter((lang) =>
+        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
             availableTranslations.value.some((translation) => translation.language === lang._id),
         );
     }
@@ -215,7 +211,9 @@ watch([content, isConnected], async () => {
 
         watch([contentResults, apiLanguage], () => {
             if (contentResults.value && contentResults.value.length > 1) {
-                availableTranslations.value = contentResults.value as ContentDto[];
+                availableTranslations.value = (contentResults.value as ContentDto[]).filter(
+                    (c) => c.status === PublishStatus.Published,
+                );
             }
 
             if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
@@ -481,6 +479,7 @@ const selectedLanguageCode = computed(() => {
                     class="block truncate text-zinc-400 hover:text-zinc-500 dark:text-slate-300 hover:dark:text-slate-200"
                     data-test="translationSelector"
                 >
+                    <!-- Display the current content's language if no other language is available -->
                     <span class="hidden sm:inline">
                         {{
                             languages.find((lang: LanguageDto) => lang._id === selectedLanguageId)
@@ -524,7 +523,7 @@ const selectedLanguageCode = computed(() => {
                 <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
             </div>
         </template>
-        
+
         <NotFoundPage v-if="is404" />
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
