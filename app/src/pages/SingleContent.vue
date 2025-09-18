@@ -181,14 +181,14 @@ const unwatch = watch([idbContent, isConnected], () => {
 watch([content, isConnected], async () => {
     if (!content.value) return;
 
-    const [availableContentTranslations, langs] = await Promise.all([
+    const [availableContentTranslations, availableLanguages] = await Promise.all([
         db.docs.where("parentId").equals(content.value.parentId).toArray(),
         db.docs.where("type").equals(DocType.Language).toArray(),
     ]);
     if (availableContentTranslations.length > 1) {
         availableTranslations.value = availableContentTranslations as ContentDto[];
 
-        languages.value = (langs as LanguageDto[]).filter((lang) =>
+        languages.value = (availableLanguages as LanguageDto[]).filter((lang) =>
             availableTranslations.value.some((translation) => translation.language === lang._id),
         );
     }
