@@ -181,22 +181,14 @@ const unwatch = watch([idbContent, isConnected], () => {
 watch([content, isConnected], async () => {
     if (!content.value) return;
 
-    const availableContentTranslations = useDexieLiveQuery(
-        async () => {
-            if (!content.value) return [];
-            return (await db.docs
-                .where("parentId")
-                .equals(content.value.parentId)
-                .and((doc) => (doc as ContentDto).status === PublishStatus.Published)
-                .toArray()) as ContentDto[];
-        },
-        { initialValue: [] as ContentDto[] },
-    );
+    const [availableContentTranslations, langs] = await Promise.all([
+        db.docs.where("parentId").equals(content.value.parentId).toArray(),
+        db.docs.where("type").equals(DocType.Language).toArray(),
+    ]);
+    if (availableContentTranslations.length > 1) {
+        availableTranslations.value = availableContentTranslations as ContentDto[];
 
-    if (availableContentTranslations.value.length > 1) {
-        availableTranslations.value = availableContentTranslations.value;
-
-        languages.value = cmsLanguages.value.filter((lang) =>
+        languages.value = (langs as LanguageDto[]).filter((lang) =>
             availableTranslations.value.some((translation) => translation.language === lang._id),
         );
     }
