@@ -197,23 +197,7 @@ watch([content, isConnected], async () => {
         availableTranslations.value = availableContentTranslations.value;
 
         languages.value = cmsLanguages.value.filter((lang) =>
-            availableTranslations.value.some(
-                (translation) =>
-                    translation.language === lang._id &&
-                    translation.status === PublishStatus.Published,
-            ),
-        );
-    }
-
-    if (availableContentTranslations.value.length > 1) {
-        availableTranslations.value = availableContentTranslations.value;
-
-        languages.value = cmsLanguages.value.filter((lang) =>
-            availableTranslations.value.some(
-                (translation) =>
-                    translation.language === lang._id &&
-                    translation.status === PublishStatus.Published,
-            ),
+            availableTranslations.value.some((translation) => translation.language === lang._id),
         );
     }
 
