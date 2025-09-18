@@ -25,6 +25,8 @@ describe("EditContentParent.vue", () => {
                 tagOrPostType: TagType.Category,
                 parent: parent.value,
                 disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockPostDto,
             },
         });
 
@@ -48,6 +50,8 @@ describe("EditContentParent.vue", () => {
                 parent: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockPostDto,
             },
         });
 
@@ -67,6 +71,8 @@ describe("EditContentParent.vue", () => {
                 parent: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockPostDto,
             },
         });
 
@@ -74,5 +80,53 @@ describe("EditContentParent.vue", () => {
         expect(wrapper.text()).toContain("Topics");
 
         // TODO: Check why the selected categories are not displayed
+    });
+
+    it("displays unsaved changes warning when there are changes", async () => {
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+                parent: { ...mockData.mockPostDto, memberOf: [] },
+                language: mockData.mockLanguageDtoEng,
+                disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockPostDto,
+            },
+        });
+
+        expect(wrapper.html()).toContain("Unsaved changes");
+    });
+
+    it("doesn't display warning when there are no changes", async () => {
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+                parent: mockData.mockPostDto,
+                language: mockData.mockLanguageDtoEng,
+                disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockPostDto,
+            },
+        });
+
+        expect(wrapper.html()).not.toContain("Unsaved changes");
+    });
+
+    it("fails validation if no groups are set", async () => {
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+                parent: { ...mockData.mockPostDto, memberOf: [] },
+                language: mockData.mockLanguageDtoEng,
+                disabled: false,
+                existingContent: [],
+                existingParent: mockData.mockPostDto,
+            },
+        });
+
+        expect(wrapper.html()).toContain("At least one group membership is required");
     });
 });

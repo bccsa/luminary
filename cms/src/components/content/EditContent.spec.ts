@@ -1,7 +1,15 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, type ContentDto, accessMap, PostType, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    type ContentDto,
+    accessMap,
+    PostType,
+    PublishStatus,
+    isConnected,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -15,6 +23,7 @@ import { initLanguage } from "@/globalConfig";
 import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
+import EditContentVideo from "./EditContentVideo.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -130,6 +139,23 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("doesn't show view live button if not connected", async () => {
+        isConnected.value = false;
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[name="view-live"]').exists()).toBe(false);
+        });
+    });
+
     it("can save content to the database", async () => {
         const notificationStore = useNotificationStore();
         const wrapper = mount(EditContent, {
@@ -197,6 +223,27 @@ describe("EditContent.vue", () => {
             expect(notificationStore.addNotification).toHaveBeenCalledWith(
                 expect.objectContaining({
                     state: "error",
+                }),
+            );
+        });
+    });
+
+    it("routes back to overview if parent is not found in the database", async () => {
+        const notificationStore = useNotificationStore();
+        mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: { ...mockData.mockPostDto, _id: "post-post5" }._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: "Parent not found",
+                    description: "The parent document was not found in the database",
                 }),
             );
         });
@@ -483,6 +530,23 @@ describe("EditContent.vue", () => {
 
         await waitForExpect(async () => {
             expect(wrapper.findComponent(EditContentParent).props().disabled).toBe(false);
+        });
+    });
+
+    it("enables content editing when no groups are set", async () => {
+        await db.docs.bulkPut([{ ...mockData.mockPostDto, memberOf: [] }]);
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.findComponent(EditContentBasic).props().disabled).toBe(false);
+            expect(wrapper.findComponent(EditContentVideo).props().disabled).toBe(false);
         });
     });
 
