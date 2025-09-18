@@ -30,6 +30,7 @@ import {
     isDarkTheme,
     theme,
     appLanguageAsRef,
+    cmsLanguages,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
@@ -180,19 +181,39 @@ const unwatch = watch([idbContent, isConnected], () => {
 watch([content, isConnected], async () => {
     if (!content.value) return;
 
-    // Load from IndexedDB
-    const [translations, langs] = await Promise.all([
-        db.docs.where("parentId").equals(content.value.parentId).toArray(),
-        db.docs.where("type").equals(DocType.Language).toArray(),
-    ]);
+    const availableContentTranslations = useDexieLiveQuery(
+        async () => {
+            if (!content.value) return [];
+            return (await db.docs
+                .where("parentId")
+                .equals(content.value.parentId)
+                .and((doc) => (doc as ContentDto).status === PublishStatus.Published)
+                .toArray()) as ContentDto[];
+        },
+        { initialValue: [] as ContentDto[] },
+    );
 
-    //
-    if (translations.length > 1) {
-        availableTranslations.value = translations as ContentDto[];
+    if (availableContentTranslations.value.length > 1) {
+        availableTranslations.value = availableContentTranslations.value;
 
-        // Filter languages based on available translations
-        languages.value = (langs as LanguageDto[]).filter((lang) =>
-            availableTranslations.value.some((translation) => translation.language === lang._id),
+        languages.value = cmsLanguages.value.filter((lang) =>
+            availableTranslations.value.some(
+                (translation) =>
+                    translation.language === lang._id &&
+                    translation.status === PublishStatus.Published,
+            ),
+        );
+    }
+
+    if (availableContentTranslations.value.length > 1) {
+        availableTranslations.value = availableContentTranslations.value;
+
+        languages.value = cmsLanguages.value.filter((lang) =>
+            availableTranslations.value.some(
+                (translation) =>
+                    translation.language === lang._id &&
+                    translation.status === PublishStatus.Published,
+            ),
         );
     }
 
@@ -215,7 +236,9 @@ watch([content, isConnected], async () => {
 
         watch([contentResults, apiLanguage], () => {
             if (contentResults.value && contentResults.value.length > 1) {
-                availableTranslations.value = contentResults.value as ContentDto[];
+                availableTranslations.value = (contentResults.value as ContentDto[]).filter(
+                    (c) => c.status === PublishStatus.Published,
+                );
             }
 
             if (apiLanguage.value && Array.isArray(apiLanguage.value)) {
@@ -524,7 +547,7 @@ const selectedLanguageCode = computed(() => {
                 <MoonIcon class="h-6 w-6" v-else @click="theme = 'dark'" />
             </div>
         </template>
-        
+
         <NotFoundPage v-if="is404" />
 
         <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
