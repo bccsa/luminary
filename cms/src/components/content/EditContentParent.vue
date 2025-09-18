@@ -25,6 +25,7 @@ type Props = {
     language?: LanguageDto;
     existingParent: ContentParentDto | undefined;
     disabled: boolean;
+    newDocument?: boolean;
 };
 defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
@@ -86,18 +87,20 @@ const pinned = computed({
     <LCard
         :title="`${capitaliseFirstLetter(tagOrPostType)} settings`"
         :icon="Cog6ToothIcon"
+        :collapsed="newDocument ? false : true"
         collapsible
         v-if="parent"
         class="bg-white"
     >
         <template #persistent>
-            <div class="flex flex-col gap-1 px-2 py-1.5">
+            <div class="flex flex-col gap-0.5 px-2">
                 <div
                     v-if="parent && !_.isEqual(parent, existingParent)"
                     class="flex items-center gap-2"
+                    :class="{ 'my-0.5': parent && !_.isEqual(parent, existingParent) }"
                 >
                     <p>
-                        <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                        <ExclamationCircleIcon class="size-[18px] min-w-[18px] text-yellow-400" />
                     </p>
                     <p class="text-xs text-zinc-700">
                         Unsaved changes to {{ tagOrPostType }}'s settings.
@@ -148,11 +151,11 @@ const pinned = computed({
 
         <!-- Toggle for Publish Date Visibility -->
         <div
-            class="mt-3 flex items-center justify-between"
+            class="mt-2 flex items-center justify-between gap-1"
             :class="{ 'mb-2': docType !== DocType.Tag }"
         >
             <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
+            <LToggle v-model="parent.publishDateVisible" class="" :disabled="disabled" />
         </div>
 
         <div

@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, type Component, type StyleValue } from "vue";
+import {
+    computed,
+    nextTick,
+    onMounted,
+    onUnmounted,
+    ref,
+    watch,
+    type Component,
+    type StyleValue,
+} from "vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import LTag from "../content/LTag.vue";
 import { useAttrsWithoutStyles } from "@/composables/attrsWithoutStyles";
@@ -86,6 +95,32 @@ const toggleDropdown = () => {
         inputElement.value?.focus();
     });
 };
+
+// focus input when modal opens
+watch(showEditModal, (newVal) => {
+    if (newVal) {
+        nextTick(() => {
+            inputElement.value?.focus();
+        });
+    } else {
+        query.value = "";
+        showDropdown.value = false;
+    }
+});
+
+const handleGlobalEscape = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && showEditModal.value) {
+        showEditModal.value = false;
+    }
+};
+
+onMounted(() => {
+    window.addEventListener("keydown", handleGlobalEscape);
+});
+
+onUnmounted(() => {
+    window.removeEventListener("keydown", handleGlobalEscape);
+});
 </script>
 
 <template>
@@ -96,7 +131,7 @@ const toggleDropdown = () => {
         :style="$attrs['style'] as StyleValue"
     >
         <div class="flex justify-between">
-            <div class="mb-2 flex items-center gap-1">
+            <div class="flex items-center gap-1">
                 <component
                     :is="props.labelIcon"
                     class="h-5 w-5 text-zinc-400"
@@ -129,7 +164,7 @@ const toggleDropdown = () => {
             :heading="label"
         >
             <div
-                class="flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                class="relative flex justify-between gap-2 rounded-md border-[1px] border-zinc-300 bg-white pl-3 pr-3 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
                 tabindex="0"
                 v-bind="attrsWithoutStyles"
                 @click="showDropdown = !showDropdown"
@@ -201,16 +236,20 @@ const toggleDropdown = () => {
                             }
                         "
                     />
+                    <button
+                        class="absolute right-2 flex items-center"
+                        @click.stop="toggleDropdown"
+                        name="options-open-btn"
+                    >
+                        <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
+                    </button>
                 </div>
-                <button @click.stop="toggleDropdown" name="options-open-btn">
-                    <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
-                </button>
             </div>
 
             <div
                 ref="dropdown"
                 v-if="showDropdown || query.trim().length > 0"
-                class="absolute z-10 mt-1 max-h-48 w-11/12 overflow-y-auto rounded-md border-[1px] border-zinc-100 bg-white shadow-md"
+                class="absolute z-10 mt-1 max-h-48 w-11/12 overflow-y-auto rounded-md bg-white shadow-md"
                 :class="{
                     'w-96': $slots.actions && !isSmallScreen,
                 }"
@@ -245,11 +284,7 @@ const toggleDropdown = () => {
                     </span>
                 </li>
             </div>
-            <div
-                data-test="selected-labels"
-                v-if="showSelectedLabels"
-                class="mt-2 flex flex-wrap gap-3"
-            >
+            <div data-test="selected-labels" v-if="showSelectedLabels" class="flex flex-wrap gap-3">
                 <LTag
                     v-for="option in selectedLabels"
                     :key="option.id"
