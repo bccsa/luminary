@@ -6,10 +6,9 @@ import {
     PauseIcon,
     ChevronDownIcon,
     EllipsisVerticalIcon,
-    ForwardIcon,
-    BackwardIcon,
+    ChevronDoubleLeftIcon,
+    ChevronDoubleRightIcon,
 } from "@heroicons/vue/20/solid";
-import { SpeakerXMarkIcon, SpeakerWaveIcon } from "@heroicons/vue/24/outline";
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
 
@@ -57,15 +56,6 @@ const formatTime = (time: number) => {
     const mins = Math.floor(time / 60);
     const secs = Math.floor(time % 60);
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-};
-
-const volume = ref(1); // default 100%
-
-// Watch volume changes and apply to audio element
-const updateVolume = (val: number) => {
-    if (audioElement.value) {
-        audioElement.value.volume = val;
-    }
 };
 
 onMounted(() => {
@@ -129,7 +119,7 @@ const onPointerUp = () => {
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player z-50 flex w-full flex-col rounded-t-3xl bg-amber-100 dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:w-80 lg:rounded-2xl"
+                class="expanded-player z-50 flex w-full flex-col bg-zinc-200 dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:w-80 lg:rounded-2xl"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none',
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out',
@@ -138,7 +128,7 @@ const onPointerUp = () => {
                 <div>
                     <!-- Swipe-down handle (drag area only) -->
                     <div
-                        class="flex cursor-grab justify-center pt-1 active:cursor-grabbing lg:hidden"
+                        class="flex cursor-grab justify-center pb-6 pt-1 active:cursor-grabbing lg:hidden"
                         @pointerdown.stop="onPointerDown"
                         @pointermove="onPointerMove"
                         @pointerup="onPointerUp"
@@ -150,9 +140,7 @@ const onPointerUp = () => {
                     </div>
 
                     <!-- Header -->
-                    <div
-                        class="flex items-center justify-between border-b border-zinc-400 px-2 dark:border-slate-400"
-                    >
+                    <div class="hidden items-center justify-between px-2 lg:flex">
                         <button @click="toggleExpand" class="p-0.5">
                             <ChevronDownIcon class="h-9 w-9" />
                         </button>
@@ -161,7 +149,7 @@ const onPointerUp = () => {
 
                     <!-- Cover Image -->
                     <div
-                        class="flex justify-center pt-2 opacity-100 transition-opacity duration-500 ease-out"
+                        class="flex justify-center opacity-100 transition-opacity duration-500 ease-out"
                     >
                         <LImage
                             v-if="content.parentImageData"
@@ -233,63 +221,27 @@ const onPointerUp = () => {
                         <!-- Controls -->
                         <div class="my-1">
                             <div
-                                class="flex items-center justify-center space-x-12 text-black dark:text-white"
+                                class="flex items-center justify-center space-x-8 text-black dark:text-white"
                             >
                                 <button class="flex items-center space-x-0" @click="skip(-10)">
-                                    <BackwardIcon class="h-6 w-6" />
+                                    <ChevronDoubleLeftIcon class="h-5 w-5" />
                                     <span
                                         class="rounded-2xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black"
                                         >10</span
                                     >
                                 </button>
                                 <button @click="togglePlay" class="rounded-full p-3">
-                                    <PlayIcon v-if="!isPlaying" class="h-8 w-8" />
-                                    <PauseIcon v-else class="h-8 w-8" />
+                                    <PlayIcon v-if="!isPlaying" class="h-12 w-12" />
+                                    <PauseIcon v-else class="h-12 w-12" />
                                 </button>
                                 <button class="flex items-center space-x-0" @click="skip(10)">
                                     <span
                                         class="rounded-3xl bg-black px-1 py-0.5 text-sm text-white dark:bg-white dark:text-black"
                                         >10</span
                                     >
-                                    <ForwardIcon class="h-6 w-6" />
+                                    <ChevronDoubleRightIcon class="h-5 w-5" />
                                 </button>
                             </div>
-                        </div>
-
-                        <!-- Volume Control -->
-                        <div
-                            class="mt-2 flex items-center space-x-2 px-20 text-black dark:text-white"
-                        >
-                            <SpeakerXMarkIcon class="h-8 w-8 cursor-pointer" @click="volume = 0" />
-
-                            <!-- Custom volume slider -->
-                            <div
-                                class="relative h-1.5 w-full cursor-pointer rounded-[10px] bg-zinc-400"
-                                @click="
-                                    (e) => {
-                                        if (!e.currentTarget) return;
-                                        const rect = (
-                                            e.currentTarget as HTMLElement
-                                        ).getBoundingClientRect();
-                                        const clickX = e.clientX - rect.left;
-                                        const newVolume = clickX / rect.width;
-                                        volume = newVolume;
-                                        updateVolume(newVolume);
-                                    }
-                                "
-                            >
-                                <div
-                                    class="absolute left-0 top-0 h-full rounded-[10px] bg-yellow-500"
-                                    :style="{ width: volume * 100 + '%' }"
-                                ></div>
-                                <!-- Optional thumb -->
-                                <div
-                                    class="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-yellow-500"
-                                    :style="{ left: volume * 90 + '%' }"
-                                ></div>
-                            </div>
-
-                            <SpeakerWaveIcon class="h-8 w-8 cursor-pointer" @click="volume = 1" />
                         </div>
                     </div>
                 </div>
@@ -302,13 +254,13 @@ const onPointerUp = () => {
             @click="toggleExpand"
             class="flex w-full cursor-pointer items-center justify-between bg-amber-100 p-2 dark:bg-slate-600 lg:mx-auto lg:w-80 lg:rounded-lg"
         >
-            <div class="flex min-w-0 flex-1 items-center space-x-2">
+            <div class="flex min-w-0 items-center space-x-2">
                 <LImage
                     v-if="content.parentImageData"
                     :image="content.parentImageData"
                     :contentParentId="content.parentId"
-                    size="small"
-                    class="flex-shrink-0 rounded-md object-cover"
+                    size="smallSquare"
+                    aspectRatio="square"
                 />
 
                 <div class="flex min-w-0 flex-col">
