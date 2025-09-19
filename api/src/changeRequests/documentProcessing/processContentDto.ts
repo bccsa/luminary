@@ -23,6 +23,7 @@ export default async function processContentDto(doc: ContentDto, db: DbService) 
         doc.parentTags = parentDoc.tags;
         doc.parentImageData = parentDoc.imageData;
         doc.parentImageBucketId = parentDoc.imageBucketId;
+        doc.parentMedia = parentDoc.media;
 
         if (parentDoc.type == DocType.Post) {
             doc.parentPostType = (parentDoc as PostDto).postType;
