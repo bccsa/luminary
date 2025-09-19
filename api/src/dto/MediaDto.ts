@@ -10,7 +10,7 @@ export class MediaDto {
     @IsOptional()
     @IsString()
     @Expose()
-    hlsUrl: string;
+    hlsUrl?: string;
 
     @IsNotEmpty()
     @IsArray()
@@ -22,5 +22,5 @@ export class MediaDto {
     @IsArray()
     @Type(() => MediaUploadDataDto)
     @Expose()
-    uploadData: MediaUploadDataDto[];
+    uploadData?: MediaUploadDataDto[];
 }
