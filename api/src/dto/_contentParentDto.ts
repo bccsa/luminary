@@ -28,5 +28,5 @@ export class _contentParentDto extends _contentBaseDto {
     @ValidateNested()
     @Type(() => MediaDto)
     @Expose()
-    media: MediaDto;
+    media?: MediaDto;
 }
