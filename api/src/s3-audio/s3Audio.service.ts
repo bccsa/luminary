@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as Minio from "minio";
-import { AudioS3Config } from "src/configuration";
+import { AudioS3Config } from "../configuration";
 
 @Injectable()
 export class S3AudioService {
@@ -21,6 +21,16 @@ export class S3AudioService {
     }
 
     /**
+     * Get the public URL for an object in the audio bucket
+     */
+    public getAudioUrl(key: string): string {
+        if (!this.audioBucket) {
+            throw new Error("Audio bucket is not configured");
+        }
+        return `${this.audioS3Config.endpoint}/${this.audioBucket}/${key}`;
+    }
+
+    /**
      * Get the configured audio bucket name
      */
     public get audioBucket() {
@@ -35,7 +45,7 @@ export class S3AudioService {
     }
 
     /**
-     * Uploads a file to an S3 bucket
+     * Uploads a file to Audio S3 bucket
      */
     public async uploadFile(bucket: string, key: string, file: Buffer, mimetype: string) {
         const metadata = {
