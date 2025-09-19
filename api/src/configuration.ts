@@ -38,6 +38,15 @@ export type S3Config = {
     imageQuality: number;
 };
 
+export type AudioS3Config = {
+    endpoint: string;
+    port: number;
+    useSSL: boolean;
+    accessKey: string;
+    secretKey: string;
+    audioBucket: string;
+};
+
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
 };
@@ -45,6 +54,7 @@ export type SocketIoConfig = {
 export type Configuration = {
     permissionMap: string;
     s3?: S3Config;
+    s3Audio?: AudioS3Config;
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
@@ -71,6 +81,14 @@ export default () =>
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,
+        s3Audio: {
+            endpoint: process.env.S3_ENDPOINT,
+            port: parseInt(process.env.S3_PORT, 10),
+            useSSL: process.env.S3_USE_SSL === "true",
+            accessKey: process.env.S3_ACCESS_KEY,
+            secretKey: process.env.S3_SECRET_KEY,
+            audioBucket: process.env.S3_AUDIO_BUCKET,
+        } as AudioS3Config,
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
