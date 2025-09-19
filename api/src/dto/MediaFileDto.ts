@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 import { Expose } from "class-transformer";
+import { MediaType } from "../enums";
 
 /**
  * Database structured MediaFile object
@@ -23,7 +24,7 @@ export class MediaFileDto {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    mediaType: MediaFileDto;
+    mediaType: MediaType;
 
     @IsNumber()
     @Expose()

@@ -4,18 +4,25 @@ import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
 import { processImage } from "./processImageDto";
+import { S3Service } from "../../s3/s3.service";
+import { S3AudioService } from "../../s3-audio/s3Audio.service";
+import { processMedia } from "../../s3-audio/s3.audiohandling";
 
 /**
  * Process Post / Tag DTO
  * @param doc
  * @param prevDoc
  * @param db
+ * @param s3
+ * @param s3Audio
  * @returns warnings from image processing
  */
 export default async function processPostTagDto(
     doc: PostDto | TagDto,
     prevDoc: PostDto | TagDto,
     db: DbService,
+    s3: S3Service,
+    s3Audio: S3AudioService,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
@@ -71,6 +78,15 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
+    // Process audio uploads
+    if (doc.media) {
+        const audioWarnings = await processMedia(doc.media, prevDoc?.media, s3Audio);
+        if (audioWarnings && audioWarnings.length > 0) {
+            warnings.push(...audioWarnings);
+        }
+        delete (doc as any).media; // Remove the legacy audio field
+    }
+
     // Get content documents that are children of the Post / Tag document
     // and copy essential properties from the Post / Tag document to the child content document
     const contentDocs = await db.getContentByParentId(doc._id);
@@ -79,6 +95,7 @@ export default async function processPostTagDto(
         contentDoc.parentTags = doc.tags;
         contentDoc.parentImageData = doc.imageData;
         contentDoc.parentImageBucketId = doc.imageBucketId;
+        contentDoc.parentMedia = doc.media;
 
         if (doc.type == DocType.Post) {
             contentDoc.parentPostType = (doc as PostDto).postType;

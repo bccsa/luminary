@@ -1,4 +1,5 @@
 import { DbService } from "../../db/db.service";
+import { S3Service } from "../../s3/s3.service";
 import { PostDto } from "../../dto/PostDto";
 import { createTestingModule } from "../../test/testingModule";
 import { PermissionSystem } from "../../permissions/permissions.service";
@@ -6,20 +7,24 @@ import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { DocType } from "../../enums";
-import { processImage } from "./processImageDto";
+import { processImage } from "../../s3/s3.imagehandling";
+import { S3AudioService } from "../../s3-audio/s3Audio.service";
 
-// Mock processImage from processImageDto
-// Mock processImage from processImageDto
-jest.mock("./processImageDto", () => ({
-    processImage: jest.fn().mockResolvedValue([]),
+// Mock processImage from s3.imagehandling
+jest.mock("../../s3/s3.imagehandling", () => ({
+    processImage: jest.fn(),
 }));
 
 describe("processPostTagDto", () => {
     let db: DbService;
+    let s3: S3Service;
+    let s3Audio: S3AudioService;
 
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-post-tag-dto");
         db = testingModule.dbService;
+        s3 = testingModule.s3Service;
+        s3Audio = testingModule.s3AudioService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
@@ -40,7 +45,7 @@ describe("processPostTagDto", () => {
         expect(contentRes1.docs.length).toBe(1);
 
         postChangeRequest.doc.deleteReq = 1;
-        await processChangeRequest("", postChangeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", postChangeRequest, ["group-super-admins"], db, s3, s3Audio);
 
         const postRes2 = await db.getDoc(postChangeRequest.doc._id);
         const contentRes2 = await db.getDoc(contentChangeRequest.doc._id);
@@ -68,6 +73,8 @@ describe("processPostTagDto", () => {
             changeRequest,
             ["group-super-admins"],
             db,
+            s3,
+            s3Audio,
         );
 
         expect(processResult.result.ok).toBe(true);
@@ -92,6 +99,8 @@ describe("processPostTagDto", () => {
             changeRequest,
             ["group-super-admins"],
             db,
+            s3,
+            s3Audio,
         );
 
         expect(processResult.result.ok).toBe(true);
@@ -100,12 +109,12 @@ describe("processPostTagDto", () => {
     it("can store the id's of tagged documents to the taggedDocs / parentTaggedDocs property of the tag document and it's content documents", async () => {
         // Ensure that the test doc is in it's original state (as an existing document)
         const changeRequest1 = changeRequest_post();
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3, s3Audio);
 
         const changeRequest = changeRequest_post();
         changeRequest.doc.tags = ["tag-category2", "tag-topicA"]; // This will remove tag-category1 from the tag and add tag-category2
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
 
         const category1 = await db.getDoc("tag-category1");
         const category2 = await db.getDoc("tag-category2");
@@ -130,7 +139,7 @@ describe("processPostTagDto", () => {
         changeRequest2.doc._id = "post-blog3";
         changeRequest2.doc.tags = ["tag-category2", "tag-topicA"]; // This will remove tag-category1 from the tag and add tag-category2
 
-        await processChangeRequest("", changeRequest2, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest2, ["group-super-admins"], db, s3, s3Audio);
 
         const category1_2 = await db.getDoc("tag-category1");
         const category2_2 = await db.getDoc("tag-category2");
@@ -163,20 +172,41 @@ describe("processPostTagDto", () => {
         // Create the initial post document
         const changeRequest1 = changeRequest_post();
         changeRequest1.doc._id = "post-blog3";
-        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest(
+            "test-user",
+            changeRequest1,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
 
         // Create the initial content document
         const changeRequest2 = changeRequest_content();
         changeRequest2.doc.parentId = "post-blog3";
         changeRequest2.doc._id = "content-en";
         changeRequest2.doc.language = "lang-eng";
-        await processChangeRequest("test-user", changeRequest2, ["group-super-admins"], db);
+        await processChangeRequest(
+            "test-user",
+            changeRequest2,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
 
         // Mark the post document for deletion
         const changeRequest3 = changeRequest_post();
         changeRequest3.doc._id = "post-blog3";
         changeRequest3.doc.deleteReq = 1;
-        await processChangeRequest("test-user", changeRequest3, ["group-super-admins"], db);
+        await processChangeRequest(
+            "test-user",
+            changeRequest3,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
 
         // Fetch the documents from the database
         const dbPost = await db.getDoc("post-blog3");
@@ -208,42 +238,19 @@ describe("processPostTagDto", () => {
             ],
         };
 
-        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
-        expect(processImage).toHaveBeenCalledWith(
-            (changeRequest.doc as PostDto).imageData,
-            undefined,
-            db,
-            "storage-bucket-1", // imageBucketId from changeRequest_post()
-            undefined, // prevImageBucketId
-        );
-    });
-
-    it("returns warning when no imageBucketId is provided for image processing", async () => {
-        const changeRequest = changeRequest_post();
-        changeRequest.doc._id = "post-blog4";
-        (changeRequest.doc as PostDto).imageData = {
-            fileCollections: [
-                {
-                    aspectRatio: 1,
-                    imageFiles: [{ filename: "test-blog-image.jpg", height: 1, width: 1 }],
-                },
-            ],
-        };
-        delete (changeRequest.doc as PostDto).imageBucketId; // Remove imageBucketId to simulate missing bucket ID
-
-        // Ensure previous tests' calls to the mocked processImage do not affect this assertion
-        (processImage as jest.Mock).mockClear();
-
-        const processResult = await processChangeRequest(
+        await processChangeRequest(
             "test-user",
             changeRequest,
             ["group-super-admins"],
             db,
+            s3,
+            s3Audio,
         );
-
-        expect(processResult.result.ok).toBe(true);
-        expect(processResult.warnings).toContain("Bucket is not specified for image processing.");
-        expect(processImage).toHaveBeenCalled();
+        expect(processImage).toHaveBeenCalledWith(
+            (changeRequest.doc as PostDto).imageData,
+            undefined,
+            s3,
+        );
     });
 
     it("can remove images from S3 when a post/tag document is marked for deletion", async () => {
@@ -258,18 +265,31 @@ describe("processPostTagDto", () => {
             ],
         };
 
-        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest(
+            "test-user",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
 
         // Mark the post document for deletion
         const deleteRequest = JSON.parse(JSON.stringify(changeRequest)) as ChangeReqDto;
         deleteRequest.doc.deleteReq = 1;
-        await processChangeRequest("test-user", deleteRequest, ["group-super-admins"], db);
+        await processChangeRequest(
+            "test-user",
+            deleteRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
 
         expect(processImage).toHaveBeenCalledWith(
             { fileCollections: [] }, // Empty fileCollections to remove the image from S3
             (changeRequest.doc as PostDto).imageData,
-            db,
-            "storage-bucket-1", // prevDoc?.imageBucketId - Delete from the bucket where files currently exist
+            s3,
         );
     });
 });

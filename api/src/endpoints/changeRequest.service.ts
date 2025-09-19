@@ -9,6 +9,8 @@ import configuration, { Configuration } from "../configuration";
 import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
+import { S3Service } from "../s3/s3.service";
+import { S3AudioService } from "../s3-audio/s3Audio.service";
 
 @Injectable()
 export class ChangeRequestService {
@@ -20,6 +22,8 @@ export class ChangeRequestService {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
+        private s3: S3Service,
+        private s3Audio: S3AudioService,
     ) {
         // Create config object with environmental variables
         this.config = configuration();
@@ -34,6 +38,8 @@ export class ChangeRequestService {
             changeRequest,
             userDetails.groups,
             this.db,
+            this.s3,
+            this.s3Audio,
         )
             .then(async (result) => {
                 const ack = await this.upsertDocAck(

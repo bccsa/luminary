@@ -14,6 +14,8 @@ import {
     changeRequest_language,
     changeRequest_group,
 } from "../test/changeRequestDocuments";
+import { S3Service } from "../s3/s3.service";
+import { S3AudioService } from "../s3-audio/s3Audio.service";
 
 jest.mock("./documentProcessing/processContentDto", () => ({
     __esModule: true,
@@ -37,6 +39,8 @@ jest.mock("./documentProcessing/processGroupDto", () => ({
 
 describe("processChangeRequest", () => {
     let db: DbService;
+    let s3: S3Service;
+    let s3Audio: S3AudioService;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -45,6 +49,8 @@ describe("processChangeRequest", () => {
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-change-request");
         db = testingModule.dbService;
+        s3 = testingModule.s3Service;
+        s3Audio = testingModule.s3AudioService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
@@ -54,7 +60,14 @@ describe("processChangeRequest", () => {
             doc: {},
         };
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db).catch((err) => {
+        await processChangeRequest(
+            "",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        ).catch((err) => {
             expect(err.message).toBe(
                 `Submitted "undefined" document validation failed:\nInvalid document type`,
             );
@@ -92,12 +105,14 @@ describe("processChangeRequest", () => {
                 },
             },
         };
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3, s3Audio);
         const processResult = await processChangeRequest(
             "",
             changeRequest2,
             ["group-super-admins"],
             db,
+            s3,
+            s3Audio,
         );
         await waitForExpect(() => {
             expect(processResult.result.message).toBe(
@@ -123,31 +138,31 @@ describe("processChangeRequest", () => {
                 status: "draft",
             },
         };
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
         expect(processContentDto).toHaveBeenCalled();
     });
 
     it("calls processPostTagDto when processing a post change request", async () => {
         const changeRequest = changeRequest_post();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
         expect(processPostTagDto).toHaveBeenCalled();
     });
 
     it("calls processPostTagDto when processing a tag change request", async () => {
         const changeRequest = changeRequest_tag();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
         expect(processPostTagDto).toHaveBeenCalled();
     });
 
     it("calls processLanguageDto when processing a language change request", async () => {
         const changeRequest = changeRequest_language();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
         expect(processLanguageDto).toHaveBeenCalled();
     });
 
     it("calls processGroupDto when processing a group change request", async () => {
         const changeRequest = changeRequest_group();
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
         expect(processGroupDto).toHaveBeenCalled();
     });
 });

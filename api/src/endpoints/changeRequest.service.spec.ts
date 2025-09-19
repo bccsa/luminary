@@ -22,7 +22,7 @@ describe("ChangeRequest service", () => {
         }`;
 
         service = (await createTestingModule("changereq-service")).dbService;
-        changeRequestService = new ChangeRequestService(undefined, service);
+        changeRequestService = new ChangeRequestService(undefined, service, undefined, undefined);
     });
 
     afterAll(async () => {

@@ -4,17 +4,23 @@ import { createTestingModule } from "../../test/testingModule";
 import { processChangeRequest } from "../processChangeRequest";
 import { PermissionSystem } from "../../permissions/permissions.service";
 import { changeRequest_content } from "../../test/changeRequestDocuments";
+import { S3Service } from "../../s3/s3.service";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { PostDto } from "../../dto/PostDto";
 import { PublishStatus } from "../../enums";
 import { TagDto } from "../../dto/TagDto";
+import { S3AudioService } from "../../s3-audio/s3Audio.service";
 
 describe("processContentDto", () => {
     let db: DbService;
+    let s3: S3Service;
+    let s3Audio: S3AudioService;
 
     beforeAll(async () => {
         const testingModule = await createTestingModule("process-content-dto");
         db = testingModule.dbService;
+        s3 = testingModule.s3Service;
+        s3Audio = testingModule.s3AudioService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
     });
 
@@ -24,7 +30,14 @@ describe("processContentDto", () => {
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = "this-is-a-test-slug";
 
-        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        const res = await processChangeRequest(
+            "",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(res.result.ok).toBe(true);
@@ -37,8 +50,15 @@ describe("processContentDto", () => {
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = "this-is-a-test-slug";
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db); // ensure that the slug is already in use
-        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio); // ensure that the slug is already in use
+        const res = await processChangeRequest(
+            "",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(res.result.ok).toBe(true);
@@ -51,7 +71,7 @@ describe("processContentDto", () => {
         changeRequest1.doc.parentId = "post-blog1";
         changeRequest1.doc._id = "test-slug-1";
         changeRequest1.doc.slug = "this-is-a-test-slug";
-        await processChangeRequest("", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest1, ["group-super-admins"], db, s3, s3Audio);
 
         // Create a new change request with the same slug
         const changeRequest2 = changeRequest_content();
@@ -59,7 +79,14 @@ describe("processContentDto", () => {
         changeRequest2.doc._id = "test-slug-2";
         changeRequest2.doc.slug = "this-is-a-test-slug";
 
-        const res = await processChangeRequest("", changeRequest2, ["group-super-admins"], db);
+        const res = await processChangeRequest(
+            "",
+            changeRequest2,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
         const dbDoc = await db.getDoc(changeRequest2.doc._id);
 
         expect(res.result.ok).toBe(true);
@@ -72,7 +99,14 @@ describe("processContentDto", () => {
         changeRequest.doc._id = "test-slug-1";
         changeRequest.doc.slug = 'Invalid Slug! 123 無效的 Bør ikke være tilladt "#$%&/()=?`';
 
-        const res = await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        const res = await processChangeRequest(
+            "",
+            changeRequest,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(res.result.ok).toBe(true);
@@ -88,7 +122,7 @@ describe("processContentDto", () => {
         delete changeRequest.doc.parentPostType;
         delete changeRequest.doc.parentPublishDateVisible;
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
@@ -118,7 +152,7 @@ describe("processContentDto", () => {
         delete changeRequest.doc.parentPublishDateVisible;
         delete changeRequest.doc.parentTaggedDocs;
 
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
         const dbDoc = await db.getDoc(changeRequest.doc._id);
 
         expect(dbDoc.docs[0].memberOf).toEqual(["group-public-content"]);
@@ -144,7 +178,7 @@ describe("processContentDto", () => {
         };
 
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
-        await processChangeRequest("", changeRequest, ["group-super-admins"], db);
+        await processChangeRequest("", changeRequest, ["group-super-admins"], db, s3, s3Audio);
 
         const res = await db.getContentByParentId(changeRequest.doc._id);
         const docsCount = res.docs.length;
@@ -175,7 +209,14 @@ describe("processContentDto", () => {
         changeRequest1.doc.parentId = "post-blog1";
         changeRequest1.doc._id = "content-en";
         changeRequest1.doc.language = "lang-eng";
-        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest(
+            "test-user",
+            changeRequest1,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
 
         // Add a new translation for the same parent
         const changeRequest2 = changeRequest_content();
@@ -187,6 +228,8 @@ describe("processContentDto", () => {
             changeRequest2,
             ["group-super-admins"],
             db,
+            s3,
+            s3Audio,
         );
 
         // Fetch the documents from the database
@@ -210,7 +253,14 @@ describe("processContentDto", () => {
         changeRequest1.doc._id = "content-en";
         changeRequest1.doc.language = "lang-eng";
         changeRequest1.doc.status = PublishStatus.Published;
-        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest(
+            "test-user",
+            changeRequest1,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
 
         // Add a new translation for the same parent
         const changeRequest2 = changeRequest_content();
@@ -223,6 +273,8 @@ describe("processContentDto", () => {
             changeRequest2,
             ["group-super-admins"],
             db,
+            s3,
+            s3Audio,
         );
 
         // Fetch the documents from the database
@@ -240,7 +292,14 @@ describe("processContentDto", () => {
 
         // Update the English content document to draft
         changeRequest1.doc.status = PublishStatus.Draft;
-        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db);
+        await processChangeRequest(
+            "test-user",
+            changeRequest1,
+            ["group-super-admins"],
+            db,
+            s3,
+            s3Audio,
+        );
 
         // Fetch the documents from the database
         const dbDocEn2 = await db.getDoc("content-en");
