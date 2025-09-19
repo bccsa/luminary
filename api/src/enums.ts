@@ -121,3 +121,20 @@ export enum StorageType {
     Image = "image",
     Media = "media",
 }
+
+/**
+ * Media types
+ */
+export enum MediaType {
+    Audio = "audio",
+    Video = "video",
+}
+
+/**
+ * Media encoding presets
+ */
+export enum MediaPreset {
+    Speech = "speech",
+    Music = "music",
+    Default = "default",
+}
