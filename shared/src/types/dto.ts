@@ -5,12 +5,11 @@ import type {
     PostType,
     RedirectType,
     DeleteReason,
+    MediaType,
+    MediaPreset,
+    AclPermission,
+    AckStatus,
 } from "../types";
-
-export enum AckStatus {
-    Accepted = "accepted",
-    Rejected = "rejected",
-}
 
 export type Uuid = string;
 
@@ -39,15 +38,6 @@ export type BaseDocumentDto = {
     deleteReq?: number;
     updatedBy?: string;
 };
-
-export enum AclPermission {
-    View = "view",
-    Edit = "edit",
-    Delete = "delete",
-    Assign = "assign",
-    Translate = "translate",
-    Publish = "publish",
-}
 
 export type GroupAclEntryDto = {
     type: DocType;
@@ -91,8 +81,6 @@ export type ContentDto = ContentBaseDto & {
     publishDate?: number;
     expiryDate?: number;
     localisedImage?: Uuid;
-    audio?: Uuid;
-    video?: Uuid;
     author?: string;
     summary?: string;
     text?: string;
@@ -107,12 +95,14 @@ export type ContentDto = ContentBaseDto & {
     parentPinned?: number;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
+    parentMedia?: MediaDto;
 };
 
 export type ContentParentDto = ContentBaseDto & {
     imageData?: ImageDto;
     tags: Uuid[];
     publishDateVisible: boolean;
+    media?: MediaDto;
 };
 
 export type PostDto = ContentParentDto & {
@@ -157,6 +147,26 @@ export type ImageUploadDto = {
     fileData: ArrayBuffer;
     preset: string;
     filename?: string;
+};
+
+export type MediaDto = {
+    hlsUrl?: string;
+    fileCollections: MediaFileDto[];
+    uploadData?: MediaUploadDataDto[];
+};
+
+export type MediaFileDto = {
+    languageId: string;
+    fileUrl: string;
+    bitrate: number;
+    mediaType: MediaType;
+    processingProgress?: number;
+};
+
+export type MediaUploadDataDto = {
+    fileData: ArrayBuffer;
+    mediaType: MediaType;
+    preset?: MediaPreset;
 };
 
 export type ChangeReqDto = {
