@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { DbService } from "../db/db.service";
 import { S3Service } from "../s3/s3.service";
 import { ConfigService } from "@nestjs/config";
-import { DatabaseConfig, S3Config, SyncConfig } from "../configuration";
+import { AudioS3Config, DatabaseConfig, S3Config, SyncConfig } from "../configuration";
 import * as nano from "nano";
 import { upsertDesignDocs, upsertSeedingDocs } from "../db/db.seedingFunctions";
 import { Socketio } from "../socketio";
@@ -10,10 +10,12 @@ import { jest } from "@jest/globals";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { WinstonModule } from "nest-winston";
 import * as winston from "winston";
+import { S3AudioService } from "../s3-audio/s3Audio.service";
 
 export type testingModuleOptions = {
     dbName?: string;
     s3ImageBucket?: string;
+    s3AudioBucket?: string;
 };
 
 /**
@@ -48,6 +50,7 @@ export async function createTestingModule(testName: string) {
             DbService,
             Socketio,
             S3Service,
+            S3AudioService,
             {
                 provide: ConfigService,
                 useValue: {
@@ -74,6 +77,16 @@ export async function createTestingModule(testName: string) {
                                 secretKey: process.env.S3_SECRET_KEY,
                             } as S3Config;
                         }
+
+                        if (key == "s3-audio") {
+                            return {
+                                endpoint: process.env.S3_ENDPOINT ?? "localhost",
+                                port: parseInt(process.env.S3_PORT, 10) ?? 9000,
+                                useSSL: process.env.S3_USE_SSL === "true",
+                                accessKey: process.env.S3_ACCESS_KEY,
+                                secretKey: process.env.S3_SECRET_KEY,
+                            } as AudioS3Config;
+                        }
                     }),
                 },
             },
@@ -90,10 +103,12 @@ export async function createTestingModule(testName: string) {
 
     // Create S3 Service
     const s3Service = testingModule.get<S3Service>(S3Service);
+    const s3AudioService = testingModule.get<S3AudioService>(S3AudioService);
 
     return {
         dbService,
         testingModule,
         s3Service,
+        s3AudioService,
     };
 }
