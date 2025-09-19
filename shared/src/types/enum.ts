@@ -52,3 +52,28 @@ export enum StorageStatus {
     Checking = "checking",
     Unknown = "unknown",
 }
+
+export enum AckStatus {
+    Accepted = "accepted",
+    Rejected = "rejected",
+}
+
+export enum AclPermission {
+    View = "view",
+    Edit = "edit",
+    Delete = "delete",
+    Assign = "assign",
+    Translate = "translate",
+    Publish = "publish",
+}
+
+export enum MediaType {
+    Audio = "audio",
+    Video = "video",
+}
+
+export enum MediaPreset {
+    Speech = "speech",
+    Music = "music",
+    Default = "default",
+}
