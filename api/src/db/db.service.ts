@@ -35,23 +35,6 @@ export type GetDocsOptions = {
     contentOnly?: boolean;
 };
 
-export type SearchOptions = {
-    userAccess: Map<DocType, Uuid[]>; // Map of document types and the user's access to them
-    types?: Array<DocType>;
-    groups?: Array<string>;
-    from?: number;
-    to?: number;
-    limit?: number;
-    sort?: Array<{ [key: string]: "asc" | "desc" }>;
-    offset?: number;
-    contentOnly?: boolean;
-    queryString?: string;
-    languages?: string[];
-    docId?: Uuid;
-    slug?: string;
-    parentId?: string;
-};
-
 /**
  * Standardized format for database query results
  * @param {Array<any>} docs - Array of database returned documents
