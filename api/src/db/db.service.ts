@@ -780,7 +780,7 @@ export class DbService extends EventEmitter {
         const keys = [email];
         if (userId) keys.push(userId);
 
-        const res = await this.db.view("user-email-userId-view", "user-email-userId-view", {
+        const res = await this.db.view("view-user-email-userId", "view-user-email-userId", {
             keys,
             include_docs: true,
         });
