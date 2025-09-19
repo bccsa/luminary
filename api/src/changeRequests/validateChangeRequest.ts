@@ -35,6 +35,7 @@ const DocTypeMap = {
  * @param groupMembership
  * @param dbService
  * @param s3Service
+ * @param AudioService
  */
 export async function validateChangeRequest(
     data: any,
