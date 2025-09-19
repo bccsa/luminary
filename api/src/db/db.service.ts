@@ -16,7 +16,7 @@ import { ContentDto } from "../dto/ContentDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
 import { RedirectDto } from "../dto/RedirectDto";
-import { calcGroups, type SearchOptions } from "./search";
+import { calcGroups, type SearchOptions } from "./db.searchFunctions";
 
 /**
  * @typedef {Object} - getDocsOptions

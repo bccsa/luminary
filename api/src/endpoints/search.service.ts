@@ -6,7 +6,7 @@ import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 import { processJwt } from "../jwt/processJwt";
 import { SearchReqDto } from "../dto/SearchReqDto";
-import { SearchOptions } from "../db/search";
+import { SearchOptions } from "../db/db.searchFunctions";
 
 @Injectable()
 export class SearchService {

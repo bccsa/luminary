@@ -5,7 +5,7 @@ import { createTestingModule } from "../test/testingModule";
 import { PostDto } from "../dto/PostDto";
 import waitForExpect from "wait-for-expect";
 import { DeleteCmdDto } from "../dto/DeleteCmdDto";
-import { SearchOptions } from "./search";
+import { SearchOptions } from "./db.searchFunctions";
 
 describe("DbService", () => {
     let service: DbService;
