@@ -16,6 +16,7 @@ export type SearchOptions = {
     languages?: string[];
     docId?: Uuid;
     slug?: string;
+    parentId?: string;
 };
 
 /**
