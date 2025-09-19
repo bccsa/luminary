@@ -10,7 +10,7 @@ export class MediaFileDto {
     @Expose()
     languageId: string;
 
-    @IsOptional()
+    @IsNotEmpty()
     @IsString()
     @Expose()
     fileUrl: string;
@@ -23,10 +23,10 @@ export class MediaFileDto {
     @IsString()
     @IsNotEmpty()
     @Expose()
-    mediaType: "audio" | "video";
+    mediaType: MediaFileDto;
 
     @IsNumber()
     @Expose()
     @IsOptional()
-    processingProgress: number;
+    processingProgress?: number;
 }
