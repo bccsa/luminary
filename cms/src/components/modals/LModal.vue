@@ -12,9 +12,9 @@ const isVisible = defineModel<boolean>("isVisible");
 // Prevent body scroll when modal is open
 watch(isVisible, (visible) => {
     if (visible) {
-        document.body.style.overflow = "hidden";
+        document.documentElement.style.overflow = "hidden";
     } else {
-        document.body.style.overflow = "";
+        document.documentElement.style.overflow = "";
     }
 });
 </script>
@@ -31,6 +31,8 @@ watch(isVisible, (visible) => {
             <!-- Modal content at higher z-index -->
             <div
                 class="relative z-50 max-h-screen w-full max-w-md rounded-lg bg-white/90 p-5 shadow-xl"
+                @wheel.stop
+                @touchmove.stop
             >
                 <h2 class="mb-4 text-lg font-semibold">{{ heading }}</h2>
                 <div class="divide-y divide-zinc-200">
