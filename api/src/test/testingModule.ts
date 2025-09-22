@@ -78,7 +78,7 @@ export async function createTestingModule(testName: string) {
                             } as S3Config;
                         }
 
-                        if (key == "s3-audio") {
+                        if (key == "s3Audio") {
                             return {
                                 endpoint: process.env.S3_ENDPOINT ?? "localhost",
                                 port: parseInt(process.env.S3_PORT, 10) ?? 9000,
