@@ -3,11 +3,7 @@ import { MediaUploadDataDto } from "src/dto/MediaUploadDataDto";
 import { S3AudioService } from "./s3Audio.service";
 import * as musicMeta from "music-metadata";
 
-export async function processMedia(
-    media: MediaDto,
-    prevMedia: MediaDto,
-    s3Audio: S3AudioService,
-): Promise<string[]> {
+export async function processMedia(media: MediaDto, s3Audio: S3AudioService): Promise<string[]> {
     const warnings: string[] = [];
 
     try {
@@ -122,9 +118,7 @@ async function validateSingleAudio(
 
         // Try to process a test version to ensure the image data is valid
         // This doesn't actually upload, just validates the data can be processed
-        const metadata = await musicMeta.parseBuffer(Buffer.from(uploadData.fileData), undefined, {
-            duration: false,
-        });
+        const metadata = await musicMeta.parseBuffer(Buffer.from(uploadData.fileData));
 
         if (!metadata.format || !metadata.format.container) {
             warnings.push(audioFailureMessage + "Uploaded file is not a valid audio format\n");
