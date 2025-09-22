@@ -34,7 +34,7 @@ describe("S3AudioHandler", () => {
             {
                 fileData: fs.readFileSync(
                     path.resolve(__dirname + "/../test/" + "silence.wav"),
-                ) as unknown as Buffer,
+                ) as unknown as ArrayBuffer,
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
             },
@@ -56,7 +56,7 @@ describe("S3AudioHandler", () => {
             {
                 fileData: fs.readFileSync(
                     path.resolve(__dirname + "/../test/" + "silence.wav"),
-                ) as unknown as Buffer,
+                ) as unknown as ArrayBuffer,
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
             },
