@@ -34,12 +34,15 @@ const isEditContentPage = router.currentRoute.value.name === "edit";
 
 <template>
     <div class="flex h-full min-h-screen flex-col scrollbar-hide">
-        <MobileSideBar v-model:open="sidebarOpen" />
-
+        <KeepAlive>
+            <MobileSideBar v-model:open="sidebarOpen" />
+        </KeepAlive>
         <div
             class="absolute bottom-0 left-0 top-0 hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col"
         >
-            <SideBar />
+            <KeepAlive>
+                <SideBar />
+            </KeepAlive>
         </div>
 
         <div class="sticky top-0 z-20 lg:pl-72">
