@@ -20,8 +20,14 @@ export function IsAudio() {
                         const mm = await import("music-metadata");
                         const mmEsm = await (mm as unknown as MusicMetadata).parserBuffer();
 
+                        // Convert value to Uint8Array if it's an ArrayBuffer or Buffer
+                        const audioBuffer =
+                            value instanceof ArrayBuffer
+                                ? new Uint8Array(value)
+                                : new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+
                         // value should be a Buffer or readable stream
-                        const metadata = await mmEsm.parseBuffer(Buffer.from(value));
+                        const metadata = await mmEsm.parseBuffer(audioBuffer);
 
                         // Check if it's an audio file
                         return (
