@@ -215,6 +215,8 @@ const toggleDropdown = () => {
                     'w-96': $slots.actions && !isSmallScreen,
                 }"
                 data-test="options"
+                @wheel.stop
+                @touchmove.stop
             >
                 <li
                     name="list-item"
