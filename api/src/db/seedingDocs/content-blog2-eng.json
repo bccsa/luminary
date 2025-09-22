@@ -10,12 +10,11 @@
     "author": "ChatGPT",
     "text": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"When young Oliver moved from the bustling city to a quiet town in a distant country, he felt lost and lonely. The language was different, the streets unfamiliar, and the faces foreign. However, fate had a heartwarming surprise in store for him. One sunny afternoon, while exploring the cobblestone lanes, Oliver spotted a group of kids playing soccer in a makeshift field. Hesitant but eager for connection, he approached them.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"To his delight, a boy named Luca greeted him with a warm smile, effortlessly bridging the gap between their worlds. Though their languages differed, the universal joy of childhood transcended any barriers. Luca became Oliver's guide to the town, showing him secret hideouts, sharing local treats, and teaching him phrases in their shared laughter-filled language.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"In the simplicity of friendship, Oliver found a new home. Together, they navigated the charming town, creating memories that painted the canvas of Oliver's new life. The small town, once foreign, now echoed with the laughter of two friends who proved that no matter where you are, the warmth of companionship can turn unfamiliarity into the sweet melody of belonging.\"}]}]}",
     "localisedImage": null,
-    "audio": null,
-    "video": null,
     "publishDate": 1704114000000,
     "parentId": "post-blog2",
     "parentType": "post",
     "parentTags": ["tag-category1", "tag-topicA"],
     "parentPostType": "blog",
-    "parentPublishDateVisible": true
+    "parentPublishDateVisible": true,
+    "parentMedia": "{}"
 }
