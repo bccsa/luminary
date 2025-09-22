@@ -16,6 +16,7 @@ export type SyncConfig = {
 export type Configuration = {
     permissionMap: string;
     s3?: S3Config;
+    s3Audio?: AudioS3Config;
     auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
