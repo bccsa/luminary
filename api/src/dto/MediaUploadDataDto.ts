@@ -10,7 +10,7 @@ export class MediaUploadDataDto {
     @IsNotEmpty()
     @Expose()
     @IsAudio()
-    fileData: Buffer;
+    fileData: ArrayBuffer;
 
     @IsString()
     @IsNotEmpty()
