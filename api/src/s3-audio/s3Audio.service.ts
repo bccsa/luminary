@@ -9,7 +9,7 @@ export class S3AudioService {
     audioS3Config: AudioS3Config;
 
     constructor(private configService: ConfigService) {
-        this.audioS3Config = this.configService.get<AudioS3Config>("s3-audio");
+        this.audioS3Config = this.configService.get<AudioS3Config>("s3Audio");
 
         this.client = new Minio.Client({
             endPoint: this.audioS3Config.endpoint,
