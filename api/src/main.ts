@@ -6,6 +6,7 @@ import { DbService } from "./db/db.service";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
 import { S3Service } from "./s3/s3.service";
+import { S3AudioService } from "./s3-audio/s3Audio.service";
 import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
@@ -28,6 +29,8 @@ async function bootstrap() {
     });
 
     const dbService = app.get(DbService);
+    const s3Service = app.get(S3Service);
+    const s3AudioService = app.get(S3AudioService);
 
     // Create or update database design docs on api startup
     await upsertDesignDocs(dbService);
@@ -46,7 +49,7 @@ async function bootstrap() {
     S3Service.initializeChangeListener(dbService);
 
     // Upgrade database schema if needed
-    await upgradeDbSchema(dbService);
+    await upgradeDbSchema(dbService, s3Service, s3AudioService);
 
     app.enableCors({
         origin: JSON.parse(process.env.CORS_ORIGIN),

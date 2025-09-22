@@ -80,7 +80,7 @@ export default async function processPostTagDto(
 
     // Process audio uploads
     if (doc.media) {
-        const audioWarnings = await processMedia(doc.media, prevDoc?.media, s3Audio);
+        const audioWarnings = await processMedia(doc.media, s3Audio);
         if (audioWarnings && audioWarnings.length > 0) {
             warnings.push(...audioWarnings);
         }

@@ -1,4 +1,6 @@
 import { DbService } from "./db.service";
+import { S3Service } from "../s3/s3.service";
+import { S3AudioService } from "../s3-audio/s3Audio.service";
 import v1 from "./schemaUpgrade/v1";
 import v2 from "./schemaUpgrade/v2";
 import v3 from "./schemaUpgrade/v3";
@@ -12,7 +14,7 @@ import v9 from "./schemaUpgrade/v9";
 /**
  * Upgrade the database schema
  */
-export async function upgradeDbSchema(db: DbService) {
+export async function upgradeDbSchema(db: DbService, s3: S3Service, s3Audio: S3AudioService) {
     // There are some considerations with this upgrade method:
     // If there are several instances of the API, they will all try to upgrade the database schema at the same time if they are all started at the same time.
     // It might be needed to add a lock mechanism to prevent this.
@@ -25,7 +27,7 @@ export async function upgradeDbSchema(db: DbService) {
         await v2(db);
 
         // Upgrade from schema version 2 to 3
-        await v3(db);
+        await v3(db, s3, s3Audio);
 
         // Upgrade from schema version 3 to 4
         await v4(db);
