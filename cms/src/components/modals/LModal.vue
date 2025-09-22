@@ -14,6 +14,9 @@ const isVisible = defineModel<boolean>("isVisible");
         <div
             class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-800 bg-opacity-50 p-2 backdrop-blur-sm"
             @click.self="isVisible = false"
+            @wheel.stop
+            @scroll.stop
+            @touchmove.stop
         >
             <!-- Modal content at higher z-index -->
             <div
