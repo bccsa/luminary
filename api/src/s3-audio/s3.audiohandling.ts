@@ -2,10 +2,29 @@ import { MediaDto } from "../dto/MediaDto";
 import { MediaUploadDataDto } from "src/dto/MediaUploadDataDto";
 import { S3AudioService } from "./s3Audio.service";
 
-export async function processMedia(media: MediaDto, s3Audio: S3AudioService): Promise<string[]> {
+export async function processMedia(
+    media: MediaDto,
+    prevMedia: MediaDto | undefined,
+    s3Audio: S3AudioService,
+): Promise<string[]> {
     const warnings: string[] = [];
 
     try {
+        // Handle prevMedia cleanup if needed
+        if (prevMedia) {
+            const prevFiles = new Set(prevMedia.fileCollections.map((f) => f.fileUrl));
+            const currentFiles = new Set(media.fileCollections.map((f) => f.fileUrl));
+            const removedFiles = [...prevFiles].filter((f) => !currentFiles.has(f));
+
+            if (removedFiles.length > 0) {
+                try {
+                    await s3Audio.removeObjects(s3Audio.audioBucket, removedFiles);
+                } catch (error) {
+                    warnings.push(`Failed to remove old audio files: ${error.message}`);
+                }
+            }
+        }
+
         if (media.uploadData) {
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
             media.uploadData.forEach((uploadData: MediaUploadDataDto) => {
