@@ -11,12 +11,11 @@
     "text": null,
     "seo": "",
     "localisedImage": null,
-    "audio": null,
-    "video": null,
     "publishDate": 1704114000000,
     "parentId": "tag-category2",
     "parentType": "tag",
     "parentTagType": "category",
     "parentTags": [],
-    "parentPublishDateVisible": true
+    "parentPublishDateVisible": true,
+    "parentMedia": "{}"
 }
