@@ -12,9 +12,9 @@ const isVisible = defineModel<boolean>("isVisible");
 // Prevent body scroll when modal is open
 watch(isVisible, (visible) => {
     if (visible) {
-        document.documentElement.style.overflow = "hidden";
+        document.body.style.overflow = "hidden";
     } else {
-        document.documentElement.style.overflow = "";
+        document.body.style.overflow = "";
     }
 });
 </script>
