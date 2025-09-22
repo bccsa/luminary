@@ -94,6 +94,8 @@ const toggleDropdown = () => {
         class="relative"
         :class="$attrs['class']"
         :style="$attrs['style'] as StyleValue"
+        @wheel.stop
+        @touchmove.stop
     >
         <div class="flex justify-between">
             <div class="mb-2 flex items-center gap-1">
@@ -215,6 +217,8 @@ const toggleDropdown = () => {
                     'w-96': $slots.actions && !isSmallScreen,
                 }"
                 data-test="options"
+                @wheel.stop
+                @touchmove.stop
             >
                 <li
                     name="list-item"
