@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LTeleport from "../common/LTeleport.vue";
+import { watch } from "vue";
 
 type Props = {
     heading: string;
@@ -7,6 +8,15 @@ type Props = {
 defineProps<Props>();
 
 const isVisible = defineModel<boolean>("isVisible");
+
+// Prevent body scroll when modal is open
+watch(isVisible, (visible) => {
+    if (visible) {
+        document.body.style.overflow = "hidden";
+    } else {
+        document.body.style.overflow = "";
+    }
+});
 </script>
 
 <template>
