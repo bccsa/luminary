@@ -8,7 +8,7 @@ describe("S3AudioService", () => {
     const testBucket = UUID();
 
     beforeAll(async () => {
-        service = (await createTestingModule("s3-audio-testing")).s3AudioService;
+        service = (await createTestingModule("s3-audio")).s3AudioService;
     });
 
     beforeEach(async () => {});
