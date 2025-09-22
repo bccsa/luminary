@@ -21,7 +21,7 @@ export function IsAudio() {
                         const mmEsm = await (mm as unknown as MusicMetadata).parserBuffer();
 
                         // value should be a Buffer or readable stream
-                        const metadata = await mmEsm.parseBuffer(value);
+                        const metadata = await mmEsm.parseBuffer(Buffer.from(value));
 
                         // Check if it's an audio file
                         return (
