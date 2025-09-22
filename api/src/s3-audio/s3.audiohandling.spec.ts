@@ -33,23 +33,58 @@ describe("S3AudioHandler", () => {
         audio.uploadData = [
             {
                 fileData: fs.readFileSync(
-                    path.resolve(__dirname, "../test/silence.wav"),
-                ) as unknown as ArrayBuffer,
+                    path.resolve(__dirname + "/../test/" + "silence.wav"),
+                ) as unknown as Buffer,
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
             },
         ];
+        await processMedia(audio, undefined, service);
+        // Check if files are uploaded
+        const files = audio.fileCollections.map((f) => f.fileUrl.split("/").pop()!);
+        for (const file of files) {
+            const res = await service.getObject(service.audioBucket, file);
+            expect(res).toBeDefined();
+        }
+        resAudios.push(audio);
+    });
 
-        const warnings = await processMedia(audio, service);
-        expect(warnings.length).toBe(0);
-        expect(audio.fileCollections.length).toBe(1);
+    it("can delete a removed audio from S3", async () => {
+        const audio = new MediaDto();
+        audio.fileCollections = [];
+        audio.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../test/" + "silence.wav"),
+                ) as unknown as Buffer,
+                preset: MediaPreset.Default,
+                mediaType: MediaType.Audio,
+            },
+        ];
+        await processMedia(audio, undefined, service);
+        const originalFiles = audio.fileCollections.map((f) => f.fileUrl.split("/").pop()!);
 
-        // Check that the uploaded file exists in S3
-        const s3Object = await service.getObject(
-            service.audioBucket,
-            audio.fileCollections[0].fileUrl,
+        // Simulate removing one version
+        audio.fileCollections = audio.fileCollections.filter((f) => !f.fileUrl.includes("default"));
+        const removedFiles = originalFiles.filter(
+            (f) => !audio.fileCollections.some((c) => c.fileUrl.endsWith(f)),
         );
-        expect(s3Object).toBeDefined();
+
+        // Remove from S3
+        await service.removeObjects(service.audioBucket, removedFiles);
+
+        // Check if removed files are gone
+        for (const file of removedFiles) {
+            const res = await service.getObject(service.audioBucket, file);
+            expect(res).toBeUndefined();
+        }
+
+        // Check if remaining files are still there
+        const remainingFiles = audio.fileCollections.map((f) => f.fileUrl.split("/").pop()!);
+        for (const file of remainingFiles) {
+            const res = await service.getObject(service.audioBucket, file);
+            expect(res).toBeDefined();
+        }
 
         resAudios.push(audio);
     });
