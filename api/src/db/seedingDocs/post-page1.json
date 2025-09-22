@@ -4,5 +4,6 @@
     "memberOf": ["group-public-content"],
     "tags": ["tag-category1", "tag-topicA"],
     "publishDateVisible": true,
-    "postType": "page"
+    "postType": "page",
+    "media": "{}"
 }
