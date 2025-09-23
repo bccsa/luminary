@@ -93,6 +93,12 @@ watch(liveParent, (parent) => {
         existingParent.value = _.cloneDeep(editableParent.value);
         waitForUpdate.value = false;
     }
+
+    if (waitForUpdate.value && parent && editableParent.value.media && !parent.media?.uploadData) {
+        editableParent.value.media = (parent as ContentParentDto).media;
+        existingParent.value = _.cloneDeep(editableParent.value);
+        waitForUpdate.value = false;
+    }
 });
 
 let icon = DocumentIcon;
@@ -349,7 +355,9 @@ const saveChanges = async () => {
 
 const save = async () => {
     if (
-        existingParent.value?.imageData?.uploadData !== editableParent.value.imageData?.uploadData
+        existingParent.value?.imageData?.uploadData !==
+            editableParent.value.imageData?.uploadData ||
+        existingParent.value?.media?.uploadData !== editableParent.value.media?.uploadData
     ) {
         waitForUpdate.value = true;
     }
