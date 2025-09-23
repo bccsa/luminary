@@ -39,8 +39,15 @@ const handleFiles = (files: FileList | null) => {
             }
 
             if (!parent.value) return;
-            if (!parent.value.media) parent.value.media = { fileCollections: [] };
-            if (!parent.value.media.uploadData) parent.value.media.uploadData = [];
+            if (!parent.value.media || parent.value.media === null) {
+                parent.value.media = { fileCollections: [], uploadData: [] };
+            }
+            if (!parent.value.media.fileCollections) {
+                parent.value.media.fileCollections = [];
+            }
+            if (!parent.value.media.uploadData) {
+                parent.value.media.uploadData = [];
+            }
 
             failureMessage.value = "";
 
@@ -186,9 +193,9 @@ defineExpose({
             </div>
 
             <!-- No images fallback -->
-            <!-- <div v-else class="my-4 text-center italic">
+            <div v-else class="my-4 text-center italic">
                 <p class="text-sm text-gray-500">No audios uploaded yet.</p>
-            </div> -->
+            </div>
         </div>
     </div>
 </template>
