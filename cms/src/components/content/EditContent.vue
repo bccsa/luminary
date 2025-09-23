@@ -32,7 +32,7 @@ import {
     ArrowUturnLeftIcon,
     TrashIcon,
 } from "@heroicons/vue/24/solid";
-import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/vue/24/outline";
+import { ChevronDownIcon, ChevronUpIcon, EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
@@ -620,8 +620,6 @@ const contentActions = ref([
 
         <template #topBarActionsMobile>
             <div class="flex items-center gap-2 lg:hidden">
-                <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-
                 <LButton
                     v-if="
                         isConnected && selectedContent_Existing?.status === PublishStatus.Published
@@ -635,7 +633,11 @@ const contentActions = ref([
                 >
                     <template #tooltip> View Live Version </template>
                 </LButton>
-
+                <div class="mr-4 flex h-9 w-10 items-center lg:hidden">
+                    <LBadge class="h-full" v-if="isLocalChange" variant="warning"
+                        >Offline changes</LBadge
+                    >
+                </div>
                 <LButton variant="primary" segmented>
                     <template v-if="isDirty && !newDocument" #left>
                         <span
@@ -660,7 +662,7 @@ const contentActions = ref([
                             placement="bottom-end"
                         >
                             <template #trigger>
-                                <ChevronDownIcon
+                                <EllipsisVerticalIcon
                                     v-if="!showContentActionMenuMobile"
                                     class="size-5"
                                 />
@@ -695,9 +697,6 @@ const contentActions = ref([
         </template>
 
         <template #topBarActionsDesktop>
-            <div class="hidden items-center gap-2 lg:flex">
-                <LBadge v-if="isLocalChange" variant="warning">Offline changes</LBadge>
-            </div>
             <div class="hidden items-center gap-1 lg:flex">
                 <LButton
                     v-if="
@@ -714,7 +713,11 @@ const contentActions = ref([
                     <template #tooltip> View Live Version </template>
                     View Live
                 </LButton>
-
+                <div class="hidden h-9 items-center gap-2 lg:flex">
+                    <LBadge class="h-full" v-if="isLocalChange" variant="warning"
+                        >Offline changes</LBadge
+                    >
+                </div>
                 <LButton variant="primary" segmented>
                     <template v-if="isDirty && !newDocument" #left>
                         <span
