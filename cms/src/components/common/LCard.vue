@@ -83,7 +83,7 @@ function collapse() {
             </div>
         </div>
 
-        <slot name="persistent" />
+        <slot name="persistent" :collapsed="collapsed" />
 
         <div v-show="!collapsed" data-test="collapsible-container">
             <div

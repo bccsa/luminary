@@ -92,12 +92,15 @@ const pinned = computed({
         v-if="parent"
         class="bg-white"
     >
-        <template #persistent>
-            <div class="flex flex-col gap-0.5 px-2">
+        <template #persistent="{ collapsed }">
+            <div class="flex flex-col px-2">
                 <div
                     v-if="parent && !_.isEqual(parent, existingParent)"
                     class="flex items-center gap-2"
-                    :class="{ 'my-0.5': parent && !_.isEqual(parent, existingParent) }"
+                    :class="{
+                        'my-0.5': parent && !_.isEqual(parent, existingParent),
+                        'pb-1.5': collapsed && parentIsValid,
+                    }"
                 >
                     <p>
                         <ExclamationCircleIcon class="size-[18px] min-w-[18px] text-yellow-400" />
@@ -112,6 +115,7 @@ const pinned = computed({
                             v-for="validation in parentValidations.filter((v) => !v.isValid)"
                             :key="validation.id"
                             class="-mb-[1px] flex items-center gap-1"
+                            :class="{ 'pb-1.5': collapsed && !parentIsValid }"
                         >
                             <div class="flex items-center gap-2">
                                 <XCircleIcon class="size-[18px] min-w-[18px] text-red-400" />
