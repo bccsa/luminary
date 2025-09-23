@@ -526,6 +526,7 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
         </template>
 
         <template #topBarActionsMobile>
+            <<<<<<< HEAD
             <EditContentActionsWrapper
                 :revert="revertChanges"
                 :save="saveChanges"
@@ -540,9 +541,88 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 :isLocalChange="isLocalChange"
                 :actions="contentActions"
             />
+            =======
+            <div class="flex items-center gap-2 lg:hidden">
+                <LButton
+                    v-if="
+                        isConnected && selectedContent_Existing?.status === PublishStatus.Published
+                    "
+                    :icon="ArrowTopRightOnSquareIcon"
+                    iconLeft
+                    variant="tertiary"
+                    class="text-zinc-500/90"
+                    @click="ensureRedirect"
+                    target="_blank"
+                >
+                    <template #tooltip> View Live Version </template>
+                </LButton>
+                <div class="mr-4 flex h-9 w-10 items-center lg:hidden">
+                    <LBadge class="h-full" v-if="isLocalChange" variant="warning"
+                        >Offline changes</LBadge
+                    >
+                </div>
+                <LButton variant="primary" segmented>
+                    <template v-if="isDirty && !newDocument" #left>
+                        <span
+                            class="flex items-center gap-1"
+                            @click.stop="revertChanges"
+                            data-test="revert-changes-button"
+                        >
+                            <ArrowUturnLeftIcon class="size-5" />
+                        </span>
+                    </template>
+                    <span
+                        class="flex items-center gap-1"
+                        @click="saveChanges"
+                        data-test="save-button"
+                    >
+                        <CloudArrowUpIcon class="size-5" />
+                    </span>
+                    <template #right>
+                        <LDropdown
+                            v-model:show="showContentActionMenuMobile"
+                            padding="small"
+                            placement="bottom-end"
+                        >
+                            <template #trigger>
+                                <EllipsisVerticalIcon
+                                    v-if="!showContentActionMenuMobile"
+                                    class="size-5"
+                                />
+                                <ChevronUpIcon v-else class="size-5" />
+                            </template>
+                            <ul>
+                                <li
+                                    role="menuitem"
+                                    tabindex="-1"
+                                    v-for="action in contentActions"
+                                    :key="action.name"
+                                    @click="
+                                        action.action();
+                                        showContentActionMenuMobile = false;
+                                    "
+                                    class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                                >
+                                    <component
+                                        :is="action.icon"
+                                        :class="action.iconClass"
+                                        aria-hidden="true"
+                                    />
+                                    <div class="flex flex-col text-nowrap leading-none">
+                                        {{ action.name }}
+                                    </div>
+                                </li>
+                            </ul>
+                        </LDropdown>
+                    </template>
+                </LButton>
+            </div>
+            >>>>>>> 5f79428e (Update LButton styles and enhance EditContent layout with new icons
+            and badge positioning)
         </template>
         <!-- ==================== DESKTOP ACTIONS ==================== -->
         <template #topBarActionsDesktop>
+            <<<<<<< HEAD
             <EditContentActionsWrapper
                 :revert="revertChanges"
                 :save="saveChanges"
@@ -557,6 +637,88 @@ const isLocalChange = db.isLocalChangeAsRef(parentId);
                 :isLocalChange="isLocalChange"
                 :actions="contentActions"
             />
+            =======
+            <div class="hidden items-center gap-1 lg:flex">
+                <LButton
+                    v-if="
+                        isConnected && selectedContent_Existing?.status === PublishStatus.Published
+                    "
+                    :icon="ArrowTopRightOnSquareIcon"
+                    iconLeft
+                    variant="tertiary"
+                    class="text-zinc-500/90"
+                    @click="ensureRedirect"
+                    target="_blank"
+                    name="view-live"
+                >
+                    <template #tooltip> View Live Version </template>
+                    View Live
+                </LButton>
+                <div class="hidden h-9 items-center gap-2 lg:flex">
+                    <LBadge class="h-full" v-if="isLocalChange" variant="warning"
+                        >Offline changes</LBadge
+                    >
+                </div>
+                <LButton variant="primary" segmented>
+                    <template v-if="isDirty && !newDocument" #left>
+                        <span
+                            class="flex items-center gap-1"
+                            @click.stop="revertChanges"
+                            data-test="revert-changes-button"
+                        >
+                            <ArrowUturnLeftIcon class="size-5" />
+                            Revert
+                        </span>
+                    </template>
+                    <span
+                        class="flex items-center gap-1"
+                        @click="saveChanges"
+                        data-test="save-button"
+                    >
+                        <CloudArrowUpIcon class="size-5" />
+                        Save
+                    </span>
+                    <template #right>
+                        <LDropdown
+                            v-model:show="showContentActionMenuDesktop"
+                            padding="small"
+                            placement="bottom-end"
+                        >
+                            <template #trigger>
+                                <ChevronDownIcon
+                                    v-if="!showContentActionMenuDesktop"
+                                    class="size-5"
+                                />
+                                <ChevronUpIcon v-else class="size-5" />
+                            </template>
+                            <ul>
+                                <li
+                                    role="menuitem"
+                                    tabindex="-1"
+                                    v-for="action in contentActions"
+                                    :key="action.name"
+                                    @click="
+                                        action.action();
+                                        showContentActionMenuDesktop = false;
+                                    "
+                                    class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
+                                >
+                                    <component
+                                        :is="action.icon"
+                                        :class="action.iconClass"
+                                        aria-hidden="true"
+                                    />
+                                    <div class="flex flex-col text-nowrap leading-none">
+                                        {{ action.name }}
+                                    </div>
+                                </li>
+                            </ul>
+                        </LDropdown>
+                    </template>
+                </LButton>
+            </div>
+            >>>>>>> 5f79428e (Update LButton styles and enhance EditContent layout with new icons
+            and badge positioning)
         </template>
 
         <!-- ==================== MAIN CONTENT ==================== -->
