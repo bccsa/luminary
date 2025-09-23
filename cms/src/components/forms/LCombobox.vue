@@ -250,9 +250,7 @@ onUnmounted(() => {
                 ref="dropdown"
                 v-if="showDropdown || query.trim().length > 0"
                 class="absolute z-10 mt-1 max-h-48 w-11/12 overflow-y-auto rounded-md bg-white shadow-md"
-                :class="{
-                    'w-96': $slots.actions && !isSmallScreen,
-                }"
+                :class="{ 'w-96': $slots.actions && !isSmallScreen }"
                 data-test="options"
             >
                 <li
