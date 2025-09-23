@@ -4,6 +4,8 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { FastifyRequest } from "fastify";
+import { fileTypeFromBuffer } from "file-type";
+import { MediaType } from "src/enums";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -45,17 +47,36 @@ export class ChangeRequestController {
                 if (files.length > 0) {
                     const uploadData = [];
 
-                    files.forEach((file, index) => {
+                    for (const file of files) {
+                        const index = files.indexOf(file);
                         // TODO: change after #1208 is implemented
                         const fileName = fields[`${index}-changeRequestDoc-files-filename`];
                         const filePreset = fields[`${index}-changeRequestDoc-files-preset`];
 
-                        uploadData.push({
-                            fileData: file.buffer,
-                            filename: fileName,
-                            preset: filePreset,
-                        });
-                    });
+                        const fileType = await fileTypeFromBuffer(new Uint8Array(file.buffer));
+
+                        if (!fileType) continue;
+
+                        const isVideo = fileType.mime.startsWith(`${MediaType.Video}/`);
+                        const isAudio = fileType.mime.startsWith(`${MediaType.Audio}/`);
+
+                        if (fileType.mime.startsWith("image/")) {
+                            uploadData.push({
+                                fileData: file.buffer,
+                                filename: fileName,
+                                preset: filePreset,
+                            });
+                        } else if (isVideo || isAudio) {
+                            const hlsUrl = fields[`${index}-changeRequestDoc-hlsUrl`];
+                            if (hlsUrl) parsedDoc.media.hlsUrl = hlsUrl;
+                            
+                            uploadData.push({
+                                fileData: file.buffer,
+                                preset: filePreset,
+                                mediaType: isVideo ? MediaType.Video : MediaType.Audio,
+                            });
+                        }
+                    }
 
                     parsedDoc.imageData.uploadData = uploadData;
                 }
