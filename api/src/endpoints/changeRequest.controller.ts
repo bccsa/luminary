@@ -6,6 +6,7 @@ import { ChangeRequestService } from "./changeRequest.service";
 import { FastifyRequest } from "fastify";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
+import { MediaType } from "src/enums";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -19,6 +20,7 @@ export class ChangeRequestController {
         @Headers("Authorization") authHeader: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
+        const { fileTypeFromBuffer } = await import("file-type");
 
         // Check if the request is multipart
         const isMultipartRequest =
