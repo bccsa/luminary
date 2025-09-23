@@ -142,11 +142,11 @@ async function validateSingleAudio(
         const mm = await import("music-metadata");
         const mmEsm = await (mm as unknown as MusicMetadata).parserBuffer();
 
-        // Convert value to Uint8Array if it's an ArrayBuffer or Buffer
-        const audioBuffer = new Uint8Array(uploadData.fileData);
-
         // Parse the metadata from the stream
-        const metadata = await mmEsm.parseBuffer(audioBuffer);
+        const metadata = await mmEsm.parseBuffer(Buffer.from(uploadData.fileData), null, {
+            duration: false,
+            skipCovers: true,
+        });
 
         if (!metadata.format || !metadata.format.container) {
             warnings.push(audioFailureMessage + "Uploaded file is not a valid audio format\n");
