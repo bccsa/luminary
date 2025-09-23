@@ -47,6 +47,19 @@ export default async function processPostTagDto(
             }
         }
 
+        // Remove medias from S3
+        if (doc.media) {
+            const mediaWarnings = await processMedia(
+                { fileCollections: [] },
+                prevDoc.media,
+                s3Audio,
+            );
+            if (mediaWarnings && mediaWarnings.length > 0) {
+                warnings.push(...mediaWarnings);
+                console.log(mediaWarnings);
+            }
+        }
+
         return warnings; // no need to process further
     }
 
@@ -78,13 +91,14 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
-    // Process audio uploads
+    // Process medias uploads
     if (doc.media) {
         const audioWarnings = await processMedia(doc.media, prevDoc.media, s3Audio);
+        console.log(audioWarnings);
         if (audioWarnings && audioWarnings.length > 0) {
             warnings.push(...audioWarnings);
         }
-        delete (doc as any).media; // Remove the legacy audio field
+        delete (doc as any).media; // Remove the legacy media field
     }
 
     // Get content documents that are children of the Post / Tag document
