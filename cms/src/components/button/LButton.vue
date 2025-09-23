@@ -8,7 +8,7 @@ const buttonClasses = cva({
     variants: {
         variant: {
             primary:
-                "bg-zinc-800 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-800/90 active:bg-zinc-800/80 active:text-zinc-50 disabled:bg-zinc-300 disabled:text-zinc-100 disabled:ring-zinc-300",
+                "bg-zinc-700 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-800/90 active:bg-zinc-800/80 active:text-zinc-50 disabled:bg-zinc-300 disabled:text-zinc-100 disabled:ring-zinc-300",
             secondary:
                 "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500",
             tertiary:
