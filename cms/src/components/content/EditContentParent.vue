@@ -159,7 +159,7 @@ const pinned = computed({
             :class="{ 'mb-2': docType !== DocType.Tag }"
         >
             <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="parent.publishDateVisible" class="" :disabled="disabled" />
+            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
         </div>
 
         <div
