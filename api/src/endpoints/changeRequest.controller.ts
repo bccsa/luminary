@@ -12,6 +12,8 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
+import { fileTypeFromBuffer } from "file-type";
+import { MediaType } from "src/enums";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -46,18 +48,37 @@ export class ChangeRequestController {
             if (files.length > 0) {
                 const uploadData = [];
 
-                files.forEach((file, index) => {
+                files.forEach(async (file, index) => {
                     const fileName = body[`${index}-changeRequestDoc-files-filename`];
                     const filePreset = body[`${index}-changeRequestDoc-files-preset`];
 
-                    uploadData.push({
-                        fileData: file.buffer,
-                        filename: fileName,
-                        preset: filePreset,
-                    });
-                });
+                    const fileType = await fileTypeFromBuffer(file.buffer);
 
-                parsedDoc.imageData.uploadData = uploadData;
+                    if (!fileType) return;
+
+                    if (fileType.mime.startsWith("image/")) {
+                        uploadData.push({
+                            fileData: file.buffer,
+                            filename: fileName,
+                            preset: filePreset,
+                        });
+                        parsedDoc.imageData.uploadData = uploadData;
+                    }
+                    if (
+                        fileType.mime.startsWith(`${MediaType.Video}/`) ||
+                        fileType.mime.startsWith(`${MediaType.Audio}/`)
+                    ) {
+                        const hlsUrl = body[`${index}-changeRequestDoc-hlsUrl`];
+                        if (hlsUrl) parsedDoc.media.hlsUrl = hlsUrl;
+
+                        uploadData.push({
+                            fileData: file.buffer,
+                            filename: fileName,
+                            preset: filePreset,
+                        });
+                        parsedDoc.media.uploadData = uploadData;
+                    }
+                });
             }
 
             const changeRequest: ChangeReqDto = {
