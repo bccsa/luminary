@@ -9,7 +9,7 @@ import {
     AclPermission,
 } from "luminary-shared";
 import LCombobox, { type ComboboxOption } from "../forms/LCombobox.vue";
-import { ChevronRightIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { UserGroupIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
 
 // Define props: docType (required) and disabled (optional)
 type Props = {
@@ -105,10 +105,10 @@ const showEditModal = ref(false);
                     type="button"
                     :disabled="disabled"
                     data-test="edit-group"
-                    class="flex items-center rounded-lg px-1 text-sm hover:bg-zinc-300/50"
+                    class="flex items-center rounded-lg text-sm hover:bg-zinc-300/50"
                 >
                     edit
-                    <ChevronRightIcon class="h-4 w-4 text-zinc-600" />
+                    <ChevronRightIcon class="-ml-1 h-4 w-4 text-zinc-600" />
                 </button>
             </template>
         </LCombobox>

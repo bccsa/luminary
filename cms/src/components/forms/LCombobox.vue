@@ -282,7 +282,11 @@ onUnmounted(() => {
                     </span>
                 </li>
             </div>
-            <div data-test="selected-labels" v-if="showSelectedLabels" class="flex flex-wrap gap-3">
+            <div
+                data-test="selected-labels"
+                v-if="showSelectedLabels"
+                class="flex flex-wrap gap-1 pt-1"
+            >
                 <LTag
                     v-for="option in selectedLabels"
                     :key="option.id"
@@ -307,3 +311,13 @@ onUnmounted(() => {
         </component>
     </div>
 </template>
+
+<style scoped>
+input[name="option-search"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+</style>
