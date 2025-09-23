@@ -17,6 +17,5 @@
     "parentTagType": "category",
     "parentTags": [],
     "parentPublishDateVisible": true,
-    "parentTaggedDocs": ["post-blog1", "post-blog2", "post-page1", "post-page2"],
-    "parentMedia": "{}"
+    "parentTaggedDocs": ["post-blog1", "post-blog2", "post-page1", "post-page2"]
 }
