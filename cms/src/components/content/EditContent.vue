@@ -20,19 +20,19 @@ import {
     verifyAccess,
     type ContentParentDto,
     PostType,
-    isConnected,
     type RedirectDto,
     RedirectType,
     useDexieLiveQuery,
+    isConnected,
 } from "luminary-shared";
 import {
     DocumentIcon,
     TagIcon,
-    FolderArrowDownIcon,
+    CloudArrowUpIcon,
     ArrowUturnLeftIcon,
     TrashIcon,
 } from "@heroicons/vue/24/solid";
-import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
+import { ChevronDownIcon, ChevronUpIcon, EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
@@ -48,8 +48,8 @@ import { sortByName } from "@/util/sortByName";
 import { ArrowTopRightOnSquareIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
 import { clientAppUrl } from "@/globalConfig";
 import { cmsLanguages, translatableLanguagesAsRef } from "@/globalConfig";
-import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import EditContentImage from "./EditContentImage.vue";
+import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
     id: Uuid;
@@ -563,70 +563,23 @@ const duplicate = async () => {
     });
 };
 const showLanguageSelector = ref(false);
-const showContentActionMenu = ref(false);
+const showContentActionMenuMobile = ref(false);
+const showContentActionMenuDesktop = ref(false);
 
-const contentActions = computed(() => {
-    const actions = [];
-
-    if (
-        isConnected.value &&
-        selectedContent_Existing.value &&
-        selectedContent_Existing.value.status === PublishStatus.Published
-    ) {
-        actions.push({
-            name: "View live",
-            action: ensureRedirect,
-            icon: ArrowTopRightOnSquareIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-        });
-    }
-
-    actions.push(
-        {
-            name: "Save changes",
-            action: saveChanges,
-            icon: FolderArrowDownIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-        },
-        {
-            name: "Duplicate",
-            action: duplicate,
-            icon: DocumentDuplicateIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-        },
-        {
-            name: "Delete",
-            action: () => (showDeleteModal.value = true),
-            icon: TrashIcon,
-            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
-        },
-    );
-
-    return actions;
-});
-
-// Watch for changes in dirty state and new document state to add or remove the revert action
-watch(
-    [isDirty, () => newDocument],
-    ([dirty, isNew]) => {
-        const revertActionIndex = contentActions.value.findIndex(
-            (a) => a.name === "Revert changes",
-        );
-        if (dirty && !isNew) {
-            if (revertActionIndex === -1) {
-                contentActions.value.unshift({
-                    name: "Revert changes",
-                    action: revertChanges as any,
-                    icon: ArrowUturnLeftIcon,
-                    iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-                });
-            }
-        } else if (revertActionIndex !== -1) {
-            contentActions.value.splice(revertActionIndex, 1);
-        }
+const contentActions = ref([
+    {
+        name: "Duplicate",
+        action: duplicate,
+        icon: DocumentDuplicateIcon,
+        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
     },
-    { immediate: true },
-);
+    {
+        name: "Delete",
+        action: () => (showDeleteModal.value = true),
+        icon: TrashIcon,
+        iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+    },
+]);
 </script>
 
 <template>
@@ -660,115 +613,161 @@ watch(
         </template>
 
         <template #topBarActionsMobile>
-            <Menu as="div" class="relative flex">
-                <LBadge v-if="isLocalChange" variant="warning" class="text-nowrap lg:hidden"
-                    >Offline changes</LBadge
+            <div class="flex items-center gap-2 lg:hidden">
+                <LButton
+                    v-if="
+                        isConnected && selectedContent_Existing?.status === PublishStatus.Published
+                    "
+                    :icon="ArrowTopRightOnSquareIcon"
+                    iconLeft
+                    variant="tertiary"
+                    class="text-zinc-500/90"
+                    @click="ensureRedirect"
+                    target="_blank"
                 >
-                <MenuButton class="flex w-full items-center justify-between">
-                    <EllipsisVerticalIcon
-                        class="ml-2 h-6 w-6 text-zinc-500 hover:text-zinc-700 lg:hidden"
-                        @click="showContentActionMenu = !showContentActionMenu"
-                    />
-                </MenuButton>
-
-                <transition
-                    enter-active-class="transition ease-out duration-100"
-                    enter-from-class="transform opacity-0 scale-95"
-                    enter-to-class="transform opacity-100 scale-100"
-                    leave-active-class="transition ease-in duration-75"
-                    leave-from-class="transform opacity-100 scale-100"
-                    leave-to-class="transform opacity-0 scale-95"
-                >
-                    <MenuItems
-                        class="absolute right-0 z-50 mt-2.5 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none"
+                    <template #tooltip> View Live Version </template>
+                </LButton>
+                <div class="mr-4 flex h-9 w-10 items-center lg:hidden">
+                    <LBadge class="h-full" v-if="isLocalChange" variant="warning"
+                        >Offline changes</LBadge
                     >
-                        <MenuItem
-                            v-for="action in contentActions"
-                            :key="action.name"
-                            v-slot="{ active }"
+                </div>
+                <LButton variant="primary" segmented>
+                    <template v-if="isDirty && !newDocument" #left>
+                        <span
+                            class="flex items-center gap-1"
+                            @click.stop="revertChanges"
+                            data-test="revert-changes-button"
                         >
-                            <button
-                                :class="[
-                                    active ? 'bg-zinc-50' : '',
-                                    'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm leading-6 text-zinc-900 ',
-                                ]"
-                                @click="action.action"
-                            >
-                                <component
-                                    :is="action.icon"
-                                    :class="action.iconClass"
-                                    aria-hidden="true"
+                            <ArrowUturnLeftIcon class="size-5" />
+                        </span>
+                    </template>
+                    <span
+                        class="flex items-center gap-1"
+                        @click="saveChanges"
+                        data-test="save-button"
+                    >
+                        <CloudArrowUpIcon class="size-5" />
+                    </span>
+                    <template #right>
+                        <LDropdown
+                            v-model:show="showContentActionMenuMobile"
+                            padding="small"
+                            placement="bottom-end"
+                        >
+                            <template #trigger>
+                                <EllipsisVerticalIcon
+                                    v-if="!showContentActionMenuMobile"
+                                    class="size-5"
                                 />
-                                <div class="flex flex-col text-nowrap leading-none">
-                                    {{ action.name }}
-                                </div>
-                            </button>
-                        </MenuItem>
-                    </MenuItems>
-                </transition>
-            </Menu>
+                                <ChevronUpIcon v-else class="size-5" />
+                            </template>
+                            <ul>
+                                <li
+                                    role="menuitem"
+                                    tabindex="-1"
+                                    v-for="action in contentActions"
+                                    :key="action.name"
+                                    @click="
+                                        action.action();
+                                        showContentActionMenuMobile = false;
+                                    "
+                                    class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                                >
+                                    <component
+                                        :is="action.icon"
+                                        :class="action.iconClass"
+                                        aria-hidden="true"
+                                    />
+                                    <div class="flex flex-col text-nowrap leading-none">
+                                        {{ action.name }}
+                                    </div>
+                                </li>
+                            </ul>
+                        </LDropdown>
+                    </template>
+                </LButton>
+            </div>
         </template>
 
         <template #topBarActionsDesktop>
-            <div class="hidden gap-1 lg:flex">
-                <LBadge v-if="isLocalChange" variant="warning" class="hidden lg:inline-flex"
-                    >Offline changes</LBadge
-                >
-
-                <LButton
-                    type="button"
-                    @click="revertChanges"
-                    data-test="revert-changes-button"
-                    variant="secondary"
-                    :icon="ArrowUturnLeftIcon"
-                    v-if="isDirty && !newDocument"
-                >
-                    <template #tooltip>Revert changes made on this content</template>
-                </LButton>
-
+            <div class="hidden items-center gap-1 lg:flex">
                 <LButton
                     v-if="
-                        isConnected &&
-                        selectedContent_Existing &&
-                        selectedContent_Existing.status == PublishStatus.Published
+                        isConnected && selectedContent_Existing?.status === PublishStatus.Published
                     "
                     :icon="ArrowTopRightOnSquareIcon"
-                    iconRight
-                    variant="secondary"
+                    iconLeft
+                    variant="tertiary"
+                    class="text-zinc-500/90"
                     @click="ensureRedirect"
                     target="_blank"
                     name="view-live"
                 >
-                    <template #tooltip> View live version </template>
+                    <template #tooltip> View Live Version </template>
+                    View Live
                 </LButton>
-
-                <LButton
-                    :icon="DocumentDuplicateIcon"
-                    data-test="duplicate-btn"
-                    @click="isDirty ? (showDuplicateModal = true) : duplicate()"
-                >
-                    <template #tooltip>Duplicate this {{ props.tagOrPostType }}</template>
-                </LButton>
-                <LButton
-                    type="button"
-                    @click="saveChanges"
-                    data-test="save-button"
-                    variant="primary"
-                    :icon="FolderArrowDownIcon"
-                >
-                    <template #tooltip>Save changes</template>
-                </LButton>
-
-                <LButton
-                    v-if="canDelete"
-                    type="button"
-                    @click="showDeleteModal = true"
-                    data-test="delete-button"
-                    variant="secondary"
-                    context="danger"
-                    :icon="TrashIcon"
-                >
-                    <template #tooltip>Delete this {{ props.tagOrPostType }}</template>
+                <div class="hidden h-9 items-center gap-2 lg:flex">
+                    <LBadge class="h-full" v-if="isLocalChange" variant="warning"
+                        >Offline changes</LBadge
+                    >
+                </div>
+                <LButton variant="primary" segmented>
+                    <template v-if="isDirty && !newDocument" #left>
+                        <span
+                            class="flex items-center gap-1"
+                            @click.stop="revertChanges"
+                            data-test="revert-changes-button"
+                        >
+                            <ArrowUturnLeftIcon class="size-5" />
+                            Revert
+                        </span>
+                    </template>
+                    <span
+                        class="flex items-center gap-1"
+                        @click="saveChanges"
+                        data-test="save-button"
+                    >
+                        <CloudArrowUpIcon class="size-5" />
+                        Save
+                    </span>
+                    <template #right>
+                        <LDropdown
+                            v-model:show="showContentActionMenuDesktop"
+                            padding="small"
+                            placement="bottom-end"
+                        >
+                            <template #trigger>
+                                <ChevronDownIcon
+                                    v-if="!showContentActionMenuDesktop"
+                                    class="size-5"
+                                />
+                                <ChevronUpIcon v-else class="size-5" />
+                            </template>
+                            <ul>
+                                <li
+                                    role="menuitem"
+                                    tabindex="-1"
+                                    v-for="action in contentActions"
+                                    :key="action.name"
+                                    @click="
+                                        action.action();
+                                        showContentActionMenuDesktop = false;
+                                    "
+                                    class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
+                                >
+                                    <component
+                                        :is="action.icon"
+                                        :class="action.iconClass"
+                                        aria-hidden="true"
+                                    />
+                                    <div class="flex flex-col text-nowrap leading-none">
+                                        {{ action.name }}
+                                    </div>
+                                </li>
+                            </ul>
+                        </LDropdown>
+                    </template>
                 </LButton>
             </div>
         </template>
