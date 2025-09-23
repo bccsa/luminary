@@ -12,7 +12,6 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
-import { fileTypeFromBuffer } from "file-type";
 import { MediaType } from "src/enums";
 
 @Controller("changerequest")
@@ -34,6 +33,7 @@ export class ChangeRequestController {
         @Headers("Authorization") authHeader: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
+        const { fileTypeFromBuffer } = await import("file-type");
 
         if (files?.length || typeof body["changeRequestDoc-JSON"] === "string") {
             const apiVersion = body["changeRequestApiVersion"];
@@ -54,6 +54,9 @@ export class ChangeRequestController {
 
                     const fileType = await fileTypeFromBuffer(file.buffer);
 
+                    const isVideo = fileType.mime.startsWith(`${MediaType.Video}/`);
+                    const isAudio = fileType.mime.startsWith(`${MediaType.Audio}/`);
+
                     if (!fileType) return;
 
                     if (fileType.mime.startsWith("image/")) {
@@ -64,18 +67,16 @@ export class ChangeRequestController {
                         });
                         parsedDoc.imageData.uploadData = uploadData;
                     }
-                    if (
-                        fileType.mime.startsWith(`${MediaType.Video}/`) ||
-                        fileType.mime.startsWith(`${MediaType.Audio}/`)
-                    ) {
+                    if (isVideo || isAudio) {
                         const hlsUrl = body[`${index}-changeRequestDoc-hlsUrl`];
                         if (hlsUrl) parsedDoc.media.hlsUrl = hlsUrl;
 
                         uploadData.push({
                             fileData: file.buffer,
-                            filename: fileName,
                             preset: filePreset,
+                            mediaType: isVideo ? MediaType.Video : MediaType.Audio,
                         });
+
                         parsedDoc.media.uploadData = uploadData;
                     }
                 });
