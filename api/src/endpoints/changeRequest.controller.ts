@@ -17,7 +17,10 @@ export class ChangeRequestController {
         @Headers("Authorization") authHeader: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
-        const { fileTypeFromBuffer } = await import("file-type");
+
+        // Dynamic import (ESM module inside CJS project)
+        const fileTypeModule = await import("file-type");
+        const { fileTypeFromBuffer } = fileTypeModule;
 
         // Check if this is a multipart request
         if (request.isMultipart()) {
@@ -47,8 +50,8 @@ export class ChangeRequestController {
                 if (files.length > 0) {
                     const uploadData = [];
 
-                    for (const file of files) {
-                        const index = files.indexOf(file);
+                    // Better: use for..of with entries() instead of indexOf to await properly
+                    for (const [index, file] of files.entries()) {
                         // TODO: change after #1208 is implemented
                         const fileName = fields[`${index}-changeRequestDoc-files-filename`];
                         const filePreset = fields[`${index}-changeRequestDoc-files-preset`];

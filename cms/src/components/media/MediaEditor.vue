@@ -194,7 +194,7 @@ defineExpose({
 
             <!-- No images fallback -->
             <div v-else class="my-4 text-center italic">
-                <p class="text-sm text-gray-500">No audios uploaded yet.</p>
+                <p class="text-sm text-gray-500">No medias uploaded yet.</p>
             </div>
         </div>
     </div>
