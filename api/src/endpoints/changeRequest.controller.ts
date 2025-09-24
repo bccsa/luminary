@@ -33,7 +33,10 @@ export class ChangeRequestController {
         @Headers("Authorization") authHeader: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
-        const { fileTypeFromBuffer } = await import("file-type");
+
+        // Dynamic import (ESM module inside CJS project)
+        const fileTypeModule = await import("file-type");
+        const { fileTypeFromBuffer } = fileTypeModule;
 
         if (files?.length || typeof body["changeRequestDoc-JSON"] === "string") {
             const apiVersion = body["changeRequestApiVersion"];
@@ -48,16 +51,17 @@ export class ChangeRequestController {
             if (files.length > 0) {
                 const uploadData = [];
 
-                files.forEach(async (file, index) => {
+                // Better: use for..of instead of forEach to await properly
+                for (const [index, file] of files.entries()) {
                     const fileName = body[`${index}-changeRequestDoc-files-filename`];
                     const filePreset = body[`${index}-changeRequestDoc-files-preset`];
 
                     const fileType = await fileTypeFromBuffer(file.buffer);
 
+                    if (!fileType) return;
+
                     const isVideo = fileType.mime.startsWith(`${MediaType.Video}/`);
                     const isAudio = fileType.mime.startsWith(`${MediaType.Audio}/`);
-
-                    if (!fileType) return;
 
                     if (fileType.mime.startsWith("image/")) {
                         uploadData.push({
@@ -67,6 +71,7 @@ export class ChangeRequestController {
                         });
                         parsedDoc.imageData.uploadData = uploadData;
                     }
+
                     if (isVideo || isAudio) {
                         const hlsUrl = body[`${index}-changeRequestDoc-hlsUrl`];
                         if (hlsUrl) parsedDoc.media.hlsUrl = hlsUrl;
@@ -79,7 +84,7 @@ export class ChangeRequestController {
 
                         parsedDoc.media.uploadData = uploadData;
                     }
-                });
+                }
             }
 
             const changeRequest: ChangeReqDto = {
