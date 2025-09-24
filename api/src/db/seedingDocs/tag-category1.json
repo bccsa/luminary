@@ -7,5 +7,5 @@
     "tags": [],
     "publishDateVisible": false,
     "taggedDocs": ["post-blog1", "post-blog2", "post-page1", "post-page2"],
-    "media": {}
+    "media": { "fileCollections": [] }
 }
