@@ -4,7 +4,7 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { FastifyRequest } from "fastify";
-import { MediaType } from "src/enums";
+import { MediaType } from "../enums";
 
 @Controller("changerequest")
 export class ChangeRequestController {
