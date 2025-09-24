@@ -16,5 +16,6 @@
     "parentType": "tag",
     "parentTagType": "topic",
     "parentTags": [],
-    "parentPublishDateVisible": true
+    "parentPublishDateVisible": true,
+    "parentMedia": {}
 }

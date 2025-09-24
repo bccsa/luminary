@@ -15,5 +15,6 @@
     "parentType": "post",
     "parentTags": [],
     "parentPostType": "page",
-    "parentPublishDateVisible": false
+    "parentPublishDateVisible": false,
+    "parentMedia": {}
 }
