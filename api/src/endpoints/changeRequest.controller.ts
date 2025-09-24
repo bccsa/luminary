@@ -12,7 +12,7 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
-import { MediaType } from "src/enums";
+import { MediaType } from "../enums";
 
 @Controller("changerequest")
 export class ChangeRequestController {
