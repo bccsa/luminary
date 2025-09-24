@@ -15,5 +15,6 @@
     "parentType": "post",
     "parentTags": ["tag-category1", "tag-topicA"],
     "parentPostType": "blog",
-    "parentPublishDateVisible": true
+    "parentPublishDateVisible": true,
+    "parentMedia": {}
 }
