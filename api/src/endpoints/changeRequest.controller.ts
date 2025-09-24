@@ -6,7 +6,7 @@ import { ChangeRequestService } from "./changeRequest.service";
 import { FastifyRequest } from "fastify";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
-import { MediaType } from "src/enums";
+import { MediaType } from "../enums";
 
 @Controller("changerequest")
 export class ChangeRequestController {
