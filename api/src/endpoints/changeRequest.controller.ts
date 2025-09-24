@@ -20,7 +20,10 @@ export class ChangeRequestController {
         @Headers("Authorization") authHeader: string,
     ) {
         const token = authHeader?.replace("Bearer ", "") ?? "";
-        const { fileTypeFromBuffer } = await import("file-type");
+
+        // Dynamic import (ESM module inside CJS project)
+        const fileTypeModule = await import("file-type");
+        const { fileTypeFromBuffer } = fileTypeModule;
 
         // Check if the request is multipart
         const isMultipartRequest =
