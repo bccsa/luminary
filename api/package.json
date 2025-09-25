@@ -30,7 +30,6 @@
         "@nestjs/websockets": "^10.3.1",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.14.1",
-        "file-type": "^21.0.0",
         "jsonwebtoken": "^9.0.2",
         "minio": "^8.0.0",
         "music-metadata": "^11.9.0",
