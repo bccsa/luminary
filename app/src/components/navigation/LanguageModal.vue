@@ -84,7 +84,7 @@ const removeFromSelected = (id: string) => {
 
 <template>
     <LModal
-        name="lModal-languages"
+        name="language-modal"
         class="flex flex-col"
         :heading="t('language.modal.title')"
         :is-visible="isVisible"
@@ -107,6 +107,7 @@ const removeFromSelected = (id: string) => {
                 :id="language._id"
                 :key="language._id"
                 class="flex w-full items-center p-3"
+                name="selected-language"
             >
                 <div class="flex w-full justify-between">
                     <div
@@ -153,6 +154,7 @@ const removeFromSelected = (id: string) => {
                 :key="language._id"
                 class="flex w-full cursor-pointer items-center gap-1 p-3"
                 data-test="add-language-button"
+                name="available-language"
                 @click="setLanguage(language._id)"
             >
                 <PlusCircleIcon
