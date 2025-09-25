@@ -27,7 +27,8 @@ export class S3AudioService {
         if (!this.audioBucket) {
             throw new Error("Audio bucket is not configured");
         }
-        return `${this.audioS3Config.endpoint}/${this.audioBucket}/${key}`;
+        const schema = this.audioS3Config.useSSL ? "https" : "http";
+        return `${schema}://${this.audioS3Config.endpoint}:${this.audioS3Config.port}/${this.audioBucket}/${key}`;
     }
 
     /**
