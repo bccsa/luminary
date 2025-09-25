@@ -73,9 +73,6 @@ export class ChangeRequestController {
             apiVersion,
         };
 
-        console.log("Change request Media:", changeRequest.doc.media.uploadData);
-        // console.log("Change request Image:", changeRequest.doc.imageData.uploadData);
-
         // If it is just a JSON object (not multipart), validate it correctly
         await validateApiVersion(body.apiVersion);
         return this.changeRequestService.changeRequest(changeRequest, token);
