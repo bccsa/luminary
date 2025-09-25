@@ -43,30 +43,23 @@ export class ChangeRequestController {
             const apiVersion = body["changeRequestApiVersion"];
             await validateApiVersion(apiVersion);
 
-            if (files.length > 0) {
-                const uploadData = [];
+            for (const [index, file] of files.entries()) {
+                const fileName = body[`${index}-changeRequestDoc-files-filename`];
+                const filePreset = body[`${index}-changeRequestDoc-files-preset`];
+                const mediaType = body[`${index}-changeRequestDoc-files-mediaType`];
 
-                // Better: use for..of instead of forEach to await properly
-                for (const [index, file] of files.entries()) {
-                    const fileName = body[`${index}-changeRequestDoc-files-filename`];
-                    const filePreset = body[`${index}-changeRequestDoc-files-preset`];
-                    const mediaType = body[`${index}-changeRequestDoc-files-mediaType`];
+                const singleUploadData = createUploadData(file, filePreset, {
+                    filename: fileName,
+                    hlsUrl: body[`${index}-changeRequestDoc-files-hlsUrl`],
+                    mediaType: mediaType,
+                });
 
-                    uploadData.push([
-                        ...uploadData,
-                        createUploadData(file, filePreset, {
-                            filename: fileName,
-                            hlsUrl: body[`${index}-changeRequestDoc-files-hlsUrl`],
-                            mediaType: mediaType, // Video or Audio
-                        }),
-                    ]);
-                }
-
+                // Assign uploadData to the correct field in the doc
                 if (mediaType) {
-                    doc.media.uploadData = uploadData;
+                    doc.media.uploadData = [...doc.media.uploadData, singleUploadData];
+                } else {
+                    doc.imageData.uploadData = [...doc.imageData.uploadData, singleUploadData];
                 }
-
-                doc.imageData.uploadData = uploadData;
             }
         }
 
@@ -76,7 +69,8 @@ export class ChangeRequestController {
             apiVersion,
         };
 
-        console.log("Change request:", changeRequest.doc.uploadData);
+        console.log("Change request Media:", changeRequest.doc.media.uploadData);
+        // console.log("Change request Image:", changeRequest.doc.imageData.uploadData);
 
         // If it is just a JSON object (not multipart), validate it correctly
         await validateApiVersion(body.apiVersion);
