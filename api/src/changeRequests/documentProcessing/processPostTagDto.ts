@@ -74,11 +74,9 @@ export default async function processPostTagDto(
     // Process medias uploads
     if (doc.media) {
         const audioWarnings = await processMedia(doc.media, prevDoc.media, s3Audio);
-        console.log(audioWarnings);
         if (audioWarnings && audioWarnings.length > 0) {
             warnings.push(...audioWarnings);
         }
-        delete (doc as any).media; // Remove the legacy media field
     }
 
     // Get content documents that are children of the Post / Tag document
