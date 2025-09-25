@@ -4,6 +4,5 @@
     "memberOf": ["group-private-content"],
     "tags": ["tag-category1", "tag-topicA"],
     "publishDateVisible": true,
-    "postType": "blog",
-    "media": { "fileCollections": [] }
+    "postType": "blog"
 }
