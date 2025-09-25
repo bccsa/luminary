@@ -13,9 +13,10 @@ export function createUploadData(
     data: GenericUploadData,
 ): Record<string, any> {
     const uploadData: Record<string, any> = {};
-    if (data.filename) {
-        uploadData.filename = data.filename;
-    }
+
+    // Prefer provided filename; otherwise fall back to the original upload name
+    const effectiveFilename = data.filename || file.originalname;
+    if (effectiveFilename) uploadData.filename = effectiveFilename;
 
     if (data.mediaType) {
         if (data.hlsUrl) {
