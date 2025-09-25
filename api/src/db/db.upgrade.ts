@@ -42,7 +42,7 @@ export async function upgradeDbSchema(db: DbService, s3: S3Service, s3Audio: S3A
         await v7(db);
 
         // Upgrade from schema version 7 to 8
-        await v8(db);
+        await v8(db, s3, s3Audio);
 
         // Upgrade from schema version 8 to 9
         await v9(db);
