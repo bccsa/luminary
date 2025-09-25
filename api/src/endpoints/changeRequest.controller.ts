@@ -56,9 +56,13 @@ export class ChangeRequestController {
 
                 // Assign uploadData to the correct field in the doc
                 if (mediaType) {
-                    doc.media.uploadData = [...doc.media.uploadData, singleUploadData];
+                    doc.media.uploadData.push(singleUploadData);
+                    doc.media.uploadData = doc.media.uploadData.filter((data) => data != null); // Remove any undefined entries
                 } else {
-                    doc.imageData.uploadData = [...doc.imageData.uploadData, singleUploadData];
+                    doc.imageData.uploadData.push(singleUploadData);
+                    doc.imageData.uploadData = doc.imageData.uploadData.filter(
+                        (data) => data != null,
+                    ); // Remove any undefined entries
                 }
             }
         }
