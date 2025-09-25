@@ -28,7 +28,7 @@ export async function processMedia(
         if (media.uploadData) {
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
             media.uploadData.forEach((uploadData: MediaUploadDataDto) => {
-                promises.push(processAudioUploadSafe(uploadData, s3Audio, media));
+                promises.push(processMediaUploadSafe(uploadData, s3Audio, media));
             });
             const results = await Promise.all(promises);
 
@@ -86,7 +86,7 @@ async function validateAudiosInContent(
     }
 }
 
-async function processAudioUploadSafe(
+async function processMediaUploadSafe(
     uploadData: MediaUploadDataDto,
     s3Audio: S3AudioService,
     media: MediaDto,
@@ -143,10 +143,7 @@ async function validateSingleAudio(
         const mmEsm = await (mm as unknown as MusicMetadata).parserBuffer();
 
         // Parse the metadata from the stream
-        const metadata = await mmEsm.parseBuffer(Buffer.from(uploadData.fileData), null, {
-            duration: false,
-            skipCovers: true,
-        });
+        const metadata = await mmEsm.parseBuffer(new Uint8Array(uploadData.fileData));
 
         if (!metadata.format || !metadata.format.container) {
             warnings.push(audioFailureMessage + "Uploaded file is not a valid audio format\n");
