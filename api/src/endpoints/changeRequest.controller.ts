@@ -12,7 +12,7 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
-import { MediaType } from "../enums";
+import { createUploadData } from "src/changeRequests/uploadHandler";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -32,22 +32,17 @@ export class ChangeRequestController {
         @Body() body,
         @Headers("Authorization") authHeader: string,
     ) {
+        console.log("Body: ", body);
+        console.log("Files:", files);
         const token = authHeader?.replace("Bearer ", "") ?? "";
+        const doc = JSON.parse(body["changeRequestDoc-JSON"]);
+        const changeReqId = JSON.parse(body["changeRequestId"]);
+        const apiVersion = body["changeRequestApiVersion"];
 
-        // Dynamic import (ESM module inside CJS project)
-        const fileTypeModule = await import("file-type");
-        const { fileTypeFromBuffer } = fileTypeModule;
-
-        if (files?.length || typeof body["changeRequestDoc-JSON"] === "string") {
+        if (files?.length) {
             const apiVersion = body["changeRequestApiVersion"];
             await validateApiVersion(apiVersion);
 
-            const changeReqId = JSON.parse(body["changeRequestId"]);
-            const parsedDoc = JSON.parse(body["changeRequestDoc-JSON"]);
-
-            //Only parent documents (Posts and Tags) can have files uploaded,
-            //Child documents only have a reference to the parent document's fileCollection field
-            //without this check it could lead to unexpected behavior or critical errors
             if (files.length > 0) {
                 const uploadData = [];
 
@@ -56,48 +51,30 @@ export class ChangeRequestController {
                     const fileName = body[`${index}-changeRequestDoc-files-filename`];
                     const filePreset = body[`${index}-changeRequestDoc-files-preset`];
 
-                    const fileType = await fileTypeFromBuffer(file.buffer);
-
-                    if (!fileType) return;
-
-                    const isVideo = fileType.mime.startsWith(`${MediaType.Video}/`);
-                    const isAudio = fileType.mime.startsWith(`${MediaType.Audio}/`);
-
-                    if (fileType.mime.startsWith("image/")) {
-                        uploadData.push({
-                            fileData: file.buffer,
+                    uploadData.push([
+                        ...uploadData,
+                        createUploadData(file, filePreset, {
                             filename: fileName,
-                            preset: filePreset,
-                        });
-                        parsedDoc.imageData.uploadData = uploadData;
-                    }
-
-                    if (isVideo || isAudio) {
-                        const hlsUrl = body[`${index}-changeRequestDoc-hlsUrl`];
-                        if (hlsUrl) parsedDoc.media.hlsUrl = hlsUrl;
-
-                        uploadData.push({
-                            fileData: file.buffer,
-                            preset: filePreset,
-                            mediaType: isVideo ? MediaType.Video : MediaType.Audio,
-                        });
-
-                        parsedDoc.media.uploadData = uploadData;
-                    }
+                            hlsUrl: body[`${index}-changeRequestDoc-files-hlsUrl`],
+                            mediaType: body[`${index}-changeRequestDoc-files-mediaType`],
+                        }),
+                    ]);
                 }
+
+                doc.uploadData = uploadData;
             }
-
-            const changeRequest: ChangeReqDto = {
-                id: changeReqId,
-                doc: parsedDoc,
-                apiVersion,
-            };
-
-            return this.changeRequestService.changeRequest(changeRequest, token);
         }
+
+        const changeRequest: ChangeReqDto = {
+            id: changeReqId,
+            doc: doc,
+            apiVersion,
+        };
+
+        console.log("Change request:", changeRequest.doc.uploadData);
 
         // If it is just a JSON object (not multipart), validate it correctly
         await validateApiVersion(body.apiVersion);
-        return this.changeRequestService.changeRequest(body, token);
+        return this.changeRequestService.changeRequest(changeRequest, token);
     }
 }
