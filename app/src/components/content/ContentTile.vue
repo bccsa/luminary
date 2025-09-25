@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { db, type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
-import { useRouter } from "vue-router";
 import LImage from "../images/LImage.vue";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress } from "@/globalConfig";
@@ -61,16 +60,13 @@ if (props.content.video) {
         hasProgress.value = false;
     }
 }
-
-const router = useRouter();
-
-const openContent = () => {
-    router.push({ name: "content", params: { slug: props.content.slug } });
-};
 </script>
 
 <template>
-    <div @click="openContent" class="ease-out-expo group transition hover:brightness-[1.15]">
+    <RouterLink
+        :to="{ name: 'content', params: { slug: props.content.slug } }"
+        class="ease-out-expo group transition hover:brightness-[1.15]"
+    >
         <div class="avoid-inside ease-out-expo -m-2 cursor-pointer p-2 active:shadow-inner">
             <!-- Image Wrapper (Ensures Play Icon Stays on the Image) -->
             <div class="relative">
@@ -157,5 +153,5 @@ const openContent = () => {
                 </LImage>
             </div>
         </div>
-    </div>
+    </RouterLink>
 </template>
