@@ -12,7 +12,7 @@ import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
-import { createUploadData } from "src/changeRequests/uploadHandler";
+import { createUploadData } from "../changeRequests/uploadHandler";
 
 @Controller("changerequest")
 export class ChangeRequestController {
