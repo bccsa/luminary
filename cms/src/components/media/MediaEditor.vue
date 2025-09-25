@@ -5,6 +5,7 @@ import {
     type ContentParentDto,
     maxUploadFileSize,
     type MediaUploadDataDto,
+    type MediaFileDto,
 } from "luminary-shared";
 import { computed, ref, toRaw } from "vue";
 import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
@@ -34,7 +35,7 @@ const handleFiles = (files: FileList | null) => {
             const fileData = e.target!.result as ArrayBuffer;
 
             if (fileData.byteLength > maxUploadFileSize.value) {
-                failureMessage.value = `Media filemaxUploadFileSize is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
+                failureMessage.value = `Media file is larger than the maximum allowed size of ${maxUploadFileSizeMb.value}MB`;
                 return;
             }
 
@@ -55,6 +56,7 @@ const handleFiles = (files: FileList | null) => {
                 fileData: fileData,
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
+                filename: file.name,
             });
         };
 
@@ -71,12 +73,24 @@ const upload = () => {
     handleFiles(uploadInput.value!.files);
 };
 
+const removeFileCollection = (collection: MediaFileDto) => {
+    if (!parent.value?.media?.fileCollections) return;
+
+    parent.value.media.fileCollections = parent.value.media.fileCollections
+        .filter((f) => f !== collection)
+        .map((f) => toRaw(f));
+};
+
 const removeFileUploadData = (uploadData: MediaUploadDataDto) => {
     if (!parent.value?.media?.uploadData) return;
 
     parent.value.media.uploadData = parent.value.media.uploadData
         .filter((f) => f !== uploadData)
         .map((f) => toRaw(f));
+
+    if (parent.value.media.uploadData.length === 0) {
+        delete parent.value.media.uploadData;
+    }
 };
 
 // Drag-and-drop handlers
@@ -178,6 +192,19 @@ defineExpose({
                     class="z-40 ml-4 flex w-full min-w-0 flex-1 gap-2 overflow-y-hidden py-1 scrollbar-hide"
                     data-test="thumbnail-area"
                 >
+                    <!-- File Collections -->
+                    <div
+                        v-for="c in parent.media.fileCollections"
+                        :key="c.fileUrl"
+                        class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
+                    >
+                        <MediaEditorThumbnail
+                            :mediaFile="c"
+                            @deleteFileCollection="removeFileCollection"
+                            :disabled="!disabled"
+                        />
+                    </div>
+
                     <!-- Upload Data -->
                     <div
                         v-for="(a, i) in parent.media?.uploadData"
