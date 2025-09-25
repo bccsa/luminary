@@ -50,18 +50,23 @@ export class ChangeRequestController {
                 for (const [index, file] of files.entries()) {
                     const fileName = body[`${index}-changeRequestDoc-files-filename`];
                     const filePreset = body[`${index}-changeRequestDoc-files-preset`];
+                    const mediaType = body[`${index}-changeRequestDoc-files-mediaType`];
 
                     uploadData.push([
                         ...uploadData,
                         createUploadData(file, filePreset, {
                             filename: fileName,
                             hlsUrl: body[`${index}-changeRequestDoc-files-hlsUrl`],
-                            mediaType: body[`${index}-changeRequestDoc-files-mediaType`],
+                            mediaType: mediaType, // Video or Audio
                         }),
                     ]);
                 }
 
-                doc.uploadData = uploadData;
+                if (mediaType) {
+                    doc.media.uploadData = uploadData;
+                }
+
+                doc.imageData.uploadData = uploadData;
             }
         }
 
