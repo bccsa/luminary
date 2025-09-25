@@ -164,7 +164,8 @@ defineExpose({
                 v-if="
                     parent &&
                     parent.media &&
-                    (parent.media.fileCollections.length > 0 || parent.media.uploadData)
+                    (parent.media.fileCollections.length > 0 ||
+                        (parent.media.uploadData && parent.media.uploadData.length > 0))
                 "
                 class="scrollbar-hide"
             >
