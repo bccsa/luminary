@@ -2,13 +2,15 @@
 import { TrashIcon, MusicalNoteIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import LDialog from "@/components/common/LDialog.vue";
-import type { MediaUploadDataDto } from "luminary-shared";
+import type { MediaFileDto, MediaUploadDataDto } from "luminary-shared";
 
 type Props = {
+    mediaFile?: MediaFileDto;
     mediaUploadData?: MediaUploadDataDto;
     disabled?: boolean;
 };
 const props = defineProps<Props>();
+
 const baseUrl: string = import.meta.env.VITE_CLIENT_IMAGES_URL;
 
 const src = computed(() => {
@@ -29,6 +31,7 @@ const src = computed(() => {
 });
 
 const emit = defineEmits<{
+    (e: "deleteFileCollection", imageFileCollection: MediaFileDto): void;
     (e: "deleteUploadData", mediaUploadData: MediaUploadDataDto): void;
 }>();
 
@@ -36,6 +39,10 @@ const hover = ref(false);
 const showModal = ref(false);
 
 const deleteFile = () => {
+    if (props.mediaFile) {
+        emit("deleteFileCollection", props.mediaFile);
+    }
+
     if (props.mediaUploadData) {
         emit("deleteUploadData", props.mediaUploadData);
     }
