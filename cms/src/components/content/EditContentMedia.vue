@@ -63,7 +63,7 @@ const handleFileChange = () => {
                     ref="uploadInput"
                     type="file"
                     class="hidden"
-                    accept="audio/aac, audio/mp3, audio/opus"
+                    accept="audio/aac, audio/mp3, audio/opus, audio/wav, audio/x-wav"
                     multiple
                     @change="handleFileChange"
                 />
