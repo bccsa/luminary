@@ -195,6 +195,7 @@ const userNavigation = computed(() => {
                             ]"
                             @click="item.action"
                         >
+                            <span class="sr-only">{{ item.name }}</span>
                             <component
                                 :is="item.icon"
                                 class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
