@@ -14,19 +14,16 @@ export async function processMedia(
 
     try {
         // Handle prevMedia cleanup if needed
-        // if (prevMedia) {
-        //     const prevFiles = new Set(prevMedia.fileCollections.map((f) => f.fileUrl));
-        //     const currentFiles = new Set(media.fileCollections.map((f) => f.fileUrl));
-        //     const removedFiles = [...prevFiles].filter((f) => !currentFiles.has(f));
-
-        //     if (removedFiles.length > 0) {
-        //         try {
-        //             await s3Audio.removeObjects(s3Audio.audioBucket, removedFiles);
-        //         } catch (error) {
-        //             warnings.push(`Failed to remove old audio files: ${error.message}`);
-        //         }
-        //     }
-        // }
+        if (prevMedia) {
+            // Remove file objects that were added to the media: Only the API may add audio files. A client can occasionally submit "new" audio files,
+            // but this usually will happen if an offline client saved changes to media which had file objects removed by another client.
+            // When the offline client comes online, its change request will then contain file objects that were previously removed, and
+            // as such need to be ignored.
+            media.fileCollections = prevMedia.fileCollections.filter((collection) =>
+                // Only include collections from the previous document that are also in the new document
+                media.fileCollections.some((c) => c.fileUrl === collection.fileUrl),
+            );
+        }
 
         if (media.uploadData) {
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
