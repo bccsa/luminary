@@ -1,8 +1,9 @@
 import { MediaDto } from "../dto/MediaDto";
-import { MediaUploadDataDto } from "src/dto/MediaUploadDataDto";
+import { MediaUploadDataDto } from "../dto/MediaUploadDataDto";
 import { S3AudioService } from "./s3Audio.service";
-import { MediaFileDto } from "src/dto/MediaFileDto";
+import { MediaFileDto } from "../dto/MediaFileDto";
 import { v4 as uuidv4 } from "uuid";
+import { getAudioFormatInfo, getFormatFromFilename } from "./audioFormatDetection";
 
 export async function processMedia(
     media: MediaDto,
@@ -152,7 +153,10 @@ async function validateSingleAudio(
             const mmEsm = await (mm as unknown as MusicMetadata).parserBuffer();
             const metadata = await mmEsm.parseBuffer(new Uint8Array(uploadData.fileData));
 
-            if (!metadata.format || !metadata.format.container) {
+            // Use robust format detection
+            const formatInfo = getAudioFormatInfo(metadata);
+
+            if (!formatInfo.isValidAudio) {
                 warnings.push(
                     audioFailureMessage + "Uploaded file may not be a valid audio format\n",
                 );
@@ -255,10 +259,11 @@ async function processQualitySafe(
 ): Promise<{ success: boolean; warnings: string[] }> {
     const warnings: string[] = [];
     try {
-        // Parse metadata to infer bitrate and container/extension
-        let container = "";
+        // Parse metadata to infer bitrate and format info
+        let formatInfo = { ext: "", mime: "application/octet-stream", isValidAudio: false };
         let bitrate = 0;
         const u8 = new Uint8Array(uploadData.fileData);
+
         try {
             type MusicMetadata = {
                 parserBuffer: () => Promise<typeof import("music-metadata")>;
@@ -266,59 +271,35 @@ async function processQualitySafe(
             const mm = await import("music-metadata");
             const mmEsm = await (mm as unknown as MusicMetadata).parserBuffer();
             const metadata = await mmEsm.parseBuffer(u8);
-            container = (metadata.format.container || "").toLowerCase();
+
+            // Use robust format detection instead of hardcoded mapping
+            formatInfo = getAudioFormatInfo(metadata);
             bitrate = Math.round(metadata.format.bitrate || 0);
         } catch (_err) {
-            // Fall back; container/bitrate unknown in this environment
+            // Fall back; format/bitrate unknown in this environment
         }
 
-        // Basic mapping from container to extension and mime type
-        const toExtAndMime = (c: string): { ext: string; mime: string } => {
-            if (c.includes("wav") || c.includes("wave")) return { ext: "wav", mime: "audio/wav" };
-            if (c.includes("mpeg") || c.includes("mp3")) return { ext: "mp3", mime: "audio/mpeg" };
-            if (c.includes("aac") || c.includes("adts")) return { ext: "aac", mime: "audio/aac" };
-            if (c.includes("ogg")) return { ext: "ogg", mime: "audio/ogg" };
-            if (c.includes("opus")) return { ext: "opus", mime: "audio/opus" };
-            if (c.includes("flac")) return { ext: "flac", mime: "audio/flac" };
-            return { ext: "", mime: "" };
-        };
-
         // Prefer original filename extension if provided
-        let providedExt: string | undefined;
         if (uploadData.filename && typeof uploadData.filename === "string") {
-            const parts = uploadData.filename.split(".");
-            if (parts.length > 1) {
-                providedExt = parts.pop()!.toLowerCase();
+            const filenameFormat = getFormatFromFilename(uploadData.filename);
+            if (filenameFormat.ext) {
+                formatInfo.ext = filenameFormat.ext;
+                formatInfo.mime = filenameFormat.mime;
             }
         }
 
-        // If we have a provided extension, derive a sensible mime; otherwise fall back to metadata
-        let ext = "";
-        let mime = "application/octet-stream";
-        if (providedExt) {
-            const map: Record<string, string> = {
-                mp3: "audio/mpeg",
-                wav: "audio/wav",
-                aac: "audio/aac",
-                ogg: "audio/ogg",
-                opus: "audio/opus",
-                flac: "audio/flac",
-                m4a: "audio/mp4",
-            };
-            ext = providedExt;
-            mime = map[providedExt] || mime;
-        } else {
-            const m = toExtAndMime(container);
-            ext = m.ext;
-            mime = m.mime;
+        // Fallback to generic audio if we couldn't determine format
+        if (!formatInfo.ext) {
+            formatInfo.ext = "audio";
+            formatInfo.mime = "audio/mpeg"; // safe default
         }
 
-        const key = `${uuidv4()}-${qualityLabel}.${ext}`; // include quality label e.g. "-default"
+        const key = `${uuidv4()}-${qualityLabel}.${formatInfo.ext}`; // include quality label e.g. "-default"
 
         // Upload original buffer as-is for now
         const buf = Buffer.from(u8);
 
-        await s3Audio.uploadFile(s3Audio.audioBucket, key, buf, mime);
+        await s3Audio.uploadFile(s3Audio.audioBucket, key, buf, formatInfo.mime);
 
         // Optionally, validate upload accessibility
         const validateRes = await s3Audio.validateAudioUpload(s3Audio.audioBucket, key);
