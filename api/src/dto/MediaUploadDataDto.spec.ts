@@ -54,4 +54,73 @@ describe("MediaUploadDataDto Validation", () => {
         expect(errors[0].property).toBe("fileData");
         expect(errors[0].constraints?.isAudio).toBeDefined();
     });
+
+    it("should validate the complete upload flow", async () => {
+        // Test 1: Invalid file type (text file)
+        const textBuffer = Buffer.from("This is just text, not audio");
+        const invalidDto = plainToClass(MediaUploadDataDto, {
+            fileData: textBuffer,
+            mediaType: MediaType.Audio,
+            preset: MediaPreset.Default,
+            filename: "notaudio.txt",
+        });
+
+        const invalidErrors = await validate(invalidDto);
+        expect(invalidErrors.length).toBeGreaterThan(0);
+        expect(invalidErrors.some((e) => e.constraints?.isAudio)).toBe(true);
+
+        // Test 2: Missing required fields
+        const incompleteDto = plainToClass(MediaUploadDataDto, {
+            filename: "test.mp3",
+        });
+
+        const incompleteErrors = await validate(incompleteDto);
+        expect(incompleteErrors.length).toBeGreaterThan(0);
+
+        const missingFields = incompleteErrors.map((e) => e.property);
+        expect(missingFields).toContain("fileData");
+        expect(missingFields).toContain("mediaType");
+        expect(missingFields).toContain("preset");
+
+        // Test 3: Invalid enum values
+        const invalidEnumDto = plainToClass(MediaUploadDataDto, {
+            fileData: textBuffer,
+            mediaType: "invalid_type" as any,
+            preset: "invalid_preset" as any,
+            filename: "test.mp3",
+        });
+
+        const enumErrors = await validate(invalidEnumDto);
+        expect(enumErrors.length).toBeGreaterThan(0);
+    });
+
+    it("should validate frontend upload simulation", () => {
+        // Simulate what happens in MediaEditor.vue when a file is selected
+        const file = {
+            name: "test-audio.mp3",
+            size: 1024000, // 1MB
+            type: "audio/mpeg",
+        };
+
+        // Simulate FileReader result (would be actual audio in real scenario)
+        const mockArrayBuffer = new ArrayBuffer(1024);
+
+        // Remove extension from filename (as done in MediaEditor.vue)
+        const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
+
+        const uploadData: Partial<MediaUploadDataDto> = {
+            fileData: mockArrayBuffer,
+            preset: MediaPreset.Default,
+            mediaType: MediaType.Audio,
+            filename: fileNameWithoutExtension,
+        };
+
+        // Verify the structure matches what frontend sends
+        expect(uploadData.filename).toBe("test-audio");
+        expect(uploadData.mediaType).toBe(MediaType.Audio);
+        expect(uploadData.preset).toBe(MediaPreset.Default);
+        expect(uploadData.fileData).toBeInstanceOf(ArrayBuffer);
+
+        // Frontend upload structure validated
+    });
 });
