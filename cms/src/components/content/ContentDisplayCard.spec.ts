@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import ContentDisplayCard from "./ContentDisplayCard.vue";
 import { cmsDefaultLanguage, initLanguage } from "@/globalConfig";
 import { createTestingPinia } from "@pinia/testing";
-import { db, accessMap, DocType } from "luminary-shared";
+import { db, accessMap, DocType, type LanguageDto } from "luminary-shared";
 import { setActivePinia } from "pinia";
 import * as mockData from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
@@ -48,9 +48,9 @@ describe("ContentDisplayCard", () => {
             mockData.mockPostDto,
         ]);
         await db.docs.bulkPut([
-            mockData.mockLanguageDtoEng,
-            mockData.mockLanguageDtoFra,
-            mockData.mockLanguageDtoSwa,
+            { ...mockData.mockLanguageDtoEng, default: 0 } as LanguageDto,
+            { ...mockData.mockLanguageDtoFra, default: 0 } as LanguageDto,
+            { ...mockData.mockLanguageDtoSwa, default: 1 } as LanguageDto,
         ]);
 
         await db.docs.bulkPut([

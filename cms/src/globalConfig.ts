@@ -44,22 +44,23 @@ export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
  * Array of languages to which the CMS user have translate access to
  */
 export const translatableLanguagesAsRef = ref<LanguageDto[]>([]);
-
 export async function initLanguage() {
-    // Load CMS languages from DB first
     const languages: LanguageDto[] = (await db.docs
         .where({ type: DocType.Language })
         .toArray()) as LanguageDto[];
 
-    cmsLanguages.value = languages;
+    cmsLanguages.value = [...languages];
 
-    // If already selected (from localStorage), respect it
+    // Respect saved language
     if (cmsLanguageIdAsRef.value) {
         const exists = languages.find((l) => l._id === cmsLanguageIdAsRef.value);
-        if (exists) return; // valid saved language
+        if (exists) {
+            cmsDefaultLanguage.value = languages.find((l) => l.default === 1);
+            return;
+        }
     }
 
-    // 1. Try browser-preferred
+    // Browser language
     const browserLanguages = navigator.languages.map((l) => l.toLowerCase());
     const matchedBrowserLanguage = browserLanguages
         .map((browserLang) =>
@@ -73,16 +74,36 @@ export async function initLanguage() {
 
     if (matchedBrowserLanguage) {
         cmsLanguageIdAsRef.value = matchedBrowserLanguage._id;
-        return;
+    } else {
+        // Default / fallback
+        const defaultLang = languages.find((lang) => lang.default === 1);
+        if (defaultLang) {
+            cmsLanguageIdAsRef.value = defaultLang._id;
+        } else if (languages.length > 0) {
+            cmsLanguageIdAsRef.value = languages[0]._id;
+        }
     }
 
-    // 2. Try default language
-    const defaultLang = languages.find((lang) => lang.default === 1);
-    if (defaultLang) {
-        cmsLanguageIdAsRef.value = defaultLang._id;
-        return;
-    }
+    // Always assign cmsDefaultLanguage immediately
+    cmsDefaultLanguage.value = languages.find((l) => l.default === 1);
 
-    // 3. Fallback: first available
-    if (languages.length > 0) cmsLanguageIdAsRef.value = languages[0]._id;
+    // Live query keeps them up-to-date
+    const _cmsLanguages = useDexieLiveQuery(
+        () =>
+            db.docs.where("type").equals("language").toArray() as unknown as Promise<LanguageDto[]>,
+        { initialValue: [] as LanguageDto[] },
+    );
+
+    watch(_cmsLanguages, (languages) => {
+        cmsLanguages.value = [...languages];
+        const defaultLang = languages.find((l) => l.default === 1);
+
+        translatableLanguagesAsRef.value = languages.filter((lang) =>
+            verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
+        );
+
+        if (!_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) {
+            cmsDefaultLanguage.value = defaultLang;
+        }
+    });
 }
