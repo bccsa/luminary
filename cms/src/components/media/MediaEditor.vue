@@ -52,11 +52,14 @@ const handleFiles = (files: FileList | null) => {
 
             failureMessage.value = "";
 
+            // remove extension from filename
+            const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
+
             parent.value.media.uploadData.push({
                 fileData: fileData,
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
-                filename: file.name,
+                filename: fileNameWithoutExtension,
             });
         };
 
@@ -165,7 +168,7 @@ defineExpose({
                         ref="uploadInput"
                         type="file"
                         class="mb-4 hidden"
-                        accept="audio/mp3, audio/aac, audio/opus"
+                        accept="audio/mp3, audio/aac, audio/opus, audio/wav, audio/x-wav"
                         @change="upload"
                         data-test="audio-upload"
                         multiple
