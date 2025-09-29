@@ -1,4 +1,5 @@
 import { registerDecorator } from "class-validator";
+import { getAudioFormatInfo } from "../s3-audio/audioFormatDetection";
 
 type MusicMetadata = {
     parserBuffer: () => Promise<typeof import("music-metadata")>;
@@ -22,14 +23,9 @@ export function IsAudio() {
                         // value should be a Buffer or readable stream
                         const metadata = await mmEsm.parseBuffer(new Uint8Array(value));
 
-                        // Check if it's an audio file
-                        return (
-                            metadata.format.container === "mp3" ||
-                            metadata.format.container === "wav" ||
-                            metadata.format.container === "ogg" ||
-                            metadata.format.container === "aac" ||
-                            metadata.format.container === "opus"
-                        );
+                        // Use robust format detection instead of hardcoded checks
+                        const formatInfo = getAudioFormatInfo(metadata);
+                        return formatInfo.isValidAudio;
                     } catch {
                         return false;
                     }
