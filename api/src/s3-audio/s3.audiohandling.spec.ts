@@ -18,7 +18,10 @@ describe("S3AudioHandler", () => {
     });
 
     afterAll(async () => {
-        const removeFiles = resAudios.flatMap((r) => r.fileCollections.map((f) => f.fileUrl));
+        // Cleanup uploaded audio files
+        const removeFiles = resAudios.flatMap((r) =>
+            r.fileCollections.map((f) => f.fileUrl.split("/").pop()!),
+        );
         await service.removeObjects(service.audioBucket, removeFiles);
         await service.removeBucket(service.audioBucket);
     });
@@ -75,8 +78,9 @@ describe("S3AudioHandler", () => {
 
         // Check if removed files are gone
         for (const file of removedFiles) {
-            const res = await service.getObject(service.audioBucket, file);
-            expect(res).toBeUndefined();
+            let error;
+            await service.getObject(service.audioBucket, file).catch((e) => (error = e));
+            expect(error).toBeDefined();
         }
 
         // Check if remaining files are still there
@@ -85,6 +89,37 @@ describe("S3AudioHandler", () => {
             const res = await service.getObject(service.audioBucket, file);
             expect(res).toBeDefined();
         }
+
+        resAudios.push(audio);
+    });
+
+    it("discards user-added file collection objects", async () => {
+        const audio = new MediaDto();
+        audio.fileCollections = [];
+        audio.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../test/" + "silence.wav"),
+                ) as unknown as ArrayBuffer,
+                preset: MediaPreset.Default,
+                mediaType: MediaType.Audio,
+            },
+        ];
+        await processMedia(audio, undefined, service);
+
+        const audio2 = JSON.parse(JSON.stringify(audio)) as MediaDto;
+        audio2.fileCollections.push({
+            languageId: "invalid",
+            fileUrl: "http://example.com/invalid.mp3",
+            filename: "invalid",
+            bitrate: 128,
+            mediaType: MediaType.Audio,
+        });
+
+        await processMedia(audio2, audio, service);
+
+        // Check if the client-added file collection is removed
+        expect(audio2.fileCollections.length).toBe(1);
 
         resAudios.push(audio);
     });
