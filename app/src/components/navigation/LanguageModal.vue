@@ -121,7 +121,10 @@ const removeFromSelected = (id: string) => {
                                     ? 'cursor-auto text-zinc-400 hover:text-zinc-400 dark:text-slate-400 hover:dark:text-slate-400'
                                     : ''
                             "
-                        />
+                            ><span class="sr-only">
+                                Remove {{ language.name }} from selected languages
+                            </span></CheckCircleIcon
+                        >
                         <div class="flex w-full justify-between">
                             <div class="flex w-full items-center">
                                 <span class="text-sm">{{ language.name }}</span>
@@ -157,8 +160,9 @@ const removeFromSelected = (id: string) => {
             >
                 <PlusCircleIcon
                     class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
-                ></PlusCircleIcon>
-
+                >
+                    <span class="sr-only">Add {{ language.name }} to selected languages</span>
+                </PlusCircleIcon>
                 <div class="flex w-full justify-between">
                     <div class="flex w-full items-center gap-1">
                         <span class="text-sm">{{ language.name }}</span>
@@ -174,6 +178,7 @@ const removeFromSelected = (id: string) => {
                 class="w-full"
                 @click="emit('close')"
             >
+                <span class="sr-only">Close language selection modal</span>
                 {{ t("language.modal.close") }}
             </LButton>
         </template>
