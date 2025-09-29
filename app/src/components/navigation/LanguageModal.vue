@@ -113,9 +113,6 @@ const removeFromSelected = (id: string) => {
                         class="flex w-full cursor-pointer items-center gap-1"
                         @click="removeFromSelected(language._id)"
                     >
-                        <span class="sr-only">
-                            Remove {{ language.name }} from selected languages
-                        </span>
                         <CheckCircleIcon
                             v-if="appLanguageIdsAsRef.includes(language._id)"
                             class="h-5 w-5 cursor-pointer text-yellow-500 hover:text-yellow-400"
@@ -124,7 +121,10 @@ const removeFromSelected = (id: string) => {
                                     ? 'cursor-auto text-zinc-400 hover:text-zinc-400 dark:text-slate-400 hover:dark:text-slate-400'
                                     : ''
                             "
-                        />
+                            ><span class="sr-only">
+                                Remove {{ language.name }} from selected languages
+                            </span></CheckCircleIcon
+                        >
                         <div class="flex w-full justify-between">
                             <div class="flex w-full items-center">
                                 <span class="text-sm">{{ language.name }}</span>
@@ -158,10 +158,11 @@ const removeFromSelected = (id: string) => {
                 data-test="add-language-button"
                 @click="setLanguage(language._id)"
             >
-                <span class="sr-only">Add {{ language.name }} to selected languages</span>
                 <PlusCircleIcon
                     class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
-                ></PlusCircleIcon>
+                >
+                    <span class="sr-only">Add {{ language.name }} to selected languages</span>
+                </PlusCircleIcon>
                 <div class="flex w-full justify-between">
                     <div class="flex w-full items-center gap-1">
                         <span class="text-sm">{{ language.name }}</span>

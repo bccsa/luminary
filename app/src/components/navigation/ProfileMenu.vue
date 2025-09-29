@@ -195,9 +195,9 @@ const userNavigation = computed(() => {
                             ]"
                             @click="item.action"
                         >
-                            <!-- This is for the multi-language suport ssg-prerendering
-                                Our i18n translations are too dynamic, so need something static that won't
-                                change for crawler.  
+                            <!--    This is for the multi-language suport ssg-prerendering
+                                    Our i18n translations are too dynamic, so need something static that won't
+                                    change for crawler.  
                             -->
                             <span v-if="item.language" class="sr-only"
                                 >Navigate to language modal</span
