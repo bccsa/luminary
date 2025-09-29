@@ -24,7 +24,7 @@ type Props = {
     content: ContentDto;
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const togglePlay = async () => {
     if (!audioElement.value) return;
@@ -108,18 +108,35 @@ const onPointerUp = () => {
     currentY.value = 0;
     isDragging.value = false;
 };
+
+const selectAudio = (index: number) => {
+    if (!props.content.parentMedia?.fileCollections || !audioElement.value) return;
+
+    const selectedAudio = props.content.parentMedia.fileCollections[index];
+    if (selectedAudio && selectedAudio.fileUrl) {
+        audioElement.value.src = selectedAudio.fileUrl;
+        audioElement.value.play().catch((err) => {
+            console.error("Play failed:", err);
+        });
+    }
+};
 </script>
 
 <template>
     <div class="left-0 right-0 z-40 lg:fixed lg:bottom-6 lg:left-auto lg:right-6 lg:rounded-lg">
         <!-- Hidden audio element -->
-        <audio ref="audioElement" :src="content.audio" preload="auto" class="hidden" />
+        <audio
+            ref="audioElement"
+            :src="content.parentMedia?.fileCollections[1].fileUrl"
+            preload="auto"
+            class="hidden"
+        />
 
         <!-- Expanded Player -->
         <transition name="slide-up">
             <div
                 v-show="isExpanded"
-                class="expanded-player z-50 flex w-full flex-col bg-zinc-200 dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:w-80 lg:rounded-2xl"
+                class="expanded-player z-50 flex w-full flex-col bg-amber-100/50 dark:bg-slate-600 lg:inset-x-0 lg:bottom-6 lg:mx-auto lg:w-80 lg:rounded-2xl"
                 :style="{
                     transform: currentY ? `translateY(${currentY}px)` : 'none',
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out',
@@ -243,6 +260,22 @@ const onPointerUp = () => {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+                <!-- List of audios -->
+                <div class="flex flex-col">
+                    <div
+                        v-for="(audio, index) in content.parentMedia?.fileCollections"
+                        :key="index"
+                        @click="selectAudio(index)"
+                        class="flex items-center justify-between border-b border-gray-200 p-2"
+                        :class="{
+                            'bg-yellow-300 dark:bg-slate-500': audioElement?.src === audio.fileUrl,
+                            'hover:bg-gray-100 dark:hover:bg-slate-700':
+                                audioElement?.src !== audio.fileUrl,
+                        }"
+                    >
+                        <span class="font-small text-sm">{{ audio.filename }}</span>
                     </div>
                 </div>
             </div>
