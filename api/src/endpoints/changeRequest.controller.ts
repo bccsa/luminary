@@ -32,8 +32,6 @@ export class ChangeRequestController {
         @Body() body,
         @Headers("Authorization") authHeader: string,
     ) {
-        console.log("Body: ", body);
-        console.log("Files:", files);
         const token = authHeader?.replace("Bearer ", "") ?? "";
         const doc = JSON.parse(body["changeRequestDoc-JSON"]);
         const changeReqId = JSON.parse(body["changeRequestId"]);
