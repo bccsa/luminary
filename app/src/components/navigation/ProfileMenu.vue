@@ -195,7 +195,13 @@ const userNavigation = computed(() => {
                             ]"
                             @click="item.action"
                         >
-                            <span class="sr-only">Navigate to {{ item.name }} menu item</span>
+                            <!-- This is for the multi-language suport ssg-prerendering
+                                Our i18n translations are too dynamic, so need something static that won't
+                                change for crawler.  
+                            -->
+                            <span v-if="item.language" class="sr-only"
+                                >Navigate to language modal</span
+                            >
                             <component
                                 :is="item.icon"
                                 class="h-5 w-5 flex-shrink-0 text-zinc-500 dark:text-slate-300"
