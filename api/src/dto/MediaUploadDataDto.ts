@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { Expose } from "class-transformer";
 import { IsAudio } from "../validation/IsAudio";
 import { MediaPreset, MediaType } from "../enums";
@@ -21,4 +21,9 @@ export class MediaUploadDataDto {
     @IsNotEmpty()
     @Expose()
     preset: MediaPreset;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
+    filename?: string;
 }
