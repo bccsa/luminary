@@ -178,6 +178,7 @@ const removeFromSelected = (id: string) => {
                 class="w-full"
                 @click="emit('close')"
             >
+                <span class="sr-only">Close language selection modal</span>
                 {{ t("language.modal.close") }}
             </LButton>
         </template>
