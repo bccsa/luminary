@@ -211,7 +211,11 @@ async function validatAudioProcessing(
         }
 
         // validate existing audio files are accessible
-        if (doc && Array.isArray(doc.fileCollections) && doc.fileCollections.length > 0) {
+        if (
+            doc &&
+            typeof doc.fileCollections == typeof MediaFileDto &&
+            doc.fileCollections.length > 0
+        ) {
             const keys = doc.fileCollections
                 .map((f) =>
                     typeof f.fileUrl === "string" ? f.fileUrl.split("/").pop() : undefined,
@@ -291,7 +295,7 @@ async function processQualitySafe(
             formatInfo.mime = "audio/mpeg"; // safe default
         }
 
-        const key = `${uuidv4()}-${qualityLabel}.${formatInfo.ext}`; // include quality label e.g. "-default"
+        const key = `${uuidv4()}-${qualityLabel}`;
 
         // Upload original buffer as-is for now
         const buf = Buffer.from(u8);
@@ -305,8 +309,8 @@ async function processQualitySafe(
         }
 
         const file = new MediaFileDto();
-        // languageId isn't specified in uploadData; default to 'default' to satisfy validation
-        file.languageId = "default";
+
+        file.languageId = (uploadData as MediaUploadDataDto).languageId;
         file.fileUrl = s3Audio.getAudioUrl(key);
         file.filename = uploadData.filename;
         file.bitrate = bitrate;
