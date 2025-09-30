@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { type ContentParentDto, type DocType, type PostType, type TagType } from "luminary-shared";
+import {
+    type ContentParentDto,
+    type DocType,
+    type PostType,
+    type TagType,
+    maxUploadFileSize,
+} from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import { QuestionMarkCircleIcon, ArrowUpOnSquareIcon, FilmIcon } from "@heroicons/vue/24/outline";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import LButton from "../button/LButton.vue";
 import MediaEditor from "../media/MediaEditor.vue";
 
@@ -13,10 +19,28 @@ type Props = {
     newDocument?: boolean;
     selectedLanguageId?: string;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const parent = defineModel<ContentParentDto>("parent");
 const showHelp = ref(false);
+const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+
+// Check if media exists for current language
+const hasMediaForCurrentLanguage = computed(() => {
+    if (!parent.value?.media || !props.selectedLanguageId) {
+        return false;
+    }
+
+    const hasFileCollections = parent.value.media.fileCollections?.some(
+        (f) => f.languageId === props.selectedLanguageId,
+    );
+
+    const hasUploadData = parent.value.media.uploadData?.some(
+        (f) => f.languageId === props.selectedLanguageId,
+    );
+
+    return hasFileCollections || hasUploadData;
+});
 
 const mediaEditorRef = ref<InstanceType<typeof MediaEditor> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);
@@ -33,7 +57,10 @@ const triggerFilePicker = () => {
 const handleFileChange = () => {
     const files = uploadInput.value?.files;
     if (files?.length && mediaEditorRef.value?.handleFiles) {
-        mediaEditorRef.value.handleFiles(files);
+        // Only process the first file since we allow one media per language
+        const fileList = new DataTransfer();
+        fileList.items.add(files[0]);
+        mediaEditorRef.value.handleFiles(fileList.files);
         uploadInput.value!.value = ""; // reset input
     }
 };
@@ -55,9 +82,14 @@ const handleFileChange = () => {
                     size="base"
                     :disabled="disabled"
                     @click.stop="triggerFilePicker"
+                    data-test="upload-button"
                 >
-                    <span class="block sm:hidden">Upload Audio</span>
-                    <span class="hidden text-sm sm:inline">Upload</span>
+                    <span class="block sm:hidden">{{
+                        hasMediaForCurrentLanguage ? "Replace Audio" : "Upload Audio"
+                    }}</span>
+                    <span class="hidden text-sm sm:inline">{{
+                        hasMediaForCurrentLanguage ? "Replace" : "Upload"
+                    }}</span>
                 </LButton>
 
                 <input
@@ -65,7 +97,6 @@ const handleFileChange = () => {
                     type="file"
                     class="hidden"
                     accept="audio/aac, audio/mp3, audio/opus, audio/wav, audio/x-wav"
-                    multiple
                     @change="handleFileChange"
                 />
             </div>
@@ -76,16 +107,16 @@ const handleFileChange = () => {
                 <QuestionMarkCircleIcon class="h-5 w-5" />
             </button>
         </template>
-        <!-- <div v-if="showHelp">
-            <p class="my-2 text-xs">
-                You can upload several files in different aspect ratios. The most suitable image
-                will automatically be displayed based on the aspect ratio of the image element where
-                the image is displayed.
+        <div v-if="showHelp">
+            <p class="mb-2 text-xs">
+                You can upload one audio file per language translation. Uploading a new file will
+                replace any existing audio file for the current language.
             </p>
             <p class="mb-2 text-xs">
-                Uploaded images are automatically scaled for various screen and display sizes.
+                Supported formats: MP3, AAC, Opus, WAV. Maximum file size:
+                {{ maxUploadFileSizeMb }}MB.
             </p>
-        </div> -->
+        </div>
         <MediaEditor
             ref="mediaEditorRef"
             :disabled="disabled"
