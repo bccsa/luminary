@@ -40,6 +40,7 @@ describe("S3AudioHandler", () => {
                 ) as unknown as ArrayBuffer,
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
+                languageId: "lang-eng",
             },
         ];
         await processMedia(audio, undefined, service);
@@ -62,6 +63,7 @@ describe("S3AudioHandler", () => {
                 ) as unknown as ArrayBuffer,
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
+                languageId: "lang-eng",
             },
         ];
         await processMedia(audio, undefined, service);
@@ -103,6 +105,7 @@ describe("S3AudioHandler", () => {
                 ) as unknown as ArrayBuffer,
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
+                languageId: "lang-eng",
             },
         ];
         await processMedia(audio, undefined, service);
