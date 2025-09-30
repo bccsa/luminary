@@ -572,20 +572,25 @@ const showLanguageSelector = ref(false);
 const showContentActionMenuMobile = ref(false);
 const showContentActionMenuDesktop = ref(false);
 
-const contentActions = ref([
-    {
-        name: "Duplicate",
-        action: duplicate,
-        icon: DocumentDuplicateIcon,
-        iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
-    },
-    {
-        name: "Delete",
-        action: () => (showDeleteModal.value = true),
-        icon: TrashIcon,
-        iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
-    },
-]);
+const contentActions = computed(() => {
+    const actions = [
+        {
+            name: "Duplicate",
+            action: duplicate,
+            icon: DocumentDuplicateIcon,
+            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+        },
+    ];
+    if (canDelete.value) {
+        actions.push({
+            name: "Delete",
+            action: () => (showDeleteModal.value = true),
+            icon: TrashIcon,
+            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+        });
+    }
+    return actions;
+});
 </script>
 
 <template>
@@ -678,6 +683,7 @@ const contentActions = ref([
                                         action.action();
                                         showContentActionMenuMobile = false;
                                     "
+                                    :data-test="action.name.toLowerCase() + '-button'"
                                     class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-900 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
                                 >
                                     <component
@@ -898,8 +904,8 @@ const contentActions = ref([
         :title="`Delete ${props.tagOrPostType} and all translations`"
         :description="`Are you sure you want to delete this ${props.tagOrPostType} and all the translations? This action cannot be undone.`"
         :primaryAction="
-            () => {
-                deleteParent();
+            async () => {
+                await deleteParent();
                 showDeleteModal = false;
             }
         "
@@ -907,14 +913,14 @@ const contentActions = ref([
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         context="danger"
-    ></LDialog>
+    />
     <LDialog
         v-model:open="showDuplicateModal"
         :title="`Duplicate ${props.tagOrPostType} and all translations`"
         :description="`Are you sure you want to duplicate this ${props.tagOrPostType} and all the translations without saving? Consider saving this ${props.tagOrPostType} before continuing to not lose changes.`"
         :primaryAction="
-            () => {
-                duplicate();
+            async () => {
+                await duplicate();
                 showDuplicateModal = false;
             }
         "
@@ -922,5 +928,5 @@ const contentActions = ref([
         primaryButtonText="Duplicate"
         secondaryButtonText="Cancel"
         context="danger"
-    ></LDialog>
+    />
 </template>
