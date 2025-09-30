@@ -24,7 +24,7 @@ type Props = {
     content: ContentDto;
 };
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const togglePlay = async () => {
     if (!audioElement.value) return;
@@ -108,18 +108,6 @@ const onPointerUp = () => {
     currentY.value = 0;
     isDragging.value = false;
 };
-
-const selectAudio = (index: number) => {
-    if (!props.content.parentMedia?.fileCollections || !audioElement.value) return;
-
-    const selectedAudio = props.content.parentMedia.fileCollections[index];
-    if (selectedAudio && selectedAudio.fileUrl) {
-        audioElement.value.src = selectedAudio.fileUrl;
-        audioElement.value.play().catch((err) => {
-            console.error("Play failed:", err);
-        });
-    }
-};
 </script>
 
 <template>
@@ -127,7 +115,7 @@ const selectAudio = (index: number) => {
         <!-- Hidden audio element -->
         <audio
             ref="audioElement"
-            :src="content.parentMedia?.fileCollections[1].fileUrl"
+            :src="content.parentMedia?.fileCollections[0].fileUrl"
             preload="auto"
             class="hidden"
         />
@@ -260,22 +248,6 @@ const selectAudio = (index: number) => {
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </div>
-                <!-- List of audios -->
-                <div class="flex flex-col">
-                    <div
-                        v-for="(audio, index) in content.parentMedia?.fileCollections"
-                        :key="index"
-                        @click="selectAudio(index)"
-                        class="flex items-center justify-between border-b border-gray-200 p-2"
-                        :class="{
-                            'bg-yellow-300 dark:bg-slate-500': audioElement?.src === audio.fileUrl,
-                            'hover:bg-gray-100 dark:hover:bg-slate-700':
-                                audioElement?.src !== audio.fileUrl,
-                        }"
-                    >
-                        <span class="font-small text-sm">{{ audio.filename }}</span>
                     </div>
                 </div>
             </div>
