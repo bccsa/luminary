@@ -55,6 +55,7 @@ export class ChangeRequestController {
                         // TODO: change after #1208 is implemented
                         const fileName = fields[`${index}-changeRequestDoc-files-filename`];
                         const filePreset = fields[`${index}-changeRequestDoc-files-preset`];
+                        const languageId = fields[`${index}-changeRequestDoc-files-languageId`];
 
                         const fileType = await fileTypeFromBuffer(new Uint8Array(file.buffer));
 
@@ -77,6 +78,7 @@ export class ChangeRequestController {
                                 fileData: file.buffer,
                                 preset: filePreset,
                                 mediaType: isVideo ? MediaType.Video : MediaType.Audio,
+                                languageId: languageId,
                             });
                         }
                     }
