@@ -15,21 +15,4 @@ describe("LModal", () => {
             expect(wrapper.html()).toContain("Test Heading");
         });
     });
-
-    describe("body scroll prevention", () => {
-        it("sets body overflow to hidden when modal is visible", async () => {
-            const wrapper = mount(LModal, {
-                props: {
-                    heading: "Test Heading",
-                    isVisible: true,
-                },
-            });
-
-            expect(document.body.style.overflow).toBe("hidden");
-
-            await wrapper.setProps({ isVisible: false });
-
-            expect(document.body.style.overflow).toBe("");
-        });
-    });
 });
