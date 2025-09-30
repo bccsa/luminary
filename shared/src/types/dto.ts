@@ -180,6 +180,7 @@ export type MediaDto = {
 
 export type MediaFileDto = {
     languageId: string;
+    filename: string;
     fileUrl: string;
     bitrate: number;
     mediaType: MediaType;
