@@ -13,6 +13,7 @@ describe("MediaUploadDataDto Validation", () => {
             mediaType: MediaType.Audio,
             preset: MediaPreset.Default,
             filename: "fake.mp3",
+            languageId: "lang-eng",
         });
 
         const errors = await validate(dto);
@@ -46,6 +47,7 @@ describe("MediaUploadDataDto Validation", () => {
             mediaType: MediaType.Audio,
             preset: MediaPreset.Default,
             filename: "test.wav",
+            languageId: "lang-eng",
         });
 
         // Should only fail on audio validation, not on required fields
@@ -63,6 +65,7 @@ describe("MediaUploadDataDto Validation", () => {
             mediaType: MediaType.Audio,
             preset: MediaPreset.Default,
             filename: "notaudio.txt",
+            languageId: "lang-eng",
         });
 
         const invalidErrors = await validate(invalidDto);
@@ -113,6 +116,7 @@ describe("MediaUploadDataDto Validation", () => {
             preset: MediaPreset.Default,
             mediaType: MediaType.Audio,
             filename: fileNameWithoutExtension,
+            languageId: "lang-eng",
         };
 
         // Verify the structure matches what frontend sends
