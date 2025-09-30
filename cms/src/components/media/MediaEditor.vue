@@ -12,9 +12,10 @@ import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
 
 type Props = {
+    selectedLanguageId?: string;
     disabled: boolean;
 };
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
@@ -60,6 +61,7 @@ const handleFiles = (files: FileList | null) => {
                 preset: MediaPreset.Default,
                 mediaType: MediaType.Audio,
                 filename: fileNameWithoutExtension,
+                languageId: props.selectedLanguageId,
             });
         };
 
