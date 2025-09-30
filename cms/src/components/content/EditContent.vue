@@ -813,6 +813,7 @@ watch(
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
                             v-model:parent="editableParent"
+                            :selectedLanguageId="selectedLanguage?._id"
                         />
 
                         <div class="sticky -top-1 z-10">
