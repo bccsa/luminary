@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LTeleport from "../common/LTeleport.vue";
+import { watch } from "vue";
 
 type Props = {
     heading: string;
@@ -18,10 +19,6 @@ const isVisible = defineModel<boolean>("isVisible");
             <!-- Modal content at higher z-index -->
             <div
                 class="relative z-50 max-h-screen w-full max-w-md rounded-lg bg-white/90 p-5 shadow-xl"
-                @touchmove.prevent
-                @wheel.stop
-                @touchmove.stop
-                @wheel.prevent
             >
                 <h2 class="mb-4 text-lg font-semibold">{{ heading }}</h2>
                 <div class="divide-y divide-zinc-200">
